@@ -26,4 +26,4 @@ fun main(args: Array<String>) {
 
 
 @Bean
-fun objectMapperBuilder(): Jackson2ObjectMapperBuilder = Jackson2ObjectMapperBuilder().modulesToInstall(KotlinModule()).modulesToInstall(JavaTimeModule())
+fun objectMapperBuilder(): Jackson2ObjectMapperBuilder = Jackson2ObjectMapperBuilder().modulesToInstall(KotlinModule.Builder().build()).modulesToInstall(JavaTimeModule())
