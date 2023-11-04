@@ -1,10 +1,10 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    id("org.springframework.boot") version "3.0.2"
-    id("io.spring.dependency-management") version "1.1.0"
-    kotlin("plugin.spring") version "1.8.20"
-    kotlin("jvm") version "1.8.20"
+    id("org.springframework.boot") version "3.1.5"
+    id("io.spring.dependency-management") version "1.1.3"
+    kotlin("plugin.spring") version "1.9.20"
+    kotlin("jvm") version "1.9.20"
 }
 
 group = "net.onelitefeather.blackhole"
@@ -31,13 +31,15 @@ dependencies {
     testImplementation("org.springframework.security:spring-security-test")
 }
 
-tasks.withType<KotlinCompile> {
-    kotlinOptions {
-        freeCompilerArgs = listOf("-Xjsr305=strict")
-        jvmTarget = "17"
+tasks {
+    compileKotlin {
+        compilerOptions {
+            freeCompilerArgs = listOf("-Xjsr305=strict")
+            jvmTarget.set(JvmTarget.JVM_17)
+        }
     }
-}
 
-tasks.withType<Test> {
-    useJUnitPlatform()
+    test {
+        useJUnitPlatform()
+    }
 }
