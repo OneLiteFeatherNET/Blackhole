@@ -43,9 +43,6 @@ dependencyResolutionManagement {
     versionCatalogs {
         create("libs") {
             version("micronaut", "4.4.4")
-            version("junit", "5.11.3")
-            library("junit.api", "org.junit.jupiter", "junit-jupiter-api").versionRef("junit")
-            library("junit.engine", "org.junit.jupiter", "junit-jupiter-engine").versionRef("junit")
 
 
             plugin("micronaut.application", "io.micronaut.application").versionRef("micronaut")
@@ -54,3 +51,4 @@ dependencyResolutionManagement {
     }
 }
 include("backend")
+include("api")
