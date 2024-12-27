@@ -2,9 +2,11 @@ package net.onelitefeather.blackhole.api.template;
 
 import net.onelitefeather.blackhole.api.metadata.Metadata;
 import net.onelitefeather.blackhole.api.punish.PunishType;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
+import java.util.Map;
 
 /**
  * The interface defines the basic structure to describe a template in the punishment system.
@@ -25,13 +27,21 @@ public sealed interface PunishTemplate extends Metadata permits PunishTemplateDT
      *
      * @return a new builder
      */
+    @Contract(pure = true)
     static @NotNull Builder builder() {
         return new PunishTemplateBuilder();
     }
 
+    @Contract(value = "_ -> new", pure = true)
     static @NotNull Builder builder(@NotNull PunishTemplate punishTemplate) {
         return new PunishTemplateBuilder(punishTemplate);
     }
+
+    @Contract(value = "_ -> new", pure = true)
+    static @NotNull Builder builder( @NotNull Map<String, Object> metaData) {
+        return new PunishTemplateBuilder(metaData);
+    }
+
     /**
      * The type of the punishment.
      *
