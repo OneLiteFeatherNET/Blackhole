@@ -10,14 +10,23 @@ dependencies {
     annotationProcessor(mn.micronaut.serde.processor)
     annotationProcessor(mn.micronaut.http.validation)
 
+    implementation(project(":api"))
+
     implementation(mn.micronaut.runtime)
     implementation(mn.validation)
     implementation(mn.micronaut.http.client.jdk)
     implementation(mn.micronaut.cache.caffeine)
     implementation(mn.micronaut.serde.jackson)
+    implementation(mn.micronaut.hibernate.jpa)
+    implementation(mn.micronaut.hibernate.validator)
+    implementation(mn.micronaut.data.tx.hibernate)
+    implementation(mn.micronaut.jdbc.hikari)
+    runtimeOnly(mn.mariadb.java.client)
+    runtimeOnly(mn.postgresql)
+    runtimeOnly(mn.h2)
 
-    testImplementation(libs.junit.api)
-    testRuntimeOnly(libs.junit.engine)
+    testImplementation(mn.junit.jupiter.api)
+    testRuntimeOnly(mn.junit.jupiter.engine)
 }
 
 java {
