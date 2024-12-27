@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.api.punish;
 
 import net.onelitefeather.blackhole.api.metadata.Metadata;
+import net.onelitefeather.blackhole.api.template.PunishTemplate;
 import net.onelitefeather.blackhole.api.utils.IdGenerator;
 import org.jetbrains.annotations.NotNull;
 
@@ -13,6 +14,7 @@ public final class PunishEntryBuilder implements PunishEntry.Builder {
     private final String identifier;
     private PunishType type;
     private UUID source;
+    private PunishTemplate template;
     private final Map<String, Object> metaData = new HashMap<>();
 
     public PunishEntryBuilder() {
@@ -25,6 +27,7 @@ public final class PunishEntryBuilder implements PunishEntry.Builder {
         this.type = punishEntry.type();
         this.source = punishEntry.source();
         this.metaData.putAll(punishEntry.metaData());
+        this.template = punishEntry.template();
     }
 
     @Override
@@ -40,14 +43,27 @@ public final class PunishEntryBuilder implements PunishEntry.Builder {
     }
 
     @Override
+    public PunishEntry.@NotNull Builder template(@NotNull PunishTemplate template) {
+        this.template = template;
+        return this;
+    }
+
+    @Override
     public @NotNull PunishEntry build() {
         if (this.type == null) {
             throw new IllegalStateException("The ban type must be set");
         }
 
+        if (this.source == null) {
+            throw new IllegalStateException("The source must be set");
+        }
+        if (this.template == null) {
+            throw new IllegalStateException("The template must be set");
+        }
+
         this.metaData.computeIfAbsent(Metadata.META_DATA_KEY_CREATION_DATE, key -> System.currentTimeMillis());
         this.metaData.put(Metadata.META_DATA_KEY_UPDATE_DATE, System.currentTimeMillis());
 
-        return new PunishEntryDTO(this.identifier, this.type, this.source, this.metaData);
+        return new PunishEntryDTO(this.identifier, this.type, this.source, this.template, this.metaData);
     }
 }

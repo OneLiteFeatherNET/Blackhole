@@ -1,6 +1,9 @@
 package net.onelitefeather.blackhole.api.punish;
 
+import net.onelitefeather.blackhole.api.template.PunishTemplate;
 import org.junit.jupiter.api.Test;
+
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -9,8 +12,15 @@ class PunishEntryTest {
     @Test
     void testObjectCreation() {
         long current = System.currentTimeMillis();
+        PunishTemplate template = PunishTemplate.builder()
+                .identifier(UUID.randomUUID())
+                .reason("Test")
+                .type(PunishType.NETWORK)
+                .build();
         PunishEntry entry = PunishEntry.builder()
                 .type(PunishType.SERVER)
+                .source(UUID.randomUUID())
+                .template(template)
                 .build();
         assertNotNull(entry);
         assertEquals(PunishType.SERVER, entry.type());
@@ -19,8 +29,16 @@ class PunishEntryTest {
 
     @Test
     void testObjectManipulation() {
+        PunishTemplate template = PunishTemplate.builder()
+                .identifier(UUID.randomUUID())
+                .reason("Test")
+                .type(PunishType.NETWORK)
+                .build();
+
         PunishEntry entry = PunishEntry.builder()
                 .type(PunishType.SERVER)
+                .source(UUID.randomUUID())
+                .template(template)
                 .build();
         assertNotNull(entry);
 
