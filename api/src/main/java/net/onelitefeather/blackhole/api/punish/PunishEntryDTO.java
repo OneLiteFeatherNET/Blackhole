@@ -1,6 +1,8 @@
 package net.onelitefeather.blackhole.api.punish;
 
+import net.onelitefeather.blackhole.api.metadata.Expirable;
 import net.onelitefeather.blackhole.api.metadata.Metadata;
+import net.onelitefeather.blackhole.api.template.PunishTemplate;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -14,6 +16,7 @@ import java.util.UUID;
  * @param identifier   the identifier of the punishment
  * @param type         the type of the punishment
  * @param source       the source of the punishment
+ * @param template     the template of the punishment
  * @param metaData     the metadata of the punishment
  * @author theEvilReaper
  * @version 1.0.0
@@ -23,6 +26,7 @@ record PunishEntryDTO(
         @NotNull String identifier,
         @NotNull PunishType type,
         @NotNull UUID source,
+        @NotNull PunishTemplate template,
         @NotNull Map<String, Object> metaData
 ) implements PunishEntry {
 
@@ -54,5 +58,10 @@ record PunishEntryDTO(
     @Override
     public long updateDate() {
         return Optional.ofNullable(this.metaData.get(Metadata.META_DATA_KEY_UPDATE_DATE)).map(Long.class::cast).orElseThrow();
+    }
+
+    @Override
+    public long expirationDate() {
+        return Optional.ofNullable(this.metaData.get(Expirable.META_DATA_KEY_EXPIRATION_DATE)).map(Long.class::cast).orElseThrow();
     }
 }

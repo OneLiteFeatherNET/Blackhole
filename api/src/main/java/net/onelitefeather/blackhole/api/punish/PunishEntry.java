@@ -1,6 +1,8 @@
 package net.onelitefeather.blackhole.api.punish;
 
+import net.onelitefeather.blackhole.api.metadata.Expirable;
 import net.onelitefeather.blackhole.api.metadata.Metadata;
+import net.onelitefeather.blackhole.api.template.PunishTemplate;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
@@ -10,7 +12,7 @@ import java.util.UUID;
  * The interface defines the basic structure to describe an entry in the punishment system.
  * The entry contains the type of the punishment and the creation date.
  */
-public sealed interface PunishEntry extends Metadata permits PunishEntryDTO {
+public sealed interface PunishEntry extends Metadata, Expirable permits PunishEntryDTO {
 
     /**
      * Creates a new {@link PunishEntry.Builder}.
@@ -54,6 +56,13 @@ public sealed interface PunishEntry extends Metadata permits PunishEntryDTO {
      */
     @NotNull UUID source();
 
+    /**
+     * The template of the ban.
+     *
+     * @return the template of the ban
+     */
+    @NotNull PunishTemplate template();
+
 
     sealed interface Builder permits PunishEntryBuilder {
 
@@ -72,6 +81,14 @@ public sealed interface PunishEntry extends Metadata permits PunishEntryDTO {
          * @return the builder instance
          */
         @NotNull Builder source(@NotNull UUID source);
+
+        /**
+         * Sets the template of the ban.
+         *
+         * @param template the template of the ban
+         * @return the builder instance
+         */
+        @NotNull Builder template(@NotNull PunishTemplate template);
 
         /**
          * Builds the {@link PunishEntry}.
