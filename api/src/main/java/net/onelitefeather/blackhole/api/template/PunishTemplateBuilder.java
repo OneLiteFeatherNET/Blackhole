@@ -22,6 +22,10 @@ final class PunishTemplateBuilder implements PunishTemplate.Builder {
         this.metaData.putAll(punishTemplate.metaData());
     }
 
+    public PunishTemplateBuilder(@NotNull Map<String, Object> metaData) {
+        this.metaData.putAll(metaData);
+    }
+
     public PunishTemplateBuilder() {
         // Empty constructor
     }
