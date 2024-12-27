@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.api.profile;
 
 import net.onelitefeather.blackhole.api.punish.PunishEntry;
 import net.onelitefeather.blackhole.api.punish.PunishType;
+import net.onelitefeather.blackhole.api.template.PunishTemplate;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -61,9 +62,16 @@ class PunishProfileTest {
 
         UUID source = UUID.randomUUID();
 
+        PunishTemplate template = PunishTemplate.builder()
+                .identifier(UUID.randomUUID())
+                .reason("Test")
+                .type(PunishType.NETWORK)
+                .build();
+
         PunishEntry entry = PunishEntry.builder()
                 .type(PunishType.NETWORK)
                 .source(source)
+                .template(template)
                 .build();
 
         PunishProfile updatedProfile = PunishProfile.builder(profile)

@@ -1,10 +1,12 @@
 package net.onelitefeather.blackhole.api.template;
 
+import net.onelitefeather.blackhole.api.metadata.Durationable;
 import net.onelitefeather.blackhole.api.metadata.Metadata;
 import net.onelitefeather.blackhole.api.punish.PunishType;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.Map;
 
@@ -18,7 +20,7 @@ import java.util.Map;
  * @see Metadata
  * @author TheMeinerLP
  */
-public sealed interface PunishTemplate extends Metadata permits PunishTemplateDTO {
+public sealed interface PunishTemplate extends Metadata, Durationable permits PunishTemplateDTO {
 
     String META_DATA_KEY_TRANSLATABLE = "translatable";
 
@@ -106,6 +108,14 @@ public sealed interface PunishTemplate extends Metadata permits PunishTemplateDT
          * @return the builder
          */
         Builder translatable();
+
+        /**
+         * Sets the duration of the punishment.
+         *
+         * @param duration the duration of the punishment
+         * @return the builder
+         */
+        Builder duration(Duration duration);
 
         /**
          * Sets the reason of the punishment.

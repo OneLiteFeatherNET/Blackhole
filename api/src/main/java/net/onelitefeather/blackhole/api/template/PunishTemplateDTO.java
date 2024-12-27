@@ -5,6 +5,7 @@ import net.onelitefeather.blackhole.api.punish.PunishType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -49,5 +50,10 @@ record PunishTemplateDTO(
     @Override
     public long updateDate() {
         return Optional.ofNullable(this.metaData.get(Metadata.META_DATA_KEY_UPDATE_DATE)).map(Long.class::cast).orElseThrow();
+    }
+
+    @Override
+    public Duration duration() {
+        return Optional.ofNullable(this.metaData.get(META_DATA_KEY_DURATION)).map(Duration.class::cast).orElseThrow();
     }
 }
