@@ -11,6 +11,7 @@ dependencies {
     annotationProcessor(mn.micronaut.http.validation)
 
     implementation(mn.micronaut.runtime)
+    implementation(mn.validation)
     implementation(mn.micronaut.http.client.jdk)
     implementation(mn.micronaut.cache.caffeine)
     implementation(mn.micronaut.serde.jackson)
