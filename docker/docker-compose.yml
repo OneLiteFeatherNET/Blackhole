@@ -14,14 +14,15 @@ services:
     networks:
       - blackhole_go_net
   rabbitmq:
-    image: rabbitmq:3
+    image: rabbitmq:3-management
     container_name: 'rabbitmq_blackhole'
     networks:
       - blackhole_go_net
     shm_size: 128mb
     ports:
       - "5672:5672"
-      - "8880:15672"
+      - "15672:15672"
+      - "15692:15692"
 
 networks:
   blackhole_go_net:
