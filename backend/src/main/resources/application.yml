@@ -1,0 +1,57 @@
+# Datasource
+datasources:
+  default:
+    url: ${JDBC_URL:`jdbc:mariadb://127.0.0.1:3336/blackhole`}
+    password: ${JDBC_PASSWORD:`blackhole`}
+    username: ${JDBC_USER:`root`}
+    driver-class-name: ${JDBC_DRIVER:`org.mariadb.jdbc.Driver`}
+# JPA
+jpa:
+  default:
+    properties:
+      hibernate:
+        hbm2ddl:
+          auto: update
+        show_sql: true
+
+micronaut:
+# Server
+  server:
+    port: ${PORT:8080}
+
+# OpenAPI
+  router:
+    static-resources:
+      swagger:
+        paths: classpath:META-INF/swagger
+        mapping: /swagger/**
+      swagger-ui:
+        paths: classpath:META-INF/swagger/views/swagger-ui
+        mapping: /swagger-ui/**
+
+# RabbitMQ
+  rabbitmq:
+    connections:
+      default:
+        uri: "amqp://guest:guest@localhost:5672"
+        dynamic: true
+
+        queues:
+          - name: punish-entry
+            durable: true
+            arguments:
+              x-dead-letter-exchange: punish.deadletter.exchange
+              x-dead-letter-routing-key: punish-entry-expired
+
+          - name: punish-entry-expired
+            durable: true
+
+        exchanges:
+          - name: punish.deadletter.exchange
+            type: direct
+            durable: true
+
+        bindings:
+          - exchange: punish.deadletter.exchange
+            routing-key: punish-entry-expired
+            queue: punish-entry-expired
