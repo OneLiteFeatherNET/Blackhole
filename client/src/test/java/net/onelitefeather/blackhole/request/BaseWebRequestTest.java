@@ -13,6 +13,7 @@ import net.onelitefeather.blackhole.objects.TestObject;
 import net.onelitefeather.blackhole.objects.TestWebRequest;
 import net.onelitefeather.blackhole.request.template.TemplateWebRequests;
 import net.onelitefeather.blackhole.web.BlackholeClient;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.net.http.HttpClient;
@@ -47,6 +48,7 @@ class BaseWebRequestTest {
     }
 
     @Test
+    @Disabled
     void createTemplate() {
         BlackholeClient blackholeClient = BlackholeClient.newClient("http://localhost:8080");
         TemplateWebRequests templateWebRequests = blackholeClient.templateRequests();
