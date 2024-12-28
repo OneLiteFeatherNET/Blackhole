@@ -13,7 +13,6 @@ class PunishEntryTest {
     void testObjectCreation() {
         long current = System.currentTimeMillis();
         PunishTemplate template = PunishTemplate.builder()
-                .identifier(UUID.randomUUID())
                 .reason("Test")
                 .type(PunishType.NETWORK)
                 .build();
@@ -30,7 +29,6 @@ class PunishEntryTest {
     @Test
     void testObjectManipulation() {
         PunishTemplate template = PunishTemplate.builder()
-                .identifier(UUID.randomUUID())
                 .reason("Test")
                 .type(PunishType.NETWORK)
                 .build();

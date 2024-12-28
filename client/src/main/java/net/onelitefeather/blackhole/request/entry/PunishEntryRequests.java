@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-public final class PunishEntryRequests extends BaseWebRequest<PunishEntry> implements PunishWebRequests {
+public final class PunishEntryRequests extends BaseWebRequest implements PunishWebRequests {
 
     private static final GenericBodyHandler<List<PunishEntry>> LIST_PUNISH_HANDLER = new GenericBodyHandler<>(TypeFactory.defaultInstance().constructArrayType(TypeFactory.defaultInstance().constructType(PunishEntry.class)));
     private static final GenericBodyHandler<PunishProfile> PROFILE_BODY_HANDLER = new GenericBodyHandler<>(TypeFactory.defaultInstance().constructType(PunishProfile.class));

@@ -16,6 +16,16 @@ import java.util.UUID;
 @ApiStatus.Internal
 public final class UUIDConverter {
 
+    private static final MessageDigest SHA_512;
+
+    static {
+        try {
+            SHA_512 = MessageDigest.getInstance("SHA-512");
+        } catch (Exception exception) {
+            throw new RuntimeException("Failed to initialize SHA-512", exception);
+        }
+    }
+
     /**
      * Convert a UUID to a SHA-512 hash.
      *
@@ -24,24 +34,18 @@ public final class UUIDConverter {
      */
     public static @NotNull String convertToSHA(@NotNull UUID uuid) {
         String uuidString = uuid.toString();
+        // Update the digest with the UUID string
+        SHA_512.update(uuidString.getBytes());
 
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-512");
-            // Update the digest with the UUID string
-            digest.update(uuidString.getBytes());
+        // Get the digest bytes
+        byte[] digestBytes = SHA_512.digest();
 
-            // Get the digest bytes
-            byte[] digestBytes = digest.digest();
-
-            // Convert the bytes to a string
-            StringBuilder builder = new StringBuilder();
-            for (byte digestByte : digestBytes) {
-                builder.append(String.format("%02X", digestByte));
-            }
-            return builder.toString();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to convert UUID to SHA-512", e);
+        // Convert the bytes to a string
+        StringBuilder builder = new StringBuilder();
+        for (byte digestByte : digestBytes) {
+            builder.append(String.format("%02X", digestByte));
         }
+        return builder.toString();
     }
 
     private UUIDConverter() {

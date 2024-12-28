@@ -7,6 +7,13 @@ import org.jetbrains.annotations.UnmodifiableView;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * The interface defines the basic structure to describe the metadata of an object.
+ *
+ * @author theEvilReaper
+ * @version 1.0.0
+ * @since 1.0.0
+ */
 public interface Metadata {
 
     String META_DATA_KEY_CREATION_DATE = "creation_date";

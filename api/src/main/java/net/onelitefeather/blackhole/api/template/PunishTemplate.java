@@ -14,11 +14,11 @@ import java.util.UUID;
  * The interface defines the basic structure to describe a template in the punishment system.
  * The template contains the type of the punishment and the creation date.
  *
- * @since 1.0.0
+ * @author TheMeinerLP
  * @version 1.0.0
  * @see PunishType
  * @see Metadata
- * @author TheMeinerLP
+ * @since 1.0.0
  */
 public sealed interface PunishTemplate extends Metadata, Durationable permits PunishTemplateDTO {
 
@@ -34,13 +34,25 @@ public sealed interface PunishTemplate extends Metadata, Durationable permits Pu
         return new PunishTemplateBuilder();
     }
 
+    /**
+     * Creates a new {@link PunishTemplate.Builder} with the given {@link PunishTemplate}.
+     *
+     * @param punishTemplate the template to set
+     * @return a new builder
+     */
     @Contract(value = "_ -> new", pure = true)
     static @NotNull Builder builder(@NotNull PunishTemplate punishTemplate) {
         return new PunishTemplateBuilder(punishTemplate);
     }
 
+    /**
+     * Creates a new {@link PunishTemplate.Builder} with the given {@link Map}.
+     *
+     * @param metaData the metadata to set
+     * @return a new builder
+     */
     @Contract(value = "_ -> new", pure = true)
-    static @NotNull Builder builder( @NotNull Map<String, Object> metaData) {
+    static @NotNull Builder builder(@NotNull Map<String, Object> metaData) {
         return new PunishTemplateBuilder(metaData);
     }
 
@@ -74,10 +86,8 @@ public sealed interface PunishTemplate extends Metadata, Durationable permits Pu
 
     /**
      * The builder to create a new {@link PunishTemplate}.
-     *
      */
     sealed interface Builder permits PunishTemplateBuilder {
-
 
         /**
          * Sets the type of the punishment.
@@ -85,14 +95,14 @@ public sealed interface PunishTemplate extends Metadata, Durationable permits Pu
          * @param type the type of the punishment
          * @return the builder
          */
-        Builder type(@NotNull PunishType type);
+        @NotNull Builder type(@NotNull PunishType type);
 
         /**
          * Sets if the reason is translatable.
          *
          * @return the builder
          */
-        Builder translatable();
+        @NotNull Builder translatable();
 
         /**
          * Sets the duration of the punishment.
@@ -100,7 +110,7 @@ public sealed interface PunishTemplate extends Metadata, Durationable permits Pu
          * @param duration the duration of the punishment
          * @return the builder
          */
-        Builder duration(Duration duration);
+        @NotNull Builder duration(@NotNull Duration duration);
 
         /**
          * Sets the reason of the punishment.
@@ -108,14 +118,13 @@ public sealed interface PunishTemplate extends Metadata, Durationable permits Pu
          * @param reason the reason of the punishment
          * @return the builder
          */
-        Builder reason(@NotNull String reason);
+        @NotNull Builder reason(@NotNull String reason);
 
         /**
          * Builds the punishment template.
          *
          * @return the punishment template
          */
-        PunishTemplate build();
-
+        @NotNull PunishTemplate build();
     }
 }

@@ -13,8 +13,10 @@ import java.util.Map;
 
 @Converter
 public final class MapStringObjectConverter implements AttributeConverter<Map<String, Object>, String> {
+
     public static final JavaType VALUE_TYPE = TypeFactory.defaultInstance().constructParametricType(Map.class, String.class, Object.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
+
     @Override
     public String convertToDatabaseColumn(Map<String, Object> map) {
         if (map == null) {

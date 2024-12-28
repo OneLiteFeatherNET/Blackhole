@@ -28,7 +28,7 @@ class BaseWebRequestTest {
 
     @Test
     void testConstructor() {
-        BaseWebRequest<TestObject> testWebRequest = new TestWebRequest("baseUrl/", HttpClient.newHttpClient());
+        BaseWebRequest testWebRequest = new TestWebRequest("baseUrl/", HttpClient.newHttpClient());
         assertNotNull(testWebRequest);
 
         String url = testWebRequest.buildUrl("url");
@@ -38,7 +38,7 @@ class BaseWebRequestTest {
 
     @Test
     void testObjectMapping() {
-        BaseWebRequest<TestObject> testWebRequest = new TestWebRequest("baseUrl/", HttpClient.newHttpClient());
+        BaseWebRequest testWebRequest = new TestWebRequest("baseUrl/", HttpClient.newHttpClient());
         assertNotNull(testWebRequest);
 
         TestObject testObject = new TestObject("data");

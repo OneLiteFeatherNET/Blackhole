@@ -11,6 +11,11 @@ import java.util.UUID;
 /**
  * The interface defines the basic structure to describe an entry in the punishment system.
  * The entry contains the type of the punishment and the creation date.
+ *
+ * @author theEvilReaper
+ * @version 1.0.0
+ * @see PunishEntry
+ * @since 1.0.0
  */
 public sealed interface PunishEntry extends Metadata, Expirable permits PunishEntryDTO {
 
@@ -63,7 +68,14 @@ public sealed interface PunishEntry extends Metadata, Expirable permits PunishEn
      */
     @NotNull PunishTemplate template();
 
-
+    /**
+     * The builder interface contains the definition of a builder pattern to create a {@link PunishEntry}.
+     *
+     * @author theEvilReaper
+     * @version 1.0.0
+     * @see PunishEntry
+     * @since 1.0.0
+     */
     sealed interface Builder permits PunishEntryBuilder {
 
         /**

@@ -12,6 +12,7 @@ import jakarta.validation.constraints.Pattern;
 import net.onelitefeather.blackhole.api.metadata.Durationable;
 import net.onelitefeather.blackhole.api.metadata.Expirable;
 import net.onelitefeather.blackhole.api.metadata.Metadata;
+import net.onelitefeather.blackhole.api.punish.PunishType;
 import net.onelitefeather.blackhole.api.utils.IdGenerator;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileEntity;
@@ -102,10 +103,10 @@ public class PunishmentEntityController {
             profile.setActiveChatBan(null);
         }
 
-
-        switch (template.getType()) {
-            case CHAT -> profile.setActiveChatBan(savedEntity);
-            case SERVER, NETWORK -> profile.setActiveBan(savedEntity);
+        if (template.getType() == PunishType.CHAT) {
+            profile.setActiveChatBan(savedEntity);
+        } else {
+            profile.setActiveBan(savedEntity);
         }
 
         this.profileRepository.update(profile);
