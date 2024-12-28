@@ -3,7 +3,11 @@ package net.onelitefeather.blackhole.api.profile;
 import net.onelitefeather.blackhole.api.metadata.Metadata;
 import net.onelitefeather.blackhole.api.punish.PunishEntry;
 import net.onelitefeather.blackhole.api.punish.PunishType;
-import org.jetbrains.annotations.*;
+import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.UnmodifiableView;
 
 import java.util.Comparator;
 import java.util.List;

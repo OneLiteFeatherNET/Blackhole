@@ -7,8 +7,8 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
-import java.util.UUID;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * The interface defines the basic structure to describe a template in the punishment system.
@@ -86,21 +86,6 @@ public sealed interface PunishTemplate extends Metadata, Durationable permits Pu
          * @return the builder
          */
         Builder type(@NotNull PunishType type);
-
-        /**
-         * Sets the identifier of the punishment.
-         *
-         * @param identifier the identifier of the punishment
-         * @return the builder
-         */
-        Builder identifier(@NotNull UUID identifier);
-
-        /**
-         * Generates a new identifier for the punishment.
-         *
-         * @return the builder
-         */
-        Builder generateIdentifier();
 
         /**
          * Sets if the reason is translatable.
