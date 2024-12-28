@@ -20,11 +20,6 @@ import io.swagger.v3.oas.annotations.info.License;
 public final class BlackholeApplication {
 
     public static void main(String[] args) {
-        try {
-            Micronaut.run(BlackholeApplication.class, args);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
+        Micronaut.run(BlackholeApplication.class, args);
     }
 }
