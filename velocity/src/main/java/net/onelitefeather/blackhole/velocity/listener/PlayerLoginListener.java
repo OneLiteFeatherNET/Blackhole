@@ -2,7 +2,7 @@ package net.onelitefeather.blackhole.velocity.listener;
 
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
-import com.velocitypowered.api.event.player.configuration.PlayerFinishConfigurationEvent;
+import com.velocitypowered.api.event.connection.LoginEvent;
 import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
 import net.onelitefeather.blackhole.api.profile.PunishProfile;
@@ -20,12 +20,12 @@ import java.util.Optional;
  * @version 1.0.0
  * @author theEvilReaper
  */
-public final class PlayerFinishConfigurationListener {
+public final class PlayerLoginListener {
 
     private final BlackholeClient blackholeClient;
 
     @Inject
-    public PlayerFinishConfigurationListener(@NotNull BlackholeClient blackholeClient) {
+    public PlayerLoginListener(@NotNull BlackholeClient blackholeClient) {
         this.blackholeClient = blackholeClient;
     }
 
@@ -34,8 +34,8 @@ public final class PlayerFinishConfigurationListener {
      * @param event the event
      */
     @Subscribe
-    public void onFinishConfigurationEvent(@NotNull PlayerFinishConfigurationEvent event) {
-        Player player = event.player();
+    public void onLogin(@NotNull LoginEvent event) {
+        Player player = event.getPlayer();
 
         String uuidHash = UUIDConverter.convertToSHA(player.getUniqueId());
         Optional<PunishProfile> profileOptional = this.blackholeClient.profileRequests().get(uuidHash);
@@ -50,6 +50,6 @@ public final class PlayerFinishConfigurationListener {
         PunishTemplate punishTemplate = activeBan.template();
         Component reason = Component.text(punishTemplate.reason());
 
-        event.player().disconnect(reason);
+        event.getPlayer().disconnect(reason);
     }
 }

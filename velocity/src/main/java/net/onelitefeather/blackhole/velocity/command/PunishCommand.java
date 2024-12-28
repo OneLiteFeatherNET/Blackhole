@@ -9,17 +9,26 @@ import net.onelitefeather.blackhole.api.profile.PunishProfile;
 import net.onelitefeather.blackhole.api.punish.PunishType;
 import net.onelitefeather.blackhole.api.template.PunishTemplate;
 import net.onelitefeather.blackhole.api.utils.UUIDConverter;
+import net.onelitefeather.blackhole.velocity.BlackholeVelocity;
 import net.onelitefeather.blackhole.web.BlackholeClient;
-import org.incendo.cloud.annotations.*;
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Flag;
+import org.incendo.cloud.annotations.Permission;
 import org.incendo.cloud.annotations.parser.Parser;
+import org.incendo.cloud.annotations.suggestion.Suggestions;
 import org.incendo.cloud.context.CommandContext;
 import org.incendo.cloud.context.CommandInput;
+import org.incendo.cloud.key.CloudKey;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Optional;
 
 public final class PunishCommand {
+
+    static final CloudKey<Player> TARGET_KEY = CloudKey.of("target", Player.class);
 
     private final ProxyServer proxyServer;
     private final BlackholeClient blackholeClient;
@@ -30,73 +39,89 @@ public final class PunishCommand {
         this.blackholeClient = blackholeClient;
     }
 
-    @Command("blackhole <user> ban <template> [type]")
+    @Command("blackhole <user> ban <template>")
+    @Command("ban <user> <template>")
     @Permission("blackhole.ban")
     @CommandDescription("Ban a player from the server")
     public void banPlayer(
-            @NotNull Player sender,
-            @Argument("target") @NotNull String target,
-            @Argument(value = "template") @NotNull PunishTemplate template,
-            @Argument("type") @Default(value = "NETWORK") PunishType type
+            CommandContext<Player> context,
+            @Argument(value = "user", parserName = "profile") @NotNull PunishProfile user,
+            @Argument(value = "template", parserName = "template") @NotNull PunishTemplate template,
+            @Flag("server") Boolean server
     ) {
-        Player targetPlayer = this.proxyServer.getPlayer(target).orElse(null);
-
-        if (targetPlayer == null) {
-            sender.sendMessage(Component.text("The player is not online."));
+        if (server != null && template.type() != PunishType.SERVER) {
+            context.sender().sendMessage(Component.text("You can only ban a player from the server with a server template."));
             return;
         }
-
-        String targetHash = UUIDConverter.convertToSHA(targetPlayer.getUniqueId());
-        Optional<PunishProfile> profileOptional = this.blackholeClient.profileRequests().get(targetHash);
-
-        PunishProfile punishProfile = null;
-
-        if (profileOptional.isEmpty()) {
-            String playerHash = UUIDConverter.convertToSHA(targetPlayer.getUniqueId());
-            punishProfile = this.blackholeClient.profileRequests().add(PunishProfile.builder().owner(playerHash).build());
-        } else {
-            punishProfile = profileOptional.get();
-        }
-
-        if (punishProfile == null) {
-            sender.sendMessage(Component.text("An error occurred while trying to ban the player."));
-            return;
-        }
-
-        this.blackholeClient.punishRequests().add(punishProfile.owner(), template.identifier(), sender.getUniqueId());
+        Player targetPlayer = context.get(TARGET_KEY);
+        this.blackholeClient.punishRequests().add(user.owner(), template.identifier(), context.sender().getUniqueId());
 
         targetPlayer.disconnect(Component.text("You have been banned from the server."));
-        sender.sendMessage(Component.text("The player has been banned."));
-
-        // Ban the player
+        context.sender().sendMessage(Component.text("The player has been banned."));
     }
 
     @Command("blackhole <user> mute <template>")
+    @Command("mute <user> <template>")
     @Permission("blackhole.mute")
     @CommandDescription("Mute a player on the server")
+    @PunishTypeScope(PunishType.CHAT)
     public void mutePlayer(
-            @NotNull CommandSource sender,
-            @Argument("target") @NotNull String target,
-            @Argument("template") @NotNull PunishTemplate template
+            CommandContext<Player> context,
+            @Argument(value = "user", parserName = "profile") @NotNull PunishProfile user,
+            @Argument(value = "template", parserName = "template") @NotNull PunishTemplate template
     ) {
-        // Mute the player
+        Player targetPlayer = context.get(TARGET_KEY);
+        this.blackholeClient.punishRequests().add(user.owner(), template.identifier(), context.sender().getUniqueId());
+
+        targetPlayer.disconnect(Component.text("You have been banned from the server."));
+        context.sender().sendMessage(Component.text("The player has been banned."));
     }
 
-    @Parser(suggestions = "templates")
+    @Parser(name = "profile")
+    public PunishProfile parseProfile(CommandContext<CommandSource> context, CommandInput input) {
+        String name = input.readString();
+        Optional<Player> player = this.proxyServer.getPlayer(name);
+
+        if (player.isEmpty()) {
+            throw new IllegalArgumentException("Player(%s) not found".formatted(name));
+        }
+        context.store(TARGET_KEY, player.get());
+
+        return this.blackholeClient.profileRequests().get(UUIDConverter.convertToSHA(player.get().getUniqueId())).orElse(null);
+    }
+
+    @Parser(suggestions = "templates", name = "template")
     public PunishTemplate parseTemplate(CommandContext<CommandSource> context, CommandInput input) {
         String name = input.readString();
+        boolean server = context.flags().isPresent("server");
         List<PunishTemplate> templates = this.blackholeClient.templateRequests().getAll();
-
+        templates.removeIf(template -> server && template.type() != PunishType.SERVER);
         if (templates.isEmpty()) {
-            context.sender().sendMessage(Component.text("No templates found."));
-            return null;
+            throw new IllegalArgumentException("No templates found");
         }
 
         return templates.stream().filter(template -> template.reason().equals(name)).findFirst().orElse(null);
     }
 
-    @Parser(suggestions = "templates")
+    @Suggestions(value = "templates")
     public List<String> suggestions(CommandContext<Player> context, CommandInput input) {
-        return this.blackholeClient.templateRequests().getAll().stream().map(PunishTemplate::reason).toList();
+        String s = input.readString();
+        if (context.contains(BlackholeVelocity.PUNISH_TYPE_KEY)) {
+            PunishType type = context.get(BlackholeVelocity.PUNISH_TYPE_KEY);
+            return this.blackholeClient.templateRequests()
+                    .getAll()
+                    .stream()
+                    .filter(template -> template.type() == type)
+                    .map(PunishTemplate::reason)
+                    .filter(reason -> reason.toLowerCase().contains(s.toLowerCase()))
+                    .toList();
+        }
+        return this.blackholeClient.templateRequests()
+                .getAll()
+                .stream()
+                .filter(PunishTemplate::commandable)
+                .map(PunishTemplate::command)
+                .filter(command -> command.toLowerCase().contains(s.toLowerCase()))
+                .toList();
     }
 }
