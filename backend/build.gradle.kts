@@ -9,6 +9,9 @@ version = "1.0.0"
 dependencies {
     annotationProcessor(mn.micronaut.serde.processor)
     annotationProcessor(mn.micronaut.http.validation)
+    annotationProcessor(mn.micronaut.openapi)
+    compileOnly(mn.micronaut.openapi.annotations)
+    implementation(mn.micronaut.http.validation)
 
     implementation(project(":api"))
 
@@ -22,9 +25,15 @@ dependencies {
     implementation(mn.micronaut.hibernate.validator)
     implementation(mn.micronaut.data.tx.hibernate)
     implementation(mn.micronaut.jdbc.hikari)
-    runtimeOnly(mn.mariadb.java.client)
-    runtimeOnly(mn.postgresql)
-    runtimeOnly(mn.h2)
+    implementation(mn.mariadb.java.client)
+    implementation(mn.postgresql)
+    implementation(mn.h2)
+    implementation(mn.log4j)
+    implementation(mn.slf4j.api)
+    implementation(mn.slf4j.simple)
+    implementation(mn.jackson.core)
+    implementation(mn.jackson.databind)
+    implementation(mn.jackson.datatype.jsr310)
 
     testImplementation(mn.junit.jupiter.api)
     testRuntimeOnly(mn.junit.jupiter.engine)
@@ -39,7 +48,7 @@ java {
 }
 
 application {
-    mainClass.set("net.onelitefeather.blackhole.backend.Application")
+    mainClass.set("net.onelitefeather.blackhole.backend.BlackholeApplication")
 }
 
 graalvmNative.toolchainDetection.set(false)
@@ -61,5 +70,12 @@ micronaut {
         optimizeClassLoading.set(true)
         deduceEnvironment.set(true)
         optimizeNetty.set(true)
+    }
+}
+
+tasks {
+    withType(JavaCompile::class.java) {
+        options.encoding = "UTF-8"
+        options.forkOptions.jvmArgs = listOf("-Dmicronaut.openapi.views.spec=rapidoc.enabled=true,openapi-explorer.enabled=true,swagger-ui.enabled=true,swagger-ui.theme=flattop")
     }
 }

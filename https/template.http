@@ -1,0 +1,35 @@
+### POST update template
+@id = e1488ac3-e277-407c-8bfb-0264c9436d09
+POST http://localhost:8080/template/update
+Content-Type: application/json
+
+{
+  "type": "NETWORK",
+  "reason": "yolo.test",
+  "identifier": "{{id}}",
+  "metaData": {
+    "translatable": "true"
+  }
+}
+
+### GET Get all templates
+GET http://localhost:8080/template/all
+
+### DELETE template
+@delete-id = e1488ac3-e277-407c-8bfb-0264c9436d09
+DELETE http://localhost:8080/template/delete/{{delete-id}}
+Content-Type: application/json
+
+### POST create template
+POST http://localhost:8080/template
+Content-Type: application/json
+
+{
+  "type": "NETWORK",
+  "reason": "yolo.test",
+  "metaData": {
+    "translatable": "true"
+  }
+}
+
+###
