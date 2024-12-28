@@ -9,26 +9,29 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-@Singleton // (1)
-public class ChannelPoolListener extends ChannelInitializer { // (2)
+@Singleton
+public class ChannelPoolListener extends ChannelInitializer {
+    
+    private static final String BLACK_HOLE_EXCHANGE = "blackhole.exchange";
+    private static final String PUNISH_ENTRY_QUEUE = "punish-entry";
+    private static final String PUNISH_ENTRY_EXPIRED_QUEUE = "punish-entry-expired";
 
     @Override
     public void initialize(Channel channel, String name) throws IOException { // (3)
 
         // 1) Deklariere Exchange für Dead-Letter
         channel.exchangeDeclare(
-                "blackhole.exchange",   // Exchange-Name
+                BLACK_HOLE_EXCHANGE,   // Exchange-Name
                 BuiltinExchangeType.DIRECT,     // Exchange-Typ (direct)
                 true                            // durable
         );
 
-        // 2) Deklariere Queue "punish-entry" mit Dead-Letter-Argumenten
         Map<String, Object> punishEntryArgs = new HashMap<>();
-        punishEntryArgs.put("x-dead-letter-exchange", "blackhole.exchange");
-        punishEntryArgs.put("x-dead-letter-routing-key", "punish-entry-expired");
+        punishEntryArgs.put("x-dead-letter-exchange", BLACK_HOLE_EXCHANGE);
+        punishEntryArgs.put("x-dead-letter-routing-key", PUNISH_ENTRY_EXPIRED_QUEUE);
 
         channel.queueDeclare(
-                "punish-entry",     // Queue-Name
+                PUNISH_ENTRY_QUEUE,     // Queue-Name
                 true,               // durable
                 false,              // exclusive
                 false,              // autoDelete
@@ -37,7 +40,7 @@ public class ChannelPoolListener extends ChannelInitializer { // (2)
 
         // 3) Deklariere Queue "punish-entry-expired"
         channel.queueDeclare(
-                "punish-entry-expired", // Queue-Name
+                PUNISH_ENTRY_EXPIRED_QUEUE, // Queue-Name
                 true,                   // durable
                 false,                  // exclusive
                 false,                  // autoDelete
@@ -46,14 +49,14 @@ public class ChannelPoolListener extends ChannelInitializer { // (2)
 
         // 4) Binde Queue "punish-entry-expired" an die Dead-Letter-Exchange
         channel.queueBind(
-                "punish-entry-expired",     // queue
-                "blackhole.exchange", // exchange
-                "punish-entry-expired"      // routing key
+                PUNISH_ENTRY_EXPIRED_QUEUE,     // queue
+                BLACK_HOLE_EXCHANGE, // exchange
+                PUNISH_ENTRY_EXPIRED_QUEUE      // routing key
         );
         channel.queueBind(
-                "punish-entry",     // queue
-                "blackhole.exchange",
-                "punish-entry"
+                PUNISH_ENTRY_QUEUE,     // queue
+                BLACK_HOLE_EXCHANGE,
+                PUNISH_ENTRY_QUEUE
         );
     }
 }

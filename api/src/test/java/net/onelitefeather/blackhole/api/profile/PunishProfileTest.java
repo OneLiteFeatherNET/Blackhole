@@ -6,7 +6,6 @@ import net.onelitefeather.blackhole.api.template.PunishTemplate;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -63,7 +62,6 @@ class PunishProfileTest {
         UUID source = UUID.randomUUID();
 
         PunishTemplate template = PunishTemplate.builder()
-                .identifier(UUID.randomUUID())
                 .reason("Test")
                 .type(PunishType.NETWORK)
                 .build();

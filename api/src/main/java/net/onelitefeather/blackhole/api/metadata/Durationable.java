@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.api.metadata;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.time.Duration;
 
 public interface Durationable extends Metadata {
@@ -11,8 +13,12 @@ public interface Durationable extends Metadata {
      *
      * @return the duration
      */
-    Duration duration();
+    @NotNull Duration duration();
 
+    /**
+     * Checks if the object has a duration.
+     * @return true if the object has a duration
+     */
     default boolean durationable() {
         return hasMetaData(META_DATA_KEY_DURATION);
     }

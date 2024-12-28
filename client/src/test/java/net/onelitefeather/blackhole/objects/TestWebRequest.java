@@ -5,7 +5,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.net.http.HttpClient;
 
-public class TestWebRequest extends BaseWebRequest<TestObject> {
+public class TestWebRequest extends BaseWebRequest {
 
     /**
      * Create a new instance of the BaseWebRequest.

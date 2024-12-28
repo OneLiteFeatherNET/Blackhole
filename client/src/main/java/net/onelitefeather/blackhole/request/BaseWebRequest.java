@@ -1,11 +1,9 @@
 package net.onelitefeather.blackhole.request;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import net.onelitefeather.blackhole.api.template.PunishTemplateSimpleModule;
 import org.jetbrains.annotations.NotNull;
 
 import java.net.http.HttpClient;
@@ -17,7 +15,7 @@ import java.net.http.HttpClient;
  * @version 1.0.0
  * @since 1.0.0
  */
-public abstract class BaseWebRequest<T> {
+public abstract class BaseWebRequest {
 
     protected static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
             .registerModule(new JavaTimeModule())

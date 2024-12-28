@@ -53,7 +53,7 @@ record PunishTemplateDTO(
     }
 
     @Override
-    public Duration duration() {
+    public @NotNull Duration duration() {
         return Optional.ofNullable(this.metaData.get(META_DATA_KEY_DURATION)).map(Duration.class::cast).orElseThrow();
     }
 }

@@ -9,7 +9,6 @@ import net.onelitefeather.blackhole.api.punish.PunishEntrySimpleModule;
 import net.onelitefeather.blackhole.api.template.PunishTemplateSimpleModule;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.text.html.Option;
 import java.net.http.HttpResponse;
 import java.nio.charset.Charset;
 

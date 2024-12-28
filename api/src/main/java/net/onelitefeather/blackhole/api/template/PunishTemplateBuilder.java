@@ -29,35 +29,36 @@ final class PunishTemplateBuilder implements PunishTemplate.Builder {
     }
 
     public PunishTemplateBuilder() {
+        this.identifier = UUID.randomUUID();
         // Empty constructor
     }
 
     @Override
-    public PunishTemplate.Builder type(@NotNull PunishType type) {
+    public PunishTemplate.@NotNull Builder type(@NotNull PunishType type) {
         this.type = type;
         return this;
     }
 
     @Override
-    public PunishTemplate.Builder translatable() {
+    public PunishTemplate.@NotNull Builder translatable() {
         this.metaData.put(PunishTemplate.META_DATA_KEY_TRANSLATABLE, true);
         return this;
     }
 
     @Override
-    public PunishTemplate.Builder duration(Duration duration) {
+    public PunishTemplate.@NotNull Builder duration(@NotNull Duration duration) {
         this.metaData.put(Durationable.META_DATA_KEY_DURATION, duration);
         return this;
     }
 
     @Override
-    public PunishTemplate.Builder reason(@NotNull String reason) {
+    public PunishTemplate.@NotNull Builder reason(@NotNull String reason) {
         this.reason = reason;
         return this;
     }
 
     @Override
-    public PunishTemplate build() {
+    public @NotNull PunishTemplate build() {
         if (this.type == null) {
             throw new IllegalStateException("The type must be set");
         }

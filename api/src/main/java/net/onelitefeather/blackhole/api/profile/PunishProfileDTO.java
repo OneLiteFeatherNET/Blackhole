@@ -42,16 +42,6 @@ record PunishProfileDTO(
     }
 
     @Override
-    public @NotNull Optional<@Nullable PunishEntry> activeChatBan() {
-        return this.activeChatBan;
-    }
-
-    @Override
-    public @NotNull Optional<@Nullable PunishEntry> activeBan() {
-        return this.activeBan;
-    }
-
-    @Override
     public @NotNull List<PunishEntry> historyByType(@NotNull PunishType type, @NotNull Comparator<PunishEntry> comparator) {
         return this.history.stream()
                 .filter(entry -> entry.type().ordinal() == type.ordinal())

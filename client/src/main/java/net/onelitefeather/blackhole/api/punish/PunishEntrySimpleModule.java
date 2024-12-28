@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 
 public final class PunishEntrySimpleModule {
 
-    public final static SimpleModule INSTANCE = createModule();
+    public static final SimpleModule INSTANCE = createModule();
 
     private PunishEntrySimpleModule() {
         throw new UnsupportedOperationException();

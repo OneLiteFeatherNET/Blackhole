@@ -1,16 +1,17 @@
 package net.onelitefeather.blackhole.api.template;
 
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import org.jetbrains.annotations.NotNull;
 
 public final class PunishTemplateSimpleModule {
 
-    public final static SimpleModule INSTANCE = createModule();
+    public static final SimpleModule INSTANCE = createModule();
 
     private PunishTemplateSimpleModule() {
         throw new UnsupportedOperationException();
     }
 
-    private static SimpleModule createModule() {
+    private static @NotNull SimpleModule createModule() {
         SimpleModule module = new SimpleModule();
         module.addAbstractTypeMapping(PunishTemplate.class, PunishTemplateDTO.class);
         return module;
