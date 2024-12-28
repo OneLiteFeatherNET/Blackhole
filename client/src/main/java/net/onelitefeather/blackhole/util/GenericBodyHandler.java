@@ -1,21 +1,31 @@
 package net.onelitefeather.blackhole.util;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import net.onelitefeather.blackhole.api.profile.PunishProfileSimpleModule;
+import net.onelitefeather.blackhole.api.punish.PunishEntrySimpleModule;
+import net.onelitefeather.blackhole.api.template.PunishTemplateSimpleModule;
 import org.jetbrains.annotations.NotNull;
 
+import javax.swing.text.html.Option;
 import java.net.http.HttpResponse;
 import java.nio.charset.Charset;
 
 public class GenericBodyHandler<T> implements HttpResponse.BodyHandler<T> {
 
-    private final TypeReference<T> typeReference;
+    private final JavaType typeReference;
     private final ObjectMapper objectMapper;
 
-    public GenericBodyHandler() {
-        this.typeReference = new TypeReference<>() {
-        };
+    public GenericBodyHandler(JavaType typeReference) {
+        this.typeReference = typeReference;
         this.objectMapper = new ObjectMapper();
+        this.objectMapper.registerModule(new JavaTimeModule())
+                .registerModule(PunishTemplateSimpleModule.INSTANCE)
+                .registerModule(PunishEntrySimpleModule.INSTANCE)
+                .registerModule(PunishProfileSimpleModule.INSTANCE)
+                .registerModule(new Jdk8Module());
     }
 
     @Override
@@ -34,7 +44,7 @@ public class GenericBodyHandler<T> implements HttpResponse.BodyHandler<T> {
      */
     protected T parseJsonData(@NotNull String data) {
         try {
-            return this.objectMapper.readValue(data, typeReference);
+            return this.objectMapper.readValue(data, this.typeReference);
         } catch (Exception exception) {
             return null;
         }

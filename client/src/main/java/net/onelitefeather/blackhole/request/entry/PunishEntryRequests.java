@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.request.entry;
 
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import net.onelitefeather.blackhole.api.profile.PunishProfile;
 import net.onelitefeather.blackhole.api.punish.PunishEntry;
 import net.onelitefeather.blackhole.request.BaseWebRequest;
@@ -16,8 +17,8 @@ import java.util.concurrent.CompletableFuture;
 
 public final class PunishEntryRequests extends BaseWebRequest<PunishEntry> implements PunishWebRequests {
 
-    private static final GenericBodyHandler<List<PunishEntry>> LIST_PUNISH_HANDLER = new GenericBodyHandler<>();
-    private static final GenericBodyHandler<PunishProfile> PROFILE_BODY_HANDLER = new GenericBodyHandler<>();
+    private static final GenericBodyHandler<List<PunishEntry>> LIST_PUNISH_HANDLER = new GenericBodyHandler<>(TypeFactory.defaultInstance().constructArrayType(TypeFactory.defaultInstance().constructType(PunishEntry.class)));
+    private static final GenericBodyHandler<PunishProfile> PROFILE_BODY_HANDLER = new GenericBodyHandler<>(TypeFactory.defaultInstance().constructType(PunishProfile.class));
 
     /**
      * Create a new instance of the BaseWebRequest.
@@ -34,6 +35,7 @@ public final class PunishEntryRequests extends BaseWebRequest<PunishEntry> imple
         String url = buildUrl(ENTRY_BASE_URL + "/active/" + owner + "/" + templateId + "/" + source);
         HttpRequest addRequest = HttpRequest
                 .newBuilder(URI.create(url))
+                .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
         CompletableFuture<HttpResponse<PunishProfile>> addResponse =
                 this.httpClient.sendAsync(addRequest, PROFILE_BODY_HANDLER);

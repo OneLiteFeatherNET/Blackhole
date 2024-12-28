@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.request.profile;
 
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import net.onelitefeather.blackhole.api.profile.PunishProfile;
 import net.onelitefeather.blackhole.request.BaseWebRequest;
 import net.onelitefeather.blackhole.util.GenericBodyHandler;
@@ -14,8 +15,8 @@ import java.util.concurrent.CompletableFuture;
 
 public final class PunishProfileRequests extends BaseWebRequest<PunishProfile> implements ProfileWebRequests {
 
-    private static final GenericBodyHandler<List<PunishProfile>> LIST_PROFILE_HANDLER = new GenericBodyHandler<>();
-    private static final GenericBodyHandler<PunishProfile> SINGLE_PROFILE_HANDLER = new GenericBodyHandler<>();
+    private static final GenericBodyHandler<List<PunishProfile>> LIST_PROFILE_HANDLER = new GenericBodyHandler<>(TypeFactory.defaultInstance().constructArrayType(TypeFactory.defaultInstance().constructType(PunishProfile.class)));
+    private static final GenericBodyHandler<PunishProfile> SINGLE_PROFILE_HANDLER = new GenericBodyHandler<>(TypeFactory.defaultInstance().constructType(PunishProfile.class));
 
     /**
      * Create a new instance of the PunishProfileRequests.

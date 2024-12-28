@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.request.template;
 
+import com.fasterxml.jackson.databind.type.TypeFactory;
+import net.onelitefeather.blackhole.api.profile.PunishProfile;
 import net.onelitefeather.blackhole.api.template.PunishTemplate;
 import net.onelitefeather.blackhole.request.BaseWebRequest;
 import net.onelitefeather.blackhole.util.GenericBodyHandler;
@@ -15,8 +17,8 @@ import java.util.concurrent.CompletableFuture;
 
 public final class PunishTemplateRequests extends BaseWebRequest<PunishTemplate> implements TemplateWebRequests {
 
-    private static final GenericBodyHandler<List<PunishTemplate>> LIST_TEMPLATE_HANDLER = new GenericBodyHandler<>();
-    private static final GenericBodyHandler<PunishTemplate> SINGLE_TEMPLATE_HANDLER = new GenericBodyHandler<>();
+    private static final GenericBodyHandler<List<PunishTemplate>> LIST_TEMPLATE_HANDLER = new GenericBodyHandler<>(TypeFactory.defaultInstance().constructArrayType(TypeFactory.defaultInstance().constructType(PunishTemplate.class)));
+    private static final GenericBodyHandler<PunishTemplate> SINGLE_TEMPLATE_HANDLER = new GenericBodyHandler<>(TypeFactory.defaultInstance().constructType(PunishTemplate.class));
 
     public PunishTemplateRequests(@NotNull String baseUrl, @NotNull HttpClient httpClient) {
         super(baseUrl, httpClient);
