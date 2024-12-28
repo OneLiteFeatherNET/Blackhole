@@ -9,8 +9,9 @@ import io.micronaut.http.annotation.Post;
 import io.micronaut.validation.Validated;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
+import net.onelitefeather.blackhole.api.metadata.Durationable;
+import net.onelitefeather.blackhole.api.metadata.Expirable;
 import net.onelitefeather.blackhole.api.metadata.Metadata;
-import net.onelitefeather.blackhole.api.profile.PunishProfile;
 import net.onelitefeather.blackhole.api.utils.IdGenerator;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileEntity;
@@ -19,8 +20,11 @@ import net.onelitefeather.blackhole.backend.database.repository.PunishmentProfil
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.dto.PunishEntryDTO;
+import net.onelitefeather.blackhole.backend.rabbitmq.PunishEntryClient;
+import net.onelitefeather.blackhole.backend.rabbitmq.model.PunishEntryMsg;
 import net.onelitefeather.blackhole.backend.response.PunishProfileResponse;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -31,6 +35,7 @@ public class PunishmentEntityController {
     private final PunishmentRepository punishmentRepository;
     private final PunishmentProfileRepository profileRepository;
     private final PunishmentTemplateRepository templateRepository;
+    private final PunishEntryClient entryClient;
 
     /**
      * Create a new PunishmentEntityController with the given values.
@@ -42,11 +47,12 @@ public class PunishmentEntityController {
     public PunishmentEntityController(
             PunishmentRepository punishmentRepository,
             PunishmentProfileRepository profileRepository,
-            PunishmentTemplateRepository templateRepository
+            PunishmentTemplateRepository templateRepository, PunishEntryClient entryClient
     ) {
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
         this.templateRepository = templateRepository;
+        this.entryClient = entryClient;
     }
 
     /**
@@ -72,9 +78,14 @@ public class PunishmentEntityController {
             return HttpResponse.notFound();
         }
 
+
         Map<String, Object> metadata = new HashMap<>();
         metadata.put(Metadata.META_DATA_KEY_CREATION_DATE, System.currentTimeMillis());
         metadata.put(Metadata.META_DATA_KEY_UPDATE_DATE, System.currentTimeMillis());
+        if (template.getMetaData().containsKey(Durationable.META_DATA_KEY_DURATION)) {
+            Duration expirationDate = (Duration) template.getMetaData().get(Durationable.META_DATA_KEY_DURATION);
+            metadata.put(Expirable.META_DATA_KEY_EXPIRATION_DATE, System.currentTimeMillis() + expirationDate.toMillis());
+        }
 
         PunishmentEntity punishDBEntity = new PunishmentEntity(IdGenerator.generateId(), source, template, metadata);
         PunishmentEntity savedEntity = this.punishmentRepository.save(punishDBEntity);
@@ -97,6 +108,11 @@ public class PunishmentEntityController {
         }
 
         this.profileRepository.update(profile);
+        if (template.getMetaData().containsKey(Durationable.META_DATA_KEY_DURATION)) {
+            Duration expirationDate = (Duration) template.getMetaData().get(Durationable.META_DATA_KEY_DURATION);
+            this.entryClient.send(expirationDate.toMillis(), new PunishEntryMsg(savedEntity.getIdentifier(), profile.getOwner()));
+        }
+
         return HttpResponse.ok(profile.toDTO());
     }
 
