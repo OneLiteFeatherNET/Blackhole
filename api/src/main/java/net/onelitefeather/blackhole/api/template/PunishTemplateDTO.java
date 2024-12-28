@@ -56,4 +56,9 @@ record PunishTemplateDTO(
     public Duration duration() {
         return Optional.ofNullable(this.metaData.get(META_DATA_KEY_DURATION)).map(Duration.class::cast).orElseThrow();
     }
+
+    @Override
+    public String command() {
+        return Optional.ofNullable(this.metaData.get(META_DATA_KEY_COMMAND)).map(String.class::cast).orElseThrow();
+    }
 }

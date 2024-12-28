@@ -3,6 +3,7 @@ package net.onelitefeather.blackhole.api.utils;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
+import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.util.UUID;
 
@@ -32,13 +33,7 @@ public final class UUIDConverter {
 
             // Get the digest bytes
             byte[] digestBytes = digest.digest();
-
-            // Convert the bytes to a string
-            StringBuilder builder = new StringBuilder();
-            for (byte digestByte : digestBytes) {
-                builder.append(String.format("%02X", digestByte));
-            }
-            return builder.toString();
+            return String.format("%0128x", new BigInteger(1, digestBytes));
         } catch (Exception e) {
             throw new RuntimeException("Failed to convert UUID to SHA-512", e);
         }

@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.api.template;
 
+import net.onelitefeather.blackhole.api.metadata.Commandable;
 import net.onelitefeather.blackhole.api.metadata.Durationable;
 import net.onelitefeather.blackhole.api.metadata.Metadata;
 import net.onelitefeather.blackhole.api.punish.PunishType;
@@ -20,7 +21,7 @@ import java.util.UUID;
  * @see Metadata
  * @author TheMeinerLP
  */
-public sealed interface PunishTemplate extends Metadata, Durationable permits PunishTemplateDTO {
+public sealed interface PunishTemplate extends Metadata, Durationable, Commandable permits PunishTemplateDTO {
 
     String META_DATA_KEY_TRANSLATABLE = "translatable";
 
@@ -93,6 +94,14 @@ public sealed interface PunishTemplate extends Metadata, Durationable permits Pu
          * @return the builder
          */
         Builder translatable();
+
+        /**
+         * Sets the identifier of the punishment.
+         *
+         * @param command the identifier of the punishment
+         * @return the builder
+         */
+        Builder command(@NotNull String command);
 
         /**
          * Sets the duration of the punishment.

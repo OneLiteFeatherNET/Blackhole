@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.api.template;
 
+import net.onelitefeather.blackhole.api.metadata.Commandable;
 import net.onelitefeather.blackhole.api.metadata.Durationable;
 import net.onelitefeather.blackhole.api.metadata.Metadata;
 import net.onelitefeather.blackhole.api.punish.PunishType;
@@ -41,6 +42,12 @@ final class PunishTemplateBuilder implements PunishTemplate.Builder {
     @Override
     public PunishTemplate.Builder translatable() {
         this.metaData.put(PunishTemplate.META_DATA_KEY_TRANSLATABLE, true);
+        return this;
+    }
+
+    @Override
+    public PunishTemplate.Builder command(@NotNull String command) {
+        this.metaData.put(Commandable.META_DATA_KEY_COMMAND, command);
         return this;
     }
 
