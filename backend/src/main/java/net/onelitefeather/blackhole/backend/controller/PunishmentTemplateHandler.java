@@ -1,13 +1,21 @@
 package net.onelitefeather.blackhole.backend.controller;
 
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
-import io.micronaut.http.annotation.*;
+import io.micronaut.http.annotation.Body;
+import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Delete;
+import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.PathVariable;
+import io.micronaut.http.annotation.Post;
+import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.api.template.PunishTemplate;
-import net.onelitefeather.blackhole.backend.database.models.PunishmentTemplateEntity;
+import net.onelitefeather.blackhole.backend.database.entities.PunishmentTemplateEntity;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentTemplateRepository;
+import net.onelitefeather.blackhole.backend.dto.PunishTemplateDTO;
 
 import java.util.UUID;
-import java.util.List;
 
 /**
  * A handler for punishment templates.
@@ -37,8 +45,11 @@ public class PunishmentTemplateHandler {
      * @param template the template to add
      * @return the added template
      */
-    @Post()
-    public HttpResponse<PunishTemplate> addTemplate(@Body PunishTemplate template) {
+    @Post("/")
+    public HttpResponse<PunishTemplateDTO> addTemplate(@Valid @Body PunishTemplateDTO template) {
+        if (template.identifier() != null) {
+            return HttpResponse.notAllowed();
+        }
         PunishmentTemplateEntity dbEntity = PunishmentTemplateEntity.toEntity(template);
         PunishmentTemplateEntity savedEntity = this.templateRepository.save(dbEntity);
         return HttpResponse.ok(savedEntity.toDTO());
@@ -51,7 +62,7 @@ public class PunishmentTemplateHandler {
      * @return the updated template
      */
     @Post(value = "/update")
-    public HttpResponse<PunishTemplate> updateTemplate(@Body PunishTemplate template) {
+    public HttpResponse<PunishTemplateDTO> updateTemplate(@Valid @Body PunishTemplateDTO template) {
         PunishmentTemplateEntity dbEntity = PunishmentTemplateEntity.toEntity(template);
 
         if (!this.templateRepository.existsById(dbEntity.getIdentifier())) {
@@ -69,12 +80,13 @@ public class PunishmentTemplateHandler {
      * @return the removed template
      */
     @Delete(value = "/delete/{identifier}")
-    public HttpResponse<PunishTemplate> removeTemplate(@PathVariable UUID identifier) {
+    public HttpResponse<PunishTemplateDTO> removeTemplate(@PathVariable UUID identifier) {
         PunishmentTemplateEntity entity = this.templateRepository.findById(identifier).orElse(null);
 
         if (entity == null) {
             return HttpResponse.notFound();
         }
+        this.templateRepository.delete(entity);
 
         return HttpResponse.ok(entity.toDTO());
     }
@@ -84,9 +96,9 @@ public class PunishmentTemplateHandler {
      *
      * @return a list of all templates
      */
-    @Get("/getAll")
-    public HttpResponse<List<PunishTemplate>> getAll() {
-        List<PunishmentTemplateEntity> entities = this.templateRepository.findAll();
-        return HttpResponse.ok(entities.stream().map(PunishmentTemplateEntity::toDTO).toList());
+    @Get("/all")
+    public HttpResponse<Page<PunishTemplateDTO>> getAll(Pageable pageable) {
+        Page<PunishmentTemplateEntity> entities = this.templateRepository.findAll(pageable);
+        return HttpResponse.ok(entities.map(PunishmentTemplateEntity::toDTO));
     }
 }

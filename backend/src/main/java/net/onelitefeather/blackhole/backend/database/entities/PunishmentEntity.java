@@ -1,10 +1,15 @@
-package net.onelitefeather.blackhole.backend.database.models;
+package net.onelitefeather.blackhole.backend.database.entities;
 
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.*;
 import net.onelitefeather.blackhole.api.punish.PunishEntry;
 import net.onelitefeather.blackhole.api.punish.PunishType;
+import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
+import net.onelitefeather.blackhole.backend.dto.PunishEntryDTO;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -18,18 +23,14 @@ public class PunishmentEntity {
     @Id
     private String identifier;
 
-    private PunishType type;
-
     private UUID source;
 
-    @OneToOne
+    @ManyToOne
     private PunishmentTemplateEntity template;
 
-    @ElementCollection
-    @MapKeyColumn(name = "key")
-    @Column(name = "value")
-    @CollectionTable(name = "punishments_metadata", joinColumns = @JoinColumn(name = "identifier"))
-    private Map<String, Object> metaData;
+    @Convert(converter = MapStringObjectConverter.class)
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, Object> metaData = new HashMap<>();
 
     /**
      * Convert a PunishEntry to a PunishmentEntity.
@@ -37,21 +38,20 @@ public class PunishmentEntity {
      * @param entry the PunishEntry to convert
      * @return the converted PunishmentEntity
      */
-    public static PunishmentEntity toEntity(PunishEntry entry) {
+    public static PunishmentEntity toEntity(PunishEntryDTO entry) {
         return new PunishmentEntity(
                 entry.identifier(),
-                entry.type(),
                 entry.source(),
                 PunishmentTemplateEntity.toEntity(entry.template()),
                 entry.metaData()
         );
     }
 
-    public static PunishmentEntity toEntity(Optional<PunishEntry> entityOptional) {
+    public static PunishmentEntity toEntity(Optional<PunishEntryDTO> entityOptional) {
         return entityOptional.map(PunishmentEntity::toEntity).orElse(null);
     }
 
-    public static List<PunishmentEntity> toEntities(List<PunishEntry> entries) {
+    public static List<PunishmentEntity> toEntities(List<PunishEntryDTO> entries) {
         return entries.stream().map(PunishmentEntity::toEntity).toList();
     }
 
@@ -62,13 +62,11 @@ public class PunishmentEntity {
      * Create a new PunishmentEntity with a template.
      *
      * @param identifier the identifier of the punishment
-     * @param type       the type of the punishment
      * @param source     the source of the punishment
      * @param metaData   the metadata of the punishment
      */
-    public PunishmentEntity(String identifier, PunishType type, UUID source, PunishmentTemplateEntity template, Map<String, Object> metaData) {
+    public PunishmentEntity(String identifier, UUID source, PunishmentTemplateEntity template, Map<String, Object> metaData) {
         this.identifier = identifier;
-        this.type = type;
         this.source = source;
         this.template = template;
         this.metaData = metaData;
@@ -90,15 +88,6 @@ public class PunishmentEntity {
      */
     public String getIdentifier() {
         return identifier;
-    }
-
-    /**
-     * Get the type of the punishment.
-     *
-     * @return the type
-     */
-    public PunishType getType() {
-        return type;
     }
 
     /**
@@ -133,11 +122,12 @@ public class PunishmentEntity {
      *
      * @return the converted PunishEntry
      */
-    public PunishEntry toDTO() {
-        return PunishEntry.builder()
-                .source(source)
-                .type(type)
-                .template(template.toDTO())
-                .build();
+    public PunishEntryDTO toDTO() {
+        return new PunishEntryDTO(
+                this.identifier,
+                this.source,
+                this.template.toDTO(),
+                this.metaData
+        );
     }
 }

@@ -1,0 +1,19 @@
+# docker compose up -d
+services:
+  mariadb:
+    image: mariadb
+    container_name: 'mariadb_blackhole'
+    ports:
+      - "3336:3306"
+    shm_size: 128mb
+    environment:
+      MARIADB_ROOT_PASSWORD: blackhole
+      MARIADB_DATABASE: blackhole
+    volumes:
+      - ./mariadb/data/:/var/lib/mysql
+    networks:
+      - mariadb_blackhole_go_net
+
+networks:
+  mariadb_blackhole_go_net:
+    driver: bridge
