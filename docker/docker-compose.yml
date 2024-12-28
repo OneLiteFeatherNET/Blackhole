@@ -12,8 +12,17 @@ services:
     volumes:
       - ./mariadb/data/:/var/lib/mysql
     networks:
-      - mariadb_blackhole_go_net
+      - blackhole_go_net
+  rabbitmq:
+    image: rabbitmq:3
+    container_name: 'rabbitmq_blackhole'
+    networks:
+      - blackhole_go_net
+    shm_size: 128mb
+    ports:
+      - "5672:5672"
+      - "8880:15672"
 
 networks:
-  mariadb_blackhole_go_net:
+  blackhole_go_net:
     driver: bridge

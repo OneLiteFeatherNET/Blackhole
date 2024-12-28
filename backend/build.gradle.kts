@@ -29,6 +29,7 @@ dependencies {
     implementation(mn.mariadb.java.client)
     implementation(mn.postgresql)
     implementation(mn.h2)
+    implementation(mn.snakeyaml)
     implementation(mn.log4j)
     implementation(mn.slf4j.api)
     implementation(mn.slf4j.simple)
