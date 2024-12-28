@@ -1,10 +1,21 @@
-package net.onelitefeather.blackhole.backend.database.models;
+package net.onelitefeather.blackhole.backend.database.entities;
 
 import io.micronaut.serde.annotation.Serdeable;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
 import net.onelitefeather.blackhole.api.punish.PunishType;
-import net.onelitefeather.blackhole.api.template.PunishTemplate;
+import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
+import net.onelitefeather.blackhole.backend.dto.PunishTemplateDTO;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -14,17 +25,16 @@ import java.util.UUID;
 public class PunishmentTemplateEntity {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID identifier;
 
     private String reason;
 
     private PunishType type;
 
-    @ElementCollection
-    @MapKeyColumn(name = "key")
-    @Column(name = "value")
-    @CollectionTable(name = "punishment_templates_metadata", joinColumns = @JoinColumn(name = "identifier"))
-    private Map<String, Object> metaData;
+    @Convert(converter = MapStringObjectConverter.class)
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, Object> metaData = new HashMap<>();
 
     /**
      * Convert a PunishTemplate to a PunishmentTemplateEntity
@@ -32,7 +42,7 @@ public class PunishmentTemplateEntity {
      * @param template the PunishTemplate to convert
      * @return the converted PunishmentTemplateEntity
      */
-    public static PunishmentTemplateEntity toEntity(PunishTemplate template) {
+    public static PunishmentTemplateEntity toEntity(PunishTemplateDTO template) {
         return new PunishmentTemplateEntity(template.identifier(), template.reason(), template.type(), template.metaData());
     }
 
@@ -99,12 +109,12 @@ public class PunishmentTemplateEntity {
      *
      * @return the converted PunishTemplate
      */
-    public PunishTemplate toDTO() {
-        return PunishTemplate
-                .builder(this.metaData)
-                .identifier(this.identifier)
-                .reason(this.reason)
-                .type(this.type)
-                .build();
+    public PunishTemplateDTO toDTO() {
+        return new PunishTemplateDTO(
+                this.metaData,
+                this.reason,
+                this.type,
+                this.identifier
+        );
     }
 }

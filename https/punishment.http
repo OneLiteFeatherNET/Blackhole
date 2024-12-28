@@ -1,0 +1,8 @@
+### GET Get all profiles
+GET http://localhost:8080/punishment/all
+
+### POST Punish player with id 05bf52c6-7bb0-4f13-8951-0e1fd803df35
+@owner = bfd1b89d097121dbd22042c75fffb78f8871761898d764d1586f0640a5cbf46a8d8280c66f62f50efbe56fc1e535009603b9a43b2e3f7f43533ceae48fc8550d
+@templateId = de054a48-10d9-4070-9a91-263d741c069b
+@source = 05bf52c6-7bb0-4f13-8951-0e1fd803df35
+POST http://localhost:8080/punishment/active/{{owner}}/{{templateId}}/{{source}}
