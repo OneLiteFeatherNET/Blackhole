@@ -47,11 +47,14 @@ dependencyResolutionManagement {
             version("micronaut", "4.4.4")
             version("velocity", "3.4.0-SNAPSHOT")
             version("cloud.commands", "2.0.0")
+            version("jetbrains.annotations", "26.0.1")
 
+            library("jetbrains.annotations", "org.jetbrains", "annotations").versionRef("jetbrains.annotations")
             library("velocity-api", "com.velocitypowered", "velocity-api").versionRef("velocity")
             library("cloud-velocity", "org.incendo", "cloud-velocity").version("2.0.0-beta.10")
             library("cloud-annotations", "org.incendo", "cloud-annotations").versionRef("cloud.commands")
             library("cloudExtras", "org.incendo", "cloud-minecraft-extras").version("2.0.0-beta.10")
+
             plugin("micronaut.application", "io.micronaut.application").versionRef("micronaut")
             plugin("micronaut.aot", "io.micronaut.aot").versionRef("micronaut")
         }
