@@ -83,8 +83,9 @@ public class PunishmentEntityController {
         metadata.put(Metadata.META_DATA_KEY_CREATION_DATE, System.currentTimeMillis());
         metadata.put(Metadata.META_DATA_KEY_UPDATE_DATE, System.currentTimeMillis());
         if (template.getMetaData().containsKey(Durationable.META_DATA_KEY_DURATION)) {
-            Duration expirationDate = (Duration) template.getMetaData().get(Durationable.META_DATA_KEY_DURATION);
-            metadata.put(Expirable.META_DATA_KEY_EXPIRATION_DATE, System.currentTimeMillis() + expirationDate.toMillis());
+            String expirationDate = (String) template.getMetaData().get(Durationable.META_DATA_KEY_DURATION);
+            Duration duration = Duration.parse(expirationDate);
+            metadata.put(Expirable.META_DATA_KEY_EXPIRATION_DATE, System.currentTimeMillis() + duration.toMillis());
         }
 
         PunishmentEntity punishDBEntity = new PunishmentEntity(IdGenerator.generateId(), source, template, metadata);
@@ -109,8 +110,9 @@ public class PunishmentEntityController {
 
         this.profileRepository.update(profile);
         if (template.getMetaData().containsKey(Durationable.META_DATA_KEY_DURATION)) {
-            Duration expirationDate = (Duration) template.getMetaData().get(Durationable.META_DATA_KEY_DURATION);
-            this.entryClient.send(expirationDate.toMillis(), new PunishEntryMsg(savedEntity.getIdentifier(), profile.getOwner()));
+            String expirationDate = (String) template.getMetaData().get(Durationable.META_DATA_KEY_DURATION);
+            Duration duration = Duration.parse(expirationDate);
+            this.entryClient.send(duration.toMillis(), new PunishEntryMsg(savedEntity.getIdentifier(), profile.getOwner()));
         }
 
         return HttpResponse.ok(profile.toDTO());

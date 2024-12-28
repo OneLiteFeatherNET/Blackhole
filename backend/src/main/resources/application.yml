@@ -15,7 +15,11 @@ jpa:
         show_sql: true
 
 micronaut:
-# Server
+  serde:
+    jackson:
+      parser-features:
+
+  # Server
   server:
     port: ${PORT:8080}
 
@@ -40,18 +44,18 @@ micronaut:
           - name: punish-entry
             durable: true
             arguments:
-              x-dead-letter-exchange: punish.deadletter.exchange
+              x-dead-letter-exchange: blackhole.exchange
               x-dead-letter-routing-key: punish-entry-expired
 
           - name: punish-entry-expired
             durable: true
 
         exchanges:
-          - name: punish.deadletter.exchange
+          - name: blackhole.exchange
             type: direct
             durable: true
 
         bindings:
-          - exchange: punish.deadletter.exchange
+          - exchange: blackhole.exchange
             routing-key: punish-entry-expired
             queue: punish-entry-expired
