@@ -4,6 +4,7 @@ import net.onelitefeather.blackhole.api.profile.PunishProfile;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * The interface contains all web requests to interact with the ban profiles.
@@ -30,7 +31,7 @@ public sealed interface ProfileWebRequests permits PunishProfileRequests {
      * @param owner the owner of the profile
      * @return the profile
      */
-    @NotNull PunishProfile get(@NotNull String owner);
+    @NotNull Optional<PunishProfile> get(@NotNull String owner);
 
     /**
      * Update a profile on the server.

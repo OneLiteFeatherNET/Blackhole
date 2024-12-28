@@ -11,6 +11,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public final class PunishProfileRequests extends BaseWebRequest<PunishProfile> implements ProfileWebRequests {
@@ -41,14 +42,14 @@ public final class PunishProfileRequests extends BaseWebRequest<PunishProfile> i
     }
 
     @Override
-    public @NotNull PunishProfile get(@NotNull String owner) {
+    public @NotNull Optional<PunishProfile> get(@NotNull String owner) {
         HttpRequest getRequest = HttpRequest.newBuilder()
                 .uri(URI.create(buildUrl(PROFILE_BASE_URL + "/" + owner)))
                 .GET()
                 .build();
         CompletableFuture<HttpResponse<PunishProfile>> getResponse =
                 this.httpClient.sendAsync(getRequest, SINGLE_PROFILE_HANDLER);
-        return getResponse.thenApply(HttpResponse::body).join();
+        return Optional.ofNullable(getResponse.thenApply(HttpResponse::body).join());
     }
 
     @Override
