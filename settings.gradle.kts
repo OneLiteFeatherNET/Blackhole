@@ -52,3 +52,4 @@ dependencyResolutionManagement {
 }
 include("backend")
 include("api")
+include("client")
