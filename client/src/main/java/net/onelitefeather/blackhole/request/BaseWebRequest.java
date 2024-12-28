@@ -1,6 +1,11 @@
 package net.onelitefeather.blackhole.request;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import net.onelitefeather.blackhole.api.template.PunishTemplateSimpleModule;
 import org.jetbrains.annotations.NotNull;
 
 import java.net.http.HttpClient;
@@ -14,7 +19,10 @@ import java.net.http.HttpClient;
  */
 public abstract class BaseWebRequest<T> {
 
-    protected static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    protected static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .registerModule(new Jdk8Module())
+            .disable(SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS);
 
     protected final String baseUrl;
     protected final HttpClient httpClient;
@@ -36,7 +44,7 @@ public abstract class BaseWebRequest<T> {
      * @param object the object to map
      * @return the string representation
      */
-    protected @NotNull String mapObjectToString(T object) {
+    protected @NotNull String mapObjectToString(Object object) {
         try {
             return OBJECT_MAPPER.writeValueAsString(object);
         } catch (Exception exception) {
