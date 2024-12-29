@@ -1,4 +1,4 @@
-group = "net.theevilreaper.kali"
+group = "net.onelitefeather.blackhole.velocity"
 plugins {
     id("xyz.jpenilla.run-velocity") version "2.3.1"
     `maven-publish`

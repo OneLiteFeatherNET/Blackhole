@@ -1,4 +1,4 @@
-group = "net.theevilreaper.blackhole.api"
+group = "net.onelitefeather.blackhole.api"
 
 plugins {
     `maven-publish`
