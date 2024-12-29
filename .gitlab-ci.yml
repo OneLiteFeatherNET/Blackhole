@@ -24,10 +24,10 @@ build:
     paths:
       - backend/build/docker/native-optimized
   rules:
-    - !reference [.gradle-java-image-rules, rules]
-    - !reference [.workflow-rules-run-on-merge-request, rules]
-    - !reference [.workflow-rules-run-on-default-branch, rules]
-    - !reference [.workflow-rules-run-on-main, rules]
+    - !reference [ .gradle-java-image-rules, rules]
+    - !reference [ .workflow-rules-run-on-merge-request, rules]
+    - !reference [ .workflow-rules-run-on-default-branch, rules]
+    - !reference [ .workflow-rules-run-on-main, rules]
     - !reference [ .workflow-rules-run-on-label-publish, rules ]
     - !reference [ .workflow-rules-run-on-tags, rules ]
   script:
