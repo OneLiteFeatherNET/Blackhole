@@ -1,4 +1,12 @@
 rootProject.name = "Blackhole"
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+        maven("https://eldonexus.de/repository/maven-public/")
+    }
+}
+
 plugins {
     id("io.micronaut.platform.catalog") version "4.4.4"
 }
@@ -47,13 +55,18 @@ dependencyResolutionManagement {
             version("micronaut", "4.4.4")
             version("velocity", "3.4.0-SNAPSHOT")
             version("cloud.commands", "2.0.0")
+            version("publishdata", "1.4.0")
+            version("shadow", "9.0.0-beta4")
 
             library("velocity-api", "com.velocitypowered", "velocity-api").versionRef("velocity")
             library("cloud-velocity", "org.incendo", "cloud-velocity").version("2.0.0-beta.10")
             library("cloud-annotations", "org.incendo", "cloud-annotations").versionRef("cloud.commands")
             library("cloudExtras", "org.incendo", "cloud-minecraft-extras").version("2.0.0-beta.10")
+
             plugin("micronaut.application", "io.micronaut.application").versionRef("micronaut")
             plugin("micronaut.aot", "io.micronaut.aot").versionRef("micronaut")
+            plugin("publishdata", "de.chojo.publishdata").versionRef("publishdata")
+            plugin("shadow", "com.gradleup.shadow").versionRef("shadow")
         }
     }
 }

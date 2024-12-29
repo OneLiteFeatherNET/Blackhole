@@ -10,6 +10,7 @@ variables:
   IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
   GRADLE_OPTS: "-Dorg.gradle.internal.launcher.welcomeMessageEnabled=false"
   GRADLE_IMAGE: "${HTL_NEXUS_PROXY}/gradle:8.12.0-jdk21"
+  BUILDAH_IMAGE: "${HTL_NEXUS_PROXY}/buildah/stable:latest"
 
 build:
   stage: build
@@ -27,6 +28,7 @@ build:
     - !reference [ .workflow-rules-run-on-tags, rules ]
   script:
     - gradle build -x test
+    - gradle backend:optimizedDockerfileNative -x test
 
 test:
   stage: test
@@ -45,19 +47,73 @@ test:
   script:
     - gradle test
 
-#publish gradle:
-#  stage: publish
-#  image: $GRADLE_IMAGE
-#  tags:
-#    - saas-linux-medium-amd64
-#  extends:
-#    - .gradle-project-cache
-#  rules:
-#    - !reference [ .gradle-java-image-rules, rules ]
-#    - !reference [ .workflow-rules-run-on-merge-request, rules ]
-#    - !reference [ .workflow-rules-run-on-default-branch, rules ]
-#    - !reference [ .workflow-rules-run-on-main, rules ]
-#    - !reference [ .workflow-rules-run-on-label-publish, rules ]
-#    - !reference [ .workflow-rules-run-on-tags, rules ]
-#  script:
-#    - gradle publish
+publish docker:
+  stage: publish
+  image: $BUILDAH_IMAGE
+  tags:
+    - saas-linux-medium-amd64
+  extends:
+    - .gradle-project-cache
+  rules:
+    - !reference [ .gradle-java-image-rules, rules ]
+    - !reference [ .workflow-rules-run-on-merge-request, rules ]
+    - !reference [ .workflow-rules-run-on-default-branch, rules ]
+    - !reference [ .workflow-rules-run-on-main, rules ]
+    - !reference [ .workflow-rules-run-on-label-publish, rules ]
+    - !reference [ .workflow-rules-run-on-tags, rules ]
+  script:
+    - buildah login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - buildah build -f DockerfileNative -t $IMAGE_TAG -t $CI_REGISTRY_IMAGE:latest backend/build/docker/native-optimized
+    - buildah push $IMAGE_TAG
+    - buildah push $CI_REGISTRY_IMAGE:latest
+
+publish client:
+  stage: publish
+  image: $GRADLE_IMAGE
+  tags:
+    - saas-linux-medium-amd64
+  extends:
+    - .gradle-project-cache
+  rules:
+    - !reference [ .gradle-java-image-rules, rules ]
+    - !reference [ .workflow-rules-run-on-merge-request, rules ]
+    - !reference [ .workflow-rules-run-on-default-branch, rules ]
+    - !reference [ .workflow-rules-run-on-main, rules ]
+    - !reference [ .workflow-rules-run-on-label-publish, rules ]
+    - !reference [ .workflow-rules-run-on-tags, rules ]
+  script:
+    - gradle client:publish
+
+publish api:
+  stage: publish
+  image: $GRADLE_IMAGE
+  tags:
+    - saas-linux-medium-amd64
+  extends:
+    - .gradle-project-cache
+  rules:
+    - !reference [ .gradle-java-image-rules, rules ]
+    - !reference [ .workflow-rules-run-on-merge-request, rules ]
+    - !reference [ .workflow-rules-run-on-default-branch, rules ]
+    - !reference [ .workflow-rules-run-on-main, rules ]
+    - !reference [ .workflow-rules-run-on-label-publish, rules ]
+    - !reference [ .workflow-rules-run-on-tags, rules ]
+  script:
+    - gradle api:publish
+
+publish velocity:
+  stage: publish
+  image: $GRADLE_IMAGE
+  tags:
+    - saas-linux-medium-amd64
+  extends:
+    - .gradle-project-cache
+  rules:
+    - !reference [ .gradle-java-image-rules, rules ]
+    - !reference [ .workflow-rules-run-on-merge-request, rules ]
+    - !reference [ .workflow-rules-run-on-default-branch, rules ]
+    - !reference [ .workflow-rules-run-on-main, rules ]
+    - !reference [ .workflow-rules-run-on-label-publish, rules ]
+    - !reference [ .workflow-rules-run-on-tags, rules ]
+  script:
+    - gradle velocity:publish
