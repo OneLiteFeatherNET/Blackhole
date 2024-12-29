@@ -15,7 +15,6 @@ class PunishTemplateTest {
         PunishTemplate entry = PunishTemplate.builder()
                 .type(PunishType.SERVER)
                 .reason("Test")
-                .generateIdentifier()
                 .build();
         assertNotNull(entry);
         assertEquals(PunishType.SERVER, entry.type());
@@ -29,7 +28,6 @@ class PunishTemplateTest {
         PunishTemplate entry = PunishTemplate.builder()
                 .type(PunishType.SERVER)
                 .reason("Test")
-                .generateIdentifier()
                 .translatable()
                 .build();
         assertNotNull(entry);
@@ -45,7 +43,6 @@ class PunishTemplateTest {
         PunishTemplate entry = PunishTemplate.builder()
                 .type(PunishType.SERVER)
                 .reason("Test")
-                .generateIdentifier()
                 .build();
         assertNotNull(entry);
 
