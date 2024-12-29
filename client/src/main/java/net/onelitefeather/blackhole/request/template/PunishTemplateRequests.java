@@ -1,7 +1,6 @@
 package net.onelitefeather.blackhole.request.template;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
-import net.onelitefeather.blackhole.api.profile.PunishProfile;
 import net.onelitefeather.blackhole.api.template.PunishTemplate;
 import net.onelitefeather.blackhole.request.BaseWebRequest;
 import net.onelitefeather.blackhole.util.GenericBodyHandler;
@@ -12,6 +11,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -25,7 +25,7 @@ public final class PunishTemplateRequests extends BaseWebRequest<PunishTemplate>
     }
 
     @Override
-    public @NotNull PunishTemplate add(@NotNull PunishTemplate template) {
+    public @NotNull CompletableFuture<PunishTemplate> addAsync(@NotNull PunishTemplate template) {
         String templateJson = mapObjectToString(template);
         HttpRequest addRequest = HttpRequest.newBuilder()
                 .uri(URI.create(buildUrl(TEMPLATE_BASE_URL + "/")))
@@ -33,11 +33,11 @@ public final class PunishTemplateRequests extends BaseWebRequest<PunishTemplate>
                 .build();
         CompletableFuture<HttpResponse<PunishTemplate>> addResponse =
                 this.httpClient.sendAsync(addRequest, SINGLE_TEMPLATE_HANDLER);
-        return addResponse.thenApply(HttpResponse::body).join();
+        return addResponse.thenApply(HttpResponse::body);
     }
 
     @Override
-    public @NotNull PunishTemplate update(@NotNull PunishTemplate template) {
+    public @NotNull CompletableFuture<PunishTemplate> updateAsync(@NotNull PunishTemplate template) {
         String templateJson = mapObjectToString(template);
         HttpRequest addRequest = HttpRequest.newBuilder()
                 .uri(URI.create(buildUrl(TEMPLATE_BASE_URL + "/update")))
@@ -45,22 +45,22 @@ public final class PunishTemplateRequests extends BaseWebRequest<PunishTemplate>
                 .build();
         CompletableFuture<HttpResponse<PunishTemplate>> addResponse =
                 this.httpClient.sendAsync(addRequest, SINGLE_TEMPLATE_HANDLER);
-        return addResponse.thenApply(HttpResponse::body).join();
+        return addResponse.thenApply(HttpResponse::body);
     }
 
     @Override
-    public @NotNull PunishTemplate delete(@NotNull UUID identifier) {
+    public @NotNull CompletableFuture<PunishTemplate> deleteAsync(@NotNull UUID identifier) {
         HttpRequest deleteRequest = HttpRequest.newBuilder()
                 .uri(URI.create(buildUrl(TEMPLATE_BASE_URL + "/delete/" + identifier)))
                 .DELETE()
                 .build();
         CompletableFuture<HttpResponse<PunishTemplate>> deleteResponse =
                 this.httpClient.sendAsync(deleteRequest, SINGLE_TEMPLATE_HANDLER);
-        return deleteResponse.thenApply(HttpResponse::body).join();
+        return deleteResponse.thenApply(HttpResponse::body);
     }
 
     @Override
-    public @NotNull List<PunishTemplate> getAll() {
+    public @NotNull CompletableFuture<List<PunishTemplate>> getAllAsync() {
         HttpRequest getAllRequest = HttpRequest.newBuilder()
                 .uri(URI.create(buildUrl(TEMPLATE_BASE_URL + "/all")))
                 .GET()
@@ -68,6 +68,20 @@ public final class PunishTemplateRequests extends BaseWebRequest<PunishTemplate>
 
         CompletableFuture<HttpResponse<List<PunishTemplate>>> completableFuture =
                 this.httpClient.sendAsync(getAllRequest, LIST_TEMPLATE_HANDLER);
-        return completableFuture.thenApply(HttpResponse::body).join();
+        return completableFuture.thenApply(HttpResponse::body);
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Optional<PunishTemplate>> getAsync(@NotNull UUID identifier) {
+        HttpRequest getRequest = HttpRequest.newBuilder()
+                .uri(URI.create(buildUrl(TEMPLATE_BASE_URL + "/" + identifier)))
+                .GET()
+                .build();
+
+        CompletableFuture<HttpResponse<PunishTemplate>> completableFuture =
+                this.httpClient.sendAsync(getRequest, SINGLE_TEMPLATE_HANDLER);
+        return completableFuture
+                .thenApply(HttpResponse::body)
+                .thenApply(Optional::ofNullable);
     }
 }

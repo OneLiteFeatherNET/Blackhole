@@ -46,25 +46,4 @@ class BaseWebRequestTest {
         assertNotNull(json);
         assertTrue(json.contains("data"));
     }
-
-    @Test
-    @Disabled
-    void createTemplate() {
-        BlackholeClient blackholeClient = BlackholeClient.newClient("http://localhost:8080");
-        TemplateWebRequests templateWebRequests = blackholeClient.templateRequests();
-        PunishTemplate yolo = templateWebRequests.add(PunishTemplate.builder().translatable().duration(Duration.ofSeconds(30)).reason("YOLO").type(PunishType.NETWORK).build());
-        ObjectMapper objectMapper = new ObjectMapper()
-                .registerModule(new JavaTimeModule())
-                .registerModule(PunishTemplateSimpleModule.INSTANCE)
-                .registerModule(PunishEntrySimpleModule.INSTANCE)
-                .registerModule(PunishProfileSimpleModule.INSTANCE)
-                .registerModule(new Jdk8Module());
-        System.out.println(objectMapper.valueToTree(yolo));
-        var profile = PunishProfile.builder().owner("bfd1b89d097121dbd22042c75fffb78f8871761898d764d1586f0640a5cbf46a8d8280c66f62f50efbe56fc1e535009603b9a43b2e3f7f43533ceae48fc8550d").build();
-        PunishProfile add = blackholeClient.profileRequests().add(profile);
-        System.out.println(objectMapper.valueToTree(add));
-        PunishProfile punishProfile = blackholeClient.punishRequests().add(profile.owner(), yolo.identifier(), UUID.randomUUID());
-        assertNotNull(punishProfile);
-        System.out.println(objectMapper.valueToTree(punishProfile));
-    }
 }
