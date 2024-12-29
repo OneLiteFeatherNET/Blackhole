@@ -63,7 +63,6 @@ class PunishProfileTest {
         UUID source = UUID.randomUUID();
 
         PunishTemplate template = PunishTemplate.builder()
-                .identifier(UUID.randomUUID())
                 .reason("Test")
                 .type(PunishType.NETWORK)
                 .build();
