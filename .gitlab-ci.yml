@@ -12,20 +12,6 @@ variables:
   GRADLE_IMAGE: "${HTL_NEXUS_PROXY}/gradle:8.12.0-jdk21"
   BUILDAH_IMAGE: "${HTL_NEXUS_PROXY}/buildah/stable:latest"
 
-.gradle-project-cache:
-  before_script:
-    - export GRADLE_USER_HOME=$CI_PROJECT_DIR/.gradle
-  cache:
-    key: $CI_COMMIT_REF_SLUG
-    paths:
-      - "$CI_PROJECT_DIR/.gradle"
-      - "$CI_PROJECT_DIR/backend/build"
-      - "$CI_PROJECT_DIR/api/build"
-      - "$CI_PROJECT_DIR/velocity/build"
-      - "$CI_PROJECT_DIR/client/build"
-    policy: pull-push
-
-
 build:
   stage: build
   image: $GRADLE_IMAGE
@@ -33,6 +19,10 @@ build:
     - saas-linux-medium-amd64
   extends:
     - .gradle-project-cache
+  cache:
+    key: "$CI_COMMIT_REF_SLUG"
+    paths:
+      - backend/build/docker/native-optimized
   rules:
     - !reference [.gradle-java-image-rules, rules]
     - !reference [.workflow-rules-run-on-merge-request, rules]
@@ -64,6 +54,12 @@ test:
 publish docker:
   stage: publish
   image: $BUILDAH_IMAGE
+  cache:
+    key: "$CI_COMMIT_REF_SLUG"
+    paths:
+      - backend/build/docker/native-optimized
+  dependencies:
+    - build
   tags:
     - saas-linux-medium-amd64
   extends:
