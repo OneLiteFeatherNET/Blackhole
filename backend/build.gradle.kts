@@ -20,7 +20,6 @@ dependencies {
     implementation(mn.micronaut.http.client.jdk)
     implementation(mn.micronaut.cache.caffeine)
     implementation(mn.micronaut.data.spring.jpa)
-    implementation(mn.micronaut.rabbitmq)
     implementation(mn.micronaut.serde.jackson)
     implementation(mn.micronaut.hibernate.jpa)
     implementation(mn.micronaut.hibernate.validator)

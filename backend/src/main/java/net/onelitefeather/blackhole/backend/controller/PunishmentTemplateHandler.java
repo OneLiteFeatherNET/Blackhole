@@ -15,6 +15,7 @@ import net.onelitefeather.blackhole.backend.database.entities.PunishmentTemplate
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.dto.PunishTemplateDTO;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -100,5 +101,18 @@ public class PunishmentTemplateHandler {
     public HttpResponse<Page<PunishTemplateDTO>> getAll(Pageable pageable) {
         Page<PunishmentTemplateEntity> entities = this.templateRepository.findAll(pageable);
         return HttpResponse.ok(entities.map(PunishmentTemplateEntity::toDTO));
+    }
+
+    /**
+     * Get all templates from the database.
+     *
+     * @return a list of all templates
+     */
+    @Get("/{identifier}")
+    public HttpResponse<PunishTemplateDTO> get(UUID identifier) {
+        Optional<PunishmentTemplateEntity> entity = this.templateRepository.findById(identifier);
+        return entity.map(PunishmentTemplateEntity::toDTO)
+                .map(HttpResponse::ok)
+                .orElseGet(HttpResponse::notFound);
     }
 }

@@ -11,6 +11,7 @@ import io.micronaut.http.annotation.Post;
 import io.micronaut.validation.Validated;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
+import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.dto.PunishProfileDTO;
@@ -96,10 +97,21 @@ public class PunishmentProfileHandler {
      */
     @Get("/{owner}")
     public HttpResponse<PunishProfileResponse> getById(@Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner) {
-        var entity = this.repository.findById(owner).map(PunishmentProfileEntity::toDTO).orElse(null);
+        var entity = this.repository.findById(owner).orElse(null);
         if (entity == null) {
             return HttpResponse.notFound();
         }
-        return HttpResponse.ok(entity);
+        PunishmentEntity activeBan = entity.getActiveBan();
+        PunishmentEntity activeChatBan = entity.getActiveChatBan();
+        if (activeBan != null && activeBan.toDTO().expirationDate() < System.currentTimeMillis()) {
+            entity.setActiveBan(null);
+            entity.getHistory().add(activeBan);
+        }
+        if (activeChatBan != null && activeChatBan.toDTO().expirationDate() < System.currentTimeMillis()) {
+            entity.setActiveChatBan(null);
+            entity.getHistory().add(activeChatBan);
+        }
+        entity = this.repository.update(entity);
+        return HttpResponse.ok(entity.toDTO());
     }
 }

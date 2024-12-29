@@ -20,8 +20,6 @@ import net.onelitefeather.blackhole.backend.database.repository.PunishmentProfil
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.dto.PunishEntryDTO;
-import net.onelitefeather.blackhole.backend.rabbitmq.PunishEntryClient;
-import net.onelitefeather.blackhole.backend.rabbitmq.model.PunishEntryMsg;
 import net.onelitefeather.blackhole.backend.response.PunishProfileResponse;
 
 import java.time.Duration;
@@ -35,7 +33,6 @@ public class PunishmentEntityController {
     private final PunishmentRepository punishmentRepository;
     private final PunishmentProfileRepository profileRepository;
     private final PunishmentTemplateRepository templateRepository;
-    private final PunishEntryClient entryClient;
 
     /**
      * Create a new PunishmentEntityController with the given values.
@@ -47,12 +44,11 @@ public class PunishmentEntityController {
     public PunishmentEntityController(
             PunishmentRepository punishmentRepository,
             PunishmentProfileRepository profileRepository,
-            PunishmentTemplateRepository templateRepository, PunishEntryClient entryClient
+            PunishmentTemplateRepository templateRepository
     ) {
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
         this.templateRepository = templateRepository;
-        this.entryClient = entryClient;
     }
 
     /**
@@ -109,11 +105,6 @@ public class PunishmentEntityController {
         }
 
         this.profileRepository.update(profile);
-        if (template.getMetaData().containsKey(Durationable.META_DATA_KEY_DURATION)) {
-            String expirationDate = (String) template.getMetaData().get(Durationable.META_DATA_KEY_DURATION);
-            Duration duration = Duration.parse(expirationDate);
-            this.entryClient.send(duration.toMillis(), new PunishEntryMsg(savedEntity.getIdentifier(), profile.getOwner()));
-        }
 
         return HttpResponse.ok(profile.toDTO());
     }

@@ -12,7 +12,7 @@ jpa:
       hibernate:
         hbm2ddl:
           auto: update
-        show_sql: true
+        show_sql: false
 
 micronaut:
   serde:
@@ -32,30 +32,3 @@ micronaut:
       swagger-ui:
         paths: classpath:META-INF/swagger/views/swagger-ui
         mapping: /swagger-ui/**
-
-# RabbitMQ
-  rabbitmq:
-    connections:
-      default:
-        uri: "amqp://guest:guest@localhost:5672"
-        dynamic: true
-
-        queues:
-          - name: punish-entry
-            durable: true
-            arguments:
-              x-dead-letter-exchange: blackhole.exchange
-              x-dead-letter-routing-key: punish-entry-expired
-
-          - name: punish-entry-expired
-            durable: true
-
-        exchanges:
-          - name: blackhole.exchange
-            type: direct
-            durable: true
-
-        bindings:
-          - exchange: blackhole.exchange
-            routing-key: punish-entry-expired
-            queue: punish-entry-expired
