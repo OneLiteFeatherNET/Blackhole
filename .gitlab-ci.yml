@@ -19,10 +19,6 @@ build:
     - saas-linux-medium-amd64
   extends:
     - .gradle-project-cache
-  cache:
-    key: "$CI_COMMIT_REF_SLUG"
-    paths:
-      - backend/build/docker/native-optimized
   rules:
     - !reference [ .gradle-java-image-rules, rules]
     - !reference [ .workflow-rules-run-on-merge-request, rules]
@@ -33,6 +29,9 @@ build:
   script:
     - gradle build -x test
     - gradle backend:optimizedDockerfileNative -x test
+  artifacts:
+      paths:
+        - backend/build/docker/native-optimized
 
 test:
   stage: test
@@ -54,10 +53,6 @@ test:
 publish docker:
   stage: publish
   image: $BUILDAH_IMAGE
-  cache:
-    key: "$CI_COMMIT_REF_SLUG"
-    paths:
-      - backend/build/docker/native-optimized
   dependencies:
     - build
   tags:
