@@ -12,7 +12,7 @@ dependencies {
     annotationProcessor(mn.micronaut.openapi)
     compileOnly(mn.micronaut.openapi.annotations)
     implementation(mn.micronaut.http.validation)
-
+    implementation(libs.phoca)
     implementation(project(":api"))
 
     implementation(mn.micronaut.runtime)

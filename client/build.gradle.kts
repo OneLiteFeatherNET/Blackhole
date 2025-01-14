@@ -15,6 +15,7 @@ dependencies {
     compileOnly("org.jetbrains:annotations:26.0.1")
 
     testImplementation(project(":api"))
+    testImplementation(libs.phoca)
     testImplementation(mn.junit.jupiter.api)
     testImplementation("org.jetbrains:annotations:26.0.1")
     testImplementation(mn.jackson.core)

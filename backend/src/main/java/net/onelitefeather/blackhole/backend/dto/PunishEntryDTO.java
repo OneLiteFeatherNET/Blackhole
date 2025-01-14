@@ -2,10 +2,8 @@ package net.onelitefeather.blackhole.backend.dto;
 
 import io.micronaut.core.annotation.ReflectiveAccess;
 import io.micronaut.serde.annotation.Serdeable;
-import net.onelitefeather.blackhole.api.metadata.Expirable;
-import net.onelitefeather.blackhole.api.metadata.Metadata;
-import net.onelitefeather.blackhole.api.punish.PunishType;
-import net.onelitefeather.blackhole.api.template.PunishTemplate;
+import net.onelitefeather.phoca.metadata.Expirable;
+import net.onelitefeather.phoca.metadata.Metadata;
 
 import java.util.Map;
 import java.util.Optional;

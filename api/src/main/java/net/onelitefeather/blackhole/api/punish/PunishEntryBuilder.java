@@ -1,8 +1,8 @@
 package net.onelitefeather.blackhole.api.punish;
 
-import net.onelitefeather.blackhole.api.metadata.Metadata;
 import net.onelitefeather.blackhole.api.template.PunishTemplate;
 import net.onelitefeather.blackhole.api.utils.IdGenerator;
+import net.onelitefeather.phoca.metadata.Metadata;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.HashMap;

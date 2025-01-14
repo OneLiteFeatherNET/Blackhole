@@ -5,10 +5,10 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.annotation.ReflectiveAccess;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.validation.constraints.NotBlank;
-import net.onelitefeather.blackhole.api.metadata.Durationable;
-import net.onelitefeather.blackhole.api.metadata.Metadata;
 import net.onelitefeather.blackhole.api.punish.PunishType;
 import net.onelitefeather.blackhole.api.template.PunishTemplate;
+import net.onelitefeather.phoca.metadata.Durationable;
+import net.onelitefeather.phoca.metadata.Metadata;
 
 import java.time.Duration;
 import java.util.Map;

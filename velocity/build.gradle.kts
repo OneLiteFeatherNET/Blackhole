@@ -14,6 +14,8 @@ dependencies {
     implementation(project(":api"))
     implementation(project(":client"))
 
+    implementation(libs.phoca)
+
     implementation(libs.cloud.annotations)
     implementation(libs.cloud.velocity)
 

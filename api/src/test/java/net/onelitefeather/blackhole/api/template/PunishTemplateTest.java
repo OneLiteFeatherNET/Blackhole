@@ -1,7 +1,7 @@
 package net.onelitefeather.blackhole.api.template;
 
-import net.onelitefeather.blackhole.api.metadata.Metadata;
 import net.onelitefeather.blackhole.api.punish.PunishType;
+import net.onelitefeather.phoca.metadata.Metadata;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

@@ -1,7 +1,6 @@
 package net.onelitefeather.blackhole.backend.database.entities;
 
 import io.micronaut.serde.annotation.Serdeable;
-import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

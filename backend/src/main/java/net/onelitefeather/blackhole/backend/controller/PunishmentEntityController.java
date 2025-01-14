@@ -9,9 +9,6 @@ import io.micronaut.http.annotation.Post;
 import io.micronaut.validation.Validated;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
-import net.onelitefeather.blackhole.api.metadata.Durationable;
-import net.onelitefeather.blackhole.api.metadata.Expirable;
-import net.onelitefeather.blackhole.api.metadata.Metadata;
 import net.onelitefeather.blackhole.api.utils.IdGenerator;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileEntity;
@@ -21,6 +18,9 @@ import net.onelitefeather.blackhole.backend.database.repository.PunishmentReposi
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.dto.PunishEntryDTO;
 import net.onelitefeather.blackhole.backend.response.PunishProfileResponse;
+import net.onelitefeather.phoca.metadata.Durationable;
+import net.onelitefeather.phoca.metadata.Expirable;
+import net.onelitefeather.phoca.metadata.Metadata;
 
 import java.time.Duration;
 import java.util.HashMap;

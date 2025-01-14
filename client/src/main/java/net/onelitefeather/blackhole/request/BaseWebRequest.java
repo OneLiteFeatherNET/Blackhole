@@ -1,11 +1,9 @@
 package net.onelitefeather.blackhole.request;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import net.onelitefeather.blackhole.api.template.PunishTemplateSimpleModule;
 import org.jetbrains.annotations.NotNull;
 
 import java.net.http.HttpClient;

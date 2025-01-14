@@ -1,8 +1,8 @@
 package net.onelitefeather.blackhole.api.punish;
 
-import net.onelitefeather.blackhole.api.metadata.Expirable;
-import net.onelitefeather.blackhole.api.metadata.Metadata;
 import net.onelitefeather.blackhole.api.template.PunishTemplate;
+import net.onelitefeather.phoca.metadata.Expirable;
+import net.onelitefeather.phoca.metadata.Metadata;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 

@@ -1,8 +1,8 @@
 package net.onelitefeather.blackhole.api.profile;
 
-import net.onelitefeather.blackhole.api.metadata.Metadata;
 import net.onelitefeather.blackhole.api.punish.PunishEntry;
 import net.onelitefeather.blackhole.api.punish.PunishType;
+import net.onelitefeather.phoca.metadata.Metadata;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
