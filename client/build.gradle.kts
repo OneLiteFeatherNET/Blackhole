@@ -12,6 +12,7 @@ dependencies {
     implementation(mn.jackson.databind)
     implementation(mn.jackson.datatype.jsr310)
     implementation(mn.jackson.datatype.jdk8)
+    implementation(libs.jetbrains.annotations)
 
     testImplementation(project(":api"))
     testImplementation(mn.junit.jupiter.api)
