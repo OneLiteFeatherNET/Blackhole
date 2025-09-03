@@ -41,7 +41,7 @@ dependencyResolutionManagement {
 
             library("phoca", "net.onelitefeather.phoca", "phoca").versionRef("phoca")
             library("velocity-api", "com.velocitypowered", "velocity-api").versionRef("velocity")
-            library("cloud-velocity", "org.incendo", "cloud-velocity").version("2.0.0-beta.10")
+            library("cloud-velocity", "org.incendo", "cloud-velocity").version("2.0.0-beta.11")
             library("cloud-annotations", "org.incendo", "cloud-annotations").versionRef("cloud.commands")
             library("cloudExtras", "org.incendo", "cloud-minecraft-extras").version("2.0.0-beta.10")
 
