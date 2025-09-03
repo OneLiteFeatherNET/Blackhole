@@ -29,6 +29,7 @@ dependencyResolutionManagement {
                 }
             }
         }
+        maven("https://repo.papermc.io/repository/maven-public/")
     }
     versionCatalogs {
         create("libs") {
@@ -37,9 +38,9 @@ dependencyResolutionManagement {
             version("cloud.commands", "2.0.0")
             version("publishdata", "1.4.0")
             version("shadow", "9.0.0-beta8")
-            version("phoca", "0.5.2")
+            //version("phoca", "0.5.2")
 
-            library("phoca", "net.onelitefeather.phoca", "phoca").versionRef("phoca")
+            //library("phoca", "net.onelitefeather.phoca", "phoca").versionRef("phoca")
             library("velocity-api", "com.velocitypowered", "velocity-api").versionRef("velocity")
             library("cloud-velocity", "org.incendo", "cloud-velocity").version("2.0.0-beta.11")
             library("cloud-annotations", "org.incendo", "cloud-annotations").versionRef("cloud.commands")
