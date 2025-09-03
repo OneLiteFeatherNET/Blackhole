@@ -7,11 +7,10 @@ plugins {
 }
 
 dependencies {
-    implementation("org.jetbrains:annotations:26.0.1")
+    implementation(libs.jetbrains.annotations)
+    implementation(project(":phoca"))
 
-    compileOnly(libs.phoca)
-
-    testImplementation(libs.phoca)
+    testImplementation(project(":phoca"))
     testImplementation(mn.junit.jupiter.api)
     testRuntimeOnly(mn.junit.jupiter.engine)
 }

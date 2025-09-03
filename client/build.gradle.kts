@@ -12,12 +12,10 @@ dependencies {
     implementation(mn.jackson.databind)
     implementation(mn.jackson.datatype.jsr310)
     implementation(mn.jackson.datatype.jdk8)
-    compileOnly("org.jetbrains:annotations:26.0.1")
 
     testImplementation(project(":api"))
-    testImplementation(libs.phoca)
     testImplementation(mn.junit.jupiter.api)
-    testImplementation("org.jetbrains:annotations:26.0.1")
+    testImplementation(libs.jetbrains.annotations)
     testImplementation(mn.jackson.core)
     testImplementation(mn.jackson.databind)
     testImplementation(mn.jackson.datatype.jdk8)

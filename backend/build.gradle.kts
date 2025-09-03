@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.micronaut.aot)
 }
 
-group = "net.onelitefeather.blackhole.backend"
+group = "net.onelitefeather.blackhole"
 version = "1.0.0"
 
 dependencies {
@@ -12,7 +12,7 @@ dependencies {
     annotationProcessor(mn.micronaut.openapi)
     compileOnly(mn.micronaut.openapi.annotations)
     implementation(mn.micronaut.http.validation)
-    implementation(libs.phoca)
+    implementation(project(":phoca"))
     implementation(project(":api"))
 
     implementation(mn.micronaut.runtime)
@@ -41,8 +41,6 @@ dependencies {
 }
 
 java {
-    sourceCompatibility = JavaVersion.toVersion("21")
-    targetCompatibility = JavaVersion.toVersion("21")
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21))
     }
