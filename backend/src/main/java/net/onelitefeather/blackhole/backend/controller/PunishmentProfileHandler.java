@@ -9,6 +9,12 @@ import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.validation.Validated;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
@@ -27,6 +33,7 @@ public class PunishmentProfileHandler {
      *
      * @param repository the repository to use
      */
+    @Inject
     public PunishmentProfileHandler(PunishmentProfileRepository repository) {
         this.repository = repository;
     }
@@ -37,6 +44,21 @@ public class PunishmentProfileHandler {
      * @param profileEntity the profile to add
      * @return the added profile
      */
+    @Operation(
+            description = "Add a new profile for punishments",
+            operationId = "addPunishProfile",
+            tags = {"PunishProfile"}
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "The profile which was added to the service",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(
+                            implementation = PunishProfileResponse.class
+                    )
+            )
+    )
     @Validated
     @Post()
     public HttpResponse<PunishProfileResponse> add(@Body @Valid PunishProfileDTO profileEntity) {
@@ -51,6 +73,22 @@ public class PunishmentProfileHandler {
      * @param profileEntity the profile to get
      * @return the profile
      */
+    @Operation(
+            description = "Update a punishment profile",
+            operationId = "updatePunishProfile",
+            tags = {"PunishProfile"}
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "The updated profile",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(
+                            implementation = PunishProfileResponse.class
+                    )
+            )
+
+    )
     @Validated
     @Post(value = "/update/{owner}")
     public HttpResponse<PunishProfileResponse> update(@Valid @Body PunishProfileDTO profileEntity,@Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner) {
@@ -68,6 +106,21 @@ public class PunishmentProfileHandler {
      * @param owner the owner of the profile
      * @return the profile
      */
+    @Operation(
+            description = "Delete a punish profile via uuid",
+            operationId = "removePunishProfile",
+            tags = {"PunishProfile"}
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "The deleted profile",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(
+                            implementation = PunishProfileResponse.class
+                    )
+            )
+    )
     @Validated
     @Delete(value = "/delete/{owner}")
     public HttpResponse<PunishProfileResponse> delete(@Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner) {
@@ -84,6 +137,23 @@ public class PunishmentProfileHandler {
      *
      * @return a list of all punishment profiles
      */
+    @Operation(
+            description = "Get all existing punishment profiles",
+            operationId = "getAllProfiles",
+            tags = {"PunishProfile"}
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "The updated profile",
+            content = @Content(
+                    mediaType = "application/json",
+                    array = @ArraySchema(
+                            schema = @Schema(implementation = PunishProfileResponse.class),
+                            arraySchema = @Schema(implementation = Page.class)
+                    )
+            )
+
+    )
     @Get("/all")
     public HttpResponse<Page<PunishProfileResponse>> getAll(Pageable pageable) {
         Page<PunishmentProfileEntity> entities = this.repository.findAll(pageable);
@@ -93,8 +163,23 @@ public class PunishmentProfileHandler {
     /**
      * Get a punishment profile by the owner.
      *
-     * @return a one punishment profile by the owner
+     * @return a one-punishment profile by the owner
      */
+    @Operation(
+            description = "Get a profile by id",
+            operationId = "addPunishProfileById",
+            tags = {"PunishProfile"}
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "The profile which matches with the given id",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(
+                            implementation = PunishProfileResponse.class
+                    )
+            )
+    )
     @Get("/{owner}")
     public HttpResponse<PunishProfileResponse> getById(@Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner) {
         var entity = this.repository.findById(owner).orElse(null);

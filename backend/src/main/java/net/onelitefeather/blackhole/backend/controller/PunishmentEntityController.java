@@ -7,6 +7,12 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.validation.Validated;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import net.onelitefeather.blackhole.api.utils.IdGenerator;
@@ -41,6 +47,7 @@ public class PunishmentEntityController {
      * @param profileRepository    the repository to save the profiles
      * @param templateRepository   the repository to save the templates
      */
+    @Inject
     public PunishmentEntityController(
             PunishmentRepository punishmentRepository,
             PunishmentProfileRepository profileRepository,
@@ -59,6 +66,28 @@ public class PunishmentEntityController {
      * @param source the source of the punishment
      * @return the added punishment
      */
+    @Operation(
+            summary = "Add active punishment",
+            description = "Creates and applies an active punishment to a player profile based on a punishment template",
+            operationId = "addActivePunishment",
+            tags = {"Punishment"}
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Punishment successfully applied to profile",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = PunishProfileResponse.class)
+            )
+    )
+    @ApiResponse(
+            responseCode = "404",
+            description = "Profile or template not found"
+    )
+    @ApiResponse(
+            responseCode = "400",
+            description = "Invalid input parameters (owner must be SHA-512 hash)"
+    )
     @Validated
     @Post("/active/{owner}/{templateId}/{source}")
     public HttpResponse<PunishProfileResponse> add(@Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner, UUID templateId, UUID source) {
@@ -73,7 +102,6 @@ public class PunishmentEntityController {
         if (template == null) {
             return HttpResponse.notFound();
         }
-
 
         Map<String, Object> metadata = new HashMap<>();
         metadata.put(Metadata.META_DATA_KEY_CREATION_DATE, System.currentTimeMillis());
@@ -92,12 +120,10 @@ public class PunishmentEntityController {
             profile.setActiveBan(null);
         }
 
-
         if (profile.getActiveChatBan() != null) {
             profile.getHistory().add(profile.getActiveChatBan());
             profile.setActiveChatBan(null);
         }
-
 
         switch (template.getType()) {
             case CHAT -> profile.setActiveChatBan(savedEntity);
@@ -114,6 +140,23 @@ public class PunishmentEntityController {
      *
      * @return a list with all punishments
      */
+    @Operation(
+            summary = "Get all punishments",
+            description = "Retrieves a paginated list of all punishment entries in the system",
+            operationId = "getAllPunishments",
+            tags = {"Punishment"}
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Successfully retrieved punishment entries",
+            content = @Content(
+                    mediaType = "application/json",
+                    array = @ArraySchema(
+                            schema = @Schema(implementation = PunishEntryDTO.class),
+                            arraySchema = @Schema(implementation = Page.class)
+                    )
+            )
+    )
     @Get(value = "/all")
     public HttpResponse<Page<PunishEntryDTO>> getAll(Pageable pageable) {
         Page<PunishmentEntity> entries = this.punishmentRepository.findAll(pageable);
