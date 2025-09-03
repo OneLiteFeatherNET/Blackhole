@@ -8,7 +8,7 @@ pluginManagement {
 }
 
 plugins {
-    id("io.micronaut.platform.catalog") version "4.4.4"
+    id("io.micronaut.platform.catalog") version "4.4.5"
 }
 
 dependencyResolutionManagement {
@@ -52,11 +52,11 @@ dependencyResolutionManagement {
     }
     versionCatalogs {
         create("libs") {
-            version("micronaut", "4.4.4")
+            version("micronaut", "4.4.5")
             version("velocity", "3.4.0-SNAPSHOT")
             version("cloud.commands", "2.0.0")
             version("publishdata", "1.4.0")
-            version("shadow", "9.0.0-beta4")
+            version("shadow", "9.0.0-beta8")
             version("phoca", "0.5.2")
 
             library("phoca", "net.onelitefeather.phoca", "phoca").versionRef("phoca")
