@@ -23,7 +23,7 @@ public record PunishProfileDTO(
 ) implements Metadata, PunishProfileResponse {
 
     @Override
-    public void addMetaData(String key,Object value) {
+    public void addMetaData(String key, Object value) {
         this.metaData.put(key, value);
     }
 

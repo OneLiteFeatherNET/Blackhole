@@ -43,6 +43,7 @@ public record PunishTemplateDTO(
     public Optional<Object> getMetaData(String key) {
         return Optional.ofNullable(this.metaData.get(key));
     }
+
     public boolean translatable() {
         return hasMetaData(PunishTemplate.META_DATA_KEY_TRANSLATABLE);
     }
