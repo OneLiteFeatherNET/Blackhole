@@ -8,13 +8,14 @@ subprojects {
             options.encoding = "UTF-8"
         }
         getByName<JacocoReport>("jacocoTestReport") {
-            dependsOn(project.tasks.findByPath("test"))
+            // dependsOn(project.tasks.findByPath("test"))
             reports {
                 xml.required.set(true)
             }
         }
         getByName<Test>("test") {
-            finalizedBy(project.tasks.findByPath("jacocoTestReport"))
+            // TODO: FIX ME
+            //finalizedBy(project.tasks.findByPath("jacocoTestReport"))
             jvmArgs("-Dminestom.inside-test=true")
             useJUnitPlatform()
             testLogging {
