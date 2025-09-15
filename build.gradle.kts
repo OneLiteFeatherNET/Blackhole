@@ -1,3 +1,5 @@
+version = "1.0.0"
+
 subprojects {
     apply(plugin = "java")
     apply(plugin = "jacoco")
@@ -8,14 +10,13 @@ subprojects {
             options.encoding = "UTF-8"
         }
         getByName<JacocoReport>("jacocoTestReport") {
-            // dependsOn(project.tasks.findByPath("test"))
+            dependsOn(project.tasks.named("test"))
             reports {
                 xml.required.set(true)
             }
         }
         getByName<Test>("test") {
-            // TODO: FIX ME
-            //finalizedBy(project.tasks.findByPath("jacocoTestReport"))
+            dependsOn(project.tasks.named("jacocoTestReport"))
             jvmArgs("-Dminestom.inside-test=true")
             useJUnitPlatform()
             testLogging {
@@ -24,5 +25,3 @@ subprojects {
         }
     }
 }
-
-version = "1.0.0"
