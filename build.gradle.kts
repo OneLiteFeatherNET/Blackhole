@@ -16,7 +16,6 @@ subprojects {
             }
         }
         getByName<Test>("test") {
-            dependsOn(project.tasks.named("jacocoTestReport"))
             jvmArgs("-Dminestom.inside-test=true")
             useJUnitPlatform()
             testLogging {
