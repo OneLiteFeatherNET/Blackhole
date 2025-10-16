@@ -1,6 +1,6 @@
 group = "net.onelitefeather.blackhole.velocity"
 plugins {
-    id("xyz.jpenilla.run-velocity") version "2.3.1"
+    id("xyz.jpenilla.run-velocity") version "3.0.2"
     `maven-publish`
     alias(libs.plugins.shadow)
     alias(libs.plugins.publishdata)
