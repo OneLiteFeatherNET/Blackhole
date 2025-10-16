@@ -7,6 +7,7 @@ plugins {
 }
 
 dependencies {
+    implementation(platform(mn.micronaut.core.bom))
     implementation(project(":api"))
     implementation(project(":phoca"))
     implementation(mn.jackson.core)
@@ -23,6 +24,7 @@ dependencies {
     testImplementation(mn.jackson.databind)
     testImplementation(mn.jackson.datatype.jdk8)
     testRuntimeOnly(mn.junit.jupiter.engine)
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 publishData {
