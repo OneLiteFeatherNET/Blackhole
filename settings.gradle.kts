@@ -38,7 +38,7 @@ dependencyResolutionManagement {
             version("cloud.commands", "2.0.0")
             version("publishdata", "1.4.0")
             version("shadow", "9.0.0-beta8")
-            version("jetbrains.annotations", "26.0.2")
+            version("jetbrains.annotations", "26.0.2-1")
 
             library("jetbrains.annotations", "org.jetbrains", "annotations").versionRef("jetbrains.annotations")
 
