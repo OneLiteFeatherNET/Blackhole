@@ -14,11 +14,11 @@ class PunishEntryTest {
 
     @Test
     void testObjectCreation() {
-        long current = System.currentTimeMillis();
         PunishTemplate template = PunishTemplate.builder()
                 .reason("Test")
                 .type(PunishType.NETWORK)
                 .build();
+        long current = System.currentTimeMillis();
         PunishEntry entry = PunishEntry.builder()
                 .type(PunishType.SERVER)
                 .source(UUID.randomUUID())
