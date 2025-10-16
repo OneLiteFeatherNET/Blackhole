@@ -43,7 +43,7 @@ dependencyResolutionManagement {
             library("jetbrains.annotations", "org.jetbrains", "annotations").versionRef("jetbrains.annotations")
 
             library("velocity-api", "com.velocitypowered", "velocity-api").versionRef("velocity")
-            library("cloud-velocity", "org.incendo", "cloud-velocity").version("2.0.0-beta.11")
+            library("cloud-velocity", "org.incendo", "cloud-velocity").version("2.0.0-SNAPSHOT")
             library("cloud-annotations", "org.incendo", "cloud-annotations").versionRef("cloud.commands")
             library("cloudExtras", "org.incendo", "cloud-minecraft-extras").version("2.0.0-beta.11")
 
