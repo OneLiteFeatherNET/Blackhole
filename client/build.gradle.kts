@@ -8,6 +8,7 @@ plugins {
 
 dependencies {
     implementation(project(":api"))
+    implementation(project(":phoca"))
     implementation(mn.jackson.core)
     implementation(mn.jackson.databind)
     implementation(mn.jackson.datatype.jsr310)
@@ -15,6 +16,7 @@ dependencies {
     implementation(libs.jetbrains.annotations)
 
     testImplementation(project(":api"))
+    testImplementation(project(":phoca"))
     testImplementation(mn.junit.jupiter.api)
     testImplementation(libs.jetbrains.annotations)
     testImplementation(mn.jackson.core)
