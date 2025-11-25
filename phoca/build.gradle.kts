@@ -1,7 +1,6 @@
 plugins {
-    java
-    `java-library`
     jacoco
+    `java-library`
     `maven-publish`
 }
 
@@ -37,30 +36,6 @@ tasks {
         useJUnitPlatform()
         testLogging {
             events("passed", "skipped", "failed")
-        }
-    }
-}
-
-
-publishing {
-    publications.create<MavenPublication>("maven") {
-        from(components["java"])
-    }
-
-    repositories {
-        maven {
-            authentication {
-                credentials(PasswordCredentials::class) {
-                    username = System.getenv("ONELITEFEATHER_MAVEN_USERNAME")
-                    password = System.getenv("ONELITEFEATHER_MAVEN_PASSWORD")
-                }
-            }
-            name = "OneLiteFeatherRepository"
-            url = if (project.version.toString().contains("SNAPSHOT")) {
-                uri("https://repo.onelitefeather.dev/onelitefeather-snapshots")
-            } else {
-                uri("https://repo.onelitefeather.dev/onelitefeather-releases")
-            }
         }
     }
 }
