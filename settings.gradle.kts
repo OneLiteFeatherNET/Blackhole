@@ -33,7 +33,7 @@ dependencyResolutionManagement {
     }
     versionCatalogs {
         create("libs") {
-            version("micronaut", "4.6.0")
+            version("micronaut", "4.6.1")
             version("velocity", "3.4.0-SNAPSHOT")
             version("cloud.commands", "2.0.0")
             version("publishdata", "1.4.0")
