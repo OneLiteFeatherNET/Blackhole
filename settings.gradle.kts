@@ -1,11 +1,4 @@
 rootProject.name = "Blackhole"
-pluginManagement {
-    repositories {
-        gradlePluginPortal()
-        mavenCentral()
-        maven("https://eldonexus.de/repository/maven-public/")
-    }
-}
 
 plugins {
     id("io.micronaut.platform.catalog") version "4.6.1"
@@ -36,7 +29,6 @@ dependencyResolutionManagement {
             version("micronaut", "4.6.1")
             version("velocity", "3.4.0-SNAPSHOT")
             version("cloud.commands", "2.0.0")
-            version("publishdata", "1.4.0")
             version("shadow", "9.2.2")
             version("jetbrains.annotations", "26.0.2-1")
 
@@ -49,7 +41,6 @@ dependencyResolutionManagement {
 
             plugin("micronaut.application", "io.micronaut.application").versionRef("micronaut")
             plugin("micronaut.aot", "io.micronaut.aot").versionRef("micronaut")
-            plugin("publishdata", "de.chojo.publishdata").versionRef("publishdata")
             plugin("shadow", "com.gradleup.shadow").versionRef("shadow")
         }
     }
