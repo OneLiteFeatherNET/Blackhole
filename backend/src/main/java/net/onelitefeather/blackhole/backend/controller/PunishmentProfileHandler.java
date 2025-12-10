@@ -46,7 +46,7 @@ public class PunishmentProfileHandler {
      */
     @Operation(
             description = "Add a new profile for punishments",
-            operationId = "addPunishProfile",
+            operationId = "addProfile",
             tags = {"PunishProfile"}
     )
     @ApiResponse(
@@ -75,7 +75,7 @@ public class PunishmentProfileHandler {
      */
     @Operation(
             description = "Update a punishment profile",
-            operationId = "updatePunishProfile",
+            operationId = "updateProfile",
             tags = {"PunishProfile"}
     )
     @ApiResponse(
@@ -89,11 +89,24 @@ public class PunishmentProfileHandler {
             )
 
     )
+    @ApiResponse(
+            responseCode = "400",
+            description = "Error message when there is no profile linked to the given id",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(
+                            implementation = PunishProfileResponse.ErrorResponse.class
+                    )
+            )
+    )
     @Validated
     @Post(value = "/update/{owner}")
-    public HttpResponse<PunishProfileResponse> update(@Valid @Body PunishProfileDTO profileEntity,@Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner) {
+    public HttpResponse<PunishProfileResponse> update(
+            @Valid @Body PunishProfileDTO profileEntity,
+            @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner
+    ) {
         if (!profileEntity.owner().equals(owner)) {
-            return HttpResponse.badRequest();
+            return HttpResponse.badRequest(new PunishProfileResponse.ErrorResponse("Owner in path and body do not match"));
         }
         PunishmentProfileEntity entity = PunishmentProfileEntity.toEntity(profileEntity);
         PunishmentProfileEntity savedEntity = this.repository.update(entity);
@@ -108,7 +121,7 @@ public class PunishmentProfileHandler {
      */
     @Operation(
             description = "Delete a punish profile via uuid",
-            operationId = "removePunishProfile",
+            operationId = "removeProfile",
             tags = {"PunishProfile"}
     )
     @ApiResponse(
@@ -121,12 +134,24 @@ public class PunishmentProfileHandler {
                     )
             )
     )
+    @ApiResponse(
+            responseCode = "400",
+            description = "Error message when there is no profile linked to the given id",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(
+                            implementation = PunishProfileResponse.ErrorResponse.class
+                    )
+            )
+    )
     @Validated
     @Delete(value = "/delete/{owner}")
-    public HttpResponse<PunishProfileResponse> delete(@Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner) {
+    public HttpResponse<PunishProfileResponse> delete(
+            @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner
+    ) {
         PunishmentProfileEntity entity = this.repository.findById(owner).orElse(null);
         if (entity == null) {
-            return HttpResponse.notFound();
+            return HttpResponse.badRequest(new PunishProfileResponse.ErrorResponse("There is no profile linked to the given owner"));
         }
         this.repository.delete(entity);
         return HttpResponse.ok(entity.toDTO());
@@ -139,7 +164,7 @@ public class PunishmentProfileHandler {
      */
     @Operation(
             description = "Get all existing punishment profiles",
-            operationId = "getAllProfiles",
+            operationId = "getProfiles",
             tags = {"PunishProfile"}
     )
     @ApiResponse(
@@ -154,7 +179,7 @@ public class PunishmentProfileHandler {
             )
 
     )
-    @Get("/all")
+    @Get("/")
     public HttpResponse<Page<PunishProfileResponse>> getAll(Pageable pageable) {
         Page<PunishmentProfileEntity> entities = this.repository.findAll(pageable);
         return HttpResponse.ok(entities.map(PunishmentProfileEntity::toDTO));
@@ -167,7 +192,7 @@ public class PunishmentProfileHandler {
      */
     @Operation(
             description = "Get a profile by id",
-            operationId = "addPunishProfileById",
+            operationId = "getById",
             tags = {"PunishProfile"}
     )
     @ApiResponse(
@@ -180,11 +205,23 @@ public class PunishmentProfileHandler {
                     )
             )
     )
+    @ApiResponse(
+            responseCode = "404",
+            description = "Error message when there is no profile linked to the given id",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(
+                            implementation = PunishProfileResponse.ErrorResponse.class
+                    )
+            )
+    )
     @Get("/{owner}")
-    public HttpResponse<PunishProfileResponse> getById(@Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner) {
+    public HttpResponse<PunishProfileResponse> getById(
+            @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner
+    ) {
         var entity = this.repository.findById(owner).orElse(null);
         if (entity == null) {
-            return HttpResponse.notFound();
+            return HttpResponse.notFound(new PunishProfileResponse.ErrorResponse("There is no profile linked to the given owner"));
         }
         PunishmentEntity activeBan = entity.getActiveBan();
         PunishmentEntity activeChatBan = entity.getActiveChatBan();

@@ -23,6 +23,7 @@ import net.onelitefeather.blackhole.backend.database.repository.PunishmentProfil
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.dto.PunishEntryDTO;
+import net.onelitefeather.blackhole.backend.response.PunishEntityResponse;
 import net.onelitefeather.blackhole.backend.response.PunishProfileResponse;
 import net.onelitefeather.phoca.metadata.Durationable;
 import net.onelitefeather.phoca.metadata.Expirable;
@@ -77,7 +78,7 @@ public class PunishmentEntityController {
             description = "Punishment successfully applied to profile",
             content = @Content(
                     mediaType = "application/json",
-                    schema = @Schema(implementation = PunishProfileResponse.class)
+                    schema = @Schema(implementation = PunishEntityResponse.class)
             )
     )
     @ApiResponse(
@@ -90,7 +91,11 @@ public class PunishmentEntityController {
     )
     @Validated
     @Post("/active/{owner}/{templateId}/{source}")
-    public HttpResponse<PunishProfileResponse> add(@Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner, UUID templateId, UUID source) {
+    public HttpResponse<PunishProfileResponse> add(
+            @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
+            UUID templateId,
+            UUID source
+    ) {
         PunishmentProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
 
         if (profile == null) {
@@ -143,7 +148,7 @@ public class PunishmentEntityController {
     @Operation(
             summary = "Get all punishments",
             description = "Retrieves a paginated list of all punishment entries in the system",
-            operationId = "getAllPunishments",
+            operationId = "getPunishments",
             tags = {"Punishment"}
     )
     @ApiResponse(
@@ -157,7 +162,7 @@ public class PunishmentEntityController {
                     )
             )
     )
-    @Get(value = "/all")
+    @Get()
     public HttpResponse<Page<PunishEntryDTO>> getAll(Pageable pageable) {
         Page<PunishmentEntity> entries = this.punishmentRepository.findAll(pageable);
         return HttpResponse.ok(entries.map(PunishmentEntity::toDTO));
