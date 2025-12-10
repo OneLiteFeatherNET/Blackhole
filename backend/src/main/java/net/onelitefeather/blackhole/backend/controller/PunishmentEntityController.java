@@ -23,7 +23,6 @@ import net.onelitefeather.blackhole.backend.database.repository.PunishmentProfil
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.dto.PunishEntryDTO;
-import net.onelitefeather.blackhole.backend.response.PunishEntityResponse;
 import net.onelitefeather.blackhole.backend.response.PunishProfileResponse;
 import net.onelitefeather.phoca.metadata.Durationable;
 import net.onelitefeather.phoca.metadata.Expirable;
@@ -78,7 +77,7 @@ public class PunishmentEntityController {
             description = "Punishment successfully applied to profile",
             content = @Content(
                     mediaType = "application/json",
-                    schema = @Schema(implementation = PunishEntityResponse.class)
+                    schema = @Schema(implementation = PunishProfileResponse.class)
             )
     )
     @ApiResponse(
