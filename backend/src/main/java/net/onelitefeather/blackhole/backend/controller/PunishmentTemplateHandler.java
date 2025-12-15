@@ -56,7 +56,7 @@ public class PunishmentTemplateHandler {
     @Operation(
             summary = "Create punishment template",
             description = "Creates a new punishment template.",
-            operationId = "createTemplate",
+            operationId = "addTemplate",
             tags = {"Punishment Templates"}
     )
     @ApiResponse(
@@ -183,7 +183,7 @@ public class PunishmentTemplateHandler {
                     )
             )
     )
-    @Get("/all")
+    @Get("/")
     public HttpResponse<Page<PunishTemplateDTO>> getAll(Pageable pageable) {
         Page<PunishmentTemplateEntity> entities = this.templateRepository.findAll(pageable);
         return HttpResponse.ok(entities.map(PunishmentTemplateEntity::toDTO));
