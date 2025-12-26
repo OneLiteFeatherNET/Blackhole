@@ -33,6 +33,7 @@ dependencyResolutionManagement {
             version("jetbrains.annotations", "26.0.2-1")
             version("jackson", "2.20.1")
             version("jakarta-annotation", "3.0.0")
+            version("openapi.generator", "7.17.0")
 
             library("jetbrains.annotations", "org.jetbrains", "annotations").versionRef("jetbrains.annotations")
 
@@ -54,6 +55,7 @@ dependencyResolutionManagement {
             plugin("micronaut.application", "io.micronaut.application").versionRef("micronaut")
             plugin("micronaut.aot", "io.micronaut.aot").versionRef("micronaut")
             plugin("shadow", "com.gradleup.shadow").versionRef("shadow")
+            plugin("openapi.generator", "org.openapi.generator").versionRef("openapi.generator")
         }
     }
 }

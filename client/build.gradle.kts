@@ -1,6 +1,6 @@
 plugins {
-    id("org.openapi.generator") version "7.17.0"
     `maven-publish`
+    alias(libs.plugins.openapi.generator)
 }
 
 val outDir = layout.buildDirectory.dir("generated/openapi")
