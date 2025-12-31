@@ -11,7 +11,7 @@ public interface PunishProfileResponse {
      *
      * @param message the error message
      */
-    @Schema(name = "The error response when something went wrong on profile requests")
+    @Schema(name = "ErrorResponse", description = "The error response when something went wrong on profile requests")
     @Serdeable
     record ErrorResponse(
             @Schema(name = "The error message") String message
