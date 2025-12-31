@@ -9,13 +9,14 @@ import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.proxy.ProxyServer;
-import net.onelitefeather.blackhole.api.punish.PunishType;
+import net.onelitefeather.blackhole.client.invoker.ApiClient;
+import net.onelitefeather.blackhole.client.invoker.Configuration;
+import net.onelitefeather.blackhole.client.model.PunishType;
 import net.onelitefeather.blackhole.velocity.command.PunishCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishInfoCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishTypeScope;
 import net.onelitefeather.blackhole.velocity.listener.PlayerLoginListener;
 import net.onelitefeather.blackhole.velocity.module.BlackholeClientModule;
-import net.onelitefeather.blackhole.web.BlackholeClient;
 import org.incendo.cloud.SenderMapper;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.execution.ExecutionCoordinator;
@@ -31,12 +32,10 @@ import org.incendo.cloud.velocity.VelocityCommandManager;
         authors = {"theEvilReaper", "TheMeinerLP"}
 )
 public class BlackholeVelocity {
-
-    private static final String URL = System.getProperty("blackhole.url", "http://localhost:8080");
-    private static final BlackholeClient CLIENT = BlackholeClient.newClient(URL);
     public static final CloudKey<PunishType> PUNISH_TYPE_KEY = CloudKey.of("punishType", PunishType.class);
     private final Injector injector;
     private final ProxyServer server;
+    private ApiClient client;
 
 
     @Inject
@@ -48,7 +47,8 @@ public class BlackholeVelocity {
 
     @Subscribe
     public void onProxyInitialisation(ProxyInitializeEvent event) {
-        Injector childInjector = this.injector.createChildInjector(new BlackholeClientModule(CLIENT),  new CloudInjectionModule<>(
+        this.client = Configuration.getDefaultApiClient();
+        Injector childInjector = this.injector.createChildInjector(new BlackholeClientModule(this.client),  new CloudInjectionModule<>(
                 CommandSource.class,
                 ExecutionCoordinator.simpleCoordinator(),
                 SenderMapper.identity()

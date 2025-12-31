@@ -1,12 +1,11 @@
 package net.onelitefeather.blackhole.velocity.module;
 
 import com.google.inject.AbstractModule;
-import net.onelitefeather.blackhole.web.BlackholeClient;
-import net.onelitefeather.blackhole.web.BlackholeWebClient;
+import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * The class represents a module for Guice that binds the {@link BlackholeWebClient} to the instance provided in the constructor.
+ * The class represents a module for Guice that binds the {@link ApiClient} to the instance provided in the constructor.
  *
  * @author theEvilReaper
  * @version 1.0.0
@@ -14,23 +13,23 @@ import org.jetbrains.annotations.NotNull;
  */
 public final class BlackholeClientModule extends AbstractModule {
 
-    private final BlackholeClient webClient;
+    private final ApiClient apiClient;
 
     /**
      * Create a new instance of the module.
      *
-     * @param webClient the client to bind
+     * @param apiClient the client to bind
      */
-    public BlackholeClientModule(@NotNull BlackholeClient webClient) {
-        this.webClient = webClient;
+    public BlackholeClientModule(@NotNull ApiClient apiClient) {
+        this.apiClient = apiClient;
     }
 
     /**
-     * Configures the module and binds the {@link BlackholeWebClient} to the instance provided in the constructor.
+     * Configures the module and binds the {@link ApiClient} to the instance provided in the constructor.
      * The instance is bound as a singleton.
      */
     @Override
     protected void configure() {
-        bind(BlackholeClient.class).toInstance(this.webClient);
+        bind(ApiClient.class).toInstance(this.apiClient);
     }
 }
