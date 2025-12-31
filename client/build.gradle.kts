@@ -19,7 +19,7 @@ dependencies {
 openApiGenerate {
     generatorName.set("java")
     library.set("native")
-    inputSpec.set("$projectDir/specs/blackhole-api-0.0.1.yml")
+    inputSpec.set("$projectDir/specs/blackhole-api-0.0.2.yml")
     outputDir.set(outDir.get().asFile.absolutePath)
     apiPackage.set("net.onelitefeather.blackhole.client.api")
     invokerPackage.set("net.onelitefeather.blackhole.client.invoker")
@@ -32,7 +32,7 @@ openApiGenerate {
             "useSpringBoot3" to "false",
             "useSpring4Annotations" to "false",
             "useJakartaEe" to "true",
-            "serializationLibrary" to "gson",
+            "serializationLibrary" to "jackson",
             "artifactId" to "blackhole-client",
             "groupId" to "net.onelitefeather.blackhole",
             "artifactVersion" to rootProject.version.toString(),
@@ -77,6 +77,63 @@ tasks {
     javadoc {
         options {
             (this as CoreJavadocOptions).addStringOption("Xdoclint:none", "-quiet")
+        }
+    }
+}
+
+publishing {
+    publications.create<MavenPublication>("maven") {
+        from(components["java"])
+        version = rootProject.version as String
+        artifactId = "blackhole-client"
+        groupId = rootProject.group as String
+        pom {
+            name = "Blackhole Client API"
+            description = "The client for Blackhole."
+            url = "https://github.com/OneLiteFeatherNET/Blackhole"
+            licenses {
+                license {
+                    name = "The Apache License, Version 2.0"
+                    url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+                }
+            }
+            developers {
+                developer {
+                    id = "theevilreaper"
+                    name = "Steffen Wonning"
+                    email = "steffenwx@gmail.com"
+                }
+                developer {
+                    id = "themeinerlp"
+                    name = "Phillipp Glanz"
+                    email = "p.glanz@madfix.me"
+                }
+            }
+            scm {
+                connection = "scm:git:git://github.com:OneLiteFeatherNET/Blackhole.git"
+                developerConnection = "scm:git:ssh://git@github.com:OneLiteFeatherNET/Blackhole.git"
+                url = "https://github.com/OneLiteFeatherNET/Blackhole"
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            authentication {
+                credentials(PasswordCredentials::class) {
+                    // Those credentials need to be set under "Settings -> Secrets -> Actions" in your repository
+                    username = System.getenv("ONELITEFEATHER_MAVEN_USERNAME")
+                    password = System.getenv("ONELITEFEATHER_MAVEN_PASSWORD")
+                }
+            }
+
+            name = "OneLiteFeatherRepository"
+            val releasesRepoUrl = uri("https://repo.onelitefeather.dev/onelitefeather-releases")
+            val snapshotsRepoUrl = uri("https://repo.onelitefeather.dev/onelitefeather-snapshots")
+            url =
+                if (version.toString().contains("SNAPSHOT") || version.toString().contains("BETA") || version.toString()
+                        .contains("ALPHA")
+                ) snapshotsRepoUrl else releasesRepoUrl
         }
     }
 }
