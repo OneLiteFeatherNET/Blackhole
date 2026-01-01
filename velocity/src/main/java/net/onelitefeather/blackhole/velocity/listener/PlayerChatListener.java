@@ -4,12 +4,13 @@ import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.PlayerChatEvent;
 import com.velocitypowered.api.proxy.Player;
-import net.onelitefeather.blackhole.api.utils.UUIDConverter;
 import net.onelitefeather.blackhole.client.api.PunishProfileApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.PunishType;
+import net.onelitefeather.blackhole.velocity.component.PunishmentTemplateComponent;
+import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,5 +47,6 @@ public final class PlayerChatListener {
         if (punishProfile.getActiveBan().getTemplate().getType() != PunishType.CHAT) return;
 
         event.setResult(PlayerChatEvent.ChatResult.denied());
+        player.sendMessage(PunishmentTemplateComponent.of(punishProfile.getActiveBan().getTemplate(), punishProfile));
     }
 }
