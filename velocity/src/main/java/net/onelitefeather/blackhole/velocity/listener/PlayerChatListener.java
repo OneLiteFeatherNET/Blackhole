@@ -4,20 +4,27 @@ import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.PlayerChatEvent;
 import com.velocitypowered.api.proxy.Player;
-import net.onelitefeather.blackhole.api.profile.PunishProfile;
 import net.onelitefeather.blackhole.api.utils.UUIDConverter;
-import net.onelitefeather.blackhole.web.BlackholeClient;
+import net.onelitefeather.blackhole.client.api.PunishProfileApi;
+import net.onelitefeather.blackhole.client.invoker.ApiClient;
+import net.onelitefeather.blackhole.client.invoker.ApiException;
+import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
+import net.onelitefeather.blackhole.client.model.PunishType;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
 public final class PlayerChatListener {
 
-    private final BlackholeClient blackholeClient;
+    private static final Logger LOGGER = LoggerFactory.getLogger(PlayerChatListener.class);
+
+    private final PunishProfileApi punishProfileApi;
 
     @Inject
-    public PlayerChatListener(@NotNull BlackholeClient blackholeClient) {
-        this.blackholeClient = blackholeClient;
+    public PlayerChatListener(@NotNull ApiClient blackholeClient) {
+        this.punishProfileApi = new PunishProfileApi(blackholeClient);
     }
 
     @Subscribe
@@ -25,14 +32,19 @@ public final class PlayerChatListener {
         Player player = event.getPlayer();
 
         String uuidHash = UUIDConverter.convertToSHA(player.getUniqueId());
-        Optional<PunishProfile> profileOptional = this.blackholeClient.profileRequests().get(uuidHash);
+        Optional<PunishProfileDTO> profileOptional;
+        try {
+            profileOptional = Optional.of(this.punishProfileApi.getById(uuidHash));
+        } catch (ApiException e) {
+            LOGGER.error("Failed to fetch punish profile for player {}: {}", player.getUsername(), e.getMessage());
+            return;
+        }
 
-        if (profileOptional.isEmpty()) return;
+        PunishProfileDTO punishProfile = profileOptional.get();
 
-        PunishProfile punishProfile = profileOptional.get();
+        if (punishProfile.getActiveBan() == null) return;
+        if (punishProfile.getActiveBan().getTemplate().getType() != PunishType.CHAT) return;
 
-        if (punishProfile.activeBan().isEmpty()) return;
-
-       // event.setResult(PlayerChatEvent.ChatResult.denied());
+        event.setResult(PlayerChatEvent.ChatResult.denied());
     }
 }

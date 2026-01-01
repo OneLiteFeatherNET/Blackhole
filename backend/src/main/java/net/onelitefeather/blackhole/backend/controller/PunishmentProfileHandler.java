@@ -201,7 +201,7 @@ public class PunishmentProfileHandler {
             content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(
-                            implementation = PunishProfileResponse.class
+                            implementation = PunishProfileDTO.class
                     )
             )
     )

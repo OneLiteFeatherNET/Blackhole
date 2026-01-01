@@ -1,0 +1,468 @@
+openapi: 3.0.1
+info:
+  title: Blackhole API
+  description: Simple ban management system
+  contact:
+    name: Management
+    url: https://onelitefeather.net
+    email: admin@onelitefeather.net
+  license:
+    name: Close Source
+  version: 0.0.2
+paths:
+  /profile:
+    get:
+      tags:
+        - PunishProfile
+      summary: Get all punishment profiles.
+      description: Get all existing punishment profiles
+      operationId: getProfiles
+      parameters:
+        - name: pageable
+          in: query
+          required: true
+          explode: false
+          schema:
+            $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: The updated profile
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PunishProfileResponse"
+    post:
+      tags:
+        - PunishProfile
+      summary: Add a new punishment profile.
+      description: Add a new profile for punishments
+      operationId: addProfile
+      requestBody:
+        description: the profile to add
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishProfileDTO"
+        required: true
+      responses:
+        "200":
+          description: The profile which was added to the service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileResponse"
+  /profile/delete/{owner}:
+    delete:
+      tags:
+        - PunishProfile
+      summary: Delete a punishment profile by the owner.
+      description: Delete a punish profile via uuid
+      operationId: removeProfile
+      parameters:
+        - name: owner
+          in: path
+          description: the owner of the profile
+          required: true
+          schema:
+            pattern: "^[a-fA-F0-9]{128}$"
+            type: string
+            x-pattern-message: Owner must be a sha-512 hash
+      responses:
+        "200":
+          description: The deleted profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileResponse"
+        "400":
+          description: Error message when there is no profile linked to the given
+            id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /profile/update/{owner}:
+    post:
+      tags:
+        - PunishProfile
+      summary: Get a punishment profile by the owner.
+      description: Update a punishment profile
+      operationId: updateProfile
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            pattern: "^[a-fA-F0-9]{128}$"
+            type: string
+            x-pattern-message: Owner must be a sha-512 hash
+      requestBody:
+        description: the profile to get
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishProfileDTO"
+        required: true
+      responses:
+        "200":
+          description: The updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileResponse"
+        "400":
+          description: Error message when there is no profile linked to the given
+            id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /profile/{owner}:
+    get:
+      tags:
+        - PunishProfile
+      summary: Get a punishment profile by the owner.
+      description: Get a profile by id
+      operationId: getById
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            pattern: "^[a-fA-F0-9]{128}$"
+            type: string
+            x-pattern-message: Owner must be a sha-512 hash
+      responses:
+        "200":
+          description: The profile which matches with the given id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileDTO"
+        "404":
+          description: Error message when there is no profile linked to the given
+            id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /punishment:
+    get:
+      tags:
+        - Punishment
+      summary: Get all punishments
+      description: Retrieves a paginated list of all punishment entries in the system
+      operationId: getPunishments
+      parameters:
+        - name: pageable
+          in: query
+          required: true
+          explode: false
+          schema:
+            $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: Successfully retrieved punishment entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PunishEntryDTO"
+  /punishment/active/{owner}/{templateId}/{source}:
+    post:
+      tags:
+        - Punishment
+      summary: Add active punishment
+      description: Creates and applies an active punishment to a player profile based
+        on a punishment template
+      operationId: addActivePunishment
+      parameters:
+        - name: owner
+          in: path
+          description: the owner of the punishment
+          required: true
+          schema:
+            pattern: "^[a-fA-F0-9]{128}$"
+            type: string
+            x-pattern-message: Owner must be a sha-512 hash
+        - name: templateId
+          in: path
+          description: the template id of the punishment
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: source
+          in: path
+          description: the source of the punishment
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Punishment successfully applied to profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileResponse"
+        "404":
+          description: Profile or template not found
+        "400":
+          description: Invalid input parameters (owner must be SHA-512 hash)
+  /template:
+    get:
+      tags:
+        - Punishment Templates
+      summary: Get all punishment templates
+      description: Retrieves a paginated list of all punishment templates in the system
+      operationId: getAllTemplates
+      parameters:
+        - name: pageable
+          in: query
+          required: true
+          explode: false
+          schema:
+            $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: Successfully retrieved punishment templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PunishTemplateDTO"
+    post:
+      tags:
+        - Punishment Templates
+      summary: Create punishment template
+      description: Creates a new punishment template.
+      operationId: addTemplate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishTemplateDTO"
+        required: true
+      responses:
+        "200":
+          description: Template successfully created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateDTO"
+        "405":
+          description: Method not allowed - identifier must be null for creation
+        "400":
+          description: Invalid template data
+  /template/delete/{identifier}:
+    delete:
+      tags:
+        - Punishment Templates
+      summary: Delete punishment template
+      description: Deletes a punishment template by its identifier
+      operationId: deleteTemplate
+      parameters:
+        - name: identifier
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Template successfully deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateDTO"
+        "404":
+          description: Template not found
+  /template/update:
+    post:
+      tags:
+        - Punishment Templates
+      summary: Update punishment template
+      description: Updates an existing punishment template.
+      operationId: updateTemplate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishTemplateDTO"
+        required: true
+      responses:
+        "200":
+          description: Template successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateDTO"
+        "404":
+          description: Template not found
+        "400":
+          description: Invalid template data
+  /template/{identifier}:
+    get:
+      tags:
+        - Punishment Templates
+      summary: Get punishment template by ID
+      description: Retrieves a specific punishment template by its identifier
+      operationId: getTemplateById
+      parameters:
+        - name: identifier
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Template successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateDTO"
+        "404":
+          description: Template not found
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        The error message:
+          type: string
+          description: the error message
+      description: The error response when something went wrong on profile requests
+    Pageable:
+      required:
+        - size
+        - sort
+      type: object
+      allOf:
+        - $ref: "#/components/schemas/Sort"
+        - type: object
+          properties:
+            number:
+              type: integer
+              format: int32
+            size:
+              type: integer
+              format: int32
+            mode:
+              $ref: "#/components/schemas/Pageable.Mode"
+            sort:
+              $ref: "#/components/schemas/Sort"
+    Pageable.Mode:
+      type: string
+      enum:
+        - CURSOR_NEXT
+        - CURSOR_PREVIOUS
+        - OFFSET
+    PunishEntryDTO:
+      required:
+        - identifier
+        - metaData
+        - source
+        - template
+      type: object
+      properties:
+        identifier:
+          type: string
+        source:
+          type: string
+          format: uuid
+        template:
+          $ref: "#/components/schemas/PunishTemplateDTO"
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    PunishProfileDTO:
+      required:
+        - metaData
+        - owner
+      type: object
+      properties:
+        activeChatBan:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/PunishEntryDTO"
+        activeBan:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/PunishEntryDTO"
+        owner:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+        history:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/PunishEntryDTO"
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    PunishProfileResponse:
+      type: object
+    PunishTemplateDTO:
+      required:
+        - metaData
+        - reason
+        - type
+      type: object
+      properties:
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+        reason:
+          minLength: 1
+          type: string
+        type:
+          $ref: "#/components/schemas/PunishType"
+        identifier:
+          type: string
+          format: uuid
+          nullable: true
+    PunishType:
+      type: string
+      enum:
+        - SERVER
+        - NETWORK
+        - CHAT
+    Sort:
+      required:
+        - orderBy
+      type: object
+      properties:
+        orderBy:
+          type: array
+          items:
+            $ref: "#/components/schemas/Sort.Order"
+    Sort.Order:
+      required:
+        - direction
+        - ignoreCase
+        - property
+      type: object
+      properties:
+        ignoreCase:
+          type: boolean
+        direction:
+          $ref: "#/components/schemas/Sort.Order.Direction"
+        property:
+          type: string
+        ascending:
+          type: boolean
+    Sort.Order.Direction:
+      type: string
+      enum:
+        - ASC
+        - DESC

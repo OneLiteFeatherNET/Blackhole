@@ -4,13 +4,16 @@ import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.LoginEvent;
 import com.velocitypowered.api.proxy.Player;
-import net.kyori.adventure.text.Component;
-import net.onelitefeather.blackhole.api.profile.PunishProfile;
-import net.onelitefeather.blackhole.api.punish.PunishEntry;
-import net.onelitefeather.blackhole.api.template.PunishTemplate;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.onelitefeather.blackhole.api.utils.UUIDConverter;
-import net.onelitefeather.blackhole.web.BlackholeClient;
+import net.onelitefeather.blackhole.client.api.PunishProfileApi;
+import net.onelitefeather.blackhole.client.invoker.ApiClient;
+import net.onelitefeather.blackhole.client.invoker.ApiException;
+import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
+import net.onelitefeather.blackhole.client.model.PunishType;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
@@ -22,11 +25,12 @@ import java.util.Optional;
  */
 public final class PlayerLoginListener {
 
-    private final BlackholeClient blackholeClient;
+    private static final Logger LOGGER = LoggerFactory.getLogger(PlayerLoginListener.class);
+    private final PunishProfileApi punishProfileApi;
 
     @Inject
-    public PlayerLoginListener(@NotNull BlackholeClient blackholeClient) {
-        this.blackholeClient = blackholeClient;
+    public PlayerLoginListener(@NotNull ApiClient apiClient) {
+        this.punishProfileApi = new PunishProfileApi(apiClient);
     }
 
     /**
@@ -38,18 +42,21 @@ public final class PlayerLoginListener {
         Player player = event.getPlayer();
 
         String uuidHash = UUIDConverter.convertToSHA(player.getUniqueId());
-        Optional<PunishProfile> profileOptional = this.blackholeClient.profileRequests().get(uuidHash);
+        Optional<PunishProfileDTO> profileOptional;
+        try {
+            profileOptional = Optional.of(this.punishProfileApi.getById(uuidHash));
+        } catch (ApiException e) {
+            LOGGER.error("Failed to fetch punish profile for player {}: {}", player.getUsername(), e.getMessage());
+            return;
+        }
 
-        if (profileOptional.isEmpty()) return;
+        PunishProfileDTO punishProfile = profileOptional.get();
 
-        PunishProfile punishProfile = profileOptional.get();
+        if (punishProfile.getActiveBan() == null) return;
+        var activeBanDTO = punishProfile.getActiveBan();
+        var templateDTO = activeBanDTO.getTemplate();
+        if (templateDTO.getType() != PunishType.NETWORK) return;
 
-        if (punishProfile.activeBan().isEmpty()) return;
-
-        PunishEntry activeBan = punishProfile.activeBan().get();
-        PunishTemplate punishTemplate = activeBan.template();
-        Component reason = Component.text(punishTemplate.reason());
-
-        event.getPlayer().disconnect(reason);
+        event.getPlayer().disconnect(MiniMessage.miniMessage().deserialize(templateDTO.getReason()));
     }
 }

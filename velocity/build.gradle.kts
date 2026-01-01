@@ -9,7 +9,6 @@ plugins {
 dependencies {
     annotationProcessor(libs.velocity.api)
 
-    implementation(project(":api"))
     implementation(project(":client"))
     implementation(project(":phoca"))
 

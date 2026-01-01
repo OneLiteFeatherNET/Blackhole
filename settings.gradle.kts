@@ -31,8 +31,21 @@ dependencyResolutionManagement {
             version("cloud.commands", "2.0.0")
             version("shadow", "9.3.0")
             version("jetbrains.annotations", "26.0.2-1")
+            version("jackson", "2.20.1")
+            version("jakarta-annotation", "3.0.0")
+            version("openapi.generator", "7.17.0")
 
             library("jetbrains.annotations", "org.jetbrains", "annotations").versionRef("jetbrains.annotations")
+
+            //Jackson
+            library("jackson-bom",  "com.fasterxml.jackson", "jackson-bom").versionRef("jackson")
+            library("jackson-core",        "com.fasterxml.jackson.core", "jackson-core").withoutVersion()
+            library("jackson-annotations", "com.fasterxml.jackson.core", "jackson-annotations").withoutVersion()
+            library("jackson-databind",    "com.fasterxml.jackson.core", "jackson-databind").withoutVersion()
+            library("jackson-datatype-jsr310", "com.fasterxml.jackson.datatype", "jackson-datatype-jsr310").withoutVersion()
+
+            library("jackson-databind-nullable", "org.openapitools", "jackson-databind-nullable").version("0.2.8")
+            library("jakarta-annotation-api", "jakarta.annotation", "jakarta.annotation-api").versionRef("jakarta-annotation")
 
             library("velocity-api", "com.velocitypowered", "velocity-api").versionRef("velocity")
             library("cloud-velocity", "org.incendo", "cloud-velocity").version("2.0.0-SNAPSHOT")
@@ -42,6 +55,7 @@ dependencyResolutionManagement {
             plugin("micronaut.application", "io.micronaut.application").versionRef("micronaut")
             plugin("micronaut.aot", "io.micronaut.aot").versionRef("micronaut")
             plugin("shadow", "com.gradleup.shadow").versionRef("shadow")
+            plugin("openapi.generator", "org.openapi.generator").versionRef("openapi.generator")
         }
     }
 }

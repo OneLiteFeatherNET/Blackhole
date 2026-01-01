@@ -8,20 +8,28 @@ import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.plugin.Plugin;
+import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
-import net.onelitefeather.blackhole.api.punish.PunishType;
+import net.onelitefeather.blackhole.client.invoker.ApiClient;
+import net.onelitefeather.blackhole.client.invoker.Configuration;
+import net.onelitefeather.blackhole.client.model.PunishType;
 import net.onelitefeather.blackhole.velocity.command.PunishCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishInfoCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishTypeScope;
+import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.listener.PlayerLoginListener;
 import net.onelitefeather.blackhole.velocity.module.BlackholeClientModule;
-import net.onelitefeather.blackhole.web.BlackholeClient;
 import org.incendo.cloud.SenderMapper;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.execution.ExecutionCoordinator;
 import org.incendo.cloud.key.CloudKey;
 import org.incendo.cloud.velocity.CloudInjectionModule;
 import org.incendo.cloud.velocity.VelocityCommandManager;
+import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+
+import java.lang.reflect.Type;
+import java.nio.file.Path;
 
 @Plugin(
         id = "blackhole-velocity",
@@ -31,29 +39,35 @@ import org.incendo.cloud.velocity.VelocityCommandManager;
         authors = {"theEvilReaper", "TheMeinerLP"}
 )
 public class BlackholeVelocity {
-
-    private static final String URL = System.getProperty("blackhole.url", "http://localhost:8080");
-    private static final BlackholeClient CLIENT = BlackholeClient.newClient(URL);
     public static final CloudKey<PunishType> PUNISH_TYPE_KEY = CloudKey.of("punishType", PunishType.class);
     private final Injector injector;
     private final ProxyServer server;
+    private final Path dataDirectory;
+    private final Logger logger;
+    private ApiClient client;
+    private BlackholeConfig config;
 
 
     @Inject
-    public BlackholeVelocity(Injector injector, ProxyServer server) {
+    public BlackholeVelocity(Injector injector, Logger logger, ProxyServer server, @DataDirectory Path dataDirectory) {
         this.injector = injector;
         this.server = server;
-
+        this.logger = logger;
+        this.dataDirectory = dataDirectory;
     }
 
     @Subscribe
     public void onProxyInitialisation(ProxyInitializeEvent event) {
-        Injector childInjector = this.injector.createChildInjector(new BlackholeClientModule(CLIENT),  new CloudInjectionModule<>(
+        this.config = BlackholeConfig.load(dataDirectory.resolve("config.json"));
+        this.logger.info("Loaded configuration with base URL: {}", config.getBaseUrl());
+        this.client = Configuration.getDefaultApiClient();
+        this.client.setBasePath(this.config.getBaseUrl());
+        this.logger.info("Initialized Blackhole client");
+        Injector childInjector = this.injector.createChildInjector(new BlackholeClientModule(this.client),  new CloudInjectionModule<>(
                 CommandSource.class,
                 ExecutionCoordinator.simpleCoordinator(),
                 SenderMapper.identity()
         ));
-
         final VelocityCommandManager<CommandSource> commandManager = childInjector.getInstance(
                 Key.get(new TypeLiteral<VelocityCommandManager<CommandSource>>() {
                 })
