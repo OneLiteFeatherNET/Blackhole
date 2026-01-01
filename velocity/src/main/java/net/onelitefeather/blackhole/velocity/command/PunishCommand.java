@@ -15,6 +15,7 @@ import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.PunishTemplateDTO;
 import net.onelitefeather.blackhole.client.model.PunishType;
 import net.onelitefeather.blackhole.velocity.BlackholeVelocity;
+import net.onelitefeather.blackhole.velocity.component.PunishmentTemplateComponent;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.incendo.cloud.annotations.*;
 import org.incendo.cloud.annotations.parser.Parser;
@@ -58,30 +59,33 @@ public final class PunishCommand {
             @Flag("server") Boolean server
     ) {
         if (server != null && template.getType() != PunishType.SERVER) {
-            context.sender().sendMessage(Component.text("You can only ban a player from the server with a server template."));
+            context.sender().sendMessage(Component.translatable("punishment.error.template.only_server"));
             return;
         }
 
         if (template.getIdentifier() == null) {
-            context.sender().sendMessage(Component.text("The specified template does not exist."));
+            context.sender().sendMessage(Component.translatable("punishment.error.template.not_found").arguments(Component.text(template.getIdentifier().toString())));
             return;
         }
 
+        Optional<PunishProfileDTO> profile = Optional.empty();
+
         try {
-            this.punishmentApi.addActivePunishment(
+            profile = Optional.ofNullable(this.punishmentApi.addActivePunishment(
                     user.getOwner(),
                     template.getIdentifier(),
                     context.sender().getUniqueId()
-            );
+            )).map(PunishProfileDTO.class::cast);
         } catch (ApiException e) {
             LOGGER.error("Failed to ban player {}: {}", user.getOwner(), e.getMessage());
-            context.sender().sendMessage(Component.text("An error occurred while trying to ban the player."));
+            context.sender().sendMessage(Component.translatable("punishment.error.ban"));
             return;
         }
 
         Player targetPlayer = context.get(TARGET_KEY);
-        targetPlayer.disconnect(Component.text("You have been banned from the server."));
-        context.sender().sendMessage(Component.text("The player has been banned."));
+        PunishProfileDTO updatedProfile = profile.orElseThrow();
+        targetPlayer.disconnect(PunishmentTemplateComponent.of(template, updatedProfile));
+        context.sender().sendMessage(Component.translatable("punishment.success.ban").arguments(Component.text(targetPlayer.getUsername())));
     }
 
     @Command("blackhole <user> mute <template>")
@@ -95,22 +99,26 @@ public final class PunishCommand {
             @Argument(value = "template", parserName = "template") @NotNull PunishTemplateDTO template
     ) {
         if (template.getIdentifier() == null) {
-            context.sender().sendMessage(Component.text("The specified template does not exist."));
+            context.sender().sendMessage(Component.translatable("punishment.error.template.not_found").arguments(Component.text(template.getIdentifier().toString())));
             return;
         }
+        Optional<PunishProfileDTO> profile = Optional.empty();
         try {
-            this.punishmentApi.addActivePunishment(
-                    user.getOwner(),
-                    template.getIdentifier(),
-                    context.sender().getUniqueId()
-            );
+            profile = Optional.ofNullable(
+                    this.punishmentApi.addActivePunishment(
+                            user.getOwner(),
+                            template.getIdentifier(),
+                            context.sender().getUniqueId()
+                    )
+            ).map(PunishProfileDTO.class::cast);
         } catch (ApiException e) {
             LOGGER.error("Failed to mute player {}: {}", user.getOwner(), e.getMessage());
-            context.sender().sendMessage(Component.text("An error occurred while trying to mute the player."));
+            context.sender().sendMessage(Component.translatable("punishment.error.mute"));
             return;
         }
+        PunishProfileDTO updatedProfile = profile.orElseThrow();
 
-        context.sender().sendMessage(Component.text("The player has been muted."));
+        context.sender().sendMessage(PunishmentTemplateComponent.of(template, updatedProfile));
     }
 
     @Parser(name = "profile")

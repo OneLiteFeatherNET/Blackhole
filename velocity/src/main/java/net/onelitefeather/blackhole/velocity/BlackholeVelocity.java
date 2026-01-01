@@ -17,6 +17,7 @@ import net.onelitefeather.blackhole.velocity.command.PunishCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishInfoCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishTypeScope;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
+import net.onelitefeather.blackhole.velocity.listener.PlayerChatListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerLoginListener;
 import net.onelitefeather.blackhole.velocity.module.BlackholeClientModule;
 import org.incendo.cloud.SenderMapper;
@@ -25,10 +26,8 @@ import org.incendo.cloud.execution.ExecutionCoordinator;
 import org.incendo.cloud.key.CloudKey;
 import org.incendo.cloud.velocity.CloudInjectionModule;
 import org.incendo.cloud.velocity.VelocityCommandManager;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
-import java.lang.reflect.Type;
 import java.nio.file.Path;
 
 @Plugin(
@@ -80,5 +79,6 @@ public class BlackholeVelocity {
         annotationParser.parse(childInjector.getInstance(PunishCommand.class));
         annotationParser.parse(childInjector.getInstance(PunishInfoCommand.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerLoginListener.class));
+        server.getEventManager().register(this, childInjector.getInstance(PlayerChatListener.class));
     }
 }
