@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.api.punish;
+package net.onelitefeather.blackhole.backend.dto;
 
 /**
  * This enumeration defines each type of ban which is supported by the application.

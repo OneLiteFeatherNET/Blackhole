@@ -5,8 +5,6 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.annotation.ReflectiveAccess;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.validation.constraints.NotBlank;
-import net.onelitefeather.blackhole.api.punish.PunishType;
-import net.onelitefeather.blackhole.api.template.PunishTemplate;
 import net.onelitefeather.phoca.metadata.Durationable;
 import net.onelitefeather.phoca.metadata.Metadata;
 
@@ -23,6 +21,8 @@ public record PunishTemplateDTO(
         @NonNull @NotBlank PunishType type,
         @Nullable UUID identifier
 ) implements Metadata, Durationable {
+
+    public static final String META_DATA_KEY_TRANSLATABLE = "translatable";
 
     @Override
     public void addMetaData(String key, Object value) {
@@ -45,7 +45,7 @@ public record PunishTemplateDTO(
     }
 
     public boolean translatable() {
-        return hasMetaData(PunishTemplate.META_DATA_KEY_TRANSLATABLE);
+        return hasMetaData(PunishTemplateDTO.META_DATA_KEY_TRANSLATABLE);
     }
 
     @Override

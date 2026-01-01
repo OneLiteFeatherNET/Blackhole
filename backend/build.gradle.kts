@@ -14,7 +14,6 @@ dependencies {
     compileOnly(mn.micronaut.openapi.annotations)
     implementation(mn.micronaut.http.validation)
     implementation(project(":phoca"))
-    implementation(project(":api"))
 
     implementation(mn.micronaut.runtime)
     implementation(mn.validation)

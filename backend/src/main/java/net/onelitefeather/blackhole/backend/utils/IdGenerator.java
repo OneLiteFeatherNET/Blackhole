@@ -1,6 +1,6 @@
-package net.onelitefeather.blackhole.api.utils;
+package net.onelitefeather.blackhole.backend.utils;
 
-import org.jetbrains.annotations.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 import java.nio.ByteBuffer;
 import java.util.Base64;
