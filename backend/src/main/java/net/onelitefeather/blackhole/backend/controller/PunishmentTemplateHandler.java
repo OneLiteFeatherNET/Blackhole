@@ -16,7 +16,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
-import net.onelitefeather.blackhole.api.template.PunishTemplate;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentTemplateEntity;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.dto.PunishTemplateDTO;
@@ -29,7 +28,6 @@ import java.util.UUID;
  *
  * @author theEvilReaper
  * @version 1.0.0
- * @see PunishTemplate
  * @since 1.0.0
  */
 @Controller(value = "/template")

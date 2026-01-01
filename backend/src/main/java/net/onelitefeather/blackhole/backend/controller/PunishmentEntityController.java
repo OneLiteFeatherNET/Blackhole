@@ -15,7 +15,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
-import net.onelitefeather.blackhole.api.utils.IdGenerator;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentTemplateEntity;
@@ -24,6 +23,7 @@ import net.onelitefeather.blackhole.backend.database.repository.PunishmentReposi
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.dto.PunishEntryDTO;
 import net.onelitefeather.blackhole.backend.response.PunishProfileResponse;
+import net.onelitefeather.blackhole.backend.utils.IdGenerator;
 import net.onelitefeather.phoca.metadata.Durationable;
 import net.onelitefeather.phoca.metadata.Expirable;
 import net.onelitefeather.phoca.metadata.Metadata;
