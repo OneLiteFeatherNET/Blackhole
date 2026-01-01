@@ -22,6 +22,8 @@ public record PunishTemplateDTO(
         @Nullable UUID identifier
 ) implements Metadata, Durationable {
 
+    public static final String META_DATA_KEY_TRANSLATABLE = "translatable";
+
     @Override
     public void addMetaData(String key, Object value) {
         this.metaData.put(key, value);
@@ -43,7 +45,7 @@ public record PunishTemplateDTO(
     }
 
     public boolean translatable() {
-        return hasMetaData(PunishTemplate.META_DATA_KEY_TRANSLATABLE);
+        return hasMetaData(PunishTemplateDTO.META_DATA_KEY_TRANSLATABLE);
     }
 
     @Override
