@@ -33,7 +33,7 @@ dependencyResolutionManagement {
             version("jetbrains.annotations", "26.0.2-1")
             version("jackson", "2.21.0")
             version("jakarta-annotation", "3.0.0")
-            version("openapi.generator", "7.17.0")
+            version("openapi.generator", "7.19.0")
 
             library("jetbrains.annotations", "org.jetbrains", "annotations").versionRef("jetbrains.annotations")
 
