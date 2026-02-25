@@ -31,7 +31,7 @@ dependencyResolutionManagement {
             version("cloud.commands", "2.0.0")
             version("shadow", "9.3.1")
             version("jetbrains.annotations", "26.1.0")
-            version("jackson", "2.21.0")
+            version("jackson", "2.21.1")
             version("jakarta-annotation", "3.0.0")
             version("openapi.generator", "7.20.0")
 
