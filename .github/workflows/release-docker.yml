@@ -48,7 +48,7 @@ jobs:
         run: ./gradlew jar optimizedBuildLayers optimizedDockerfile -Pversion=${{ steps.version.outputs.version }}
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: |
             ${{ secrets.HARBOR_REGISTRY }}/otis/otis
