@@ -29,7 +29,7 @@ dependencyResolutionManagement {
             version("micronaut", "4.6.2")
             version("velocity", "3.4.0")
             version("cloud.commands", "2.0.0")
-            version("shadow", "9.3.1")
+            version("shadow", "9.3.2")
             version("jetbrains.annotations", "26.1.0")
             version("jackson", "2.21.1")
             version("jakarta-annotation", "3.0.0")
