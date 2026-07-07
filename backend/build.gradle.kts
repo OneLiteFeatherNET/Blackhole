@@ -18,10 +18,16 @@ dependencies {
     implementation(mn.micronaut.runtime)
     implementation(mn.validation)
     implementation(mn.micronaut.http.client.jdk)
+    implementation(mn.micronaut.security.jwt)
+    implementation(mn.micronaut.management)
+    implementation(mn.micronaut.micrometer.core)
+    implementation(mn.micronaut.micrometer.registry.prometheus)
     implementation(mn.micronaut.cache.caffeine)
     implementation(mn.micronaut.data.spring.jpa)
     implementation(mn.micronaut.serde.jackson)
     implementation(mn.micronaut.hibernate.jpa)
+    implementation(mn.micronaut.flyway)
+    runtimeOnly("org.flywaydb:flyway-mysql:10.22.0")
     implementation(mn.micronaut.hibernate.validator)
     implementation(mn.micronaut.data.tx.hibernate)
     implementation(mn.micronaut.jdbc.hikari)
@@ -29,12 +35,24 @@ dependencies {
     implementation(mn.postgresql)
     implementation(mn.h2)
     implementation(mn.snakeyaml)
-    implementation(mn.log4j)
-    implementation(mn.slf4j.api)
-    implementation(mn.slf4j.simple)
+    implementation(mn.logback.core)
+    implementation(mn.logback.classic)
     implementation(mn.jackson.core)
     implementation(mn.jackson.databind)
     implementation(mn.jackson.datatype.jsr310)
+
+    // Distributed tracing (OpenTelemetry). Spans/export are only active when
+    // OTEL_TRACES_EXPORTER=otlp is set (prod/Docker) — see application.yml.
+    implementation(mn.micronaut.tracing.opentelemetry.http)
+    implementation(mn.micronaut.tracing.opentelemetry.jdbc)
+    implementation(libs.opentelemetry.exporter.otlp)
+
+    // Structured JSON logging for log aggregation + trace/log correlation.
+    // logstash encoder renders JSON; the OTel MDC appender injects trace_id/span_id.
+    implementation(libs.logstash.logback.encoder)
+    implementation(libs.opentelemetry.logback.mdc)
+    // Enables the <if>/<then>/<else> conditional in logback.xml.
+    runtimeOnly(libs.janino)
 
     testImplementation(mn.junit.jupiter.api)
     testRuntimeOnly(mn.junit.jupiter.engine)
@@ -69,6 +87,9 @@ micronaut {
         optimizeClassLoading.set(true)
         deduceEnvironment.set(true)
         optimizeNetty.set(true)
+        // Keep logback.xml parsed at runtime so the env-driven JSON/plain switch
+        // and ${...} substitutions work in the optimized (Docker/prod) jar.
+        replaceLogbackXml.set(false)
     }
 }
 

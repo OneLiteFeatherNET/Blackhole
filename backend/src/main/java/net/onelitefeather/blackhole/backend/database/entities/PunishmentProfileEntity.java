@@ -10,11 +10,16 @@ import org.hibernate.type.SqlTypes;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @Serdeable
 @Entity
+@IdClass(PunishmentProfileId.class)
 @Table(name = "punishment_profiles", indexes = @Index(columnList = "owner"))
 public class PunishmentProfileEntity {
+
+    @Id
+    private UUID tenantId;
 
     @Id
     private String owner;
@@ -40,6 +45,7 @@ public class PunishmentProfileEntity {
      */
     public static PunishmentProfileEntity toEntity(PunishProfileDTO profile) {
         return new PunishmentProfileEntity(
+                profile.tenantId(),
                 profile.owner(),
                 PunishmentEntity.toEntity(profile.activeChatBan()),
                 PunishmentEntity.toEntity(profile.activeBan()),
@@ -58,6 +64,7 @@ public class PunishmentProfileEntity {
     /**
      * Create a new PunishmentProfileEntity.
      *
+     * @param tenantId      the tenant the profile belongs to
      * @param owner         the owner of the profile
      * @param activeChatBan the active chat ban
      * @param activeBan     the active ban
@@ -65,12 +72,14 @@ public class PunishmentProfileEntity {
      * @param metaData      the metadata
      */
     public PunishmentProfileEntity(
+            UUID tenantId,
             String owner,
             PunishmentEntity activeChatBan,
             PunishmentEntity activeBan,
             List<PunishmentEntity> history,
             Map<String, Object> metaData
     ) {
+        this.tenantId = tenantId;
         this.owner = owner;
         this.activeChatBan = activeChatBan;
         this.activeBan = activeBan;
@@ -94,6 +103,15 @@ public class PunishmentProfileEntity {
      */
     public void setActiveChatBan(PunishmentEntity activeChatBan) {
         this.activeChatBan = activeChatBan;
+    }
+
+    /**
+     * Get the tenant the profile belongs to.
+     *
+     * @return the tenant identifier
+     */
+    public UUID getTenantId() {
+        return tenantId;
     }
 
     /**
@@ -148,6 +166,7 @@ public class PunishmentProfileEntity {
      */
     public PunishProfileDTO toDTO() {
         return new PunishProfileDTO(
+                this.tenantId,
                 this.owner,
                 Optional.ofNullable(this.activeChatBan).map(PunishmentEntity::toDTO),
                 Optional.ofNullable(this.activeBan).map(PunishmentEntity::toDTO),

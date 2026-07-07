@@ -20,12 +20,14 @@ import java.util.UUID;
 
 @Serdeable
 @Entity
-@Table(name = "punishment_templates", indexes = @Index(columnList = "identifier"))
+@Table(name = "punishment_templates", indexes = {@Index(columnList = "identifier"), @Index(columnList = "tenantId")})
 public class PunishmentTemplateEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID identifier;
+
+    private UUID tenantId;
 
     private String reason;
 
@@ -42,7 +44,7 @@ public class PunishmentTemplateEntity {
      * @return the converted PunishmentTemplateEntity
      */
     public static PunishmentTemplateEntity toEntity(PunishTemplateDTO template) {
-        return new PunishmentTemplateEntity(template.identifier(), template.reason(), template.type(), template.metaData());
+        return new PunishmentTemplateEntity(template.identifier(), template.tenantId(), template.reason(), template.type(), template.metaData());
     }
 
     /**
@@ -56,12 +58,14 @@ public class PunishmentTemplateEntity {
      * Create a new PunishmentTemplateEntity
      *
      * @param identifier the identifier of the template
+     * @param tenantId   the tenant the template belongs to
      * @param reason     the reason of the template
      * @param type       the type of the template
      * @param metaData   the metadata of the template
      */
-    public PunishmentTemplateEntity(UUID identifier, String reason, PunishType type, Map<String, Object> metaData) {
+    public PunishmentTemplateEntity(UUID identifier, UUID tenantId, String reason, PunishType type, Map<String, Object> metaData) {
         this.identifier = identifier;
+        this.tenantId = tenantId;
         this.reason = reason;
         this.type = type;
         this.metaData = metaData;
@@ -74,6 +78,15 @@ public class PunishmentTemplateEntity {
      */
     public UUID getIdentifier() {
         return identifier;
+    }
+
+    /**
+     * Get the tenant the template belongs to.
+     *
+     * @return the tenant identifier
+     */
+    public UUID getTenantId() {
+        return tenantId;
     }
 
     /**
@@ -110,6 +123,7 @@ public class PunishmentTemplateEntity {
      */
     public PunishTemplateDTO toDTO() {
         return new PunishTemplateDTO(
+                this.tenantId,
                 this.metaData,
                 this.reason,
                 this.type,

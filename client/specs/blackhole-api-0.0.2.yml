@@ -10,20 +10,62 @@ info:
     name: Close Source
   version: 0.0.2
 paths:
+  /auth/bootstrap:
+    post:
+      tags:
+      - Auth
+      summary: Bootstrap the first admin token
+      description: Exchanges the deployment's bootstrap secret for a PLATFORM_ADMIN
+        token.
+      operationId: bootstrap
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BootstrapRequestDTO"
+        required: true
+      responses:
+        "200":
+          description: bootstrap 200 response
+          content:
+            application/json:
+              schema:
+                type: object
+  /auth/token:
+    post:
+      tags:
+      - Auth
+      summary: Issue a tenant-scoped token
+      description: Issues a token for a given tenant and role. Requires an authenticated
+        PLATFORM_ADMIN or TENANT_ADMIN caller.
+      operationId: issueToken
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueTokenRequestDTO"
+        required: true
+      responses:
+        "200":
+          description: issueToken 200 response
+          content:
+            application/json:
+              schema:
+                type: object
   /profile:
     get:
       tags:
-        - PunishProfile
+      - PunishProfile
       summary: Get all punishment profiles.
       description: Get all existing punishment profiles
       operationId: getProfiles
       parameters:
-        - name: pageable
-          in: query
-          required: true
-          explode: false
-          schema:
-            $ref: "#/components/schemas/Pageable"
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
       responses:
         "200":
           description: The updated profile
@@ -35,7 +77,7 @@ paths:
                   $ref: "#/components/schemas/PunishProfileResponse"
     post:
       tags:
-        - PunishProfile
+      - PunishProfile
       summary: Add a new punishment profile.
       description: Add a new profile for punishments
       operationId: addProfile
@@ -53,22 +95,28 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PunishProfileResponse"
-  /profile/delete/{owner}:
+  /profile/delete/{tenantId}/{owner}:
     delete:
       tags:
-        - PunishProfile
+      - PunishProfile
       summary: Delete a punishment profile by the owner.
       description: Delete a punish profile via uuid
       operationId: removeProfile
       parameters:
-        - name: owner
-          in: path
-          description: the owner of the profile
-          required: true
-          schema:
-            pattern: "^[a-fA-F0-9]{128}$"
-            type: string
-            x-pattern-message: Owner must be a sha-512 hash
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: owner
+        in: path
+        description: the owner of the profile
+        required: true
+        schema:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
       responses:
         "200":
           description: The deleted profile
@@ -83,21 +131,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /profile/update/{owner}:
+  /profile/update/{tenantId}/{owner}:
     post:
       tags:
-        - PunishProfile
+      - PunishProfile
       summary: Get a punishment profile by the owner.
       description: Update a punishment profile
       operationId: updateProfile
       parameters:
-        - name: owner
-          in: path
-          required: true
-          schema:
-            pattern: "^[a-fA-F0-9]{128}$"
-            type: string
-            x-pattern-message: Owner must be a sha-512 hash
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: owner
+        in: path
+        required: true
+        schema:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
       requestBody:
         description: the profile to get
         content:
@@ -119,21 +173,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-  /profile/{owner}:
+  /profile/{tenantId}/{owner}:
     get:
       tags:
-        - PunishProfile
+      - PunishProfile
       summary: Get a punishment profile by the owner.
       description: Get a profile by id
       operationId: getById
       parameters:
-        - name: owner
-          in: path
-          required: true
-          schema:
-            pattern: "^[a-fA-F0-9]{128}$"
-            type: string
-            x-pattern-message: Owner must be a sha-512 hash
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: owner
+        in: path
+        required: true
+        schema:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
       responses:
         "200":
           description: The profile which matches with the given id
@@ -151,17 +211,17 @@ paths:
   /punishment:
     get:
       tags:
-        - Punishment
+      - Punishment
       summary: Get all punishments
       description: Retrieves a paginated list of all punishment entries in the system
       operationId: getPunishments
       parameters:
-        - name: pageable
-          in: query
-          required: true
-          explode: false
-          schema:
-            $ref: "#/components/schemas/Pageable"
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
       responses:
         "200":
           description: Successfully retrieved punishment entries
@@ -171,37 +231,44 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PunishEntryDTO"
-  /punishment/active/{owner}/{templateId}/{source}:
+  /punishment/active/{tenantId}/{owner}/{templateId}/{source}:
     post:
       tags:
-        - Punishment
+      - Punishment
       summary: Add active punishment
       description: Creates and applies an active punishment to a player profile based
         on a punishment template
       operationId: addActivePunishment
       parameters:
-        - name: owner
-          in: path
-          description: the owner of the punishment
-          required: true
-          schema:
-            pattern: "^[a-fA-F0-9]{128}$"
-            type: string
-            x-pattern-message: Owner must be a sha-512 hash
-        - name: templateId
-          in: path
-          description: the template id of the punishment
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: source
-          in: path
-          description: the source of the punishment
-          required: true
-          schema:
-            type: string
-            format: uuid
+      - name: tenantId
+        in: path
+        description: the tenant the punishment belongs to
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: owner
+        in: path
+        description: the owner of the punishment
+        required: true
+        schema:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+      - name: templateId
+        in: path
+        description: the template id of the punishment
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: source
+        in: path
+        description: the source of the punishment
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         "200":
           description: Punishment successfully applied to profile
@@ -216,17 +283,17 @@ paths:
   /template:
     get:
       tags:
-        - Punishment Templates
+      - Punishment Templates
       summary: Get all punishment templates
       description: Retrieves a paginated list of all punishment templates in the system
       operationId: getAllTemplates
       parameters:
-        - name: pageable
-          in: query
-          required: true
-          explode: false
-          schema:
-            $ref: "#/components/schemas/Pageable"
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
       responses:
         "200":
           description: Successfully retrieved punishment templates
@@ -238,11 +305,12 @@ paths:
                   $ref: "#/components/schemas/PunishTemplateDTO"
     post:
       tags:
-        - Punishment Templates
+      - Punishment Templates
       summary: Create punishment template
       description: Creates a new punishment template.
       operationId: addTemplate
       requestBody:
+        description: the template to add
         content:
           application/json:
             schema:
@@ -262,17 +330,18 @@ paths:
   /template/delete/{identifier}:
     delete:
       tags:
-        - Punishment Templates
+      - Punishment Templates
       summary: Delete punishment template
       description: Deletes a punishment template by its identifier
       operationId: deleteTemplate
       parameters:
-        - name: identifier
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      - name: identifier
+        in: path
+        description: the identifier of the template to remove
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         "200":
           description: Template successfully deleted
@@ -285,11 +354,12 @@ paths:
   /template/update:
     post:
       tags:
-        - Punishment Templates
+      - Punishment Templates
       summary: Update punishment template
       description: Updates an existing punishment template.
       operationId: updateTemplate
       requestBody:
+        description: the template to update
         content:
           application/json:
             schema:
@@ -309,17 +379,18 @@ paths:
   /template/{identifier}:
     get:
       tags:
-        - Punishment Templates
+      - Punishment Templates
       summary: Get punishment template by ID
       description: Retrieves a specific punishment template by its identifier
       operationId: getTemplateById
       parameters:
-        - name: identifier
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
+      - name: identifier
+        in: path
+        description: the identifier of the template to retrieve
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         "200":
           description: Template successfully retrieved
@@ -329,8 +400,130 @@ paths:
                 $ref: "#/components/schemas/PunishTemplateDTO"
         "404":
           description: Template not found
+  /tenant:
+    get:
+      tags:
+      - Tenants
+      summary: Get all tenants
+      description: Retrieves a paginated list of all tenants in the system
+      operationId: getTenants
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: Successfully retrieved tenants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TenantDTO"
+    post:
+      tags:
+      - Tenants
+      summary: Create tenant
+      description: Creates a new tenant.
+      operationId: addTenant
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantDTO"
+        required: true
+      responses:
+        "200":
+          description: Tenant successfully created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantDTO"
+        "405":
+          description: Method not allowed - identifier must be null for creation
+        "409":
+          description: A tenant with this slug already exists
+  /tenant/delete/{identifier}:
+    delete:
+      tags:
+      - Tenants
+      summary: Delete tenant
+      description: Deletes a tenant by its identifier
+      operationId: deleteTenant
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Tenant successfully deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantDTO"
+        "404":
+          description: Tenant not found
+  /tenant/update:
+    post:
+      tags:
+      - Tenants
+      summary: Update tenant
+      description: Updates an existing tenant.
+      operationId: updateTenant
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantDTO"
+        required: true
+      responses:
+        "200":
+          description: Tenant successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantDTO"
+        "404":
+          description: Tenant not found
+  /tenant/{identifier}:
+    get:
+      tags:
+      - Tenants
+      summary: Get tenant by ID
+      description: Retrieves a specific tenant by its identifier
+      operationId: getTenantById
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Tenant successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantDTO"
+        "404":
+          description: Tenant not found
 components:
   schemas:
+    BootstrapRequestDTO:
+      required:
+      - secret
+      type: object
+      properties:
+        secret:
+          minLength: 1
+          type: string
     ErrorResponse:
       type: object
       properties:
@@ -338,64 +531,98 @@ components:
           type: string
           description: the error message
       description: The error response when something went wrong on profile requests
+    IssueTokenRequestDTO:
+      required:
+      - role
+      - tenantId
+      type: object
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        role:
+          minLength: 1
+          type: string
     Pageable:
       required:
-        - size
-        - sort
+      - size
+      - sort
       type: object
       allOf:
-        - $ref: "#/components/schemas/Sort"
-        - type: object
-          properties:
-            number:
-              type: integer
-              format: int32
-            size:
-              type: integer
-              format: int32
-            mode:
-              $ref: "#/components/schemas/Pageable.Mode"
-            sort:
-              $ref: "#/components/schemas/Sort"
+      - $ref: "#/components/schemas/Sort"
+      - type: object
+        properties:
+          number:
+            type: integer
+            format: int32
+          size:
+            type: integer
+            format: int32
+          mode:
+            $ref: "#/components/schemas/Pageable.Mode"
+          sort:
+            $ref: "#/components/schemas/Sort"
     Pageable.Mode:
       type: string
       enum:
-        - CURSOR_NEXT
-        - CURSOR_PREVIOUS
-        - OFFSET
+      - CURSOR_NEXT
+      - CURSOR_PREVIOUS
+      - OFFSET
     PunishEntryDTO:
       required:
-        - identifier
-        - metaData
-        - source
-        - template
+      - identifier
+      - metaData
+      - scope
+      - source
+      - template
+      - tenantId
+      - type
       type: object
       properties:
         identifier:
           type: string
+          description: the identifier of the punishment
+        tenantId:
+          type: string
+          description: the tenant the punishment belongs to
+          format: uuid
         source:
           type: string
+          description: the source of the punishment
           format: uuid
+        type:
+          $ref: "#/components/schemas/PunishType"
+        scope:
+          type: string
+          description: "the optional scope (e.g. event/community) this punishment\
+            \ is restricted to, or `null` for network-wide"
         template:
           $ref: "#/components/schemas/PunishTemplateDTO"
         metaData:
           type: object
           additionalProperties:
             type: object
+          description: the metadata of the punishment
+      description: Represents a punish entry which can be used to store the punishment
+        in the database.
     PunishProfileDTO:
       required:
-        - metaData
-        - owner
+      - metaData
+      - owner
+      - tenantId
       type: object
       properties:
         activeChatBan:
           nullable: true
           allOf:
-            - $ref: "#/components/schemas/PunishEntryDTO"
+          - $ref: "#/components/schemas/PunishEntryDTO"
         activeBan:
           nullable: true
           allOf:
-            - $ref: "#/components/schemas/PunishEntryDTO"
+          - $ref: "#/components/schemas/PunishEntryDTO"
+        tenantId:
+          type: string
+          format: uuid
         owner:
           pattern: "^[a-fA-F0-9]{128}$"
           type: string
@@ -413,11 +640,15 @@ components:
       type: object
     PunishTemplateDTO:
       required:
-        - metaData
-        - reason
-        - type
+      - metaData
+      - reason
+      - tenantId
+      - type
       type: object
       properties:
+        tenantId:
+          type: string
+          format: uuid
         metaData:
           type: object
           additionalProperties:
@@ -433,13 +664,22 @@ components:
           nullable: true
     PunishType:
       type: string
+      description: |-
+        This enumeration defines each type of ban which is supported by the application.
+
+
+        The following types are supported:
+
+        * Server: means that a target is banned from a specific server
+        * Network: means that a target is banned from the whole network
+        * Chat: means that a target is banned from the chat
       enum:
-        - SERVER
-        - NETWORK
-        - CHAT
+      - SERVER
+      - NETWORK
+      - CHAT
     Sort:
       required:
-        - orderBy
+      - orderBy
       type: object
       properties:
         orderBy:
@@ -448,9 +688,9 @@ components:
             $ref: "#/components/schemas/Sort.Order"
     Sort.Order:
       required:
-        - direction
-        - ignoreCase
-        - property
+      - direction
+      - ignoreCase
+      - property
       type: object
       properties:
         ignoreCase:
@@ -464,5 +704,34 @@ components:
     Sort.Order.Direction:
       type: string
       enum:
-        - ASC
-        - DESC
+      - ASC
+      - DESC
+    TenantDTO:
+      required:
+      - metaData
+      - name
+      - slug
+      - status
+      type: object
+      properties:
+        identifier:
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          minLength: 1
+          type: string
+        slug:
+          minLength: 1
+          type: string
+        status:
+          $ref: "#/components/schemas/TenantStatus"
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    TenantStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - SUSPENDED

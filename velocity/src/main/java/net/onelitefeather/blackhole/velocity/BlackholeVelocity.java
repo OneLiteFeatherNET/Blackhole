@@ -20,6 +20,8 @@ import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.listener.PlayerChatListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerLoginListener;
 import net.onelitefeather.blackhole.velocity.module.BlackholeClientModule;
+import net.kyori.adventure.text.minimessage.translation.MiniMessageTranslationStore;
+import net.kyori.adventure.translation.GlobalTranslator;
 import org.incendo.cloud.SenderMapper;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.execution.ExecutionCoordinator;
@@ -29,6 +31,8 @@ import org.incendo.cloud.velocity.VelocityCommandManager;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
+import java.util.Locale;
+import java.util.ResourceBundle;
 
 @Plugin(
         id = "blackhole-velocity",
@@ -57,12 +61,17 @@ public class BlackholeVelocity {
 
     @Subscribe
     public void onProxyInitialisation(ProxyInitializeEvent event) {
+        registerTranslations();
         this.config = BlackholeConfig.load(dataDirectory.resolve("config.json"));
         this.logger.info("Loaded configuration with base URL: {}", config.getBaseUrl());
         this.client = Configuration.getDefaultApiClient();
         this.client.setBasePath(this.config.getBaseUrl());
+        if (this.config.getServiceToken().isBlank()) {
+            this.logger.warn("No service token configured in config.json — every backend request will be rejected with 401 until one is set.");
+        }
+        this.client.setRequestInterceptor(builder -> builder.header("Authorization", "Bearer " + this.config.getServiceToken()));
         this.logger.info("Initialized Blackhole client");
-        Injector childInjector = this.injector.createChildInjector(new BlackholeClientModule(this.client),  new CloudInjectionModule<>(
+        Injector childInjector = this.injector.createChildInjector(new BlackholeClientModule(this.client, this.config),  new CloudInjectionModule<>(
                 CommandSource.class,
                 ExecutionCoordinator.simpleCoordinator(),
                 SenderMapper.identity()
@@ -80,5 +89,14 @@ public class BlackholeVelocity {
         annotationParser.parse(childInjector.getInstance(PunishInfoCommand.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerLoginListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerChatListener.class));
+    }
+
+    private void registerTranslations() {
+        var store = MiniMessageTranslationStore.create(net.kyori.adventure.key.Key.key("blackhole", "translations"));
+        store.defaultLocale(Locale.ENGLISH);
+        var classLoader = BlackholeVelocity.class.getClassLoader();
+        store.registerAll(Locale.ENGLISH, ResourceBundle.getBundle("blackhole", Locale.ENGLISH, classLoader), false);
+        store.registerAll(Locale.GERMAN, ResourceBundle.getBundle("blackhole", Locale.GERMAN, classLoader), false);
+        GlobalTranslator.get().addSource(store);
     }
 }

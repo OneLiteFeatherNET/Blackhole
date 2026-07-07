@@ -34,6 +34,9 @@ dependencyResolutionManagement {
             version("jackson", "2.22.0")
             version("jakarta-annotation", "3.0.0")
             version("openapi.generator", "7.23.0")
+            version("logstash-logback-encoder", "8.1")
+            version("opentelemetry-instrumentation-alpha", "2.20.1-alpha")
+            version("janino", "3.1.12")
 
             library("jetbrains.annotations", "org.jetbrains", "annotations").versionRef("jetbrains.annotations")
 
@@ -51,6 +54,13 @@ dependencyResolutionManagement {
             library("cloud-velocity", "org.incendo", "cloud-velocity").version("2.0.0-SNAPSHOT")
             library("cloud-annotations", "org.incendo", "cloud-annotations").versionRef("cloud.commands")
             library("cloudExtras", "org.incendo", "cloud-minecraft-extras").version("2.0.0-SNAPSHOT")
+
+            // Observability — JSON logging + OpenTelemetry (see backend/build.gradle.kts).
+            // Version managed by the Micronaut platform BOM (opentelemetry-bom).
+            library("opentelemetry-exporter-otlp", "io.opentelemetry", "opentelemetry-exporter-otlp").withoutVersion()
+            library("logstash-logback-encoder", "net.logstash.logback", "logstash-logback-encoder").versionRef("logstash-logback-encoder")
+            library("opentelemetry-logback-mdc", "io.opentelemetry.instrumentation", "opentelemetry-logback-mdc-1.0").versionRef("opentelemetry-instrumentation-alpha")
+            library("janino", "org.codehaus.janino", "janino").versionRef("janino")
 
             plugin("micronaut.application", "io.micronaut.application").versionRef("micronaut")
             plugin("micronaut.aot", "io.micronaut.aot").versionRef("micronaut")

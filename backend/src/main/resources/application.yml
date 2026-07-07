@@ -11,10 +11,51 @@ jpa:
     properties:
       hibernate:
         hbm2ddl:
-          auto: update
+          auto: none
         show_sql: false
 
+# Flyway is now the sole owner of the schema. hbm2ddl.auto is "none" rather than "validate"
+# because Hibernate's schema validator disagrees with its own DDL generator about the expected
+# column type for @JdbcTypeCode(SqlTypes.JSON) columns on MariaDB (MariaDB's JSON type is a
+# LONGTEXT + CHECK(json_valid(...)) alias; validate expects Types#JSON, create emits
+# Types#LONGVARCHAR) - a known Hibernate/MariaDB dialect mismatch, not specific to this schema.
+flyway:
+  datasources:
+    default:
+      enabled: true
+      locations: classpath:db/migration
+
+# Metrics scraping is expected to be protected at the network level, not behind the
+# application's own JWT auth - a scrape target shouldn't need a bearer token.
+endpoints:
+  prometheus:
+    sensitive: false
+
+# Every endpoint requires a valid JWT bearer token by default (Micronaut Security's
+# secure-by-default behavior); @Secured(SecurityRule.IS_ANONYMOUS) opts specific endpoints out
+# (currently only POST /auth/bootstrap). See net.onelitefeather.blackhole.backend.security for
+# the role model (Roles) and per-request tenant enforcement (TenantContext).
+#
+# blackhole.auth.bootstrap-secret (env BLACKHOLE_AUTH_BOOTSTRAP_SECRET) gates the one-time
+# exchange for the first PLATFORM_ADMIN token; leaving it unset disables that endpoint entirely.
+# micronaut.security.token.jwt.signatures.secret.generator.secret (env JWT_GENERATOR_SIGNATURE_SECRET)
+# must be overridden with a real secret (32+ bytes) in every real deployment.
+blackhole:
+  auth:
+    bootstrap-secret: ${BLACKHOLE_AUTH_BOOTSTRAP_SECRET:}
+
 micronaut:
+  application:
+    name: Blackhole API
+  security:
+    enabled: true
+    authentication: bearer
+    token:
+      jwt:
+        signatures:
+          secret:
+            generator:
+              secret: ${JWT_GENERATOR_SIGNATURE_SECRET:`dev-only-secret-change-me-min-32-bytes-long`}
   serde:
     jackson:
       parser-features:
@@ -32,3 +73,26 @@ micronaut:
       swagger-ui:
         paths: classpath:META-INF/swagger/views/swagger-ui
         mapping: /swagger-ui/**
+
+# OpenTelemetry — tracing is disabled unless OTEL_TRACES_EXPORTER=otlp is set
+# (do this in the Docker/prod container). Metrics stay on Prometheus/Micrometer.
+otel:
+  service:
+    name: ${OTEL_SERVICE_NAME:blackhole}
+  traces:
+    exporter: ${OTEL_TRACES_EXPORTER:none}
+  metrics:
+    exporter: none
+  logs:
+    exporter: none
+  exporter:
+    otlp:
+      protocol: grpc
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:`http://localhost:4317`}
+  exclusions:
+    - /health
+    - /health/.*
+    - /prometheus
+    - /swagger
+    - /swagger/.*
+    - /swagger-ui/.*

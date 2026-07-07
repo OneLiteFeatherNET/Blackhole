@@ -11,6 +11,7 @@ import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.PunishType;
 import net.onelitefeather.blackhole.velocity.component.PunishmentTemplateComponent;
+import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -28,10 +29,12 @@ public final class PlayerLoginListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerLoginListener.class);
     private final PunishProfileApi punishProfileApi;
+    private final BlackholeConfig config;
 
     @Inject
-    public PlayerLoginListener(@NotNull ApiClient apiClient) {
+    public PlayerLoginListener(@NotNull ApiClient apiClient, @NotNull BlackholeConfig config) {
         this.punishProfileApi = new PunishProfileApi(apiClient);
+        this.config = config;
     }
 
     /**
@@ -45,7 +48,7 @@ public final class PlayerLoginListener {
         String uuidHash = UUIDConverter.convertToSHA(player.getUniqueId());
         Optional<PunishProfileDTO> profileOptional;
         try {
-            profileOptional = Optional.of(this.punishProfileApi.getById(uuidHash));
+            profileOptional = Optional.of(this.punishProfileApi.getById(this.config.getTenantId(), uuidHash));
         } catch (ApiException e) {
             LOGGER.error("Failed to fetch punish profile for player {}: {}", player.getUsername(), e.getMessage());
             return;

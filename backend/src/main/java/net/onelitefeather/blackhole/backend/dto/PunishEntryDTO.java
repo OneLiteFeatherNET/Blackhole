@@ -13,7 +13,10 @@ import java.util.UUID;
  * Represents a punish entry which can be used to store the punishment in the database.
  *
  * @param identifier the identifier of the punishment
+ * @param tenantId   the tenant the punishment belongs to
  * @param source     the source of the punishment
+ * @param type       the type this punishment was actually applied as
+ * @param scope      the optional scope (e.g. event/community) this punishment is restricted to, or {@code null} for network-wide
  * @param template   the template of the punishment
  * @param metaData   the metadata of the punishment
  * @author theEvilReaper
@@ -24,7 +27,10 @@ import java.util.UUID;
 @ReflectiveAccess
 public record PunishEntryDTO(
         String identifier,
+        UUID tenantId,
         UUID source,
+        PunishType type,
+        String scope,
         PunishTemplateDTO template,
         Map<String, Object> metaData
 ) implements Metadata, Expirable {

@@ -30,12 +30,7 @@ public final class PunishInfoCommand {
     public void banHistory(@NotNull CommandContext<Player> context, @Argument(value = "user", parserName = "profile") PunishProfileDTO user, @Argument("sort") String sort) {
         Player targetPlayer = context.get(PunishCommand.TARGET_KEY);
 
-        if (user.getHistory().isEmpty()) {
-            context.sender().sendMessage(Component.text("No ban history found for player " + targetPlayer.getUsername()));
-            return;
-        }
-
-        Component history = PunishProfileComponents.componentRepresentation(targetPlayer.getUsername(), user);
+        Component history = PunishProfileComponents.historyRepresentation(targetPlayer.getUsername(), user);
         context.sender().sendMessage(history);
     }
 }
