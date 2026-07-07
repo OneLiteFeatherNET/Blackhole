@@ -20,9 +20,12 @@ import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.backend.database.entities.ReportEntity;
 import net.onelitefeather.blackhole.backend.database.repository.ReportRepository;
+import net.onelitefeather.blackhole.backend.dto.EloReasonCode;
+import net.onelitefeather.blackhole.backend.dto.EloTrack;
 import net.onelitefeather.blackhole.backend.dto.ReportDTO;
 import net.onelitefeather.blackhole.backend.dto.ReportResolutionDTO;
 import net.onelitefeather.blackhole.backend.dto.ReportStatus;
+import net.onelitefeather.blackhole.backend.elo.EloService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentApplicationService;
 import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
@@ -63,9 +66,11 @@ public class ReportController {
     private final TenantContext tenantContext;
     private final DomainEventPublisher eventPublisher;
     private final PunishmentApplicationService punishmentApplicationService;
+    private final EloService eloService;
     private final int rateLimitMaxReports;
     private final int rateLimitMaxReportsPerTenant;
     private final Duration rateLimitWindow;
+    private final int reportActionedDelta;
 
     @Inject
     public ReportController(
@@ -73,17 +78,21 @@ public class ReportController {
             TenantContext tenantContext,
             DomainEventPublisher eventPublisher,
             PunishmentApplicationService punishmentApplicationService,
+            EloService eloService,
             @Value("${blackhole.report.rate-limit.max-reports:5}") int rateLimitMaxReports,
             @Value("${blackhole.report.rate-limit.max-reports-per-tenant:50}") int rateLimitMaxReportsPerTenant,
-            @Value("${blackhole.report.rate-limit.window:PT10M}") Duration rateLimitWindow
+            @Value("${blackhole.report.rate-limit.window:PT10M}") Duration rateLimitWindow,
+            @Value("${blackhole.elo.report.actioned-delta:-100}") int reportActionedDelta
     ) {
         this.reportRepository = reportRepository;
         this.tenantContext = tenantContext;
         this.eventPublisher = eventPublisher;
         this.punishmentApplicationService = punishmentApplicationService;
+        this.eloService = eloService;
         this.rateLimitMaxReports = rateLimitMaxReports;
         this.rateLimitMaxReportsPerTenant = rateLimitMaxReportsPerTenant;
         this.rateLimitWindow = rateLimitWindow;
+        this.reportActionedDelta = reportActionedDelta;
     }
 
     @Operation(
@@ -210,6 +219,20 @@ public class ReportController {
         report.setResolvedBy(resolution.resolvedBy());
         report.setUpdatedAt(System.currentTimeMillis());
         ReportEntity saved = this.reportRepository.update(report);
+
+        if (resolution.status() == ReportStatus.ACTIONED) {
+            EloTrack track = switch (report.getCategory()) {
+                case CHAT_ABUSE -> EloTrack.CHAT;
+                case CHEATING, GRIEFING -> EloTrack.GAMEPLAY;
+                case OTHER -> null;
+            };
+            if (track != null) {
+                this.eloService.applyDelta(
+                        tenantId, report.getReportedHash(), track, this.reportActionedDelta, EloReasonCode.REPORT_ACTIONED, null,
+                        Map.of("reportIdentifier", identifier.toString(), "category", report.getCategory().toString())
+                );
+            }
+        }
 
         this.eventPublisher.publish("report.resolved", Map.of(
                 "tenantId", tenantId.toString(),

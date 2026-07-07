@@ -36,6 +36,16 @@ public final class RabbitTopology {
     /** Parking queue for dispatches that exhausted their retry budget. */
     public static final String WEBHOOK_FAILED_QUEUE = "blackhole.webhook.failed";
 
+    /**
+     * Durable queue bound to {@link #EVENTS_EXCHANGE} with routing key {@code signal.#} - feeds
+     * {@code EloSignalConsumer}, which applies gameplay-ELO deltas for external anticheat
+     * signals (Phase 4's {@code POST /signal}). A separate queue from
+     * {@link #WEBHOOK_DISPATCH_QUEUE} since a topic exchange delivers independently to every
+     * queue whose binding matches - same pattern as that queue coexisting with
+     * {@link #CACHE_INVALIDATE_EXCHANGE}'s consumers.
+     */
+    public static final String ELO_SIGNAL_QUEUE = "blackhole.elo.signal";
+
     private RabbitTopology() {
         throw new UnsupportedOperationException("This class cannot be instantiated");
     }

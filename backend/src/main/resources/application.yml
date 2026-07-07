@@ -75,6 +75,34 @@ blackhole:
     # Keep this false in any real/shared deployment - only for local dev/testing against a
     # loopback receiver.
     allow-private-networks: ${BLACKHOLE_WEBHOOK_ALLOW_PRIVATE_NETWORKS:false}
+  # Dual-ELO system (Phase 5): baseline is the starting/neutral score for both tracks; crossing
+  # below soft-threshold triggers an automatic temporary punishment, below hard-threshold a
+  # permanent network ban. decay.interval-ms controls the "day" length pending decay is measured
+  # in - shortened via env var for testing, 1 real day (86400000ms) in production.
+  elo:
+    baseline: ${BLACKHOLE_ELO_BASELINE:1000}
+    soft-threshold: ${BLACKHOLE_ELO_SOFT_THRESHOLD:700}
+    hard-threshold: ${BLACKHOLE_ELO_HARD_THRESHOLD:300}
+    decay:
+      recovery-per-day: ${BLACKHOLE_ELO_DECAY_RECOVERY_PER_DAY:10}
+      interval-ms: ${BLACKHOLE_ELO_DECAY_INTERVAL_MS:86400000}
+      sweep-cron: ${BLACKHOLE_ELO_DECAY_SWEEP_CRON:`0 0 3 * * *`}
+    auto-ban:
+      chat-soft-duration: ${BLACKHOLE_ELO_CHAT_SOFT_DURATION:PT24H}
+      gameplay-soft-duration: ${BLACKHOLE_ELO_GAMEPLAY_SOFT_DURATION:P3D}
+    # Rule-based ToxicityScorer default: an obviously-placeholder keyword list, not a real
+    # moderation wordlist - swap the ToxicityScorer bean entirely for production use (an ML
+    # classifier is an explicit later replacement per the roadmap, not part of this phase).
+    chat:
+      toxic-patterns: ${BLACKHOLE_ELO_CHAT_TOXIC_PATTERNS:stupid,idiot,shut up,hate you}
+      severity-per-match: ${BLACKHOLE_ELO_CHAT_SEVERITY_PER_MATCH:0.4}
+      flag-threshold: ${BLACKHOLE_ELO_CHAT_FLAG_THRESHOLD:0.3}
+      flag-delta: ${BLACKHOLE_ELO_CHAT_FLAG_DELTA:-50}
+      evidence-retention-days: ${BLACKHOLE_ELO_CHAT_EVIDENCE_RETENTION_DAYS:60}
+    signal:
+      default-delta: ${BLACKHOLE_ELO_SIGNAL_DEFAULT_DELTA:-150}
+    report:
+      actioned-delta: ${BLACKHOLE_ELO_REPORT_ACTIONED_DELTA:-100}
 
 micronaut:
   application:

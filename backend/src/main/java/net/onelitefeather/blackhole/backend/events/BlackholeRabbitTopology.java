@@ -49,5 +49,8 @@ public class BlackholeRabbitTopology extends ChannelInitializer {
         channel.queueBind(RabbitTopology.WEBHOOK_RETRY_QUEUE, RabbitTopology.WEBHOOK_RETRY_EXCHANGE, RabbitTopology.WEBHOOK_RETRY_ROUTING_KEY);
 
         channel.queueDeclare(RabbitTopology.WEBHOOK_FAILED_QUEUE, true, false, false, null);
+
+        channel.queueDeclare(RabbitTopology.ELO_SIGNAL_QUEUE, true, false, false, null);
+        channel.queueBind(RabbitTopology.ELO_SIGNAL_QUEUE, RabbitTopology.EVENTS_EXCHANGE, "signal.#");
     }
 }

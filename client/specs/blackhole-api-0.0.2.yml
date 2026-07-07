@@ -243,6 +243,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ConnectorRegistrationDTO"
+  /elo/chat:
+    post:
+      tags:
+      - Elo
+      summary: Score a chat message for toxicity
+      description: "Scores a chat message; if flagged, records evidence (a hash, never\
+        \ the raw text) and applies a chat-ELO delta"
+      operationId: submitChatSignal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatSignalDTO"
+        required: true
+      responses:
+        "200":
+          description: Scoring result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatToxicityResult"
   /profile:
     get:
       tags:
@@ -817,6 +838,36 @@ components:
         secret:
           minLength: 1
           type: string
+    ChatSignalDTO:
+      required:
+      - message
+      - owner
+      - tenantId
+      type: object
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        owner:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: owner must be a sha-512 hash
+        message:
+          maxLength: 512
+          minLength: 1
+          type: string
+    ChatToxicityResult:
+      required:
+      - flagged
+      - score
+      type: object
+      properties:
+        flagged:
+          type: boolean
+        score:
+          type: number
+          format: double
     ConnectorRegistrationCreatedDTO:
       required:
       - connector
