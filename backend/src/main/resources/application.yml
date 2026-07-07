@@ -103,6 +103,14 @@ blackhole:
       default-delta: ${BLACKHOLE_ELO_SIGNAL_DEFAULT_DELTA:-150}
     report:
       actioned-delta: ${BLACKHOLE_ELO_REPORT_ACTIONED_DELTA:-100}
+  # Appeal workflow (Phase 6): min-days-auto is deliberately shorter than min-days-manual - the
+  # whole point of ELO auto-bans is saving moderator time, so reversing one shouldn't cost MORE
+  # of it via a longer wait. repeat-appeal-cooldown-days blocks a new appeal on the same
+  # punishment shortly after a prior one was denied/ineligible.
+  appeal:
+    min-days-manual: ${BLACKHOLE_APPEAL_MIN_DAYS_MANUAL:14}
+    min-days-auto: ${BLACKHOLE_APPEAL_MIN_DAYS_AUTO:3}
+    repeat-appeal-cooldown-days: ${BLACKHOLE_APPEAL_REPEAT_COOLDOWN_DAYS:7}
 
 micronaut:
   application:

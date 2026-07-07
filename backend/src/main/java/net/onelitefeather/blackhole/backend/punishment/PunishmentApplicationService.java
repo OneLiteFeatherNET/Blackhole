@@ -63,6 +63,16 @@ public class PunishmentApplicationService {
      * @return the updated profile, or empty if the template is missing/cross-tenant
      */
     public Optional<PunishmentProfileEntity> apply(UUID tenantId, String owner, UUID templateId, UUID source) {
+        return apply(tenantId, owner, templateId, source, Map.of());
+    }
+
+    /**
+     * Same as {@link #apply(UUID, String, UUID, UUID)}, but merges {@code extraMetaData} into
+     * the created punishment's metadata - e.g. so an ELO-triggered ban can record exactly which
+     * signal type crossed the threshold, for a later appeal's eligibility checklist to read
+     * without having to reverse-engineer it from timestamps.
+     */
+    public Optional<PunishmentProfileEntity> apply(UUID tenantId, String owner, UUID templateId, UUID source, Map<String, Object> extraMetaData) {
         PunishmentTemplateEntity template = this.templateRepository.findById(templateId).orElse(null);
         if (template == null || !tenantId.equals(template.getTenantId())) {
             return Optional.empty();
@@ -76,6 +86,7 @@ public class PunishmentApplicationService {
         }
 
         Map<String, Object> metadata = new HashMap<>();
+        metadata.putAll(extraMetaData);
         metadata.put(Metadata.META_DATA_KEY_CREATION_DATE, System.currentTimeMillis());
         metadata.put(Metadata.META_DATA_KEY_UPDATE_DATE, System.currentTimeMillis());
         if (template.getMetaData().containsKey(Durationable.META_DATA_KEY_DURATION)) {

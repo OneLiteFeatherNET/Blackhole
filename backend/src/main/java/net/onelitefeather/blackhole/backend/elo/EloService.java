@@ -148,7 +148,7 @@ public class EloService {
                 metaData == null ? new HashMap<>() : metaData
         ));
 
-        checkThresholds(tenantId, owner, track, previousScore, newScore);
+        checkThresholds(tenantId, owner, track, previousScore, newScore, reasonCode);
 
         return savedProfile;
     }
@@ -209,17 +209,18 @@ public class EloService {
      * otherwise a player already below the hard threshold would get re-banned on every
      * subsequent violation.
      */
-    private void checkThresholds(UUID tenantId, String owner, EloTrack track, int previousScore, int newScore) {
+    private void checkThresholds(UUID tenantId, String owner, EloTrack track, int previousScore, int newScore, EloReasonCode triggeringReasonCode) {
         if (previousScore >= this.hardThreshold && newScore < this.hardThreshold) {
-            triggerAutoBan(tenantId, owner, track, TIER_HARD, newScore);
+            triggerAutoBan(tenantId, owner, track, TIER_HARD, newScore, triggeringReasonCode);
         } else if (previousScore >= this.softThreshold && newScore < this.softThreshold) {
-            triggerAutoBan(tenantId, owner, track, TIER_SOFT, newScore);
+            triggerAutoBan(tenantId, owner, track, TIER_SOFT, newScore, triggeringReasonCode);
         }
     }
 
-    private void triggerAutoBan(UUID tenantId, String owner, EloTrack track, String tier, int resultingScore) {
+    private void triggerAutoBan(UUID tenantId, String owner, EloTrack track, String tier, int resultingScore, EloReasonCode triggeringReasonCode) {
         PunishmentTemplateEntity template = findOrCreateAutoTemplate(tenantId, track, tier);
-        var applied = this.punishmentApplicationService.apply(tenantId, owner, template.getIdentifier(), SYSTEM_ELO_SOURCE);
+        Map<String, Object> extraMetaData = Map.of("eloTriggerReasonCode", triggeringReasonCode.toString());
+        var applied = this.punishmentApplicationService.apply(tenantId, owner, template.getIdentifier(), SYSTEM_ELO_SOURCE, extraMetaData);
         if (applied.isEmpty()) {
             LOGGER.error("ELO auto-ban failed to apply template {} for tenant {}: template vanished after find-or-create", template.getIdentifier(), tenantId);
         }

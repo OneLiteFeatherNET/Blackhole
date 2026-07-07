@@ -10,6 +10,97 @@ info:
     name: Close Source
   version: 0.0.2
 paths:
+  /appeal:
+    get:
+      tags:
+      - Appeal
+      summary: Get all appeals
+      description: Retrieves a paginated list of appeals for the caller's tenant
+      operationId: getAppeals
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: Successfully retrieved appeals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AppealDTO"
+    post:
+      tags:
+      - Appeal
+      summary: Submit an appeal
+      description: Submits an appeal against a punishment. Immediately evaluated against
+        the eligibility checklist.
+      operationId: submitAppeal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppealSubmissionDTO"
+        required: true
+      responses:
+        "200":
+          description: Appeal submitted (status reflects whether it passed the eligibility
+            checklist)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppealDTO"
+        "404":
+          description: Punishment not found
+  /appeal/{tenantId}/{identifier}/review:
+    post:
+      tags:
+      - Appeal
+      summary: Review an appeal
+      description: Decides an eligible appeal. Rejects self-review (reviewerId matching
+        the punishment's own source) and full lifts of SEVERE punishments (duration
+        reduction only).
+      operationId: reviewAppeal
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppealReviewDTO"
+        required: true
+      responses:
+        "200":
+          description: Appeal decided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppealDTO"
+        "404":
+          description: Appeal not found
+        "400":
+          description: "Invalid decision, or a full lift was attempted on a SEVERE\
+            \ punishment"
+        "403":
+          description: reviewerId matches the punishment's original source (self-review)
+        "409":
+          description: "Appeal is not awaiting review, or the punishment is no longer\
+            \ active"
   /auth/bootstrap:
     post:
       tags:
@@ -830,6 +921,113 @@ paths:
           description: Tenant not found
 components:
   schemas:
+    AppealDTO:
+      required:
+      - appellantHash
+      - createdAt
+      - eligibilityCheckResult
+      - identifier
+      - metaData
+      - punishmentIdentifier
+      - statement
+      - status
+      - tenantId
+      - updatedAt
+      type: object
+      properties:
+        identifier:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        punishmentIdentifier:
+          type: string
+        appellantHash:
+          type: string
+        statement:
+          type: string
+        status:
+          $ref: "#/components/schemas/AppealStatus"
+        eligibilityCheckResult:
+          type: object
+          additionalProperties:
+            type: object
+        decidedBy:
+          type: string
+          format: uuid
+          nullable: true
+        decisionNote:
+          type: string
+          nullable: true
+        createdAt:
+          type: integer
+          format: int64
+        updatedAt:
+          type: integer
+          format: int64
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    AppealReviewDTO:
+      required:
+      - decision
+      - reviewerId
+      type: object
+      properties:
+        decision:
+          $ref: "#/components/schemas/AppealStatus"
+        decisionNote:
+          maxLength: 2000
+          type: string
+          description: an optional note explaining the decision
+          nullable: true
+        reviewerId:
+          type: string
+          description: the staff/system identity making this decision; rejected if
+            it matches the punishment's own `source` (self-review exclusion)
+          format: uuid
+        newExpirationAt:
+          type: integer
+          description: "required when `decision` is `GRANTED_DURATION_REDUCTION` -\
+            \ the new, sooner expiration timestamp (epoch millis)"
+          format: int64
+          nullable: true
+    AppealStatus:
+      type: string
+      description: The lifecycle state of an appeal.
+      enum:
+      - SUBMITTED
+      - ELIGIBLE_PENDING_REVIEW
+      - IN_REVIEW
+      - GRANTED_FULL_LIFT
+      - GRANTED_DURATION_REDUCTION
+      - DENIED
+      - INELIGIBLE
+    AppealSubmissionDTO:
+      required:
+      - appellantHash
+      - punishmentIdentifier
+      - statement
+      - tenantId
+      type: object
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        punishmentIdentifier:
+          minLength: 1
+          type: string
+        appellantHash:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: appellantHash must be a sha-512 hash
+        statement:
+          maxLength: 2000
+          minLength: 1
+          type: string
     BootstrapRequestDTO:
       required:
       - secret
