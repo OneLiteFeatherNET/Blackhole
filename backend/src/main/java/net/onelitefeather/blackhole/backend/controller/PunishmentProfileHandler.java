@@ -27,6 +27,7 @@ import net.onelitefeather.blackhole.backend.cache.CacheInvalidationPublisher;
 import net.onelitefeather.blackhole.backend.cache.ProfileCache;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.response.PunishProfileResponse;
+import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
 import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.security.TenantContext;
 import net.onelitefeather.blackhole.backend.utils.PunishmentExpiry;
@@ -229,6 +230,7 @@ public class PunishmentProfileHandler {
             )
 
     )
+    @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF, Roles.SERVICE, ConnectorScopes.PROFILE_READ})
     @Get("/")
     public HttpResponse<Page<PunishProfileResponse>> getAll(Pageable pageable) {
         Page<PunishmentProfileEntity> entities = this.tenantContext.isPlatformAdmin()
@@ -267,6 +269,7 @@ public class PunishmentProfileHandler {
                     )
             )
     )
+    @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF, Roles.SERVICE, ConnectorScopes.PROFILE_READ})
     @Get("/{tenantId}/{owner}")
     public HttpResponse<PunishProfileResponse> getById(
             UUID tenantId,

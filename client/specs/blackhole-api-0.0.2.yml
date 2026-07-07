@@ -52,6 +52,197 @@ paths:
             application/json:
               schema:
                 type: object
+  /connector:
+    get:
+      tags:
+      - Connector
+      summary: Get all connectors
+      operationId: getConnectors
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: getConnectors 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page_ConnectorRegistrationDTO_"
+    post:
+      tags:
+      - Connector
+      summary: Register a connector
+      operationId: registerConnector
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectorRegistrationRequestDTO"
+        required: true
+      responses:
+        "200":
+          description: registerConnector 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorRegistrationCreatedDTO"
+  /connector/oauth2/token:
+    post:
+      tags:
+      - Connector
+      summary: Exchange connector client credentials for a token
+      description: OAuth2 client-credentials style exchange. Returns a token scoped
+        to the connector's granted scopes.
+      operationId: connectorToken
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectorTokenRequestDTO"
+        required: true
+      responses:
+        "200":
+          description: connectorToken 200 response
+          content:
+            application/json:
+              schema:
+                type: object
+  /connector/subscription:
+    post:
+      tags:
+      - Connector
+      summary: Create an event subscription for a connector
+      operationId: addEventSubscription
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventSubscriptionRequestDTO"
+        required: true
+      responses:
+        "400":
+          description: deliveryUrl failed SSRF validation (see message)
+        "200":
+          description: addEventSubscription 200 response
+          content:
+            application/json:
+              schema:
+                type: object
+  /connector/subscription/{identifier}:
+    delete:
+      tags:
+      - Connector
+      summary: Delete an event subscription
+      operationId: removeEventSubscription
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: removeEventSubscription 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventSubscriptionDTO"
+  /connector/{connectorId}/subscription:
+    get:
+      tags:
+      - Connector
+      summary: Get all event subscriptions for a connector
+      operationId: getEventSubscriptions
+      parameters:
+      - name: connectorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: getEventSubscriptions 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page_EventSubscriptionDTO_"
+  /connector/{identifier}:
+    get:
+      tags:
+      - Connector
+      summary: Get a connector by ID
+      operationId: getConnectorById
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: getConnectorById 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorRegistrationDTO"
+    delete:
+      tags:
+      - Connector
+      summary: Delete a connector
+      operationId: removeConnector
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: removeConnector 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorRegistrationDTO"
+  /connector/{identifier}/update:
+    post:
+      tags:
+      - Connector
+      summary: Update a connector's name/scopes/status
+      operationId: updateConnector
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectorRegistrationDTO"
+        required: true
+      responses:
+        "200":
+          description: updateConnector 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorRegistrationDTO"
   /profile:
     get:
       tags:
@@ -363,6 +554,25 @@ paths:
           description: Report or punishment template not found
         "400":
           description: punishmentSource is required when punishmentTemplateId is set
+  /signal:
+    post:
+      tags:
+      - Signal
+      summary: Submit an external signal
+      operationId: submitSignal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignalDTO"
+        required: true
+      responses:
+        "200":
+          description: submitSignal 200 response
+          content:
+            application/json:
+              schema:
+                type: object
   /template:
     get:
       tags:
@@ -607,6 +817,91 @@ components:
         secret:
           minLength: 1
           type: string
+    ConnectorRegistrationCreatedDTO:
+      required:
+      - connector
+      - oauth2ClientSecret
+      type: object
+      properties:
+        connector:
+          $ref: "#/components/schemas/ConnectorRegistrationDTO"
+        oauth2ClientSecret:
+          type: string
+      description: Response to a connector registration. `oauth2ClientSecret` is the
+        only time the plaintext secret is ever shown - only the SHA-512 hash is persisted.
+    ConnectorRegistrationDTO:
+      required:
+      - identifier
+      - metaData
+      - name
+      - oauth2ClientId
+      - scopes
+      - status
+      - tenantId
+      type: object
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        identifier:
+          type: string
+          format: uuid
+        name:
+          type: string
+        oauth2ClientId:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        status:
+          $ref: "#/components/schemas/ConnectorStatus"
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+      description: "Representation of a registered connector. Deliberately never carries\
+        \ the client secret (or its hash) - that's only ever shown once, at creation\
+        \ time, via ConnectorRegistrationCreatedDTO."
+    ConnectorRegistrationRequestDTO:
+      required:
+      - name
+      - scopes
+      - tenantId
+      type: object
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          minLength: 1
+          type: string
+        scopes:
+          minItems: 1
+          type: array
+          items:
+            type: string
+    ConnectorStatus:
+      type: string
+      description: Whether a registered connector may currently authenticate/receive
+        webhook deliveries.
+      enum:
+      - ACTIVE
+      - SUSPENDED
+    ConnectorTokenRequestDTO:
+      required:
+      - clientId
+      - clientSecret
+      type: object
+      properties:
+        clientId:
+          minLength: 1
+          type: string
+        clientSecret:
+          minLength: 1
+          type: string
+      description: OAuth2 client-credentials style exchange for a connector-scoped
+        token.
     ErrorResponse:
       type: object
       properties:
@@ -614,6 +909,66 @@ components:
           type: string
           description: the error message
       description: The error response when something went wrong on profile requests
+    EventSubscriptionDTO:
+      required:
+      - active
+      - connectorId
+      - deliveryUrl
+      - eventTypes
+      - failureCount
+      - identifier
+      - metaData
+      type: object
+      properties:
+        identifier:
+          type: string
+          format: uuid
+        connectorId:
+          type: string
+          format: uuid
+        eventTypes:
+          type: array
+          items:
+            type: string
+        deliveryUrl:
+          type: string
+        active:
+          type: boolean
+        failureCount:
+          type: integer
+          format: int32
+        lastAttemptAt:
+          type: integer
+          format: int64
+          nullable: true
+        lastSuccessAt:
+          type: integer
+          format: int64
+          nullable: true
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+      description: "Representation of a connector's event subscription. Never carries\
+        \ the signing secret - that's only shown once, at creation time, via EventSubscriptionCreatedDTO."
+    EventSubscriptionRequestDTO:
+      required:
+      - connectorId
+      - deliveryUrl
+      - eventTypes
+      type: object
+      properties:
+        connectorId:
+          type: string
+          format: uuid
+        eventTypes:
+          minItems: 1
+          type: array
+          items:
+            type: string
+        deliveryUrl:
+          minLength: 1
+          type: string
     IssueTokenRequestDTO:
       required:
       - role
@@ -626,6 +981,30 @@ components:
         role:
           minLength: 1
           type: string
+    Page_ConnectorRegistrationDTO_:
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/Slice_ConnectorRegistrationDTO_"
+      - type: object
+        properties:
+          totalSize:
+            type: integer
+            format: int64
+          totalPages:
+            type: integer
+            format: int32
+    Page_EventSubscriptionDTO_:
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/Slice_EventSubscriptionDTO_"
+      - type: object
+        properties:
+          totalSize:
+            type: integer
+            format: int64
+          totalPages:
+            type: integer
+            format: int32
     Pageable:
       required:
       - size
@@ -885,6 +1264,96 @@ components:
       - UNDER_REVIEW
       - ACTIONED
       - DISMISSED
+    SignalDTO:
+      required:
+      - metaData
+      - owner
+      - payload
+      - signalType
+      - tenantId
+      type: object
+      properties:
+        tenantId:
+          type: string
+          description: the tenant this signal belongs to
+          format: uuid
+        owner:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          description: SHA-512 hash of the affected player
+          x-pattern-message: owner must be a sha-512 hash
+        signalType:
+          minLength: 1
+          type: string
+          description: "a connector-chosen identifier, e.g. `anticheat.flag`"
+        payload:
+          type: object
+          additionalProperties:
+            type: object
+          description: signal-specific data
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+          description: extensible metadata
+      description: A generic external signal (e.g. an anticheat flag) ingested via
+        `POST /signal`. Deliberately opaque - Blackhole doesn't know or care what
+        `signalType` values a given connector uses; it's published as a domain event
+        and Phase 5's ELO system (or any other consumer) decides what to do with it.
+        This is what keeps the connector framework generic rather than anticheat-specific.
+    Slice_ConnectorRegistrationDTO_:
+      required:
+      - content
+      - pageable
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConnectorRegistrationDTO"
+        pageable:
+          $ref: "#/components/schemas/Pageable"
+        pageNumber:
+          type: integer
+          format: int32
+        offset:
+          type: integer
+          format: int64
+        size:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+    Slice_EventSubscriptionDTO_:
+      required:
+      - content
+      - pageable
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventSubscriptionDTO"
+        pageable:
+          $ref: "#/components/schemas/Pageable"
+        pageNumber:
+          type: integer
+          format: int32
+        offset:
+          type: integer
+          format: int64
+        size:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
     Sort:
       required:
       - orderBy

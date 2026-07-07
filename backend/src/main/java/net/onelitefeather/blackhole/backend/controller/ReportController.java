@@ -25,6 +25,7 @@ import net.onelitefeather.blackhole.backend.dto.ReportResolutionDTO;
 import net.onelitefeather.blackhole.backend.dto.ReportStatus;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentApplicationService;
+import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
 import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.security.TenantContext;
 
@@ -159,7 +160,7 @@ public class ReportController {
                     array = @ArraySchema(schema = @Schema(implementation = ReportDTO.class), arraySchema = @Schema(implementation = Page.class))
             )
     )
-    @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF})
+    @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF, ConnectorScopes.REPORT_READ})
     @Get("/")
     public HttpResponse<Page<ReportDTO>> getAll(Pageable pageable) {
         Page<ReportEntity> entities = this.tenantContext.isPlatformAdmin()

@@ -21,6 +21,7 @@ import net.onelitefeather.blackhole.backend.database.repository.PunishmentReposi
 import net.onelitefeather.blackhole.backend.dto.PunishEntryDTO;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentApplicationService;
 import net.onelitefeather.blackhole.backend.response.PunishProfileResponse;
+import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
 import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.security.TenantContext;
 
@@ -121,6 +122,7 @@ public class PunishmentEntityController {
                     )
             )
     )
+    @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF, Roles.SERVICE, ConnectorScopes.PUNISHMENT_READ})
     @Get()
     public HttpResponse<Page<PunishEntryDTO>> getAll(Pageable pageable) {
         Page<PunishmentEntity> entries = this.tenantContext.isPlatformAdmin()

@@ -63,6 +63,18 @@ blackhole:
       max-reports: ${BLACKHOLE_REPORT_RATE_LIMIT_MAX:5}
       max-reports-per-tenant: ${BLACKHOLE_REPORT_RATE_LIMIT_MAX_PER_TENANT:50}
       window: ${BLACKHOLE_REPORT_RATE_LIMIT_WINDOW:PT10M}
+  # WebhookDispatchConsumer fans out domain events to connector webhooks (Phase 4). A failed
+  # delivery is dead-lettered to a retry queue for retry-delay-ms, then dead-letters back to the
+  # dispatch queue - a native RabbitMQ TTL+DLX loop, not an in-process retry. After max-retries
+  # attempts a dispatch is parked in blackhole.webhook.failed instead of retried forever.
+  webhook:
+    retry-delay-ms: ${BLACKHOLE_WEBHOOK_RETRY_DELAY_MS:30000}
+    max-retries: ${BLACKHOLE_WEBHOOK_MAX_RETRIES:5}
+    # SSRF hardening: a TENANT_ADMIN sets deliveryUrl, and in this shared-deployment
+    # multi-tenant model they're a genuinely less-trusted party than the platform operator.
+    # Keep this false in any real/shared deployment - only for local dev/testing against a
+    # loopback receiver.
+    allow-private-networks: ${BLACKHOLE_WEBHOOK_ALLOW_PRIVATE_NETWORKS:false}
 
 micronaut:
   application:
