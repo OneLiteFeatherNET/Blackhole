@@ -18,6 +18,7 @@ import net.onelitefeather.blackhole.velocity.command.PunishInfoCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishTypeScope;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.listener.PlayerChatListener;
+import net.onelitefeather.blackhole.velocity.listener.PlayerClientBrandListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerLoginListener;
 import net.onelitefeather.blackhole.velocity.module.BlackholeClientModule;
 import net.kyori.adventure.text.minimessage.translation.MiniMessageTranslationStore;
@@ -89,6 +90,7 @@ public class BlackholeVelocity {
         annotationParser.parse(childInjector.getInstance(PunishInfoCommand.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerLoginListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerChatListener.class));
+        server.getEventManager().register(this, childInjector.getInstance(PlayerClientBrandListener.class));
     }
 
     private void registerTranslations() {

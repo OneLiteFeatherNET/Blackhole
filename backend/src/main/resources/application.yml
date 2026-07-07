@@ -111,6 +111,14 @@ blackhole:
     min-days-manual: ${BLACKHOLE_APPEAL_MIN_DAYS_MANUAL:14}
     min-days-auto: ${BLACKHOLE_APPEAL_MIN_DAYS_AUTO:3}
     repeat-appeal-cooldown-days: ${BLACKHOLE_APPEAL_REPEAT_COOLDOWN_DAYS:7}
+  # Ban-evasion detection (Phase 7): ip-salt gates the whole feature - POST /evasion/record
+  # returns 503 rather than silently computing a weak unsalted-equivalent hash if it's unset.
+  # See IpCorrelationService's javadoc for the salt rotation tradeoff before ever rotating this.
+  evasion:
+    ip-salt: ${BLACKHOLE_EVASION_IP_SALT:}
+    detection-window-days: ${BLACKHOLE_EVASION_DETECTION_WINDOW_DAYS:7}
+    retention-days: ${BLACKHOLE_EVASION_RETENTION_DAYS:90}
+    retention-sweep-cron: ${BLACKHOLE_EVASION_RETENTION_SWEEP_CRON:`0 30 3 * * *`}
 
 micronaut:
   application:

@@ -5,11 +5,14 @@ import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.LoginEvent;
 import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.onelitefeather.blackhole.client.api.EvasionApi;
 import net.onelitefeather.blackhole.client.api.PunishProfileApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
+import net.onelitefeather.blackhole.client.model.EvasionRecordDTO;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.PunishType;
+import net.onelitefeather.blackhole.client.model.SessionInfoDTO;
 import net.onelitefeather.blackhole.velocity.component.PunishmentTemplateComponent;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
@@ -29,11 +32,13 @@ public final class PlayerLoginListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerLoginListener.class);
     private final PunishProfileApi punishProfileApi;
+    private final EvasionApi evasionApi;
     private final BlackholeConfig config;
 
     @Inject
     public PlayerLoginListener(@NotNull ApiClient apiClient, @NotNull BlackholeConfig config) {
         this.punishProfileApi = new PunishProfileApi(apiClient);
+        this.evasionApi = new EvasionApi(apiClient);
         this.config = config;
     }
 
@@ -44,8 +49,12 @@ public final class PlayerLoginListener {
     @Subscribe
     public void onLogin(@NotNull LoginEvent event) {
         Player player = event.getPlayer();
-
         String uuidHash = UUIDConverter.convertToSHA(player.getUniqueId());
+
+        // Recorded regardless of ban outcome - catching a banned player re-joining on a fresh
+        // account from the same IP is the whole point of ban-evasion detection.
+        recordEvasionSignal(player, uuidHash);
+
         Optional<PunishProfileDTO> profileOptional;
         try {
             profileOptional = Optional.of(this.punishProfileApi.getById(this.config.getTenantId(), uuidHash));
@@ -55,12 +64,30 @@ public final class PlayerLoginListener {
         }
 
         PunishProfileDTO punishProfile = profileOptional.get();
-
-        if (punishProfile.getActiveBan() == null) return;
         var activeBanDTO = punishProfile.getActiveBan();
-        var templateDTO = activeBanDTO.getTemplate();
-        if (templateDTO.getType() != PunishType.NETWORK) return;
+        if (activeBanDTO != null && activeBanDTO.getTemplate().getType() == PunishType.NETWORK) {
+            event.getPlayer().disconnect(PunishmentTemplateComponent.of(activeBanDTO.getTemplate(), punishProfile));
+            return;
+        }
 
-        event.getPlayer().disconnect(PunishmentTemplateComponent.of(templateDTO, punishProfile));
+        recordSessionInfo(player, uuidHash);
+    }
+
+    private void recordEvasionSignal(@NotNull Player player, @NotNull String uuidHash) {
+        String ip = player.getRemoteAddress().getAddress().getHostAddress();
+        try {
+            this.evasionApi.recordEvasionSighting(new EvasionRecordDTO().tenantId(this.config.getTenantId()).owner(uuidHash).ip(ip));
+        } catch (ApiException e) {
+            LOGGER.debug("Evasion signal not recorded for {}: {}", player.getUsername(), e.getMessage());
+        }
+    }
+
+    private void recordSessionInfo(@NotNull Player player, @NotNull String uuidHash) {
+        try {
+            this.punishProfileApi.updateSessionInfo(this.config.getTenantId(), uuidHash,
+                    new SessionInfoDTO().tenantId(this.config.getTenantId()).owner(uuidHash).protocolVersion(player.getProtocolVersion().getProtocol()));
+        } catch (ApiException e) {
+            LOGGER.debug("Session info not recorded for {}: {}", player.getUsername(), e.getMessage());
+        }
     }
 }

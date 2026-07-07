@@ -23,6 +23,7 @@ import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileE
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileId;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.dto.PunishProfileDTO;
+import net.onelitefeather.blackhole.backend.dto.SessionInfoDTO;
 import net.onelitefeather.blackhole.backend.cache.CacheInvalidationPublisher;
 import net.onelitefeather.blackhole.backend.cache.ProfileCache;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
@@ -32,6 +33,8 @@ import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.security.TenantContext;
 import net.onelitefeather.blackhole.backend.utils.PunishmentExpiry;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -313,5 +316,51 @@ public class PunishmentProfileHandler {
                 "owner", owner,
                 "punishmentIdentifier", expired.getIdentifier()
         ));
+    }
+
+    /**
+     * Records session telemetry (Phase 7's dashboard enrichment: Java/Bedrock protocol version
+     * and client brand) into the profile's existing metaData, so the already-existing profile
+     * listing/get endpoints surface it without a separate dashboard endpoint. Fields are merged,
+     * not overwritten - {@code protocolVersion} arrives at login, {@code clientBrand} arrives
+     * slightly later as a separate plugin-channel negotiation, so a single call rarely has both.
+     * Not cache-invalidated deliberately - this is telemetry, not a punishment action, so a
+     * brief staleness window is an acceptable tradeoff against extra RabbitMQ chatter on every
+     * single login.
+     */
+    @Operation(
+            description = "Records session telemetry (protocol version / client brand) for the dashboard",
+            operationId = "updateSessionInfo",
+            tags = {"PunishProfile"}
+    )
+    @ApiResponse(responseCode = "200", description = "Session info recorded")
+    @Validated
+    @Post("/{tenantId}/{owner}/session")
+    public HttpResponse<PunishProfileResponse> updateSessionInfo(
+            UUID tenantId,
+            @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
+            @Body @Valid SessionInfoDTO info
+    ) {
+        this.tenantContext.requireTenantAccess(tenantId);
+        PunishmentProfileId id = new PunishmentProfileId(tenantId, owner);
+        PunishmentProfileEntity profile = this.repository.findById(id).orElse(null);
+        boolean isNew = profile == null;
+        if (isNew) {
+            profile = new PunishmentProfileEntity(tenantId, owner, null, null, new ArrayList<>(), new HashMap<>());
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> sessionInfo = (Map<String, Object>) profile.getMetaData()
+                .computeIfAbsent("sessionInfo", key -> new HashMap<String, Object>());
+        if (info.protocolVersion() != null) {
+            sessionInfo.put("protocolVersion", info.protocolVersion());
+        }
+        if (info.clientBrand() != null) {
+            sessionInfo.put("clientBrand", info.clientBrand());
+        }
+        sessionInfo.put("lastSeenAt", System.currentTimeMillis());
+
+        PunishmentProfileEntity saved = isNew ? this.repository.save(profile) : this.repository.update(profile);
+        return HttpResponse.ok(saved.toDTO());
     }
 }

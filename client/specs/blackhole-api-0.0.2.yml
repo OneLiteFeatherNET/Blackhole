@@ -355,6 +355,93 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ChatToxicityResult"
+  /elo/{tenantId}/{owner}:
+    get:
+      tags:
+      - Elo
+      summary: Get a player's current ELO standing
+      description: "Dashboard read endpoint: the current chat/gameplay scores"
+      operationId: getEloProfile
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Current ELO profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EloProfileDTO"
+        "404":
+          description: No ELO profile exists yet for this owner
+  /elo/{tenantId}/{owner}/history:
+    get:
+      tags:
+      - Elo
+      summary: Get a player's ELO history
+      description: "Dashboard read endpoint: the full audit trail of ELO changes for\
+        \ this owner"
+      operationId: getEloHistory
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: Paginated ELO event history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EloEventDTO"
+  /evasion/record:
+    post:
+      tags:
+      - Evasion
+      summary: Record a login sighting for ban-evasion detection
+      description: Computes a keyed hash of the IP (never stores it raw) and checks
+        whether multiple distinct owners share it recently
+      operationId: recordEvasionSighting
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvasionRecordDTO"
+        required: true
+      responses:
+        "200":
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                type: object
+        "503":
+          description: blackhole.evasion.ip-salt is not configured - evasion detection
+            is disabled
   /profile:
     get:
       tags:
@@ -511,6 +598,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /profile/{tenantId}/{owner}/session:
+    post:
+      tags:
+      - PunishProfile
+      summary: "Records session telemetry (Phase 7's dashboard enrichment: Java/Bedrock\
+        \ protocol version and client brand) into the profile's existing metaData,\
+        \ so the already-existing profile listing/get endpoints surface it without\
+        \ a separate dashboard endpoint."
+      description: Records session telemetry (protocol version / client brand) for
+        the dashboard
+      operationId: updateSessionInfo
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: owner
+        in: path
+        required: true
+        schema:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionInfoDTO"
+        required: true
+      responses:
+        "200":
+          description: Session info recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileResponse"
   /punishment:
     get:
       tags:
@@ -1151,6 +1276,102 @@ components:
           type: string
       description: OAuth2 client-credentials style exchange for a connector-scoped
         token.
+    EloEventDTO:
+      required:
+      - createdAt
+      - delta
+      - identifier
+      - metaData
+      - owner
+      - reasonCode
+      - resultingScore
+      - tenantId
+      - track
+      type: object
+      properties:
+        identifier:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        owner:
+          type: string
+        track:
+          $ref: "#/components/schemas/EloTrack"
+        delta:
+          type: integer
+          format: int32
+        reasonCode:
+          $ref: "#/components/schemas/EloReasonCode"
+        sourceEvidenceId:
+          type: string
+          format: uuid
+          nullable: true
+        resultingScore:
+          type: integer
+          format: int32
+        createdAt:
+          type: integer
+          format: int64
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    EloProfileDTO:
+      required:
+      - chatElo
+      - chatEloUpdatedAt
+      - gameplayElo
+      - gameplayEloUpdatedAt
+      - metaData
+      - owner
+      - tenantId
+      type: object
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        owner:
+          type: string
+        chatElo:
+          type: integer
+          format: int32
+        gameplayElo:
+          type: integer
+          format: int32
+        chatEloUpdatedAt:
+          type: integer
+          format: int64
+        gameplayEloUpdatedAt:
+          type: integer
+          format: int64
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    EloReasonCode:
+      type: string
+      description: Why an `EloEventEntity` happened. This is the audit trail that
+        lets a reviewer (or a future Phase 6 appeal) tell an algorithmic decision
+        apart from a human one.
+      enum:
+      - TOXICITY_FLAG
+      - ANTICHEAT_FLAG
+      - REPORT_ACTIONED
+      - MANUAL_ADJUSTMENT
+      - DECAY_RECOVERY
+      - THRESHOLD_BAN
+    EloTrack:
+      type: string
+      description: "The two independent ELO tracks. A player can play without chatting\
+        \ (or vice versa), so each track must be able to trigger consequences on its\
+        \ own - a silent cheater must be caught by the gameplay track even with zero\
+        \ chat activity, and a toxic-but-legitimate player must be caught by the chat\
+        \ track even with clean gameplay."
+      enum:
+      - CHAT
+      - GAMEPLAY
     ErrorResponse:
       type: object
       properties:
@@ -1158,6 +1379,24 @@ components:
           type: string
           description: the error message
       description: The error response when something went wrong on profile requests
+    EvasionRecordDTO:
+      required:
+      - ip
+      - owner
+      - tenantId
+      type: object
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        owner:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: owner must be a sha-512 hash
+        ip:
+          minLength: 1
+          type: string
     EventSubscriptionDTO:
       required:
       - active
@@ -1513,6 +1752,33 @@ components:
       - UNDER_REVIEW
       - ACTIONED
       - DISMISSED
+    SessionInfoDTO:
+      required:
+      - owner
+      - tenantId
+      type: object
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        owner:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: owner must be a sha-512 hash
+        protocolVersion:
+          type: integer
+          format: int32
+          nullable: true
+        clientBrand:
+          maxLength: 64
+          type: string
+          nullable: true
+      description: "Session telemetry captured at login/brand-negotiation time (Phase\
+        \ 7's dashboard enrichment). Both fields are optional and merged, not overwritten,\
+        \ into the profile's existing session info - `protocolVersion` arrives at\
+        \ login, `clientBrand` arrives slightly later as a separate plugin-channel\
+        \ negotiation, so a single caller rarely has both at once."
     SignalDTO:
       required:
       - metaData
