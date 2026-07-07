@@ -54,6 +54,15 @@ endpoints:
 blackhole:
   auth:
     bootstrap-secret: ${BLACKHOLE_AUTH_BOOTSTRAP_SECRET:}
+  # Report submission is rate-limited per reporterHash within this rolling window, so reporting
+  # itself can't become a griefing vector. reporterHash is client-supplied (the JWT carries no
+  # per-player identity), so max-reports-per-tenant is an additional aggregate backstop that
+  # still caps abuse even if a caller varies reporterHash on every request.
+  report:
+    rate-limit:
+      max-reports: ${BLACKHOLE_REPORT_RATE_LIMIT_MAX:5}
+      max-reports-per-tenant: ${BLACKHOLE_REPORT_RATE_LIMIT_MAX_PER_TENANT:50}
+      window: ${BLACKHOLE_REPORT_RATE_LIMIT_WINDOW:PT10M}
 
 micronaut:
   application:

@@ -280,6 +280,89 @@ paths:
           description: Profile or template not found
         "400":
           description: Invalid input parameters (owner must be SHA-512 hash)
+  /report:
+    get:
+      tags:
+      - Report
+      summary: Get all reports
+      description: Retrieves a paginated list of reports for the caller's tenant
+      operationId: getReports
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: Successfully retrieved reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReportDTO"
+    post:
+      tags:
+      - Report
+      summary: Submit a report
+      description: Submits a player report. Rate-limited per reporterHash within a
+        configurable time window.
+      operationId: submitReport
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportDTO"
+        required: true
+      responses:
+        "200":
+          description: Report successfully submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportDTO"
+        "429":
+          description: Rate limit exceeded for this reporter
+  /report/{tenantId}/{identifier}/resolve:
+    post:
+      tags:
+      - Report
+      summary: Resolve a report
+      description: "Resolves a report, optionally applying a punishment template to\
+        \ the reported player"
+      operationId: resolveReport
+      parameters:
+      - name: tenantId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportResolutionDTO"
+        required: true
+      responses:
+        "200":
+          description: Report successfully resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportDTO"
+        "404":
+          description: Report or punishment template not found
+        "400":
+          description: punishmentSource is required when punishmentTemplateId is set
   /template:
     get:
       tags:
@@ -677,6 +760,131 @@ components:
       - SERVER
       - NETWORK
       - CHAT
+    ReportCategory:
+      type: string
+      description: What kind of behavior a report is about.
+      enum:
+      - CHAT_ABUSE
+      - CHEATING
+      - GRIEFING
+      - OTHER
+    ReportDTO:
+      required:
+      - category
+      - createdAt
+      - metaData
+      - reportedHash
+      - reporterHash
+      - tenantId
+      - updatedAt
+      type: object
+      properties:
+        tenantId:
+          type: string
+          description: the tenant this report belongs to
+          format: uuid
+        identifier:
+          type: string
+          description: "the identifier of the report, `null` when submitting"
+          format: uuid
+          nullable: true
+        reporterHash:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          description: SHA-512 hash of the reporting player
+          x-pattern-message: reporterHash must be a sha-512 hash
+        reportedHash:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          description: SHA-512 hash of the reported player
+          x-pattern-message: reportedHash must be a sha-512 hash
+        category:
+          $ref: "#/components/schemas/ReportCategory"
+        description:
+          maxLength: 1000
+          type: string
+          description: a bounded free-text description
+          nullable: true
+        evidenceReferences:
+          type: array
+          description: optional references to `PunishmentEvidenceEntity` entries
+          nullable: true
+          items:
+            type: string
+            format: uuid
+        status:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/ReportStatus"
+        createdAt:
+          type: integer
+          description: epoch millis when the report was submitted
+          format: int64
+        updatedAt:
+          type: integer
+          description: epoch millis of the last status change
+          format: int64
+        resolvedBy:
+          type: string
+          description: "the staff/system identity that resolved this report, if resolved"
+          format: uuid
+          nullable: true
+        resolutionNote:
+          maxLength: 1000
+          type: string
+          description: "a note explaining the resolution, if resolved"
+          nullable: true
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+          description: extensible metadata
+      description: "A player report. `status`/`createdAt`/`updatedAt`/`resolvedBy`/\
+        \ `resolutionNote` are server-controlled - a submission simply leaves them\
+        \ unset/default, the same nullable-identifier-means-create convention used\
+        \ by TenantDTO."
+    ReportResolutionDTO:
+      required:
+      - resolvedBy
+      - status
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/ReportStatus"
+        resolutionNote:
+          maxLength: 1000
+          type: string
+          description: an optional note explaining the decision
+          nullable: true
+        resolvedBy:
+          type: string
+          description: the staff/system identity resolving this report
+          format: uuid
+        punishmentTemplateId:
+          type: string
+          description: an optional template to apply to the reported player
+          format: uuid
+          nullable: true
+        punishmentSource:
+          type: string
+          description: the staff/system identity applying the punishment; required
+            if `punishmentTemplateId` is set
+          format: uuid
+          nullable: true
+      description: Request body for resolving a report. Providing `punishmentTemplateId`
+        (together with `punishmentSource`) applies that template to the reported player
+        as part of the same resolution - the report system's actual integration point
+        with punishments.
+    ReportStatus:
+      type: string
+      description: The lifecycle state of a report.
+      enum:
+      - OPEN
+      - UNDER_REVIEW
+      - ACTIONED
+      - DISMISSED
     Sort:
       required:
       - orderBy
