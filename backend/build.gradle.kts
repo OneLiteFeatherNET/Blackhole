@@ -27,7 +27,7 @@ dependencies {
     implementation(mn.micronaut.serde.jackson)
     implementation(mn.micronaut.hibernate.jpa)
     implementation(mn.micronaut.flyway)
-    runtimeOnly("org.flywaydb:flyway-mysql:10.22.0")
+    runtimeOnly("org.flywaydb:flyway-mysql:12.10.0")
     implementation(mn.micronaut.rabbitmq)
     implementation(mn.micronaut.hibernate.validator)
     implementation(mn.micronaut.data.tx.hibernate)
