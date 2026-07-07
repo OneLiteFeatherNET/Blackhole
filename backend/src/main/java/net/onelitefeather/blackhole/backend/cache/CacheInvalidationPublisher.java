@@ -1,0 +1,35 @@
+package net.onelitefeather.blackhole.backend.cache;
+
+import jakarta.inject.Singleton;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.UUID;
+
+/**
+ * Called as a side effect of every profile write. Invalidates this replica's own cache entry
+ * immediately (no need to wait on a broker round-trip for the instance that made the write) and
+ * broadcasts to every other replica via the {@code blackhole.cache.invalidate} fanout exchange.
+ */
+@Singleton
+public class CacheInvalidationPublisher {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CacheInvalidationPublisher.class);
+
+    private final ProfileCache profileCache;
+    private final CacheInvalidationRabbitPublisher rabbitPublisher;
+
+    public CacheInvalidationPublisher(ProfileCache profileCache, CacheInvalidationRabbitPublisher rabbitPublisher) {
+        this.profileCache = profileCache;
+        this.rabbitPublisher = rabbitPublisher;
+    }
+
+    public void invalidate(UUID tenantId, String owner) {
+        this.profileCache.invalidate(tenantId, owner);
+        try {
+            this.rabbitPublisher.invalidate(new CacheInvalidationMessage(tenantId, owner));
+        } catch (RuntimeException e) {
+            LOGGER.error("Failed to broadcast cache invalidation for tenant {}: {}", tenantId, e.getMessage());
+        }
+    }
+}

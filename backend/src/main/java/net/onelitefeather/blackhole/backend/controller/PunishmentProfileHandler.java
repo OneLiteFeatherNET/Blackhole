@@ -23,11 +23,15 @@ import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileE
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileId;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.dto.PunishProfileDTO;
+import net.onelitefeather.blackhole.backend.cache.CacheInvalidationPublisher;
+import net.onelitefeather.blackhole.backend.cache.ProfileCache;
+import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.response.PunishProfileResponse;
 import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.security.TenantContext;
 import net.onelitefeather.blackhole.backend.utils.PunishmentExpiry;
 
+import java.util.Map;
 import java.util.UUID;
 
 @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF, Roles.SERVICE})
@@ -36,17 +40,32 @@ public class PunishmentProfileHandler {
 
     private final PunishmentProfileRepository repository;
     private final TenantContext tenantContext;
+    private final DomainEventPublisher eventPublisher;
+    private final ProfileCache profileCache;
+    private final CacheInvalidationPublisher cacheInvalidationPublisher;
 
     /**
      * Create a new PunishmentProfileHandler.
      *
-     * @param repository    the repository to use
-     * @param tenantContext enforces that callers only touch their own tenant's profiles
+     * @param repository                 the repository to use
+     * @param tenantContext              enforces that callers only touch their own tenant's profiles
+     * @param eventPublisher             publishes domain events for successful writes
+     * @param profileCache               the hot-path profile-by-owner read cache
+     * @param cacheInvalidationPublisher invalidates the cache locally and across replicas on writes
      */
     @Inject
-    public PunishmentProfileHandler(PunishmentProfileRepository repository, TenantContext tenantContext) {
+    public PunishmentProfileHandler(
+            PunishmentProfileRepository repository,
+            TenantContext tenantContext,
+            DomainEventPublisher eventPublisher,
+            ProfileCache profileCache,
+            CacheInvalidationPublisher cacheInvalidationPublisher
+    ) {
         this.repository = repository;
         this.tenantContext = tenantContext;
+        this.eventPublisher = eventPublisher;
+        this.profileCache = profileCache;
+        this.cacheInvalidationPublisher = cacheInvalidationPublisher;
     }
 
     /**
@@ -76,6 +95,11 @@ public class PunishmentProfileHandler {
         this.tenantContext.requireTenantAccess(profileEntity.tenantId());
         PunishmentProfileEntity entity = PunishmentProfileEntity.toEntity(profileEntity);
         PunishmentProfileEntity savedEntity = this.repository.save(entity);
+        this.cacheInvalidationPublisher.invalidate(profileEntity.tenantId(), profileEntity.owner());
+        this.eventPublisher.publish("profile.created", Map.of(
+                "tenantId", profileEntity.tenantId().toString(),
+                "owner", profileEntity.owner()
+        ));
         return HttpResponse.ok(savedEntity.toDTO());
     }
 
@@ -124,6 +148,11 @@ public class PunishmentProfileHandler {
         this.tenantContext.requireTenantAccess(tenantId);
         PunishmentProfileEntity entity = PunishmentProfileEntity.toEntity(profileEntity);
         PunishmentProfileEntity savedEntity = this.repository.update(entity);
+        this.cacheInvalidationPublisher.invalidate(tenantId, owner);
+        this.eventPublisher.publish("profile.updated", Map.of(
+                "tenantId", tenantId.toString(),
+                "owner", owner
+        ));
         return HttpResponse.ok(savedEntity.toDTO());
     }
 
@@ -170,6 +199,11 @@ public class PunishmentProfileHandler {
             return HttpResponse.badRequest(new PunishProfileResponse.ErrorResponse("There is no profile linked to the given owner"));
         }
         this.repository.delete(entity);
+        this.cacheInvalidationPublisher.invalidate(tenantId, owner);
+        this.eventPublisher.publish("profile.deleted", Map.of(
+                "tenantId", tenantId.toString(),
+                "owner", owner
+        ));
         return HttpResponse.ok(entity.toDTO());
     }
 
@@ -240,9 +274,13 @@ public class PunishmentProfileHandler {
     ) {
         this.tenantContext.requireTenantAccess(tenantId);
         PunishmentProfileId id = new PunishmentProfileId(tenantId, owner);
-        var entity = this.repository.findById(id).orElse(null);
+        boolean cacheHit = this.profileCache.get(id).isPresent();
+        var entity = cacheHit ? this.profileCache.get(id).orElse(null) : this.repository.findById(id).orElse(null);
         if (entity == null) {
             return HttpResponse.notFound(new PunishProfileResponse.ErrorResponse("There is no profile linked to the given owner"));
+        }
+        if (!cacheHit) {
+            this.profileCache.put(id, entity);
         }
         PunishmentEntity activeBan = entity.getActiveBan();
         PunishmentEntity activeChatBan = entity.getActiveChatBan();
@@ -250,16 +288,27 @@ public class PunishmentProfileHandler {
         if (activeBan != null && PunishmentExpiry.isExpired(activeBan)) {
             entity.setActiveBan(null);
             entity.getHistory().add(activeBan);
+            publishExpired(tenantId, owner, activeBan);
             expired = true;
         }
         if (activeChatBan != null && PunishmentExpiry.isExpired(activeChatBan)) {
             entity.setActiveChatBan(null);
             entity.getHistory().add(activeChatBan);
+            publishExpired(tenantId, owner, activeChatBan);
             expired = true;
         }
         if (expired) {
             entity = this.repository.update(entity);
+            this.profileCache.put(id, entity);
         }
         return HttpResponse.ok(entity.toDTO());
+    }
+
+    private void publishExpired(UUID tenantId, String owner, PunishmentEntity expired) {
+        this.eventPublisher.publish("punishment.expired", Map.of(
+                "tenantId", tenantId.toString(),
+                "owner", owner,
+                "punishmentIdentifier", expired.getIdentifier()
+        ));
     }
 }

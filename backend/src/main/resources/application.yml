@@ -1,3 +1,14 @@
+# RabbitMQ backs the domain event bus (topic exchange blackhole.events) and cross-replica
+# cache invalidation (fanout exchange blackhole.cache.invalidate) - see
+# net.onelitefeather.blackhole.backend.events. Both exchanges are declared at channel-creation
+# time by BlackholeRabbitTopology, not via config, since this version of micronaut-rabbitmq has
+# no declarative exchange-config support.
+rabbitmq:
+  host: ${RABBITMQ_HOST:localhost}
+  port: ${RABBITMQ_PORT:5672}
+  username: ${RABBITMQ_USER:guest}
+  password: ${RABBITMQ_PASSWORD:guest}
+
 # Datasource
 datasources:
   default:

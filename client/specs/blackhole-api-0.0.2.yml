@@ -242,14 +242,12 @@ paths:
       parameters:
       - name: tenantId
         in: path
-        description: the tenant the punishment belongs to
         required: true
         schema:
           type: string
           format: uuid
       - name: owner
         in: path
-        description: the owner of the punishment
         required: true
         schema:
           pattern: "^[a-fA-F0-9]{128}$"
@@ -257,14 +255,12 @@ paths:
           x-pattern-message: Owner must be a sha-512 hash
       - name: templateId
         in: path
-        description: the template id of the punishment
         required: true
         schema:
           type: string
           format: uuid
       - name: source
         in: path
-        description: the source of the punishment
         required: true
         schema:
           type: string
@@ -310,7 +306,6 @@ paths:
       description: Creates a new punishment template.
       operationId: addTemplate
       requestBody:
-        description: the template to add
         content:
           application/json:
             schema:
@@ -337,7 +332,6 @@ paths:
       parameters:
       - name: identifier
         in: path
-        description: the identifier of the template to remove
         required: true
         schema:
           type: string
@@ -359,7 +353,6 @@ paths:
       description: Updates an existing punishment template.
       operationId: updateTemplate
       requestBody:
-        description: the template to update
         content:
           application/json:
             schema:
@@ -386,7 +379,6 @@ paths:
       parameters:
       - name: identifier
         in: path
-        description: the identifier of the template to retrieve
         required: true
         schema:
           type: string
@@ -529,7 +521,6 @@ components:
       properties:
         The error message:
           type: string
-          description: the error message
       description: The error response when something went wrong on profile requests
     IssueTokenRequestDTO:
       required:
@@ -581,30 +572,22 @@ components:
       properties:
         identifier:
           type: string
-          description: the identifier of the punishment
         tenantId:
           type: string
-          description: the tenant the punishment belongs to
           format: uuid
         source:
           type: string
-          description: the source of the punishment
           format: uuid
         type:
           $ref: "#/components/schemas/PunishType"
         scope:
           type: string
-          description: "the optional scope (e.g. event/community) this punishment\
-            \ is restricted to, or `null` for network-wide"
         template:
           $ref: "#/components/schemas/PunishTemplateDTO"
         metaData:
           type: object
           additionalProperties:
             type: object
-          description: the metadata of the punishment
-      description: Represents a punish entry which can be used to store the punishment
-        in the database.
     PunishProfileDTO:
       required:
       - metaData
@@ -664,15 +647,6 @@ components:
           nullable: true
     PunishType:
       type: string
-      description: |-
-        This enumeration defines each type of ban which is supported by the application.
-
-
-        The following types are supported:
-
-        * Server: means that a target is banned from a specific server
-        * Network: means that a target is banned from the whole network
-        * Chat: means that a target is banned from the chat
       enum:
       - SERVER
       - NETWORK

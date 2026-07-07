@@ -4,12 +4,16 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.cache.CacheInvalidationPublisher;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentProfileRepository;
+import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.utils.PunishmentExpiry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Map;
 
 /**
  * Periodically moves expired active bans/mutes into a profile's history. This makes expiry an
@@ -23,9 +27,17 @@ public class PunishmentExpirySweeper {
     private static final int PAGE_SIZE = 200;
 
     private final PunishmentProfileRepository profileRepository;
+    private final DomainEventPublisher eventPublisher;
+    private final CacheInvalidationPublisher cacheInvalidationPublisher;
 
-    public PunishmentExpirySweeper(PunishmentProfileRepository profileRepository) {
+    public PunishmentExpirySweeper(
+            PunishmentProfileRepository profileRepository,
+            DomainEventPublisher eventPublisher,
+            CacheInvalidationPublisher cacheInvalidationPublisher
+    ) {
         this.profileRepository = profileRepository;
+        this.eventPublisher = eventPublisher;
+        this.cacheInvalidationPublisher = cacheInvalidationPublisher;
     }
 
     @Scheduled(fixedDelay = "1m", initialDelay = "1m")
@@ -56,6 +68,7 @@ public class PunishmentExpirySweeper {
             profile.getHistory().add(activeBan);
             profile.setActiveBan(null);
             changed = true;
+            publishExpired(profile, activeBan);
         }
 
         PunishmentEntity activeChatBan = profile.getActiveChatBan();
@@ -63,11 +76,21 @@ public class PunishmentExpirySweeper {
             profile.getHistory().add(activeChatBan);
             profile.setActiveChatBan(null);
             changed = true;
+            publishExpired(profile, activeChatBan);
         }
 
         if (changed) {
             this.profileRepository.update(profile);
+            this.cacheInvalidationPublisher.invalidate(profile.getTenantId(), profile.getOwner());
         }
         return changed;
+    }
+
+    private void publishExpired(PunishmentProfileEntity profile, PunishmentEntity expired) {
+        this.eventPublisher.publish("punishment.expired", Map.of(
+                "tenantId", profile.getTenantId().toString(),
+                "owner", profile.getOwner(),
+                "punishmentIdentifier", expired.getIdentifier()
+        ));
     }
 }
