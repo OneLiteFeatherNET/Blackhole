@@ -27,6 +27,7 @@ import net.onelitefeather.blackhole.backend.dto.EventSubscriptionDTO;
 import net.onelitefeather.blackhole.backend.dto.EventSubscriptionRequestDTO;
 import net.onelitefeather.blackhole.backend.events.InvalidWebhookUrlException;
 import net.onelitefeather.blackhole.backend.events.WebhookUrlValidator;
+import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
 import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.security.TenantContext;
 import net.onelitefeather.blackhole.backend.utils.SecretHasher;
@@ -77,6 +78,9 @@ public class ConnectorController {
     @Post("/")
     public HttpResponse<ConnectorRegistrationCreatedDTO> register(@Body @Valid ConnectorRegistrationRequestDTO request) {
         this.tenantContext.requireTenantAccess(request.tenantId());
+        if (!ConnectorScopes.ALL.containsAll(request.scopes())) {
+            return HttpResponse.badRequest();
+        }
 
         String clientId = UUID.randomUUID().toString();
         String clientSecret = generateSecret();
@@ -124,6 +128,9 @@ public class ConnectorController {
             return HttpResponse.notFound();
         }
         this.tenantContext.requireTenantAccess(entity.getTenantId());
+        if (!ConnectorScopes.ALL.containsAll(update.scopes())) {
+            return HttpResponse.badRequest();
+        }
 
         entity.setName(update.name());
         entity.setScopes(update.scopes());

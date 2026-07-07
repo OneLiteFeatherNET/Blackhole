@@ -121,14 +121,22 @@ public class PunishmentTemplateHandler {
     )
     @Post(value = "/update")
     public HttpResponse<PunishTemplateDTO> updateTemplate(@Valid @Body PunishTemplateDTO template) {
-        this.tenantContext.requireTenantAccess(template.tenantId());
-        PunishmentTemplateEntity dbEntity = PunishmentTemplateEntity.toEntity(template);
-
-        if (!this.templateRepository.existsById(dbEntity.getIdentifier())) {
+        if (template.identifier() == null) {
+            return HttpResponse.badRequest();
+        }
+        PunishmentTemplateEntity existing = this.templateRepository.findById(template.identifier()).orElse(null);
+        if (existing == null) {
             return HttpResponse.notFound();
         }
+        // Check access against the EXISTING row's tenant, not the client-supplied one - otherwise
+        // a caller could claim their own tenantId while targeting another tenant's template by
+        // identifier, then have update() overwrite it (including reassigning its tenantId).
+        this.tenantContext.requireTenantAccess(existing.getTenantId());
+        if (!existing.getTenantId().equals(template.tenantId())) {
+            return HttpResponse.badRequest();
+        }
 
-        PunishmentTemplateEntity savedEntity = this.templateRepository.update(dbEntity);
+        PunishmentTemplateEntity savedEntity = this.templateRepository.update(PunishmentTemplateEntity.toEntity(template));
         return HttpResponse.ok(savedEntity.toDTO());
     }
 
