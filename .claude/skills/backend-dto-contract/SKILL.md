@@ -79,6 +79,41 @@ Treat `PunishTemplateDTO` / `PunishTemplateRequestDTO`
 (`backend/src/main/java/net/onelitefeather/blackhole/backend/dto/`) as the canonical reference
 pair - this rule is descriptive of what's already there, not a change to make.
 
+## This pattern repeats beyond Blackhole (Otis)
+
+`OneLiteFeatherNET/Otis`'s `OtisPlayerDTO` is the negative example this rule guards against: one
+record used as *both* the request body for `add`/`update` and the response body for every read
+endpoint - it even carries the server-assigned `uuid` field on the request side. Because there's
+no dedicated request DTO with a clear nullable-identifier convention, `update()` has to
+separately cross-check the body's `playerUuid` against a path-variable `owner` just to establish
+identity, and `add()` has no guard at all against a client supplying its own `uuid`/`playerUuid`
+on creation. Splitting into a `*RequestDTO` / `*DTO` pair with the nullable-identifier convention
+(this rule) removes that whole cross-check.
+
+## Generic example (any resource)
+
+```java
+@Serdeable
+@ReflectiveAccess
+public record WidgetRequestDTO(
+        @NonNull @NotBlank String name,
+        @Nullable UUID identifier   // null = create, set = update
+) {
+}
+
+@Serdeable
+@ReflectiveAccess
+public record WidgetDTO(
+        @NonNull @NotBlank String name,
+        UUID identifier
+) {
+}
+```
+
+Same two-DTO shape as `PunishTemplateRequestDTO`/`PunishTemplateDTO` - only the field list
+changes per resource. If the resource carries a metadata blob, the response DTO also implements
+`Metadata`/`Durationable` as described above; if it doesn't, it's just a plain record like this.
+
 ## See also
 
 - `backend-controller-layer` - deserializes/serializes these DTOs at the HTTP boundary.
