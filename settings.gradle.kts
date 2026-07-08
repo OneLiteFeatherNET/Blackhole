@@ -28,7 +28,7 @@ dependencyResolutionManagement {
         create("libs") {
             version("micronaut", "5.0.2")
             version("velocity", "3.4.0")
-            version("lettuce", "6.8.1.RELEASE")
+            version("lettuce", "7.6.0.RELEASE")
             version("cloud.commands", "2.0.0")
             version("shadow", "9.4.3")
             version("jetbrains.annotations", "26.1.0")
