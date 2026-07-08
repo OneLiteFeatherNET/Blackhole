@@ -1,6 +1,6 @@
 ---
 name: micronaut-service-layer
-description: Application/business-logic layer rule for Micronaut backends, in any Micronaut project - not tied to one specific codebase. Business/persistence logic belongs in a @Singleton service colocated in its own feature package (never a generic top-level service/ package), owning the repository dependency and returning small outcome records/enums the controller maps 1:1 to an HttpResponse. Use whenever adding business logic, validation rules, existence checks, or persistence orchestration for a feature; whenever a controller (micronaut-controller-layer) needs somewhere to delegate to; or whenever a controller is found injecting a repository directly. Trigger proactively for "where should this logic go", "add a service", "this controller has too much logic in it", or reviewing where a business rule/validation check should live, in any Micronaut codebase.
+description: Application/business-logic layer rule for Micronaut backends, in any Micronaut project - not tied to one specific codebase. Business/persistence logic belongs in a @Singleton service colocated in its own feature package (never a generic top-level service/ package), owning the repository dependency and returning the resource's own sealed DTO (see micronaut-dto-contract) - success or error variant - that the controller maps 1:1 to an HttpResponse, never throwing for an expected failure. Use whenever adding business logic, validation rules, existence checks, or persistence orchestration for a feature; whenever a controller (micronaut-controller-layer) needs somewhere to delegate to; or whenever a controller is found injecting a repository directly. Trigger proactively for "where should this logic go", "add a service", "this controller has too much logic in it", or reviewing where a business rule/validation check should live, in any Micronaut codebase.
 ---
 
 # Micronaut service layer
@@ -22,17 +22,20 @@ one specific codebase.
   package. The service lives next to the domain concept it serves, the same way a repository
   lives next to its entity.
 - **The service owns the repository dependency**, all transactional/business logic (validation,
-  existence checks, create-vs-update branching, entity<->DTO mapping), and nothing about HTTP (no
-  `HttpResponse`, no routing/versioning annotations - those are the controller's job).
-- **Return small outcome types, don't just return an entity/DTO or throw a generic exception.** A
-  plain enum works for a single yes/no result; for an operation with more than one distinct
-  result shape (created vs. rejected, updated vs. not-found vs. invalid), a small sealed
-  interface of records works well - the controller then does a `switch` that maps 1:1 to an
-  `HttpResponse`, with no business meaning re-derived on the controller side. If that outcome is
-  also what gets serialized as the response body (not just an internal signal the controller
-  discards after mapping), see `micronaut-error-response-contract` for the specific
-  sealed-DTO-plus-`ErrorResponse` shape - the API must always answer with a defined DTO, never
-  let an exception cross the controller/service boundary for an expected failure.
+  existence checks, entity<->DTO mapping), and nothing about HTTP (no `HttpResponse`, no
+  routing/versioning annotations - those are the controller's job). Create vs. update is no
+  longer something the service branches on at runtime either - see `micronaut-dto-contract`: a
+  `CreateRequest` and an `UpdateRequest` are distinct types, so the service simply has two
+  methods, one per type.
+- **Never throw a generic exception for an expected failure - return the resource's own DTO.**
+  Per `micronaut-dto-contract`, each resource already has a sealed `WidgetDTO` with `Response`/
+  `Error` variants; a service method that can fail returns that type directly
+  (`new WidgetDTO.Error(...)` instead of throwing), and the controller maps it 1:1 to an
+  `HttpResponse` with no business meaning re-derived on the controller side. An operation that
+  genuinely cannot fail (e.g. an unconditional create) may narrow its return type to `Response`
+  directly. For a purely internal signal that's never serialized back to a client, a plain
+  enum/record still works fine - this rule is specifically about the outcome that becomes the
+  HTTP response body.
 - **Configuration the service needs (thresholds, feature flags, day counts) comes in via
   constructor-injected config values** (Micronaut's `@Value("${my.app.thing:default}")`),
   consistent with an env-var-driven config convention rather than hardcoded constants.
@@ -42,9 +45,8 @@ one specific codebase.
 - [ ] Is the service a `@Singleton` in a feature package, not a generic `service/` folder?
 - [ ] Does it own the repository, with no controller reaching around it to the repository
       directly?
-- [ ] Does every public method return something the caller can act on without re-deriving
-      "what happened" (an outcome record/enum), rather than a bare entity/DTO plus thrown
-      exceptions for every edge case?
+- [ ] Does every public method that can fail return the resource's own `WidgetDTO` (or a plain
+      outcome type for a purely internal signal) rather than throwing for an expected failure?
 - [ ] Is there zero `io.micronaut.http.*` import in the service (no `HttpResponse`, no routing
       annotations)? If there is, that logic belongs back in the controller's response-mapping
       step, not here.
@@ -63,16 +65,18 @@ public class WidgetService {
         this.widgetRepository = widgetRepository;
     }
 
-    public CreateOutcome create(WidgetRequestDTO request) {
-        if (request.identifier() != null) {
-            return new CreateOutcome.IdentifierNotAllowed();
-        }
+    public WidgetDTO.Response createWidget(WidgetDTO.CreateRequest request) {
         WidgetEntity saved = this.widgetRepository.save(WidgetEntity.toEntity(request));
-        return new CreateOutcome.Created(saved.toDTO());
+        return WidgetDTO.Response.createDTO(saved); // can't fail - no identifier to conflict with
     }
 
-    public Optional<WidgetDTO> find(UUID identifier) {
-        return this.widgetRepository.findById(identifier).map(WidgetEntity::toDTO);
+    public WidgetDTO updateWidget(WidgetDTO.UpdateRequest request) {
+        Optional<WidgetEntity> existing = this.widgetRepository.findById(request.id());
+        if (existing.isEmpty()) {
+            return new WidgetDTO.Error("Widget not found");
+        }
+        WidgetEntity saved = this.widgetRepository.update(request.toEntity());
+        return WidgetDTO.Response.createDTO(saved);
     }
 }
 ```
@@ -93,7 +97,9 @@ branching logic live here", not "exactly one repository per service".
   four-file worked example (`PunishmentTemplateApi`, `PunishmentTemplateService`,
   `PunishmentTemplateController`, and the `CreateOutcome`/`UpdateOutcome` records) refactoring
   `PunishmentTemplateHandler` lives at `references/punishment-template-refactor-example.md` in
-  this skill.
+  this skill - it predates the unified `WidgetDTO` convention in `micronaut-dto-contract`, so
+  treat it as a worked example of "service owns the repository" rather than the current DTO
+  shape.
 - **Otis** (`OneLiteFeatherNET/Otis`) has no service layer at all - `OtisPlayerRepository` is
   injected straight into both of its controllers, and the business rule for `update()` (the path
   `owner` must match the body's `playerUuid`, then the entity must exist) lives inline in the
@@ -106,7 +112,5 @@ designing against by default, not a one-off.
 
 - `micronaut-controller-layer` - the thin adapter that calls into this layer.
 - `micronaut-openapi-contract` - documentation lives separately, not in the service.
-- `micronaut-dto-contract` - the request/response DTOs a service method takes and produces.
-- `micronaut-error-response-contract` - when the outcome type returned here also needs to be the
-  serialized HTTP response body (not just an internal signal), this is the shape to use: a sealed
-  `*ResponseDTO` with a success record and error record(s) carrying an `errorMessage`.
+- `micronaut-dto-contract` - the sealed `WidgetDTO` shape (`CreateRequest`/`UpdateRequest`/
+  `Response`/`Error`) a service method takes and produces.
