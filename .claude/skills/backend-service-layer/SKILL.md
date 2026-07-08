@@ -65,6 +65,50 @@ still inject a repository straight into the controller with no service in betwee
 missing service when you're already touching one of these for another reason - this isn't a
 mandate to refactor them all in one pass.
 
+## This pattern repeats beyond Blackhole (Otis)
+
+`OneLiteFeatherNET/Otis` has no service layer at all - `OtisPlayerRepository` is injected
+straight into both of its controllers, and the business rule for `update()` (the path `owner`
+must match the body's `playerUuid`, then the entity must exist) lives inline in the controller
+method rather than in something like a `player/PlayerService`. It's the same gap this rule closes
+in Blackhole, just with nothing to point to as the "good half" in that repo - useful context if
+you ever touch Otis too, and evidence this is a pattern worth designing against generally, not a
+one-off in `PunishmentTemplateHandler.java`.
+
+## Generic example (any resource)
+
+```java
+package net.onelitefeather.blackhole.backend.widget;
+
+@Singleton
+public class WidgetService {
+
+    private final WidgetRepository widgetRepository;
+
+    public WidgetService(WidgetRepository widgetRepository) {
+        this.widgetRepository = widgetRepository;
+    }
+
+    public CreateOutcome create(WidgetRequestDTO request) {
+        if (request.identifier() != null) {
+            return new CreateOutcome.IdentifierNotAllowed();
+        }
+        WidgetEntity saved = this.widgetRepository.save(WidgetEntity.toEntity(request));
+        return new CreateOutcome.Created(saved.toDTO());
+    }
+
+    public Optional<WidgetDTO> find(UUID identifier) {
+        return this.widgetRepository.findById(identifier).map(WidgetEntity::toDTO);
+    }
+}
+```
+
+Same shape as `PunishmentTemplateService` - only the entity/DTO/repository names change. If a
+service you're writing doesn't fit this shape because it needs to orchestrate across multiple
+repositories (like `AppealEligibilityService` does with both `AppealRepository` and
+`EloProfileRepository`), that's still fine - the rule is "the repository dependency and the
+branching logic live here", not "exactly one repository per service".
+
 ## See also
 
 - `backend-controller-layer` - the thin adapter that calls into this layer.
