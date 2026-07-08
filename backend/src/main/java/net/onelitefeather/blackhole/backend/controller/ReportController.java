@@ -9,7 +9,6 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
-import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -29,8 +28,6 @@ import net.onelitefeather.blackhole.backend.dto.ReportStatus;
 import net.onelitefeather.blackhole.backend.elo.EloService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentApplicationService;
-import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
-import net.onelitefeather.blackhole.backend.security.Roles;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -44,19 +41,19 @@ import java.util.UUID;
  * reported player through {@link PunishmentApplicationService}, the report system's actual
  * integration point with punishments rather than a parallel/separate mechanism.
  *
- * <p><b>Security note:</b> {@code reporterHash} is client-supplied - no JWT in this system carries
- * a per-player identity, only a role, so nothing here can verify it actually belongs to the
- * caller. A per-reporterHash limit alone is therefore bypassable by simply varying that field on
- * every request; {@link #rateLimitMaxReportsNetworkWide} is an aggregate, network-wide backstop
- * that caps the blast radius regardless of what {@code reporterHash} value is claimed.</p>
+ * <p><b>Security note:</b> {@code reporterHash} is client-supplied - there is no authentication in
+ * this system at all, so nothing here can verify it actually belongs to the caller. A
+ * per-reporterHash limit alone is therefore bypassable by simply varying that field on every
+ * request; {@link #rateLimitMaxReportsNetworkWide} is an aggregate, network-wide backstop that
+ * caps the blast radius regardless of what {@code reporterHash} value is claimed.</p>
  *
  * <p><b>Known limitation (deferred, not fixed here):</b> {@code resolve}'s {@code resolvedBy}
  * and {@code punishmentSource} are likewise client-supplied and unverified against the caller's
  * actual identity - the same property {@code PunishmentEntityController}'s {@code source} field
- * has had since Phase 0, since no JWT in this system carries a per-staff identity, only a role.
- * This is a systemic auth-model gap, not something specific to reports, and is intentionally
- * deferred to a dedicated pass that adds real per-actor identity everywhere at once rather than
- * patching one endpoint inconsistently with the rest.</p>
+ * has had since Phase 0. This is a systemic actor-identity gap, not something specific to
+ * reports, and is intentionally deferred to a dedicated pass that adds real per-actor identity
+ * (and, if reintroduced, authentication) everywhere at once rather than patching one endpoint
+ * inconsistently with the rest.</p>
  */
 @Controller(ApiVersion.V1 + "/report")
 public class ReportController {
@@ -106,7 +103,6 @@ public class ReportController {
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ReportDTO.class))
     )
     @ApiResponse(responseCode = "429", description = "Rate limit exceeded for this reporter")
-    @Secured({Roles.PLAYER, Roles.SERVICE})
     @Validated
     @Post("/")
     public HttpResponse<?> submit(@Body @Valid ReportRequestDTO submission) {
@@ -164,7 +160,6 @@ public class ReportController {
                     array = @ArraySchema(schema = @Schema(implementation = ReportDTO.class), arraySchema = @Schema(implementation = Page.class))
             )
     )
-    @Secured({Roles.ADMIN, Roles.STAFF, ConnectorScopes.REPORT_READ})
     @Get("/")
     public HttpResponse<Page<ReportDTO>> getAll(Pageable pageable) {
         Page<ReportEntity> entities = this.reportRepository.findAll(pageable);
@@ -184,7 +179,6 @@ public class ReportController {
     )
     @ApiResponse(responseCode = "404", description = "Report or punishment template not found")
     @ApiResponse(responseCode = "400", description = "punishmentSource is required when punishmentTemplateId is set")
-    @Secured({Roles.ADMIN, Roles.STAFF})
     @Validated
     @Post("/{identifier}/resolve")
     public HttpResponse<?> resolve(UUID identifier, @Body @Valid ReportResolutionDTO resolution) {

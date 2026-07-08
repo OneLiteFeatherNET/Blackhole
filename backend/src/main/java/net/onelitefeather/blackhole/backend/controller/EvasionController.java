@@ -5,7 +5,6 @@ import io.micronaut.http.HttpStatus;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
-import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -13,14 +12,12 @@ import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.backend.dto.EvasionRecordDTO;
 import net.onelitefeather.blackhole.backend.evasion.IpCorrelationService;
-import net.onelitefeather.blackhole.backend.security.Roles;
 
 /**
  * Records a login sighting for ban-evasion detection. Called by the Velocity proxy at login,
  * parallel to its existing UUID hashing - see {@code IpCorrelationService} for the actual
  * privacy-preserving correlation mechanics.
  */
-@Secured(Roles.SERVICE)
 @Controller(ApiVersion.V1 + "/evasion")
 public class EvasionController {
 

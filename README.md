@@ -24,9 +24,14 @@ both automatic and manual punishments.
 The backend is event-driven: RabbitMQ backs a domain event bus (`blackhole.events`) that other
 services can consume, plus a fanout exchange for cross-replica cache invalidation, so the API
 can be scaled horizontally. External systems (anti-cheat tools, dashboards, other backends)
-integrate through a generic **connector framework** — OAuth2 client-credentials tokens scoped
-to specific read/write permissions, a generic `/signal` ingestion endpoint, and signed webhook
-delivery for subscribed event types — rather than bespoke per-integration code.
+integrate through a generic **connector framework** — connector registrations with declared
+scopes, a generic `/signal` ingestion endpoint, and signed webhook delivery for subscribed event
+types — rather than bespoke per-integration code.
+
+There is deliberately no authentication system right now: every endpoint is open. The trust
+model is that only trusted callers can reach the API at all - admins/tools calling the REST API
+directly, or the Velocity plugin acting on behalf of admins/moderators - enforced at the
+network/deployment level (firewalling, private networking), not by the application.
 
 ### Tech stack
 
@@ -46,11 +51,10 @@ cd docker
 docker compose up -d
 ```
 
-Then run the backend, with at least a bootstrap secret set so you can mint the first
-`PLATFORM_ADMIN` token:
+Then run the backend:
 
 ```shell
-BLACKHOLE_AUTH_BOOTSTRAP_SECRET=change-me ./gradlew :backend:run
+./gradlew :backend:run
 ```
 
 Key environment variables (all have local-dev defaults, see
@@ -60,8 +64,6 @@ Key environment variables (all have local-dev defaults, see
 |------------------------------------|-----------------------------------------------------------------------|
 | `JDBC_URL` / `JDBC_USER` / `JDBC_PASSWORD` | MariaDB connection (defaults match `docker/docker-compose.yml`). |
 | `RABBITMQ_HOST` / `RABBITMQ_USER` / `RABBITMQ_PASSWORD` | RabbitMQ connection.                              |
-| `BLACKHOLE_AUTH_BOOTSTRAP_SECRET` | Enables `POST /auth/bootstrap` to issue the first platform admin token. Unset = permanently disabled. |
-| `JWT_GENERATOR_SIGNATURE_SECRET`  | JWT signing secret — **must** be overridden with a real 32+ byte secret outside local dev. |
 | `BLACKHOLE_EVASION_IP_SALT`       | Required for ban-evasion detection; that feature returns `503` until it's set. |
 
 Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
