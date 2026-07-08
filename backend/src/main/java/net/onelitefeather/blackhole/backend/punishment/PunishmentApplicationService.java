@@ -143,12 +143,75 @@ public class PunishmentApplicationService {
         if (isNewProfile) {
             this.eventPublisher.publish("profile.created", Map.of("tenantId", tenantId.toString(), "owner", owner));
         }
-        this.eventPublisher.publish("punishment.created", Map.of(
+        Map<String, Object> punishmentCreatedPayload = new HashMap<>();
+        punishmentCreatedPayload.put("tenantId", tenantId.toString());
+        punishmentCreatedPayload.put("owner", owner);
+        punishmentCreatedPayload.put("punishmentIdentifier", savedPunishment.getIdentifier());
+        punishmentCreatedPayload.put("templateIdentifier", templateId.toString());
+        punishmentCreatedPayload.put("type", template.getType().toString());
+        if (metadata.containsKey(Expirable.META_DATA_KEY_EXPIRATION_DATE)) {
+            punishmentCreatedPayload.put("expiresAt", metadata.get(Expirable.META_DATA_KEY_EXPIRATION_DATE));
+        }
+        this.eventPublisher.publish("punishment.created", punishmentCreatedPayload);
+
+        return Optional.of(savedProfile);
+    }
+
+    /**
+     * Revokes {@code owner}'s active ban (SERVER or NETWORK), if any.
+     *
+     * @return the updated profile, or empty if the profile doesn't exist or has no active ban
+     */
+    public Optional<PunishmentProfileEntity> revokeBan(UUID tenantId, String owner, UUID revokedBy) {
+        return revoke(tenantId, owner, revokedBy, true);
+    }
+
+    /**
+     * Revokes {@code owner}'s active chat ban, if any.
+     *
+     * @return the updated profile, or empty if the profile doesn't exist or has no active mute
+     */
+    public Optional<PunishmentProfileEntity> revokeMute(UUID tenantId, String owner, UUID revokedBy) {
+        return revoke(tenantId, owner, revokedBy, false);
+    }
+
+    /**
+     * A deliberately independent 4th implementation of the "move active punishment into history"
+     * rotation already present in {@link #apply}, {@code PunishmentExpirySweeper.sweepProfile}
+     * and {@code AppealDecisionService.applyDecision} - not a refactor of those, to avoid
+     * regression risk in already-working code.
+     */
+    private Optional<PunishmentProfileEntity> revoke(UUID tenantId, String owner, UUID revokedBy, boolean banSlot) {
+        PunishmentProfileId profileId = new PunishmentProfileId(tenantId, owner);
+        PunishmentProfileEntity profile = this.profileRepository.findById(profileId).orElse(null);
+        if (profile == null) {
+            return Optional.empty();
+        }
+
+        PunishmentEntity active = banSlot ? profile.getActiveBan() : profile.getActiveChatBan();
+        if (active == null) {
+            return Optional.empty();
+        }
+
+        active.getMetaData().put("revokedBy", revokedBy.toString());
+        active.getMetaData().put(Metadata.META_DATA_KEY_UPDATE_DATE, System.currentTimeMillis());
+        this.punishmentRepository.update(active);
+
+        profile.getHistory().add(active);
+        if (banSlot) {
+            profile.setActiveBan(null);
+        } else {
+            profile.setActiveChatBan(null);
+        }
+        PunishmentProfileEntity savedProfile = this.profileRepository.update(profile);
+
+        this.cacheInvalidationPublisher.invalidate(tenantId, owner);
+        this.eventPublisher.publish("punishment.revoked", Map.of(
                 "tenantId", tenantId.toString(),
                 "owner", owner,
-                "punishmentIdentifier", savedPunishment.getIdentifier(),
-                "templateIdentifier", templateId.toString(),
-                "type", template.getType().toString()
+                "punishmentIdentifier", active.getIdentifier(),
+                "type", active.getType().toString(),
+                "revokedBy", revokedBy.toString()
         ));
 
         return Optional.of(savedProfile);

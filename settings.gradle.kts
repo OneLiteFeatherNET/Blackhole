@@ -28,6 +28,7 @@ dependencyResolutionManagement {
         create("libs") {
             version("micronaut", "5.0.2")
             version("velocity", "3.4.0")
+            version("lettuce", "6.8.1.RELEASE")
             version("cloud.commands", "2.0.0")
             version("shadow", "9.4.3")
             version("jetbrains.annotations", "26.1.0")
@@ -51,6 +52,9 @@ dependencyResolutionManagement {
             library("jakarta-annotation-api", "jakarta.annotation", "jakarta.annotation-api").versionRef("jakarta-annotation")
 
             library("velocity-api", "com.velocitypowered", "velocity-api").versionRef("velocity")
+            // Velocity is a plain Guice plugin, not a Micronaut app, so it talks to Redis via
+            // raw Lettuce rather than the Micronaut redis module the backend uses.
+            library("lettuce-core", "io.lettuce", "lettuce-core").versionRef("lettuce")
             library("cloud-velocity", "org.incendo", "cloud-velocity").version("2.0.0-SNAPSHOT")
             library("cloud-annotations", "org.incendo", "cloud-annotations").versionRef("cloud.commands")
             library("cloudExtras", "org.incendo", "cloud-minecraft-extras").version("2.0.0-SNAPSHOT")

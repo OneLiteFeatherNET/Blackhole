@@ -7,12 +7,14 @@ import com.google.inject.TypeLiteral;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
+import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.Configuration;
 import net.onelitefeather.blackhole.client.model.PunishType;
+import net.onelitefeather.blackhole.velocity.command.PardonCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishInfoCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishTypeScope;
@@ -21,6 +23,7 @@ import net.onelitefeather.blackhole.velocity.listener.PlayerChatListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerClientBrandListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerLoginListener;
 import net.onelitefeather.blackhole.velocity.module.BlackholeClientModule;
+import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
 import net.kyori.adventure.text.minimessage.translation.MiniMessageTranslationStore;
 import net.kyori.adventure.translation.GlobalTranslator;
 import org.incendo.cloud.SenderMapper;
@@ -50,6 +53,7 @@ public class BlackholeVelocity {
     private final Logger logger;
     private ApiClient client;
     private BlackholeConfig config;
+    private RedisSyncService redisSyncService;
 
 
     @Inject
@@ -72,7 +76,9 @@ public class BlackholeVelocity {
         }
         this.client.setRequestInterceptor(builder -> builder.header("Authorization", "Bearer " + this.config.getServiceToken()));
         this.logger.info("Initialized Blackhole client");
-        Injector childInjector = this.injector.createChildInjector(new BlackholeClientModule(this.client, this.config),  new CloudInjectionModule<>(
+        this.redisSyncService = new RedisSyncService(this.server, this.config, this.client);
+        this.redisSyncService.connect();
+        Injector childInjector = this.injector.createChildInjector(new BlackholeClientModule(this.client, this.config, this.redisSyncService),  new CloudInjectionModule<>(
                 CommandSource.class,
                 ExecutionCoordinator.simpleCoordinator(),
                 SenderMapper.identity()
@@ -88,9 +94,18 @@ public class BlackholeVelocity {
         );
         annotationParser.parse(childInjector.getInstance(PunishCommand.class));
         annotationParser.parse(childInjector.getInstance(PunishInfoCommand.class));
+        annotationParser.parse(childInjector.getInstance(PardonCommand.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerLoginListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerChatListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerClientBrandListener.class));
+        server.getEventManager().register(this, this.redisSyncService);
+    }
+
+    @Subscribe
+    public void onProxyShutdown(ProxyShutdownEvent event) {
+        if (this.redisSyncService != null) {
+            this.redisSyncService.shutdown();
+        }
     }
 
     private void registerTranslations() {

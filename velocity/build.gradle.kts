@@ -14,6 +14,13 @@ dependencies {
 
     implementation(libs.cloud.annotations)
     implementation(libs.cloud.velocity)
+    implementation(libs.lettuce.core)
+
+    // client's jackson-databind is `implementation`-scoped there, so it isn't exposed
+    // transitively - needed here directly to (de)serialize RedisSyncService's wire messages.
+    implementation(platform(libs.jackson.bom))
+    implementation(libs.jackson.core)
+    implementation(libs.jackson.databind)
 
     compileOnly(libs.velocity.api)
 
