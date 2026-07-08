@@ -101,6 +101,96 @@ public class PunishmentEntityController {
     }
 
     /**
+     * Revoke an active ban.
+     *
+     * @param tenantId the tenant the punishment belongs to
+     * @param owner the owner of the punishment
+     * @param source the staff/system identity revoking the punishment
+     * @return the updated profile
+     */
+    @Operation(
+            summary = "Revoke active ban",
+            description = "Revokes a player's active ban (SERVER or NETWORK), moving it into history",
+            operationId = "revokeBan",
+            tags = {"Punishment"}
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Ban successfully revoked",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = PunishProfileResponse.class)
+            )
+    )
+    @ApiResponse(
+            responseCode = "404",
+            description = "Profile not found, or has no active ban"
+    )
+    @ApiResponse(
+            responseCode = "400",
+            description = "Invalid input parameters (owner must be SHA-512 hash)"
+    )
+    @Validated
+    @Post("/active/{tenantId}/{owner}/ban/revoke/{source}")
+    public HttpResponse<PunishProfileResponse> revokeBan(
+            UUID tenantId,
+            @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
+            UUID source
+    ) {
+        this.tenantContext.requireTenantAccess(tenantId);
+        var profile = this.punishmentApplicationService.revokeBan(tenantId, owner, source);
+        if (profile.isEmpty()) {
+            return HttpResponse.notFound();
+        }
+        return HttpResponse.ok(profile.get().toDTO());
+    }
+
+    /**
+     * Revoke an active mute.
+     *
+     * @param tenantId the tenant the punishment belongs to
+     * @param owner the owner of the punishment
+     * @param source the staff/system identity revoking the punishment
+     * @return the updated profile
+     */
+    @Operation(
+            summary = "Revoke active mute",
+            description = "Revokes a player's active chat ban, moving it into history",
+            operationId = "revokeMute",
+            tags = {"Punishment"}
+    )
+    @ApiResponse(
+            responseCode = "200",
+            description = "Mute successfully revoked",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = PunishProfileResponse.class)
+            )
+    )
+    @ApiResponse(
+            responseCode = "404",
+            description = "Profile not found, or has no active mute"
+    )
+    @ApiResponse(
+            responseCode = "400",
+            description = "Invalid input parameters (owner must be SHA-512 hash)"
+    )
+    @Validated
+    @Post("/active/{tenantId}/{owner}/mute/revoke/{source}")
+    public HttpResponse<PunishProfileResponse> revokeMute(
+            UUID tenantId,
+            @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
+            UUID source
+    ) {
+        this.tenantContext.requireTenantAccess(tenantId);
+        var profile = this.punishmentApplicationService.revokeMute(tenantId, owner, source);
+        if (profile.isEmpty()) {
+            return HttpResponse.notFound();
+        }
+        return HttpResponse.ok(profile.get().toDTO());
+    }
+
+    /**
      * Get all punishments from the database.
      *
      * @return a list with all punishments

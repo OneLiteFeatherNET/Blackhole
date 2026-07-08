@@ -11,7 +11,7 @@ import io.swagger.v3.oas.annotations.info.License;
 @OpenAPIDefinition(
         info = @Info(
                 title = "Blackhole API",
-                version = "0.0.3",
+                version = "0.0.4",
                 description = "Simple ban management system",
                 license = @License(name = "Close Source"),
                 contact = @Contact(

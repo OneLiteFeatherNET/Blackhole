@@ -90,7 +90,8 @@ public class PunishmentExpirySweeper {
         this.eventPublisher.publish("punishment.expired", Map.of(
                 "tenantId", profile.getTenantId().toString(),
                 "owner", profile.getOwner(),
-                "punishmentIdentifier", expired.getIdentifier()
+                "punishmentIdentifier", expired.getIdentifier(),
+                "type", expired.getType().toString()
         ));
     }
 }

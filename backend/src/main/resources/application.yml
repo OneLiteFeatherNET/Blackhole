@@ -9,6 +9,13 @@ rabbitmq:
   username: ${RABBITMQ_USER:guest}
   password: ${RABBITMQ_PASSWORD:guest}
 
+# Redis mirrors active-punishment state for Velocity proxies (net.onelitefeather.blackhole.backend.redis)
+# - RedisSyncConsumer is the sole writer, bridging the domain event bus (punishment.created/
+# expired/revoked, appeal.resolved) onto Redis keys + a pub/sub channel so every proxy in a
+# multi-proxy network sees the same state without hitting this API on every login/chat message.
+redis:
+  uri: ${REDIS_URI:`redis://localhost:6379`}
+
 # Datasource
 datasources:
   default:

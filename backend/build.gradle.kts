@@ -28,6 +28,7 @@ dependencies {
     implementation(mn.micronaut.flyway)
     runtimeOnly("org.flywaydb:flyway-mysql:10.22.0")
     implementation(mn.micronaut.rabbitmq)
+    implementation(mn.micronaut.redis.lettuce)
     implementation(mn.micronaut.hibernate.validator)
     implementation(mn.micronaut.data.tx.hibernate)
     implementation(mn.micronaut.jdbc.hikari)

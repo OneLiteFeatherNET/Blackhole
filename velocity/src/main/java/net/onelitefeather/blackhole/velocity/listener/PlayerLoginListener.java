@@ -15,6 +15,7 @@ import net.onelitefeather.blackhole.client.model.PunishType;
 import net.onelitefeather.blackhole.client.model.SessionInfoDTO;
 import net.onelitefeather.blackhole.velocity.component.PunishmentTemplateComponent;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
+import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -34,12 +35,14 @@ public final class PlayerLoginListener {
     private final PunishProfileApi punishProfileApi;
     private final EvasionApi evasionApi;
     private final BlackholeConfig config;
+    private final RedisSyncService redisSyncService;
 
     @Inject
-    public PlayerLoginListener(@NotNull ApiClient apiClient, @NotNull BlackholeConfig config) {
+    public PlayerLoginListener(@NotNull ApiClient apiClient, @NotNull BlackholeConfig config, @NotNull RedisSyncService redisSyncService) {
         this.punishProfileApi = new PunishProfileApi(apiClient);
         this.evasionApi = new EvasionApi(apiClient);
         this.config = config;
+        this.redisSyncService = redisSyncService;
     }
 
     /**
@@ -54,6 +57,20 @@ public final class PlayerLoginListener {
         // Recorded regardless of ban outcome - catching a banned player re-joining on a fresh
         // account from the same IP is the whole point of ban-evasion detection.
         recordEvasionSignal(player, uuidHash);
+
+        try {
+            var ban = this.redisSyncService.fetchAndTrack(this.config.getTenantId(), uuidHash);
+            if (ban.isPresent() && PunishType.NETWORK.toString().equals(ban.get().type())) {
+                kickForActiveNetworkBan(player, uuidHash);
+                return;
+            }
+            // Redis gave a definitive answer (no active NETWORK ban) - every other proxy already
+            // saw the same state, so there's no need to also ask the backend over HTTP.
+            recordSessionInfo(player, uuidHash);
+            return;
+        } catch (RuntimeException e) {
+            LOGGER.debug("Redis unavailable at login for {}, falling back to HTTP ban check: {}", player.getUsername(), e.getMessage());
+        }
 
         Optional<PunishProfileDTO> profileOptional;
         try {
@@ -71,6 +88,23 @@ public final class PlayerLoginListener {
         }
 
         recordSessionInfo(player, uuidHash);
+    }
+
+    /**
+     * Redis only carries enough of a snapshot to know a NETWORK ban is active, not the full
+     * template needed to render the kick message - one HTTP call still builds that, same as the
+     * pre-Redis behavior.
+     */
+    private void kickForActiveNetworkBan(Player player, String uuidHash) {
+        try {
+            PunishProfileDTO punishProfile = this.punishProfileApi.getById(this.config.getTenantId(), uuidHash);
+            var activeBanDTO = punishProfile.getActiveBan();
+            if (activeBanDTO != null) {
+                player.disconnect(PunishmentTemplateComponent.of(activeBanDTO.getTemplate(), punishProfile));
+            }
+        } catch (ApiException e) {
+            LOGGER.error("Failed to fetch punish profile for banned player {}: {}", player.getUsername(), e.getMessage());
+        }
     }
 
     private void recordEvasionSignal(@NotNull Player player, @NotNull String uuidHash) {

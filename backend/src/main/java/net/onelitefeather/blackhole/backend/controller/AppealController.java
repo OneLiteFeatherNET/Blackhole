@@ -211,7 +211,8 @@ public class AppealController {
                 "appealIdentifier", identifier.toString(),
                 "owner", appeal.getAppellantHash(),
                 "punishmentIdentifier", punishment.getIdentifier(),
-                "decision", review.decision().toString()
+                "decision", review.decision().toString(),
+                "type", punishment.getType().toString()
         ));
 
         return HttpResponse.ok(saved.toDTO());

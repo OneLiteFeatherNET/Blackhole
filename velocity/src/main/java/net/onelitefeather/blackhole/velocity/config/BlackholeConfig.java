@@ -31,12 +31,21 @@ public class BlackholeConfig {
     private String serviceToken;
 
     /**
+     * Redis connection used to read active-punishment state mirrored by the backend's
+     * RedisSyncConsumer, so a login/chat check on this proxy can hit a shared, fast cache
+     * instead of an HTTP call to the backend - and so a punishment applied on another proxy in
+     * the network is enforced here immediately via pub/sub, not just on this player's next login.
+     */
+    private String redisUri;
+
+    /**
      * Creates a new configuration with default values.
      */
     public BlackholeConfig() {
         this.baseUrl = "http://localhost:8080";
         this.tenantId = "00000000-0000-0000-0000-000000000000";
         this.serviceToken = "";
+        this.redisUri = "redis://localhost:6379";
     }
 
     /**
@@ -91,6 +100,24 @@ public class BlackholeConfig {
      */
     public void setServiceToken(@NotNull String serviceToken) {
         this.serviceToken = serviceToken;
+    }
+
+    /**
+     * Gets the Redis connection URI used for cross-proxy punishment-state sync.
+     *
+     * @return the Redis URI
+     */
+    public @NotNull String getRedisUri() {
+        return redisUri;
+    }
+
+    /**
+     * Sets the Redis connection URI used for cross-proxy punishment-state sync.
+     *
+     * @param redisUri the Redis URI
+     */
+    public void setRedisUri(@NotNull String redisUri) {
+        this.redisUri = redisUri;
     }
 
     /**
