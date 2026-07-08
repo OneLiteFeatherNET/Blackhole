@@ -29,12 +29,12 @@ A controller method does exactly three things: read the already-deserialized req
   repository parameter, and the class should have zero imports from a `database.repository` (or
   equivalent) package. If you find yourself wanting one, that dependency belongs in a service
   (see `micronaut-service-layer`).
-- **No business/validation branching.** Deciding create-vs-update from a nullable identifier,
-  checking whether an entity exists before acting on it, enforcing a business rule before saving
-  - all of that is domain logic, not routing. It belongs in the service; the controller just maps
-  the service's outcome (e.g. `Created` / `NotFound` / `IdentifierNotAllowed`) to the matching
-  `HttpResponse`. A controller method with more than one `if`/`switch` branch is a sign logic
-  leaked in from the service.
+- **No business/validation branching.** Checking whether an entity exists before acting on it,
+  enforcing a business rule before saving (a duplicate-name check, an ownership check, ...) - all
+  of that is domain logic, not routing. It belongs in the service; the controller just maps the
+  service's result (the success `Response` vs. the `Error` variant - see `micronaut-dto-contract`)
+  to the matching `HttpResponse`. A controller method with more than one `if`/`switch` branch is a
+  sign logic leaked in from the service.
 - **No OpenAPI annotations on the implementation.** `@Operation`, `@ApiResponse`, `@Schema`,
   `@ArraySchema` live on a dedicated `*Api` interface that the controller `implements` - see
   `micronaut-openapi-contract`. The controller class itself carries only routing/DI concerns:
@@ -70,12 +70,12 @@ public class WidgetHandler {
 
     @Operation(summary = "Create widget", /* ...20+ more lines of Swagger annotations... */)
     @Post("/")
-    public HttpResponse<WidgetDTO> create(@Valid @Body WidgetRequestDTO request) {
-        if (request.identifier() != null) {           // business rule inline in the controller
-            return HttpResponse.notAllowed();
+    public HttpResponse<WidgetDTO> create(@Valid @Body WidgetDTO.CreateRequest request) {
+        if (this.widgetRepository.existsByName(request.name())) { // business rule inline in the controller
+            return HttpResponse.status(HttpStatus.CONFLICT);      // no body - client gets nothing to parse
         }
         WidgetEntity saved = this.widgetRepository.save(WidgetEntity.toEntity(request));
-        return HttpResponse.ok(saved.toDTO());
+        return HttpResponse.ok(WidgetDTO.Response.createDTO(saved));
     }
 }
 ```
@@ -94,28 +94,25 @@ public class WidgetController implements WidgetApi {
     }
 
     @Override
-    public HttpResponse<WidgetDTO> create(@Valid @Body WidgetRequestDTO request) {
-        return switch (this.widgetService.create(request)) {
-            case CreateOutcome.Created c -> HttpResponse.ok(c.widget());
-            case CreateOutcome.IdentifierNotAllowed ignored -> HttpResponse.notAllowed();
-        };
+    public HttpResponse<WidgetDTO> create(@Valid @Body WidgetDTO.CreateRequest request) {
+        return HttpResponse.ok(this.widgetService.createWidget(request));
     }
 
     @Override
-    public HttpResponse<WidgetDTO> findById(UUID identifier) {
-        return this.widgetService.find(identifier)
-                .map(HttpResponse::ok)
-                .orElseGet(HttpResponse::notFound);
+    public HttpResponse<WidgetDTO> update(@Valid @Body WidgetDTO.UpdateRequest request) {
+        WidgetDTO result = this.widgetService.updateWidget(request);
+        if (result instanceof WidgetDTO.Error) {
+            return HttpResponse.notFound(result);
+        }
+        return HttpResponse.ok(result);
     }
 }
 ```
 
-No repository import, no `@Operation`/`@ApiResponse`, no branching beyond the
-`switch`/`.map(...).orElseGet(...)` that turns the service's answer into a response - that's the
-whole pattern, independent of domain or project. The bodyless `HttpResponse.notAllowed()`/
-`.notFound()` calls above are simplified for this example; see
-`micronaut-error-response-contract` for why a real error path should carry a DTO body instead of
-an empty response.
+No repository import, no `@Operation`/`@ApiResponse`, no branching beyond the `instanceof` check
+that turns the service's answer into a response - that's the whole pattern, independent of domain
+or project. See `micronaut-dto-contract` for the `WidgetDTO.CreateRequest`/`UpdateRequest`/
+`Response`/`Error` shape and `micronaut-service-layer` for what `createWidget`/`updateWidget` do.
 
 ## Observed in real Micronaut codebases
 
@@ -140,6 +137,5 @@ to notice it.
 
 - `micronaut-service-layer` - where the business logic and repository dependency actually go.
 - `micronaut-openapi-contract` - where the Swagger annotations actually go.
-- `micronaut-dto-contract` - the request/response DTO shape a controller method deals with.
-- `micronaut-error-response-contract` - how the controller should turn a service's error result
-  into an `HttpResponse` that still carries a body, never an empty error response.
+- `micronaut-dto-contract` - the sealed `WidgetDTO` shape a controller method deserializes from
+  and always returns as the body, success or error.
