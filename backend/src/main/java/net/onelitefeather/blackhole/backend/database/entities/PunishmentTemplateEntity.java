@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
 import net.onelitefeather.blackhole.backend.dto.PunishType;
 import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
 import net.onelitefeather.blackhole.backend.dto.PunishTemplateDTO;
+import net.onelitefeather.blackhole.backend.dto.PunishTemplateRequestDTO;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -53,6 +54,17 @@ public class PunishmentTemplateEntity {
      */
     public static PunishmentTemplateEntity toEntity(PunishTemplateDTO template) {
         return new PunishmentTemplateEntity(template.identifier(), template.tenantId(), template.reason(), template.type(), template.eloDelta(), template.metaData());
+    }
+
+    /**
+     * Convert a PunishTemplateRequestDTO to a PunishmentTemplateEntity.
+     *
+     * @param tenantId the tenant the template belongs to
+     * @param template the PunishTemplateRequestDTO to convert
+     * @return the converted PunishmentTemplateEntity
+     */
+    public static PunishmentTemplateEntity toEntity(UUID tenantId, PunishTemplateRequestDTO template) {
+        return new PunishmentTemplateEntity(template.identifier(), tenantId, template.reason(), template.type(), template.eloDelta(), template.metaData());
     }
 
     /**

@@ -14,7 +14,8 @@ import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.backend.dto.EvasionRecordDTO;
 import net.onelitefeather.blackhole.backend.evasion.IpCorrelationService;
 import net.onelitefeather.blackhole.backend.security.Roles;
-import net.onelitefeather.blackhole.backend.security.TenantContext;
+
+import java.util.UUID;
 
 /**
  * Records a login sighting for ban-evasion detection. Called by the Velocity proxy at login,
@@ -26,12 +27,10 @@ import net.onelitefeather.blackhole.backend.security.TenantContext;
 public class EvasionController {
 
     private final IpCorrelationService ipCorrelationService;
-    private final TenantContext tenantContext;
 
     @Inject
-    public EvasionController(IpCorrelationService ipCorrelationService, TenantContext tenantContext) {
+    public EvasionController(IpCorrelationService ipCorrelationService) {
         this.ipCorrelationService = ipCorrelationService;
-        this.tenantContext = tenantContext;
     }
 
     @Operation(
@@ -43,13 +42,12 @@ public class EvasionController {
     @ApiResponse(responseCode = "200", description = "Recorded")
     @ApiResponse(responseCode = "503", description = "blackhole.evasion.ip-salt is not configured - evasion detection is disabled")
     @Validated
-    @Post("/record")
-    public HttpResponse<?> record(@Body @Valid EvasionRecordDTO request) {
-        this.tenantContext.requireTenantAccess(request.tenantId());
+    @Post("/{tenantId}/record")
+    public HttpResponse<?> record(UUID tenantId, @Body @Valid EvasionRecordDTO request) {
         if (!this.ipCorrelationService.isConfigured()) {
             return HttpResponse.status(HttpStatus.SERVICE_UNAVAILABLE, "Ban-evasion detection is not configured");
         }
-        this.ipCorrelationService.recordLogin(request.tenantId(), request.owner(), request.ip());
+        this.ipCorrelationService.recordLogin(tenantId, request.owner(), request.ip());
         return HttpResponse.ok();
     }
 }

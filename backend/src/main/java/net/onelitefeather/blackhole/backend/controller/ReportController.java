@@ -23,6 +23,7 @@ import net.onelitefeather.blackhole.backend.database.repository.ReportRepository
 import net.onelitefeather.blackhole.backend.dto.EloReasonCode;
 import net.onelitefeather.blackhole.backend.dto.EloTrack;
 import net.onelitefeather.blackhole.backend.dto.ReportDTO;
+import net.onelitefeather.blackhole.backend.dto.ReportRequestDTO;
 import net.onelitefeather.blackhole.backend.dto.ReportResolutionDTO;
 import net.onelitefeather.blackhole.backend.dto.ReportStatus;
 import net.onelitefeather.blackhole.backend.elo.EffectiveEloSettings;
@@ -32,7 +33,6 @@ import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentApplicationService;
 import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
 import net.onelitefeather.blackhole.backend.security.Roles;
-import net.onelitefeather.blackhole.backend.security.TenantContext;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -46,26 +46,24 @@ import java.util.UUID;
  * reported player through {@link PunishmentApplicationService}, the report system's actual
  * integration point with punishments rather than a parallel/separate mechanism.
  *
- * <p><b>Security note:</b> {@code reporterHash} is client-supplied - the JWT carries only
- * tenantId + role, never a per-player identity (see {@code TenantContext}), so nothing here can
- * verify it actually belongs to the caller. A per-reporterHash limit alone is therefore
- * bypassable by simply varying that field on every request; {@link #rateLimitMaxReportsPerTenant}
- * is an aggregate, tenant-wide backstop that caps the blast radius regardless of what
- * {@code reporterHash} value is claimed.</p>
+ * <p><b>Security note:</b> {@code reporterHash} is client-supplied - no JWT in this system carries
+ * a per-player identity, only a role, so nothing here can verify it actually belongs to the
+ * caller. A per-reporterHash limit alone is therefore bypassable by simply varying that field on
+ * every request; {@link #rateLimitMaxReportsPerTenant} is an aggregate, tenant-wide backstop that
+ * caps the blast radius regardless of what {@code reporterHash} value is claimed.</p>
  *
  * <p><b>Known limitation (deferred, not fixed here):</b> {@code resolve}'s {@code resolvedBy}
  * and {@code punishmentSource} are likewise client-supplied and unverified against the caller's
  * actual identity - the same property {@code PunishmentEntityController}'s {@code source} field
- * has had since Phase 0, since no JWT in this system carries a per-staff identity, only
- * tenantId + role. This is a systemic auth-model gap, not something specific to reports, and is
- * intentionally deferred to a dedicated pass that adds real per-actor identity everywhere at
- * once rather than patching one endpoint inconsistently with the rest.</p>
+ * has had since Phase 0, since no JWT in this system carries a per-staff identity, only a role.
+ * This is a systemic auth-model gap, not something specific to reports, and is intentionally
+ * deferred to a dedicated pass that adds real per-actor identity everywhere at once rather than
+ * patching one endpoint inconsistently with the rest.</p>
  */
 @Controller(ApiVersion.V1 + "/report")
 public class ReportController {
 
     private final ReportRepository reportRepository;
-    private final TenantContext tenantContext;
     private final DomainEventPublisher eventPublisher;
     private final PunishmentApplicationService punishmentApplicationService;
     private final EloService eloService;
@@ -78,7 +76,6 @@ public class ReportController {
     @Inject
     public ReportController(
             ReportRepository reportRepository,
-            TenantContext tenantContext,
             DomainEventPublisher eventPublisher,
             PunishmentApplicationService punishmentApplicationService,
             EloService eloService,
@@ -89,7 +86,6 @@ public class ReportController {
             @Value("${blackhole.elo.report.actioned-delta:-100}") int reportActionedDelta
     ) {
         this.reportRepository = reportRepository;
-        this.tenantContext = tenantContext;
         this.eventPublisher = eventPublisher;
         this.punishmentApplicationService = punishmentApplicationService;
         this.eloService = eloService;
@@ -114,27 +110,25 @@ public class ReportController {
     @ApiResponse(responseCode = "429", description = "Rate limit exceeded for this reporter")
     @Secured({Roles.PLAYER, Roles.SERVICE})
     @Validated
-    @Post("/")
-    public HttpResponse<?> submit(@Body @Valid ReportDTO submission) {
-        this.tenantContext.requireTenantAccess(submission.tenantId());
-
+    @Post("/{tenantId}")
+    public HttpResponse<?> submit(UUID tenantId, @Body @Valid ReportRequestDTO submission) {
         long now = System.currentTimeMillis();
         long windowStart = now - this.rateLimitWindow.toMillis();
 
-        long recentTenantReports = this.reportRepository.countByTenantIdAndCreatedAtGreaterThan(submission.tenantId(), windowStart);
+        long recentTenantReports = this.reportRepository.countByTenantIdAndCreatedAtGreaterThan(tenantId, windowStart);
         if (recentTenantReports >= this.rateLimitMaxReportsPerTenant) {
             return HttpResponse.status(HttpStatus.TOO_MANY_REQUESTS);
         }
 
         long recentReports = this.reportRepository.countByTenantIdAndReporterHashAndCreatedAtGreaterThan(
-                submission.tenantId(), submission.reporterHash(), windowStart
+                tenantId, submission.reporterHash(), windowStart
         );
         if (recentReports >= this.rateLimitMaxReports) {
             return HttpResponse.status(HttpStatus.TOO_MANY_REQUESTS);
         }
 
         ReportEntity report = new ReportEntity(
-                submission.tenantId(),
+                tenantId,
                 submission.reporterHash(),
                 submission.reportedHash(),
                 submission.category(),
@@ -150,7 +144,7 @@ public class ReportController {
         ReportEntity saved = this.reportRepository.save(report);
 
         this.eventPublisher.publish("report.created", Map.of(
-                "tenantId", submission.tenantId().toString(),
+                "tenantId", tenantId.toString(),
                 "reportIdentifier", saved.getIdentifier().toString(),
                 "reporterHash", submission.reporterHash(),
                 "reportedHash", submission.reportedHash(),
@@ -175,11 +169,9 @@ public class ReportController {
             )
     )
     @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF, ConnectorScopes.REPORT_READ})
-    @Get("/")
-    public HttpResponse<Page<ReportDTO>> getAll(Pageable pageable) {
-        Page<ReportEntity> entities = this.tenantContext.isPlatformAdmin()
-                ? this.reportRepository.findAll(pageable)
-                : this.reportRepository.findByTenantId(this.tenantContext.currentTenantId().orElseThrow(), pageable);
+    @Get("/{tenantId}")
+    public HttpResponse<Page<ReportDTO>> getAll(UUID tenantId, Pageable pageable) {
+        Page<ReportEntity> entities = this.reportRepository.findByTenantId(tenantId, pageable);
         return HttpResponse.ok(entities.map(ReportEntity::toDTO));
     }
 
@@ -200,8 +192,6 @@ public class ReportController {
     @Validated
     @Post("/{tenantId}/{identifier}/resolve")
     public HttpResponse<?> resolve(UUID tenantId, UUID identifier, @Body @Valid ReportResolutionDTO resolution) {
-        this.tenantContext.requireTenantAccess(tenantId);
-
         ReportEntity report = this.reportRepository.findById(identifier).orElse(null);
         if (report == null || !tenantId.equals(report.getTenantId())) {
             return HttpResponse.notFound();

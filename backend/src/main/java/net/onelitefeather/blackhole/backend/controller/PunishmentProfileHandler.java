@@ -23,6 +23,7 @@ import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileE
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileId;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.dto.PunishProfileDTO;
+import net.onelitefeather.blackhole.backend.dto.PunishProfileRequestDTO;
 import net.onelitefeather.blackhole.backend.dto.SessionInfoDTO;
 import net.onelitefeather.blackhole.backend.cache.CacheInvalidationPublisher;
 import net.onelitefeather.blackhole.backend.cache.ProfileCache;
@@ -30,7 +31,6 @@ import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.response.PunishProfileResponse;
 import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
 import net.onelitefeather.blackhole.backend.security.Roles;
-import net.onelitefeather.blackhole.backend.security.TenantContext;
 import net.onelitefeather.blackhole.backend.utils.PunishmentExpiry;
 
 import java.util.ArrayList;
@@ -43,7 +43,6 @@ import java.util.UUID;
 public class PunishmentProfileHandler {
 
     private final PunishmentProfileRepository repository;
-    private final TenantContext tenantContext;
     private final DomainEventPublisher eventPublisher;
     private final ProfileCache profileCache;
     private final CacheInvalidationPublisher cacheInvalidationPublisher;
@@ -52,7 +51,6 @@ public class PunishmentProfileHandler {
      * Create a new PunishmentProfileHandler.
      *
      * @param repository                 the repository to use
-     * @param tenantContext              enforces that callers only touch their own tenant's profiles
      * @param eventPublisher             publishes domain events for successful writes
      * @param profileCache               the hot-path profile-by-owner read cache
      * @param cacheInvalidationPublisher invalidates the cache locally and across replicas on writes
@@ -60,13 +58,11 @@ public class PunishmentProfileHandler {
     @Inject
     public PunishmentProfileHandler(
             PunishmentProfileRepository repository,
-            TenantContext tenantContext,
             DomainEventPublisher eventPublisher,
             ProfileCache profileCache,
             CacheInvalidationPublisher cacheInvalidationPublisher
     ) {
         this.repository = repository;
-        this.tenantContext = tenantContext;
         this.eventPublisher = eventPublisher;
         this.profileCache = profileCache;
         this.cacheInvalidationPublisher = cacheInvalidationPublisher;
@@ -94,14 +90,13 @@ public class PunishmentProfileHandler {
             )
     )
     @Validated
-    @Post()
-    public HttpResponse<PunishProfileResponse> add(@Body @Valid PunishProfileDTO profileEntity) {
-        this.tenantContext.requireTenantAccess(profileEntity.tenantId());
-        PunishmentProfileEntity entity = PunishmentProfileEntity.toEntity(profileEntity);
+    @Post("/{tenantId}")
+    public HttpResponse<PunishProfileResponse> add(UUID tenantId, @Body @Valid PunishProfileRequestDTO profileEntity) {
+        PunishmentProfileEntity entity = PunishmentProfileEntity.toEntity(tenantId, profileEntity);
         PunishmentProfileEntity savedEntity = this.repository.save(entity);
-        this.cacheInvalidationPublisher.invalidate(profileEntity.tenantId(), profileEntity.owner());
+        this.cacheInvalidationPublisher.invalidate(tenantId, profileEntity.owner());
         this.eventPublisher.publish("profile.created", Map.of(
-                "tenantId", profileEntity.tenantId().toString(),
+                "tenantId", tenantId.toString(),
                 "owner", profileEntity.owner()
         ));
         return HttpResponse.ok(savedEntity.toDTO());
@@ -142,15 +137,14 @@ public class PunishmentProfileHandler {
     @Validated
     @Post(value = "/update/{tenantId}/{owner}")
     public HttpResponse<PunishProfileResponse> update(
-            @Valid @Body PunishProfileDTO profileEntity,
+            @Valid @Body PunishProfileRequestDTO profileEntity,
             UUID tenantId,
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner
     ) {
-        if (!profileEntity.owner().equals(owner) || !profileEntity.tenantId().equals(tenantId)) {
-            return HttpResponse.badRequest(new PunishProfileResponse.ErrorResponse("Tenant or owner in path and body do not match"));
+        if (!profileEntity.owner().equals(owner)) {
+            return HttpResponse.badRequest(new PunishProfileResponse.ErrorResponse("Owner in path and body do not match"));
         }
-        this.tenantContext.requireTenantAccess(tenantId);
-        PunishmentProfileEntity entity = PunishmentProfileEntity.toEntity(profileEntity);
+        PunishmentProfileEntity entity = PunishmentProfileEntity.toEntity(tenantId, profileEntity);
         PunishmentProfileEntity savedEntity = this.repository.update(entity);
         this.cacheInvalidationPublisher.invalidate(tenantId, owner);
         this.eventPublisher.publish("profile.updated", Map.of(
@@ -197,7 +191,6 @@ public class PunishmentProfileHandler {
             UUID tenantId,
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner
     ) {
-        this.tenantContext.requireTenantAccess(tenantId);
         PunishmentProfileEntity entity = this.repository.findById(new PunishmentProfileId(tenantId, owner)).orElse(null);
         if (entity == null) {
             return HttpResponse.badRequest(new PunishProfileResponse.ErrorResponse("There is no profile linked to the given owner"));
@@ -234,11 +227,9 @@ public class PunishmentProfileHandler {
 
     )
     @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF, Roles.SERVICE, ConnectorScopes.PROFILE_READ})
-    @Get("/")
-    public HttpResponse<Page<PunishProfileResponse>> getAll(Pageable pageable) {
-        Page<PunishmentProfileEntity> entities = this.tenantContext.isPlatformAdmin()
-                ? this.repository.findAll(pageable)
-                : this.repository.findByTenantId(this.tenantContext.currentTenantId().orElseThrow(), pageable);
+    @Get("/{tenantId}")
+    public HttpResponse<Page<PunishProfileResponse>> getAll(UUID tenantId, Pageable pageable) {
+        Page<PunishmentProfileEntity> entities = this.repository.findByTenantId(tenantId, pageable);
         return HttpResponse.ok(entities.map(PunishmentProfileEntity::toDTO));
     }
 
@@ -278,7 +269,6 @@ public class PunishmentProfileHandler {
             UUID tenantId,
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner
     ) {
-        this.tenantContext.requireTenantAccess(tenantId);
         PunishmentProfileId id = new PunishmentProfileId(tenantId, owner);
         boolean cacheHit = this.profileCache.get(id).isPresent();
         var entity = cacheHit ? this.profileCache.get(id).orElse(null) : this.repository.findById(id).orElse(null);
@@ -341,7 +331,6 @@ public class PunishmentProfileHandler {
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
             @Body @Valid SessionInfoDTO info
     ) {
-        this.tenantContext.requireTenantAccess(tenantId);
         PunishmentProfileId id = new PunishmentProfileId(tenantId, owner);
         PunishmentProfileEntity profile = this.repository.findById(id).orElse(null);
         boolean isNew = profile == null;

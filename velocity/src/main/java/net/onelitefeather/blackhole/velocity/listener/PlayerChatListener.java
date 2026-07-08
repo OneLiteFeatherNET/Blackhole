@@ -89,7 +89,7 @@ public final class PlayerChatListener {
      */
     private void submitChatSignal(@NotNull Player player, @NotNull String uuidHash, @NotNull String message) {
         try {
-            this.eloApi.submitChatSignal(new ChatSignalDTO().tenantId(this.config.getTenantId()).owner(uuidHash).message(message));
+            this.eloApi.submitChatSignal(this.config.getTenantId(), new ChatSignalDTO().owner(uuidHash).message(message));
         } catch (ApiException e) {
             LOGGER.error("Failed to submit chat signal for ELO scoring for player {}: {}", player.getUsername(), e.getMessage());
         }

@@ -4,6 +4,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.*;
 import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
 import net.onelitefeather.blackhole.backend.dto.PunishProfileDTO;
+import net.onelitefeather.blackhole.backend.dto.PunishProfileRequestDTO;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -38,14 +39,15 @@ public class PunishmentProfileEntity {
     private Map<String, Object> metaData;
 
     /**
-     * Convert a PunishProfile to a PunishmentProfileEntity.
+     * Convert a PunishProfileRequestDTO to a PunishmentProfileEntity.
      *
-     * @param profile the PunishProfile to convert
+     * @param tenantId the tenant the profile belongs to
+     * @param profile  the PunishProfileRequestDTO to convert
      * @return the converted PunishmentProfileEntity
      */
-    public static PunishmentProfileEntity toEntity(PunishProfileDTO profile) {
+    public static PunishmentProfileEntity toEntity(UUID tenantId, PunishProfileRequestDTO profile) {
         return new PunishmentProfileEntity(
-                profile.tenantId(),
+                tenantId,
                 profile.owner(),
                 PunishmentEntity.toEntity(profile.activeChatBan()),
                 PunishmentEntity.toEntity(profile.activeBan()),

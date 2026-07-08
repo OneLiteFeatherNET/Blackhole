@@ -17,9 +17,9 @@ public interface ReportRepository extends PageableRepository<ReportEntity, UUID>
 
     /**
      * Aggregate, tenant-wide submission count within the window - a backstop independent of
-     * {@code reporterHash}. That field is client-supplied (the JWT carries only tenantId + role,
-     * never a per-player identity - see {@code TenantContext}), so a caller could otherwise
-     * defeat the per-reporter limit by simply varying it on every request.
+     * {@code reporterHash}. That field is client-supplied (no JWT in this system carries a
+     * per-player identity, only a role), so a caller could otherwise defeat the per-reporter
+     * limit by simply varying it on every request.
      */
     long countByTenantIdAndCreatedAtGreaterThan(UUID tenantId, long createdAtAfter);
 }

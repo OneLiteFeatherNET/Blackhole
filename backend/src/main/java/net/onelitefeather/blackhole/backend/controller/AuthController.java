@@ -70,9 +70,11 @@ public class AuthController {
     }
 
     /**
-     * Mints a token scoped to a tenant. Callable by {@link Roles#PLATFORM_ADMIN} (any tenant) or
-     * {@link Roles#TENANT_ADMIN} (their own tenant only). Cannot itself mint another
-     * {@link Roles#PLATFORM_ADMIN} token.
+     * Mints a token for a role other than {@link Roles#PLATFORM_ADMIN}. Callable by
+     * {@link Roles#PLATFORM_ADMIN} or {@link Roles#TENANT_ADMIN} - the minted token carries only
+     * a role, not a tenant, so it isn't restricted to the target tenant in any way; which tenant's
+     * data it can touch is determined solely by the {@code tenantId} in the URL of whatever
+     * endpoint it's later used against.
      */
     @Operation(
             summary = "Issue a tenant-scoped token",
@@ -94,13 +96,6 @@ public class AuthController {
             return HttpResponse.badRequest("Cannot issue a token with role " + request.role() + " via this endpoint");
         }
 
-        if (!callerIsPlatformAdmin) {
-            Object callerTenantId = caller.getAttributes().get("tenantId");
-            if (callerTenantId == null || !callerTenantId.toString().equals(request.tenantId().toString())) {
-                return HttpResponse.status(HttpStatus.FORBIDDEN, "TENANT_ADMIN may only issue tokens for their own tenant");
-            }
-        }
-
         if (!this.tenantRepository.existsById(request.tenantId())) {
             return HttpResponse.notFound();
         }
@@ -108,7 +103,7 @@ public class AuthController {
         Authentication authentication = Authentication.build(
                 request.role() + ":" + request.tenantId(),
                 List.of(request.role()),
-                Map.of("tenantId", request.tenantId().toString())
+                Map.of()
         );
         return issue(authentication);
     }

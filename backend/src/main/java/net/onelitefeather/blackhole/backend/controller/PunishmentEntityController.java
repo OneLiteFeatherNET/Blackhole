@@ -23,7 +23,6 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentApplicationServ
 import net.onelitefeather.blackhole.backend.response.PunishProfileResponse;
 import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
 import net.onelitefeather.blackhole.backend.security.Roles;
-import net.onelitefeather.blackhole.backend.security.TenantContext;
 
 import java.util.UUID;
 
@@ -32,24 +31,20 @@ import java.util.UUID;
 public class PunishmentEntityController {
 
     private final PunishmentRepository punishmentRepository;
-    private final TenantContext tenantContext;
     private final PunishmentApplicationService punishmentApplicationService;
 
     /**
      * Create a new PunishmentEntityController with the given values.
      *
      * @param punishmentRepository        the repository to list punishments
-     * @param tenantContext               enforces that callers only touch their own tenant's punishments
      * @param punishmentApplicationService applies a punishment template to a profile
      */
     @Inject
     public PunishmentEntityController(
             PunishmentRepository punishmentRepository,
-            TenantContext tenantContext,
             PunishmentApplicationService punishmentApplicationService
     ) {
         this.punishmentRepository = punishmentRepository;
-        this.tenantContext = tenantContext;
         this.punishmentApplicationService = punishmentApplicationService;
     }
 
@@ -92,7 +87,6 @@ public class PunishmentEntityController {
             UUID templateId,
             UUID source
     ) {
-        this.tenantContext.requireTenantAccess(tenantId);
         var profile = this.punishmentApplicationService.apply(tenantId, owner, templateId, source);
         if (profile.isEmpty()) {
             return HttpResponse.notFound();
@@ -137,7 +131,6 @@ public class PunishmentEntityController {
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
             UUID source
     ) {
-        this.tenantContext.requireTenantAccess(tenantId);
         var profile = this.punishmentApplicationService.revokeBan(tenantId, owner, source);
         if (profile.isEmpty()) {
             return HttpResponse.notFound();
@@ -182,7 +175,6 @@ public class PunishmentEntityController {
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
             UUID source
     ) {
-        this.tenantContext.requireTenantAccess(tenantId);
         var profile = this.punishmentApplicationService.revokeMute(tenantId, owner, source);
         if (profile.isEmpty()) {
             return HttpResponse.notFound();
@@ -213,11 +205,9 @@ public class PunishmentEntityController {
             )
     )
     @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF, Roles.SERVICE, ConnectorScopes.PUNISHMENT_READ})
-    @Get()
-    public HttpResponse<Page<PunishEntryDTO>> getAll(Pageable pageable) {
-        Page<PunishmentEntity> entries = this.tenantContext.isPlatformAdmin()
-                ? this.punishmentRepository.findAll(pageable)
-                : this.punishmentRepository.findByTenantId(this.tenantContext.currentTenantId().orElseThrow(), pageable);
+    @Get("/{tenantId}")
+    public HttpResponse<Page<PunishEntryDTO>> getAll(UUID tenantId, Pageable pageable) {
+        Page<PunishmentEntity> entries = this.punishmentRepository.findByTenantId(tenantId, pageable);
         return HttpResponse.ok(entries.map(PunishmentEntity::toDTO));
     }
 }

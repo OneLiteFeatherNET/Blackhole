@@ -14,7 +14,6 @@ import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.imports.VanillaImportResultDTO;
 import net.onelitefeather.blackhole.backend.imports.VanillaImportService;
 import net.onelitefeather.blackhole.backend.security.Roles;
-import net.onelitefeather.blackhole.backend.security.TenantContext;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -29,12 +28,10 @@ import java.util.UUID;
 public class VanillaImportController {
 
     private final VanillaImportService importService;
-    private final TenantContext tenantContext;
 
     @Inject
-    public VanillaImportController(VanillaImportService importService, TenantContext tenantContext) {
+    public VanillaImportController(VanillaImportService importService) {
         this.importService = importService;
-        this.tenantContext = tenantContext;
     }
 
     @Operation(hidden = true)
@@ -45,7 +42,6 @@ public class VanillaImportController {
             @Part("bannedIps") @Nullable CompletedFileUpload bannedIps,
             @QueryValue(defaultValue = "false") boolean dryRun
     ) {
-        this.tenantContext.requireTenantAccess(tenantId);
         try {
             byte[] playersBytes = bannedPlayers.getBytes();
             byte[] ipsBytes = bannedIps != null ? bannedIps.getBytes() : null;

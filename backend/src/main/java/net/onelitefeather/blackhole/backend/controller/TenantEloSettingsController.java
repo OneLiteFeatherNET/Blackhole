@@ -20,7 +20,6 @@ import net.onelitefeather.blackhole.backend.database.repository.TenantEloSetting
 import net.onelitefeather.blackhole.backend.dto.PunishType;
 import net.onelitefeather.blackhole.backend.dto.TenantEloSettingsDTO;
 import net.onelitefeather.blackhole.backend.security.Roles;
-import net.onelitefeather.blackhole.backend.security.TenantContext;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -37,17 +36,14 @@ public class TenantEloSettingsController {
 
     private final TenantEloSettingsRepository settingsRepository;
     private final PunishmentTemplateRepository templateRepository;
-    private final TenantContext tenantContext;
 
     @Inject
     public TenantEloSettingsController(
             TenantEloSettingsRepository settingsRepository,
-            PunishmentTemplateRepository templateRepository,
-            TenantContext tenantContext
+            PunishmentTemplateRepository templateRepository
     ) {
         this.settingsRepository = settingsRepository;
         this.templateRepository = templateRepository;
-        this.tenantContext = tenantContext;
     }
 
     @Operation(
@@ -63,7 +59,6 @@ public class TenantEloSettingsController {
     )
     @Get("/{tenantId}/elo-settings")
     public HttpResponse<TenantEloSettingsDTO> get(UUID tenantId) {
-        this.tenantContext.requireTenantAccess(tenantId);
         return HttpResponse.ok(this.settingsRepository.findById(tenantId)
                 .map(TenantEloSettingsEntity::toDTO)
                 .orElseGet(() -> new TenantEloSettingsDTO(tenantId, null, null, null, null, null, null, null)));
@@ -84,7 +79,6 @@ public class TenantEloSettingsController {
     @Validated
     @Post("/{tenantId}/elo-settings")
     public HttpResponse<?> update(UUID tenantId, @Body @Valid TenantEloSettingsDTO settings) {
-        this.tenantContext.requireTenantAccess(tenantId);
         if (!tenantId.equals(settings.tenantId())) {
             return HttpResponse.badRequest("tenantId in path and body must match");
         }

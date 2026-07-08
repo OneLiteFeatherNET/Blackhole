@@ -150,7 +150,7 @@ public final class PunishCommand {
         boolean server = context.flags().isPresent("server");
         List<PunishTemplateDTO> templates = List.of();
         try {
-            templates = this.punishmentTemplatesApi.getAllTemplates(Pageable.builder().build());
+            templates = this.punishmentTemplatesApi.getAllTemplates(this.config.getTenantId(), Pageable.builder().build());
         } catch (ApiException e) {
             throw new RuntimeException(e);
         }
@@ -168,7 +168,7 @@ public final class PunishCommand {
         if (context.contains(BlackholeVelocity.PUNISH_TYPE_KEY)) {
             PunishType type = context.get(BlackholeVelocity.PUNISH_TYPE_KEY);
             try {
-                return this.punishmentTemplatesApi.getAllTemplates(Pageable.builder().build())
+                return this.punishmentTemplatesApi.getAllTemplates(this.config.getTenantId(), Pageable.builder().build())
                         .stream()
                         .filter(template -> template.getType() == type)
                         .map(PunishTemplateDTO::getReason)
@@ -180,7 +180,7 @@ public final class PunishCommand {
             }
         }
         try {
-            return this.punishmentTemplatesApi.getAllTemplates(Pageable.builder().build())
+            return this.punishmentTemplatesApi.getAllTemplates(this.config.getTenantId(), Pageable.builder().build())
                     .stream()
                     .map(PunishTemplateDTO::getReason)
                     .filter(reason -> reason.toLowerCase().contains(s.toLowerCase()))

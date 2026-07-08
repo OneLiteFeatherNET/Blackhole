@@ -52,7 +52,9 @@ endpoints:
 # Every endpoint requires a valid JWT bearer token by default (Micronaut Security's
 # secure-by-default behavior); @Secured(SecurityRule.IS_ANONYMOUS) opts specific endpoints out
 # (currently only POST /auth/bootstrap). See net.onelitefeather.blackhole.backend.security for
-# the role model (Roles) and per-request tenant enforcement (TenantContext).
+# the role model (Roles). Tenant scoping is entirely URL-driven - the tenantId path variable on
+# each request is trusted as-is, not verified against anything on the token, so a role's JWT
+# works identically against every tenant.
 #
 # blackhole.auth.bootstrap-secret (env BLACKHOLE_AUTH_BOOTSTRAP_SECRET) gates the one-time
 # exchange for the first PLATFORM_ADMIN token; leaving it unset disables that endpoint entirely.

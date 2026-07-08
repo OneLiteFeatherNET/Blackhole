@@ -27,7 +27,6 @@ import net.onelitefeather.blackhole.backend.dto.EloProfileDTO;
 import net.onelitefeather.blackhole.backend.elo.ChatToxicityResult;
 import net.onelitefeather.blackhole.backend.elo.ChatToxicityService;
 import net.onelitefeather.blackhole.backend.security.Roles;
-import net.onelitefeather.blackhole.backend.security.TenantContext;
 
 import java.util.UUID;
 
@@ -44,19 +43,16 @@ public class EloController {
     private final ChatToxicityService chatToxicityService;
     private final EloProfileRepository profileRepository;
     private final EloEventRepository eventRepository;
-    private final TenantContext tenantContext;
 
     @Inject
     public EloController(
             ChatToxicityService chatToxicityService,
             EloProfileRepository profileRepository,
-            EloEventRepository eventRepository,
-            TenantContext tenantContext
+            EloEventRepository eventRepository
     ) {
         this.chatToxicityService = chatToxicityService;
         this.profileRepository = profileRepository;
         this.eventRepository = eventRepository;
-        this.tenantContext = tenantContext;
     }
 
     @Operation(
@@ -71,10 +67,9 @@ public class EloController {
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ChatToxicityResult.class))
     )
     @Validated
-    @Post("/chat")
-    public HttpResponse<ChatToxicityResult> chat(@Body @Valid ChatSignalDTO signal) {
-        this.tenantContext.requireTenantAccess(signal.tenantId());
-        ChatToxicityResult result = this.chatToxicityService.evaluate(signal.tenantId(), signal.owner(), signal.message());
+    @Post("/{tenantId}/chat")
+    public HttpResponse<ChatToxicityResult> chat(UUID tenantId, @Body @Valid ChatSignalDTO signal) {
+        ChatToxicityResult result = this.chatToxicityService.evaluate(tenantId, signal.owner(), signal.message());
         return HttpResponse.ok(result);
     }
 
@@ -93,7 +88,6 @@ public class EloController {
     @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF})
     @Get("/{tenantId}/{owner}")
     public HttpResponse<EloProfileDTO> getProfile(UUID tenantId, String owner) {
-        this.tenantContext.requireTenantAccess(tenantId);
         EloProfileEntity profile = this.profileRepository.findById(new PunishmentProfileId(tenantId, owner)).orElse(null);
         if (profile == null) {
             return HttpResponse.notFound();
@@ -118,7 +112,6 @@ public class EloController {
     @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF})
     @Get("/{tenantId}/{owner}/history")
     public HttpResponse<Page<EloEventDTO>> getHistory(UUID tenantId, String owner, Pageable pageable) {
-        this.tenantContext.requireTenantAccess(tenantId);
         Page<EloEventEntity> entries = this.eventRepository.findByTenantIdAndOwner(tenantId, owner, pageable);
         return HttpResponse.ok(entries.map(EloEventEntity::toDTO));
     }

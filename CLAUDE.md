@@ -75,12 +75,14 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
 - **`security/`** — Every endpoint requires a valid JWT bearer token by default (Micronaut
   Security's secure-by-default posture); `@Secured(SecurityRule.IS_ANONYMOUS)` opts out
   individual endpoints (currently only `POST /auth/bootstrap`). `Roles` defines the role model:
-  `PLATFORM_ADMIN` is the only cross-tenant role; every other role (`TENANT_ADMIN`, `STAFF`,
-  `PLAYER`, `SERVICE`) is implicitly scoped to one tenant via a `tenantId` claim on the JWT.
-  `TenantContext` reads that claim and enforces per-request tenant isolation — always route
-  tenant-scoped access checks through `TenantContext.requireTenantAccess(...)`, don't hand-roll
-  tenant comparisons in controllers.
-  - **Known gap**: JWTs currently carry no per-actor identity, only a tenant. Don't design new
+  `PLATFORM_ADMIN`, `TENANT_ADMIN`, `STAFF`, `PLAYER`, `SERVICE`. Tenant scoping is **not**
+  claim-based or verified in any way — every tenant-scoped endpoint takes a `tenantId` URL path
+  variable and trusts it directly, with nothing checking it against the caller's token. This is a
+  deliberate simplification: a role's JWT works identically against every tenant, so a leaked
+  `STAFF`/`SERVICE` token issued against one tenant works against all of them. There is no
+  `TenantContext` or equivalent gatekeeper — don't reintroduce one without discussing the
+  trade-off, and don't assume tenant isolation is enforced anywhere in this layer.
+  - **Known gap**: JWTs currently carry no per-actor identity, only a role. Don't design new
     features around a per-user identity claim existing yet — that's deferred to a dedicated
     future phase.
 - **`events/`** — Domain event bus over RabbitMQ. `BlackholeRabbitTopology` declares two
@@ -126,8 +128,10 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
 
 ## Cross-cutting conventions
 
-- **Multi-tenancy is load-bearing everywhere.** Any new controller/service touching
-  tenant-owned data must go through `TenantContext` for access checks, not ad-hoc role checks.
+- **Multi-tenancy is URL-driven, not enforced.** Any new controller/service touching tenant-owned
+  data takes a `tenantId` URL path variable and uses it directly for queries/writes — there is no
+  access-check gatekeeper to route through. Don't add one without discussing the trade-off (see
+  `security/` above); don't hand-roll a JWT-claim-based check either, since no tenant claim exists.
 - **SSRF hardening on user-controlled URLs.** Webhook delivery URLs are set by a `TENANT_ADMIN`,
   a less-trusted party than the platform operator in this shared-deployment model.
   `WebhookUrlValidator` enforces this (`blackhole.webhook.allow-private-networks` must stay

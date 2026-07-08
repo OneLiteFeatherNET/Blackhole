@@ -12,11 +12,11 @@ import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.backend.dto.SignalDTO;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
-import net.onelitefeather.blackhole.backend.security.TenantContext;
 
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Generic ingestion point for external signals (e.g. anticheat flags). Blackhole doesn't
@@ -31,22 +31,18 @@ import java.util.Map;
 public class SignalController {
 
     private final DomainEventPublisher eventPublisher;
-    private final TenantContext tenantContext;
 
     @Inject
-    public SignalController(DomainEventPublisher eventPublisher, TenantContext tenantContext) {
+    public SignalController(DomainEventPublisher eventPublisher) {
         this.eventPublisher = eventPublisher;
-        this.tenantContext = tenantContext;
     }
 
     @Operation(summary = "Submit an external signal", operationId = "submitSignal", tags = {"Signal"})
     @Validated
-    @Post("/")
-    public HttpResponse<?> submit(@Body @Valid SignalDTO signal) {
-        this.tenantContext.requireTenantAccess(signal.tenantId());
-
+    @Post("/{tenantId}")
+    public HttpResponse<?> submit(UUID tenantId, @Body @Valid SignalDTO signal) {
         Map<String, Object> payload = new HashMap<>(signal.payload());
-        payload.put("tenantId", signal.tenantId().toString());
+        payload.put("tenantId", tenantId.toString());
         payload.put("owner", signal.owner());
         payload.put("signalType", signal.signalType());
 

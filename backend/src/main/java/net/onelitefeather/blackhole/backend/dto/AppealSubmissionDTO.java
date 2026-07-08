@@ -7,12 +7,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-import java.util.UUID;
-
 @Serdeable
 @ReflectiveAccess
 public record AppealSubmissionDTO(
-        @NonNull UUID tenantId,
         @NonNull @NotBlank String punishmentIdentifier,
         @NonNull @NotBlank @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "appellantHash must be a sha-512 hash") String appellantHash,
         @NonNull @NotBlank @Size(max = 2000) String statement

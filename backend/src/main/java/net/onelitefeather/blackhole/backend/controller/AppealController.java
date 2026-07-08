@@ -31,7 +31,6 @@ import net.onelitefeather.blackhole.backend.dto.AppealStatus;
 import net.onelitefeather.blackhole.backend.dto.AppealSubmissionDTO;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.security.Roles;
-import net.onelitefeather.blackhole.backend.security.TenantContext;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -56,7 +55,6 @@ public class AppealController {
     private final AppealEligibilityService eligibilityService;
     private final AppealDecisionService decisionService;
     private final DomainEventPublisher eventPublisher;
-    private final TenantContext tenantContext;
 
     @Inject
     public AppealController(
@@ -64,15 +62,13 @@ public class AppealController {
             PunishmentRepository punishmentRepository,
             AppealEligibilityService eligibilityService,
             AppealDecisionService decisionService,
-            DomainEventPublisher eventPublisher,
-            TenantContext tenantContext
+            DomainEventPublisher eventPublisher
     ) {
         this.appealRepository = appealRepository;
         this.punishmentRepository = punishmentRepository;
         this.eligibilityService = eligibilityService;
         this.decisionService = decisionService;
         this.eventPublisher = eventPublisher;
-        this.tenantContext = tenantContext;
     }
 
     @Operation(
@@ -89,12 +85,10 @@ public class AppealController {
     @ApiResponse(responseCode = "404", description = "Punishment not found")
     @Secured({Roles.PLAYER, Roles.SERVICE})
     @Validated
-    @Post("/")
-    public HttpResponse<?> submit(@Body @Valid AppealSubmissionDTO submission) {
-        this.tenantContext.requireTenantAccess(submission.tenantId());
-
+    @Post("/{tenantId}")
+    public HttpResponse<?> submit(UUID tenantId, @Body @Valid AppealSubmissionDTO submission) {
         PunishmentEntity punishment = this.punishmentRepository.findById(submission.punishmentIdentifier()).orElse(null);
-        if (punishment == null || !submission.tenantId().equals(punishment.getTenantId())) {
+        if (punishment == null || !tenantId.equals(punishment.getTenantId())) {
             return HttpResponse.notFound();
         }
 
@@ -102,14 +96,14 @@ public class AppealController {
         long now = System.currentTimeMillis();
 
         AppealEntity appeal = new AppealEntity(
-                submission.tenantId(), punishment, submission.appellantHash(), submission.statement(),
+                tenantId, punishment, submission.appellantHash(), submission.statement(),
                 eligibility.eligible() ? AppealStatus.ELIGIBLE_PENDING_REVIEW : AppealStatus.INELIGIBLE,
                 eligibility.checklistSnapshot(), now, now, new HashMap<>()
         );
         AppealEntity saved = this.appealRepository.save(appeal);
 
         this.eventPublisher.publish("appeal.submitted", Map.of(
-                "tenantId", submission.tenantId().toString(),
+                "tenantId", tenantId.toString(),
                 "appealIdentifier", saved.getIdentifier().toString(),
                 "owner", submission.appellantHash(),
                 "punishmentIdentifier", submission.punishmentIdentifier(),
@@ -134,11 +128,9 @@ public class AppealController {
             )
     )
     @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF})
-    @Get("/")
-    public HttpResponse<Page<AppealDTO>> getAll(Pageable pageable) {
-        Page<AppealEntity> entities = this.tenantContext.isPlatformAdmin()
-                ? this.appealRepository.findAll(pageable)
-                : this.appealRepository.findByTenantId(this.tenantContext.currentTenantId().orElseThrow(), pageable);
+    @Get("/{tenantId}")
+    public HttpResponse<Page<AppealDTO>> getAll(UUID tenantId, Pageable pageable) {
+        Page<AppealEntity> entities = this.appealRepository.findByTenantId(tenantId, pageable);
         return HttpResponse.ok(entities.map(AppealEntity::toDTO));
     }
 
@@ -162,8 +154,6 @@ public class AppealController {
     @Validated
     @Post("/{tenantId}/{identifier}/review")
     public HttpResponse<?> review(UUID tenantId, UUID identifier, @Body @Valid AppealReviewDTO review) {
-        this.tenantContext.requireTenantAccess(tenantId);
-
         AppealEntity appeal = this.appealRepository.findById(identifier).orElse(null);
         if (appeal == null || !tenantId.equals(appeal.getTenantId())) {
             return HttpResponse.notFound();

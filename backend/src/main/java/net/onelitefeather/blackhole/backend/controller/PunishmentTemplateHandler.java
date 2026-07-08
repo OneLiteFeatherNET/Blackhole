@@ -20,8 +20,8 @@ import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentTemplateEntity;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.dto.PunishTemplateDTO;
+import net.onelitefeather.blackhole.backend.dto.PunishTemplateRequestDTO;
 import net.onelitefeather.blackhole.backend.security.Roles;
-import net.onelitefeather.blackhole.backend.security.TenantContext;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -38,18 +38,15 @@ import java.util.UUID;
 public class PunishmentTemplateHandler {
 
     private final PunishmentTemplateRepository templateRepository;
-    private final TenantContext tenantContext;
 
     /**
      * Create a new PunishmentTemplateHandler
      *
      * @param templateRepository the repository to use
-     * @param tenantContext      enforces that callers only touch their own tenant's templates
      */
     @Inject
-    public PunishmentTemplateHandler(PunishmentTemplateRepository templateRepository, TenantContext tenantContext) {
+    public PunishmentTemplateHandler(PunishmentTemplateRepository templateRepository) {
         this.templateRepository = templateRepository;
-        this.tenantContext = tenantContext;
     }
 
     /**
@@ -80,13 +77,12 @@ public class PunishmentTemplateHandler {
             responseCode = "400",
             description = "Invalid template data"
     )
-    @Post("/")
-    public HttpResponse<PunishTemplateDTO> addTemplate(@Valid @Body PunishTemplateDTO template) {
-        this.tenantContext.requireTenantAccess(template.tenantId());
+    @Post("/{tenantId}")
+    public HttpResponse<PunishTemplateDTO> addTemplate(UUID tenantId, @Valid @Body PunishTemplateRequestDTO template) {
         if (template.identifier() != null) {
             return HttpResponse.notAllowed();
         }
-        PunishmentTemplateEntity dbEntity = PunishmentTemplateEntity.toEntity(template);
+        PunishmentTemplateEntity dbEntity = PunishmentTemplateEntity.toEntity(tenantId, template);
         PunishmentTemplateEntity savedEntity = this.templateRepository.save(dbEntity);
         return HttpResponse.ok(savedEntity.toDTO());
     }
@@ -120,7 +116,7 @@ public class PunishmentTemplateHandler {
             description = "Invalid template data"
     )
     @Post(value = "/update")
-    public HttpResponse<PunishTemplateDTO> updateTemplate(@Valid @Body PunishTemplateDTO template) {
+    public HttpResponse<PunishTemplateDTO> updateTemplate(@Valid @Body PunishTemplateRequestDTO template) {
         if (template.identifier() == null) {
             return HttpResponse.badRequest();
         }
@@ -128,15 +124,10 @@ public class PunishmentTemplateHandler {
         if (existing == null) {
             return HttpResponse.notFound();
         }
-        // Check access against the EXISTING row's tenant, not the client-supplied one - otherwise
-        // a caller could claim their own tenantId while targeting another tenant's template by
-        // identifier, then have update() overwrite it (including reassigning its tenantId).
-        this.tenantContext.requireTenantAccess(existing.getTenantId());
-        if (!existing.getTenantId().equals(template.tenantId())) {
-            return HttpResponse.badRequest();
-        }
 
-        PunishmentTemplateEntity savedEntity = this.templateRepository.update(PunishmentTemplateEntity.toEntity(template));
+        PunishmentTemplateEntity savedEntity = this.templateRepository.update(
+                PunishmentTemplateEntity.toEntity(existing.getTenantId(), template)
+        );
         return HttpResponse.ok(savedEntity.toDTO());
     }
 
@@ -171,7 +162,6 @@ public class PunishmentTemplateHandler {
         if (entity == null) {
             return HttpResponse.notFound();
         }
-        this.tenantContext.requireTenantAccess(entity.getTenantId());
         this.templateRepository.delete(entity);
 
         return HttpResponse.ok(entity.toDTO());
@@ -199,11 +189,9 @@ public class PunishmentTemplateHandler {
                     )
             )
     )
-    @Get("/")
-    public HttpResponse<Page<PunishTemplateDTO>> getAll(Pageable pageable) {
-        Page<PunishmentTemplateEntity> entities = this.tenantContext.isPlatformAdmin()
-                ? this.templateRepository.findAll(pageable)
-                : this.templateRepository.findByTenantId(this.tenantContext.currentTenantId().orElseThrow(), pageable);
+    @Get("/tenant/{tenantId}")
+    public HttpResponse<Page<PunishTemplateDTO>> getAll(UUID tenantId, Pageable pageable) {
+        Page<PunishmentTemplateEntity> entities = this.templateRepository.findByTenantId(tenantId, pageable);
         return HttpResponse.ok(entities.map(PunishmentTemplateEntity::toDTO));
     }
 
@@ -234,7 +222,6 @@ public class PunishmentTemplateHandler {
     @Get("/{identifier}")
     public HttpResponse<PunishTemplateDTO> get(UUID identifier) {
         Optional<PunishmentTemplateEntity> entity = this.templateRepository.findById(identifier);
-        entity.ifPresent(e -> this.tenantContext.requireTenantAccess(e.getTenantId()));
         return entity.map(PunishmentTemplateEntity::toDTO)
                 .map(HttpResponse::ok)
                 .orElseGet(HttpResponse::notFound);

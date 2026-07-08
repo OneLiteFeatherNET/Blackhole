@@ -110,7 +110,7 @@ public final class PlayerLoginListener {
     private void recordEvasionSignal(@NotNull Player player, @NotNull String uuidHash) {
         String ip = player.getRemoteAddress().getAddress().getHostAddress();
         try {
-            this.evasionApi.recordEvasionSighting(new EvasionRecordDTO().tenantId(this.config.getTenantId()).owner(uuidHash).ip(ip));
+            this.evasionApi.recordEvasionSighting(this.config.getTenantId(), new EvasionRecordDTO().owner(uuidHash).ip(ip));
         } catch (ApiException e) {
             LOGGER.debug("Evasion signal not recorded for {}: {}", player.getUsername(), e.getMessage());
         }
