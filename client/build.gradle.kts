@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.openapi.generator)
 }
 
+group = "net.onelitefeather"
+
 val outDir = layout.buildDirectory.dir("generated/openapi")
 
 dependencies {
@@ -86,7 +88,7 @@ publishing {
         from(components["java"])
         version = rootProject.version as String
         artifactId = "blackhole-client"
-        groupId = rootProject.group as String
+        groupId = project.group as String
         pom {
             name = "Blackhole Client API"
             description = "The client for Blackhole."
