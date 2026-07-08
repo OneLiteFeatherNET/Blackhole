@@ -95,47 +95,6 @@ paths:
         "409":
           description: "Appeal is not awaiting review, or the punishment is no longer\
             \ active"
-  /auth/bootstrap:
-    post:
-      tags:
-      - Auth
-      summary: Bootstrap the first admin token
-      description: Exchanges the deployment's bootstrap secret for an ADMIN token.
-      operationId: bootstrap
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/BootstrapRequestDTO"
-        required: true
-      responses:
-        "200":
-          description: bootstrap 200 response
-          content:
-            application/json:
-              schema:
-                type: object
-  /auth/token:
-    post:
-      tags:
-      - Auth
-      summary: Issue a token
-      description: Issues a token for a given role. Requires an authenticated ADMIN
-        caller.
-      operationId: issueToken
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/IssueTokenRequestDTO"
-        required: true
-      responses:
-        "200":
-          description: issueToken 200 response
-          content:
-            application/json:
-              schema:
-                type: object
   /connector:
     get:
       tags:
@@ -174,27 +133,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ConnectorRegistrationCreatedDTO"
-  /connector/oauth2/token:
-    post:
-      tags:
-      - Connector
-      summary: Exchange connector client credentials for a token
-      description: OAuth2 client-credentials style exchange. Returns a token scoped
-        to the connector's granted scopes.
-      operationId: connectorToken
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ConnectorTokenRequestDTO"
-        required: true
-      responses:
-        "200":
-          description: connectorToken 200 response
-          content:
-            application/json:
-              schema:
-                type: object
   /connector/subscription:
     post:
       tags:
@@ -1044,14 +982,6 @@ components:
           maxLength: 2000
           minLength: 1
           type: string
-    BootstrapRequestDTO:
-      required:
-      - secret
-      type: object
-      properties:
-        secret:
-          minLength: 1
-          type: string
     ChatSignalDTO:
       required:
       - message
@@ -1141,20 +1071,6 @@ components:
       enum:
       - ACTIVE
       - SUSPENDED
-    ConnectorTokenRequestDTO:
-      required:
-      - clientId
-      - clientSecret
-      type: object
-      properties:
-        clientId:
-          minLength: 1
-          type: string
-        clientSecret:
-          minLength: 1
-          type: string
-      description: OAuth2 client-credentials style exchange for a connector-scoped
-        token.
     EloEventDTO:
       required:
       - createdAt
@@ -1324,14 +1240,6 @@ components:
           items:
             type: string
         deliveryUrl:
-          minLength: 1
-          type: string
-    IssueTokenRequestDTO:
-      required:
-      - role
-      type: object
-      properties:
-        role:
           minLength: 1
           type: string
     Page_ConnectorRegistrationDTO_:
