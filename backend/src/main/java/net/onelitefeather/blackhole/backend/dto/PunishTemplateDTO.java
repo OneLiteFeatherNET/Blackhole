@@ -20,6 +20,7 @@ public record PunishTemplateDTO(
         @NonNull @NotBlank Map<String, Object> metaData,
         @NonNull @NotBlank String reason,
         @NonNull @NotBlank PunishType type,
+        int eloDelta,
         @Nullable UUID identifier
 ) implements Metadata, Durationable {
 

@@ -185,7 +185,7 @@ public class VanillaImportService {
     private PunishmentTemplateEntity findOrCreateTemplate(UUID tenantId, String reason, Map<String, PunishmentTemplateEntity> templateCache) {
         return templateCache.computeIfAbsent(reason, r -> this.templateRepository.findByTenantIdAndReasonAndType(tenantId, r, PunishType.NETWORK)
                 .orElseGet(() -> this.templateRepository.save(new PunishmentTemplateEntity(
-                        null, tenantId, r, PunishType.NETWORK, Map.of("imported", true, "importSource", "vanilla")
+                        null, tenantId, r, PunishType.NETWORK, 0, Map.of("imported", true, "importSource", "vanilla")
                 ))));
     }
 
