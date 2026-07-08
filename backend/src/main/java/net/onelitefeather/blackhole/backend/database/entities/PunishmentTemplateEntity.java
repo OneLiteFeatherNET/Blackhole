@@ -33,6 +33,14 @@ public class PunishmentTemplateEntity {
 
     private PunishType type;
 
+    /**
+     * The Elo delta applied to the offender when this template is applied via
+     * {@code PunishmentApplicationService.apply(...)} - {@code 0} means this template has no
+     * Elo effect (the default for pre-existing templates, and the recommended value for
+     * permanent-ban templates, since dropping Elo further after a permanent ban is moot).
+     */
+    private int eloDelta;
+
     @Convert(converter = MapStringObjectConverter.class)
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> metaData = new HashMap<>();
@@ -44,7 +52,7 @@ public class PunishmentTemplateEntity {
      * @return the converted PunishmentTemplateEntity
      */
     public static PunishmentTemplateEntity toEntity(PunishTemplateDTO template) {
-        return new PunishmentTemplateEntity(template.identifier(), template.tenantId(), template.reason(), template.type(), template.metaData());
+        return new PunishmentTemplateEntity(template.identifier(), template.tenantId(), template.reason(), template.type(), template.eloDelta(), template.metaData());
     }
 
     /**
@@ -61,13 +69,15 @@ public class PunishmentTemplateEntity {
      * @param tenantId   the tenant the template belongs to
      * @param reason     the reason of the template
      * @param type       the type of the template
+     * @param eloDelta   the Elo delta applied when this template is applied ({@code 0} = no effect)
      * @param metaData   the metadata of the template
      */
-    public PunishmentTemplateEntity(UUID identifier, UUID tenantId, String reason, PunishType type, Map<String, Object> metaData) {
+    public PunishmentTemplateEntity(UUID identifier, UUID tenantId, String reason, PunishType type, int eloDelta, Map<String, Object> metaData) {
         this.identifier = identifier;
         this.tenantId = tenantId;
         this.reason = reason;
         this.type = type;
+        this.eloDelta = eloDelta;
         this.metaData = metaData;
     }
 
@@ -108,6 +118,15 @@ public class PunishmentTemplateEntity {
     }
 
     /**
+     * Get the Elo delta applied when this template is applied.
+     *
+     * @return the Elo delta ({@code 0} = no effect)
+     */
+    public int getEloDelta() {
+        return eloDelta;
+    }
+
+    /**
      * Get the metadata of the punishment template .
      *
      * @return the metadata of the template
@@ -127,6 +146,7 @@ public class PunishmentTemplateEntity {
                 this.metaData,
                 this.reason,
                 this.type,
+                this.eloDelta,
                 this.identifier
         );
     }

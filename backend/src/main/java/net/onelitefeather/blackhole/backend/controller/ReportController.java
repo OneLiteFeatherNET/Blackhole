@@ -25,7 +25,9 @@ import net.onelitefeather.blackhole.backend.dto.EloTrack;
 import net.onelitefeather.blackhole.backend.dto.ReportDTO;
 import net.onelitefeather.blackhole.backend.dto.ReportResolutionDTO;
 import net.onelitefeather.blackhole.backend.dto.ReportStatus;
+import net.onelitefeather.blackhole.backend.elo.EffectiveEloSettings;
 import net.onelitefeather.blackhole.backend.elo.EloService;
+import net.onelitefeather.blackhole.backend.elo.TenantEloSettingsService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentApplicationService;
 import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
@@ -67,6 +69,7 @@ public class ReportController {
     private final DomainEventPublisher eventPublisher;
     private final PunishmentApplicationService punishmentApplicationService;
     private final EloService eloService;
+    private final TenantEloSettingsService tenantEloSettingsService;
     private final int rateLimitMaxReports;
     private final int rateLimitMaxReportsPerTenant;
     private final Duration rateLimitWindow;
@@ -79,6 +82,7 @@ public class ReportController {
             DomainEventPublisher eventPublisher,
             PunishmentApplicationService punishmentApplicationService,
             EloService eloService,
+            TenantEloSettingsService tenantEloSettingsService,
             @Value("${blackhole.report.rate-limit.max-reports:5}") int rateLimitMaxReports,
             @Value("${blackhole.report.rate-limit.max-reports-per-tenant:50}") int rateLimitMaxReportsPerTenant,
             @Value("${blackhole.report.rate-limit.window:PT10M}") Duration rateLimitWindow,
@@ -89,6 +93,7 @@ public class ReportController {
         this.eventPublisher = eventPublisher;
         this.punishmentApplicationService = punishmentApplicationService;
         this.eloService = eloService;
+        this.tenantEloSettingsService = tenantEloSettingsService;
         this.rateLimitMaxReports = rateLimitMaxReports;
         this.rateLimitMaxReportsPerTenant = rateLimitMaxReportsPerTenant;
         this.rateLimitWindow = rateLimitWindow;
@@ -231,6 +236,18 @@ public class ReportController {
                         tenantId, report.getReportedHash(), track, this.reportActionedDelta, EloReasonCode.REPORT_ACTIONED, null,
                         Map.of("reportIdentifier", identifier.toString(), "category", report.getCategory().toString())
                 );
+
+                // resolution.punishmentTemplateId() != null implies a punishment was actually
+                // applied above (an empty apply() result returns 404 before this point is
+                // reached) - a report only earns its reporter Elo when it demonstrably banned
+                // someone, not merely when a staff member marked it ACTIONED without acting.
+                if (resolution.punishmentTemplateId() != null) {
+                    EffectiveEloSettings settings = this.tenantEloSettingsService.resolve(tenantId);
+                    this.eloService.applyDelta(
+                            tenantId, report.getReporterHash(), track, settings.reportRewardDelta(), EloReasonCode.REPORT_REWARDED, null,
+                            Map.of("reportIdentifier", identifier.toString(), "category", report.getCategory().toString())
+                    );
+                }
             }
         }
 

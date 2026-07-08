@@ -66,10 +66,9 @@ public class EloService {
     private final PunishmentTemplateRepository templateRepository;
     private final PunishmentApplicationService punishmentApplicationService;
     private final DomainEventPublisher eventPublisher;
+    private final TenantEloSettingsService tenantEloSettingsService;
 
-    private final int baseline;
     private final int softThreshold;
-    private final int hardThreshold;
     private final int decayRecoveryPerDay;
     private final long decayIntervalMs;
     private final String chatSoftDuration;
@@ -81,9 +80,8 @@ public class EloService {
             PunishmentTemplateRepository templateRepository,
             PunishmentApplicationService punishmentApplicationService,
             DomainEventPublisher eventPublisher,
-            @Value("${blackhole.elo.baseline:1000}") int baseline,
+            TenantEloSettingsService tenantEloSettingsService,
             @Value("${blackhole.elo.soft-threshold:700}") int softThreshold,
-            @Value("${blackhole.elo.hard-threshold:300}") int hardThreshold,
             @Value("${blackhole.elo.decay.recovery-per-day:10}") int decayRecoveryPerDay,
             @Value("${blackhole.elo.decay.interval-ms:86400000}") long decayIntervalMs,
             @Value("${blackhole.elo.auto-ban.chat-soft-duration:PT24H}") String chatSoftDuration,
@@ -94,9 +92,8 @@ public class EloService {
         this.templateRepository = templateRepository;
         this.punishmentApplicationService = punishmentApplicationService;
         this.eventPublisher = eventPublisher;
-        this.baseline = baseline;
+        this.tenantEloSettingsService = tenantEloSettingsService;
         this.softThreshold = softThreshold;
-        this.hardThreshold = hardThreshold;
         this.decayRecoveryPerDay = decayRecoveryPerDay;
         this.decayIntervalMs = decayIntervalMs;
         this.chatSoftDuration = chatSoftDuration;
@@ -127,14 +124,15 @@ public class EloService {
             Map<String, Object> metaData
     ) {
         long now = System.currentTimeMillis();
+        EffectiveEloSettings settings = this.tenantEloSettingsService.resolve(tenantId);
         PunishmentProfileId id = new PunishmentProfileId(tenantId, owner);
         EloProfileEntity profile = this.profileRepository.findById(id).orElse(null);
         boolean isNew = profile == null;
         if (isNew) {
-            profile = new EloProfileEntity(tenantId, owner, this.baseline, this.baseline, now, now, new HashMap<>());
+            profile = new EloProfileEntity(tenantId, owner, settings.baseEloChat(), settings.baseEloGameplay(), now, now, new HashMap<>());
         }
 
-        reconcileDecay(profile, track, now);
+        reconcileDecay(profile, track, now, settings.baseElo(track));
 
         int previousScore = profile.getScore(track);
         int newScore = previousScore + delta;
@@ -148,7 +146,7 @@ public class EloService {
                 metaData == null ? new HashMap<>() : metaData
         ));
 
-        checkThresholds(tenantId, owner, track, previousScore, newScore, reasonCode);
+        checkThresholds(tenantId, owner, track, previousScore, newScore, reasonCode, settings);
 
         return savedProfile;
     }
@@ -161,9 +159,9 @@ public class EloService {
      *
      * @return {@code true} if any decay was applied
      */
-    private boolean reconcileDecay(EloProfileEntity profile, EloTrack track, long now) {
+    private boolean reconcileDecay(EloProfileEntity profile, EloTrack track, long now, int baseline) {
         int currentScore = profile.getScore(track);
-        if (currentScore >= this.baseline) {
+        if (currentScore >= baseline) {
             return false;
         }
         long lastUpdated = profile.getUpdatedAt(track);
@@ -171,7 +169,7 @@ public class EloService {
         if (daysElapsed <= 0) {
             return false;
         }
-        int recovery = (int) Math.min((long) this.decayRecoveryPerDay * daysElapsed, (long) (this.baseline - currentScore));
+        int recovery = (int) Math.min((long) this.decayRecoveryPerDay * daysElapsed, (long) (baseline - currentScore));
         if (recovery <= 0) {
             return false;
         }
@@ -195,8 +193,9 @@ public class EloService {
      */
     public boolean reconcileDecayForProfile(EloProfileEntity profile) {
         long now = System.currentTimeMillis();
-        boolean chatChanged = reconcileDecay(profile, EloTrack.CHAT, now);
-        boolean gameplayChanged = reconcileDecay(profile, EloTrack.GAMEPLAY, now);
+        EffectiveEloSettings settings = this.tenantEloSettingsService.resolve(profile.getTenantId());
+        boolean chatChanged = reconcileDecay(profile, EloTrack.CHAT, now, settings.baseEloChat());
+        boolean gameplayChanged = reconcileDecay(profile, EloTrack.GAMEPLAY, now, settings.baseEloGameplay());
         if (chatChanged || gameplayChanged) {
             this.profileRepository.update(profile);
             return true;
@@ -209,16 +208,54 @@ public class EloService {
      * otherwise a player already below the hard threshold would get re-banned on every
      * subsequent violation.
      */
-    private void checkThresholds(UUID tenantId, String owner, EloTrack track, int previousScore, int newScore, EloReasonCode triggeringReasonCode) {
-        if (previousScore >= this.hardThreshold && newScore < this.hardThreshold) {
-            triggerAutoBan(tenantId, owner, track, TIER_HARD, newScore, triggeringReasonCode);
+    private void checkThresholds(UUID tenantId, String owner, EloTrack track, int previousScore, int newScore, EloReasonCode triggeringReasonCode, EffectiveEloSettings settings) {
+        int permaBanThreshold = settings.permaBanThreshold(track);
+        if (previousScore >= permaBanThreshold && newScore < permaBanThreshold) {
+            triggerPermaBan(tenantId, owner, track, newScore, triggeringReasonCode, settings);
         } else if (previousScore >= this.softThreshold && newScore < this.softThreshold) {
-            triggerAutoBan(tenantId, owner, track, TIER_SOFT, newScore, triggeringReasonCode);
+            triggerSoftAutoBan(tenantId, owner, track, newScore, triggeringReasonCode);
         }
     }
 
-    private void triggerAutoBan(UUID tenantId, String owner, EloTrack track, String tier, int resultingScore, EloReasonCode triggeringReasonCode) {
-        PunishmentTemplateEntity template = findOrCreateAutoTemplate(tenantId, track, tier);
+    /**
+     * Applies the tenant's explicitly-configured perma-ban template for this track. Unlike the
+     * soft tier, this deliberately does not fall back to auto-generating one - a tenant that
+     * hasn't set up a perma-ban template yet should see enforcement skipped (logged, and visible
+     * via {@code templateConfigured: false} on the published event) rather than have the system
+     * silently invent a ban with unreviewed wording/duration for its most severe consequence.
+     */
+    private void triggerPermaBan(UUID tenantId, String owner, EloTrack track, int resultingScore, EloReasonCode triggeringReasonCode, EffectiveEloSettings settings) {
+        UUID templateId = settings.permaBanTemplateId(track);
+        boolean banApplied = false;
+
+        if (templateId == null) {
+            LOGGER.warn("Tenant {} crossed the perma-ban threshold on track {} but has not configured a perma-ban template; skipping auto-ban", tenantId, track);
+        } else {
+            PunishmentTemplateEntity template = this.templateRepository.findById(templateId).orElse(null);
+            if (template == null || !tenantId.equals(template.getTenantId())) {
+                LOGGER.warn("Tenant {} crossed the perma-ban threshold on track {} but its configured perma-ban template {} no longer belongs to it; skipping auto-ban", tenantId, track, templateId);
+            } else {
+                Map<String, Object> extraMetaData = Map.of("eloTriggerReasonCode", triggeringReasonCode.toString());
+                var applied = this.punishmentApplicationService.apply(tenantId, owner, templateId, SYSTEM_ELO_SOURCE, extraMetaData);
+                banApplied = applied.isPresent();
+                if (!banApplied) {
+                    LOGGER.error("ELO perma-ban failed to apply configured template {} for tenant {}: template vanished after lookup", templateId, tenantId);
+                }
+            }
+        }
+
+        this.eventPublisher.publish("elo.threshold_crossed", Map.of(
+                "tenantId", tenantId.toString(),
+                "owner", owner,
+                "track", track.toString(),
+                "tier", TIER_HARD,
+                "resultingScore", resultingScore,
+                "templateConfigured", banApplied
+        ));
+    }
+
+    private void triggerSoftAutoBan(UUID tenantId, String owner, EloTrack track, int resultingScore, EloReasonCode triggeringReasonCode) {
+        PunishmentTemplateEntity template = findOrCreateSoftAutoTemplate(tenantId, track);
         Map<String, Object> extraMetaData = Map.of("eloTriggerReasonCode", triggeringReasonCode.toString());
         var applied = this.punishmentApplicationService.apply(tenantId, owner, template.getIdentifier(), SYSTEM_ELO_SOURCE, extraMetaData);
         if (applied.isEmpty()) {
@@ -229,31 +266,28 @@ public class EloService {
                 "tenantId", tenantId.toString(),
                 "owner", owner,
                 "track", track.toString(),
-                "tier", tier,
+                "tier", TIER_SOFT,
                 "resultingScore", resultingScore
         ));
     }
 
-    private PunishmentTemplateEntity findOrCreateAutoTemplate(UUID tenantId, EloTrack track, String tier) {
-        String reason = autoTemplateReason(track, tier);
-        PunishType type = (track == EloTrack.CHAT && TIER_SOFT.equals(tier)) ? PunishType.CHAT : PunishType.NETWORK;
+    private PunishmentTemplateEntity findOrCreateSoftAutoTemplate(UUID tenantId, EloTrack track) {
+        String reason = autoTemplateReason(track);
+        PunishType type = track == EloTrack.CHAT ? PunishType.CHAT : PunishType.NETWORK;
         return this.templateRepository.findByTenantIdAndReasonAndType(tenantId, reason, type)
                 .orElseGet(() -> {
                     Map<String, Object> metaData = new HashMap<>();
                     metaData.put("auto", true);
                     metaData.put("eloTriggered", true);
-                    if (TIER_SOFT.equals(tier)) {
-                        metaData.put(Durationable.META_DATA_KEY_DURATION, track == EloTrack.CHAT ? this.chatSoftDuration : this.gameplaySoftDuration);
-                    }
-                    return this.templateRepository.save(new PunishmentTemplateEntity(null, tenantId, reason, type, metaData));
+                    metaData.put(Durationable.META_DATA_KEY_DURATION, track == EloTrack.CHAT ? this.chatSoftDuration : this.gameplaySoftDuration);
+                    return this.templateRepository.save(new PunishmentTemplateEntity(null, tenantId, reason, type, 0, metaData));
                 });
     }
 
-    private String autoTemplateReason(EloTrack track, String tier) {
-        boolean soft = TIER_SOFT.equals(tier);
+    private String autoTemplateReason(EloTrack track) {
         return switch (track) {
-            case CHAT -> soft ? "Automatic chat timeout (ELO system)" : "Automatic permanent ban (ELO system, chat)";
-            case GAMEPLAY -> soft ? "Automatic temporary ban (ELO system, gameplay)" : "Automatic permanent ban (ELO system, gameplay)";
+            case CHAT -> "Automatic chat timeout (ELO system)";
+            case GAMEPLAY -> "Automatic temporary ban (ELO system, gameplay)";
         };
     }
 }
