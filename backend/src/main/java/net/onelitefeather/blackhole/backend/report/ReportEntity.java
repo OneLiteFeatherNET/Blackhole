@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.database.entities;
+package net.onelitefeather.blackhole.backend.report;
 
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.CollectionTable;
@@ -13,9 +13,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
-import net.onelitefeather.blackhole.backend.dto.ReportCategory;
-import net.onelitefeather.blackhole.backend.dto.ReportDTO;
-import net.onelitefeather.blackhole.backend.dto.ReportStatus;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 

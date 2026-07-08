@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.dto;
+package net.onelitefeather.blackhole.backend.report;
 
 /**
  * What kind of behavior a report is about.

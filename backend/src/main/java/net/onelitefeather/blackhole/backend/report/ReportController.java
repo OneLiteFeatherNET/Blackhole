@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.controller;
+package net.onelitefeather.blackhole.backend.report;
 
 import io.micronaut.context.annotation.Value;
 import io.micronaut.data.model.Page;
@@ -18,12 +18,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
-import net.onelitefeather.blackhole.backend.database.entities.ReportEntity;
-import net.onelitefeather.blackhole.backend.database.repository.ReportRepository;
-import net.onelitefeather.blackhole.backend.dto.ReportDTO;
-import net.onelitefeather.blackhole.backend.dto.ReportRequestDTO;
-import net.onelitefeather.blackhole.backend.dto.ReportResolutionDTO;
-import net.onelitefeather.blackhole.backend.dto.ReportStatus;
+import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.EloService;
 import net.onelitefeather.blackhole.backend.elo.EloTrack;
