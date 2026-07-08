@@ -33,7 +33,7 @@ import java.util.UUID;
  * @version 1.0.0
  * @since 1.0.0
  */
-@Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF, Roles.SERVICE})
+@Secured({Roles.ADMIN, Roles.STAFF, Roles.SERVICE})
 @Controller(value = ApiVersion.V1 + "/template")
 public class PunishmentTemplateHandler {
 
@@ -77,12 +77,12 @@ public class PunishmentTemplateHandler {
             responseCode = "400",
             description = "Invalid template data"
     )
-    @Post("/{tenantId}")
-    public HttpResponse<PunishTemplateDTO> addTemplate(UUID tenantId, @Valid @Body PunishTemplateRequestDTO template) {
+    @Post("/")
+    public HttpResponse<PunishTemplateDTO> addTemplate(@Valid @Body PunishTemplateRequestDTO template) {
         if (template.identifier() != null) {
             return HttpResponse.notAllowed();
         }
-        PunishmentTemplateEntity dbEntity = PunishmentTemplateEntity.toEntity(tenantId, template);
+        PunishmentTemplateEntity dbEntity = PunishmentTemplateEntity.toEntity(template);
         PunishmentTemplateEntity savedEntity = this.templateRepository.save(dbEntity);
         return HttpResponse.ok(savedEntity.toDTO());
     }
@@ -126,7 +126,7 @@ public class PunishmentTemplateHandler {
         }
 
         PunishmentTemplateEntity savedEntity = this.templateRepository.update(
-                PunishmentTemplateEntity.toEntity(existing.getTenantId(), template)
+                PunishmentTemplateEntity.toEntity(template)
         );
         return HttpResponse.ok(savedEntity.toDTO());
     }
@@ -189,9 +189,9 @@ public class PunishmentTemplateHandler {
                     )
             )
     )
-    @Get("/tenant/{tenantId}")
-    public HttpResponse<Page<PunishTemplateDTO>> getAll(UUID tenantId, Pageable pageable) {
-        Page<PunishmentTemplateEntity> entities = this.templateRepository.findByTenantId(tenantId, pageable);
+    @Get("/")
+    public HttpResponse<Page<PunishTemplateDTO>> getAll(Pageable pageable) {
+        Page<PunishmentTemplateEntity> entities = this.templateRepository.findAll(pageable);
         return HttpResponse.ok(entities.map(PunishmentTemplateEntity::toDTO));
     }
 

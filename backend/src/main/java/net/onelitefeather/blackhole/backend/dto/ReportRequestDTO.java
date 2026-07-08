@@ -15,8 +15,7 @@ import java.util.UUID;
 /**
  * Request body for submitting a player report. {@code status}/{@code createdAt}/
  * {@code updatedAt}/{@code resolvedBy}/{@code resolutionNote} are server-controlled and have no
- * place here - see {@link ReportDTO}, the response type, for those. The tenant is taken from the
- * URL, not this body.
+ * place here - see {@link ReportDTO}, the response type, for those.
  *
  * @param reporterHash       SHA-512 hash of the reporting player
  * @param reportedHash       SHA-512 hash of the reported player

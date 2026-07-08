@@ -6,7 +6,6 @@ import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.cache.CacheInvalidationPublisher;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileEntity;
-import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileId;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentTemplateEntity;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentRepository;
@@ -76,7 +75,7 @@ public class VanillaImportService {
         this.cacheInvalidationPublisher = cacheInvalidationPublisher;
     }
 
-    public VanillaImportResultDTO importVanillaBans(UUID tenantId, byte[] bannedPlayersJson, byte[] bannedIpsJson, boolean dryRun) throws IOException {
+    public VanillaImportResultDTO importVanillaBans(byte[] bannedPlayersJson, byte[] bannedIpsJson, boolean dryRun) throws IOException {
         List<VanillaBanEntry> entries = this.jsonMapper.readValue(bannedPlayersJson, Argument.listOf(VanillaBanEntry.class));
 
         int imported = 0;
@@ -105,8 +104,7 @@ public class VanillaImportService {
             }
 
             String owner = UUIDHasher.hash(rawUuid);
-            PunishmentProfileId profileId = new PunishmentProfileId(tenantId, owner);
-            PunishmentProfileEntity profile = this.profileRepository.findById(profileId).orElse(null);
+            PunishmentProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
 
             if (profile != null && profile.getActiveBan() != null) {
                 skippedExisting++;
@@ -120,7 +118,7 @@ public class VanillaImportService {
 
             long createdMillis = parseCreated(entry.created());
             String reason = (entry.reason() == null || entry.reason().isBlank()) ? DEFAULT_REASON : entry.reason();
-            PunishmentTemplateEntity template = findOrCreateTemplate(tenantId, reason, templateCache);
+            PunishmentTemplateEntity template = findOrCreateTemplate(reason, templateCache);
 
             Map<String, Object> metaData = new HashMap<>();
             metaData.put(Metadata.META_DATA_KEY_CREATION_DATE, createdMillis);
@@ -128,7 +126,7 @@ public class VanillaImportService {
             expirationMillis.ifPresent(exp -> metaData.put(Expirable.META_DATA_KEY_EXPIRATION_DATE, exp));
 
             PunishmentEntity punishment = new PunishmentEntity(
-                    IdGenerator.generateId(), tenantId, SYSTEM_IMPORT_SOURCE, PunishType.NETWORK, null, template, metaData
+                    IdGenerator.generateId(), SYSTEM_IMPORT_SOURCE, PunishType.NETWORK, null, template, metaData
             );
             PunishmentEntity savedPunishment = this.punishmentRepository.save(punishment);
 
@@ -142,9 +140,9 @@ public class VanillaImportService {
                 } else {
                     activeBan = savedPunishment;
                 }
-                profile = new PunishmentProfileEntity(tenantId, owner, null, activeBan, history, new HashMap<>());
+                profile = new PunishmentProfileEntity(owner, null, activeBan, history, new HashMap<>());
                 this.profileRepository.save(profile);
-                this.eventPublisher.publish("profile.created", Map.of("tenantId", tenantId.toString(), "owner", owner));
+                this.eventPublisher.publish("profile.created", Map.of("owner", owner));
             } else {
                 if (alreadyExpired) {
                     profile.getHistory().add(savedPunishment);
@@ -154,9 +152,8 @@ public class VanillaImportService {
                 this.profileRepository.update(profile);
             }
 
-            this.cacheInvalidationPublisher.invalidate(tenantId, owner);
+            this.cacheInvalidationPublisher.invalidate(owner);
             this.eventPublisher.publish("punishment.created", Map.of(
-                    "tenantId", tenantId.toString(),
                     "owner", owner,
                     "punishmentIdentifier", savedPunishment.getIdentifier(),
                     "templateIdentifier", template.getIdentifier().toString(),
@@ -173,19 +170,19 @@ public class VanillaImportService {
             ipsTotal = ipEntries.size();
             if (ipsTotal > 0) {
                 LOGGER.info(
-                        "Skipping {} banned-ips.json entr{} for tenant {} - Blackhole has no first-class IP-ban concept",
-                        ipsTotal, ipsTotal == 1 ? "y" : "ies", tenantId
+                        "Skipping {} banned-ips.json entr{} - Blackhole has no first-class IP-ban concept",
+                        ipsTotal, ipsTotal == 1 ? "y" : "ies"
                 );
             }
         }
 
-        return new VanillaImportResultDTO(tenantId, dryRun, entries.size(), imported, skippedExisting, invalid, invalidEntries, ipsTotal, ipsTotal);
+        return new VanillaImportResultDTO(dryRun, entries.size(), imported, skippedExisting, invalid, invalidEntries, ipsTotal, ipsTotal);
     }
 
-    private PunishmentTemplateEntity findOrCreateTemplate(UUID tenantId, String reason, Map<String, PunishmentTemplateEntity> templateCache) {
-        return templateCache.computeIfAbsent(reason, r -> this.templateRepository.findByTenantIdAndReasonAndType(tenantId, r, PunishType.NETWORK)
+    private PunishmentTemplateEntity findOrCreateTemplate(String reason, Map<String, PunishmentTemplateEntity> templateCache) {
+        return templateCache.computeIfAbsent(reason, r -> this.templateRepository.findByReasonAndType(r, PunishType.NETWORK)
                 .orElseGet(() -> this.templateRepository.save(new PunishmentTemplateEntity(
-                        null, tenantId, r, PunishType.NETWORK, 0, Map.of("imported", true, "importSource", "vanilla")
+                        null, r, PunishType.NETWORK, 0, Map.of("imported", true, "importSource", "vanilla")
                 ))));
     }
 

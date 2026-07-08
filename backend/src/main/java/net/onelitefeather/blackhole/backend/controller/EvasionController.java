@@ -15,8 +15,6 @@ import net.onelitefeather.blackhole.backend.dto.EvasionRecordDTO;
 import net.onelitefeather.blackhole.backend.evasion.IpCorrelationService;
 import net.onelitefeather.blackhole.backend.security.Roles;
 
-import java.util.UUID;
-
 /**
  * Records a login sighting for ban-evasion detection. Called by the Velocity proxy at login,
  * parallel to its existing UUID hashing - see {@code IpCorrelationService} for the actual
@@ -42,12 +40,12 @@ public class EvasionController {
     @ApiResponse(responseCode = "200", description = "Recorded")
     @ApiResponse(responseCode = "503", description = "blackhole.evasion.ip-salt is not configured - evasion detection is disabled")
     @Validated
-    @Post("/{tenantId}/record")
-    public HttpResponse<?> record(UUID tenantId, @Body @Valid EvasionRecordDTO request) {
+    @Post("/record")
+    public HttpResponse<?> record(@Body @Valid EvasionRecordDTO request) {
         if (!this.ipCorrelationService.isConfigured()) {
             return HttpResponse.status(HttpStatus.SERVICE_UNAVAILABLE, "Ban-evasion detection is not configured");
         }
-        this.ipCorrelationService.recordLogin(tenantId, request.owner(), request.ip());
+        this.ipCorrelationService.recordLogin(request.owner(), request.ip());
         return HttpResponse.ok();
     }
 }

@@ -11,7 +11,6 @@ import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.ChatSignalDTO;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
-import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
@@ -27,14 +26,12 @@ public final class PlayerChatListener {
 
     private final PunishProfileApi punishProfileApi;
     private final EloApi eloApi;
-    private final BlackholeConfig config;
     private final RedisSyncService redisSyncService;
 
     @Inject
-    public PlayerChatListener(@NotNull ApiClient blackholeClient, @NotNull BlackholeConfig config, @NotNull RedisSyncService redisSyncService) {
+    public PlayerChatListener(@NotNull ApiClient blackholeClient, @NotNull RedisSyncService redisSyncService) {
         this.punishProfileApi = new PunishProfileApi(blackholeClient);
         this.eloApi = new EloApi(blackholeClient);
-        this.config = config;
         this.redisSyncService = redisSyncService;
     }
 
@@ -59,7 +56,7 @@ public final class PlayerChatListener {
         // HTTP check once, then seed the cache so every subsequent message this session is a hit.
         PunishProfileDTO punishProfile;
         try {
-            punishProfile = this.punishProfileApi.getById(this.config.getTenantId(), uuidHash);
+            punishProfile = this.punishProfileApi.getById(uuidHash);
         } catch (ApiException e) {
             LOGGER.error("Failed to fetch punish profile for player {}: {}", player.getUsername(), e.getMessage());
             return;
@@ -68,7 +65,7 @@ public final class PlayerChatListener {
         var activeChatBan = punishProfile.getActiveChatBan();
         if (activeChatBan != null) {
             this.redisSyncService.seedChatBan(uuidHash, Optional.of(new PunishmentSyncMessage(
-                    this.config.getTenantId(), uuidHash, PunishmentSyncMessage.SLOT_CHAT_BAN, PunishmentSyncMessage.STATE_SET,
+                    uuidHash, PunishmentSyncMessage.SLOT_CHAT_BAN, PunishmentSyncMessage.STATE_SET,
                     "CHAT", activeChatBan.getIdentifier(), null, null
             )));
             denyChat(event, player);
@@ -89,7 +86,7 @@ public final class PlayerChatListener {
      */
     private void submitChatSignal(@NotNull Player player, @NotNull String uuidHash, @NotNull String message) {
         try {
-            this.eloApi.submitChatSignal(this.config.getTenantId(), new ChatSignalDTO().owner(uuidHash).message(message));
+            this.eloApi.submitChatSignal(new ChatSignalDTO().owner(uuidHash).message(message));
         } catch (ApiException e) {
             LOGGER.error("Failed to submit chat signal for ELO scoring for player {}: {}", player.getUsername(), e.getMessage());
         }

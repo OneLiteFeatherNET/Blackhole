@@ -5,10 +5,7 @@ import net.onelitefeather.blackhole.backend.dto.EloTrack;
 import java.util.UUID;
 
 /**
- * A tenant's fully-resolved ELO configuration - every {@code TenantEloSettingsEntity} override
- * merged with the platform-wide defaults for whichever fields the tenant hasn't customized. This
- * is what {@link EloService} and report-reward logic actually compute against; the raw,
- * partially-{@code null} per-tenant row is only ever exposed as-is via the settings API.
+ * The network's ELO configuration, built once from static config by {@link EloService}.
  */
 public record EffectiveEloSettings(
         int baseEloChat,
@@ -16,8 +13,7 @@ public record EffectiveEloSettings(
         int permaBanThresholdChat,
         int permaBanThresholdGameplay,
         UUID permaBanTemplateChatId,
-        UUID permaBanTemplateGameplayId,
-        int reportRewardDelta
+        UUID permaBanTemplateGameplayId
 ) {
 
     public int baseElo(EloTrack track) {

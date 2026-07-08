@@ -12,7 +12,7 @@ import java.util.UUID;
 /**
  * Request body for creating/updating a punishment template. {@code identifier} is {@code null}
  * for creation, set for update - the same nullable-identifier-means-create convention used
- * elsewhere. The tenant is taken from the URL, not this body.
+ * elsewhere.
  */
 @Serdeable
 @ReflectiveAccess

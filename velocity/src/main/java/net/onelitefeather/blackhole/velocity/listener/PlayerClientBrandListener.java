@@ -8,7 +8,6 @@ import net.onelitefeather.blackhole.client.api.PunishProfileApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.SessionInfoDTO;
-import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -24,12 +23,10 @@ public final class PlayerClientBrandListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerClientBrandListener.class);
     private final PunishProfileApi punishProfileApi;
-    private final BlackholeConfig config;
 
     @Inject
-    public PlayerClientBrandListener(@NotNull ApiClient apiClient, @NotNull BlackholeConfig config) {
+    public PlayerClientBrandListener(@NotNull ApiClient apiClient) {
         this.punishProfileApi = new PunishProfileApi(apiClient);
-        this.config = config;
     }
 
     @Subscribe
@@ -37,8 +34,8 @@ public final class PlayerClientBrandListener {
         Player player = event.getPlayer();
         String uuidHash = UUIDConverter.convertToSHA(player.getUniqueId());
         try {
-            this.punishProfileApi.updateSessionInfo(this.config.getTenantId(), uuidHash,
-                    new SessionInfoDTO().tenantId(this.config.getTenantId()).owner(uuidHash).clientBrand(event.getBrand()));
+            this.punishProfileApi.updateSessionInfo(uuidHash,
+                    new SessionInfoDTO().owner(uuidHash).clientBrand(event.getBrand()));
         } catch (ApiException e) {
             LOGGER.debug("Client brand not recorded for {}: {}", player.getUsername(), e.getMessage());
         }

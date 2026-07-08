@@ -1,0 +1,1723 @@
+openapi: 3.0.1
+info:
+  title: Blackhole API
+  description: Simple ban management system
+  contact:
+    name: Management
+    url: https://onelitefeather.net
+    email: admin@onelitefeather.net
+  license:
+    name: Close Source
+  version: 0.0.6
+paths:
+  /v1/appeal:
+    get:
+      tags:
+      - Appeal
+      summary: Get all appeals
+      description: Retrieves a paginated list of appeals
+      operationId: getAppeals
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: Successfully retrieved appeals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AppealDTO"
+    post:
+      tags:
+      - Appeal
+      summary: Submit an appeal
+      description: Submits an appeal against a punishment. Immediately evaluated against
+        the eligibility checklist.
+      operationId: submitAppeal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppealSubmissionDTO"
+        required: true
+      responses:
+        "200":
+          description: Appeal submitted (status reflects whether it passed the eligibility
+            checklist)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppealDTO"
+        "404":
+          description: Punishment not found
+  /v1/appeal/{identifier}/review:
+    post:
+      tags:
+      - Appeal
+      summary: Review an appeal
+      description: Decides an eligible appeal. Rejects self-review (reviewerId matching
+        the punishment's own source) and full lifts of SEVERE punishments (duration
+        reduction only).
+      operationId: reviewAppeal
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppealReviewDTO"
+        required: true
+      responses:
+        "200":
+          description: Appeal decided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppealDTO"
+        "404":
+          description: Appeal not found
+        "400":
+          description: "Invalid decision, or a full lift was attempted on a SEVERE\
+            \ punishment"
+        "403":
+          description: reviewerId matches the punishment's original source (self-review)
+        "409":
+          description: "Appeal is not awaiting review, or the punishment is no longer\
+            \ active"
+  /v1/auth/bootstrap:
+    post:
+      tags:
+      - Auth
+      summary: Bootstrap the first admin token
+      description: Exchanges the deployment's bootstrap secret for an ADMIN token.
+      operationId: bootstrap
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BootstrapRequestDTO"
+        required: true
+      responses:
+        "200":
+          description: bootstrap 200 response
+          content:
+            application/json:
+              schema:
+                type: object
+  /v1/auth/token:
+    post:
+      tags:
+      - Auth
+      summary: Issue a token
+      description: Issues a token for a given role. Requires an authenticated ADMIN
+        caller.
+      operationId: issueToken
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueTokenRequestDTO"
+        required: true
+      responses:
+        "200":
+          description: issueToken 200 response
+          content:
+            application/json:
+              schema:
+                type: object
+  /v1/connector:
+    get:
+      tags:
+      - Connector
+      summary: Get all connectors
+      operationId: getConnectors
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: getConnectors 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page_ConnectorRegistrationDTO_"
+    post:
+      tags:
+      - Connector
+      summary: Register a connector
+      operationId: registerConnector
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectorRegistrationRequestDTO"
+        required: true
+      responses:
+        "200":
+          description: registerConnector 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorRegistrationCreatedDTO"
+  /v1/connector/oauth2/token:
+    post:
+      tags:
+      - Connector
+      summary: Exchange connector client credentials for a token
+      description: OAuth2 client-credentials style exchange. Returns a token scoped
+        to the connector's granted scopes.
+      operationId: connectorToken
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectorTokenRequestDTO"
+        required: true
+      responses:
+        "200":
+          description: connectorToken 200 response
+          content:
+            application/json:
+              schema:
+                type: object
+  /v1/connector/subscription:
+    post:
+      tags:
+      - Connector
+      summary: Create an event subscription for a connector
+      operationId: addEventSubscription
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EventSubscriptionRequestDTO"
+        required: true
+      responses:
+        "400":
+          description: deliveryUrl failed SSRF validation (see message)
+        "200":
+          description: addEventSubscription 200 response
+          content:
+            application/json:
+              schema:
+                type: object
+  /v1/connector/subscription/{identifier}:
+    delete:
+      tags:
+      - Connector
+      summary: Delete an event subscription
+      operationId: removeEventSubscription
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: removeEventSubscription 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventSubscriptionDTO"
+  /v1/connector/{connectorId}/subscription:
+    get:
+      tags:
+      - Connector
+      summary: Get all event subscriptions for a connector
+      operationId: getEventSubscriptions
+      parameters:
+      - name: connectorId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: getEventSubscriptions 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Page_EventSubscriptionDTO_"
+  /v1/connector/{identifier}:
+    get:
+      tags:
+      - Connector
+      summary: Get a connector by ID
+      operationId: getConnectorById
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: getConnectorById 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorRegistrationDTO"
+    delete:
+      tags:
+      - Connector
+      summary: Delete a connector
+      operationId: removeConnector
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: removeConnector 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorRegistrationDTO"
+  /v1/connector/{identifier}/update:
+    post:
+      tags:
+      - Connector
+      summary: Update a connector's name/scopes/status
+      operationId: updateConnector
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectorRegistrationDTO"
+        required: true
+      responses:
+        "200":
+          description: updateConnector 200 response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorRegistrationDTO"
+  /v1/elo/chat:
+    post:
+      tags:
+      - Elo
+      summary: Score a chat message for toxicity
+      description: "Scores a chat message; if flagged, records evidence (a hash, never\
+        \ the raw text) and applies a chat-ELO delta"
+      operationId: submitChatSignal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatSignalDTO"
+        required: true
+      responses:
+        "200":
+          description: Scoring result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatToxicityResult"
+  /v1/elo/{owner}:
+    get:
+      tags:
+      - Elo
+      summary: Get a player's current ELO standing
+      description: "Dashboard read endpoint: the current chat/gameplay scores"
+      operationId: getEloProfile
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Current ELO profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EloProfileDTO"
+        "404":
+          description: No ELO profile exists yet for this owner
+  /v1/elo/{owner}/history:
+    get:
+      tags:
+      - Elo
+      summary: Get a player's ELO history
+      description: "Dashboard read endpoint: the full audit trail of ELO changes for\
+        \ this owner"
+      operationId: getEloHistory
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: Paginated ELO event history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EloEventDTO"
+  /v1/evasion/record:
+    post:
+      tags:
+      - Evasion
+      summary: Record a login sighting for ban-evasion detection
+      description: Computes a keyed hash of the IP (never stores it raw) and checks
+        whether multiple distinct owners share it recently
+      operationId: recordEvasionSighting
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvasionRecordDTO"
+        required: true
+      responses:
+        "200":
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                type: object
+        "503":
+          description: blackhole.evasion.ip-salt is not configured - evasion detection
+            is disabled
+  /v1/profile:
+    get:
+      tags:
+      - PunishProfile
+      description: Get all existing punishment profiles
+      operationId: getProfiles
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: The updated profile
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PunishProfileResponse"
+    post:
+      tags:
+      - PunishProfile
+      description: Add a new profile for punishments
+      operationId: addProfile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishProfileRequestDTO"
+        required: true
+      responses:
+        "200":
+          description: The profile which was added to the service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileResponse"
+  /v1/profile/delete/{owner}:
+    delete:
+      tags:
+      - PunishProfile
+      description: Delete a punish profile via uuid
+      operationId: removeProfile
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+      responses:
+        "200":
+          description: The deleted profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileResponse"
+        "400":
+          description: Error message when there is no profile linked to the given
+            id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/profile/update/{owner}:
+    post:
+      tags:
+      - PunishProfile
+      description: Update a punishment profile
+      operationId: updateProfile
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishProfileRequestDTO"
+        required: true
+      responses:
+        "200":
+          description: The updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileResponse"
+        "400":
+          description: Error message when there is no profile linked to the given
+            id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/profile/{owner}:
+    get:
+      tags:
+      - PunishProfile
+      description: Get a profile by id
+      operationId: getById
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+      responses:
+        "200":
+          description: The profile which matches with the given id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileDTO"
+        "404":
+          description: Error message when there is no profile linked to the given
+            id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /v1/profile/{owner}/session:
+    post:
+      tags:
+      - PunishProfile
+      description: Records session telemetry (protocol version / client brand) for
+        the dashboard
+      operationId: updateSessionInfo
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionInfoDTO"
+        required: true
+      responses:
+        "200":
+          description: Session info recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileResponse"
+  /v1/punishment:
+    get:
+      tags:
+      - Punishment
+      summary: Get all punishments
+      description: Retrieves a paginated list of all punishment entries in the system
+      operationId: getPunishments
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: Successfully retrieved punishment entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PunishEntryDTO"
+  /v1/punishment/active/{owner}/ban/revoke/{source}:
+    post:
+      tags:
+      - Punishment
+      summary: Revoke active ban
+      description: "Revokes a player's active ban (SERVER or NETWORK), moving it into\
+        \ history"
+      operationId: revokeBan
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+      - name: source
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Ban successfully revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileResponse"
+        "404":
+          description: "Profile not found, or has no active ban"
+        "400":
+          description: Invalid input parameters (owner must be SHA-512 hash)
+  /v1/punishment/active/{owner}/mute/revoke/{source}:
+    post:
+      tags:
+      - Punishment
+      summary: Revoke active mute
+      description: "Revokes a player's active chat ban, moving it into history"
+      operationId: revokeMute
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+      - name: source
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Mute successfully revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileResponse"
+        "404":
+          description: "Profile not found, or has no active mute"
+        "400":
+          description: Invalid input parameters (owner must be SHA-512 hash)
+  /v1/punishment/active/{owner}/{templateId}/{source}:
+    post:
+      tags:
+      - Punishment
+      summary: Add active punishment
+      description: Creates and applies an active punishment to a player profile based
+        on a punishment template
+      operationId: addActivePunishment
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+      - name: templateId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: source
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Punishment successfully applied to profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileResponse"
+        "404":
+          description: Profile or template not found
+        "400":
+          description: Invalid input parameters (owner must be SHA-512 hash)
+  /v1/report:
+    get:
+      tags:
+      - Report
+      summary: Get all reports
+      description: Retrieves a paginated list of reports
+      operationId: getReports
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: Successfully retrieved reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReportDTO"
+    post:
+      tags:
+      - Report
+      summary: Submit a report
+      description: Submits a player report. Rate-limited per reporterHash within a
+        configurable time window.
+      operationId: submitReport
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportRequestDTO"
+        required: true
+      responses:
+        "200":
+          description: Report successfully submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportDTO"
+        "429":
+          description: Rate limit exceeded for this reporter
+  /v1/report/{identifier}/resolve:
+    post:
+      tags:
+      - Report
+      summary: Resolve a report
+      description: "Resolves a report, optionally applying a punishment template to\
+        \ the reported player"
+      operationId: resolveReport
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportResolutionDTO"
+        required: true
+      responses:
+        "200":
+          description: Report successfully resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportDTO"
+        "404":
+          description: Report or punishment template not found
+        "400":
+          description: punishmentSource is required when punishmentTemplateId is set
+  /v1/signal:
+    post:
+      tags:
+      - Signal
+      summary: Submit an external signal
+      operationId: submitSignal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignalDTO"
+        required: true
+      responses:
+        "200":
+          description: submitSignal 200 response
+          content:
+            application/json:
+              schema:
+                type: object
+  /v1/template:
+    get:
+      tags:
+      - Punishment Templates
+      summary: Get all punishment templates
+      description: Retrieves a paginated list of all punishment templates in the system
+      operationId: getAllTemplates
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: Successfully retrieved punishment templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PunishTemplateDTO"
+    post:
+      tags:
+      - Punishment Templates
+      summary: Create punishment template
+      description: Creates a new punishment template.
+      operationId: addTemplate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishTemplateRequestDTO"
+        required: true
+      responses:
+        "200":
+          description: Template successfully created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateDTO"
+        "405":
+          description: Method not allowed - identifier must be null for creation
+        "400":
+          description: Invalid template data
+  /v1/template/delete/{identifier}:
+    delete:
+      tags:
+      - Punishment Templates
+      summary: Delete punishment template
+      description: Deletes a punishment template by its identifier
+      operationId: deleteTemplate
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Template successfully deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateDTO"
+        "404":
+          description: Template not found
+  /v1/template/update:
+    post:
+      tags:
+      - Punishment Templates
+      summary: Update punishment template
+      description: Updates an existing punishment template.
+      operationId: updateTemplate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishTemplateRequestDTO"
+        required: true
+      responses:
+        "200":
+          description: Template successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateDTO"
+        "404":
+          description: Template not found
+        "400":
+          description: Invalid template data
+  /v1/template/{identifier}:
+    get:
+      tags:
+      - Punishment Templates
+      summary: Get punishment template by ID
+      description: Retrieves a specific punishment template by its identifier
+      operationId: getTemplateById
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Template successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateDTO"
+        "404":
+          description: Template not found
+components:
+  schemas:
+    AppealDTO:
+      required:
+      - appellantHash
+      - createdAt
+      - eligibilityCheckResult
+      - identifier
+      - metaData
+      - punishmentIdentifier
+      - statement
+      - status
+      - updatedAt
+      type: object
+      properties:
+        identifier:
+          type: string
+          format: uuid
+        punishmentIdentifier:
+          type: string
+        appellantHash:
+          type: string
+        statement:
+          type: string
+        status:
+          $ref: "#/components/schemas/AppealStatus"
+        eligibilityCheckResult:
+          type: object
+          additionalProperties:
+            type: object
+        decidedBy:
+          type: string
+          format: uuid
+          nullable: true
+        decisionNote:
+          type: string
+          nullable: true
+        createdAt:
+          type: integer
+          format: int64
+        updatedAt:
+          type: integer
+          format: int64
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    AppealReviewDTO:
+      required:
+      - decision
+      - reviewerId
+      type: object
+      properties:
+        decision:
+          $ref: "#/components/schemas/AppealStatus"
+        decisionNote:
+          maxLength: 2000
+          type: string
+          nullable: true
+        reviewerId:
+          type: string
+          format: uuid
+        newExpirationAt:
+          type: integer
+          format: int64
+          nullable: true
+    AppealStatus:
+      type: string
+      enum:
+      - SUBMITTED
+      - ELIGIBLE_PENDING_REVIEW
+      - IN_REVIEW
+      - GRANTED_FULL_LIFT
+      - GRANTED_DURATION_REDUCTION
+      - DENIED
+      - INELIGIBLE
+    AppealSubmissionDTO:
+      required:
+      - appellantHash
+      - punishmentIdentifier
+      - statement
+      type: object
+      properties:
+        punishmentIdentifier:
+          minLength: 1
+          type: string
+        appellantHash:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: appellantHash must be a sha-512 hash
+        statement:
+          maxLength: 2000
+          minLength: 1
+          type: string
+    BootstrapRequestDTO:
+      required:
+      - secret
+      type: object
+      properties:
+        secret:
+          minLength: 1
+          type: string
+    ChatSignalDTO:
+      required:
+      - message
+      - owner
+      type: object
+      properties:
+        owner:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: owner must be a sha-512 hash
+        message:
+          maxLength: 512
+          minLength: 1
+          type: string
+    ChatToxicityResult:
+      required:
+      - flagged
+      - score
+      type: object
+      properties:
+        flagged:
+          type: boolean
+        score:
+          type: number
+          format: double
+    ConnectorRegistrationCreatedDTO:
+      required:
+      - connector
+      - oauth2ClientSecret
+      type: object
+      properties:
+        connector:
+          $ref: "#/components/schemas/ConnectorRegistrationDTO"
+        oauth2ClientSecret:
+          type: string
+    ConnectorRegistrationDTO:
+      required:
+      - identifier
+      - metaData
+      - name
+      - oauth2ClientId
+      - scopes
+      - status
+      type: object
+      properties:
+        identifier:
+          type: string
+          format: uuid
+        name:
+          type: string
+        oauth2ClientId:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        status:
+          $ref: "#/components/schemas/ConnectorStatus"
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    ConnectorRegistrationRequestDTO:
+      required:
+      - name
+      - scopes
+      type: object
+      properties:
+        name:
+          minLength: 1
+          type: string
+        scopes:
+          minItems: 1
+          type: array
+          items:
+            type: string
+    ConnectorStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - SUSPENDED
+    ConnectorTokenRequestDTO:
+      required:
+      - clientId
+      - clientSecret
+      type: object
+      properties:
+        clientId:
+          minLength: 1
+          type: string
+        clientSecret:
+          minLength: 1
+          type: string
+    EloEventDTO:
+      required:
+      - createdAt
+      - delta
+      - identifier
+      - metaData
+      - owner
+      - reasonCode
+      - resultingScore
+      - track
+      type: object
+      properties:
+        identifier:
+          type: string
+          format: uuid
+        owner:
+          type: string
+        track:
+          $ref: "#/components/schemas/EloTrack"
+        delta:
+          type: integer
+          format: int32
+        reasonCode:
+          $ref: "#/components/schemas/EloReasonCode"
+        sourceEvidenceId:
+          type: string
+          format: uuid
+          nullable: true
+        resultingScore:
+          type: integer
+          format: int32
+        createdAt:
+          type: integer
+          format: int64
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    EloProfileDTO:
+      required:
+      - chatElo
+      - chatEloUpdatedAt
+      - gameplayElo
+      - gameplayEloUpdatedAt
+      - metaData
+      - owner
+      type: object
+      properties:
+        owner:
+          type: string
+        chatElo:
+          type: integer
+          format: int32
+        gameplayElo:
+          type: integer
+          format: int32
+        chatEloUpdatedAt:
+          type: integer
+          format: int64
+        gameplayEloUpdatedAt:
+          type: integer
+          format: int64
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    EloReasonCode:
+      type: string
+      enum:
+      - TOXICITY_FLAG
+      - ANTICHEAT_FLAG
+      - REPORT_ACTIONED
+      - MANUAL_ADJUSTMENT
+      - DECAY_RECOVERY
+      - THRESHOLD_BAN
+      - PUNISHMENT_APPLIED
+      - REPORT_REWARDED
+    EloTrack:
+      type: string
+      enum:
+      - CHAT
+      - GAMEPLAY
+    ErrorResponse:
+      type: object
+      properties:
+        The error message:
+          type: string
+      description: The error response when something went wrong on profile requests
+    EvasionRecordDTO:
+      required:
+      - ip
+      - owner
+      type: object
+      properties:
+        owner:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: owner must be a sha-512 hash
+        ip:
+          minLength: 1
+          type: string
+    EventSubscriptionDTO:
+      required:
+      - active
+      - connectorId
+      - deliveryUrl
+      - eventTypes
+      - failureCount
+      - identifier
+      - metaData
+      type: object
+      properties:
+        identifier:
+          type: string
+          format: uuid
+        connectorId:
+          type: string
+          format: uuid
+        eventTypes:
+          type: array
+          items:
+            type: string
+        deliveryUrl:
+          type: string
+        active:
+          type: boolean
+        failureCount:
+          type: integer
+          format: int32
+        lastAttemptAt:
+          type: integer
+          format: int64
+          nullable: true
+        lastSuccessAt:
+          type: integer
+          format: int64
+          nullable: true
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    EventSubscriptionRequestDTO:
+      required:
+      - connectorId
+      - deliveryUrl
+      - eventTypes
+      type: object
+      properties:
+        connectorId:
+          type: string
+          format: uuid
+        eventTypes:
+          minItems: 1
+          type: array
+          items:
+            type: string
+        deliveryUrl:
+          minLength: 1
+          type: string
+    IssueTokenRequestDTO:
+      required:
+      - role
+      type: object
+      properties:
+        role:
+          minLength: 1
+          type: string
+    Page_ConnectorRegistrationDTO_:
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/Slice_ConnectorRegistrationDTO_"
+      - type: object
+        properties:
+          totalSize:
+            type: integer
+            format: int64
+          totalPages:
+            type: integer
+            format: int32
+    Page_EventSubscriptionDTO_:
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/Slice_EventSubscriptionDTO_"
+      - type: object
+        properties:
+          totalSize:
+            type: integer
+            format: int64
+          totalPages:
+            type: integer
+            format: int32
+    Pageable:
+      required:
+      - size
+      - sort
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/Sort"
+      - type: object
+        properties:
+          number:
+            type: integer
+            format: int32
+          size:
+            type: integer
+            format: int32
+          mode:
+            $ref: "#/components/schemas/Pageable.Mode"
+          sort:
+            $ref: "#/components/schemas/Sort"
+    Pageable.Mode:
+      type: string
+      enum:
+      - CURSOR_NEXT
+      - CURSOR_PREVIOUS
+      - OFFSET
+    PunishEntryDTO:
+      required:
+      - identifier
+      - metaData
+      - scope
+      - source
+      - template
+      - type
+      type: object
+      properties:
+        identifier:
+          type: string
+        source:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/PunishType"
+        scope:
+          type: string
+        template:
+          $ref: "#/components/schemas/PunishTemplateDTO"
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    PunishProfileDTO:
+      required:
+      - metaData
+      - owner
+      type: object
+      properties:
+        activeChatBan:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/PunishEntryDTO"
+        activeBan:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/PunishEntryDTO"
+        owner:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+        history:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/PunishEntryDTO"
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    PunishProfileRequestDTO:
+      required:
+      - metaData
+      - owner
+      type: object
+      properties:
+        owner:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+        activeChatBan:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/PunishEntryDTO"
+        activeBan:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/PunishEntryDTO"
+        history:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/PunishEntryDTO"
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    PunishProfileResponse:
+      type: object
+    PunishTemplateDTO:
+      required:
+      - eloDelta
+      - metaData
+      - reason
+      - type
+      type: object
+      properties:
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+        reason:
+          minLength: 1
+          type: string
+        type:
+          $ref: "#/components/schemas/PunishType"
+        eloDelta:
+          type: integer
+          format: int32
+        identifier:
+          type: string
+          format: uuid
+          nullable: true
+    PunishTemplateRequestDTO:
+      required:
+      - eloDelta
+      - metaData
+      - reason
+      - type
+      type: object
+      properties:
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+        reason:
+          minLength: 1
+          type: string
+        type:
+          $ref: "#/components/schemas/PunishType"
+        eloDelta:
+          type: integer
+          format: int32
+        identifier:
+          type: string
+          format: uuid
+          nullable: true
+    PunishType:
+      type: string
+      enum:
+      - SERVER
+      - NETWORK
+      - CHAT
+    ReportCategory:
+      type: string
+      enum:
+      - CHAT_ABUSE
+      - CHEATING
+      - GRIEFING
+      - OTHER
+    ReportDTO:
+      required:
+      - category
+      - createdAt
+      - metaData
+      - reportedHash
+      - reporterHash
+      - updatedAt
+      type: object
+      properties:
+        identifier:
+          type: string
+          format: uuid
+          nullable: true
+        reporterHash:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: reporterHash must be a sha-512 hash
+        reportedHash:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: reportedHash must be a sha-512 hash
+        category:
+          $ref: "#/components/schemas/ReportCategory"
+        description:
+          maxLength: 1000
+          type: string
+          nullable: true
+        evidenceReferences:
+          type: array
+          nullable: true
+          items:
+            type: string
+            format: uuid
+        status:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/ReportStatus"
+        createdAt:
+          type: integer
+          format: int64
+        updatedAt:
+          type: integer
+          format: int64
+        resolvedBy:
+          type: string
+          format: uuid
+          nullable: true
+        resolutionNote:
+          maxLength: 1000
+          type: string
+          nullable: true
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    ReportRequestDTO:
+      required:
+      - category
+      - metaData
+      - reportedHash
+      - reporterHash
+      type: object
+      properties:
+        reporterHash:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: reporterHash must be a sha-512 hash
+        reportedHash:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: reportedHash must be a sha-512 hash
+        category:
+          $ref: "#/components/schemas/ReportCategory"
+        description:
+          maxLength: 1000
+          type: string
+          nullable: true
+        evidenceReferences:
+          type: array
+          nullable: true
+          items:
+            type: string
+            format: uuid
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    ReportResolutionDTO:
+      required:
+      - resolvedBy
+      - status
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/ReportStatus"
+        resolutionNote:
+          maxLength: 1000
+          type: string
+          nullable: true
+        resolvedBy:
+          type: string
+          format: uuid
+        punishmentTemplateId:
+          type: string
+          format: uuid
+          nullable: true
+        punishmentSource:
+          type: string
+          format: uuid
+          nullable: true
+    ReportStatus:
+      type: string
+      enum:
+      - OPEN
+      - UNDER_REVIEW
+      - ACTIONED
+      - DISMISSED
+    SessionInfoDTO:
+      required:
+      - owner
+      type: object
+      properties:
+        owner:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: owner must be a sha-512 hash
+        protocolVersion:
+          type: integer
+          format: int32
+          nullable: true
+        clientBrand:
+          maxLength: 64
+          type: string
+          nullable: true
+    SignalDTO:
+      required:
+      - metaData
+      - owner
+      - payload
+      - signalType
+      type: object
+      properties:
+        owner:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: owner must be a sha-512 hash
+        signalType:
+          minLength: 1
+          type: string
+        payload:
+          type: object
+          additionalProperties:
+            type: object
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    Slice_ConnectorRegistrationDTO_:
+      required:
+      - content
+      - pageable
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConnectorRegistrationDTO"
+        pageable:
+          $ref: "#/components/schemas/Pageable"
+        pageNumber:
+          type: integer
+          format: int32
+        offset:
+          type: integer
+          format: int64
+        size:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+    Slice_EventSubscriptionDTO_:
+      required:
+      - content
+      - pageable
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventSubscriptionDTO"
+        pageable:
+          $ref: "#/components/schemas/Pageable"
+        pageNumber:
+          type: integer
+          format: int32
+        offset:
+          type: integer
+          format: int64
+        size:
+          type: integer
+          format: int32
+        empty:
+          type: boolean
+        numberOfElements:
+          type: integer
+          format: int32
+    Sort:
+      required:
+      - orderBy
+      type: object
+      properties:
+        orderBy:
+          type: array
+          items:
+            $ref: "#/components/schemas/Sort.Order"
+    Sort.Order:
+      required:
+      - direction
+      - ignoreCase
+      - property
+      type: object
+      properties:
+        ignoreCase:
+          type: boolean
+        direction:
+          $ref: "#/components/schemas/Sort.Order.Direction"
+        property:
+          type: string
+        ascending:
+          type: boolean
+    Sort.Order.Direction:
+      type: string
+      enum:
+      - ASC
+      - DESC

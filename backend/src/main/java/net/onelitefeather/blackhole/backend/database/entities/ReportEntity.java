@@ -34,7 +34,6 @@ import java.util.UUID;
 @Entity
 @Table(name = "reports", indexes = {
         @Index(columnList = "identifier"),
-        @Index(columnList = "tenantId"),
         @Index(columnList = "reporterHash")
 })
 public class ReportEntity {
@@ -42,8 +41,6 @@ public class ReportEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID identifier;
-
-    private UUID tenantId;
 
     private String reporterHash;
 
@@ -79,7 +76,6 @@ public class ReportEntity {
     }
 
     public ReportEntity(
-            UUID tenantId,
             String reporterHash,
             String reportedHash,
             ReportCategory category,
@@ -92,7 +88,6 @@ public class ReportEntity {
             String resolutionNote,
             Map<String, Object> metaData
     ) {
-        this.tenantId = tenantId;
         this.reporterHash = reporterHash;
         this.reportedHash = reportedHash;
         this.category = category;
@@ -108,10 +103,6 @@ public class ReportEntity {
 
     public UUID getIdentifier() {
         return identifier;
-    }
-
-    public UUID getTenantId() {
-        return tenantId;
     }
 
     public String getReporterHash() {
@@ -176,7 +167,6 @@ public class ReportEntity {
 
     public ReportDTO toDTO() {
         return new ReportDTO(
-                this.tenantId,
                 this.identifier,
                 this.reporterHash,
                 this.reportedHash,

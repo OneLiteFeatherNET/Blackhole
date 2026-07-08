@@ -81,14 +81,13 @@ public class PunishmentExpirySweeper {
 
         if (changed) {
             this.profileRepository.update(profile);
-            this.cacheInvalidationPublisher.invalidate(profile.getTenantId(), profile.getOwner());
+            this.cacheInvalidationPublisher.invalidate(profile.getOwner());
         }
         return changed;
     }
 
     private void publishExpired(PunishmentProfileEntity profile, PunishmentEntity expired) {
         this.eventPublisher.publish("punishment.expired", Map.of(
-                "tenantId", profile.getTenantId().toString(),
                 "owner", profile.getOwner(),
                 "punishmentIdentifier", expired.getIdentifier(),
                 "type", expired.getType().toString()

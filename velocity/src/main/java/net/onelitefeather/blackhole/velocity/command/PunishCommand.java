@@ -16,7 +16,6 @@ import net.onelitefeather.blackhole.client.model.PunishTemplateDTO;
 import net.onelitefeather.blackhole.client.model.PunishType;
 import net.onelitefeather.blackhole.velocity.BlackholeVelocity;
 import net.onelitefeather.blackhole.velocity.component.PunishmentTemplateComponent;
-import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.incendo.cloud.annotations.*;
 import org.incendo.cloud.annotations.parser.Parser;
@@ -40,15 +39,13 @@ public final class PunishCommand {
     private final PunishProfileApi punishProfileApi;
     private final PunishmentApi punishmentApi;
     private final PunishmentTemplatesApi punishmentTemplatesApi;
-    private final BlackholeConfig config;
 
     @Inject
-    public PunishCommand(@NotNull ProxyServer proxyServer, @NotNull ApiClient apiClient, @NotNull BlackholeConfig config) {
+    public PunishCommand(@NotNull ProxyServer proxyServer, @NotNull ApiClient apiClient) {
         this.proxyServer = proxyServer;
         this.punishProfileApi = new PunishProfileApi(apiClient);
         this.punishmentApi = new PunishmentApi(apiClient);
         this.punishmentTemplatesApi = new PunishmentTemplatesApi(apiClient);
-        this.config = config;
     }
 
     @Command("blackhole <user> ban <template>")
@@ -75,7 +72,6 @@ public final class PunishCommand {
 
         try {
             profile = Optional.ofNullable(this.punishmentApi.addActivePunishment(
-                    this.config.getTenantId(),
                     user.getOwner(),
                     template.getIdentifier(),
                     context.sender().getUniqueId()
@@ -110,7 +106,6 @@ public final class PunishCommand {
         try {
             profile = Optional.ofNullable(
                     this.punishmentApi.addActivePunishment(
-                            this.config.getTenantId(),
                             user.getOwner(),
                             template.getIdentifier(),
                             context.sender().getUniqueId()
@@ -137,7 +132,7 @@ public final class PunishCommand {
         context.store(TARGET_KEY, player.get());
 
         try {
-            return this.punishProfileApi.getById(this.config.getTenantId(), UUIDConverter.convertToSHA(player.get().getUniqueId()));
+            return this.punishProfileApi.getById(UUIDConverter.convertToSHA(player.get().getUniqueId()));
         } catch (ApiException e) {
             LOGGER.error("Failed to fetch punish profile for player {}: {}", name, e.getMessage());
             return null;
@@ -150,7 +145,7 @@ public final class PunishCommand {
         boolean server = context.flags().isPresent("server");
         List<PunishTemplateDTO> templates = List.of();
         try {
-            templates = this.punishmentTemplatesApi.getAllTemplates(this.config.getTenantId(), Pageable.builder().build());
+            templates = this.punishmentTemplatesApi.getAllTemplates(Pageable.builder().build());
         } catch (ApiException e) {
             throw new RuntimeException(e);
         }
@@ -168,7 +163,7 @@ public final class PunishCommand {
         if (context.contains(BlackholeVelocity.PUNISH_TYPE_KEY)) {
             PunishType type = context.get(BlackholeVelocity.PUNISH_TYPE_KEY);
             try {
-                return this.punishmentTemplatesApi.getAllTemplates(this.config.getTenantId(), Pageable.builder().build())
+                return this.punishmentTemplatesApi.getAllTemplates(Pageable.builder().build())
                         .stream()
                         .filter(template -> template.getType() == type)
                         .map(PunishTemplateDTO::getReason)
@@ -180,7 +175,7 @@ public final class PunishCommand {
             }
         }
         try {
-            return this.punishmentTemplatesApi.getAllTemplates(this.config.getTenantId(), Pageable.builder().build())
+            return this.punishmentTemplatesApi.getAllTemplates(Pageable.builder().build())
                     .stream()
                     .map(PunishTemplateDTO::getReason)
                     .filter(reason -> reason.toLowerCase().contains(s.toLowerCase()))

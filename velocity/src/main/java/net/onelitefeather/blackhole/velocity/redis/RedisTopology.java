@@ -1,7 +1,5 @@
 package net.onelitefeather.blackhole.velocity.redis;
 
-import java.util.UUID;
-
 /**
  * Mirrors the backend's {@code net.onelitefeather.blackhole.backend.redis.RedisTopology}
  * byte-for-byte - the channel name and key format are a hand-shared contract between the
@@ -11,12 +9,12 @@ final class RedisTopology {
 
     static final String PUNISHMENT_SYNC_CHANNEL = "blackhole.punishment.sync";
 
-    static String banKey(UUID tenantId, String owner) {
-        return "blackhole:punish:ban:" + tenantId + ":" + owner;
+    static String banKey(String owner) {
+        return "blackhole:punish:ban:" + owner;
     }
 
-    static String chatBanKey(UUID tenantId, String owner) {
-        return "blackhole:punish:chatban:" + tenantId + ":" + owner;
+    static String chatBanKey(String owner) {
+        return "blackhole:punish:chatban:" + owner;
     }
 
     private RedisTopology() {

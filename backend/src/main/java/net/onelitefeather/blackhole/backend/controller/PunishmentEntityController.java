@@ -26,7 +26,7 @@ import net.onelitefeather.blackhole.backend.security.Roles;
 
 import java.util.UUID;
 
-@Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF, Roles.SERVICE})
+@Secured({Roles.ADMIN, Roles.STAFF, Roles.SERVICE})
 @Controller(value = ApiVersion.V1 + "/punishment")
 public class PunishmentEntityController {
 
@@ -51,7 +51,6 @@ public class PunishmentEntityController {
     /**
      * Set an active punishment to the database.
      *
-     * @param tenantId the tenant the punishment belongs to
      * @param owner the owner of the punishment
      * @param templateId the template id of the punishment
      * @param source the source of the punishment
@@ -80,14 +79,13 @@ public class PunishmentEntityController {
             description = "Invalid input parameters (owner must be SHA-512 hash)"
     )
     @Validated
-    @Post("/active/{tenantId}/{owner}/{templateId}/{source}")
+    @Post("/active/{owner}/{templateId}/{source}")
     public HttpResponse<PunishProfileResponse> add(
-            UUID tenantId,
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
             UUID templateId,
             UUID source
     ) {
-        var profile = this.punishmentApplicationService.apply(tenantId, owner, templateId, source);
+        var profile = this.punishmentApplicationService.apply(owner, templateId, source);
         if (profile.isEmpty()) {
             return HttpResponse.notFound();
         }
@@ -97,7 +95,6 @@ public class PunishmentEntityController {
     /**
      * Revoke an active ban.
      *
-     * @param tenantId the tenant the punishment belongs to
      * @param owner the owner of the punishment
      * @param source the staff/system identity revoking the punishment
      * @return the updated profile
@@ -125,13 +122,12 @@ public class PunishmentEntityController {
             description = "Invalid input parameters (owner must be SHA-512 hash)"
     )
     @Validated
-    @Post("/active/{tenantId}/{owner}/ban/revoke/{source}")
+    @Post("/active/{owner}/ban/revoke/{source}")
     public HttpResponse<PunishProfileResponse> revokeBan(
-            UUID tenantId,
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
             UUID source
     ) {
-        var profile = this.punishmentApplicationService.revokeBan(tenantId, owner, source);
+        var profile = this.punishmentApplicationService.revokeBan(owner, source);
         if (profile.isEmpty()) {
             return HttpResponse.notFound();
         }
@@ -141,7 +137,6 @@ public class PunishmentEntityController {
     /**
      * Revoke an active mute.
      *
-     * @param tenantId the tenant the punishment belongs to
      * @param owner the owner of the punishment
      * @param source the staff/system identity revoking the punishment
      * @return the updated profile
@@ -169,13 +164,12 @@ public class PunishmentEntityController {
             description = "Invalid input parameters (owner must be SHA-512 hash)"
     )
     @Validated
-    @Post("/active/{tenantId}/{owner}/mute/revoke/{source}")
+    @Post("/active/{owner}/mute/revoke/{source}")
     public HttpResponse<PunishProfileResponse> revokeMute(
-            UUID tenantId,
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
             UUID source
     ) {
-        var profile = this.punishmentApplicationService.revokeMute(tenantId, owner, source);
+        var profile = this.punishmentApplicationService.revokeMute(owner, source);
         if (profile.isEmpty()) {
             return HttpResponse.notFound();
         }
@@ -204,10 +198,10 @@ public class PunishmentEntityController {
                     )
             )
     )
-    @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF, Roles.SERVICE, ConnectorScopes.PUNISHMENT_READ})
-    @Get("/{tenantId}")
-    public HttpResponse<Page<PunishEntryDTO>> getAll(UUID tenantId, Pageable pageable) {
-        Page<PunishmentEntity> entries = this.punishmentRepository.findByTenantId(tenantId, pageable);
+    @Secured({Roles.ADMIN, Roles.STAFF, Roles.SERVICE, ConnectorScopes.PUNISHMENT_READ})
+    @Get()
+    public HttpResponse<Page<PunishEntryDTO>> getAll(Pageable pageable) {
+        Page<PunishmentEntity> entries = this.punishmentRepository.findAll(pageable);
         return HttpResponse.ok(entries.map(PunishmentEntity::toDTO));
     }
 }

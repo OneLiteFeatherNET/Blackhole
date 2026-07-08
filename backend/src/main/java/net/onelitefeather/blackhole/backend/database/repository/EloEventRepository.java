@@ -11,5 +11,5 @@ import java.util.UUID;
 @Repository
 public interface EloEventRepository extends PageableRepository<EloEventEntity, UUID> {
 
-    Page<EloEventEntity> findByTenantIdAndOwner(UUID tenantId, String owner, Pageable pageable);
+    Page<EloEventEntity> findByOwner(String owner, Pageable pageable);
 }

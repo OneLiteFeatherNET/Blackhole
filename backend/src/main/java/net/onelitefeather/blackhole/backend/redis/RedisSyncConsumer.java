@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Mirrors active-punishment state into Redis so every Velocity proxy in a multi-proxy network
@@ -69,7 +68,6 @@ public class RedisSyncConsumer {
     private void handle(byte[] body) throws IOException {
         DomainEvent event = this.jsonMapper.readValue(body, DomainEvent.class);
         Map<String, Object> payload = event.payload();
-        UUID tenantId = UUID.fromString(String.valueOf(payload.get("tenantId")));
         String owner = String.valueOf(payload.get("owner"));
         String punishmentIdentifier = stringOrNull(payload.get("punishmentIdentifier"));
 
@@ -79,26 +77,26 @@ public class RedisSyncConsumer {
                 String templateIdentifier = stringOrNull(payload.get("templateIdentifier"));
                 Long expiresAt = asLong(payload.get("expiresAt"));
                 if ("CHAT".equals(type)) {
-                    this.redisWriter.setChatBan(tenantId, owner, punishmentIdentifier, templateIdentifier, expiresAt);
+                    this.redisWriter.setChatBan(owner, punishmentIdentifier, templateIdentifier, expiresAt);
                 } else {
-                    this.redisWriter.setBan(tenantId, owner, type, punishmentIdentifier, templateIdentifier, expiresAt);
+                    this.redisWriter.setBan(owner, type, punishmentIdentifier, templateIdentifier, expiresAt);
                 }
             }
-            case "punishment.expired", "punishment.revoked" -> clearSlot(tenantId, owner, String.valueOf(payload.get("type")), punishmentIdentifier);
+            case "punishment.expired", "punishment.revoked" -> clearSlot(owner, String.valueOf(payload.get("type")), punishmentIdentifier);
             case "appeal.resolved" -> {
                 if ("GRANTED_FULL_LIFT".equals(String.valueOf(payload.get("decision")))) {
-                    clearSlot(tenantId, owner, String.valueOf(payload.get("type")), punishmentIdentifier);
+                    clearSlot(owner, String.valueOf(payload.get("type")), punishmentIdentifier);
                 }
             }
             default -> LOGGER.debug("Ignoring unrelated event type {} on the Redis sync queue", event.eventType());
         }
     }
 
-    private void clearSlot(UUID tenantId, String owner, String type, String punishmentIdentifier) {
+    private void clearSlot(String owner, String type, String punishmentIdentifier) {
         if ("CHAT".equals(type)) {
-            this.redisWriter.clearChatBan(tenantId, owner, punishmentIdentifier);
+            this.redisWriter.clearChatBan(owner, punishmentIdentifier);
         } else {
-            this.redisWriter.clearBan(tenantId, owner, type, punishmentIdentifier);
+            this.redisWriter.clearBan(owner, type, punishmentIdentifier);
         }
     }
 

@@ -14,7 +14,6 @@ import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.PunishType;
 import net.onelitefeather.blackhole.client.model.SessionInfoDTO;
 import net.onelitefeather.blackhole.velocity.component.PunishmentTemplateComponent;
-import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.jetbrains.annotations.NotNull;
@@ -34,14 +33,12 @@ public final class PlayerLoginListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerLoginListener.class);
     private final PunishProfileApi punishProfileApi;
     private final EvasionApi evasionApi;
-    private final BlackholeConfig config;
     private final RedisSyncService redisSyncService;
 
     @Inject
-    public PlayerLoginListener(@NotNull ApiClient apiClient, @NotNull BlackholeConfig config, @NotNull RedisSyncService redisSyncService) {
+    public PlayerLoginListener(@NotNull ApiClient apiClient, @NotNull RedisSyncService redisSyncService) {
         this.punishProfileApi = new PunishProfileApi(apiClient);
         this.evasionApi = new EvasionApi(apiClient);
-        this.config = config;
         this.redisSyncService = redisSyncService;
     }
 
@@ -59,7 +56,7 @@ public final class PlayerLoginListener {
         recordEvasionSignal(player, uuidHash);
 
         try {
-            var ban = this.redisSyncService.fetchAndTrack(this.config.getTenantId(), uuidHash);
+            var ban = this.redisSyncService.fetchAndTrack(uuidHash);
             if (ban.isPresent() && PunishType.NETWORK.toString().equals(ban.get().type())) {
                 kickForActiveNetworkBan(player, uuidHash);
                 return;
@@ -74,7 +71,7 @@ public final class PlayerLoginListener {
 
         Optional<PunishProfileDTO> profileOptional;
         try {
-            profileOptional = Optional.of(this.punishProfileApi.getById(this.config.getTenantId(), uuidHash));
+            profileOptional = Optional.of(this.punishProfileApi.getById(uuidHash));
         } catch (ApiException e) {
             LOGGER.error("Failed to fetch punish profile for player {}: {}", player.getUsername(), e.getMessage());
             return;
@@ -97,7 +94,7 @@ public final class PlayerLoginListener {
      */
     private void kickForActiveNetworkBan(Player player, String uuidHash) {
         try {
-            PunishProfileDTO punishProfile = this.punishProfileApi.getById(this.config.getTenantId(), uuidHash);
+            PunishProfileDTO punishProfile = this.punishProfileApi.getById(uuidHash);
             var activeBanDTO = punishProfile.getActiveBan();
             if (activeBanDTO != null) {
                 player.disconnect(PunishmentTemplateComponent.of(activeBanDTO.getTemplate(), punishProfile));
@@ -110,7 +107,7 @@ public final class PlayerLoginListener {
     private void recordEvasionSignal(@NotNull Player player, @NotNull String uuidHash) {
         String ip = player.getRemoteAddress().getAddress().getHostAddress();
         try {
-            this.evasionApi.recordEvasionSighting(this.config.getTenantId(), new EvasionRecordDTO().owner(uuidHash).ip(ip));
+            this.evasionApi.recordEvasionSighting(new EvasionRecordDTO().owner(uuidHash).ip(ip));
         } catch (ApiException e) {
             LOGGER.debug("Evasion signal not recorded for {}: {}", player.getUsername(), e.getMessage());
         }
@@ -118,8 +115,8 @@ public final class PlayerLoginListener {
 
     private void recordSessionInfo(@NotNull Player player, @NotNull String uuidHash) {
         try {
-            this.punishProfileApi.updateSessionInfo(this.config.getTenantId(), uuidHash,
-                    new SessionInfoDTO().tenantId(this.config.getTenantId()).owner(uuidHash).protocolVersion(player.getProtocolVersion().getProtocol()));
+            this.punishProfileApi.updateSessionInfo(uuidHash,
+                    new SessionInfoDTO().owner(uuidHash).protocolVersion(player.getProtocolVersion().getProtocol()));
         } catch (ApiException e) {
             LOGGER.debug("Session info not recorded for {}: {}", player.getUsername(), e.getMessage());
         }

@@ -46,7 +46,7 @@ public class CacheInvalidationConsumer {
             channel.basicConsume(queueName, true, (consumerTag, delivery) -> {
                 try {
                     CacheInvalidationMessage message = this.jsonMapper.readValue(delivery.getBody(), CacheInvalidationMessage.class);
-                    this.profileCache.invalidate(message.tenantId(), message.owner());
+                    this.profileCache.invalidate(message.owner());
                 } catch (IOException e) {
                     LOGGER.error("Failed to process cache invalidation message: {}", e.getMessage());
                 }

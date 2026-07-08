@@ -34,7 +34,6 @@ import java.util.UUID;
 @Entity
 @Table(name = "connector_registrations", indexes = {
         @Index(columnList = "identifier"),
-        @Index(columnList = "tenantId"),
         @Index(columnList = "oauth2ClientId", unique = true)
 })
 public class ConnectorRegistrationEntity {
@@ -42,8 +41,6 @@ public class ConnectorRegistrationEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID identifier;
-
-    private UUID tenantId;
 
     private String name;
 
@@ -67,7 +64,6 @@ public class ConnectorRegistrationEntity {
     }
 
     public ConnectorRegistrationEntity(
-            UUID tenantId,
             String name,
             String oauth2ClientId,
             String oauth2ClientSecretHash,
@@ -75,7 +71,6 @@ public class ConnectorRegistrationEntity {
             ConnectorStatus status,
             Map<String, Object> metaData
     ) {
-        this.tenantId = tenantId;
         this.name = name;
         this.oauth2ClientId = oauth2ClientId;
         this.oauth2ClientSecretHash = oauth2ClientSecretHash;
@@ -86,10 +81,6 @@ public class ConnectorRegistrationEntity {
 
     public UUID getIdentifier() {
         return identifier;
-    }
-
-    public UUID getTenantId() {
-        return tenantId;
     }
 
     public String getName() {
@@ -134,7 +125,6 @@ public class ConnectorRegistrationEntity {
      */
     public ConnectorRegistrationDTO toDTO() {
         return new ConnectorRegistrationDTO(
-                this.tenantId,
                 this.identifier,
                 this.name,
                 this.oauth2ClientId,

@@ -16,7 +16,6 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Privacy-preserving ban-evasion detection. A raw IP is never persisted - only
@@ -61,7 +60,7 @@ public class IpCorrelationService {
      *
      * @throws IllegalStateException if {@link #isConfigured()} is false - callers must check first
      */
-    public void recordLogin(UUID tenantId, String ownerHash, String rawIp) {
+    public void recordLogin(String ownerHash, String rawIp) {
         if (!isConfigured()) {
             throw new IllegalStateException("blackhole.evasion.ip-salt is not configured");
         }
@@ -69,29 +68,28 @@ public class IpCorrelationService {
         String token = hmacSha512(rawIp, this.salt);
         long now = System.currentTimeMillis();
 
-        IpCorrelationTokenEntity existing = this.repository.findByTenantIdAndTokenAndOwnerHash(tenantId, token, ownerHash).orElse(null);
+        IpCorrelationTokenEntity existing = this.repository.findByTokenAndOwnerHash(token, ownerHash).orElse(null);
         if (existing == null) {
-            this.repository.save(new IpCorrelationTokenEntity(tenantId, token, ownerHash, now, now, 1, new HashMap<>()));
+            this.repository.save(new IpCorrelationTokenEntity(token, ownerHash, now, now, 1, new HashMap<>()));
         } else {
             existing.setLastSeen(now);
             existing.setOccurrenceCount(existing.getOccurrenceCount() + 1);
             this.repository.update(existing);
         }
 
-        checkEvasion(tenantId, token, now);
+        checkEvasion(token, now);
     }
 
-    private void checkEvasion(UUID tenantId, String token, long now) {
+    private void checkEvasion(String token, long now) {
         long windowStart = now - this.detectionWindowMillis;
-        List<IpCorrelationTokenEntity> sightings = this.repository.findByTenantIdAndTokenAndLastSeenGreaterThanEquals(tenantId, token, windowStart);
+        List<IpCorrelationTokenEntity> sightings = this.repository.findByTokenAndLastSeenGreaterThanEquals(token, windowStart);
         List<String> distinctOwners = sightings.stream().map(IpCorrelationTokenEntity::getOwnerHash).distinct().toList();
         if (distinctOwners.size() <= 1) {
             return;
         }
 
-        LOGGER.warn("Ban-evasion signal: {} distinct owners share a token for tenant {}", distinctOwners.size(), tenantId);
+        LOGGER.warn("Ban-evasion signal: {} distinct owners share a token", distinctOwners.size());
         this.eventPublisher.publish("evasion.detected", Map.of(
-                "tenantId", tenantId.toString(),
                 "token", token,
                 "owners", distinctOwners
         ));

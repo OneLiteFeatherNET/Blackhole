@@ -12,7 +12,6 @@ import net.onelitefeather.blackhole.backend.utils.SecretHasher;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Scores a chat message and, if flagged, records a {@code PunishmentEvidenceEntity} (a hash of
@@ -46,7 +45,7 @@ public class ChatToxicityService {
         this.evidenceRetentionMillis = Duration.ofDays(evidenceRetentionDays).toMillis();
     }
 
-    public ChatToxicityResult evaluate(UUID tenantId, String owner, String message) {
+    public ChatToxicityResult evaluate(String owner, String message) {
         double score = this.scorer.score(message);
         if (score < this.flagThreshold) {
             return new ChatToxicityResult(false, score);
@@ -55,14 +54,14 @@ public class ChatToxicityService {
         long now = System.currentTimeMillis();
         String contentHash = SecretHasher.hash(message);
         PunishmentEvidenceEntity evidence = new PunishmentEvidenceEntity(
-                tenantId, null, EvidenceType.CHAT_MESSAGE, null, contentHash, now + this.evidenceRetentionMillis, new HashMap<>()
+                null, EvidenceType.CHAT_MESSAGE, null, contentHash, now + this.evidenceRetentionMillis, new HashMap<>()
         );
         PunishmentEvidenceEntity savedEvidence = this.evidenceRepository.save(evidence);
 
         int delta = (int) Math.round(this.flagDelta * score);
         Map<String, Object> metaData = new HashMap<>();
         metaData.put("score", score);
-        this.eloService.applyDelta(tenantId, owner, EloTrack.CHAT, delta, EloReasonCode.TOXICITY_FLAG, savedEvidence.getIdentifier(), metaData);
+        this.eloService.applyDelta(owner, EloTrack.CHAT, delta, EloReasonCode.TOXICITY_FLAG, savedEvidence.getIdentifier(), metaData);
 
         return new ChatToxicityResult(true, score);
     }

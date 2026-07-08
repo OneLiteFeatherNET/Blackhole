@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * One (tenant, token, owner) sighting for ban-evasion detection. {@code token} is
+ * One (token, owner) sighting for ban-evasion detection. {@code token} is
  * HMAC-SHA512(ip, server-held salt) - a keyed hash, not a plain hash of the IP alone, since the
  * IPv4 address space is small enough to brute-force an unsalted hash trivially. This table is
  * itself personal data (see {@code IpCorrelationRetentionSweeper} for its retention window).
@@ -26,7 +26,6 @@ import java.util.UUID;
 @Entity
 @Table(name = "ip_correlation_tokens", indexes = {
         @Index(columnList = "identifier"),
-        @Index(columnList = "tenantId"),
         @Index(columnList = "token")
 })
 public class IpCorrelationTokenEntity {
@@ -34,8 +33,6 @@ public class IpCorrelationTokenEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID identifier;
-
-    private UUID tenantId;
 
     private String token;
 
@@ -55,8 +52,7 @@ public class IpCorrelationTokenEntity {
         // Empty constructor for JPA
     }
 
-    public IpCorrelationTokenEntity(UUID tenantId, String token, String ownerHash, long firstSeen, long lastSeen, int occurrenceCount, Map<String, Object> metaData) {
-        this.tenantId = tenantId;
+    public IpCorrelationTokenEntity(String token, String ownerHash, long firstSeen, long lastSeen, int occurrenceCount, Map<String, Object> metaData) {
         this.token = token;
         this.ownerHash = ownerHash;
         this.firstSeen = firstSeen;
@@ -67,10 +63,6 @@ public class IpCorrelationTokenEntity {
 
     public UUID getIdentifier() {
         return identifier;
-    }
-
-    public UUID getTenantId() {
-        return tenantId;
     }
 
     public String getToken() {

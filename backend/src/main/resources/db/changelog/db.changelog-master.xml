@@ -459,4 +459,85 @@
         </createTable>
     </changeSet>
 
+    <!-- Tenant removal: Blackhole is now a single-network ban backend with no multi-tenancy -
+         these changeSets drop every tenant-related table/column added by the changeSets above,
+         per the "never edit an already-applied changeSet, always add a new one" convention. -->
+
+    <changeSet id="drop-punishment-profiles-punishments-tenant-fk" author="blackhole">
+        <comment>Tenant removal: drop the composite (owner, tenant_id) FK before touching either side of it</comment>
+        <dropForeignKeyConstraint baseTableName="punishment_profiles_punishments" constraintName="FKrwhtrufbtcfrxgociysp1d1iw"/>
+    </changeSet>
+
+    <changeSet id="drop-punishment-profiles-punishments-tenant-column" author="blackhole">
+        <dropColumn tableName="punishment_profiles_punishments" columnName="punishment_profile_entity_tenant_id"/>
+    </changeSet>
+
+    <changeSet id="add-punishment-profiles-punishments-owner-fk" author="blackhole">
+        <addForeignKeyConstraint constraintName="fk_punishment_profiles_punishments_owner"
+                                  baseTableName="punishment_profiles_punishments" baseColumnNames="punishment_profile_entity_owner"
+                                  referencedTableName="punishment_profiles" referencedColumnNames="owner"/>
+    </changeSet>
+
+    <changeSet id="drop-punishment-profiles-tenant" author="blackhole">
+        <comment>Tenant removal: punishment_profiles collapses from a (owner, tenant_id) composite PK to a plain owner PK</comment>
+        <dropPrimaryKey tableName="punishment_profiles"/>
+        <dropColumn tableName="punishment_profiles" columnName="tenant_id"/>
+        <addPrimaryKey tableName="punishment_profiles" columnNames="owner"/>
+    </changeSet>
+
+    <changeSet id="drop-elo-profiles-tenant" author="blackhole">
+        <comment>Tenant removal: elo_profiles collapses from a (owner, tenant_id) composite PK to a plain owner PK</comment>
+        <dropPrimaryKey tableName="elo_profiles"/>
+        <dropColumn tableName="elo_profiles" columnName="tenant_id"/>
+        <addPrimaryKey tableName="elo_profiles" columnNames="owner"/>
+    </changeSet>
+
+    <changeSet id="drop-punishment-templates-tenant" author="blackhole">
+        <dropIndex indexName="IDX6sna77t8blfhbf7vw1d949qv7" tableName="punishment_templates"/>
+        <dropColumn tableName="punishment_templates" columnName="tenant_id"/>
+    </changeSet>
+
+    <changeSet id="drop-punishments-tenant" author="blackhole">
+        <dropIndex indexName="IDXf248pwm8h4gskq8r86ohne5bd" tableName="punishments"/>
+        <dropColumn tableName="punishments" columnName="tenant_id"/>
+    </changeSet>
+
+    <changeSet id="drop-punishment-evidence-tenant" author="blackhole">
+        <dropIndex indexName="IDX88plc6lylknnkler3ds0vmagv" tableName="punishment_evidence"/>
+        <dropColumn tableName="punishment_evidence" columnName="tenant_id"/>
+    </changeSet>
+
+    <changeSet id="drop-reports-tenant" author="blackhole">
+        <dropIndex indexName="IDXp2ffpn85f33jnlh9a6dw6dfjd" tableName="reports"/>
+        <dropColumn tableName="reports" columnName="tenant_id"/>
+    </changeSet>
+
+    <changeSet id="drop-connector-registrations-tenant" author="blackhole">
+        <dropIndex indexName="IDXhwsvcq9wogcnjafm8qmil9niy" tableName="connector_registrations"/>
+        <dropColumn tableName="connector_registrations" columnName="tenant_id"/>
+    </changeSet>
+
+    <changeSet id="drop-appeals-tenant" author="blackhole">
+        <dropIndex indexName="IDX7yn6lv2wptlia206ij210jtig" tableName="appeals"/>
+        <dropColumn tableName="appeals" columnName="tenant_id"/>
+    </changeSet>
+
+    <changeSet id="drop-ip-correlation-tokens-tenant" author="blackhole">
+        <dropIndex indexName="IDXb4n6xf0005sm3973m6oyxrw1t" tableName="ip_correlation_tokens"/>
+        <dropColumn tableName="ip_correlation_tokens" columnName="tenant_id"/>
+    </changeSet>
+
+    <changeSet id="drop-elo-events-tenant" author="blackhole">
+        <dropIndex indexName="IDXbi03h5v8mngaibmc7f6eo81s3" tableName="elo_events"/>
+        <dropColumn tableName="elo_events" columnName="tenant_id"/>
+    </changeSet>
+
+    <changeSet id="drop-tenant-elo-settings-table" author="blackhole">
+        <dropTable tableName="tenant_elo_settings"/>
+    </changeSet>
+
+    <changeSet id="drop-tenants-table" author="blackhole">
+        <dropTable tableName="tenants"/>
+    </changeSet>
+
 </databaseChangeLog>

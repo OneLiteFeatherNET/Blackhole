@@ -9,10 +9,9 @@ import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 
 /**
- * SSRF hardening for connector-supplied {@code deliveryUrl}s. A tenant's {@code TENANT_ADMIN} -
- * a genuinely less-trusted party than the platform operator in this "one deployment, many
- * organizations" multi-tenant model - can otherwise point the backend's own outbound webhook
- * requests at internal-only infrastructure reachable from the shared backend host.
+ * SSRF hardening for connector-supplied {@code deliveryUrl}s. An {@code ADMIN} caller - a
+ * genuinely less-trusted party than the platform operator - can otherwise point the backend's own
+ * outbound webhook requests at internal-only infrastructure reachable from the backend host.
  *
  * <p>Must be called both when a subscription is created ({@code ConnectorController}) and again
  * immediately before every actual delivery ({@code WebhookDispatchConsumer}) - re-checking at

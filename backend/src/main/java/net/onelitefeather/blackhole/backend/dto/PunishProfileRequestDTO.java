@@ -11,8 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Request body for creating/updating a punishment profile. The tenant is taken from the URL,
- * not this body.
+ * Request body for creating/updating a punishment profile.
  */
 @Serdeable
 @ReflectiveAccess

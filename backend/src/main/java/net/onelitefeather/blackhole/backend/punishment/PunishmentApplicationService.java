@@ -5,7 +5,6 @@ import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.cache.CacheInvalidationPublisher;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileEntity;
-import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileId;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentTemplateEntity;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentRepository;
@@ -70,35 +69,33 @@ public class PunishmentApplicationService {
     /**
      * Applies {@code templateId} to {@code owner}'s profile, creating the profile if this is
      * their first ever punishment (a report about a first-time offender must still be
-     * actionable). Returns empty if the template doesn't exist or belongs to a different tenant.
+     * actionable). Returns empty if the template doesn't exist.
      *
-     * @param tenantId   the tenant the punishment belongs to
      * @param owner      the SHA-512-hashed owner the punishment applies to
      * @param templateId the template to apply
      * @param source     the staff/system identity applying the punishment
-     * @return the updated profile, or empty if the template is missing/cross-tenant
+     * @return the updated profile, or empty if the template is missing
      */
-    public Optional<PunishmentProfileEntity> apply(UUID tenantId, String owner, UUID templateId, UUID source) {
-        return apply(tenantId, owner, templateId, source, Map.of());
+    public Optional<PunishmentProfileEntity> apply(String owner, UUID templateId, UUID source) {
+        return apply(owner, templateId, source, Map.of());
     }
 
     /**
-     * Same as {@link #apply(UUID, String, UUID, UUID)}, but merges {@code extraMetaData} into
+     * Same as {@link #apply(String, UUID, UUID)}, but merges {@code extraMetaData} into
      * the created punishment's metadata - e.g. so an ELO-triggered ban can record exactly which
      * signal type crossed the threshold, for a later appeal's eligibility checklist to read
      * without having to reverse-engineer it from timestamps.
      */
-    public Optional<PunishmentProfileEntity> apply(UUID tenantId, String owner, UUID templateId, UUID source, Map<String, Object> extraMetaData) {
+    public Optional<PunishmentProfileEntity> apply(String owner, UUID templateId, UUID source, Map<String, Object> extraMetaData) {
         PunishmentTemplateEntity template = this.templateRepository.findById(templateId).orElse(null);
-        if (template == null || !tenantId.equals(template.getTenantId())) {
+        if (template == null) {
             return Optional.empty();
         }
 
-        PunishmentProfileId profileId = new PunishmentProfileId(tenantId, owner);
-        PunishmentProfileEntity profile = this.profileRepository.findById(profileId).orElse(null);
+        PunishmentProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
         boolean isNewProfile = profile == null;
         if (isNewProfile) {
-            profile = new PunishmentProfileEntity(tenantId, owner, null, null, new ArrayList<>(), new HashMap<>());
+            profile = new PunishmentProfileEntity(owner, null, null, new ArrayList<>(), new HashMap<>());
         }
 
         Map<String, Object> metadata = new HashMap<>();
@@ -111,12 +108,12 @@ public class PunishmentApplicationService {
             metadata.put(Expirable.META_DATA_KEY_EXPIRATION_DATE, System.currentTimeMillis() + duration.toMillis());
         }
 
-        PunishmentEntity punishment = new PunishmentEntity(IdGenerator.generateId(), tenantId, source, template.getType(), null, template, metadata);
+        PunishmentEntity punishment = new PunishmentEntity(IdGenerator.generateId(), source, template.getType(), null, template, metadata);
         PunishmentEntity savedPunishment = this.punishmentRepository.save(punishment);
 
         if (template.getEloDelta() != 0 && !EloService.SYSTEM_ELO_SOURCE.equals(source)) {
             EloTrack track = template.getType() == PunishType.CHAT ? EloTrack.CHAT : EloTrack.GAMEPLAY;
-            this.eloServiceProvider.get().applyDelta(tenantId, owner, track, template.getEloDelta(), EloReasonCode.PUNISHMENT_APPLIED, null, Map.of(
+            this.eloServiceProvider.get().applyDelta(owner, track, template.getEloDelta(), EloReasonCode.PUNISHMENT_APPLIED, null, Map.of(
                     "punishmentIdentifier", savedPunishment.getIdentifier(),
                     "templateIdentifier", templateId.toString()
             ));
@@ -138,13 +135,12 @@ public class PunishmentApplicationService {
 
         PunishmentProfileEntity savedProfile = isNewProfile ? this.profileRepository.save(profile) : this.profileRepository.update(profile);
 
-        this.cacheInvalidationPublisher.invalidate(tenantId, owner);
+        this.cacheInvalidationPublisher.invalidate(owner);
 
         if (isNewProfile) {
-            this.eventPublisher.publish("profile.created", Map.of("tenantId", tenantId.toString(), "owner", owner));
+            this.eventPublisher.publish("profile.created", Map.of("owner", owner));
         }
         Map<String, Object> punishmentCreatedPayload = new HashMap<>();
-        punishmentCreatedPayload.put("tenantId", tenantId.toString());
         punishmentCreatedPayload.put("owner", owner);
         punishmentCreatedPayload.put("punishmentIdentifier", savedPunishment.getIdentifier());
         punishmentCreatedPayload.put("templateIdentifier", templateId.toString());
@@ -162,8 +158,8 @@ public class PunishmentApplicationService {
      *
      * @return the updated profile, or empty if the profile doesn't exist or has no active ban
      */
-    public Optional<PunishmentProfileEntity> revokeBan(UUID tenantId, String owner, UUID revokedBy) {
-        return revoke(tenantId, owner, revokedBy, true);
+    public Optional<PunishmentProfileEntity> revokeBan(String owner, UUID revokedBy) {
+        return revoke(owner, revokedBy, true);
     }
 
     /**
@@ -171,8 +167,8 @@ public class PunishmentApplicationService {
      *
      * @return the updated profile, or empty if the profile doesn't exist or has no active mute
      */
-    public Optional<PunishmentProfileEntity> revokeMute(UUID tenantId, String owner, UUID revokedBy) {
-        return revoke(tenantId, owner, revokedBy, false);
+    public Optional<PunishmentProfileEntity> revokeMute(String owner, UUID revokedBy) {
+        return revoke(owner, revokedBy, false);
     }
 
     /**
@@ -181,9 +177,8 @@ public class PunishmentApplicationService {
      * and {@code AppealDecisionService.applyDecision} - not a refactor of those, to avoid
      * regression risk in already-working code.
      */
-    private Optional<PunishmentProfileEntity> revoke(UUID tenantId, String owner, UUID revokedBy, boolean banSlot) {
-        PunishmentProfileId profileId = new PunishmentProfileId(tenantId, owner);
-        PunishmentProfileEntity profile = this.profileRepository.findById(profileId).orElse(null);
+    private Optional<PunishmentProfileEntity> revoke(String owner, UUID revokedBy, boolean banSlot) {
+        PunishmentProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
         if (profile == null) {
             return Optional.empty();
         }
@@ -205,9 +200,8 @@ public class PunishmentApplicationService {
         }
         PunishmentProfileEntity savedProfile = this.profileRepository.update(profile);
 
-        this.cacheInvalidationPublisher.invalidate(tenantId, owner);
+        this.cacheInvalidationPublisher.invalidate(owner);
         this.eventPublisher.publish("punishment.revoked", Map.of(
-                "tenantId", tenantId.toString(),
                 "owner", owner,
                 "punishmentIdentifier", active.getIdentifier(),
                 "type", active.getType().toString(),

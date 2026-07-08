@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Blackhole is a decentralized, multi-tenant ban system for Minecraft networks, built to be
-GDPR-compliant by design. A single backend deployment serves multiple independent organizations
-("tenants"), each with their own staff, players, punishment history and integrations, while
-keeping personally identifiable data (IPs, raw player UUIDs) hashed or tokenized wherever it's
-stored or published.
+Blackhole is a ban system for a single Minecraft network, built to be GDPR-compliant by design.
+One backend deployment serves one network's staff, players, punishment history and integrations,
+while keeping personally identifiable data (IPs, raw player UUIDs) hashed or tokenized wherever
+it's stored or published. There is no multi-tenancy - if multiple networks are ever needed, that's
+handled by running separate deployments, not by sharing one deployment across them.
 
 Punishment decisions are driven by a **dual-ELO system**: every player carries a separate
 `chatElo` and `gameplayElo` score. Reports, a pluggable chat-toxicity scorer, and signals from
@@ -23,7 +23,7 @@ Gradle multi-module project (Kotlin DSL), Java 21+ (backend toolchain targets 25
 
 | Module     | What it is                                                                                    |
 |------------|------------------------------------------------------------------------------------------------|
-| `backend`  | The Micronaut HTTP API — tenants, punishments, reports, ELO, appeals, connectors, dashboard.   |
+| `backend`  | The Micronaut HTTP API — punishments, reports, ELO, appeals, connectors, dashboard.            |
 | `velocity` | A Velocity proxy plugin that enforces punishments and feeds chat/session data to the backend.  |
 | `client`   | A Java API client generated from `client/specs/blackhole-api-*.yml` via OpenAPI Generator.     |
 | `phoca`    | Shared utility library (metadata/expiry/duration abstractions) used across modules.             |
@@ -75,13 +75,9 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
 - **`security/`** — Every endpoint requires a valid JWT bearer token by default (Micronaut
   Security's secure-by-default posture); `@Secured(SecurityRule.IS_ANONYMOUS)` opts out
   individual endpoints (currently only `POST /auth/bootstrap`). `Roles` defines the role model:
-  `PLATFORM_ADMIN`, `TENANT_ADMIN`, `STAFF`, `PLAYER`, `SERVICE`. Tenant scoping is **not**
-  claim-based or verified in any way — every tenant-scoped endpoint takes a `tenantId` URL path
-  variable and trusts it directly, with nothing checking it against the caller's token. This is a
-  deliberate simplification: a role's JWT works identically against every tenant, so a leaked
-  `STAFF`/`SERVICE` token issued against one tenant works against all of them. There is no
-  `TenantContext` or equivalent gatekeeper — don't reintroduce one without discussing the
-  trade-off, and don't assume tenant isolation is enforced anywhere in this layer.
+  `ADMIN`, `STAFF`, `PLAYER`, `SERVICE`. There is no tenant concept anywhere in this system —
+  Blackhole serves exactly one network per deployment, so there's nothing to scope a token to
+  beyond its role.
   - **Known gap**: JWTs currently carry no per-actor identity, only a role. Don't design new
     features around a per-user identity claim existing yet — that's deferred to a dedicated
     future phase.
@@ -128,16 +124,12 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
 
 ## Cross-cutting conventions
 
-- **Multi-tenancy is URL-driven, not enforced.** Any new controller/service touching tenant-owned
-  data takes a `tenantId` URL path variable and uses it directly for queries/writes — there is no
-  access-check gatekeeper to route through. Don't add one without discussing the trade-off (see
-  `security/` above); don't hand-roll a JWT-claim-based check either, since no tenant claim exists.
-- **SSRF hardening on user-controlled URLs.** Webhook delivery URLs are set by a `TENANT_ADMIN`,
-  a less-trusted party than the platform operator in this shared-deployment model.
-  `WebhookUrlValidator` enforces this (`blackhole.webhook.allow-private-networks` must stay
-  `false` outside local dev/loopback testing). Any new feature accepting a tenant-admin-controlled
-  URL (not just webhooks) needs equivalent SSRF hardening, not just webhook delivery.
-  `InvalidWebhookUrlException` is the standard rejection path.
+- **SSRF hardening on user-controlled URLs.** Webhook delivery URLs are set by an `ADMIN`, a
+  less-trusted party than the platform operator. `WebhookUrlValidator` enforces this
+  (`blackhole.webhook.allow-private-networks` must stay `false` outside local dev/loopback
+  testing). Any new feature accepting an admin-controlled URL (not just webhooks) needs
+  equivalent SSRF hardening, not just webhook delivery. `InvalidWebhookUrlException` is the
+  standard rejection path.
 - **Rate limiting stays out of the app.** Existing app-level rate limiting (e.g. report
   submission) is a deliberate exception already in place; don't add further app-level rate
   limiters for new endpoints — the operator handles that at the infra layer.

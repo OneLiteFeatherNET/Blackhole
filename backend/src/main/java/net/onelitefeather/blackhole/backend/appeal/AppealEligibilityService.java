@@ -5,7 +5,6 @@ import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.database.entities.AppealEntity;
 import net.onelitefeather.blackhole.backend.database.entities.EloProfileEntity;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
-import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileId;
 import net.onelitefeather.blackhole.backend.database.repository.AppealRepository;
 import net.onelitefeather.blackhole.backend.database.repository.EloProfileRepository;
 import net.onelitefeather.blackhole.backend.dto.AppealStatus;
@@ -74,7 +73,7 @@ public class AppealEligibilityService {
         boolean severe = isSevere(punishment);
 
         EloTrack supportingTrack = determineSupportingTrack(punishment, eloTriggerReasonCode);
-        EloProfileEntity eloProfile = this.eloProfileRepository.findById(new PunishmentProfileId(punishment.getTenantId(), appellantHash)).orElse(null);
+        EloProfileEntity eloProfile = this.eloProfileRepository.findById(appellantHash).orElse(null);
         int supportingScore = eloProfile == null ? this.eloBaseline : eloProfile.getScore(supportingTrack);
         boolean supportingRecovered = supportingScore >= this.eloBaseline;
 

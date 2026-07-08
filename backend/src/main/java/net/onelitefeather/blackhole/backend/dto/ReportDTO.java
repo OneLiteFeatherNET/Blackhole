@@ -14,10 +14,8 @@ import java.util.UUID;
 
 /**
  * A player report. {@code status}/{@code createdAt}/{@code updatedAt}/{@code resolvedBy}/
- * {@code resolutionNote} are server-controlled - a submission simply leaves them unset/default,
- * the same nullable-identifier-means-create convention used by {@link TenantDTO}.
+ * {@code resolutionNote} are server-controlled - a submission simply leaves them unset/default.
  *
- * @param tenantId           the tenant this report belongs to
  * @param identifier         the identifier of the report, {@code null} when submitting
  * @param reporterHash       SHA-512 hash of the reporting player
  * @param reportedHash       SHA-512 hash of the reported player
@@ -34,7 +32,6 @@ import java.util.UUID;
 @Serdeable
 @ReflectiveAccess
 public record ReportDTO(
-        @NonNull UUID tenantId,
         @Nullable UUID identifier,
         @NonNull @NotBlank @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "reporterHash must be a sha-512 hash") String reporterHash,
         @NonNull @NotBlank @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "reportedHash must be a sha-512 hash") String reportedHash,

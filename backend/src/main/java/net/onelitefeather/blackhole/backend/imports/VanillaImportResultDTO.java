@@ -3,13 +3,11 @@ package net.onelitefeather.blackhole.backend.imports;
 import io.micronaut.serde.annotation.Serdeable;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Summary of a vanilla ban-list import (or, when {@code dryRun} is set, a preview of what an
  * import would do without writing anything).
  *
- * @param tenantId               the tenant the import was scoped to
  * @param dryRun                 whether this was a preview only
  * @param playersTotal           total entries found in banned-players.json
  * @param playersImported        entries that were (or, for a dry run, would be) imported
@@ -21,7 +19,6 @@ import java.util.UUID;
  */
 @Serdeable
 public record VanillaImportResultDTO(
-        UUID tenantId,
         boolean dryRun,
         int playersTotal,
         int playersImported,

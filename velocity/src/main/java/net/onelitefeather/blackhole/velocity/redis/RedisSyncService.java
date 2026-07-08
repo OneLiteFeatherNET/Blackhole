@@ -26,7 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -117,11 +116,11 @@ public final class RedisSyncService {
      * @return the active ban, if any
      * @throws IllegalStateException if Redis isn't connected - callers must fall back to HTTP
      */
-    public Optional<PunishmentSyncMessage> fetchAndTrack(@NotNull UUID tenantId, @NotNull String ownerHash) {
+    public Optional<PunishmentSyncMessage> fetchAndTrack(@NotNull String ownerHash) {
         requireConnected();
         RedisCommands<String, String> sync = this.connection.sync();
-        Optional<PunishmentSyncMessage> ban = parse(sync.get(RedisTopology.banKey(tenantId, ownerHash)));
-        Optional<PunishmentSyncMessage> chat = parse(sync.get(RedisTopology.chatBanKey(tenantId, ownerHash)));
+        Optional<PunishmentSyncMessage> ban = parse(sync.get(RedisTopology.banKey(ownerHash)));
+        Optional<PunishmentSyncMessage> chat = parse(sync.get(RedisTopology.chatBanKey(ownerHash)));
         this.banCache.put(ownerHash, ban);
         this.chatBanCache.put(ownerHash, chat);
         return ban;
@@ -154,10 +153,6 @@ public final class RedisSyncService {
             LOGGER.warn("Failed to parse incoming punishment sync message: {}", e.getMessage());
             return;
         }
-        if (!message.tenantId().equals(this.config.getTenantId())) {
-            return;
-        }
-
         boolean active = PunishmentSyncMessage.STATE_SET.equals(message.state());
         Optional<PunishmentSyncMessage> value = active ? Optional.of(message) : Optional.empty();
 
@@ -184,7 +179,7 @@ public final class RedisSyncService {
                 continue;
             }
             try {
-                PunishProfileDTO profile = this.punishProfileApi.getById(this.config.getTenantId(), message.owner());
+                PunishProfileDTO profile = this.punishProfileApi.getById(message.owner());
                 PunishEntryDTO activeBan = profile.getActiveBan();
                 if (activeBan != null) {
                     player.disconnect(PunishmentTemplateComponent.of(activeBan.getTemplate(), profile));

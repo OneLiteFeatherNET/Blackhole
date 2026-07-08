@@ -26,9 +26,7 @@ import net.onelitefeather.blackhole.backend.dto.ReportDTO;
 import net.onelitefeather.blackhole.backend.dto.ReportRequestDTO;
 import net.onelitefeather.blackhole.backend.dto.ReportResolutionDTO;
 import net.onelitefeather.blackhole.backend.dto.ReportStatus;
-import net.onelitefeather.blackhole.backend.elo.EffectiveEloSettings;
 import net.onelitefeather.blackhole.backend.elo.EloService;
-import net.onelitefeather.blackhole.backend.elo.TenantEloSettingsService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentApplicationService;
 import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
@@ -49,8 +47,8 @@ import java.util.UUID;
  * <p><b>Security note:</b> {@code reporterHash} is client-supplied - no JWT in this system carries
  * a per-player identity, only a role, so nothing here can verify it actually belongs to the
  * caller. A per-reporterHash limit alone is therefore bypassable by simply varying that field on
- * every request; {@link #rateLimitMaxReportsPerTenant} is an aggregate, tenant-wide backstop that
- * caps the blast radius regardless of what {@code reporterHash} value is claimed.</p>
+ * every request; {@link #rateLimitMaxReportsNetworkWide} is an aggregate, network-wide backstop
+ * that caps the blast radius regardless of what {@code reporterHash} value is claimed.</p>
  *
  * <p><b>Known limitation (deferred, not fixed here):</b> {@code resolve}'s {@code resolvedBy}
  * and {@code punishmentSource} are likewise client-supplied and unverified against the caller's
@@ -67,11 +65,11 @@ public class ReportController {
     private final DomainEventPublisher eventPublisher;
     private final PunishmentApplicationService punishmentApplicationService;
     private final EloService eloService;
-    private final TenantEloSettingsService tenantEloSettingsService;
     private final int rateLimitMaxReports;
-    private final int rateLimitMaxReportsPerTenant;
+    private final int rateLimitMaxReportsNetworkWide;
     private final Duration rateLimitWindow;
     private final int reportActionedDelta;
+    private final int reportRewardDelta;
 
     @Inject
     public ReportController(
@@ -79,21 +77,21 @@ public class ReportController {
             DomainEventPublisher eventPublisher,
             PunishmentApplicationService punishmentApplicationService,
             EloService eloService,
-            TenantEloSettingsService tenantEloSettingsService,
             @Value("${blackhole.report.rate-limit.max-reports:5}") int rateLimitMaxReports,
-            @Value("${blackhole.report.rate-limit.max-reports-per-tenant:50}") int rateLimitMaxReportsPerTenant,
+            @Value("${blackhole.report.rate-limit.max-reports-network-wide:50}") int rateLimitMaxReportsNetworkWide,
             @Value("${blackhole.report.rate-limit.window:PT10M}") Duration rateLimitWindow,
-            @Value("${blackhole.elo.report.actioned-delta:-100}") int reportActionedDelta
+            @Value("${blackhole.elo.report.actioned-delta:-100}") int reportActionedDelta,
+            @Value("${blackhole.elo.report.reward-delta:50}") int reportRewardDelta
     ) {
         this.reportRepository = reportRepository;
         this.eventPublisher = eventPublisher;
         this.punishmentApplicationService = punishmentApplicationService;
         this.eloService = eloService;
-        this.tenantEloSettingsService = tenantEloSettingsService;
         this.rateLimitMaxReports = rateLimitMaxReports;
-        this.rateLimitMaxReportsPerTenant = rateLimitMaxReportsPerTenant;
+        this.rateLimitMaxReportsNetworkWide = rateLimitMaxReportsNetworkWide;
         this.rateLimitWindow = rateLimitWindow;
         this.reportActionedDelta = reportActionedDelta;
+        this.reportRewardDelta = reportRewardDelta;
     }
 
     @Operation(
@@ -110,25 +108,24 @@ public class ReportController {
     @ApiResponse(responseCode = "429", description = "Rate limit exceeded for this reporter")
     @Secured({Roles.PLAYER, Roles.SERVICE})
     @Validated
-    @Post("/{tenantId}")
-    public HttpResponse<?> submit(UUID tenantId, @Body @Valid ReportRequestDTO submission) {
+    @Post("/")
+    public HttpResponse<?> submit(@Body @Valid ReportRequestDTO submission) {
         long now = System.currentTimeMillis();
         long windowStart = now - this.rateLimitWindow.toMillis();
 
-        long recentTenantReports = this.reportRepository.countByTenantIdAndCreatedAtGreaterThan(tenantId, windowStart);
-        if (recentTenantReports >= this.rateLimitMaxReportsPerTenant) {
+        long recentNetworkReports = this.reportRepository.countByCreatedAtGreaterThan(windowStart);
+        if (recentNetworkReports >= this.rateLimitMaxReportsNetworkWide) {
             return HttpResponse.status(HttpStatus.TOO_MANY_REQUESTS);
         }
 
-        long recentReports = this.reportRepository.countByTenantIdAndReporterHashAndCreatedAtGreaterThan(
-                tenantId, submission.reporterHash(), windowStart
+        long recentReports = this.reportRepository.countByReporterHashAndCreatedAtGreaterThan(
+                submission.reporterHash(), windowStart
         );
         if (recentReports >= this.rateLimitMaxReports) {
             return HttpResponse.status(HttpStatus.TOO_MANY_REQUESTS);
         }
 
         ReportEntity report = new ReportEntity(
-                tenantId,
                 submission.reporterHash(),
                 submission.reportedHash(),
                 submission.category(),
@@ -144,7 +141,6 @@ public class ReportController {
         ReportEntity saved = this.reportRepository.save(report);
 
         this.eventPublisher.publish("report.created", Map.of(
-                "tenantId", tenantId.toString(),
                 "reportIdentifier", saved.getIdentifier().toString(),
                 "reporterHash", submission.reporterHash(),
                 "reportedHash", submission.reportedHash(),
@@ -156,7 +152,7 @@ public class ReportController {
 
     @Operation(
             summary = "Get all reports",
-            description = "Retrieves a paginated list of reports for the caller's tenant",
+            description = "Retrieves a paginated list of reports",
             operationId = "getReports",
             tags = {"Report"}
     )
@@ -168,10 +164,10 @@ public class ReportController {
                     array = @ArraySchema(schema = @Schema(implementation = ReportDTO.class), arraySchema = @Schema(implementation = Page.class))
             )
     )
-    @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF, ConnectorScopes.REPORT_READ})
-    @Get("/{tenantId}")
-    public HttpResponse<Page<ReportDTO>> getAll(UUID tenantId, Pageable pageable) {
-        Page<ReportEntity> entities = this.reportRepository.findByTenantId(tenantId, pageable);
+    @Secured({Roles.ADMIN, Roles.STAFF, ConnectorScopes.REPORT_READ})
+    @Get("/")
+    public HttpResponse<Page<ReportDTO>> getAll(Pageable pageable) {
+        Page<ReportEntity> entities = this.reportRepository.findAll(pageable);
         return HttpResponse.ok(entities.map(ReportEntity::toDTO));
     }
 
@@ -188,12 +184,12 @@ public class ReportController {
     )
     @ApiResponse(responseCode = "404", description = "Report or punishment template not found")
     @ApiResponse(responseCode = "400", description = "punishmentSource is required when punishmentTemplateId is set")
-    @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF})
+    @Secured({Roles.ADMIN, Roles.STAFF})
     @Validated
-    @Post("/{tenantId}/{identifier}/resolve")
-    public HttpResponse<?> resolve(UUID tenantId, UUID identifier, @Body @Valid ReportResolutionDTO resolution) {
+    @Post("/{identifier}/resolve")
+    public HttpResponse<?> resolve(UUID identifier, @Body @Valid ReportResolutionDTO resolution) {
         ReportEntity report = this.reportRepository.findById(identifier).orElse(null);
-        if (report == null || !tenantId.equals(report.getTenantId())) {
+        if (report == null) {
             return HttpResponse.notFound();
         }
 
@@ -202,7 +198,7 @@ public class ReportController {
                 return HttpResponse.badRequest("punishmentSource is required when punishmentTemplateId is set");
             }
             var applied = this.punishmentApplicationService.apply(
-                    tenantId, report.getReportedHash(), resolution.punishmentTemplateId(), resolution.punishmentSource()
+                    report.getReportedHash(), resolution.punishmentTemplateId(), resolution.punishmentSource()
             );
             if (applied.isEmpty()) {
                 return HttpResponse.notFound();
@@ -223,7 +219,7 @@ public class ReportController {
             };
             if (track != null) {
                 this.eloService.applyDelta(
-                        tenantId, report.getReportedHash(), track, this.reportActionedDelta, EloReasonCode.REPORT_ACTIONED, null,
+                        report.getReportedHash(), track, this.reportActionedDelta, EloReasonCode.REPORT_ACTIONED, null,
                         Map.of("reportIdentifier", identifier.toString(), "category", report.getCategory().toString())
                 );
 
@@ -232,9 +228,8 @@ public class ReportController {
                 // reached) - a report only earns its reporter Elo when it demonstrably banned
                 // someone, not merely when a staff member marked it ACTIONED without acting.
                 if (resolution.punishmentTemplateId() != null) {
-                    EffectiveEloSettings settings = this.tenantEloSettingsService.resolve(tenantId);
                     this.eloService.applyDelta(
-                            tenantId, report.getReporterHash(), track, settings.reportRewardDelta(), EloReasonCode.REPORT_REWARDED, null,
+                            report.getReporterHash(), track, this.reportRewardDelta, EloReasonCode.REPORT_REWARDED, null,
                             Map.of("reportIdentifier", identifier.toString(), "category", report.getCategory().toString())
                     );
                 }
@@ -242,7 +237,6 @@ public class ReportController {
         }
 
         this.eventPublisher.publish("report.resolved", Map.of(
-                "tenantId", tenantId.toString(),
                 "reportIdentifier", identifier.toString(),
                 "reportedHash", report.getReportedHash(),
                 "status", resolution.status().toString(),

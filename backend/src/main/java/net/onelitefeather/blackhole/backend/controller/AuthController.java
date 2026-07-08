@@ -13,7 +13,6 @@ import io.micronaut.security.token.jwt.generator.JwtTokenGenerator;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
-import net.onelitefeather.blackhole.backend.database.repository.TenantRepository;
 import net.onelitefeather.blackhole.backend.dto.BootstrapRequestDTO;
 import net.onelitefeather.blackhole.backend.dto.IssueTokenRequestDTO;
 import net.onelitefeather.blackhole.backend.dto.TokenResponseDTO;
@@ -26,36 +25,33 @@ import java.util.Set;
 
 /**
  * Issues the JWTs every other endpoint requires. There is no login/password flow here — Blackhole
- * has no human user accounts, only tenants and trusted callers acting on their behalf. Bootstrap
- * gets you the very first {@link Roles#PLATFORM_ADMIN} token from a shared secret; every further
- * token is minted by an already-authenticated admin.
+ * has no human user accounts, only trusted callers acting on the network's behalf. Bootstrap
+ * gets you the very first {@link Roles#ADMIN} token from a shared secret; every further token is
+ * minted by an already-authenticated admin.
  */
 @Controller(ApiVersion.V1 + "/auth")
 public class AuthController {
 
     private final JwtTokenGenerator tokenGenerator;
-    private final TenantRepository tenantRepository;
     private final String bootstrapSecret;
 
     @Inject
     public AuthController(
             JwtTokenGenerator tokenGenerator,
-            TenantRepository tenantRepository,
             @Value("${blackhole.auth.bootstrap-secret:}") String bootstrapSecret
     ) {
         this.tokenGenerator = tokenGenerator;
-        this.tenantRepository = tenantRepository;
         this.bootstrapSecret = bootstrapSecret;
     }
 
     /**
      * Exchanges the operator-configured bootstrap secret (env var {@code BLACKHOLE_AUTH_BOOTSTRAP_SECRET})
-     * for a {@link Roles#PLATFORM_ADMIN} token. Permanently disabled (always 401) if that secret
+     * for an {@link Roles#ADMIN} token. Permanently disabled (always 401) if that secret
      * isn't configured — there is deliberately no insecure default.
      */
     @Operation(
             summary = "Bootstrap the first admin token",
-            description = "Exchanges the deployment's bootstrap secret for a PLATFORM_ADMIN token.",
+            description = "Exchanges the deployment's bootstrap secret for an ADMIN token.",
             operationId = "bootstrap",
             tags = {"Auth"}
     )
@@ -65,46 +61,35 @@ public class AuthController {
         if (this.bootstrapSecret.isBlank() || !this.bootstrapSecret.equals(request.secret())) {
             return HttpResponse.unauthorized();
         }
-        Authentication authentication = Authentication.build("platform-admin", List.of(Roles.PLATFORM_ADMIN), Map.of());
+        Authentication authentication = Authentication.build("admin", List.of(Roles.ADMIN), Map.of());
         return issue(authentication);
     }
 
     /**
-     * Mints a token for a role other than {@link Roles#PLATFORM_ADMIN}. Callable by
-     * {@link Roles#PLATFORM_ADMIN} or {@link Roles#TENANT_ADMIN} - the minted token carries only
-     * a role, not a tenant, so it isn't restricted to the target tenant in any way; which tenant's
-     * data it can touch is determined solely by the {@code tenantId} in the URL of whatever
-     * endpoint it's later used against.
+     * Mints a token for a role other than {@link Roles#ADMIN}... except that an {@link Roles#ADMIN}
+     * caller may also mint further {@code ADMIN} tokens - a natural consequence of there being a
+     * single admin role now rather than a platform/tenant split.
      */
     @Operation(
-            summary = "Issue a tenant-scoped token",
-            description = "Issues a token for a given tenant and role. Requires an authenticated PLATFORM_ADMIN or TENANT_ADMIN caller.",
+            summary = "Issue a token",
+            description = "Issues a token for a given role. Requires an authenticated ADMIN caller.",
             operationId = "issueToken",
             tags = {"Auth"}
     )
     @Secured(SecurityRule.IS_AUTHENTICATED)
     @Post("/token")
     public HttpResponse<?> issueToken(@Valid @Body IssueTokenRequestDTO request, Authentication caller) {
-        boolean callerIsPlatformAdmin = caller.getRoles().contains(Roles.PLATFORM_ADMIN);
-        boolean callerIsTenantAdmin = caller.getRoles().contains(Roles.TENANT_ADMIN);
+        boolean callerIsAdmin = caller.getRoles().contains(Roles.ADMIN);
 
-        if (!callerIsPlatformAdmin && !callerIsTenantAdmin) {
-            return HttpResponse.status(HttpStatus.FORBIDDEN, "Only PLATFORM_ADMIN or TENANT_ADMIN callers may issue tokens");
+        if (!callerIsAdmin) {
+            return HttpResponse.status(HttpStatus.FORBIDDEN, "Only ADMIN callers may issue tokens");
         }
 
-        if (!Set.of(Roles.TENANT_ADMIN, Roles.STAFF, Roles.PLAYER, Roles.SERVICE).contains(request.role())) {
+        if (!Set.of(Roles.ADMIN, Roles.STAFF, Roles.PLAYER, Roles.SERVICE).contains(request.role())) {
             return HttpResponse.badRequest("Cannot issue a token with role " + request.role() + " via this endpoint");
         }
 
-        if (!this.tenantRepository.existsById(request.tenantId())) {
-            return HttpResponse.notFound();
-        }
-
-        Authentication authentication = Authentication.build(
-                request.role() + ":" + request.tenantId(),
-                List.of(request.role()),
-                Map.of()
-        );
+        Authentication authentication = Authentication.build(request.role(), List.of(request.role()), Map.of());
         return issue(authentication);
     }
 

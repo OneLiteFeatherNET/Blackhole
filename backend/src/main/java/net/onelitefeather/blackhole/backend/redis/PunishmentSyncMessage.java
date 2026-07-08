@@ -2,8 +2,6 @@ package net.onelitefeather.blackhole.backend.redis;
 
 import io.micronaut.serde.annotation.Serdeable;
 
-import java.util.UUID;
-
 /**
  * Wire format published on {@link RedisTopology#PUNISHMENT_SYNC_CHANNEL} and stored as the value
  * of the per-profile Redis key so a proxy's login-time {@code GET} carries the same data a
@@ -24,7 +22,6 @@ import java.util.UUID;
  */
 @Serdeable
 public record PunishmentSyncMessage(
-        UUID tenantId,
         String owner,
         String slot,
         String state,

@@ -6,8 +6,6 @@ import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.UUID;
-
 /**
  * The sole writer of active-punishment state into Redis. Called only from {@link RedisSyncConsumer}
  * as a side effect of a domain event, never from a request thread - so a Redis hiccup here can
@@ -29,27 +27,27 @@ public class PunishmentRedisWriter {
         this.jsonMapper = jsonMapper;
     }
 
-    public void setBan(UUID tenantId, String owner, String type, String punishmentIdentifier, String templateIdentifier, Long expiresAt) {
-        set(RedisTopology.banKey(tenantId, owner), new PunishmentSyncMessage(
-                tenantId, owner, SLOT_BAN, "SET", type, punishmentIdentifier, templateIdentifier, expiresAt
+    public void setBan(String owner, String type, String punishmentIdentifier, String templateIdentifier, Long expiresAt) {
+        set(RedisTopology.banKey(owner), new PunishmentSyncMessage(
+                owner, SLOT_BAN, "SET", type, punishmentIdentifier, templateIdentifier, expiresAt
         ), expiresAt);
     }
 
-    public void clearBan(UUID tenantId, String owner, String type, String punishmentIdentifier) {
-        clear(RedisTopology.banKey(tenantId, owner), new PunishmentSyncMessage(
-                tenantId, owner, SLOT_BAN, "CLEARED", type, punishmentIdentifier, null, null
+    public void clearBan(String owner, String type, String punishmentIdentifier) {
+        clear(RedisTopology.banKey(owner), new PunishmentSyncMessage(
+                owner, SLOT_BAN, "CLEARED", type, punishmentIdentifier, null, null
         ));
     }
 
-    public void setChatBan(UUID tenantId, String owner, String punishmentIdentifier, String templateIdentifier, Long expiresAt) {
-        set(RedisTopology.chatBanKey(tenantId, owner), new PunishmentSyncMessage(
-                tenantId, owner, SLOT_CHAT_BAN, "SET", "CHAT", punishmentIdentifier, templateIdentifier, expiresAt
+    public void setChatBan(String owner, String punishmentIdentifier, String templateIdentifier, Long expiresAt) {
+        set(RedisTopology.chatBanKey(owner), new PunishmentSyncMessage(
+                owner, SLOT_CHAT_BAN, "SET", "CHAT", punishmentIdentifier, templateIdentifier, expiresAt
         ), expiresAt);
     }
 
-    public void clearChatBan(UUID tenantId, String owner, String punishmentIdentifier) {
-        clear(RedisTopology.chatBanKey(tenantId, owner), new PunishmentSyncMessage(
-                tenantId, owner, SLOT_CHAT_BAN, "CLEARED", "CHAT", punishmentIdentifier, null, null
+    public void clearChatBan(String owner, String punishmentIdentifier) {
+        clear(RedisTopology.chatBanKey(owner), new PunishmentSyncMessage(
+                owner, SLOT_CHAT_BAN, "CLEARED", "CHAT", punishmentIdentifier, null, null
         ));
     }
 

@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Applies a gameplay-ELO delta for every external signal (Phase 4's {@code POST /signal}) -
@@ -42,20 +41,18 @@ public class EloSignalConsumer {
     @Queue(RabbitTopology.ELO_SIGNAL_QUEUE)
     void receive(DomainEvent event) {
         try {
-            Object tenantIdRaw = event.payload().get("tenantId");
             Object ownerRaw = event.payload().get("owner");
-            if (tenantIdRaw == null || ownerRaw == null) {
-                LOGGER.warn("Signal event {} is missing tenantId/owner, skipping ELO update", event.eventType());
+            if (ownerRaw == null) {
+                LOGGER.warn("Signal event {} is missing owner, skipping ELO update", event.eventType());
                 return;
             }
 
-            UUID tenantId = UUID.fromString(tenantIdRaw.toString());
             String owner = ownerRaw.toString();
             int delta = resolveDelta(event.payload());
 
             Map<String, Object> metaData = new HashMap<>();
             metaData.put("signalType", event.eventType());
-            this.eloService.applyDelta(tenantId, owner, EloTrack.GAMEPLAY, delta, EloReasonCode.ANTICHEAT_FLAG, null, metaData);
+            this.eloService.applyDelta(owner, EloTrack.GAMEPLAY, delta, EloReasonCode.ANTICHEAT_FLAG, null, metaData);
         } catch (RuntimeException e) {
             LOGGER.error("Failed to apply gameplay-ELO delta for signal event {}: {}", event.eventType(), e.getMessage());
         }

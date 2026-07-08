@@ -10,7 +10,6 @@ import net.onelitefeather.blackhole.client.api.PunishmentApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
-import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
@@ -39,14 +38,12 @@ public final class PardonCommand {
     private final ProxyServer proxyServer;
     private final PunishProfileApi punishProfileApi;
     private final PunishmentApi punishmentApi;
-    private final BlackholeConfig config;
 
     @Inject
-    public PardonCommand(@NotNull ProxyServer proxyServer, @NotNull ApiClient apiClient, @NotNull BlackholeConfig config) {
+    public PardonCommand(@NotNull ProxyServer proxyServer, @NotNull ApiClient apiClient) {
         this.proxyServer = proxyServer;
         this.punishProfileApi = new PunishProfileApi(apiClient);
         this.punishmentApi = new PunishmentApi(apiClient);
-        this.config = config;
     }
 
     @Command("blackhole <user> unban")
@@ -62,7 +59,7 @@ public final class PardonCommand {
             return;
         }
         try {
-            this.punishmentApi.revokeBan(this.config.getTenantId(), user.getOwner(), context.sender().getUniqueId());
+            this.punishmentApi.revokeBan(user.getOwner(), context.sender().getUniqueId());
         } catch (ApiException e) {
             LOGGER.error("Failed to unban player {}: {}", user.getOwner(), e.getMessage());
             context.sender().sendMessage(Component.translatable("punishment.error.unban"));
@@ -84,7 +81,7 @@ public final class PardonCommand {
             return;
         }
         try {
-            this.punishmentApi.revokeMute(this.config.getTenantId(), user.getOwner(), context.sender().getUniqueId());
+            this.punishmentApi.revokeMute(user.getOwner(), context.sender().getUniqueId());
         } catch (ApiException e) {
             LOGGER.error("Failed to unmute player {}: {}", user.getOwner(), e.getMessage());
             context.sender().sendMessage(Component.translatable("punishment.error.unmute"));
@@ -104,7 +101,7 @@ public final class PardonCommand {
                 .orElseGet(() -> offlineOwnerHash(name));
 
         try {
-            return this.punishProfileApi.getById(this.config.getTenantId(), ownerHash);
+            return this.punishProfileApi.getById(ownerHash);
         } catch (ApiException e) {
             LOGGER.error("Failed to fetch punish profile for {}: {}", name, e.getMessage());
             throw new IllegalArgumentException("No punishment profile found for %s".formatted(name));

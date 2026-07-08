@@ -15,11 +15,10 @@ public interface EventSubscriptionRepository extends PageableRepository<EventSub
     Page<EventSubscriptionEntity> findByConnectorIdentifier(UUID connectorIdentifier, Pageable pageable);
 
     /**
-     * All active subscriptions belonging to connectors of the given tenant. {@code eventTypes}
-     * membership is filtered in-memory by {@code WebhookDispatchConsumer} rather than in this
-     * query - per-tenant connector/subscription counts are small, and deriving a "list contains"
-     * predicate through a @ManyToOne association is not a query shape this codebase has
+     * All active subscriptions. {@code eventTypes} membership is filtered in-memory by
+     * {@code WebhookDispatchConsumer} rather than in this query - connector/subscription counts
+     * are small, and deriving a "list contains" predicate isn't a query shape this codebase has
      * exercised elsewhere.
      */
-    List<EventSubscriptionEntity> findByConnectorTenantIdAndActiveTrue(UUID tenantId);
+    List<EventSubscriptionEntity> findByActiveTrue();
 }

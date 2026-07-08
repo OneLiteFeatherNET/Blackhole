@@ -16,7 +16,6 @@ import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Generic ingestion point for external signals (e.g. anticheat flags). Blackhole doesn't
@@ -39,10 +38,9 @@ public class SignalController {
 
     @Operation(summary = "Submit an external signal", operationId = "submitSignal", tags = {"Signal"})
     @Validated
-    @Post("/{tenantId}")
-    public HttpResponse<?> submit(UUID tenantId, @Body @Valid SignalDTO signal) {
+    @Post("/")
+    public HttpResponse<?> submit(@Body @Valid SignalDTO signal) {
         Map<String, Object> payload = new HashMap<>(signal.payload());
-        payload.put("tenantId", tenantId.toString());
         payload.put("owner", signal.owner());
         payload.put("signalType", signal.signalType());
 

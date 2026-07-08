@@ -42,7 +42,7 @@ import java.util.UUID;
  * SHA-512 hash (for the client secret) or plaintext (for the signing secret, needed to compute
  * outbound HMAC signatures) is persisted.
  */
-@Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN})
+@Secured({Roles.ADMIN})
 @Controller(ApiVersion.V1 + "/connector")
 public class ConnectorController {
 
@@ -71,8 +71,8 @@ public class ConnectorController {
 
     @Operation(summary = "Register a connector", operationId = "registerConnector", tags = {"Connector"})
     @Validated
-    @Post("/{tenantId}")
-    public HttpResponse<ConnectorRegistrationCreatedDTO> register(UUID tenantId, @Body @Valid ConnectorRegistrationRequestDTO request) {
+    @Post("/")
+    public HttpResponse<ConnectorRegistrationCreatedDTO> register(@Body @Valid ConnectorRegistrationRequestDTO request) {
         if (!ConnectorScopes.ALL.containsAll(request.scopes())) {
             return HttpResponse.badRequest();
         }
@@ -81,7 +81,6 @@ public class ConnectorController {
         String clientSecret = generateSecret();
 
         ConnectorRegistrationEntity entity = new ConnectorRegistrationEntity(
-                tenantId,
                 request.name(),
                 clientId,
                 SecretHasher.hash(clientSecret),
@@ -95,9 +94,9 @@ public class ConnectorController {
     }
 
     @Operation(summary = "Get all connectors", operationId = "getConnectors", tags = {"Connector"})
-    @Get("/tenant/{tenantId}")
-    public HttpResponse<Page<ConnectorRegistrationDTO>> getAll(UUID tenantId, Pageable pageable) {
-        Page<ConnectorRegistrationEntity> entities = this.connectorRepository.findByTenantId(tenantId, pageable);
+    @Get("/")
+    public HttpResponse<Page<ConnectorRegistrationDTO>> getAll(Pageable pageable) {
+        Page<ConnectorRegistrationEntity> entities = this.connectorRepository.findAll(pageable);
         return HttpResponse.ok(entities.map(ConnectorRegistrationEntity::toDTO));
     }
 

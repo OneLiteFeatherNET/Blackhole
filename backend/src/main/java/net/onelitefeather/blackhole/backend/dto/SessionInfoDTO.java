@@ -8,8 +8,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-import java.util.UUID;
-
 /**
  * Session telemetry captured at login/brand-negotiation time (Phase 7's dashboard enrichment).
  * Both fields are optional and merged, not overwritten, into the profile's existing session
@@ -19,7 +17,6 @@ import java.util.UUID;
 @Serdeable
 @ReflectiveAccess
 public record SessionInfoDTO(
-        @NonNull UUID tenantId,
         @NonNull @NotBlank @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "owner must be a sha-512 hash") String owner,
         @Nullable Integer protocolVersion,
         @Nullable @Size(max = 64) String clientBrand

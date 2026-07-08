@@ -12,7 +12,6 @@ import java.util.UUID;
 @ReflectiveAccess
 public record EloEventDTO(
         @NonNull UUID identifier,
-        @NonNull UUID tenantId,
         @NonNull String owner,
         @NonNull EloTrack track,
         int delta,

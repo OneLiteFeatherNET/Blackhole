@@ -4,8 +4,6 @@ import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.IdClass;
-import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
 import net.onelitefeather.blackhole.backend.dto.EloProfileDTO;
@@ -15,22 +13,14 @@ import org.hibernate.type.SqlTypes;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 /**
- * A player's two independent ELO tracks. Reuses {@link PunishmentProfileId} as its
- * {@code @IdClass} - the same (tenantId, owner) composite key {@link PunishmentProfileEntity}
- * uses, since a player's ELO standing is conceptually a 1:1 extension of their punishment
- * profile, not a separately-keyed concept.
+ * A player's two independent ELO tracks - a 1:1 extension of their punishment profile.
  */
 @Serdeable
 @Entity
-@IdClass(PunishmentProfileId.class)
-@Table(name = "elo_profiles", indexes = @Index(columnList = "owner"))
+@Table(name = "elo_profiles")
 public class EloProfileEntity {
-
-    @Id
-    private UUID tenantId;
 
     @Id
     private String owner;
@@ -51,18 +41,13 @@ public class EloProfileEntity {
         // Empty constructor for JPA
     }
 
-    public EloProfileEntity(UUID tenantId, String owner, int chatElo, int gameplayElo, long chatEloUpdatedAt, long gameplayEloUpdatedAt, Map<String, Object> metaData) {
-        this.tenantId = tenantId;
+    public EloProfileEntity(String owner, int chatElo, int gameplayElo, long chatEloUpdatedAt, long gameplayEloUpdatedAt, Map<String, Object> metaData) {
         this.owner = owner;
         this.chatElo = chatElo;
         this.gameplayElo = gameplayElo;
         this.chatEloUpdatedAt = chatEloUpdatedAt;
         this.gameplayEloUpdatedAt = gameplayEloUpdatedAt;
         this.metaData = metaData;
-    }
-
-    public UUID getTenantId() {
-        return tenantId;
     }
 
     public String getOwner() {
@@ -130,6 +115,6 @@ public class EloProfileEntity {
     }
 
     public EloProfileDTO toDTO() {
-        return new EloProfileDTO(this.tenantId, this.owner, this.chatElo, this.gameplayElo, this.chatEloUpdatedAt, this.gameplayEloUpdatedAt, this.metaData);
+        return new EloProfileDTO(this.owner, this.chatElo, this.gameplayElo, this.chatEloUpdatedAt, this.gameplayEloUpdatedAt, this.metaData);
     }
 }
