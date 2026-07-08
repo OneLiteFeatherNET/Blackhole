@@ -8,7 +8,6 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
-import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -28,7 +27,6 @@ import net.onelitefeather.blackhole.backend.dto.EventSubscriptionRequestDTO;
 import net.onelitefeather.blackhole.backend.events.InvalidWebhookUrlException;
 import net.onelitefeather.blackhole.backend.events.WebhookUrlValidator;
 import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
-import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.utils.SecretHasher;
 
 import java.security.SecureRandom;
@@ -42,7 +40,6 @@ import java.util.UUID;
  * SHA-512 hash (for the client secret) or plaintext (for the signing secret, needed to compute
  * outbound HMAC signatures) is persisted.
  */
-@Secured({Roles.ADMIN})
 @Controller(ApiVersion.V1 + "/connector")
 public class ConnectorController {
 

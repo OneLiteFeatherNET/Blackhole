@@ -43,28 +43,23 @@ liquibase:
       enabled: true
       change-log: classpath:db/changelog/db.changelog-master.xml
 
-# Metrics scraping is expected to be protected at the network level, not behind the
-# application's own JWT auth - a scrape target shouldn't need a bearer token.
+# Metrics scraping is expected to be protected at the network level, like every other endpoint
+# (see the no-auth note below) - a scrape target shouldn't need a bearer token either way.
 endpoints:
   prometheus:
     sensitive: false
 
-# Every endpoint requires a valid JWT bearer token by default (Micronaut Security's
-# secure-by-default behavior); @Secured(SecurityRule.IS_ANONYMOUS) opts specific endpoints out
-# (currently only POST /auth/bootstrap). See net.onelitefeather.blackhole.backend.security for
-# the role model (Roles) - there is no tenant concept, so a role's JWT is simply valid or not.
-#
-# blackhole.auth.bootstrap-secret (env BLACKHOLE_AUTH_BOOTSTRAP_SECRET) gates the one-time
-# exchange for the first ADMIN token; leaving it unset disables that endpoint entirely.
-# micronaut.security.token.jwt.signatures.secret.generator.secret (env JWT_GENERATOR_SIGNATURE_SECRET)
-# must be overridden with a real secret (32+ bytes) in every real deployment.
+# There is deliberately no auth system (no JWT, no @Secured) right now: every endpoint is open.
+# The trust model is that only trusted callers can reach this API at all - admins/tools calling
+# the REST API directly, or the Velocity plugin acting on behalf of admins/moderators - and that
+# boundary is enforced at the network/deployment level (firewalling, private networking), not by
+# the application. Revisit once real per-actor identity exists (see the historical "no per-actor
+# identity" gap noted for source/resolvedBy/reviewerId fields).
 blackhole:
-  auth:
-    bootstrap-secret: ${BLACKHOLE_AUTH_BOOTSTRAP_SECRET:}
   # Report submission is rate-limited per reporterHash within this rolling window, so reporting
-  # itself can't become a griefing vector. reporterHash is client-supplied (the JWT carries no
-  # per-player identity), so max-reports-network-wide is an additional aggregate backstop that
-  # still caps abuse even if a caller varies reporterHash on every request.
+  # itself can't become a griefing vector. reporterHash is client-supplied (no per-player identity
+  # exists yet), so max-reports-network-wide is an additional aggregate backstop that still caps
+  # abuse even if a caller varies reporterHash on every request.
   report:
     rate-limit:
       max-reports: ${BLACKHOLE_REPORT_RATE_LIMIT_MAX:5}
@@ -141,15 +136,6 @@ blackhole:
 micronaut:
   application:
     name: Blackhole API
-  security:
-    enabled: true
-    authentication: bearer
-    token:
-      jwt:
-        signatures:
-          secret:
-            generator:
-              secret: ${JWT_GENERATOR_SIGNATURE_SECRET:`dev-only-secret-change-me-min-32-bytes-long`}
   serde:
     jackson:
       parser-features:

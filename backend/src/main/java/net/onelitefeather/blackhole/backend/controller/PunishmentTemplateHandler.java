@@ -14,14 +14,12 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.micronaut.security.annotation.Secured;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentTemplateEntity;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.dto.PunishTemplateDTO;
 import net.onelitefeather.blackhole.backend.dto.PunishTemplateRequestDTO;
-import net.onelitefeather.blackhole.backend.security.Roles;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -33,7 +31,6 @@ import java.util.UUID;
  * @version 1.0.0
  * @since 1.0.0
  */
-@Secured({Roles.ADMIN, Roles.STAFF, Roles.SERVICE})
 @Controller(value = ApiVersion.V1 + "/template")
 public class PunishmentTemplateHandler {
 

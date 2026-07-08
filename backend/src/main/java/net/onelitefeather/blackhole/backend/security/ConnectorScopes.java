@@ -3,10 +3,10 @@ package net.onelitefeather.blackhole.backend.security;
 import java.util.Set;
 
 /**
- * Scopes a connector can be granted. A connector's granted scopes are placed directly into its
- * minted JWT's role list (see {@code ConnectorAuthController}), so existing {@code @Secured}
- * checks can reference a scope string exactly like a role - no separate scope-checking
- * infrastructure needed.
+ * Scopes a connector can be granted, declaring what a registered connector is intended to be
+ * allowed to do. Purely descriptive metadata for now - there is no authentication system to
+ * enforce these against a caller (see the no-auth trust-model note in {@code application.yml}),
+ * so this only validates that a connector registration requests a known scope value.
  */
 public final class ConnectorScopes {
 

@@ -15,7 +15,6 @@ dependencies {
     implementation(mn.micronaut.runtime)
     implementation(mn.validation)
     implementation(mn.micronaut.http.client.jdk)
-    implementation(mn.micronaut.security.jwt)
     implementation(mn.micronaut.management)
     implementation(mn.micronaut.micrometer.core)
     implementation(mn.micronaut.micrometer.registry.prometheus)

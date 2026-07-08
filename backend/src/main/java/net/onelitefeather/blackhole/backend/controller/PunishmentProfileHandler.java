@@ -8,7 +8,6 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
-import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -28,15 +27,12 @@ import net.onelitefeather.blackhole.backend.cache.CacheInvalidationPublisher;
 import net.onelitefeather.blackhole.backend.cache.ProfileCache;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.response.PunishProfileResponse;
-import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
-import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.utils.PunishmentExpiry;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-@Secured({Roles.ADMIN, Roles.STAFF, Roles.SERVICE})
 @Controller(value = ApiVersion.V1 + "/profile")
 public class PunishmentProfileHandler {
 
@@ -219,7 +215,6 @@ public class PunishmentProfileHandler {
             )
 
     )
-    @Secured({Roles.ADMIN, Roles.STAFF, Roles.SERVICE, ConnectorScopes.PROFILE_READ})
     @Get("/")
     public HttpResponse<Page<PunishProfileResponse>> getAll(Pageable pageable) {
         Page<PunishmentProfileEntity> entities = this.repository.findAll(pageable);
@@ -256,7 +251,6 @@ public class PunishmentProfileHandler {
                     )
             )
     )
-    @Secured({Roles.ADMIN, Roles.STAFF, Roles.SERVICE, ConnectorScopes.PROFILE_READ})
     @Get("/{owner}")
     public HttpResponse<PunishProfileResponse> getById(
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner

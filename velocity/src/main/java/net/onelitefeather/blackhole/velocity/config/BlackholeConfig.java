@@ -16,13 +16,6 @@ public class BlackholeConfig {
     private String baseUrl;
 
     /**
-     * A SERVICE-role JWT minted via {@code POST /auth/token} by an ADMIN (see the backend's
-     * AuthController). Sent as a Bearer token on every request; there is no login flow, this
-     * token is provisioned out-of-band and pasted into this config file.
-     */
-    private String serviceToken;
-
-    /**
      * Redis connection used to read active-punishment state mirrored by the backend's
      * RedisSyncConsumer, so a login/chat check on this proxy can hit a shared, fast cache
      * instead of an HTTP call to the backend - and so a punishment applied on another proxy in
@@ -35,7 +28,6 @@ public class BlackholeConfig {
      */
     public BlackholeConfig() {
         this.baseUrl = "http://localhost:8080";
-        this.serviceToken = "";
         this.redisUri = "redis://localhost:6379";
     }
 
@@ -55,24 +47,6 @@ public class BlackholeConfig {
      */
     public void setBaseUrl(@NotNull String baseUrl) {
         this.baseUrl = baseUrl;
-    }
-
-    /**
-     * Gets the SERVICE token sent as a Bearer token on every backend request.
-     *
-     * @return the service token, or an empty string if none has been configured yet
-     */
-    public @NotNull String getServiceToken() {
-        return serviceToken;
-    }
-
-    /**
-     * Sets the SERVICE token sent as a Bearer token on every backend request.
-     *
-     * @param serviceToken the service token
-     */
-    public void setServiceToken(@NotNull String serviceToken) {
-        this.serviceToken = serviceToken;
     }
 
     /**
