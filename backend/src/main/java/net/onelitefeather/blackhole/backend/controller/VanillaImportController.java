@@ -8,6 +8,7 @@ import io.micronaut.http.annotation.Part;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.http.multipart.CompletedFileUpload;
+import io.micronaut.core.version.annotation.Version;
 import io.micronaut.security.annotation.Secured;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.inject.Inject;
@@ -23,7 +24,8 @@ import java.io.IOException;
  * same repository/event path as any other write and stay auditable.
  */
 @Secured({Roles.ADMIN})
-@Controller(ApiVersion.V1 + "/admin/import")
+@Version(ApiVersion.V1)
+@Controller("/admin/import")
 public class VanillaImportController {
 
     private final VanillaImportService importService;
