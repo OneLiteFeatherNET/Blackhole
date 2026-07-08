@@ -4,6 +4,7 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.core.version.annotation.Version;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,7 +27,8 @@ import java.util.Map;
  * {@code signalType}.
  */
 @Secured(ConnectorScopes.SIGNAL_WRITE)
-@Controller(ApiVersion.V1 + "/signal")
+@Version(ApiVersion.V1)
+@Controller("/signal")
 public class SignalController {
 
     private final DomainEventPublisher eventPublisher;
