@@ -3,8 +3,6 @@ plugins {
     alias(libs.plugins.openapi.generator)
 }
 
-group = "net.onelitefeather"
-
 val outDir = layout.buildDirectory.dir("generated/openapi")
 
 dependencies {
@@ -36,7 +34,7 @@ openApiGenerate {
             "useJakartaEe" to "true",
             "serializationLibrary" to "jackson",
             "artifactId" to "blackhole-client",
-            "groupId" to "net.onelitefeather.blackhole",
+            "groupId" to "net.onelitefeather",
             "artifactVersion" to rootProject.version.toString(),
             "buildTool" to "gradle",
             "generateBuilders" to "true",
