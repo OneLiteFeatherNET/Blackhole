@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.database.entities;
+package net.onelitefeather.blackhole.backend.evasion;
 
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Convert;

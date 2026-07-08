@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.controller;
+package net.onelitefeather.blackhole.backend.evasion;
 
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
@@ -11,8 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
-import net.onelitefeather.blackhole.backend.dto.EvasionRecordDTO;
-import net.onelitefeather.blackhole.backend.evasion.IpCorrelationService;
+import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 
 /**
  * Records a login sighting for ban-evasion detection. Called by the Velocity proxy at login,

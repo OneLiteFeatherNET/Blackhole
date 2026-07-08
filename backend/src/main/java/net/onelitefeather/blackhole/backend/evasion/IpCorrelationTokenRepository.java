@@ -1,8 +1,7 @@
-package net.onelitefeather.blackhole.backend.database.repository;
+package net.onelitefeather.blackhole.backend.evasion;
 
 import io.micronaut.data.annotation.Repository;
 import io.micronaut.data.repository.PageableRepository;
-import net.onelitefeather.blackhole.backend.database.entities.IpCorrelationTokenEntity;
 
 import java.util.List;
 import java.util.Optional;
