@@ -97,3 +97,5 @@ is worth designing against by default, not a one-off in a single project.
 - `micronaut-controller-layer` - the class that implements this interface.
 - `micronaut-service-layer` - where the business logic behind these endpoints actually lives.
 - `micronaut-dto-contract` - the DTOs referenced in `@Schema(implementation = ...)`.
+- `micronaut-error-response-contract` - each non-200 `@ApiResponse` here should reference a
+  defined error DTO's schema, never document a status code with no body.

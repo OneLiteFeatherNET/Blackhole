@@ -28,7 +28,11 @@ one specific codebase.
   plain enum works for a single yes/no result; for an operation with more than one distinct
   result shape (created vs. rejected, updated vs. not-found vs. invalid), a small sealed
   interface of records works well - the controller then does a `switch` that maps 1:1 to an
-  `HttpResponse`, with no business meaning re-derived on the controller side.
+  `HttpResponse`, with no business meaning re-derived on the controller side. If that outcome is
+  also what gets serialized as the response body (not just an internal signal the controller
+  discards after mapping), see `micronaut-error-response-contract` for the specific
+  sealed-DTO-plus-`ErrorResponse` shape - the API must always answer with a defined DTO, never
+  let an exception cross the controller/service boundary for an expected failure.
 - **Configuration the service needs (thresholds, feature flags, day counts) comes in via
   constructor-injected config values** (Micronaut's `@Value("${my.app.thing:default}")`),
   consistent with an env-var-driven config convention rather than hardcoded constants.
@@ -103,3 +107,6 @@ designing against by default, not a one-off.
 - `micronaut-controller-layer` - the thin adapter that calls into this layer.
 - `micronaut-openapi-contract` - documentation lives separately, not in the service.
 - `micronaut-dto-contract` - the request/response DTOs a service method takes and produces.
+- `micronaut-error-response-contract` - when the outcome type returned here also needs to be the
+  serialized HTTP response body (not just an internal signal), this is the shape to use: a sealed
+  `*ResponseDTO` with a success record and error record(s) carrying an `errorMessage`.

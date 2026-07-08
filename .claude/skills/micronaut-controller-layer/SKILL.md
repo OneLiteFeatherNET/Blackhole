@@ -112,7 +112,10 @@ public class WidgetController implements WidgetApi {
 
 No repository import, no `@Operation`/`@ApiResponse`, no branching beyond the
 `switch`/`.map(...).orElseGet(...)` that turns the service's answer into a response - that's the
-whole pattern, independent of domain or project.
+whole pattern, independent of domain or project. The bodyless `HttpResponse.notAllowed()`/
+`.notFound()` calls above are simplified for this example; see
+`micronaut-error-response-contract` for why a real error path should carry a DTO body instead of
+an empty response.
 
 ## Observed in real Micronaut codebases
 
@@ -138,3 +141,5 @@ to notice it.
 - `micronaut-service-layer` - where the business logic and repository dependency actually go.
 - `micronaut-openapi-contract` - where the Swagger annotations actually go.
 - `micronaut-dto-contract` - the request/response DTO shape a controller method deals with.
+- `micronaut-error-response-contract` - how the controller should turn a service's error result
+  into an `HttpResponse` that still carries a body, never an empty error response.

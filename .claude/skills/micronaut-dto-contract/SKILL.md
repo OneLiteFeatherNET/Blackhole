@@ -88,3 +88,5 @@ public record WidgetDTO(
 - `micronaut-service-layer` - takes a `*RequestDTO` in, hands a `*DTO` (or an outcome wrapping
   one) back out.
 - `micronaut-openapi-contract` - references these DTOs in `@Schema(implementation = ...)`.
+- `micronaut-error-response-contract` - this skill covers the success `*DTO` shape; that one
+  covers pairing it with a sealed `*ResponseDTO` and error variant for the failure path.
