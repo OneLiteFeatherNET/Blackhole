@@ -5,14 +5,12 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.core.version.annotation.Version;
-import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.backend.dto.SignalDTO;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
-import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -26,7 +24,6 @@ import java.util.Map;
  * integration needs zero new backend code, just a connector registration and a chosen
  * {@code signalType}.
  */
-@Secured(ConnectorScopes.SIGNAL_WRITE)
 @Version(ApiVersion.V1)
 @Controller("/signal")
 public class SignalController {

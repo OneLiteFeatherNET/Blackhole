@@ -71,10 +71,6 @@ public class BlackholeVelocity {
         this.logger.info("Loaded configuration with base URL: {}", config.getBaseUrl());
         this.client = Configuration.getDefaultApiClient();
         this.client.setBasePath(this.config.getBaseUrl());
-        if (this.config.getServiceToken().isBlank()) {
-            this.logger.warn("No service token configured in config.json — every backend request will be rejected with 401 until one is set.");
-        }
-        this.client.setRequestInterceptor(builder -> builder.header("Authorization", "Bearer " + this.config.getServiceToken()));
         this.logger.info("Initialized Blackhole client");
         this.redisSyncService = new RedisSyncService(this.server, this.config, this.client);
         this.redisSyncService.connect();

@@ -8,7 +8,6 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.core.version.annotation.Version;
-import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -26,7 +25,6 @@ import net.onelitefeather.blackhole.backend.dto.EloEventDTO;
 import net.onelitefeather.blackhole.backend.dto.EloProfileDTO;
 import net.onelitefeather.blackhole.backend.elo.ChatToxicityResult;
 import net.onelitefeather.blackhole.backend.elo.ChatToxicityService;
-import net.onelitefeather.blackhole.backend.security.Roles;
 
 /**
  * The chat side of the dual-ELO system. Scoring runs backend-side (not in the Velocity proxy
@@ -34,7 +32,6 @@ import net.onelitefeather.blackhole.backend.security.Roles;
  * component even across a network's many proxy instances. Also exposes the Phase 7 dashboard
  * read endpoints for a player's current standing and audit trail.
  */
-@Secured(Roles.SERVICE)
 @Version(ApiVersion.V1)
 @Controller("/elo")
 public class EloController {
@@ -84,7 +81,6 @@ public class EloController {
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = EloProfileDTO.class))
     )
     @ApiResponse(responseCode = "404", description = "No ELO profile exists yet for this owner")
-    @Secured({Roles.ADMIN, Roles.STAFF})
     @Get("/{owner}")
     public HttpResponse<EloProfileDTO> getProfile(String owner) {
         EloProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
@@ -108,7 +104,6 @@ public class EloController {
                     array = @ArraySchema(schema = @Schema(implementation = EloEventDTO.class), arraySchema = @Schema(implementation = Page.class))
             )
     )
-    @Secured({Roles.ADMIN, Roles.STAFF})
     @Get("/{owner}/history")
     public HttpResponse<Page<EloEventDTO>> getHistory(String owner, Pageable pageable) {
         Page<EloEventEntity> entries = this.eventRepository.findByOwner(owner, pageable);

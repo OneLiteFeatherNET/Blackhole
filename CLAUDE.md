@@ -41,7 +41,7 @@ API version, don't edit generated sources directly.
 
 # Run just the backend against local infra (needs docker/docker-compose.yml running)
 cd docker && docker compose up -d && cd ..
-BLACKHOLE_AUTH_BOOTSTRAP_SECRET=change-me ./gradlew :backend:run
+./gradlew :backend:run
 
 # Run a single module's tests
 ./gradlew :backend:test
@@ -78,15 +78,17 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
   and stay outside this scheme entirely. To introduce a breaking v2 of an endpoint, add a second
   method annotated `@Version("2")` alongside the existing v1 method (same controller, same path) —
   don't bump `ApiVersion.V1` itself or touch the URI.
-- **`security/`** — Every endpoint requires a valid JWT bearer token by default (Micronaut
-  Security's secure-by-default posture); `@Secured(SecurityRule.IS_ANONYMOUS)` opts out
-  individual endpoints (currently only `POST /auth/bootstrap`). `Roles` defines the role model:
-  `ADMIN`, `STAFF`, `PLAYER`, `SERVICE`. There is no tenant concept anywhere in this system —
-  Blackhole serves exactly one network per deployment, so there's nothing to scope a token to
-  beyond its role.
-  - **Known gap**: JWTs currently carry no per-actor identity, only a role. Don't design new
-    features around a per-user identity claim existing yet — that's deferred to a dedicated
-    future phase.
+- **No authentication system.** There is deliberately no JWT/`@Secured`/auth layer at all right
+  now — every endpoint is open. The trust model is that only trusted callers can reach the API in
+  the first place: admins/tools calling the REST API directly, or the Velocity plugin acting on
+  behalf of admins/moderators, with that boundary enforced at the network/deployment level
+  (firewalling, private networking), not by the application. Don't add `@Secured` or reintroduce
+  micronaut-security for new endpoints without an explicit decision to do so — this was a
+  deliberate removal, not an oversight.
+  - **Known gap**: there is no per-actor identity anywhere in this system (removed along with
+    auth) — fields like `source`/`resolvedBy`/`reviewerId` are client-supplied and unverified.
+    Don't design new features around a per-user identity claim existing yet — that's deferred to
+    a dedicated future phase that would likely reintroduce some form of auth alongside it.
 - **`events/`** — Domain event bus over RabbitMQ. `BlackholeRabbitTopology` declares two
   exchanges at channel-creation time (not via config, since this Micronaut RabbitMQ version lacks
   declarative exchange config): a topic exchange `blackhole.events` for domain events consumed by
@@ -95,11 +97,12 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
   events out to connector-registered webhooks using a native RabbitMQ TTL+DLX retry loop (not an
   in-process retry) — after `max-retries` a dispatch parks in `blackhole.webhook.failed` instead
   of retrying forever.
-- **Connector framework** (`ConnectorController`, `ConnectorAuthController`, `ConnectorScopes`,
-  `ConnectorRegistrationEntity`, `EventSubscriptionEntity`) — external systems (anti-cheat tools,
-  dashboards, other backends) integrate via OAuth2 client-credentials tokens scoped to specific
-  read/write permissions, a generic `SignalController` (`/signal`) ingestion endpoint, and signed
-  webhook delivery for subscribed event types, rather than bespoke per-integration code.
+- **Connector framework** (`ConnectorController`, `ConnectorScopes`, `ConnectorRegistrationEntity`,
+  `EventSubscriptionEntity`) — external systems (anti-cheat tools, dashboards, other backends)
+  integrate via a connector registration with declared scopes (currently descriptive metadata
+  only, not enforced — see the no-auth note above), a generic `SignalController` (`/signal`)
+  ingestion endpoint, and signed webhook delivery for subscribed event types, rather than bespoke
+  per-integration code.
 - **`elo/`** — Dual-ELO engine. Baseline/soft/hard thresholds and chat-toxicity scoring
   parameters are all externally configured (see `application.yml`'s `blackhole.elo.*`); crossing
   soft threshold triggers an automatic temporary punishment, hard threshold a permanent one. The
@@ -130,10 +133,10 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
 
 ## Cross-cutting conventions
 
-- **SSRF hardening on user-controlled URLs.** Webhook delivery URLs are set by an `ADMIN`, a
-  less-trusted party than the platform operator. `WebhookUrlValidator` enforces this
+- **SSRF hardening on caller-controlled URLs.** Webhook delivery URLs are arbitrary caller input
+  to the open `ConnectorController` endpoint. `WebhookUrlValidator` enforces this
   (`blackhole.webhook.allow-private-networks` must stay `false` outside local dev/loopback
-  testing). Any new feature accepting an admin-controlled URL (not just webhooks) needs
+  testing). Any new feature accepting a caller-controlled URL (not just webhooks) needs
   equivalent SSRF hardening, not just webhook delivery. `InvalidWebhookUrlException` is the
   standard rejection path.
 - **Rate limiting stays out of the app.** Existing app-level rate limiting (e.g. report

@@ -9,7 +9,6 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.core.version.annotation.Version;
-import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -31,7 +30,6 @@ import net.onelitefeather.blackhole.backend.dto.AppealReviewDTO;
 import net.onelitefeather.blackhole.backend.dto.AppealStatus;
 import net.onelitefeather.blackhole.backend.dto.AppealSubmissionDTO;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
-import net.onelitefeather.blackhole.backend.security.Roles;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -85,7 +83,6 @@ public class AppealController {
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = AppealDTO.class))
     )
     @ApiResponse(responseCode = "404", description = "Punishment not found")
-    @Secured({Roles.PLAYER, Roles.SERVICE})
     @Validated
     @Post("/")
     public HttpResponse<?> submit(@Body @Valid AppealSubmissionDTO submission) {
@@ -128,7 +125,6 @@ public class AppealController {
                     array = @ArraySchema(schema = @Schema(implementation = AppealDTO.class), arraySchema = @Schema(implementation = Page.class))
             )
     )
-    @Secured({Roles.ADMIN, Roles.STAFF})
     @Get("/")
     public HttpResponse<Page<AppealDTO>> getAll(Pageable pageable) {
         Page<AppealEntity> entities = this.appealRepository.findAll(pageable);
@@ -151,7 +147,6 @@ public class AppealController {
     @ApiResponse(responseCode = "400", description = "Invalid decision, or a full lift was attempted on a SEVERE punishment")
     @ApiResponse(responseCode = "403", description = "reviewerId matches the punishment's original source (self-review)")
     @ApiResponse(responseCode = "409", description = "Appeal is not awaiting review, or the punishment is no longer active")
-    @Secured({Roles.ADMIN, Roles.STAFF})
     @Validated
     @Post("/{identifier}/review")
     public HttpResponse<?> review(UUID identifier, @Body @Valid AppealReviewDTO review) {
