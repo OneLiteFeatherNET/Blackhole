@@ -6,6 +6,7 @@ import io.micronaut.http.HttpStatus;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.core.version.annotation.Version;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.authentication.Authentication;
 import io.micronaut.security.rules.SecurityRule;
@@ -29,7 +30,8 @@ import java.util.Set;
  * gets you the very first {@link Roles#ADMIN} token from a shared secret; every further token is
  * minted by an already-authenticated admin.
  */
-@Controller(ApiVersion.V1 + "/auth")
+@Version(ApiVersion.V1)
+@Controller("/auth")
 public class AuthController {
 
     private final JwtTokenGenerator tokenGenerator;
