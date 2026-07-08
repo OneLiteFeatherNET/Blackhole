@@ -110,6 +110,53 @@ worked example (API interface, controller, service, outcome records) lives at
 still inject a repository and/or branch on business rules directly. Apply this rule to new
 controllers, and to these when you're already touching them for another reason.
 
+## This pattern repeats beyond Blackhole (Otis)
+
+The sibling project `OneLiteFeatherNET/Otis` (also a Micronaut backend) shows the same shape in
+`OtisRequestsController`/`OtisSearchController`: both inject `OtisPlayerRepository` straight into
+the controller, `update()` inlines a business check (`playerDTO.playerUuid().equals(owner)` ->
+400) plus an existence check (-> 404) before touching the repository, and there is no `*Api`
+interface anywhere - the `@Operation`/`@ApiResponse` blocks sit directly on six controller
+methods. That's the same three violations this rule targets, in an unrelated codebase from the
+same org - good evidence this is a recurring shape to design against, not a one-off in
+`PunishmentTemplateHandler.java`.
+
+## Generic example (any resource)
+
+Substitute `Widget` for whatever resource you're actually building - the shape doesn't change:
+
+```java
+@Secured({Roles.ADMIN, Roles.STAFF})
+@Controller(value = ApiVersion.V1 + "/widget")
+public class WidgetController implements WidgetApi {
+
+    private final WidgetService widgetService;
+
+    @Inject
+    public WidgetController(WidgetService widgetService) {
+        this.widgetService = widgetService;
+    }
+
+    @Override
+    public HttpResponse<WidgetDTO> create(@Valid @Body WidgetRequestDTO request) {
+        return switch (this.widgetService.create(request)) {
+            case CreateOutcome.Created c -> HttpResponse.ok(c.widget());
+            case CreateOutcome.IdentifierNotAllowed ignored -> HttpResponse.notAllowed();
+        };
+    }
+
+    @Override
+    public HttpResponse<WidgetDTO> findById(UUID identifier) {
+        return this.widgetService.find(identifier)
+                .map(HttpResponse::ok)
+                .orElseGet(HttpResponse::notFound);
+    }
+}
+```
+
+No `Widget*Repository` import, no branching beyond the `switch`/`.map(...).orElseGet(...)` that
+turns the service's answer into a response - that's the whole pattern, independent of domain.
+
 ## See also
 
 - `backend-service-layer` - where the business logic and repository dependency actually go.
