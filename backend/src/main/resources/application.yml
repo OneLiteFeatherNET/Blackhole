@@ -184,6 +184,14 @@ micronaut:
         names:
           - 'v'
           - 'api-version'
+  # micronaut-openapi's own toggle (distinct from micronaut.router.versioning.enabled above):
+  # by default it documents the version header/parameter as an explicit operation parameter,
+  # which the OpenAPI-generated client then surfaces as an extra required method argument on
+  # every single call. Disabled here so routing stays version-aware but the generated client API
+  # doesn't leak the version knob into every call site.
+  openapi:
+    versioning:
+      enabled: false
 
 # OpenTelemetry — tracing is disabled unless OTEL_TRACES_EXPORTER=otlp is set
 # (do this in the Docker/prod container). Metrics stay on Prometheus/Micrometer.
