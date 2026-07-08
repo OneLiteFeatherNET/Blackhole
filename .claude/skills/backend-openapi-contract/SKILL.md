@@ -26,7 +26,7 @@ makes `PunishmentTemplateHandler.java` balloon to ~30-40 lines of annotations pe
   signature the controller overrides.
 - **The controller `implements` the interface** and puts none of the above on its own
   overriding methods - only `@Override` plus whatever routing annotation Micronaut still needs
-  resolved at the implementation (`@Controller`, `@Secured`, `@Inject` stay on the
+  resolved at the implementation (`@Controller`, `@Version`, `@Inject` stay on the
   implementation class, since those are runtime/DI concerns, not documentation).
 - **Don't duplicate the annotations on both interface and implementation.** If Swagger stops
   picking up the docs after this split for some Micronaut-version-specific reason, that's a
@@ -66,8 +66,8 @@ public interface PunishmentTemplateApi {
 ```
 
 ```java
-@Secured({Roles.ADMIN, Roles.STAFF, Roles.SERVICE})
-@Controller(value = ApiVersion.V1 + "/template")
+@Version(ApiVersion.V1)
+@Controller("/template")
 public class PunishmentTemplateController implements PunishmentTemplateApi {
     // @Override methods carry no Swagger annotations - see backend-controller-layer
 }
