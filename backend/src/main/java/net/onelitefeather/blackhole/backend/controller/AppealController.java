@@ -8,6 +8,7 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.core.version.annotation.Version;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,7 +44,8 @@ import java.util.UUID;
  * the checklist allows - never pure algorithmic auto-lift (a farming vector) and never
  * unconstrained human discretion (today's original problem this whole system exists to fix).
  */
-@Controller(ApiVersion.V1 + "/appeal")
+@Version(ApiVersion.V1)
+@Controller("/appeal")
 public class AppealController {
 
     private static final Set<AppealStatus> VALID_DECISIONS = Set.of(
