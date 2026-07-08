@@ -7,6 +7,7 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.core.version.annotation.Version;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,7 +35,8 @@ import net.onelitefeather.blackhole.backend.security.Roles;
  * read endpoints for a player's current standing and audit trail.
  */
 @Secured(Roles.SERVICE)
-@Controller(ApiVersion.V1 + "/elo")
+@Version(ApiVersion.V1)
+@Controller("/elo")
 public class EloController {
 
     private final ChatToxicityService chatToxicityService;
