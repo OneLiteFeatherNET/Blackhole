@@ -1,6 +1,7 @@
-This is a worked, non-production sketch of applying the `backend-controller-layer`,
-`backend-service-layer`, and `backend-openapi-contract` skills together to
-`PunishmentTemplateHandler.java`. It is here as a reference for shape/idiom, not something to
+This is a worked, non-production sketch of applying the `micronaut-controller-layer`,
+`micronaut-service-layer`, and `micronaut-openapi-contract` skills together to Blackhole's
+`PunishmentTemplateHandler.java` - the concrete, real-codebase example those skills' generic
+`Widget*` rule is abstracted from. It is here as a reference for shape/idiom, not something to
 apply automatically - if the team decides to actually do this refactor, wire it up as a real PR
 (imports, package layout under `punishmenttemplate/` or wherever the team wants it, and check it
 still compiles) rather than pasting this verbatim.
