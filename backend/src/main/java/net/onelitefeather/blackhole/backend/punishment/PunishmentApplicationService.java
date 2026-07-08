@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.punishment;
 
+import io.micronaut.context.BeanProvider;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.cache.CacheInvalidationPublisher;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
@@ -9,6 +10,10 @@ import net.onelitefeather.blackhole.backend.database.entities.PunishmentTemplate
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentTemplateRepository;
+import net.onelitefeather.blackhole.backend.dto.EloReasonCode;
+import net.onelitefeather.blackhole.backend.dto.EloTrack;
+import net.onelitefeather.blackhole.backend.dto.PunishType;
+import net.onelitefeather.blackhole.backend.elo.EloService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.utils.IdGenerator;
 import net.onelitefeather.phoca.metadata.Durationable;
@@ -26,7 +31,9 @@ import java.util.UUID;
  * Applies a punishment template to a profile. Shared between {@code PunishmentEntityController}
  * (direct staff/service punishment) and the Phase-3 report resolution flow, so both go through
  * identical template lookup, expiry calculation, history rotation, cache invalidation and event
- * publishing rather than duplicating it.
+ * publishing rather than duplicating it. Being the one chokepoint every punishment goes through
+ * is also why a template's {@code eloDelta} is applied here rather than in each caller - it's
+ * the only place guaranteed to see every temp-ban regardless of who/what issued it.
  */
 @Singleton
 public class PunishmentApplicationService {
@@ -36,19 +43,28 @@ public class PunishmentApplicationService {
     private final PunishmentTemplateRepository templateRepository;
     private final DomainEventPublisher eventPublisher;
     private final CacheInvalidationPublisher cacheInvalidationPublisher;
+    private final BeanProvider<EloService> eloServiceProvider;
 
+    /**
+     * @param eloServiceProvider lazy - {@link EloService} itself depends on this service (to
+     *                           apply auto-bans), so a direct constructor-injected {@link EloService}
+     *                           would form a circular dependency. {@link BeanProvider} defers
+     *                           resolution until first actually used, breaking the cycle.
+     */
     public PunishmentApplicationService(
             PunishmentRepository punishmentRepository,
             PunishmentProfileRepository profileRepository,
             PunishmentTemplateRepository templateRepository,
             DomainEventPublisher eventPublisher,
-            CacheInvalidationPublisher cacheInvalidationPublisher
+            CacheInvalidationPublisher cacheInvalidationPublisher,
+            BeanProvider<EloService> eloServiceProvider
     ) {
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
         this.templateRepository = templateRepository;
         this.eventPublisher = eventPublisher;
         this.cacheInvalidationPublisher = cacheInvalidationPublisher;
+        this.eloServiceProvider = eloServiceProvider;
     }
 
     /**
@@ -97,6 +113,14 @@ public class PunishmentApplicationService {
 
         PunishmentEntity punishment = new PunishmentEntity(IdGenerator.generateId(), tenantId, source, template.getType(), null, template, metadata);
         PunishmentEntity savedPunishment = this.punishmentRepository.save(punishment);
+
+        if (template.getEloDelta() != 0 && !EloService.SYSTEM_ELO_SOURCE.equals(source)) {
+            EloTrack track = template.getType() == PunishType.CHAT ? EloTrack.CHAT : EloTrack.GAMEPLAY;
+            this.eloServiceProvider.get().applyDelta(tenantId, owner, track, template.getEloDelta(), EloReasonCode.PUNISHMENT_APPLIED, null, Map.of(
+                    "punishmentIdentifier", savedPunishment.getIdentifier(),
+                    "templateIdentifier", templateId.toString()
+            ));
+        }
 
         if (profile.getActiveBan() != null) {
             profile.getHistory().add(profile.getActiveBan());
