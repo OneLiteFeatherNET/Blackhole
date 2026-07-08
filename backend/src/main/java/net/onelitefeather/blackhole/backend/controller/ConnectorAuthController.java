@@ -4,6 +4,7 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.core.version.annotation.Version;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.authentication.Authentication;
 import io.micronaut.security.rules.SecurityRule;
@@ -31,7 +32,8 @@ import java.util.Optional;
  * existing {@code @Secured} checks on read endpoints can reference a scope string exactly like
  * any other role - no separate scope-checking infrastructure needed.
  */
-@Controller(ApiVersion.V1 + "/connector/oauth2")
+@Version(ApiVersion.V1)
+@Controller("/connector/oauth2")
 public class ConnectorAuthController {
 
     private final ConnectorRegistrationRepository connectorRepository;
