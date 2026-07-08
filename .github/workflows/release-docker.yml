@@ -51,7 +51,7 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: |
-            ${{ secrets.HARBOR_REGISTRY }}/otis/otis
+            ${{ secrets.HARBOR_REGISTRY }}/blackhole/blackhole
           tags: |
             type=semver,pattern={{version}},value=${{ steps.version.outputs.version }}
             type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.version }}
