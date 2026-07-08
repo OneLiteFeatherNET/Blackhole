@@ -1,6 +1,6 @@
 ---
 name: backend-controller-layer
-description: Presentation-layer rule for Micronaut REST controllers in backend/src/main/java/net/onelitefeather/blackhole/backend/controller/ (Blackhole backend, layered as controller -> service -> repository). Use whenever creating a new controller, adding or changing an endpoint, or reviewing an existing controller - a controller must stay a thin HTTP adapter: routing + @Secured + exactly one service call per method + mapping that service's result to an HttpResponse. It must never inject a *Repository, contain business/validation branching, or carry @Operation/@ApiResponse annotations directly (those belong to backend-service-layer and backend-openapi-contract respectively). Trigger proactively for "add an endpoint", "create a controller", "review this controller", or "where should this check live" in this repo, even if the user doesn't name the pattern.
+description: Presentation-layer rule for Micronaut REST controllers in backend/src/main/java/net/onelitefeather/blackhole/backend/controller/ (Blackhole backend, layered as controller -> service -> repository). Use whenever creating a new controller, adding or changing an endpoint, or reviewing an existing controller - a controller must stay a thin HTTP adapter: routing + API versioning (@Version) + exactly one service call per method + mapping that service's result to an HttpResponse. It must never inject a *Repository, contain business/validation branching, or carry @Operation/@ApiResponse annotations directly (those belong to backend-service-layer and backend-openapi-contract respectively). Trigger proactively for "add an endpoint", "create a controller", "review this controller", or "where should this check live" in this repo, even if the user doesn't name the pattern.
 ---
 
 # Backend controller layer (Blackhole)
@@ -9,7 +9,7 @@ description: Presentation-layer rule for Micronaut REST controllers in backend/s
 
 ```
 HTTP request
-   -> Controller        (this skill)      - routing, security, one delegate call, response mapping
+   -> Controller        (this skill)      - routing, API versioning, one delegate call, response mapping
    -> *Api interface     (backend-openapi-contract) - carries the OpenAPI/Swagger documentation
    -> *Service           (backend-service-layer)     - business logic, validation, persistence orchestration
    -> *Repository/Entity (existing Micronaut Data convention, unchanged)
@@ -35,8 +35,10 @@ A controller method does exactly three things: read the already-deserialized req
   leaked in from the service.
 - **No OpenAPI annotations on the implementation.** `@Operation`, `@ApiResponse`, `@Schema`,
   `@ArraySchema` live on a dedicated `*Api` interface that the controller `implements` - see
-  `backend-openapi-contract`. The controller class itself carries `@Controller`, `@Secured`, and
-  `@Inject` only.
+  `backend-openapi-contract`. The controller class itself carries `@Controller`, `@Version`, and
+  `@Inject` only - this codebase has no per-endpoint auth annotation to worry about (the JWT/
+  `@Secured` system was removed entirely; every endpoint is open and trust is established at the
+  network boundary instead).
 - **Name it `*Controller`.** Every controller in this codebase follows that suffix
   (`AppealController`, `EloController`, `ReportController`, ...) except two legacy outliers
   (`PunishmentTemplateHandler`, `PunishmentProfileHandler`). Don't add new `*Handler` classes;
@@ -56,7 +58,8 @@ A controller method does exactly three things: read the already-deserialized req
 **Before** (`PunishmentTemplateHandler.java` today - abbreviated):
 
 ```java
-@Controller(value = ApiVersion.V1 + "/template")
+@Version(ApiVersion.V1)
+@Controller("/template")
 public class PunishmentTemplateHandler {
 
     private final PunishmentTemplateRepository templateRepository; // repository injected straight into the controller
@@ -77,8 +80,8 @@ public class PunishmentTemplateHandler {
 **After:**
 
 ```java
-@Secured({Roles.ADMIN, Roles.STAFF, Roles.SERVICE})
-@Controller(value = ApiVersion.V1 + "/template")
+@Version(ApiVersion.V1)
+@Controller("/template")
 public class PunishmentTemplateController implements PunishmentTemplateApi {
 
     private final PunishmentTemplateService templateService;
@@ -106,7 +109,7 @@ worked example (API interface, controller, service, outcome records) lives at
 ## Known non-conforming controllers today (informational, not a mandate to bulk-refactor)
 
 `PunishmentTemplateHandler`, `PunishmentProfileHandler`, and parts of `AppealController`,
-`ConnectorAuthController`, `EloController`, `PunishmentEntityController`, `ReportController`
+`ConnectorController`, `EloController`, `PunishmentEntityController`, `ReportController`
 still inject a repository and/or branch on business rules directly. Apply this rule to new
 controllers, and to these when you're already touching them for another reason.
 
@@ -126,8 +129,8 @@ same org - good evidence this is a recurring shape to design against, not a one-
 Substitute `Widget` for whatever resource you're actually building - the shape doesn't change:
 
 ```java
-@Secured({Roles.ADMIN, Roles.STAFF})
-@Controller(value = ApiVersion.V1 + "/widget")
+@Version(ApiVersion.V1)
+@Controller("/widget")
 public class WidgetController implements WidgetApi {
 
     private final WidgetService widgetService;
