@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.dto;
+package net.onelitefeather.blackhole.backend.elo;
 
 /**
  * Why an {@code EloEventEntity} happened. This is the audit trail that lets a reviewer (or a

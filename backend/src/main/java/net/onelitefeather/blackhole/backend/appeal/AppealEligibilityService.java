@@ -2,10 +2,10 @@ package net.onelitefeather.blackhole.backend.appeal;
 
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
-import net.onelitefeather.blackhole.backend.database.entities.EloProfileEntity;
-import net.onelitefeather.blackhole.backend.database.repository.EloProfileRepository;
-import net.onelitefeather.blackhole.backend.dto.EloTrack;
+import net.onelitefeather.blackhole.backend.elo.EloProfileEntity;
+import net.onelitefeather.blackhole.backend.elo.EloProfileRepository;
 import net.onelitefeather.blackhole.backend.elo.EloService;
+import net.onelitefeather.blackhole.backend.elo.EloTrack;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishType;
 import net.onelitefeather.phoca.metadata.Expirable;

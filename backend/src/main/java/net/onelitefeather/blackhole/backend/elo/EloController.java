@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.controller;
+package net.onelitefeather.blackhole.backend.elo;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -16,15 +16,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
-import net.onelitefeather.blackhole.backend.database.entities.EloEventEntity;
-import net.onelitefeather.blackhole.backend.database.entities.EloProfileEntity;
-import net.onelitefeather.blackhole.backend.database.repository.EloEventRepository;
-import net.onelitefeather.blackhole.backend.database.repository.EloProfileRepository;
-import net.onelitefeather.blackhole.backend.dto.ChatSignalDTO;
-import net.onelitefeather.blackhole.backend.dto.EloEventDTO;
-import net.onelitefeather.blackhole.backend.dto.EloProfileDTO;
-import net.onelitefeather.blackhole.backend.elo.ChatToxicityResult;
-import net.onelitefeather.blackhole.backend.elo.ChatToxicityService;
+import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 
 /**
  * The chat side of the dual-ELO system. Scoring runs backend-side (not in the Velocity proxy

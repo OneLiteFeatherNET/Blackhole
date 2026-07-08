@@ -2,12 +2,6 @@ package net.onelitefeather.blackhole.backend.elo;
 
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
-import net.onelitefeather.blackhole.backend.database.entities.EloEventEntity;
-import net.onelitefeather.blackhole.backend.database.entities.EloProfileEntity;
-import net.onelitefeather.blackhole.backend.database.repository.EloEventRepository;
-import net.onelitefeather.blackhole.backend.database.repository.EloProfileRepository;
-import net.onelitefeather.blackhole.backend.dto.EloReasonCode;
-import net.onelitefeather.blackhole.backend.dto.EloTrack;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentApplicationService;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;

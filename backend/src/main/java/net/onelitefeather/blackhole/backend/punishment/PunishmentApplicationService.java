@@ -2,9 +2,9 @@ package net.onelitefeather.blackhole.backend.punishment;
 
 import io.micronaut.context.BeanProvider;
 import jakarta.inject.Singleton;
-import net.onelitefeather.blackhole.backend.dto.EloReasonCode;
-import net.onelitefeather.blackhole.backend.dto.EloTrack;
+import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.EloService;
+import net.onelitefeather.blackhole.backend.elo.EloTrack;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.profile.CacheInvalidationPublisher;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;

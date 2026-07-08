@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.database.entities;
+package net.onelitefeather.blackhole.backend.elo;
 
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Convert;
@@ -6,8 +6,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
-import net.onelitefeather.blackhole.backend.dto.EloProfileDTO;
-import net.onelitefeather.blackhole.backend.dto.EloTrack;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 

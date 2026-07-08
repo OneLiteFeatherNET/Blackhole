@@ -2,8 +2,6 @@ package net.onelitefeather.blackhole.backend.elo;
 
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
-import net.onelitefeather.blackhole.backend.dto.EloReasonCode;
-import net.onelitefeather.blackhole.backend.dto.EloTrack;
 import net.onelitefeather.blackhole.backend.punishment.EvidenceType;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEvidenceEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEvidenceRepository;

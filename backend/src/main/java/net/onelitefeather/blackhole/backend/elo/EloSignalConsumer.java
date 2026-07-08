@@ -5,8 +5,6 @@ import io.micronaut.rabbitmq.annotation.Queue;
 import io.micronaut.rabbitmq.annotation.RabbitListener;
 import net.onelitefeather.blackhole.backend.events.DomainEvent;
 import net.onelitefeather.blackhole.backend.events.RabbitTopology;
-import net.onelitefeather.blackhole.backend.dto.EloReasonCode;
-import net.onelitefeather.blackhole.backend.dto.EloTrack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

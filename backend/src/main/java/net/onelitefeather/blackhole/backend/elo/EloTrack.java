@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.dto;
+package net.onelitefeather.blackhole.backend.elo;
 
 /**
  * The two independent ELO tracks. A player can play without chatting (or vice versa), so each
