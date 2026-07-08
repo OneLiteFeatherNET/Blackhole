@@ -149,3 +149,13 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
 - Allowed types: `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`,
   `style`, `test`. Header max length is 100 chars.
 - A `!` after the type (e.g. `feat!:`) signals a breaking change for release-please's major-version bump.
+- Do not add a `Co-Authored-By: Claude` (or any other AI co-author) trailer to commits in this repo.
+
+## Working with Claude Code on this repo
+
+- At the start of a substantive session (implementation/design/debugging, not a quick question),
+  ground yourself before acting: check Outline for anything relevant to banning/punishment
+  systems and Blackhole itself (roadmap, design docs, decisions), read the actual current
+  codebase rather than relying on prior context, and pull current web knowledge for whatever
+  specific library/API/security topic the task touches rather than relying solely on training
+  data. This keeps reasoning grounded in current state instead of stale assumptions.
