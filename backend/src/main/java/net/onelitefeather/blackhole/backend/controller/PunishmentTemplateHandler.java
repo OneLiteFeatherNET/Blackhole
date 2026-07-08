@@ -9,6 +9,7 @@ import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.core.version.annotation.Version;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -34,7 +35,8 @@ import java.util.UUID;
  * @since 1.0.0
  */
 @Secured({Roles.ADMIN, Roles.STAFF, Roles.SERVICE})
-@Controller(value = ApiVersion.V1 + "/template")
+@Version(ApiVersion.V1)
+@Controller("/template")
 public class PunishmentTemplateHandler {
 
     private final PunishmentTemplateRepository templateRepository;
