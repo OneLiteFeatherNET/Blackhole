@@ -171,3 +171,18 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
   codebase rather than relying on prior context, and pull current web knowledge for whatever
   specific library/API/security topic the task touches rather than relying solely on training
   data. This keeps reasoning grounded in current state instead of stale assumptions.
+- **Session start sync (worktrees only).** If the session is running in a git worktree, before
+  doing anything else: `git fetch origin` + `git pull` on `main` (in the main checkout, not the
+  worktree), then hard-reset the worktree branch to match `main`
+  (`git reset --hard origin/main` from inside the worktree, after first checking `git status` and
+  setting aside any uncommitted work per the destructive-action rules above). This keeps every new
+  session starting from the true current `main` instead of a stale worktree snapshot. Skip this
+  step when working directly in the main checkout.
+- **Commit as you go.** After finishing a task or a coherent chunk of work within a session, create
+  a small commit for it immediately rather than batching everything into one commit at the end —
+  each commit message follows the Conventional Commits rules above. Don't wait until the whole
+  session's work is done to start committing.
+- **Open a PR at session end.** When a session's work is complete (or you're wrapping up for now),
+  push the branch and open a PR against `main` rather than leaving finished work uncommitted on a
+  local/worktree branch. Confirm with the user before pushing/opening the PR if there's any doubt
+  about whether the work is actually ready.
