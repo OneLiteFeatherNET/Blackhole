@@ -8,6 +8,7 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.core.version.annotation.Version;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,7 +44,8 @@ import java.util.UUID;
  * outbound HMAC signatures) is persisted.
  */
 @Secured({Roles.ADMIN})
-@Controller(ApiVersion.V1 + "/connector")
+@Version(ApiVersion.V1)
+@Controller("/connector")
 public class ConnectorController {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
