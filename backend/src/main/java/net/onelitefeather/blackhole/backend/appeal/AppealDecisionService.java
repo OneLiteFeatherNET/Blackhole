@@ -4,14 +4,11 @@ import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.cache.CacheInvalidationPublisher;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileEntity;
-import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileId;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.dto.AppealStatus;
 import net.onelitefeather.phoca.metadata.Expirable;
 import net.onelitefeather.phoca.metadata.Metadata;
-
-import java.util.UUID;
 
 /**
  * The mechanics of actually granting an appeal - lifting a punishment early or shortening it.
@@ -37,19 +34,18 @@ public class AppealDecisionService {
 
     /**
      * @param punishment      the punishment being appealed
-     * @param tenantId        the tenant it belongs to
      * @param owner           the appellant's hashed owner (also the punishment's owner)
      * @param decision        {@code GRANTED_FULL_LIFT}, {@code GRANTED_DURATION_REDUCTION}, or {@code DENIED}
      * @param newExpirationAt required for {@code GRANTED_DURATION_REDUCTION}, ignored otherwise
      * @return whether the decision was applied, or {@code PUNISHMENT_NOT_ACTIVE} if the
      * punishment already expired/was lifted naturally in the meantime - nothing left to grant
      */
-    public DecisionOutcome applyDecision(PunishmentEntity punishment, UUID tenantId, String owner, AppealStatus decision, Long newExpirationAt) {
+    public DecisionOutcome applyDecision(PunishmentEntity punishment, String owner, AppealStatus decision, Long newExpirationAt) {
         if (decision == AppealStatus.DENIED) {
             return DecisionOutcome.APPLIED;
         }
 
-        PunishmentProfileEntity profile = this.profileRepository.findById(new PunishmentProfileId(tenantId, owner)).orElse(null);
+        PunishmentProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
         if (profile == null) {
             return DecisionOutcome.PUNISHMENT_NOT_ACTIVE;
         }
@@ -76,7 +72,7 @@ public class AppealDecisionService {
             this.punishmentRepository.update(punishment);
         }
 
-        this.cacheInvalidationPublisher.invalidate(tenantId, owner);
+        this.cacheInvalidationPublisher.invalidate(owner);
         return DecisionOutcome.APPLIED;
     }
 }

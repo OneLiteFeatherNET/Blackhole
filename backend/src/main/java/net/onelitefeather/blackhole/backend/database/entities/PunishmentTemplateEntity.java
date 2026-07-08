@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
 import net.onelitefeather.blackhole.backend.dto.PunishType;
 import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
 import net.onelitefeather.blackhole.backend.dto.PunishTemplateDTO;
+import net.onelitefeather.blackhole.backend.dto.PunishTemplateRequestDTO;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -20,14 +21,12 @@ import java.util.UUID;
 
 @Serdeable
 @Entity
-@Table(name = "punishment_templates", indexes = {@Index(columnList = "identifier"), @Index(columnList = "tenantId")})
+@Table(name = "punishment_templates", indexes = {@Index(columnList = "identifier")})
 public class PunishmentTemplateEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID identifier;
-
-    private UUID tenantId;
 
     private String reason;
 
@@ -52,7 +51,17 @@ public class PunishmentTemplateEntity {
      * @return the converted PunishmentTemplateEntity
      */
     public static PunishmentTemplateEntity toEntity(PunishTemplateDTO template) {
-        return new PunishmentTemplateEntity(template.identifier(), template.tenantId(), template.reason(), template.type(), template.eloDelta(), template.metaData());
+        return new PunishmentTemplateEntity(template.identifier(), template.reason(), template.type(), template.eloDelta(), template.metaData());
+    }
+
+    /**
+     * Convert a PunishTemplateRequestDTO to a PunishmentTemplateEntity.
+     *
+     * @param template the PunishTemplateRequestDTO to convert
+     * @return the converted PunishmentTemplateEntity
+     */
+    public static PunishmentTemplateEntity toEntity(PunishTemplateRequestDTO template) {
+        return new PunishmentTemplateEntity(template.identifier(), template.reason(), template.type(), template.eloDelta(), template.metaData());
     }
 
     /**
@@ -66,15 +75,13 @@ public class PunishmentTemplateEntity {
      * Create a new PunishmentTemplateEntity
      *
      * @param identifier the identifier of the template
-     * @param tenantId   the tenant the template belongs to
      * @param reason     the reason of the template
      * @param type       the type of the template
      * @param eloDelta   the Elo delta applied when this template is applied ({@code 0} = no effect)
      * @param metaData   the metadata of the template
      */
-    public PunishmentTemplateEntity(UUID identifier, UUID tenantId, String reason, PunishType type, int eloDelta, Map<String, Object> metaData) {
+    public PunishmentTemplateEntity(UUID identifier, String reason, PunishType type, int eloDelta, Map<String, Object> metaData) {
         this.identifier = identifier;
-        this.tenantId = tenantId;
         this.reason = reason;
         this.type = type;
         this.eloDelta = eloDelta;
@@ -88,15 +95,6 @@ public class PunishmentTemplateEntity {
      */
     public UUID getIdentifier() {
         return identifier;
-    }
-
-    /**
-     * Get the tenant the template belongs to.
-     *
-     * @return the tenant identifier
-     */
-    public UUID getTenantId() {
-        return tenantId;
     }
 
     /**
@@ -142,7 +140,6 @@ public class PunishmentTemplateEntity {
      */
     public PunishTemplateDTO toDTO() {
         return new PunishTemplateDTO(
-                this.tenantId,
                 this.metaData,
                 this.reason,
                 this.type,

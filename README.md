@@ -1,8 +1,7 @@
 # Blackhole
 
-Blackhole is a decentralized, multi-tenant ban system for Minecraft networks, built to be
-GDPR-compliant by design. A single backend deployment can serve multiple independent
-organizations ("tenants"), each with their own staff, players, punishment history and
+Blackhole is a ban system for a single Minecraft network, built to be GDPR-compliant by design.
+One backend deployment serves one network's staff, players, punishment history and
 integrations, while keeping personally identifiable data (IPs, raw player UUIDs) hashed or
 tokenized wherever it's stored or published.
 
@@ -17,7 +16,7 @@ both automatic and manual punishments.
 
 | Module     | What it is                                                                                  |
 |------------|----------------------------------------------------------------------------------------------|
-| `backend`  | The Micronaut HTTP API — tenants, punishments, reports, ELO, appeals, connectors, dashboard. |
+| `backend`  | The Micronaut HTTP API — punishments, reports, ELO, appeals, connectors, dashboard.          |
 | `velocity` | A Velocity proxy plugin that enforces punishments and feeds chat/session data to the backend. |
 | `client`   | A Java API client generated from `client/specs/blackhole-api-*.yml` via OpenAPI Generator.   |
 | `phoca`    | Shared utility library used across modules.                                                  |

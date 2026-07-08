@@ -29,7 +29,6 @@ import net.onelitefeather.blackhole.backend.events.InvalidWebhookUrlException;
 import net.onelitefeather.blackhole.backend.events.WebhookUrlValidator;
 import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
 import net.onelitefeather.blackhole.backend.security.Roles;
-import net.onelitefeather.blackhole.backend.security.TenantContext;
 import net.onelitefeather.blackhole.backend.utils.SecretHasher;
 
 import java.security.SecureRandom;
@@ -43,7 +42,7 @@ import java.util.UUID;
  * SHA-512 hash (for the client secret) or plaintext (for the signing secret, needed to compute
  * outbound HMAC signatures) is persisted.
  */
-@Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN})
+@Secured({Roles.ADMIN})
 @Controller(ApiVersion.V1 + "/connector")
 public class ConnectorController {
 
@@ -51,19 +50,16 @@ public class ConnectorController {
 
     private final ConnectorRegistrationRepository connectorRepository;
     private final EventSubscriptionRepository subscriptionRepository;
-    private final TenantContext tenantContext;
     private final WebhookUrlValidator webhookUrlValidator;
 
     @Inject
     public ConnectorController(
             ConnectorRegistrationRepository connectorRepository,
             EventSubscriptionRepository subscriptionRepository,
-            TenantContext tenantContext,
             WebhookUrlValidator webhookUrlValidator
     ) {
         this.connectorRepository = connectorRepository;
         this.subscriptionRepository = subscriptionRepository;
-        this.tenantContext = tenantContext;
         this.webhookUrlValidator = webhookUrlValidator;
     }
 
@@ -77,7 +73,6 @@ public class ConnectorController {
     @Validated
     @Post("/")
     public HttpResponse<ConnectorRegistrationCreatedDTO> register(@Body @Valid ConnectorRegistrationRequestDTO request) {
-        this.tenantContext.requireTenantAccess(request.tenantId());
         if (!ConnectorScopes.ALL.containsAll(request.scopes())) {
             return HttpResponse.badRequest();
         }
@@ -86,7 +81,6 @@ public class ConnectorController {
         String clientSecret = generateSecret();
 
         ConnectorRegistrationEntity entity = new ConnectorRegistrationEntity(
-                request.tenantId(),
                 request.name(),
                 clientId,
                 SecretHasher.hash(clientSecret),
@@ -102,9 +96,7 @@ public class ConnectorController {
     @Operation(summary = "Get all connectors", operationId = "getConnectors", tags = {"Connector"})
     @Get("/")
     public HttpResponse<Page<ConnectorRegistrationDTO>> getAll(Pageable pageable) {
-        Page<ConnectorRegistrationEntity> entities = this.tenantContext.isPlatformAdmin()
-                ? this.connectorRepository.findAll(pageable)
-                : this.connectorRepository.findByTenantId(this.tenantContext.currentTenantId().orElseThrow(), pageable);
+        Page<ConnectorRegistrationEntity> entities = this.connectorRepository.findAll(pageable);
         return HttpResponse.ok(entities.map(ConnectorRegistrationEntity::toDTO));
     }
 
@@ -115,7 +107,6 @@ public class ConnectorController {
         if (entity == null) {
             return HttpResponse.notFound();
         }
-        this.tenantContext.requireTenantAccess(entity.getTenantId());
         return HttpResponse.ok(entity.toDTO());
     }
 
@@ -127,7 +118,6 @@ public class ConnectorController {
         if (entity == null) {
             return HttpResponse.notFound();
         }
-        this.tenantContext.requireTenantAccess(entity.getTenantId());
         if (!ConnectorScopes.ALL.containsAll(update.scopes())) {
             return HttpResponse.badRequest();
         }
@@ -146,7 +136,6 @@ public class ConnectorController {
         if (entity == null) {
             return HttpResponse.notFound();
         }
-        this.tenantContext.requireTenantAccess(entity.getTenantId());
         this.connectorRepository.delete(entity);
         return HttpResponse.ok(entity.toDTO());
     }
@@ -160,7 +149,6 @@ public class ConnectorController {
         if (connector == null) {
             return HttpResponse.notFound();
         }
-        this.tenantContext.requireTenantAccess(connector.getTenantId());
 
         try {
             this.webhookUrlValidator.validate(request.deliveryUrl());
@@ -184,7 +172,6 @@ public class ConnectorController {
         if (connector == null) {
             return HttpResponse.notFound();
         }
-        this.tenantContext.requireTenantAccess(connector.getTenantId());
         Page<EventSubscriptionEntity> entities = this.subscriptionRepository.findByConnectorIdentifier(connectorId, pageable);
         return HttpResponse.ok(entities.map(EventSubscriptionEntity::toDTO));
     }
@@ -196,7 +183,6 @@ public class ConnectorController {
         if (entity == null) {
             return HttpResponse.notFound();
         }
-        this.tenantContext.requireTenantAccess(entity.getConnector().getTenantId());
         this.subscriptionRepository.delete(entity);
         return HttpResponse.ok(entity.toDTO());
     }

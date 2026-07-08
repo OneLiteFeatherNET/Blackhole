@@ -18,7 +18,6 @@ import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.backend.database.entities.EloEventEntity;
 import net.onelitefeather.blackhole.backend.database.entities.EloProfileEntity;
-import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileId;
 import net.onelitefeather.blackhole.backend.database.repository.EloEventRepository;
 import net.onelitefeather.blackhole.backend.database.repository.EloProfileRepository;
 import net.onelitefeather.blackhole.backend.dto.ChatSignalDTO;
@@ -27,9 +26,6 @@ import net.onelitefeather.blackhole.backend.dto.EloProfileDTO;
 import net.onelitefeather.blackhole.backend.elo.ChatToxicityResult;
 import net.onelitefeather.blackhole.backend.elo.ChatToxicityService;
 import net.onelitefeather.blackhole.backend.security.Roles;
-import net.onelitefeather.blackhole.backend.security.TenantContext;
-
-import java.util.UUID;
 
 /**
  * The chat side of the dual-ELO system. Scoring runs backend-side (not in the Velocity proxy
@@ -44,19 +40,16 @@ public class EloController {
     private final ChatToxicityService chatToxicityService;
     private final EloProfileRepository profileRepository;
     private final EloEventRepository eventRepository;
-    private final TenantContext tenantContext;
 
     @Inject
     public EloController(
             ChatToxicityService chatToxicityService,
             EloProfileRepository profileRepository,
-            EloEventRepository eventRepository,
-            TenantContext tenantContext
+            EloEventRepository eventRepository
     ) {
         this.chatToxicityService = chatToxicityService;
         this.profileRepository = profileRepository;
         this.eventRepository = eventRepository;
-        this.tenantContext = tenantContext;
     }
 
     @Operation(
@@ -73,8 +66,7 @@ public class EloController {
     @Validated
     @Post("/chat")
     public HttpResponse<ChatToxicityResult> chat(@Body @Valid ChatSignalDTO signal) {
-        this.tenantContext.requireTenantAccess(signal.tenantId());
-        ChatToxicityResult result = this.chatToxicityService.evaluate(signal.tenantId(), signal.owner(), signal.message());
+        ChatToxicityResult result = this.chatToxicityService.evaluate(signal.owner(), signal.message());
         return HttpResponse.ok(result);
     }
 
@@ -90,11 +82,10 @@ public class EloController {
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = EloProfileDTO.class))
     )
     @ApiResponse(responseCode = "404", description = "No ELO profile exists yet for this owner")
-    @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF})
-    @Get("/{tenantId}/{owner}")
-    public HttpResponse<EloProfileDTO> getProfile(UUID tenantId, String owner) {
-        this.tenantContext.requireTenantAccess(tenantId);
-        EloProfileEntity profile = this.profileRepository.findById(new PunishmentProfileId(tenantId, owner)).orElse(null);
+    @Secured({Roles.ADMIN, Roles.STAFF})
+    @Get("/{owner}")
+    public HttpResponse<EloProfileDTO> getProfile(String owner) {
+        EloProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
         if (profile == null) {
             return HttpResponse.notFound();
         }
@@ -115,11 +106,10 @@ public class EloController {
                     array = @ArraySchema(schema = @Schema(implementation = EloEventDTO.class), arraySchema = @Schema(implementation = Page.class))
             )
     )
-    @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF})
-    @Get("/{tenantId}/{owner}/history")
-    public HttpResponse<Page<EloEventDTO>> getHistory(UUID tenantId, String owner, Pageable pageable) {
-        this.tenantContext.requireTenantAccess(tenantId);
-        Page<EloEventEntity> entries = this.eventRepository.findByTenantIdAndOwner(tenantId, owner, pageable);
+    @Secured({Roles.ADMIN, Roles.STAFF})
+    @Get("/{owner}/history")
+    public HttpResponse<Page<EloEventDTO>> getHistory(String owner, Pageable pageable) {
+        Page<EloEventEntity> entries = this.eventRepository.findByOwner(owner, pageable);
         return HttpResponse.ok(entries.map(EloEventEntity::toDTO));
     }
 }

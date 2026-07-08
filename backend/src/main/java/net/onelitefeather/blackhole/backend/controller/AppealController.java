@@ -31,7 +31,6 @@ import net.onelitefeather.blackhole.backend.dto.AppealStatus;
 import net.onelitefeather.blackhole.backend.dto.AppealSubmissionDTO;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.security.Roles;
-import net.onelitefeather.blackhole.backend.security.TenantContext;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -56,7 +55,6 @@ public class AppealController {
     private final AppealEligibilityService eligibilityService;
     private final AppealDecisionService decisionService;
     private final DomainEventPublisher eventPublisher;
-    private final TenantContext tenantContext;
 
     @Inject
     public AppealController(
@@ -64,15 +62,13 @@ public class AppealController {
             PunishmentRepository punishmentRepository,
             AppealEligibilityService eligibilityService,
             AppealDecisionService decisionService,
-            DomainEventPublisher eventPublisher,
-            TenantContext tenantContext
+            DomainEventPublisher eventPublisher
     ) {
         this.appealRepository = appealRepository;
         this.punishmentRepository = punishmentRepository;
         this.eligibilityService = eligibilityService;
         this.decisionService = decisionService;
         this.eventPublisher = eventPublisher;
-        this.tenantContext = tenantContext;
     }
 
     @Operation(
@@ -91,10 +87,8 @@ public class AppealController {
     @Validated
     @Post("/")
     public HttpResponse<?> submit(@Body @Valid AppealSubmissionDTO submission) {
-        this.tenantContext.requireTenantAccess(submission.tenantId());
-
         PunishmentEntity punishment = this.punishmentRepository.findById(submission.punishmentIdentifier()).orElse(null);
-        if (punishment == null || !submission.tenantId().equals(punishment.getTenantId())) {
+        if (punishment == null) {
             return HttpResponse.notFound();
         }
 
@@ -102,14 +96,13 @@ public class AppealController {
         long now = System.currentTimeMillis();
 
         AppealEntity appeal = new AppealEntity(
-                submission.tenantId(), punishment, submission.appellantHash(), submission.statement(),
+                punishment, submission.appellantHash(), submission.statement(),
                 eligibility.eligible() ? AppealStatus.ELIGIBLE_PENDING_REVIEW : AppealStatus.INELIGIBLE,
                 eligibility.checklistSnapshot(), now, now, new HashMap<>()
         );
         AppealEntity saved = this.appealRepository.save(appeal);
 
         this.eventPublisher.publish("appeal.submitted", Map.of(
-                "tenantId", submission.tenantId().toString(),
                 "appealIdentifier", saved.getIdentifier().toString(),
                 "owner", submission.appellantHash(),
                 "punishmentIdentifier", submission.punishmentIdentifier(),
@@ -121,7 +114,7 @@ public class AppealController {
 
     @Operation(
             summary = "Get all appeals",
-            description = "Retrieves a paginated list of appeals for the caller's tenant",
+            description = "Retrieves a paginated list of appeals",
             operationId = "getAppeals",
             tags = {"Appeal"}
     )
@@ -133,12 +126,10 @@ public class AppealController {
                     array = @ArraySchema(schema = @Schema(implementation = AppealDTO.class), arraySchema = @Schema(implementation = Page.class))
             )
     )
-    @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF})
+    @Secured({Roles.ADMIN, Roles.STAFF})
     @Get("/")
     public HttpResponse<Page<AppealDTO>> getAll(Pageable pageable) {
-        Page<AppealEntity> entities = this.tenantContext.isPlatformAdmin()
-                ? this.appealRepository.findAll(pageable)
-                : this.appealRepository.findByTenantId(this.tenantContext.currentTenantId().orElseThrow(), pageable);
+        Page<AppealEntity> entities = this.appealRepository.findAll(pageable);
         return HttpResponse.ok(entities.map(AppealEntity::toDTO));
     }
 
@@ -158,14 +149,12 @@ public class AppealController {
     @ApiResponse(responseCode = "400", description = "Invalid decision, or a full lift was attempted on a SEVERE punishment")
     @ApiResponse(responseCode = "403", description = "reviewerId matches the punishment's original source (self-review)")
     @ApiResponse(responseCode = "409", description = "Appeal is not awaiting review, or the punishment is no longer active")
-    @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF})
+    @Secured({Roles.ADMIN, Roles.STAFF})
     @Validated
-    @Post("/{tenantId}/{identifier}/review")
-    public HttpResponse<?> review(UUID tenantId, UUID identifier, @Body @Valid AppealReviewDTO review) {
-        this.tenantContext.requireTenantAccess(tenantId);
-
+    @Post("/{identifier}/review")
+    public HttpResponse<?> review(UUID identifier, @Body @Valid AppealReviewDTO review) {
         AppealEntity appeal = this.appealRepository.findById(identifier).orElse(null);
-        if (appeal == null || !tenantId.equals(appeal.getTenantId())) {
+        if (appeal == null) {
             return HttpResponse.notFound();
         }
         if (appeal.getStatus() != AppealStatus.ELIGIBLE_PENDING_REVIEW && appeal.getStatus() != AppealStatus.IN_REVIEW) {
@@ -194,7 +183,7 @@ public class AppealController {
         }
 
         DecisionOutcome outcome = this.decisionService.applyDecision(
-                punishment, tenantId, appeal.getAppellantHash(), review.decision(), review.newExpirationAt()
+                punishment, appeal.getAppellantHash(), review.decision(), review.newExpirationAt()
         );
         if (outcome == DecisionOutcome.PUNISHMENT_NOT_ACTIVE) {
             return HttpResponse.status(HttpStatus.CONFLICT, "Punishment is no longer active");
@@ -207,7 +196,6 @@ public class AppealController {
         AppealEntity saved = this.appealRepository.update(appeal);
 
         this.eventPublisher.publish("appeal.resolved", Map.of(
-                "tenantId", tenantId.toString(),
                 "appealIdentifier", identifier.toString(),
                 "owner", appeal.getAppellantHash(),
                 "punishmentIdentifier", punishment.getIdentifier(),

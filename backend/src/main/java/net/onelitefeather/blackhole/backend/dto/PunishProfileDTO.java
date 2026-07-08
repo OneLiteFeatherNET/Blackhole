@@ -11,12 +11,10 @@ import net.onelitefeather.phoca.metadata.Metadata;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 @Serdeable
 @ReflectiveAccess
 public record PunishProfileDTO(
-        @NonNull UUID tenantId,
         @NonNull @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
         @Nullable Optional<PunishEntryDTO> activeChatBan,
         @Nullable Optional<PunishEntryDTO> activeBan,

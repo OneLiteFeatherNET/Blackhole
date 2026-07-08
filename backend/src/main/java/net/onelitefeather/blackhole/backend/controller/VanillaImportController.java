@@ -14,42 +14,36 @@ import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.imports.VanillaImportResultDTO;
 import net.onelitefeather.blackhole.backend.imports.VanillaImportService;
 import net.onelitefeather.blackhole.backend.security.Roles;
-import net.onelitefeather.blackhole.backend.security.TenantContext;
 
 import java.io.IOException;
-import java.util.UUID;
 
 /**
- * Bulk-imports vanilla Minecraft ban lists for a tenant switching to Blackhole. Deliberately an
- * admin-only, hidden-from-public-spec endpoint (not a standalone CLI tool) so imported bans go
- * through the same repository/event path as any other write and stay auditable.
+ * Bulk-imports vanilla Minecraft ban lists into Blackhole. Deliberately an admin-only,
+ * hidden-from-public-spec endpoint (not a standalone CLI tool) so imported bans go through the
+ * same repository/event path as any other write and stay auditable.
  */
-@Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN})
+@Secured({Roles.ADMIN})
 @Controller(ApiVersion.V1 + "/admin/import")
 public class VanillaImportController {
 
     private final VanillaImportService importService;
-    private final TenantContext tenantContext;
 
     @Inject
-    public VanillaImportController(VanillaImportService importService, TenantContext tenantContext) {
+    public VanillaImportController(VanillaImportService importService) {
         this.importService = importService;
-        this.tenantContext = tenantContext;
     }
 
     @Operation(hidden = true)
-    @Post(value = "/vanilla/{tenantId}", consumes = MediaType.MULTIPART_FORM_DATA)
+    @Post(value = "/vanilla", consumes = MediaType.MULTIPART_FORM_DATA)
     public HttpResponse<?> importVanilla(
-            UUID tenantId,
             @Part("bannedPlayers") CompletedFileUpload bannedPlayers,
             @Part("bannedIps") @Nullable CompletedFileUpload bannedIps,
             @QueryValue(defaultValue = "false") boolean dryRun
     ) {
-        this.tenantContext.requireTenantAccess(tenantId);
         try {
             byte[] playersBytes = bannedPlayers.getBytes();
             byte[] ipsBytes = bannedIps != null ? bannedIps.getBytes() : null;
-            VanillaImportResultDTO result = this.importService.importVanillaBans(tenantId, playersBytes, ipsBytes, dryRun);
+            VanillaImportResultDTO result = this.importService.importVanillaBans(playersBytes, ipsBytes, dryRun);
             return HttpResponse.ok(result);
         } catch (IOException e) {
             return HttpResponse.badRequest("Failed to read uploaded file(s): " + e.getMessage());

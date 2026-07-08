@@ -4,8 +4,6 @@ import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.UUID;
-
 /**
  * Called as a side effect of every profile write. Invalidates this replica's own cache entry
  * immediately (no need to wait on a broker round-trip for the instance that made the write) and
@@ -24,12 +22,12 @@ public class CacheInvalidationPublisher {
         this.rabbitPublisher = rabbitPublisher;
     }
 
-    public void invalidate(UUID tenantId, String owner) {
-        this.profileCache.invalidate(tenantId, owner);
+    public void invalidate(String owner) {
+        this.profileCache.invalidate(owner);
         try {
-            this.rabbitPublisher.invalidate(new CacheInvalidationMessage(tenantId, owner));
+            this.rabbitPublisher.invalidate(new CacheInvalidationMessage(owner));
         } catch (RuntimeException e) {
-            LOGGER.error("Failed to broadcast cache invalidation for tenant {}: {}", tenantId, e.getMessage());
+            LOGGER.error("Failed to broadcast cache invalidation for owner {}: {}", owner, e.getMessage());
         }
     }
 }

@@ -15,7 +15,6 @@ import java.util.UUID;
 @Serdeable
 @ReflectiveAccess
 public record ConnectorRegistrationDTO(
-        @NonNull UUID tenantId,
         @NonNull UUID identifier,
         @NonNull String name,
         @NonNull String oauth2ClientId,

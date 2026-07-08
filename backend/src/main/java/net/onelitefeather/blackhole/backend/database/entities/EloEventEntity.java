@@ -27,14 +27,12 @@ import java.util.UUID;
  */
 @Serdeable
 @Entity
-@Table(name = "elo_events", indexes = {@Index(columnList = "identifier"), @Index(columnList = "tenantId"), @Index(columnList = "owner")})
+@Table(name = "elo_events", indexes = {@Index(columnList = "identifier"), @Index(columnList = "owner")})
 public class EloEventEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID identifier;
-
-    private UUID tenantId;
 
     private String owner;
 
@@ -59,7 +57,6 @@ public class EloEventEntity {
     }
 
     public EloEventEntity(
-            UUID tenantId,
             String owner,
             EloTrack track,
             int delta,
@@ -69,7 +66,6 @@ public class EloEventEntity {
             long createdAt,
             Map<String, Object> metaData
     ) {
-        this.tenantId = tenantId;
         this.owner = owner;
         this.track = track;
         this.delta = delta;
@@ -82,10 +78,6 @@ public class EloEventEntity {
 
     public UUID getIdentifier() {
         return identifier;
-    }
-
-    public UUID getTenantId() {
-        return tenantId;
     }
 
     public String getOwner() {
@@ -122,7 +114,7 @@ public class EloEventEntity {
 
     public EloEventDTO toDTO() {
         return new EloEventDTO(
-                this.identifier, this.tenantId, this.owner, this.track, this.delta,
+                this.identifier, this.owner, this.track, this.delta,
                 this.reasonCode, this.sourceEvidenceId, this.resultingScore, this.createdAt, this.metaData
         );
     }

@@ -71,10 +71,7 @@ public class ConnectorAuthController {
         Authentication authentication = Authentication.build(
                 "connector:" + connector.getIdentifier(),
                 roles,
-                Map.of(
-                        "tenantId", connector.getTenantId().toString(),
-                        "connectorId", connector.getIdentifier().toString()
-                )
+                Map.of("connectorId", connector.getIdentifier().toString())
         );
         Optional<String> token = this.tokenGenerator.generateToken(authentication, null);
         if (token.isEmpty()) {

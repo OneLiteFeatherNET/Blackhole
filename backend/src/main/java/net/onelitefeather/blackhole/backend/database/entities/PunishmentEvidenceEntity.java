@@ -21,14 +21,12 @@ import java.util.UUID;
 
 @Serdeable
 @Entity
-@Table(name = "punishment_evidence", indexes = {@Index(columnList = "identifier"), @Index(columnList = "tenantId")})
+@Table(name = "punishment_evidence", indexes = {@Index(columnList = "identifier")})
 public class PunishmentEvidenceEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID identifier;
-
-    private UUID tenantId;
 
     @ManyToOne
     private PunishmentEntity punishment;
@@ -55,7 +53,6 @@ public class PunishmentEvidenceEntity {
     /**
      * Create a new PunishmentEvidenceEntity with the given values.
      *
-     * @param tenantId            the tenant the evidence belongs to
      * @param punishment          the punishment this evidence is attached to
      * @param evidenceType        where this evidence originated from
      * @param referenceId         an external reference (e.g. a chat log message id), if any
@@ -64,7 +61,6 @@ public class PunishmentEvidenceEntity {
      * @param metaData            the metadata of the evidence entry
      */
     public PunishmentEvidenceEntity(
-            UUID tenantId,
             PunishmentEntity punishment,
             EvidenceType evidenceType,
             String referenceId,
@@ -72,7 +68,6 @@ public class PunishmentEvidenceEntity {
             Long retentionExpiresAt,
             Map<String, Object> metaData
     ) {
-        this.tenantId = tenantId;
         this.punishment = punishment;
         this.evidenceType = evidenceType;
         this.referenceId = referenceId;
@@ -83,10 +78,6 @@ public class PunishmentEvidenceEntity {
 
     public UUID getIdentifier() {
         return identifier;
-    }
-
-    public UUID getTenantId() {
-        return tenantId;
     }
 
     public PunishmentEntity getPunishment() {
@@ -120,7 +111,6 @@ public class PunishmentEvidenceEntity {
      */
     public PunishmentEvidenceDTO toDTO() {
         return new PunishmentEvidenceDTO(
-                this.tenantId,
                 this.identifier,
                 this.punishment.getIdentifier(),
                 this.evidenceType,

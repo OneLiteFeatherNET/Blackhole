@@ -29,7 +29,6 @@ import java.util.UUID;
 @Entity
 @Table(name = "appeals", indexes = {
         @Index(columnList = "identifier"),
-        @Index(columnList = "tenantId"),
         @Index(columnList = "appellantHash")
 })
 public class AppealEntity {
@@ -37,8 +36,6 @@ public class AppealEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID identifier;
-
-    private UUID tenantId;
 
     @ManyToOne
     private PunishmentEntity punishment;
@@ -72,7 +69,6 @@ public class AppealEntity {
     }
 
     public AppealEntity(
-            UUID tenantId,
             PunishmentEntity punishment,
             String appellantHash,
             String statement,
@@ -82,7 +78,6 @@ public class AppealEntity {
             long updatedAt,
             Map<String, Object> metaData
     ) {
-        this.tenantId = tenantId;
         this.punishment = punishment;
         this.appellantHash = appellantHash;
         this.statement = statement;
@@ -95,10 +90,6 @@ public class AppealEntity {
 
     public UUID getIdentifier() {
         return identifier;
-    }
-
-    public UUID getTenantId() {
-        return tenantId;
     }
 
     public PunishmentEntity getPunishment() {
@@ -163,7 +154,7 @@ public class AppealEntity {
 
     public AppealDTO toDTO() {
         return new AppealDTO(
-                this.identifier, this.tenantId, this.punishment.getIdentifier(), this.appellantHash, this.statement,
+                this.identifier, this.punishment.getIdentifier(), this.appellantHash, this.statement,
                 this.status, this.eligibilityCheckResult, this.decidedBy, this.decisionNote,
                 this.createdAt, this.updatedAt, this.metaData
         );

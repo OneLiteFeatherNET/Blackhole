@@ -16,7 +16,6 @@ import java.util.UUID;
 @Serdeable
 @ReflectiveAccess
 public record PunishTemplateDTO(
-        @NonNull UUID tenantId,
         @NonNull @NotBlank Map<String, Object> metaData,
         @NonNull @NotBlank String reason,
         @NonNull @NotBlank PunishType type,

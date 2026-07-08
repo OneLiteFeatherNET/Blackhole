@@ -25,7 +25,6 @@ import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Fans out every domain event to whichever {@code EventSubscriptionEntity} rows are subscribed
@@ -116,14 +115,7 @@ public class WebhookDispatchConsumer {
      */
     private boolean dispatch(byte[] body) throws IOException {
         DomainEvent event = this.jsonMapper.readValue(body, DomainEvent.class);
-        Object tenantIdRaw = event.payload().get("tenantId");
-        if (tenantIdRaw == null) {
-            LOGGER.warn("Domain event {} has no tenantId in its payload, skipping webhook dispatch", event.eventType());
-            return true;
-        }
-
-        UUID tenantId = UUID.fromString(tenantIdRaw.toString());
-        List<EventSubscriptionEntity> subscriptions = this.subscriptionRepository.findByConnectorTenantIdAndActiveTrue(tenantId)
+        List<EventSubscriptionEntity> subscriptions = this.subscriptionRepository.findByActiveTrue()
                 .stream()
                 .filter(subscription -> subscription.getEventTypes().contains(event.eventType()))
                 .toList();

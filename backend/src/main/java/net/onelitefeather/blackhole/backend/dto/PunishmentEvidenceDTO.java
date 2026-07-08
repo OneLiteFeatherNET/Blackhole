@@ -17,7 +17,6 @@ import java.util.UUID;
  * so evidence storage stays DSGVO-compliant by default rather than becoming a second full copy
  * of chat logs.
  *
- * @param tenantId             the tenant the evidence belongs to
  * @param identifier           the identifier of the evidence entry, {@code null} when creating
  * @param punishmentIdentifier the identifier of the punishment this evidence is attached to
  * @param evidenceType         where this evidence originated from
@@ -29,7 +28,6 @@ import java.util.UUID;
 @Serdeable
 @ReflectiveAccess
 public record PunishmentEvidenceDTO(
-        @NonNull UUID tenantId,
         @Nullable UUID identifier,
         @NonNull @NotBlank String punishmentIdentifier,
         @NonNull EvidenceType evidenceType,

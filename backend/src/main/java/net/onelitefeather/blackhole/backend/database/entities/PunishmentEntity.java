@@ -16,13 +16,11 @@ import java.util.UUID;
 
 @Serdeable
 @Entity
-@Table(name = "punishments", indexes = {@Index(columnList = "identifier"), @Index(columnList = "tenantId")})
+@Table(name = "punishments", indexes = {@Index(columnList = "identifier")})
 public class PunishmentEntity {
 
     @Id
     private String identifier;
-
-    private UUID tenantId;
 
     private UUID source;
 
@@ -55,7 +53,6 @@ public class PunishmentEntity {
     public static PunishmentEntity toEntity(PunishEntryDTO entry) {
         return new PunishmentEntity(
                 entry.identifier(),
-                entry.tenantId(),
                 entry.source(),
                 entry.type(),
                 entry.scope(),
@@ -79,16 +76,14 @@ public class PunishmentEntity {
      * Create a new PunishmentEntity with a template.
      *
      * @param identifier the identifier of the punishment
-     * @param tenantId   the tenant the punishment belongs to
      * @param source     the source of the punishment
      * @param type       the type the punishment was actually applied as
      * @param scope      the optional scope (e.g. event/community) this punishment is restricted to
      * @param template   the template used for the punishment
      * @param metaData   the metadata of the punishment
      */
-    public PunishmentEntity(String identifier, UUID tenantId, UUID source, PunishType type, String scope, PunishmentTemplateEntity template, Map<String, Object> metaData) {
+    public PunishmentEntity(String identifier, UUID source, PunishType type, String scope, PunishmentTemplateEntity template, Map<String, Object> metaData) {
         this.identifier = identifier;
-        this.tenantId = tenantId;
         this.source = source;
         this.type = type;
         this.scope = scope;
@@ -112,15 +107,6 @@ public class PunishmentEntity {
      */
     public String getIdentifier() {
         return identifier;
-    }
-
-    /**
-     * Get the tenant the punishment belongs to.
-     *
-     * @return the tenant identifier
-     */
-    public UUID getTenantId() {
-        return tenantId;
     }
 
     /**
@@ -176,7 +162,6 @@ public class PunishmentEntity {
     public PunishEntryDTO toDTO() {
         return new PunishEntryDTO(
                 this.identifier,
-                this.tenantId,
                 this.source,
                 this.type,
                 this.scope,

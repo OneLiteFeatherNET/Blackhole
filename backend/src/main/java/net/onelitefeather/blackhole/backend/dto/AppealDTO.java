@@ -12,7 +12,6 @@ import java.util.UUID;
 @ReflectiveAccess
 public record AppealDTO(
         @NonNull UUID identifier,
-        @NonNull UUID tenantId,
         @NonNull String punishmentIdentifier,
         @NonNull String appellantHash,
         @NonNull String statement,

@@ -1,25 +1,21 @@
 package net.onelitefeather.blackhole.backend.security;
 
 /**
- * The role scopes recognized by Blackhole. All roles except {@link #PLATFORM_ADMIN} are
- * implicitly scoped to exactly one tenant, carried as a {@code tenantId} claim/attribute on
- * the authenticated principal.
+ * The role scopes recognized by Blackhole - a single-network backend, so there's no tenant
+ * scoping to speak of; a role's JWT is simply valid or not.
  */
 public final class Roles {
 
-    /** Cross-tenant: manages tenants themselves and can issue tokens for any tenant. */
-    public static final String PLATFORM_ADMIN = "PLATFORM_ADMIN";
+    /** Manages the network's configuration and can issue tokens for any other role. */
+    public static final String ADMIN = "ADMIN";
 
-    /** Manages a single tenant, including issuing tokens scoped to that tenant. */
-    public static final String TENANT_ADMIN = "TENANT_ADMIN";
-
-    /** A staff member allowed to apply/manage punishments within their tenant. */
+    /** A staff member allowed to apply/manage punishments. */
     public static final String STAFF = "STAFF";
 
     /** Reserved for future player-facing endpoints (e.g. appeal submission). */
     public static final String PLAYER = "PLAYER";
 
-    /** A trusted service (e.g. a Velocity proxy) acting on behalf of one tenant. */
+    /** A trusted service (e.g. a Velocity proxy). */
     public static final String SERVICE = "SERVICE";
 
     private Roles() {
