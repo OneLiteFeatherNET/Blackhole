@@ -1,9 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base",
-    ":semanticCommitsDisabled"
-  ],
-  "labels": ["renovate"],
-  "rebaseWhen": "conflicted"
+    "github>OneLiteFeatherNET/renovate:default(OneLiteFeatherNET/blackhole-maintainers)"
+  ]
 }
