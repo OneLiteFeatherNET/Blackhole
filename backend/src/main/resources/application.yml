@@ -75,14 +75,20 @@ blackhole:
     # Keep this false in any real/shared deployment - only for local dev/testing against a
     # loopback receiver.
     allow-private-networks: ${BLACKHOLE_WEBHOOK_ALLOW_PRIVATE_NETWORKS:false}
-  # Dual-ELO system (Phase 5): baseline is the starting/neutral score for both tracks; crossing
-  # below soft-threshold triggers an automatic temporary punishment, below hard-threshold a
-  # permanent network ban. decay.interval-ms controls the "day" length pending decay is measured
-  # in - shortened via env var for testing, 1 real day (86400000ms) in production.
+  # Dual-ELO system (Phase 5): baseline is the platform-wide starting/neutral score for both
+  # tracks, and perma-ban-threshold the platform-wide permanent-ban trigger - both are now
+  # per-tenant overridable (base Elo and perma-ban threshold per track, plus the perma-ban
+  # template and report reward) via TenantEloSettingsService/TenantEloSettingsController
+  # (POST/GET /tenant/{tenantId}/elo-settings); these @Value defaults only apply when a tenant
+  # hasn't set its own. Crossing below soft-threshold (still platform-wide only) triggers an
+  # automatic temporary punishment; below the tenant's perma-ban threshold, a permanent ban via
+  # the tenant's explicitly-configured perma-ban template (skipped, not auto-generated, if the
+  # tenant hasn't configured one). decay.interval-ms controls the "day" length pending decay is
+  # measured in - shortened via env var for testing, 1 real day (86400000ms) in production.
   elo:
     baseline: ${BLACKHOLE_ELO_BASELINE:1000}
     soft-threshold: ${BLACKHOLE_ELO_SOFT_THRESHOLD:700}
-    hard-threshold: ${BLACKHOLE_ELO_HARD_THRESHOLD:300}
+    perma-ban-threshold: ${BLACKHOLE_ELO_PERMA_BAN_THRESHOLD:300}
     decay:
       recovery-per-day: ${BLACKHOLE_ELO_DECAY_RECOVERY_PER_DAY:10}
       interval-ms: ${BLACKHOLE_ELO_DECAY_INTERVAL_MS:86400000}
@@ -103,6 +109,9 @@ blackhole:
       default-delta: ${BLACKHOLE_ELO_SIGNAL_DEFAULT_DELTA:-150}
     report:
       actioned-delta: ${BLACKHOLE_ELO_REPORT_ACTIONED_DELTA:-100}
+      # Awarded to the reporter (platform-wide default, per-tenant overridable) when their
+      # report is resolved ACTIONED with an actual punishment applied to the reported player.
+      reward-delta: ${BLACKHOLE_ELO_REPORT_REWARD_DELTA:50}
   # Appeal workflow (Phase 6): min-days-auto is deliberately shorter than min-days-manual - the
   # whole point of ELO auto-bans is saving moderator time, so reversing one shouldn't cost MORE
   # of it via a longer wait. repeat-appeal-cooldown-days blocks a new appeal on the same
