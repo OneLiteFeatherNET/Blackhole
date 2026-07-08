@@ -83,6 +83,45 @@ inline (there's no `*Api` interface anywhere yet). Introduce one when you're add
 controller or substantially reworking an existing one's endpoints - this isn't a mandate to
 retrofit every controller in one pass.
 
+## This pattern repeats beyond Blackhole (Otis)
+
+`OneLiteFeatherNET/Otis`'s `OtisRequestsController` carries `@Operation` plus one-to-three
+`@ApiResponse` blocks on all six of its methods, and `OtisSearchController` does the same on two
+more - all inline, with no `*Api` interface in sight. Same annotation bulk this rule moves out of
+the controller in Blackhole, just in a sibling repo - evidence this is a habit worth designing
+against across Micronaut projects generally, not a one-off in this codebase.
+
+## Generic example (any resource)
+
+```java
+public interface WidgetApi {
+
+    @Operation(summary = "Create widget", operationId = "createWidget", tags = {"Widget"})
+    @ApiResponse(
+            responseCode = "200",
+            description = "Widget created",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = WidgetDTO.class))
+    )
+    @ApiResponse(responseCode = "405", description = "Identifier must be null for creation")
+    @Post("/")
+    HttpResponse<WidgetDTO> create(@Valid @Body WidgetRequestDTO request);
+
+    @Operation(summary = "Get widget by ID", operationId = "getWidgetById", tags = {"Widget"})
+    @ApiResponse(
+            responseCode = "200",
+            description = "Widget found",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = WidgetDTO.class))
+    )
+    @ApiResponse(responseCode = "404", description = "Widget not found")
+    @Get("/{identifier}")
+    HttpResponse<WidgetDTO> findById(UUID identifier);
+}
+```
+
+Everything Swagger needs to render both endpoints lives here; `WidgetController` just
+`implements WidgetApi` and stays annotation-free (see `backend-controller-layer`'s generic
+example).
+
 ## See also
 
 - `backend-controller-layer` - the class that implements this interface.
