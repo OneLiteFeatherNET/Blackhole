@@ -4,23 +4,42 @@ plugins {
     id("io.micronaut.platform.catalog") version "5.0.2"
 }
 
+// Both onelitefeather.dev repos below share one account - read the same
+// OneLiteFeatherRepositoryUsername/Password gradle properties (or CI env vars) for each,
+// rather than each repo's own name-derived credential convention, so only one set of
+// credentials needs to be configured locally/in CI.
+fun org.gradle.api.artifacts.repositories.MavenArtifactRepository.oneLiteFeatherCredentials() {
+    if (System.getenv("CI") != null) {
+        credentials {
+            username = System.getenv("ONELITEFEATHER_MAVEN_USERNAME")
+            password = System.getenv("ONELITEFEATHER_MAVEN_PASSWORD")
+        }
+    } else {
+        credentials {
+            username = providers.gradleProperty("OneLiteFeatherRepositoryUsername").orNull
+            password = providers.gradleProperty("OneLiteFeatherRepositoryPassword").orNull
+        }
+        authentication {
+            create<BasicAuthentication>("basic")
+        }
+    }
+}
+
 dependencyResolutionManagement {
     repositories {
         mavenCentral()
         maven {
             name = "OneLiteFeatherRepository"
             url = uri("https://repo.onelitefeather.dev/onelitefeather")
-            if (System.getenv("CI") != null) {
-                credentials {
-                    username = System.getenv("ONELITEFEATHER_MAVEN_USERNAME")
-                    password = System.getenv("ONELITEFEATHER_MAVEN_PASSWORD")
-                }
-            } else {
-                credentials(PasswordCredentials::class)
-                authentication {
-                    create<BasicAuthentication>("basic")
-                }
-            }
+            oneLiteFeatherCredentials()
+        }
+        // The aggregate "onelitefeather" repo above doesn't resolve artifacts published straight
+        // to the underlying releases/snapshots repos (e.g. Otis's otis-client - see Otis's own
+        // build.gradle.kts publishing block) - declare those explicitly too, same credentials.
+        maven {
+            name = "OneLiteFeatherReleasesRepository"
+            url = uri("https://repo.onelitefeather.dev/onelitefeather-releases")
+            oneLiteFeatherCredentials()
         }
         maven("https://repo.papermc.io/repository/maven-public/")
     }

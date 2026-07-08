@@ -132,6 +132,30 @@ blackhole:
     detection-window-days: ${BLACKHOLE_EVASION_DETECTION_WINDOW_DAYS:7}
     retention-days: ${BLACKHOLE_EVASION_RETENTION_DAYS:90}
     retention-sweep-cron: ${BLACKHOLE_EVASION_RETENTION_SWEEP_CRON:`0 30 3 * * *`}
+  # Player-name resolution, so moderators can tab-complete and target an OFFLINE player by name
+  # (punishment enforcement is already fully UUID-driven at login - see PlayerLoginListener on
+  # the Velocity side - so resolving a name to a UUID is the only missing piece). Resolvers are
+  # tried in a fixed priority order (Otis, then Mojang, then NameMC) and the chain stops at the
+  # first hit; disabling one is a config change only, not a code change.
+  player-resolver:
+    cache:
+      ttl: ${BLACKHOLE_PLAYER_RESOLVER_CACHE_TTL:PT5M}
+      max-size: ${BLACKHOLE_PLAYER_RESOLVER_CACHE_MAX_SIZE:5000}
+    # Otis is the team's own in-house player master-data service - the primary, most trustworthy
+    # resolver. base-url has no default: it's a per-deployment private service address, unlike
+    # Mojang's fixed public API below, so the resolver bean only loads once it's actually set.
+    otis:
+      enabled: ${BLACKHOLE_PLAYER_RESOLVER_OTIS_ENABLED:true}
+      base-url: ${BLACKHOLE_PLAYER_RESOLVER_OTIS_BASE_URL:}
+    # Mojang's official name->UUID API - no auth, but rate-limited, so kept as a fallback rather
+    # than the primary source.
+    mojang:
+      enabled: ${BLACKHOLE_PLAYER_RESOLVER_MOJANG_ENABLED:true}
+    # NameMC has no official public API - only undocumented endpoints that "may change or
+    # disappear at any time" per every third-party wrapper. Lowest priority, and disabled by
+    # default: an operator has to explicitly opt into that instability.
+    namemc:
+      enabled: ${BLACKHOLE_PLAYER_RESOLVER_NAMEMC_ENABLED:false}
 
 micronaut:
   application:

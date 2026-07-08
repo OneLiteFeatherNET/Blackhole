@@ -15,6 +15,10 @@ dependencies {
     implementation(mn.micronaut.runtime)
     implementation(mn.validation)
     implementation(mn.micronaut.http.client.jdk)
+    // Otis (net.onelitefeather.otis) is the team's own player master-data service - its
+    // generated client is published to the same OneLiteFeatherRepository declared in
+    // settings.gradle.kts, the same way this project publishes its own `client` module.
+    implementation("net.onelitefeather.otis:otis-client:1.16.0")
     implementation(mn.micronaut.management)
     implementation(mn.micronaut.micrometer.core)
     implementation(mn.micronaut.micrometer.registry.prometheus)
