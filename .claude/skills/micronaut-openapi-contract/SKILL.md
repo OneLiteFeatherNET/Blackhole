@@ -54,21 +54,24 @@ public interface WidgetApi {
     @ApiResponse(
             responseCode = "200",
             description = "Widget created",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = WidgetDTO.class))
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = WidgetDTO.Response.class))
     )
-    @ApiResponse(responseCode = "405", description = "Identifier must be null for creation")
     @Post("/")
-    HttpResponse<WidgetDTO> create(@Valid @Body WidgetRequestDTO request);
+    HttpResponse<WidgetDTO> create(@Valid @Body WidgetDTO.CreateRequest request);
 
-    @Operation(summary = "Get widget by ID", operationId = "getWidgetById", tags = {"Widget"})
+    @Operation(summary = "Update widget", operationId = "updateWidget", tags = {"Widget"})
     @ApiResponse(
             responseCode = "200",
-            description = "Widget found",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = WidgetDTO.class))
+            description = "Widget updated",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = WidgetDTO.Response.class))
     )
-    @ApiResponse(responseCode = "404", description = "Widget not found")
-    @Get("/{identifier}")
-    HttpResponse<WidgetDTO> findById(UUID identifier);
+    @ApiResponse(
+            responseCode = "404",
+            description = "Widget not found",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = WidgetDTO.Error.class))
+    )
+    @Post("/update")
+    HttpResponse<WidgetDTO> update(@Valid @Body WidgetDTO.UpdateRequest request);
 }
 ```
 
@@ -78,6 +81,10 @@ public class WidgetController implements WidgetApi {
     // @Override methods carry no Swagger annotations - see micronaut-controller-layer
 }
 ```
+
+Note the `404` response's schema points at `WidgetDTO.Error`, not an empty response - see
+`micronaut-dto-contract` for why every documented non-200 status must reference a defined error
+DTO's schema rather than being left bodyless.
 
 ## Observed in real Micronaut codebases
 
@@ -96,6 +103,5 @@ is worth designing against by default, not a one-off in a single project.
 
 - `micronaut-controller-layer` - the class that implements this interface.
 - `micronaut-service-layer` - where the business logic behind these endpoints actually lives.
-- `micronaut-dto-contract` - the DTOs referenced in `@Schema(implementation = ...)`.
-- `micronaut-error-response-contract` - each non-200 `@ApiResponse` here should reference a
-  defined error DTO's schema, never document a status code with no body.
+- `micronaut-dto-contract` - the sealed `WidgetDTO` and its nested variants referenced in
+  `@Schema(implementation = ...)`.
