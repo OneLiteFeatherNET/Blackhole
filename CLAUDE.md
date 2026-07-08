@@ -61,8 +61,8 @@ There are currently no test source sets under any module (`src/test` doesn't exi
 adding tests, JUnit 5 is already wired up via the Micronaut/root `build.gradle.kts` (`useJUnitPlatform()`,
 `jacocoTestReport` runs after `test`). Local dev/manual verification of the backend requires the
 real MariaDB + RabbitMQ containers from `docker/docker-compose.yml`; there's no in-memory/mocked
-path for those two dependencies (H2 is on the classpath but the app is wired to Flyway+MariaDB by
-default — see `application.yml`).
+path for those two dependencies (H2 is on the classpath but the app is wired to Liquibase+MariaDB
+by default — see `application.yml`).
 
 Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
 
@@ -109,12 +109,16 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
   `BLACKHOLE_EVASION_IP_SALT` being set — `EvasionController` returns `503` rather than silently
   computing a weak/unsalted-equivalent hash if the salt is unset. Treat the salt as
   effectively unrotatable in place; check `IpCorrelationService`'s javadoc before ever changing it.
-- **`database/`** — Hibernate/JPA entities + Micronaut Data repositories. Flyway
-  (`db/migration/V*__*.sql`) is the sole schema owner; `jpa.default.properties.hibernate.hbm2ddl.auto`
-  is deliberately `none`, not `validate` — Hibernate's own JSON-column type expectations disagree
-  with MariaDB's `LONGTEXT + CHECK(json_valid(...))` representation, an unrelated dialect
-  mismatch that would make `validate` fail spuriously. Add new migrations as the next
-  `V{n}__description.sql` file; never edit an already-applied migration.
+- **`database/`** — Hibernate/JPA entities + Micronaut Data repositories. Liquibase
+  (`db/changelog/db.changelog-master.xml`, a single consolidated XML changelog) is the sole
+  schema owner; `jpa.default.properties.hibernate.hbm2ddl.auto` is deliberately `none`, not
+  `validate` — Hibernate's own JSON-column type expectations disagree with MariaDB's
+  `LONGTEXT + CHECK(json_valid(...))` representation, an unrelated dialect mismatch that would
+  make `validate` fail spuriously. Every changeSet wraps its DDL in raw `<sql>` rather than
+  native `<createTable>`/`<addColumn>` changeTypes, because this schema relies on MariaDB-specific
+  DDL (JSON-as-LONGTEXT+CHECK, tinyint ordinal-enum range CHECKs, the native `uuid` type) with no
+  native Liquibase XML equivalent. Add new changes as a new `<changeSet>` appended to the same
+  file; never edit an already-applied changeSet, always add a new one.
 - **`imports/`** — Vanilla ban-list import support (`VanillaImportController`).
 
 ## Cross-cutting conventions
