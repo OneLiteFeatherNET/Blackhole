@@ -4,7 +4,6 @@ plugins {
     `maven-publish`
 }
 
-group = "net.onelitefeather.phoca"
 version = "0.5.3"
 
 repositories {

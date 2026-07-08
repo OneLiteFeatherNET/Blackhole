@@ -4,8 +4,6 @@ plugins {
     `maven-publish`
 }
 
-group = "net.onelitefeather.blackhole"
-
 dependencies {
     annotationProcessor(mn.micronaut.serde.processor)
     annotationProcessor(mn.micronaut.http.validation)
