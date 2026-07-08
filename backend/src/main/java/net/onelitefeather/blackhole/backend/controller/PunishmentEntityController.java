@@ -6,6 +6,7 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.core.version.annotation.Version;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -23,7 +24,8 @@ import net.onelitefeather.blackhole.backend.response.PunishProfileResponse;
 
 import java.util.UUID;
 
-@Controller(value = ApiVersion.V1 + "/punishment")
+@Version(ApiVersion.V1)
+@Controller("/punishment")
 public class PunishmentEntityController {
 
     private final PunishmentRepository punishmentRepository;

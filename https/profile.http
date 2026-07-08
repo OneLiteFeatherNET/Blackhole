@@ -1,13 +1,13 @@
 ### GET Get all profiles
-GET http://localhost:8080/v1/profile/all
+GET http://localhost:8080/profile/all
 
 ### GET Get profile by id
 @owner = bfd1b89d097121dbd22042c75fffb78f8871761898d764d1586f0640a5cbf46a8d8280c66f62f50efbe56fc1e535009603b9a43b2e3f7f43533ceae48fc8550d
-GET http://localhost:8080/v1/profile/{{owner}}
+GET http://localhost:8080/profile/{{owner}}
 
 ### POST update profile
 # TheMeinerLP - 05bf52c6-7bb0-4f13-8951-0e1fd803df35 as SHA-512
-POST http://localhost:8080/v1/profile/update/{{owner}}
+POST http://localhost:8080/profile/update/{{owner}}
 Content-Type: application/json
 
 {
@@ -21,17 +21,17 @@ Content-Type: application/json
 }
 
 ### DELETE template with right id
-DELETE http://localhost:8080/v1/profile/delete/{{owner}}
+DELETE http://localhost:8080/profile/delete/{{owner}}
 Content-Type: application/json
 
 ### DELETE template with false id
 @id = 05bf52c6-7bb0-4f13-8951-0e1fd803df35
-DELETE http://localhost:8080/v1/profile/delete/{{id}}
+DELETE http://localhost:8080/profile/delete/{{id}}
 Content-Type: application/json
 
 ### POST create profile
 # TheMeinerLP - 05bf52c6-7bb0-4f13-8951-0e1fd803df35 as SHA-512
-POST http://localhost:8080/v1/profile/
+POST http://localhost:8080/profile/
 Content-Type: application/json
 
 {

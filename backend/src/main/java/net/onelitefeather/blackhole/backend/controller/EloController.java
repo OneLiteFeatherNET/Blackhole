@@ -7,6 +7,7 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.core.version.annotation.Version;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -31,7 +32,8 @@ import net.onelitefeather.blackhole.backend.elo.ChatToxicityService;
  * component even across a network's many proxy instances. Also exposes the Phase 7 dashboard
  * read endpoints for a player's current standing and audit trail.
  */
-@Controller(ApiVersion.V1 + "/elo")
+@Version(ApiVersion.V1)
+@Controller("/elo")
 public class EloController {
 
     private final ChatToxicityService chatToxicityService;

@@ -8,6 +8,7 @@ import io.micronaut.http.annotation.Part;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.http.multipart.CompletedFileUpload;
+import io.micronaut.core.version.annotation.Version;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.imports.VanillaImportResultDTO;
@@ -20,7 +21,8 @@ import java.io.IOException;
  * hidden-from-public-spec endpoint (not a standalone CLI tool) so imported bans go through the
  * same repository/event path as any other write and stay auditable.
  */
-@Controller(ApiVersion.V1 + "/admin/import")
+@Version(ApiVersion.V1)
+@Controller("/admin/import")
 public class VanillaImportController {
 
     private final VanillaImportService importService;

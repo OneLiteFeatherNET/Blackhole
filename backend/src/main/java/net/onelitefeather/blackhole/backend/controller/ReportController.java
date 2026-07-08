@@ -9,6 +9,7 @@ import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.core.version.annotation.Version;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -55,7 +56,8 @@ import java.util.UUID;
  * (and, if reintroduced, authentication) everywhere at once rather than patching one endpoint
  * inconsistently with the rest.</p>
  */
-@Controller(ApiVersion.V1 + "/report")
+@Version(ApiVersion.V1)
+@Controller("/report")
 public class ReportController {
 
     private final ReportRepository reportRepository;

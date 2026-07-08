@@ -153,6 +153,31 @@ micronaut:
       swagger-ui:
         paths: classpath:META-INF/swagger/views/swagger-ui
         mapping: /swagger-ui/**
+    # API versioning (see docs.micronaut.io/latest/guide/#apiVersioning): resolved from the
+    # X-API-VERSION header or an api-version/v query parameter, not a URI prefix. default-version
+    # keeps existing callers that send neither working - they're routed to @Version("1") as if
+    # they'd asked for it explicitly. Bump default-version only once v1 callers are gone; until
+    # then, adding a v2 means new @Version("2") methods alongside the existing v1 ones.
+    versioning:
+      enabled: true
+      default-version: ${BLACKHOLE_API_DEFAULT_VERSION:1}
+      header:
+        enabled: true
+        names:
+          - 'X-API-VERSION'
+      parameter:
+        enabled: true
+        names:
+          - 'v'
+          - 'api-version'
+  # micronaut-openapi's own toggle (distinct from micronaut.router.versioning.enabled above):
+  # by default it documents the version header/parameter as an explicit operation parameter,
+  # which the OpenAPI-generated client then surfaces as an extra required method argument on
+  # every single call. Disabled here so routing stays version-aware but the generated client API
+  # doesn't leak the version knob into every call site.
+  openapi:
+    versioning:
+      enabled: false
 
 # OpenTelemetry — tracing is disabled unless OTEL_TRACES_EXPORTER=otlp is set
 # (do this in the Docker/prod container). Metrics stay on Prometheus/Micrometer.

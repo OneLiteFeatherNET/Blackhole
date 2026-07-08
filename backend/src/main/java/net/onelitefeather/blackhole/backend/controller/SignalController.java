@@ -4,6 +4,7 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.core.version.annotation.Version;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.inject.Inject;
@@ -23,7 +24,8 @@ import java.util.Map;
  * integration needs zero new backend code, just a connector registration and a chosen
  * {@code signalType}.
  */
-@Controller(ApiVersion.V1 + "/signal")
+@Version(ApiVersion.V1)
+@Controller("/signal")
 public class SignalController {
 
     private final DomainEventPublisher eventPublisher;
