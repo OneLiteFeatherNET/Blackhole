@@ -24,8 +24,8 @@ a `*Repository`.
   serves.
 - **The service owns the `*Repository` dependency**, all transactional/business logic
   (validation, existence checks, create-vs-update branching, entity<->DTO mapping), and nothing
-  about HTTP (no `HttpResponse`, no `@Secured`, no routing annotations - those are the
-  controller's job).
+  about HTTP (no `HttpResponse`, no `@Version`/`@Controller`-style routing annotations - those
+  are the controller's job).
 - **Return small outcome types, don't just return an entity/DTO or throw a generic exception.**
   Mirror the existing idiom: `appeal/DecisionOutcome.java` is a plain enum, `appeal/
   EligibilityResult.java` is a record. For an operation with more than one distinct result shape
@@ -60,7 +60,7 @@ does its create/update/existence branching inline - exactly what this rule moves
 ## Known non-conforming controllers today (informational, not a mandate to bulk-refactor)
 
 `PunishmentTemplateHandler`, `PunishmentProfileHandler`, and parts of `AppealController`,
-`ConnectorAuthController`, `EloController`, `PunishmentEntityController`, `ReportController`
+`ConnectorController`, `EloController`, `PunishmentEntityController`, `ReportController`
 still inject a repository straight into the controller with no service in between. Add the
 missing service when you're already touching one of these for another reason - this isn't a
 mandate to refactor them all in one pass.
