@@ -1,10 +1,9 @@
-package net.onelitefeather.blackhole.backend.database.repository;
+package net.onelitefeather.blackhole.backend.connector;
 
 import io.micronaut.data.annotation.Repository;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.data.repository.PageableRepository;
-import net.onelitefeather.blackhole.backend.database.entities.EventSubscriptionEntity;
 
 import java.util.List;
 import java.util.UUID;

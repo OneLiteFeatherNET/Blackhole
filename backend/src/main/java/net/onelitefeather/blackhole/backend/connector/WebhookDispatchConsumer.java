@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.events;
+package net.onelitefeather.blackhole.backend.connector;
 
 import com.rabbitmq.client.Channel;
 import io.micronaut.context.annotation.Value;
@@ -8,8 +8,8 @@ import io.micronaut.runtime.event.ApplicationStartupEvent;
 import io.micronaut.runtime.event.annotation.EventListener;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import net.onelitefeather.blackhole.backend.database.entities.EventSubscriptionEntity;
-import net.onelitefeather.blackhole.backend.database.repository.EventSubscriptionRepository;
+import net.onelitefeather.blackhole.backend.events.DomainEvent;
+import net.onelitefeather.blackhole.backend.events.RabbitTopology;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

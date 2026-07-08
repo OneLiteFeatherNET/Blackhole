@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.dto;
+package net.onelitefeather.blackhole.backend.connector;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.ReflectiveAccess;

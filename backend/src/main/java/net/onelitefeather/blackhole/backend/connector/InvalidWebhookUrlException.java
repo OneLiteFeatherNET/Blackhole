@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.events;
+package net.onelitefeather.blackhole.backend.connector;
 
 /**
  * Thrown when a connector-supplied {@code deliveryUrl} fails SSRF-hardening validation - either

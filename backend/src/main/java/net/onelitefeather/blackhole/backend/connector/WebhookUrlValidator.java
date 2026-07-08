@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.events;
+package net.onelitefeather.blackhole.backend.connector;
 
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;

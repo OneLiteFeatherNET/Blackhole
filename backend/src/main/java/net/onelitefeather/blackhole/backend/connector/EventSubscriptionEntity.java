@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.database.entities;
+package net.onelitefeather.blackhole.backend.connector;
 
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.CollectionTable;
@@ -15,7 +15,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
-import net.onelitefeather.blackhole.backend.dto.EventSubscriptionDTO;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 

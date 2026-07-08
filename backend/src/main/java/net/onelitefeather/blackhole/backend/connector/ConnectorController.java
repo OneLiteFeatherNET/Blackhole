@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.controller;
+package net.onelitefeather.blackhole.backend.connector;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -14,20 +14,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
-import net.onelitefeather.blackhole.backend.database.entities.ConnectorRegistrationEntity;
-import net.onelitefeather.blackhole.backend.database.entities.EventSubscriptionEntity;
-import net.onelitefeather.blackhole.backend.database.repository.ConnectorRegistrationRepository;
-import net.onelitefeather.blackhole.backend.database.repository.EventSubscriptionRepository;
-import net.onelitefeather.blackhole.backend.dto.ConnectorRegistrationCreatedDTO;
-import net.onelitefeather.blackhole.backend.dto.ConnectorRegistrationDTO;
-import net.onelitefeather.blackhole.backend.dto.ConnectorRegistrationRequestDTO;
-import net.onelitefeather.blackhole.backend.dto.ConnectorStatus;
-import net.onelitefeather.blackhole.backend.dto.EventSubscriptionCreatedDTO;
-import net.onelitefeather.blackhole.backend.dto.EventSubscriptionDTO;
-import net.onelitefeather.blackhole.backend.dto.EventSubscriptionRequestDTO;
-import net.onelitefeather.blackhole.backend.events.InvalidWebhookUrlException;
-import net.onelitefeather.blackhole.backend.events.WebhookUrlValidator;
-import net.onelitefeather.blackhole.backend.security.ConnectorScopes;
+import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.utils.SecretHasher;
 
 import java.security.SecureRandom;

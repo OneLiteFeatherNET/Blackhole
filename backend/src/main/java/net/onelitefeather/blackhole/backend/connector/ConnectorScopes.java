@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.security;
+package net.onelitefeather.blackhole.backend.connector;
 
 import java.util.Set;
 

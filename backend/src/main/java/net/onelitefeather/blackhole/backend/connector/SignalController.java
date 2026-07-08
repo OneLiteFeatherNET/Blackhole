@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.controller;
+package net.onelitefeather.blackhole.backend.connector;
 
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
@@ -9,7 +9,7 @@ import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
-import net.onelitefeather.blackhole.backend.dto.SignalDTO;
+import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 
 import java.util.HashMap;
