@@ -5,400 +5,458 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
 
-    <!-- Single consolidated changelog (no live deployment predates this, so a per-version file
-         split isn't needed). Raw <sql> is used instead of native createTable/addColumn
-         changeTypes because this schema relies on MariaDB-specific DDL with no native Liquibase
-         XML equivalent: JSON-as-LONGTEXT+CHECK(json_valid(...)) columns, tinyint ordinal-enum
-         range CHECKs, and the native `uuid` column type. -->
+    <!-- Fully native Liquibase changeTypes throughout - no raw <sql>, so the changelog stays
+         database-portable rather than tied to MariaDB syntax. One consequence: native Liquibase
+         XML has no changeType for arbitrary CHECK expressions on any database, so the JSON
+         validity checks (CHECK(json_valid(...))) and the tinyint ordinal-enum range checks that
+         MariaDB previously enforced at the DB layer are intentionally NOT recreated here -
+         enforcement of those is now an application/Hibernate-layer concern only. -->
 
-    <changeSet id="v1-01-create-tenants" author="blackhole">
+    <changeSet id="create-tenants" author="blackhole">
         <comment>Baseline: tenants table</comment>
-        <sql>
-            CREATE TABLE `tenants` (
-              `identifier` uuid NOT NULL,
-              `meta_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`meta_data`)),
-              `name` varchar(255) DEFAULT NULL,
-              `slug` varchar(255) DEFAULT NULL,
-              `status` tinyint(4) DEFAULT NULL CHECK (`status` between 0 and 1),
-              PRIMARY KEY (`identifier`),
-              UNIQUE KEY `UKkn82rs0p55luybrg4n7x7di8` (`slug`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `tenants`;</sql>
-        </rollback>
+        <createTable tableName="tenants">
+            <column name="identifier" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="meta_data" type="json"/>
+            <column name="name" type="varchar(255)"/>
+            <column name="slug" type="varchar(255)">
+                <constraints unique="true" uniqueConstraintName="UKkn82rs0p55luybrg4n7x7di8"/>
+            </column>
+            <column name="status" type="tinyint"/>
+        </createTable>
     </changeSet>
 
-    <changeSet id="v1-02-create-punishment-templates" author="blackhole">
-        <comment>Baseline: punishment_templates table</comment>
-        <sql>
-            CREATE TABLE `punishment_templates` (
-              `identifier` uuid NOT NULL,
-              `meta_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`meta_data`)),
-              `reason` varchar(255) DEFAULT NULL,
-              `tenant_id` uuid DEFAULT NULL,
-              `type` tinyint(4) DEFAULT NULL CHECK (`type` between 0 and 2),
-              PRIMARY KEY (`identifier`),
-              KEY `IDXfb0n1048swedl734iua11xgh6` (`identifier`),
-              KEY `IDX6sna77t8blfhbf7vw1d949qv7` (`tenant_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `punishment_templates`;</sql>
-        </rollback>
+    <changeSet id="create-punishment-templates" author="blackhole">
+        <comment>Baseline: punishment_templates table (elo_delta folded in from the former V8 migration)</comment>
+        <createTable tableName="punishment_templates">
+            <column name="identifier" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="meta_data" type="json"/>
+            <column name="reason" type="varchar(255)"/>
+            <column name="tenant_id" type="uuid"/>
+            <column name="type" type="tinyint"/>
+            <column name="elo_delta" type="int" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
     </changeSet>
 
-    <changeSet id="v1-03-create-punishments" author="blackhole">
+    <changeSet id="constraints-punishment-templates" author="blackhole">
+        <createIndex indexName="IDXfb0n1048swedl734iua11xgh6" tableName="punishment_templates">
+            <column name="identifier"/>
+        </createIndex>
+        <createIndex indexName="IDX6sna77t8blfhbf7vw1d949qv7" tableName="punishment_templates">
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="create-punishments" author="blackhole">
         <comment>Baseline: punishments table</comment>
-        <sql>
-            CREATE TABLE `punishments` (
-              `identifier` varchar(255) NOT NULL,
-              `meta_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`meta_data`)),
-              `scope` varchar(255) DEFAULT NULL,
-              `source` uuid DEFAULT NULL,
-              `tenant_id` uuid DEFAULT NULL,
-              `type` tinyint(4) DEFAULT NULL CHECK (`type` between 0 and 2),
-              `template_identifier` uuid DEFAULT NULL,
-              PRIMARY KEY (`identifier`),
-              KEY `IDXbg1863u12hbsiqggy1kxv84gj` (`identifier`),
-              KEY `IDXf248pwm8h4gskq8r86ohne5bd` (`tenant_id`),
-              KEY `FKsystxtartkbg3pelwij5y444y` (`template_identifier`),
-              CONSTRAINT `FKsystxtartkbg3pelwij5y444y` FOREIGN KEY (`template_identifier`) REFERENCES `punishment_templates` (`identifier`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `punishments`;</sql>
-        </rollback>
+        <createTable tableName="punishments">
+            <column name="identifier" type="varchar(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="meta_data" type="json"/>
+            <column name="scope" type="varchar(255)"/>
+            <column name="source" type="uuid"/>
+            <column name="tenant_id" type="uuid"/>
+            <column name="type" type="tinyint"/>
+            <column name="template_identifier" type="uuid"/>
+        </createTable>
     </changeSet>
 
-    <changeSet id="v1-04-create-punishment-profiles" author="blackhole">
+    <changeSet id="constraints-punishments" author="blackhole">
+        <createIndex indexName="IDXbg1863u12hbsiqggy1kxv84gj" tableName="punishments">
+            <column name="identifier"/>
+        </createIndex>
+        <createIndex indexName="IDXf248pwm8h4gskq8r86ohne5bd" tableName="punishments">
+            <column name="tenant_id"/>
+        </createIndex>
+        <addForeignKeyConstraint constraintName="FKsystxtartkbg3pelwij5y444y"
+                                  baseTableName="punishments" baseColumnNames="template_identifier"
+                                  referencedTableName="punishment_templates" referencedColumnNames="identifier"/>
+    </changeSet>
+
+    <changeSet id="create-punishment-profiles" author="blackhole">
         <comment>Baseline: punishment_profiles table</comment>
-        <sql>
-            CREATE TABLE `punishment_profiles` (
-              `owner` varchar(255) NOT NULL,
-              `tenant_id` uuid NOT NULL,
-              `meta_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`meta_data`)),
-              `active_ban_identifier` varchar(255) DEFAULT NULL,
-              `active_chat_ban_identifier` varchar(255) DEFAULT NULL,
-              PRIMARY KEY (`owner`,`tenant_id`),
-              UNIQUE KEY `UKjenhq1urh55q6qbhxbor43mpr` (`active_ban_identifier`),
-              UNIQUE KEY `UK3bfpsh5gh8uybcnqn6ist0ju3` (`active_chat_ban_identifier`),
-              KEY `IDXs2rqilyfwjja2eh18bvdkgssg` (`owner`),
-              CONSTRAINT `FK44vycpq38twfwo4pm864edwtf` FOREIGN KEY (`active_chat_ban_identifier`) REFERENCES `punishments` (`identifier`),
-              CONSTRAINT `FKrg26gk6cng7up213jiux4ugap` FOREIGN KEY (`active_ban_identifier`) REFERENCES `punishments` (`identifier`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `punishment_profiles`;</sql>
-        </rollback>
+        <createTable tableName="punishment_profiles">
+            <column name="owner" type="varchar(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="meta_data" type="json"/>
+            <column name="active_ban_identifier" type="varchar(255)">
+                <constraints unique="true" uniqueConstraintName="UKjenhq1urh55q6qbhxbor43mpr"/>
+            </column>
+            <column name="active_chat_ban_identifier" type="varchar(255)">
+                <constraints unique="true" uniqueConstraintName="UK3bfpsh5gh8uybcnqn6ist0ju3"/>
+            </column>
+        </createTable>
     </changeSet>
 
-    <changeSet id="v1-05-create-punishment-profiles-punishments" author="blackhole">
+    <changeSet id="constraints-punishment-profiles" author="blackhole">
+        <createIndex indexName="IDXs2rqilyfwjja2eh18bvdkgssg" tableName="punishment_profiles">
+            <column name="owner"/>
+        </createIndex>
+        <addForeignKeyConstraint constraintName="FK44vycpq38twfwo4pm864edwtf"
+                                  baseTableName="punishment_profiles" baseColumnNames="active_chat_ban_identifier"
+                                  referencedTableName="punishments" referencedColumnNames="identifier"/>
+        <addForeignKeyConstraint constraintName="FKrg26gk6cng7up213jiux4ugap"
+                                  baseTableName="punishment_profiles" baseColumnNames="active_ban_identifier"
+                                  referencedTableName="punishments" referencedColumnNames="identifier"/>
+    </changeSet>
+
+    <changeSet id="create-punishment-profiles-punishments" author="blackhole">
         <comment>Baseline: punishment_profiles_punishments join table</comment>
-        <sql>
-            CREATE TABLE `punishment_profiles_punishments` (
-              `punishment_profile_entity_owner` varchar(255) NOT NULL,
-              `punishment_profile_entity_tenant_id` uuid NOT NULL,
-              `history_identifier` varchar(255) NOT NULL,
-              UNIQUE KEY `UK72hdqv4fhab29f7yg9a80d1nt` (`history_identifier`),
-              KEY `FKrwhtrufbtcfrxgociysp1d1iw` (`punishment_profile_entity_owner`,`punishment_profile_entity_tenant_id`),
-              CONSTRAINT `FK7yf2av2hp2nfq84philn3588l` FOREIGN KEY (`history_identifier`) REFERENCES `punishments` (`identifier`),
-              CONSTRAINT `FKrwhtrufbtcfrxgociysp1d1iw` FOREIGN KEY (`punishment_profile_entity_owner`, `punishment_profile_entity_tenant_id`) REFERENCES `punishment_profiles` (`owner`, `tenant_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `punishment_profiles_punishments`;</sql>
-        </rollback>
+        <createTable tableName="punishment_profiles_punishments">
+            <column name="punishment_profile_entity_owner" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="punishment_profile_entity_tenant_id" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="history_identifier" type="varchar(255)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="UK72hdqv4fhab29f7yg9a80d1nt"/>
+            </column>
+        </createTable>
     </changeSet>
 
-    <changeSet id="v2-01-create-punishment-evidence" author="blackhole">
+    <changeSet id="constraints-punishment-profiles-punishments" author="blackhole">
+        <addForeignKeyConstraint constraintName="FK7yf2av2hp2nfq84philn3588l"
+                                  baseTableName="punishment_profiles_punishments" baseColumnNames="history_identifier"
+                                  referencedTableName="punishments" referencedColumnNames="identifier"/>
+        <addForeignKeyConstraint constraintName="FKrwhtrufbtcfrxgociysp1d1iw"
+                                  baseTableName="punishment_profiles_punishments"
+                                  baseColumnNames="punishment_profile_entity_owner,punishment_profile_entity_tenant_id"
+                                  referencedTableName="punishment_profiles" referencedColumnNames="owner,tenant_id"/>
+    </changeSet>
+
+    <changeSet id="create-punishment-evidence" author="blackhole">
         <comment>Evidence attached to a punishment</comment>
-        <sql>
-            CREATE TABLE `punishment_evidence` (
-              `identifier` uuid NOT NULL,
-              `captured_content_hash` varchar(255) DEFAULT NULL,
-              `evidence_type` tinyint(4) DEFAULT NULL CHECK (`evidence_type` between 0 and 3),
-              `meta_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`meta_data`)),
-              `reference_id` varchar(255) DEFAULT NULL,
-              `retention_expires_at` bigint(20) DEFAULT NULL,
-              `tenant_id` uuid DEFAULT NULL,
-              `punishment_identifier` varchar(255) DEFAULT NULL,
-              PRIMARY KEY (`identifier`),
-              KEY `IDXeowdvehtn2mq9ratnjjt10mx0` (`identifier`),
-              KEY `IDX88plc6lylknnkler3ds0vmagv` (`tenant_id`),
-              KEY `FK1fcfw3b9ah8l5ywj1ksemk98r` (`punishment_identifier`),
-              CONSTRAINT `FK1fcfw3b9ah8l5ywj1ksemk98r` FOREIGN KEY (`punishment_identifier`) REFERENCES `punishments` (`identifier`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `punishment_evidence`;</sql>
-        </rollback>
+        <createTable tableName="punishment_evidence">
+            <column name="identifier" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="captured_content_hash" type="varchar(255)"/>
+            <column name="evidence_type" type="tinyint"/>
+            <column name="meta_data" type="json"/>
+            <column name="reference_id" type="varchar(255)"/>
+            <column name="retention_expires_at" type="bigint"/>
+            <column name="tenant_id" type="uuid"/>
+            <column name="punishment_identifier" type="varchar(255)"/>
+        </createTable>
     </changeSet>
 
-    <changeSet id="v3-01-create-reports" author="blackhole">
+    <changeSet id="constraints-punishment-evidence" author="blackhole">
+        <createIndex indexName="IDXeowdvehtn2mq9ratnjjt10mx0" tableName="punishment_evidence">
+            <column name="identifier"/>
+        </createIndex>
+        <createIndex indexName="IDX88plc6lylknnkler3ds0vmagv" tableName="punishment_evidence">
+            <column name="tenant_id"/>
+        </createIndex>
+        <addForeignKeyConstraint constraintName="FK1fcfw3b9ah8l5ywj1ksemk98r"
+                                  baseTableName="punishment_evidence" baseColumnNames="punishment_identifier"
+                                  referencedTableName="punishments" referencedColumnNames="identifier"/>
+    </changeSet>
+
+    <changeSet id="create-reports" author="blackhole">
         <comment>Player reports</comment>
-        <sql>
-            CREATE TABLE `reports` (
-              `identifier` uuid NOT NULL,
-              `category` tinyint(4) DEFAULT NULL CHECK (`category` between 0 and 3),
-              `created_at` bigint(20) NOT NULL,
-              `description` varchar(1000) DEFAULT NULL,
-              `meta_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`meta_data`)),
-              `reported_hash` varchar(255) DEFAULT NULL,
-              `reporter_hash` varchar(255) DEFAULT NULL,
-              `resolution_note` varchar(1000) DEFAULT NULL,
-              `resolved_by` uuid DEFAULT NULL,
-              `status` tinyint(4) DEFAULT NULL CHECK (`status` between 0 and 3),
-              `tenant_id` uuid DEFAULT NULL,
-              `updated_at` bigint(20) NOT NULL,
-              PRIMARY KEY (`identifier`),
-              KEY `IDXcdecaabcx0057rmwougq4lln8` (`identifier`),
-              KEY `IDXp2ffpn85f33jnlh9a6dw6dfjd` (`tenant_id`),
-              KEY `IDXhucb8heess4o7s9d641njq2e0` (`reporter_hash`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `reports`;</sql>
-        </rollback>
+        <createTable tableName="reports">
+            <column name="identifier" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="category" type="tinyint"/>
+            <column name="created_at" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="varchar(1000)"/>
+            <column name="meta_data" type="json"/>
+            <column name="reported_hash" type="varchar(255)"/>
+            <column name="reporter_hash" type="varchar(255)"/>
+            <column name="resolution_note" type="varchar(1000)"/>
+            <column name="resolved_by" type="uuid"/>
+            <column name="status" type="tinyint"/>
+            <column name="tenant_id" type="uuid"/>
+            <column name="updated_at" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
     </changeSet>
 
-    <changeSet id="v3-02-create-report-evidence-references" author="blackhole">
+    <changeSet id="constraints-reports" author="blackhole">
+        <createIndex indexName="IDXcdecaabcx0057rmwougq4lln8" tableName="reports">
+            <column name="identifier"/>
+        </createIndex>
+        <createIndex indexName="IDXp2ffpn85f33jnlh9a6dw6dfjd" tableName="reports">
+            <column name="tenant_id"/>
+        </createIndex>
+        <createIndex indexName="IDXhucb8heess4o7s9d641njq2e0" tableName="reports">
+            <column name="reporter_hash"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="create-report-evidence-references" author="blackhole">
         <comment>Report-to-evidence reference join table</comment>
-        <sql>
-            CREATE TABLE `report_evidence_references` (
-              `report_identifier` uuid NOT NULL,
-              `evidence_identifier` uuid DEFAULT NULL,
-              KEY `FK27b8gnu183fwcp3f8ixk9xw49` (`report_identifier`),
-              CONSTRAINT `FK27b8gnu183fwcp3f8ixk9xw49` FOREIGN KEY (`report_identifier`) REFERENCES `reports` (`identifier`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `report_evidence_references`;</sql>
-        </rollback>
+        <createTable tableName="report_evidence_references">
+            <column name="report_identifier" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="evidence_identifier" type="uuid"/>
+        </createTable>
     </changeSet>
 
-    <changeSet id="v4-01-create-connector-registrations" author="blackhole">
+    <changeSet id="constraints-report-evidence-references" author="blackhole">
+        <addForeignKeyConstraint constraintName="FK27b8gnu183fwcp3f8ixk9xw49"
+                                  baseTableName="report_evidence_references" baseColumnNames="report_identifier"
+                                  referencedTableName="reports" referencedColumnNames="identifier"/>
+    </changeSet>
+
+    <changeSet id="create-connector-registrations" author="blackhole">
         <comment>Connector registrations</comment>
-        <sql>
-            CREATE TABLE `connector_registrations` (
-              `identifier` uuid NOT NULL,
-              `meta_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`meta_data`)),
-              `name` varchar(255) DEFAULT NULL,
-              `oauth2_client_id` varchar(255) DEFAULT NULL,
-              `oauth2_client_secret_hash` varchar(255) DEFAULT NULL,
-              `status` tinyint(4) DEFAULT NULL CHECK (`status` between 0 and 1),
-              `tenant_id` uuid DEFAULT NULL,
-              PRIMARY KEY (`identifier`),
-              UNIQUE KEY `UKhb72u55ks7duissu086wfgjd4` (`oauth2_client_id`),
-              KEY `IDXp64mq4clkp3b1d9c6jmo06021` (`identifier`),
-              KEY `IDXhwsvcq9wogcnjafm8qmil9niy` (`tenant_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `connector_registrations`;</sql>
-        </rollback>
+        <createTable tableName="connector_registrations">
+            <column name="identifier" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="meta_data" type="json"/>
+            <column name="name" type="varchar(255)"/>
+            <column name="oauth2_client_id" type="varchar(255)">
+                <constraints unique="true" uniqueConstraintName="UKhb72u55ks7duissu086wfgjd4"/>
+            </column>
+            <column name="oauth2_client_secret_hash" type="varchar(255)"/>
+            <column name="status" type="tinyint"/>
+            <column name="tenant_id" type="uuid"/>
+        </createTable>
     </changeSet>
 
-    <changeSet id="v4-02-create-connector-scopes" author="blackhole">
+    <changeSet id="constraints-connector-registrations" author="blackhole">
+        <createIndex indexName="IDXp64mq4clkp3b1d9c6jmo06021" tableName="connector_registrations">
+            <column name="identifier"/>
+        </createIndex>
+        <createIndex indexName="IDXhwsvcq9wogcnjafm8qmil9niy" tableName="connector_registrations">
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="create-connector-scopes" author="blackhole">
         <comment>Connector OAuth2 scopes</comment>
-        <sql>
-            CREATE TABLE `connector_scopes` (
-              `connector_identifier` uuid NOT NULL,
-              `scope` varchar(255) DEFAULT NULL,
-              KEY `FK2w8vnnh1hjq9qy8dgny2uwgbt` (`connector_identifier`),
-              CONSTRAINT `FK2w8vnnh1hjq9qy8dgny2uwgbt` FOREIGN KEY (`connector_identifier`) REFERENCES `connector_registrations` (`identifier`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `connector_scopes`;</sql>
-        </rollback>
+        <createTable tableName="connector_scopes">
+            <column name="connector_identifier" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="scope" type="varchar(255)"/>
+        </createTable>
     </changeSet>
 
-    <changeSet id="v4-03-create-event-subscriptions" author="blackhole">
+    <changeSet id="constraints-connector-scopes" author="blackhole">
+        <addForeignKeyConstraint constraintName="FK2w8vnnh1hjq9qy8dgny2uwgbt"
+                                  baseTableName="connector_scopes" baseColumnNames="connector_identifier"
+                                  referencedTableName="connector_registrations" referencedColumnNames="identifier"/>
+    </changeSet>
+
+    <changeSet id="create-event-subscriptions" author="blackhole">
         <comment>Connector event subscriptions</comment>
-        <sql>
-            CREATE TABLE `event_subscriptions` (
-              `identifier` uuid NOT NULL,
-              `active` bit(1) NOT NULL,
-              `delivery_url` varchar(255) DEFAULT NULL,
-              `failure_count` int(11) NOT NULL,
-              `last_attempt_at` bigint(20) DEFAULT NULL,
-              `last_success_at` bigint(20) DEFAULT NULL,
-              `meta_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`meta_data`)),
-              `signing_secret` varchar(255) DEFAULT NULL,
-              `connector_identifier` uuid DEFAULT NULL,
-              PRIMARY KEY (`identifier`),
-              KEY `IDX4ja81yhw8rl240tcyebtjgvx4` (`identifier`),
-              KEY `FKsp913s457jgefhadxb9p06qyo` (`connector_identifier`),
-              CONSTRAINT `FKsp913s457jgefhadxb9p06qyo` FOREIGN KEY (`connector_identifier`) REFERENCES `connector_registrations` (`identifier`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `event_subscriptions`;</sql>
-        </rollback>
+        <createTable tableName="event_subscriptions">
+            <column name="identifier" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="active" type="boolean">
+                <constraints nullable="false"/>
+            </column>
+            <column name="delivery_url" type="varchar(255)"/>
+            <column name="failure_count" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_attempt_at" type="bigint"/>
+            <column name="last_success_at" type="bigint"/>
+            <column name="meta_data" type="json"/>
+            <column name="signing_secret" type="varchar(255)"/>
+            <column name="connector_identifier" type="uuid"/>
+        </createTable>
     </changeSet>
 
-    <changeSet id="v4-04-create-event-subscription-types" author="blackhole">
+    <changeSet id="constraints-event-subscriptions" author="blackhole">
+        <createIndex indexName="IDX4ja81yhw8rl240tcyebtjgvx4" tableName="event_subscriptions">
+            <column name="identifier"/>
+        </createIndex>
+        <addForeignKeyConstraint constraintName="FKsp913s457jgefhadxb9p06qyo"
+                                  baseTableName="event_subscriptions" baseColumnNames="connector_identifier"
+                                  referencedTableName="connector_registrations" referencedColumnNames="identifier"/>
+    </changeSet>
+
+    <changeSet id="create-event-subscription-types" author="blackhole">
         <comment>Event subscription type join table</comment>
-        <sql>
-            CREATE TABLE `event_subscription_types` (
-              `subscription_identifier` uuid NOT NULL,
-              `event_type` varchar(255) DEFAULT NULL,
-              KEY `FKrtito3r91kmi2qej9acwox35h` (`subscription_identifier`),
-              CONSTRAINT `FKrtito3r91kmi2qej9acwox35h` FOREIGN KEY (`subscription_identifier`) REFERENCES `event_subscriptions` (`identifier`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `event_subscription_types`;</sql>
-        </rollback>
+        <createTable tableName="event_subscription_types">
+            <column name="subscription_identifier" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_type" type="varchar(255)"/>
+        </createTable>
     </changeSet>
 
-    <changeSet id="v5-01-create-elo-profiles" author="blackhole">
+    <changeSet id="constraints-event-subscription-types" author="blackhole">
+        <addForeignKeyConstraint constraintName="FKrtito3r91kmi2qej9acwox35h"
+                                  baseTableName="event_subscription_types" baseColumnNames="subscription_identifier"
+                                  referencedTableName="event_subscriptions" referencedColumnNames="identifier"/>
+    </changeSet>
+
+    <changeSet id="create-elo-profiles" author="blackhole">
         <comment>Dual-ELO profile per player/tenant</comment>
-        <sql>
-            CREATE TABLE `elo_profiles` (
-              `owner` varchar(255) NOT NULL,
-              `tenant_id` uuid NOT NULL,
-              `chat_elo` int(11) NOT NULL,
-              `chat_elo_updated_at` bigint(20) NOT NULL,
-              `gameplay_elo` int(11) NOT NULL,
-              `gameplay_elo_updated_at` bigint(20) NOT NULL,
-              `meta_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`meta_data`)),
-              PRIMARY KEY (`owner`,`tenant_id`),
-              KEY `IDX5k6jltfkea67v5ai92cey03u7` (`owner`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `elo_profiles`;</sql>
-        </rollback>
+        <createTable tableName="elo_profiles">
+            <column name="owner" type="varchar(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="chat_elo" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="chat_elo_updated_at" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="gameplay_elo" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="gameplay_elo_updated_at" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="meta_data" type="json"/>
+        </createTable>
     </changeSet>
 
-    <changeSet id="v5-02-create-elo-events" author="blackhole">
+    <changeSet id="constraints-elo-profiles" author="blackhole">
+        <createIndex indexName="IDX5k6jltfkea67v5ai92cey03u7" tableName="elo_profiles">
+            <column name="owner"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="create-elo-events" author="blackhole">
         <comment>Append-only Elo audit trail</comment>
-        <sql>
-            CREATE TABLE `elo_events` (
-              `identifier` uuid NOT NULL,
-              `created_at` bigint(20) NOT NULL,
-              `delta` int(11) NOT NULL,
-              `meta_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`meta_data`)),
-              `owner` varchar(255) DEFAULT NULL,
-              `reason_code` tinyint(4) DEFAULT NULL CHECK (`reason_code` between 0 and 5),
-              `resulting_score` int(11) NOT NULL,
-              `source_evidence_id` uuid DEFAULT NULL,
-              `tenant_id` uuid DEFAULT NULL,
-              `track` tinyint(4) DEFAULT NULL CHECK (`track` between 0 and 1),
-              PRIMARY KEY (`identifier`),
-              KEY `IDX1vli9egxhskmxh09x7ippe01p` (`identifier`),
-              KEY `IDXbi03h5v8mngaibmc7f6eo81s3` (`tenant_id`),
-              KEY `IDX8kfktno2r37fryp23hbrywxge` (`owner`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `elo_events`;</sql>
-        </rollback>
+        <createTable tableName="elo_events">
+            <column name="identifier" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="created_at" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="delta" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="meta_data" type="json"/>
+            <column name="owner" type="varchar(255)"/>
+            <column name="reason_code" type="tinyint"/>
+            <column name="resulting_score" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_evidence_id" type="uuid"/>
+            <column name="tenant_id" type="uuid"/>
+            <column name="track" type="tinyint"/>
+        </createTable>
     </changeSet>
 
-    <changeSet id="v6-01-create-appeals" author="blackhole">
+    <changeSet id="constraints-elo-events" author="blackhole">
+        <createIndex indexName="IDX1vli9egxhskmxh09x7ippe01p" tableName="elo_events">
+            <column name="identifier"/>
+        </createIndex>
+        <createIndex indexName="IDXbi03h5v8mngaibmc7f6eo81s3" tableName="elo_events">
+            <column name="tenant_id"/>
+        </createIndex>
+        <createIndex indexName="IDX8kfktno2r37fryp23hbrywxge" tableName="elo_events">
+            <column name="owner"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="create-appeals" author="blackhole">
         <comment>Appeal workflow</comment>
-        <sql>
-            CREATE TABLE `appeals` (
-              `identifier` uuid NOT NULL,
-              `appellant_hash` varchar(255) DEFAULT NULL,
-              `created_at` bigint(20) NOT NULL,
-              `decided_by` uuid DEFAULT NULL,
-              `decision_note` varchar(2000) DEFAULT NULL,
-              `eligibility_check_result` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`eligibility_check_result`)),
-              `meta_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`meta_data`)),
-              `statement` varchar(2000) DEFAULT NULL,
-              `status` tinyint(4) DEFAULT NULL CHECK (`status` between 0 and 6),
-              `tenant_id` uuid DEFAULT NULL,
-              `updated_at` bigint(20) NOT NULL,
-              `punishment_identifier` varchar(255) DEFAULT NULL,
-              PRIMARY KEY (`identifier`),
-              KEY `IDXkumdsu9qt44a38mg4k9ngyp87` (`identifier`),
-              KEY `IDX7yn6lv2wptlia206ij210jtig` (`tenant_id`),
-              KEY `IDX9faypy3gxh4xmiqii41ypsj5k` (`appellant_hash`),
-              KEY `FKqb76lk2ldlufmeevnpme8l94m` (`punishment_identifier`),
-              CONSTRAINT `FKqb76lk2ldlufmeevnpme8l94m` FOREIGN KEY (`punishment_identifier`) REFERENCES `punishments` (`identifier`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `appeals`;</sql>
-        </rollback>
+        <createTable tableName="appeals">
+            <column name="identifier" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="appellant_hash" type="varchar(255)"/>
+            <column name="created_at" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="decided_by" type="uuid"/>
+            <column name="decision_note" type="varchar(2000)"/>
+            <column name="eligibility_check_result" type="json"/>
+            <column name="meta_data" type="json"/>
+            <column name="statement" type="varchar(2000)"/>
+            <column name="status" type="tinyint"/>
+            <column name="tenant_id" type="uuid"/>
+            <column name="updated_at" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="punishment_identifier" type="varchar(255)"/>
+        </createTable>
     </changeSet>
 
-    <changeSet id="v7-01-create-ip-correlation-tokens" author="blackhole">
+    <changeSet id="constraints-appeals" author="blackhole">
+        <createIndex indexName="IDXkumdsu9qt44a38mg4k9ngyp87" tableName="appeals">
+            <column name="identifier"/>
+        </createIndex>
+        <createIndex indexName="IDX7yn6lv2wptlia206ij210jtig" tableName="appeals">
+            <column name="tenant_id"/>
+        </createIndex>
+        <createIndex indexName="IDX9faypy3gxh4xmiqii41ypsj5k" tableName="appeals">
+            <column name="appellant_hash"/>
+        </createIndex>
+        <addForeignKeyConstraint constraintName="FKqb76lk2ldlufmeevnpme8l94m"
+                                  baseTableName="appeals" baseColumnNames="punishment_identifier"
+                                  referencedTableName="punishments" referencedColumnNames="identifier"/>
+    </changeSet>
+
+    <changeSet id="create-ip-correlation-tokens" author="blackhole">
         <comment>Ban-evasion detection via hashed IP correlation</comment>
-        <sql>
-            CREATE TABLE `ip_correlation_tokens` (
-              `identifier` uuid NOT NULL,
-              `first_seen` bigint(20) NOT NULL,
-              `last_seen` bigint(20) NOT NULL,
-              `meta_data` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`meta_data`)),
-              `occurrence_count` int(11) NOT NULL,
-              `owner_hash` varchar(255) DEFAULT NULL,
-              `tenant_id` uuid DEFAULT NULL,
-              `token` varchar(255) DEFAULT NULL,
-              PRIMARY KEY (`identifier`),
-              KEY `IDXej580909u0b2cronpaairkgty` (`identifier`),
-              KEY `IDXb4n6xf0005sm3973m6oyxrw1t` (`tenant_id`),
-              KEY `IDXdchy5i8x4p42k38necseou23o` (`token`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `ip_correlation_tokens`;</sql>
-        </rollback>
+        <createTable tableName="ip_correlation_tokens">
+            <column name="identifier" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="first_seen" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_seen" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+            <column name="meta_data" type="json"/>
+            <column name="occurrence_count" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="owner_hash" type="varchar(255)"/>
+            <column name="tenant_id" type="uuid"/>
+            <column name="token" type="varchar(255)"/>
+        </createTable>
     </changeSet>
 
-    <changeSet id="v8-01-create-tenant-elo-settings" author="blackhole">
+    <changeSet id="constraints-ip-correlation-tokens" author="blackhole">
+        <createIndex indexName="IDXej580909u0b2cronpaairkgty" tableName="ip_correlation_tokens">
+            <column name="identifier"/>
+        </createIndex>
+        <createIndex indexName="IDXb4n6xf0005sm3973m6oyxrw1t" tableName="ip_correlation_tokens">
+            <column name="tenant_id"/>
+        </createIndex>
+        <createIndex indexName="IDXdchy5i8x4p42k38necseou23o" tableName="ip_correlation_tokens">
+            <column name="token"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="create-tenant-elo-settings" author="blackhole">
         <comment>Per-tenant Elo settings</comment>
-        <sql>
-            CREATE TABLE `tenant_elo_settings` (
-              `tenant_id` uuid NOT NULL,
-              `base_elo_chat` int(11) DEFAULT NULL,
-              `base_elo_gameplay` int(11) DEFAULT NULL,
-              `perma_ban_template_chat_id` uuid DEFAULT NULL,
-              `perma_ban_template_gameplay_id` uuid DEFAULT NULL,
-              `perma_ban_threshold_chat` int(11) DEFAULT NULL,
-              `perma_ban_threshold_gameplay` int(11) DEFAULT NULL,
-              `report_reward_delta` int(11) DEFAULT NULL,
-              PRIMARY KEY (`tenant_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-        </sql>
-        <rollback>
-            <sql>DROP TABLE `tenant_elo_settings`;</sql>
-        </rollback>
-    </changeSet>
-
-    <changeSet id="v8-02-add-punishment-templates-elo-delta" author="blackhole">
-        <comment>
-            eloDelta on a punishment template: applied to the offender's Elo whenever the template
-            is used, regardless of who/what applied it (see PunishmentApplicationService.apply). 0
-            (the default) means "no Elo effect" - every pre-existing template keeps its current
-            behavior.
-        </comment>
-        <sql>
-            ALTER TABLE `punishment_templates` ADD COLUMN `elo_delta` int(11) NOT NULL DEFAULT 0;
-        </sql>
-        <rollback>
-            <sql>ALTER TABLE `punishment_templates` DROP COLUMN `elo_delta`;</sql>
-        </rollback>
-    </changeSet>
-
-    <changeSet id="v8-03-widen-elo-events-reason-code-check" author="blackhole">
-        <comment>
-            EloReasonCode gained PUNISHMENT_APPLIED (6) and REPORT_REWARDED (7); the ordinal-backed
-            reason_code CHECK constraint must widen to admit them. This is hand-written raw SQL
-            because MariaDB requires MODIFY COLUMN to redefine a column-level inline CHECK (DROP
-            CONSTRAINT/DROP CHECK by the auto-generated name is rejected) - there is no native
-            Liquibase changeType for this, and none should be attempted.
-        </comment>
-        <sql>
-            ALTER TABLE `elo_events` MODIFY COLUMN `reason_code` tinyint(4) DEFAULT NULL CHECK (`reason_code` between 0 and 7);
-        </sql>
-        <rollback>
-            <sql>ALTER TABLE `elo_events` MODIFY COLUMN `reason_code` tinyint(4) DEFAULT NULL CHECK (`reason_code` between 0 and 5);</sql>
-        </rollback>
+        <createTable tableName="tenant_elo_settings">
+            <column name="tenant_id" type="uuid">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="base_elo_chat" type="int"/>
+            <column name="base_elo_gameplay" type="int"/>
+            <column name="perma_ban_template_chat_id" type="uuid"/>
+            <column name="perma_ban_template_gameplay_id" type="uuid"/>
+            <column name="perma_ban_threshold_chat" type="int"/>
+            <column name="perma_ban_threshold_gameplay" type="int"/>
+            <column name="report_reward_delta" type="int"/>
+        </createTable>
     </changeSet>
 
 </databaseChangeLog>

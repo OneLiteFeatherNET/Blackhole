@@ -112,13 +112,16 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
 - **`database/`** — Hibernate/JPA entities + Micronaut Data repositories. Liquibase
   (`db/changelog/db.changelog-master.xml`, a single consolidated XML changelog) is the sole
   schema owner; `jpa.default.properties.hibernate.hbm2ddl.auto` is deliberately `none`, not
-  `validate` — Hibernate's own JSON-column type expectations disagree with MariaDB's
-  `LONGTEXT + CHECK(json_valid(...))` representation, an unrelated dialect mismatch that would
-  make `validate` fail spuriously. Every changeSet wraps its DDL in raw `<sql>` rather than
-  native `<createTable>`/`<addColumn>` changeTypes, because this schema relies on MariaDB-specific
-  DDL (JSON-as-LONGTEXT+CHECK, tinyint ordinal-enum range CHECKs, the native `uuid` type) with no
-  native Liquibase XML equivalent. Add new changes as a new `<changeSet>` appended to the same
-  file; never edit an already-applied changeSet, always add a new one.
+  `validate` — Hibernate's own JSON-column type expectations disagree with MariaDB's physical
+  representation of a JSON column, an unrelated dialect mismatch that would make `validate` fail
+  spuriously. Every changeSet uses fully native Liquibase changeTypes (`<createTable>`,
+  `<createIndex>`, `<addForeignKeyConstraint>`) rather than raw `<sql>`, keeping the changelog
+  database-portable rather than MariaDB-specific. One consequence: native Liquibase XML has no
+  changeType for arbitrary `CHECK` expressions on any database, so the JSON validity checks and
+  the `tinyint` ordinal-enum range checks MariaDB previously enforced at the DB layer are not
+  recreated here — enforcement of those is an application/Hibernate-layer concern only, not a
+  DB-layer guarantee. Add new changes as a new `<changeSet>` appended to the same file; never edit
+  an already-applied changeSet, always add a new one.
 - **`imports/`** — Vanilla ban-list import support (`VanillaImportController`).
 
 ## Cross-cutting conventions
