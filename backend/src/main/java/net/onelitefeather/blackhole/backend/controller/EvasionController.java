@@ -5,6 +5,7 @@ import io.micronaut.http.HttpStatus;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.core.version.annotation.Version;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,7 +22,8 @@ import net.onelitefeather.blackhole.backend.security.Roles;
  * privacy-preserving correlation mechanics.
  */
 @Secured(Roles.SERVICE)
-@Controller(ApiVersion.V1 + "/evasion")
+@Version(ApiVersion.V1)
+@Controller("/evasion")
 public class EvasionController {
 
     private final IpCorrelationService ipCorrelationService;
