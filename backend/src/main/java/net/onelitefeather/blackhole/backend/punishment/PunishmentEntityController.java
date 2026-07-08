@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.controller;
+package net.onelitefeather.blackhole.backend.punishment;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -16,11 +16,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
-import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
-import net.onelitefeather.blackhole.backend.database.repository.PunishmentRepository;
-import net.onelitefeather.blackhole.backend.dto.PunishEntryDTO;
+import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.profile.PunishProfileResponse;
-import net.onelitefeather.blackhole.backend.punishment.PunishmentApplicationService;
 
 import java.util.UUID;
 

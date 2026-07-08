@@ -1,6 +1,5 @@
-package net.onelitefeather.blackhole.backend.utils;
+package net.onelitefeather.blackhole.backend.punishment;
 
-import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
 import net.onelitefeather.phoca.metadata.Expirable;
 
 /**

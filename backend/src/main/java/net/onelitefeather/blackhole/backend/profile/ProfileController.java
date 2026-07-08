@@ -19,9 +19,9 @@ import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
-import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
-import net.onelitefeather.blackhole.backend.utils.PunishmentExpiry;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentExpiry;
 
 import java.util.ArrayList;
 import java.util.HashMap;

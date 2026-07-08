@@ -1,9 +1,7 @@
-package net.onelitefeather.blackhole.backend.database.repository;
+package net.onelitefeather.blackhole.backend.punishment;
 
 import io.micronaut.data.annotation.Repository;
 import io.micronaut.data.repository.PageableRepository;
-import net.onelitefeather.blackhole.backend.database.entities.PunishmentTemplateEntity;
-import net.onelitefeather.blackhole.backend.dto.PunishType;
 
 import java.util.Optional;
 import java.util.UUID;

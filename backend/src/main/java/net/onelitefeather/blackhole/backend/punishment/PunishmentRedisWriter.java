@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.redis;
+package net.onelitefeather.blackhole.backend.punishment;
 
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.micronaut.json.JsonMapper;

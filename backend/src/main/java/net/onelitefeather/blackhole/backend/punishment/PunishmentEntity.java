@@ -1,10 +1,8 @@
-package net.onelitefeather.blackhole.backend.database.entities;
+package net.onelitefeather.blackhole.backend.punishment;
 
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.*;
 import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
-import net.onelitefeather.blackhole.backend.dto.PunishEntryDTO;
-import net.onelitefeather.blackhole.backend.dto.PunishType;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 

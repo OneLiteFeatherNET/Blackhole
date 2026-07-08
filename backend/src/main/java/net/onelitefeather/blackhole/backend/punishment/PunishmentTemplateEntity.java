@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.database.entities;
+package net.onelitefeather.blackhole.backend.punishment;
 
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Convert;
@@ -8,10 +8,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
-import net.onelitefeather.blackhole.backend.dto.PunishType;
 import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
-import net.onelitefeather.blackhole.backend.dto.PunishTemplateDTO;
-import net.onelitefeather.blackhole.backend.dto.PunishTemplateRequestDTO;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 

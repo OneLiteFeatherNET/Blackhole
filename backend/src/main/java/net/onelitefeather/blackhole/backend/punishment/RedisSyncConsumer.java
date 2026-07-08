@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.redis;
+package net.onelitefeather.blackhole.backend.punishment;
 
 import com.rabbitmq.client.Channel;
 import io.micronaut.json.JsonMapper;

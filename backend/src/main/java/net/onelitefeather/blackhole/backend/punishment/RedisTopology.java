@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.redis;
+package net.onelitefeather.blackhole.backend.punishment;
 
 /**
  * Well-known Redis channel/key names shared between {@link PunishmentRedisWriter} and every

@@ -22,14 +22,14 @@ import net.onelitefeather.blackhole.backend.appeal.AppealEligibilityService;
 import net.onelitefeather.blackhole.backend.appeal.DecisionOutcome;
 import net.onelitefeather.blackhole.backend.appeal.EligibilityResult;
 import net.onelitefeather.blackhole.backend.database.entities.AppealEntity;
-import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.database.repository.AppealRepository;
-import net.onelitefeather.blackhole.backend.database.repository.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.dto.AppealDTO;
 import net.onelitefeather.blackhole.backend.dto.AppealReviewDTO;
 import net.onelitefeather.blackhole.backend.dto.AppealStatus;
 import net.onelitefeather.blackhole.backend.dto.AppealSubmissionDTO;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 
 import java.util.HashMap;
 import java.util.Map;

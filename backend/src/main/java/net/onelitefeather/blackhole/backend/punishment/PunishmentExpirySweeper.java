@@ -1,15 +1,13 @@
-package net.onelitefeather.blackhole.backend.scheduling;
+package net.onelitefeather.blackhole.backend.punishment;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
-import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.profile.CacheInvalidationPublisher;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
-import net.onelitefeather.blackhole.backend.utils.PunishmentExpiry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

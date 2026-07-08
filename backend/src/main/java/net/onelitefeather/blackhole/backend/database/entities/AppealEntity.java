@@ -13,6 +13,7 @@ import jakarta.persistence.Table;
 import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
 import net.onelitefeather.blackhole.backend.dto.AppealDTO;
 import net.onelitefeather.blackhole.backend.dto.AppealStatus;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 

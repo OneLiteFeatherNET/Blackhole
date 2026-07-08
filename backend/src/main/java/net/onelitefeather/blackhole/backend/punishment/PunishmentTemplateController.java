@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.controller;
+package net.onelitefeather.blackhole.backend.punishment;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -17,10 +17,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
-import net.onelitefeather.blackhole.backend.database.entities.PunishmentTemplateEntity;
-import net.onelitefeather.blackhole.backend.database.repository.PunishmentTemplateRepository;
-import net.onelitefeather.blackhole.backend.dto.PunishTemplateDTO;
-import net.onelitefeather.blackhole.backend.dto.PunishTemplateRequestDTO;
+import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -34,17 +31,17 @@ import java.util.UUID;
  */
 @Version(ApiVersion.V1)
 @Controller("/template")
-public class PunishmentTemplateHandler {
+public class PunishmentTemplateController {
 
     private final PunishmentTemplateRepository templateRepository;
 
     /**
-     * Create a new PunishmentTemplateHandler
+     * Create a new PunishmentTemplateController
      *
      * @param templateRepository the repository to use
      */
     @Inject
-    public PunishmentTemplateHandler(PunishmentTemplateRepository templateRepository) {
+    public PunishmentTemplateController(PunishmentTemplateRepository templateRepository) {
         this.templateRepository = templateRepository;
     }
 

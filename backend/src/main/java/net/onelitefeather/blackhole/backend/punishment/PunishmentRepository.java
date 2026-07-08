@@ -1,8 +1,7 @@
-package net.onelitefeather.blackhole.backend.database.repository;
+package net.onelitefeather.blackhole.backend.punishment;
 
 import io.micronaut.data.annotation.Repository;
 import io.micronaut.data.repository.PageableRepository;
-import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
 
 @Repository
 public interface PunishmentRepository extends PageableRepository<PunishmentEntity, String> {
