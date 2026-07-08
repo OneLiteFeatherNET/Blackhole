@@ -24,7 +24,7 @@ services:
       - "15672:15672"
       - "15692:15692"
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: 'redis_blackhole'
     networks:
       - blackhole_go_net
