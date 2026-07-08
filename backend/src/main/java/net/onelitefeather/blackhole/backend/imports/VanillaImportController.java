@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.controller;
+package net.onelitefeather.blackhole.backend.imports;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpResponse;
@@ -11,8 +11,7 @@ import io.micronaut.http.multipart.CompletedFileUpload;
 import io.micronaut.core.version.annotation.Version;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.inject.Inject;
-import net.onelitefeather.blackhole.backend.imports.VanillaImportResultDTO;
-import net.onelitefeather.blackhole.backend.imports.VanillaImportService;
+import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 
 import java.io.IOException;
 

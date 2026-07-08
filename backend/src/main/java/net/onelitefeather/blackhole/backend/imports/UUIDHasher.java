@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.utils;
+package net.onelitefeather.blackhole.backend.imports;
 
 import java.math.BigInteger;
 import java.security.MessageDigest;

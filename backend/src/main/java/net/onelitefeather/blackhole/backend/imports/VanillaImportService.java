@@ -13,7 +13,6 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishType;
 import net.onelitefeather.blackhole.backend.utils.IdGenerator;
-import net.onelitefeather.blackhole.backend.utils.UUIDHasher;
 import net.onelitefeather.phoca.metadata.Expirable;
 import net.onelitefeather.phoca.metadata.Metadata;
 import org.slf4j.Logger;
