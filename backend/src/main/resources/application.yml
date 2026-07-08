@@ -32,16 +32,16 @@ jpa:
           auto: none
         show_sql: false
 
-# Flyway is now the sole owner of the schema. hbm2ddl.auto is "none" rather than "validate"
+# Liquibase is now the sole owner of the schema. hbm2ddl.auto is "none" rather than "validate"
 # because Hibernate's schema validator disagrees with its own DDL generator about the expected
 # column type for @JdbcTypeCode(SqlTypes.JSON) columns on MariaDB (MariaDB's JSON type is a
 # LONGTEXT + CHECK(json_valid(...)) alias; validate expects Types#JSON, create emits
 # Types#LONGVARCHAR) - a known Hibernate/MariaDB dialect mismatch, not specific to this schema.
-flyway:
+liquibase:
   datasources:
     default:
       enabled: true
-      locations: classpath:db/migration
+      change-log: classpath:db/changelog/db.changelog-master.xml
 
 # Metrics scraping is expected to be protected at the network level, not behind the
 # application's own JWT auth - a scrape target shouldn't need a bearer token.

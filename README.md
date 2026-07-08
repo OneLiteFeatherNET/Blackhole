@@ -31,7 +31,7 @@ delivery for subscribed event types — rather than bespoke per-integration code
 
 ### Tech stack
 
-- **Backend**: Java 21+, [Micronaut](https://micronaut.io/), Hibernate/JPA, Flyway (MariaDB),
+- **Backend**: Java 21+, [Micronaut](https://micronaut.io/), Hibernate/JPA, Liquibase (MariaDB),
   RabbitMQ, Caffeine cache, Micrometer + OpenTelemetry.
 - **Proxy plugin**: [Velocity](https://velocitypowered.com/).
 - **Build**: Gradle (Kotlin DSL), multi-module.
