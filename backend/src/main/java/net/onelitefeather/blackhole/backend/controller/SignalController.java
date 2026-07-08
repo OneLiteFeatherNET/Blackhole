@@ -27,7 +27,7 @@ import java.util.Map;
  * {@code signalType}.
  */
 @Secured(ConnectorScopes.SIGNAL_WRITE)
-@Controller("/signal")
+@Controller(ApiVersion.V1 + "/signal")
 public class SignalController {
 
     private final DomainEventPublisher eventPublisher;

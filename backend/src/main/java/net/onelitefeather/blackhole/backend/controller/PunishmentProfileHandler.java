@@ -39,7 +39,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF, Roles.SERVICE})
-@Controller(value = "/profile")
+@Controller(value = ApiVersion.V1 + "/profile")
 public class PunishmentProfileHandler {
 
     private final PunishmentProfileRepository repository;

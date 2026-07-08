@@ -28,7 +28,7 @@ import net.onelitefeather.blackhole.backend.security.TenantContext;
 import java.util.UUID;
 
 @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF, Roles.SERVICE})
-@Controller(value = "/punishment")
+@Controller(value = ApiVersion.V1 + "/punishment")
 public class PunishmentEntityController {
 
     private final PunishmentRepository punishmentRepository;
