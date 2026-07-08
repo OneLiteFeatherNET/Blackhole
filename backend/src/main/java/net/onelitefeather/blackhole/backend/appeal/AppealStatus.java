@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.dto;
+package net.onelitefeather.blackhole.backend.appeal;
 
 /**
  * The lifecycle state of an appeal.

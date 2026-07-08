@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.controller;
+package net.onelitefeather.blackhole.backend.appeal;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -17,16 +17,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
-import net.onelitefeather.blackhole.backend.appeal.AppealDecisionService;
-import net.onelitefeather.blackhole.backend.appeal.AppealEligibilityService;
-import net.onelitefeather.blackhole.backend.appeal.DecisionOutcome;
-import net.onelitefeather.blackhole.backend.appeal.EligibilityResult;
-import net.onelitefeather.blackhole.backend.database.entities.AppealEntity;
-import net.onelitefeather.blackhole.backend.database.repository.AppealRepository;
-import net.onelitefeather.blackhole.backend.dto.AppealDTO;
-import net.onelitefeather.blackhole.backend.dto.AppealReviewDTO;
-import net.onelitefeather.blackhole.backend.dto.AppealStatus;
-import net.onelitefeather.blackhole.backend.dto.AppealSubmissionDTO;
+import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;

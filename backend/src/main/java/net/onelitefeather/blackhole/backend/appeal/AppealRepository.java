@@ -1,9 +1,7 @@
-package net.onelitefeather.blackhole.backend.database.repository;
+package net.onelitefeather.blackhole.backend.appeal;
 
 import io.micronaut.data.annotation.Repository;
 import io.micronaut.data.repository.PageableRepository;
-import net.onelitefeather.blackhole.backend.database.entities.AppealEntity;
-import net.onelitefeather.blackhole.backend.dto.AppealStatus;
 
 import java.util.List;
 import java.util.UUID;

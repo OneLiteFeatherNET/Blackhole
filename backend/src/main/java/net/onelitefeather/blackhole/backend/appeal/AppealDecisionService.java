@@ -1,7 +1,6 @@
 package net.onelitefeather.blackhole.backend.appeal;
 
 import jakarta.inject.Singleton;
-import net.onelitefeather.blackhole.backend.dto.AppealStatus;
 import net.onelitefeather.blackhole.backend.profile.CacheInvalidationPublisher;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
