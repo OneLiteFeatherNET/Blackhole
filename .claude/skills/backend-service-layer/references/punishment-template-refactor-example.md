@@ -224,20 +224,19 @@ import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
-import io.micronaut.security.annotation.Secured;
+import io.micronaut.core.version.annotation.Version;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.backend.dto.PunishTemplateDTO;
 import net.onelitefeather.blackhole.backend.dto.PunishTemplateRequestDTO;
-import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.template.CreateOutcome;
 import net.onelitefeather.blackhole.backend.template.PunishmentTemplateService;
 import net.onelitefeather.blackhole.backend.template.UpdateOutcome;
 
 import java.util.UUID;
 
-@Secured({Roles.ADMIN, Roles.STAFF, Roles.SERVICE})
-@Controller(value = ApiVersion.V1 + "/template")
+@Version(ApiVersion.V1)
+@Controller("/template")
 public class PunishmentTemplateController implements PunishmentTemplateApi {
 
     private final PunishmentTemplateService templateService;
