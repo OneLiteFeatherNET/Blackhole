@@ -6,6 +6,7 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.core.version.annotation.Version;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,7 +28,8 @@ import net.onelitefeather.blackhole.backend.security.Roles;
 import java.util.UUID;
 
 @Secured({Roles.ADMIN, Roles.STAFF, Roles.SERVICE})
-@Controller(value = ApiVersion.V1 + "/punishment")
+@Version(ApiVersion.V1)
+@Controller("/punishment")
 public class PunishmentEntityController {
 
     private final PunishmentRepository punishmentRepository;
