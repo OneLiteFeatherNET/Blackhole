@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.cache;
+package net.onelitefeather.blackhole.backend.profile;
 
 import com.rabbitmq.client.Channel;
 import io.micronaut.json.JsonMapper;

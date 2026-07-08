@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.controller;
+package net.onelitefeather.blackhole.backend.profile;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -18,16 +18,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
+import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
-import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileEntity;
-import net.onelitefeather.blackhole.backend.database.repository.PunishmentProfileRepository;
-import net.onelitefeather.blackhole.backend.dto.PunishProfileDTO;
-import net.onelitefeather.blackhole.backend.dto.PunishProfileRequestDTO;
-import net.onelitefeather.blackhole.backend.dto.SessionInfoDTO;
-import net.onelitefeather.blackhole.backend.cache.CacheInvalidationPublisher;
-import net.onelitefeather.blackhole.backend.cache.ProfileCache;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
-import net.onelitefeather.blackhole.backend.response.PunishProfileResponse;
 import net.onelitefeather.blackhole.backend.utils.PunishmentExpiry;
 
 import java.util.ArrayList;
@@ -36,7 +29,7 @@ import java.util.Map;
 
 @Version(ApiVersion.V1)
 @Controller("/profile")
-public class PunishmentProfileHandler {
+public class ProfileController {
 
     private final PunishmentProfileRepository repository;
     private final DomainEventPublisher eventPublisher;
@@ -44,7 +37,7 @@ public class PunishmentProfileHandler {
     private final CacheInvalidationPublisher cacheInvalidationPublisher;
 
     /**
-     * Create a new PunishmentProfileHandler.
+     * Create a new ProfileController.
      *
      * @param repository                 the repository to use
      * @param eventPublisher             publishes domain events for successful writes
@@ -52,7 +45,7 @@ public class PunishmentProfileHandler {
      * @param cacheInvalidationPublisher invalidates the cache locally and across replicas on writes
      */
     @Inject
-    public PunishmentProfileHandler(
+    public ProfileController(
             PunishmentProfileRepository repository,
             DomainEventPublisher eventPublisher,
             ProfileCache profileCache,

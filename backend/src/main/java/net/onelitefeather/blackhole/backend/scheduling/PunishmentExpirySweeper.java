@@ -4,11 +4,11 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
-import net.onelitefeather.blackhole.backend.cache.CacheInvalidationPublisher;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
-import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileEntity;
-import net.onelitefeather.blackhole.backend.database.repository.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.profile.CacheInvalidationPublisher;
+import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
+import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.utils.PunishmentExpiry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,7 +18,7 @@ import java.util.Map;
 /**
  * Periodically moves expired active bans/mutes into a profile's history. This makes expiry an
  * active background process instead of something that only happens to be noticed the next
- * time a profile happens to be read (see {@code PunishmentProfileHandler.getById}).
+ * time a profile happens to be read (see {@code ProfileController.getById}).
  */
 @Singleton
 public class PunishmentExpirySweeper {

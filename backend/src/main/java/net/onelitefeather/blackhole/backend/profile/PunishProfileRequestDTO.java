@@ -1,10 +1,11 @@
-package net.onelitefeather.blackhole.backend.dto;
+package net.onelitefeather.blackhole.backend.profile;
 
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.annotation.ReflectiveAccess;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.validation.constraints.Pattern;
+import net.onelitefeather.blackhole.backend.dto.PunishEntryDTO;
 
 import java.util.List;
 import java.util.Map;

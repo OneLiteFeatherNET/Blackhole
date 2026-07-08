@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.cache;
+package net.onelitefeather.blackhole.backend.profile;
 
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;

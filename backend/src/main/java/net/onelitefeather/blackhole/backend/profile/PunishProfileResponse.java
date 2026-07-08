@@ -1,4 +1,4 @@
-package net.onelitefeather.blackhole.backend.response;
+package net.onelitefeather.blackhole.backend.profile;
 
 import io.micronaut.serde.annotation.Serdeable;
 import io.swagger.v3.oas.annotations.media.Schema;

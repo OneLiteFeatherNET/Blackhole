@@ -19,8 +19,8 @@ import jakarta.validation.constraints.Pattern;
 import net.onelitefeather.blackhole.backend.database.entities.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.database.repository.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.dto.PunishEntryDTO;
+import net.onelitefeather.blackhole.backend.profile.PunishProfileResponse;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentApplicationService;
-import net.onelitefeather.blackhole.backend.response.PunishProfileResponse;
 
 import java.util.UUID;
 

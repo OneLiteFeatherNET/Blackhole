@@ -1,9 +1,8 @@
-package net.onelitefeather.blackhole.backend.cache;
+package net.onelitefeather.blackhole.backend.profile;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import jakarta.inject.Singleton;
-import net.onelitefeather.blackhole.backend.database.entities.PunishmentProfileEntity;
 
 import java.time.Duration;
 import java.util.Optional;
