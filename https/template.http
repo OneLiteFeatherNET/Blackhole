@@ -1,6 +1,6 @@
 ### POST update template
 @id = e1488ac3-e277-407c-8bfb-0264c9436d09
-POST http://localhost:8080/template/update
+POST http://localhost:8080/v1/template/update
 Content-Type: application/json
 
 {
@@ -13,15 +13,15 @@ Content-Type: application/json
 }
 
 ### GET Get all templates
-GET http://localhost:8080/template/all
+GET http://localhost:8080/v1/template/all
 
 ### DELETE template
 @delete-id = e1488ac3-e277-407c-8bfb-0264c9436d09
-DELETE http://localhost:8080/template/delete/{{delete-id}}
+DELETE http://localhost:8080/v1/template/delete/{{delete-id}}
 Content-Type: application/json
 
 ### POST create template
-POST http://localhost:8080/template
+POST http://localhost:8080/v1/template
 Content-Type: application/json
 
 {

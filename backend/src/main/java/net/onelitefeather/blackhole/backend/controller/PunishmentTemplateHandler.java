@@ -34,7 +34,7 @@ import java.util.UUID;
  * @since 1.0.0
  */
 @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN, Roles.STAFF, Roles.SERVICE})
-@Controller(value = "/template")
+@Controller(value = ApiVersion.V1 + "/template")
 public class PunishmentTemplateHandler {
 
     private final PunishmentTemplateRepository templateRepository;

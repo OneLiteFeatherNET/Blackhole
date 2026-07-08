@@ -25,7 +25,7 @@ import java.util.UUID;
  * through the same repository/event path as any other write and stay auditable.
  */
 @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN})
-@Controller("/admin/import")
+@Controller(ApiVersion.V1 + "/admin/import")
 public class VanillaImportController {
 
     private final VanillaImportService importService;

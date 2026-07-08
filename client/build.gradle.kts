@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.openapi.generator)
 }
 
+group = "net.onelitefeather"
+
 val outDir = layout.buildDirectory.dir("generated/openapi")
 
 dependencies {
@@ -19,7 +21,7 @@ dependencies {
 openApiGenerate {
     generatorName.set("java")
     library.set("native")
-    inputSpec.set("$projectDir/specs/blackhole-api-0.0.2.yml")
+    inputSpec.set("$projectDir/specs/blackhole-api-0.0.3.yml")
     outputDir.set(outDir.get().asFile.absolutePath)
     apiPackage.set("net.onelitefeather.blackhole.client.api")
     invokerPackage.set("net.onelitefeather.blackhole.client.invoker")
@@ -86,7 +88,7 @@ publishing {
         from(components["java"])
         version = rootProject.version as String
         artifactId = "blackhole-client"
-        groupId = rootProject.group as String
+        groupId = project.group as String
         pom {
             name = "Blackhole Client API"
             description = "The client for Blackhole."

@@ -44,7 +44,7 @@ import java.util.UUID;
  * outbound HMAC signatures) is persisted.
  */
 @Secured({Roles.PLATFORM_ADMIN, Roles.TENANT_ADMIN})
-@Controller("/connector")
+@Controller(ApiVersion.V1 + "/connector")
 public class ConnectorController {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();

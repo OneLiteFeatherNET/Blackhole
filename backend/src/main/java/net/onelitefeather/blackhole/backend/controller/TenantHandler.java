@@ -32,7 +32,7 @@ import java.util.UUID;
  * cross-tenant by nature, so it's restricted to {@link Roles#PLATFORM_ADMIN}.
  */
 @Secured(Roles.PLATFORM_ADMIN)
-@Controller(value = "/tenant")
+@Controller(value = ApiVersion.V1 + "/tenant")
 public class TenantHandler {
 
     private final TenantRepository tenantRepository;

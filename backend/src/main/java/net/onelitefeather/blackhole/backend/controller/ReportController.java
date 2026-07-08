@@ -61,7 +61,7 @@ import java.util.UUID;
  * intentionally deferred to a dedicated pass that adds real per-actor identity everywhere at
  * once rather than patching one endpoint inconsistently with the rest.</p>
  */
-@Controller("/report")
+@Controller(ApiVersion.V1 + "/report")
 public class ReportController {
 
     private final ReportRepository reportRepository;
