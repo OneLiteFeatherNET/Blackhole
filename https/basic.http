@@ -1,5 +1,5 @@
 ### POST create template
-POST http://localhost:8080/template
+POST http://localhost:8080/v1/template
 Content-Type: application/json
 
 {
@@ -13,7 +13,7 @@ Content-Type: application/json
 ### POST create profile
 # TheMeinerLP - 05bf52c6-7bb0-4f13-8951-0e1fd803df35 as SHA-512
 @owner = bfd1b89d097121dbd22042c75fffb78f8871761898d764d1586f0640a5cbf46a8d8280c66f62f50efbe56fc1e535009603b9a43b2e3f7f43533ceae48fc8550d
-POST http://localhost:8080/profile/
+POST http://localhost:8080/v1/profile/
 Content-Type: application/json
 
 {
@@ -28,4 +28,4 @@ Content-Type: application/json
 ### POST Punish player with id 05bf52c6-7bb0-4f13-8951-0e1fd803df35
 @templateId = 2c1ea278-b1db-4379-9b89-d17d4986a883
 @source = 05bf52c6-7bb0-4f13-8951-0e1fd803df35
-POST http://localhost:8080/punishment/active/{{owner}}/{{templateId}}/{{source}}
+POST http://localhost:8080/v1/punishment/active/{{owner}}/{{templateId}}/{{source}}

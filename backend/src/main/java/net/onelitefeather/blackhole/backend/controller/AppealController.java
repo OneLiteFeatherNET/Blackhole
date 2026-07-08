@@ -44,7 +44,7 @@ import java.util.UUID;
  * the checklist allows - never pure algorithmic auto-lift (a farming vector) and never
  * unconstrained human discretion (today's original problem this whole system exists to fix).
  */
-@Controller("/appeal")
+@Controller(ApiVersion.V1 + "/appeal")
 public class AppealController {
 
     private static final Set<AppealStatus> VALID_DECISIONS = Set.of(

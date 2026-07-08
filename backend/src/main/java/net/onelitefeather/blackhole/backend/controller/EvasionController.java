@@ -22,7 +22,7 @@ import net.onelitefeather.blackhole.backend.security.TenantContext;
  * privacy-preserving correlation mechanics.
  */
 @Secured(Roles.SERVICE)
-@Controller("/evasion")
+@Controller(ApiVersion.V1 + "/evasion")
 public class EvasionController {
 
     private final IpCorrelationService ipCorrelationService;

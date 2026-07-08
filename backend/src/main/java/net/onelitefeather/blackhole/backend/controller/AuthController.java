@@ -30,7 +30,7 @@ import java.util.Set;
  * gets you the very first {@link Roles#PLATFORM_ADMIN} token from a shared secret; every further
  * token is minted by an already-authenticated admin.
  */
-@Controller("/auth")
+@Controller(ApiVersion.V1 + "/auth")
 public class AuthController {
 
     private final JwtTokenGenerator tokenGenerator;

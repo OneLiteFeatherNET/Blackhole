@@ -38,7 +38,7 @@ import java.util.UUID;
  * read endpoints for a player's current standing and audit trail.
  */
 @Secured(Roles.SERVICE)
-@Controller("/elo")
+@Controller(ApiVersion.V1 + "/elo")
 public class EloController {
 
     private final ChatToxicityService chatToxicityService;

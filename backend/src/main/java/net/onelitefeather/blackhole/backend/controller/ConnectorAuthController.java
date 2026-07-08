@@ -31,7 +31,7 @@ import java.util.Optional;
  * existing {@code @Secured} checks on read endpoints can reference a scope string exactly like
  * any other role - no separate scope-checking infrastructure needed.
  */
-@Controller("/connector/oauth2")
+@Controller(ApiVersion.V1 + "/connector/oauth2")
 public class ConnectorAuthController {
 
     private final ConnectorRegistrationRepository connectorRepository;
