@@ -9,7 +9,7 @@ import java.util.UUID;
 
 /**
  * Thin wrapper called as a side effect of existing write paths (see
- * {@code PunishmentEntityController}, {@code PunishmentProfileHandler},
+ * {@code PunishmentEntityController}, {@code ProfileController},
  * {@code PunishmentExpirySweeper}) — additive instrumentation, not a rewrite of those flows.
  */
 @Singleton

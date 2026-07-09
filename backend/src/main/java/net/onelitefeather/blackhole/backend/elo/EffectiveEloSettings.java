@@ -1,7 +1,5 @@
 package net.onelitefeather.blackhole.backend.elo;
 
-import net.onelitefeather.blackhole.backend.dto.EloTrack;
-
 import java.util.UUID;
 
 /**

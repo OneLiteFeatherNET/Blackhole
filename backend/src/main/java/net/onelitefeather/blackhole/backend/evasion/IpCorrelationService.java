@@ -2,8 +2,6 @@ package net.onelitefeather.blackhole.backend.evasion;
 
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
-import net.onelitefeather.blackhole.backend.database.entities.IpCorrelationTokenEntity;
-import net.onelitefeather.blackhole.backend.database.repository.IpCorrelationTokenRepository;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

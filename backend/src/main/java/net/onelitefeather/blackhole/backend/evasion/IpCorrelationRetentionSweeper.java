@@ -3,8 +3,6 @@ package net.onelitefeather.blackhole.backend.evasion;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
-import net.onelitefeather.blackhole.backend.database.entities.IpCorrelationTokenEntity;
-import net.onelitefeather.blackhole.backend.database.repository.IpCorrelationTokenRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

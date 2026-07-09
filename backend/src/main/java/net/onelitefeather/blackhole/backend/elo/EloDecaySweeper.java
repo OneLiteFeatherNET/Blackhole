@@ -4,8 +4,6 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
-import net.onelitefeather.blackhole.backend.database.entities.EloProfileEntity;
-import net.onelitefeather.blackhole.backend.database.repository.EloProfileRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
