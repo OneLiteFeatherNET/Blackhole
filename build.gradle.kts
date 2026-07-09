@@ -12,7 +12,10 @@ subprojects {
 
     tasks {
         getByName<JavaCompile>("compileJava") {
-            options.release.set(21)
+            // Matches the toolchain (JavaLanguageVersion 25) each module already builds with -
+            // otis-client (a backend dependency) is published targeting Java 25 with no lower
+            // --release cap, so a 21 target here made it an incompatible dependency variant.
+            options.release.set(25)
             options.encoding = "UTF-8"
         }
         getByName<JacocoReport>("jacocoTestReport") {

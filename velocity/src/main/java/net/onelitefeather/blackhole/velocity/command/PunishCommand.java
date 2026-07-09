@@ -5,12 +5,14 @@ import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.Component;
+import net.onelitefeather.blackhole.client.api.PlayerApi;
 import net.onelitefeather.blackhole.client.api.PunishProfileApi;
 import net.onelitefeather.blackhole.client.api.PunishmentApi;
 import net.onelitefeather.blackhole.client.api.PunishmentTemplatesApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.Pageable;
+import net.onelitefeather.blackhole.client.model.PlayerResolveResponse;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.PunishTemplateDTO;
 import net.onelitefeather.blackhole.client.model.PunishType;
@@ -24,21 +26,33 @@ import org.incendo.cloud.context.CommandContext;
 import org.incendo.cloud.context.CommandInput;
 import org.incendo.cloud.key.CloudKey;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public final class PunishCommand {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PunishCommand.class);
-    static final CloudKey<Player> TARGET_KEY = CloudKey.of("target", Player.class);
+    static final CloudKey<ResolvedTarget> TARGET_KEY = CloudKey.of("target", ResolvedTarget.class);
+
+    /**
+     * A punishment target resolved either from a currently-connected {@link Player} or, if they
+     * aren't online, from the backend's player-resolver chain (Otis/Mojang/NameMC) - see
+     * {@link #parseProfile}. {@code onlinePlayer} is {@code null} for an offline target; callers
+     * must not disconnect/message a player directly in that case.
+     */
+    public record ResolvedTarget(UUID uuid, String name, @Nullable Player onlinePlayer) {
+    }
 
     private final ProxyServer proxyServer;
     private final PunishProfileApi punishProfileApi;
     private final PunishmentApi punishmentApi;
     private final PunishmentTemplatesApi punishmentTemplatesApi;
+    private final PlayerApi playerApi;
 
     @Inject
     public PunishCommand(@NotNull ProxyServer proxyServer, @NotNull ApiClient apiClient) {
@@ -46,6 +60,7 @@ public final class PunishCommand {
         this.punishProfileApi = new PunishProfileApi(apiClient);
         this.punishmentApi = new PunishmentApi(apiClient);
         this.punishmentTemplatesApi = new PunishmentTemplatesApi(apiClient);
+        this.playerApi = new PlayerApi(apiClient);
     }
 
     @Command("blackhole <user> ban <template>")
@@ -54,7 +69,7 @@ public final class PunishCommand {
     @CommandDescription("Ban a player from the server")
     public void banPlayer(
             CommandContext<Player> context,
-            @Argument(value = "user", parserName = "profile") @NotNull PunishProfileDTO user,
+            @Argument(value = "user", parserName = "profile", suggestions = "players") @NotNull PunishProfileDTO user,
             @Argument(value = "template", parserName = "template") @NotNull PunishTemplateDTO template,
             @Flag("server") Boolean server
     ) {
@@ -82,10 +97,12 @@ public final class PunishCommand {
             return;
         }
 
-        Player targetPlayer = context.get(TARGET_KEY);
+        ResolvedTarget target = context.get(TARGET_KEY);
         PunishProfileDTO updatedProfile = profile.orElseThrow();
-        targetPlayer.disconnect(PunishmentTemplateComponent.of(template, updatedProfile));
-        context.sender().sendMessage(Component.translatable("punishment.success.ban").arguments(Component.text(targetPlayer.getUsername())));
+        if (target.onlinePlayer() != null) {
+            target.onlinePlayer().disconnect(PunishmentTemplateComponent.of(template, updatedProfile));
+        }
+        context.sender().sendMessage(Component.translatable("punishment.success.ban").arguments(Component.text(target.name())));
     }
 
     @Command("blackhole <user> mute <template>")
@@ -95,7 +112,7 @@ public final class PunishCommand {
     @PunishTypeScope(PunishType.CHAT)
     public void mutePlayer(
             CommandContext<Player> context,
-            @Argument(value = "user", parserName = "profile") @NotNull PunishProfileDTO user,
+            @Argument(value = "user", parserName = "profile", suggestions = "players") @NotNull PunishProfileDTO user,
             @Argument(value = "template", parserName = "template") @NotNull PunishTemplateDTO template
     ) {
         if (template.getIdentifier() == null) {
@@ -124,19 +141,43 @@ public final class PunishCommand {
     @Parser(name = "profile")
     public PunishProfileDTO parseProfile(CommandContext<CommandSource> context, CommandInput input) {
         String name = input.readString();
-        Optional<Player> player = this.proxyServer.getPlayer(name);
+        Optional<Player> onlinePlayer = this.proxyServer.getPlayer(name);
 
-        if (player.isEmpty()) {
-            throw new IllegalArgumentException("Player(%s) not found".formatted(name));
+        UUID uuid;
+        String resolvedName;
+        if (onlinePlayer.isPresent()) {
+            uuid = onlinePlayer.get().getUniqueId();
+            resolvedName = onlinePlayer.get().getUsername();
+        } else {
+            // Not connected right now - fall back to the backend's resolver chain (Otis/Mojang/
+            // NameMC) so offline players can still be targeted; enforcement itself is already
+            // UUID-driven at login (PlayerLoginListener), so nothing further is needed here.
+            PlayerResolveResponse resolved;
+            try {
+                resolved = this.playerApi.resolvePlayer(name);
+            } catch (ApiException e) {
+                throw new IllegalArgumentException("Player(%s) not found".formatted(name));
+            }
+            uuid = resolved.getUuid();
+            resolvedName = resolved.getName();
         }
-        context.store(TARGET_KEY, player.get());
+        context.store(TARGET_KEY, new ResolvedTarget(uuid, resolvedName, onlinePlayer.orElse(null)));
 
         try {
-            return this.punishProfileApi.getById(UUIDConverter.convertToSHA(player.get().getUniqueId()));
+            return this.punishProfileApi.getById(UUIDConverter.convertToSHA(uuid));
         } catch (ApiException e) {
             LOGGER.error("Failed to fetch punish profile for player {}: {}", name, e.getMessage());
             return null;
         }
+    }
+
+    @Suggestions("players")
+    public List<String> suggestPlayers(CommandContext<Player> context, CommandInput input) {
+        String prefix = input.readString();
+        return this.proxyServer.getAllPlayers().stream()
+                .map(Player::getUsername)
+                .filter(username -> username.toLowerCase().startsWith(prefix.toLowerCase()))
+                .toList();
     }
 
     @Parser(suggestions = "templates", name = "template")
