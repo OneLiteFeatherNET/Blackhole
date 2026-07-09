@@ -65,17 +65,6 @@ blackhole:
       max-reports: ${BLACKHOLE_REPORT_RATE_LIMIT_MAX:5}
       max-reports-network-wide: ${BLACKHOLE_REPORT_RATE_LIMIT_MAX_NETWORK_WIDE:50}
       window: ${BLACKHOLE_REPORT_RATE_LIMIT_WINDOW:PT10M}
-  # WebhookDispatchConsumer fans out domain events to connector webhooks (Phase 4). A failed
-  # delivery is dead-lettered to a retry queue for retry-delay-ms, then dead-letters back to the
-  # dispatch queue - a native RabbitMQ TTL+DLX loop, not an in-process retry. After max-retries
-  # attempts a dispatch is parked in blackhole.webhook.failed instead of retried forever.
-  webhook:
-    retry-delay-ms: ${BLACKHOLE_WEBHOOK_RETRY_DELAY_MS:30000}
-    max-retries: ${BLACKHOLE_WEBHOOK_MAX_RETRIES:5}
-    # SSRF hardening: an ADMIN sets deliveryUrl, a genuinely less-trusted party than the platform
-    # operator. Keep this false in any real deployment - only for local dev/testing against a
-    # loopback receiver.
-    allow-private-networks: ${BLACKHOLE_WEBHOOK_ALLOW_PRIVATE_NETWORKS:false}
   # Dual-ELO system (Phase 5): baseline is the network-wide starting/neutral score for both
   # tracks, and perma-ban-threshold the network-wide permanent-ban trigger. Crossing below
   # soft-threshold triggers an automatic temporary punishment; below perma-ban-threshold, a
@@ -109,8 +98,6 @@ blackhole:
       flag-threshold: ${BLACKHOLE_ELO_CHAT_FLAG_THRESHOLD:0.3}
       flag-delta: ${BLACKHOLE_ELO_CHAT_FLAG_DELTA:-50}
       evidence-retention-days: ${BLACKHOLE_ELO_CHAT_EVIDENCE_RETENTION_DAYS:60}
-    signal:
-      default-delta: ${BLACKHOLE_ELO_SIGNAL_DEFAULT_DELTA:-150}
     report:
       actioned-delta: ${BLACKHOLE_ELO_REPORT_ACTIONED_DELTA:-100}
       # Awarded to the reporter when their report is resolved ACTIONED with an actual

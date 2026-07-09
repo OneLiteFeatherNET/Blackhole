@@ -23,11 +23,10 @@ import java.util.Map;
  * (not per-replica) queue, since Redis is the one cross-proxy source of truth and each event
  * must be processed exactly once.
  *
- * <p>Uses the raw RabbitMQ Java client (not {@code @RabbitListener}), same as
- * {@code WebhookDispatchConsumer}. Unlike that consumer, this is an explicitly best-effort side
- * channel with no retry loop: a missed write self-heals at the next mutation on the same
- * profile, and every proxy falls back to an HTTP call on a cache miss, so a message is always
- * acked after a single attempt rather than redelivered.</p>
+ * <p>Uses the raw RabbitMQ Java client (not {@code @RabbitListener}). This is an explicitly
+ * best-effort side channel with no retry loop: a missed write self-heals at the next mutation on
+ * the same profile, and every proxy falls back to an HTTP call on a cache miss, so a message is
+ * always acked after a single attempt rather than redelivered.</p>
  */
 @Singleton
 public class RedisSyncConsumer {
