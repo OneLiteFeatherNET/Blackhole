@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.connector;
 
+import net.onelitefeather.blackhole.backend.connector.controller.ConnectorController;
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
 

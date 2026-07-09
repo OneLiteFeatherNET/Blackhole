@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.report;
 
+import net.onelitefeather.blackhole.backend.report.dto.ReportDTO;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;

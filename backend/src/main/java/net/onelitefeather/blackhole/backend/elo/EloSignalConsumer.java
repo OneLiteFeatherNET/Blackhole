@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.elo;
 
+import net.onelitefeather.blackhole.backend.elo.service.EloService;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.rabbitmq.annotation.Queue;
 import io.micronaut.rabbitmq.annotation.RabbitListener;

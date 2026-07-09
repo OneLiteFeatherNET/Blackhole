@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.elo;
 
+import net.onelitefeather.blackhole.backend.elo.service.EloService;
 import java.util.UUID;
 
 /**
