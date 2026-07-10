@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.elo;
 
+import net.onelitefeather.blackhole.backend.elo.service.EloService;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.scheduling.annotation.Scheduled;

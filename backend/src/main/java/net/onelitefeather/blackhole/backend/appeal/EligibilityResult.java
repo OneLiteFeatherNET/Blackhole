@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.appeal;
 
+import net.onelitefeather.blackhole.backend.appeal.controller.AppealController;
 import java.util.Map;
 
 /**

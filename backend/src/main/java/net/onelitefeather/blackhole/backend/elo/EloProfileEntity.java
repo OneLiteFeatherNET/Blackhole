@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.elo;
 
+import net.onelitefeather.blackhole.backend.elo.dto.EloProfileDTO;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
