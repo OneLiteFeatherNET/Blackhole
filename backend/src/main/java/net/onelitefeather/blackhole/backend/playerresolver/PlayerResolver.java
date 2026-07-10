@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.playerresolver;
 
+import net.onelitefeather.blackhole.backend.playerresolver.service.PlayerResolverService;
 import java.util.Optional;
 
 /**

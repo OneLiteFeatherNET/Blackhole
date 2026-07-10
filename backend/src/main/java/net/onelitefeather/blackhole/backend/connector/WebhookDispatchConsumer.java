@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.connector;
 
+import net.onelitefeather.blackhole.backend.connector.controller.ConnectorController;
 import com.rabbitmq.client.Channel;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.json.JsonMapper;

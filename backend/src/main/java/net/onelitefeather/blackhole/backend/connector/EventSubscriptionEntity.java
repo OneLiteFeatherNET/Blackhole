@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.connector;
 
+import net.onelitefeather.blackhole.backend.connector.dto.EventSubscriptionDTO;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;

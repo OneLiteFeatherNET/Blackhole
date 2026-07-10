@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.appeal;
 
+import net.onelitefeather.blackhole.backend.appeal.dto.AppealDTO;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;

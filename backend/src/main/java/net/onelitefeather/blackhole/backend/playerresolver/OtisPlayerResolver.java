@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.playerresolver;
 
+import net.onelitefeather.blackhole.backend.playerresolver.service.PlayerResolverService;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.core.annotation.Order;

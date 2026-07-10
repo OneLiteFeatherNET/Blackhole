@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.profile;
 
+import net.onelitefeather.blackhole.backend.profile.dto.PunishProfileDTO;
+import net.onelitefeather.blackhole.backend.profile.dto.PunishProfileRequestDTO;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.*;
 import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
