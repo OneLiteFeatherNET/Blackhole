@@ -6,27 +6,23 @@ integrations, while keeping personally identifiable data (IPs, raw player UUIDs)
 tokenized wherever it's stored or published.
 
 Punishment decisions are driven by a **dual-ELO system**: every player carries a separate
-`chatElo` and `gameplayElo` score. Reports, a pluggable chat-toxicity scorer, and signals from
-external anti-cheat/moderation tools all feed deltas into these scores, and crossing a
-configurable soft/hard threshold automatically applies a temporary or permanent punishment —
-without requiring a moderator to be online. A structured appeal workflow lets players contest
-both automatic and manual punishments.
+`chatElo` and `gameplayElo` score. Reports and a pluggable chat-toxicity scorer feed deltas into
+these scores, and crossing a configurable soft/hard threshold automatically applies a temporary
+or permanent punishment — without requiring a moderator to be online. A structured appeal
+workflow lets players contest both automatic and manual punishments.
 
 ## Architecture
 
 | Module     | What it is                                                                                  |
 |------------|----------------------------------------------------------------------------------------------|
-| `backend`  | The Micronaut HTTP API — punishments, reports, ELO, appeals, connectors, dashboard.          |
+| `backend`  | The Micronaut HTTP API — punishments, reports, ELO, appeals, dashboard.                     |
 | `velocity` | A Velocity proxy plugin that enforces punishments and feeds chat/session data to the backend. |
 | `client`   | A Java API client generated from `client/specs/blackhole-api-*.yml` via OpenAPI Generator.   |
 | `phoca`    | Shared utility library used across modules.                                                  |
 
 The backend is event-driven: RabbitMQ backs a domain event bus (`blackhole.events`) that other
 services can consume, plus a fanout exchange for cross-replica cache invalidation, so the API
-can be scaled horizontally. External systems (anti-cheat tools, dashboards, other backends)
-integrate through a generic **connector framework** — connector registrations with declared
-scopes, a generic `/signal` ingestion endpoint, and signed webhook delivery for subscribed event
-types — rather than bespoke per-integration code.
+can be scaled horizontally.
 
 There is deliberately no authentication system right now: every endpoint is open. The trust
 model is that only trusted callers can reach the API at all - admins/tools calling the REST API

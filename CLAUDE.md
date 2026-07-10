@@ -11,11 +11,10 @@ it's stored or published. There is no multi-tenancy - if multiple networks are e
 handled by running separate deployments, not by sharing one deployment across them.
 
 Punishment decisions are driven by a **dual-ELO system**: every player carries a separate
-`chatElo` and `gameplayElo` score. Reports, a pluggable chat-toxicity scorer, and signals from
-external anti-cheat/moderation tools all feed deltas into these scores, and crossing a
-configurable soft/hard threshold automatically applies a temporary or permanent punishment —
-without requiring a moderator to be online. A structured appeal workflow lets players contest
-both automatic and manual punishments.
+`chatElo` and `gameplayElo` score. Reports and a pluggable chat-toxicity scorer feed deltas into
+these scores, and crossing a configurable soft/hard threshold automatically applies a temporary
+or permanent punishment — without requiring a moderator to be online. A structured appeal
+workflow lets players contest both automatic and manual punishments.
 
 ## Modules
 
@@ -23,7 +22,7 @@ Gradle multi-module project (Kotlin DSL), Java 21+ (backend toolchain targets 25
 
 | Module     | What it is                                                                                    |
 |------------|------------------------------------------------------------------------------------------------|
-| `backend`  | The Micronaut HTTP API — punishments, reports, ELO, appeals, connectors, dashboard.            |
+| `backend`  | The Micronaut HTTP API — punishments, reports, ELO, appeals, dashboard.                       |
 | `velocity` | A Velocity proxy plugin that enforces punishments and feeds chat/session data to the backend.  |
 | `client`   | A Java API client generated from `client/specs/blackhole-api-*.yml` via OpenAPI Generator.     |
 | `phoca`    | Shared utility library (metadata/expiry/duration abstractions) used across modules.             |
@@ -93,16 +92,9 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
   exchanges at channel-creation time (not via config, since this Micronaut RabbitMQ version lacks
   declarative exchange config): a topic exchange `blackhole.events` for domain events consumed by
   other services, and a fanout exchange `blackhole.cache.invalidate` for cross-replica Caffeine
-  cache invalidation so the API can scale horizontally. `WebhookDispatchConsumer` fans domain
-  events out to connector-registered webhooks using a native RabbitMQ TTL+DLX retry loop (not an
-  in-process retry) — after `max-retries` a dispatch parks in `blackhole.webhook.failed` instead
-  of retrying forever.
-- **Connector framework** (`ConnectorController`, `ConnectorScopes`, `ConnectorRegistrationEntity`,
-  `EventSubscriptionEntity`) — external systems (anti-cheat tools, dashboards, other backends)
-  integrate via a connector registration with declared scopes (currently descriptive metadata
-  only, not enforced — see the no-auth note above), a generic `SignalController` (`/signal`)
-  ingestion endpoint, and signed webhook delivery for subscribed event types, rather than bespoke
-  per-integration code.
+  cache invalidation so the API can scale horizontally. There is deliberately no generic connector/
+  webhook/signal-ingestion framework anymore (removed 2026-07-09 to keep the surface simpler) —
+  external-system integration would need to be designed fresh if it comes back.
 - **`elo/`** — Dual-ELO engine. Baseline/soft/hard thresholds and chat-toxicity scoring
   parameters are all externally configured (see `application.yml`'s `blackhole.elo.*`); crossing
   soft threshold triggers an automatic temporary punishment, hard threshold a permanent one. The
@@ -133,12 +125,11 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
 
 ## Cross-cutting conventions
 
-- **SSRF hardening on caller-controlled URLs.** Webhook delivery URLs are arbitrary caller input
-  to the open `ConnectorController` endpoint. `WebhookUrlValidator` enforces this
-  (`blackhole.webhook.allow-private-networks` must stay `false` outside local dev/loopback
-  testing). Any new feature accepting a caller-controlled URL (not just webhooks) needs
-  equivalent SSRF hardening, not just webhook delivery. `InvalidWebhookUrlException` is the
-  standard rejection path.
+- **SSRF hardening on caller-controlled URLs.** There is no caller-controlled-URL feature in the
+  codebase right now (the connector/webhook framework that used to be the example was removed
+  2026-07-09). If one is added back, it needs equivalent SSRF hardening to what
+  `WebhookUrlValidator` used to provide — validate before ever issuing a server-side request to a
+  caller-supplied URL, don't skip it because "it's just an admin-supplied value."
 - **Rate limiting stays out of the app.** Existing app-level rate limiting (e.g. report
   submission) is a deliberate exception already in place; don't add further app-level rate
   limiters for new endpoints — the operator handles that at the infra layer.
@@ -147,7 +138,7 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
   state of that ambiguity first — several fix attempts have already been tried and reverted.
 - Config surface is env-var driven with local-dev defaults inline in `application.yml`
   (`${ENV_VAR:default}`); when adding a new tunable, follow that pattern and document intent in
-  a comment there rather than in code, consistent with how ELO/appeal/evasion/webhook config is
+  a comment there rather than in code, consistent with how ELO/appeal/evasion config is
   documented today.
 
 ## Contributing / commit conventions

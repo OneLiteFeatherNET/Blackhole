@@ -540,4 +540,15 @@
         <dropTable tableName="tenants"/>
     </changeSet>
 
+    <changeSet id="drop-connector-tables" author="blackhole">
+        <comment>Connector/signal framework removed - dropping its now-unused tables</comment>
+        <dropForeignKeyConstraint baseTableName="event_subscription_types" constraintName="FKrtito3r91kmi2qej9acwox35h"/>
+        <dropForeignKeyConstraint baseTableName="event_subscriptions" constraintName="FKsp913s457jgefhadxb9p06qyo"/>
+        <dropForeignKeyConstraint baseTableName="connector_scopes" constraintName="FK2w8vnnh1hjq9qy8dgny2uwgbt"/>
+        <dropTable tableName="event_subscription_types"/>
+        <dropTable tableName="event_subscriptions"/>
+        <dropTable tableName="connector_scopes"/>
+        <dropTable tableName="connector_registrations"/>
+    </changeSet>
+
 </databaseChangeLog>
