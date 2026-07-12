@@ -4,12 +4,17 @@
 INPUT=$(cat)
 CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
+# Only scan the actual command text, not heredoc bodies (e.g. a commit message
+# passed via `git commit -m "$(cat <<'EOF' ... EOF)"` that merely *mentions*
+# --force/--no-verify as prose would otherwise false-positive on itself).
+CMD_HEAD=${CMD%%<<*}
+
 REASON=""
-if printf '%s' "$CMD" | grep -q 'push' \
-  && printf '%s' "$CMD" | grep -Eq -- '(^|[[:space:]])(-f|--force)([[:space:]]|$)' \
-  && ! printf '%s' "$CMD" | grep -q -- '--force-with-lease'; then
+if printf '%s' "$CMD_HEAD" | grep -q 'push' \
+  && printf '%s' "$CMD_HEAD" | grep -Eq -- '(^|[[:space:]])(-f|--force)([[:space:]]|$)' \
+  && ! printf '%s' "$CMD_HEAD" | grep -q -- '--force-with-lease'; then
   REASON="Blocked: git push --force/-f is not allowed without explicit user confirmation (CLAUDE.md). Ask the user first, or use --force-with-lease if they've approved it."
-elif printf '%s' "$CMD" | grep -q -- '--no-verify'; then
+elif printf '%s' "$CMD_HEAD" | grep -q -- '--no-verify'; then
   REASON="Blocked: git --no-verify would skip hooks and is not allowed without explicit user confirmation (CLAUDE.md). Ask the user first."
 fi
 
