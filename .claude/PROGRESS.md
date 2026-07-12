@@ -24,14 +24,12 @@ _(nothing in flight right now)_
 
 - JUnit 5 coverage: `backend/src/test` doesn't exist yet. See the Ralph-loop backlog at
   `.claude/backlog/backend-test-coverage.md` for the package-by-package breakdown.
-- A recurring cron job (`/loop 30m`, job `4c4629dd`, fires every 30 min for up to 7 days) re-runs
-  "improve prompts for Prompt Engineering for agents/components". **Converged as of 2026-07-12**:
-  all four `micronaut-*-layer` skills, all three subagents (`.claude/agents/*.md`), all six
-  path-scoped rules (`.claude/rules/*.md`), and the hook feedback messages have been audited —
-  nothing left to improve without a new concrete target (a new skill/agent added since, or an
-  actual observed failure from real usage). If a future firing finds the same state, say so
-  briefly and stop rather than re-reading unchanged files — and suggest the user
-  `CronDelete 4c4629dd` to stop the 30-min firings, since this task has no more open work.
+- Prompt-engineering audit of agent/skill/rule prompts converged as of 2026-07-12: all four
+  `micronaut-*-layer` skills, all three subagents (`.claude/agents/*.md`), all six path-scoped
+  rules (`.claude/rules/*.md`), and the hook feedback messages have been reviewed — nothing left
+  to improve without a new concrete target (a new skill/agent added since, or an actual observed
+  failure from real usage). The recurring cron job that drove this audit (`4c4629dd`) was deleted
+  once it converged — don't assume one still exists.
 
 ## Recently completed
 
