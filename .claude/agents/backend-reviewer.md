@@ -25,8 +25,10 @@ For each file you review, check:
 
 Also flag anything that contradicts this repo's known architectural decisions (check CLAUDE.md
 if unsure): no `@Secured`/auth annotations (deliberately removed), no new app-level rate
-limiting, no `@Transactional` (currently unusable — bean-ambiguity issue), caller-controlled URLs
-without SSRF hardening via `WebhookUrlValidator`.
+limiting, no `@Transactional` (currently unusable — bean-ambiguity issue), and any new
+caller-controlled-URL feature added without SSRF hardening (there's no such feature today — the
+connector/webhook framework that used to need this was removed 2026-07-09 — but if one comes
+back it needs equivalent hardening before merging).
 
 Report findings as a short list: file, line if known, what's wrong, which convention it
 violates. Example: `backend/.../FooController.java:42 — injects FooRepository directly;

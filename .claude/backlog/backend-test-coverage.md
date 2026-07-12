@@ -18,7 +18,11 @@
 
   Priority order below is roughly: smallest/most self-contained business logic first,
   so early loop iterations build momentum before tackling packages with more
-  cross-cutting dependencies (RabbitMQ events, webhook delivery).
+  cross-cutting dependencies (RabbitMQ events).
+
+  Note (2026-07-12): the connector/webhook/signal framework (`connector/` package,
+  `WebhookDispatchConsumer`, `WebhookUrlValidator`, `EloSignalConsumer`) was removed on `main`
+  before this backlog's coverage work started — those items are gone, not just deprioritized.
 -->
 
 # Backend test coverage backlog
@@ -34,18 +38,13 @@
 - [ ] `imports/service` — vanilla ban-list import parsing/mapping
 - [ ] `punishment/service` — core punishment lifecycle (create/expire/lift)
 - [ ] `report/service` — report submission incl. the existing app-level rate limiter
-- [ ] `connector` — connector registration + `EventSubscriptionEntity` scope handling
-      (scopes are descriptive metadata only, not enforced — test that assumption, don't
-      accidentally start enforcing it)
 - [ ] `profile/service` — player profile assembly
 
 ## Cross-cutting (needs the above first)
 
-- [ ] `WebhookDispatchConsumer` retry/DLX parking behavior (`blackhole.webhook.failed`
-      after `max-retries`) — needs a RabbitMQ test fixture, tackle after service-layer
-      tests establish the test infra pattern
-- [ ] `WebhookUrlValidator` SSRF hardening — private-network rejection, the
-      `blackhole.webhook.allow-private-networks` flag
+- [ ] `RedisSyncConsumer` — routing-key-bound queue consumption keeping the Redis read model in
+      sync with `punishment.created`/`.expired`/`.revoked` and `appeal.resolved` events; needs a
+      RabbitMQ test fixture, tackle after service-layer tests establish the test infra pattern
 
 ## Explicitly out of scope for this backlog
 

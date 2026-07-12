@@ -11,11 +11,10 @@ it's stored or published. There is no multi-tenancy - if multiple networks are e
 handled by running separate deployments, not by sharing one deployment across them.
 
 Punishment decisions are driven by a **dual-ELO system**: every player carries a separate
-`chatElo` and `gameplayElo` score. Reports, a pluggable chat-toxicity scorer, and signals from
-external anti-cheat/moderation tools all feed deltas into these scores, and crossing a
-configurable soft/hard threshold automatically applies a temporary or permanent punishment —
-without requiring a moderator to be online. A structured appeal workflow lets players contest
-both automatic and manual punishments.
+`chatElo` and `gameplayElo` score. Reports and a pluggable chat-toxicity scorer feed deltas into
+these scores, and crossing a configurable soft/hard threshold automatically applies a temporary
+or permanent punishment — without requiring a moderator to be online. A structured appeal
+workflow lets players contest both automatic and manual punishments.
 
 ## Modules
 
@@ -23,7 +22,7 @@ Gradle multi-module project (Kotlin DSL), Java 21+ (backend toolchain targets 25
 
 | Module     | What it is                                                                                    |
 |------------|------------------------------------------------------------------------------------------------|
-| `backend`  | The Micronaut HTTP API — punishments, reports, ELO, appeals, connectors, dashboard.            |
+| `backend`  | The Micronaut HTTP API — punishments, reports, ELO, appeals, dashboard.                       |
 | `velocity` | A Velocity proxy plugin that enforces punishments and feeds chat/session data to the backend.  |
 | `client`   | A Java API client generated from `client/specs/blackhole-api-*.yml` via OpenAPI Generator.     |
 | `phoca`    | Shared utility library (metadata/expiry/duration abstractions) used across modules.             |
@@ -85,8 +84,11 @@ consuming context in every session regardless of what you're touching.
     a dedicated future phase that would likely reintroduce some form of auth alongside it.
 - **`controller/`** — REST controllers; class-level `@Version` API versioning convention.
   Detail: `.claude/rules/controller-versioning.md`.
-- **`events/` + connector framework** — RabbitMQ domain event bus, webhook dispatch/retry,
-  connector registration and scopes. Detail: `.claude/rules/events-connector.md`.
+- **`events/`** — Domain event bus over RabbitMQ (`blackhole.events` topic exchange,
+  `blackhole.cache.invalidate` fanout exchange for cross-replica cache invalidation). There is
+  deliberately no generic connector/webhook/signal-ingestion framework anymore (removed
+  2026-07-09 to keep the surface simpler) — external-system integration would need to be designed
+  fresh if it comes back. Detail: `.claude/rules/events.md`.
 - **`elo/`** — Dual-ELO engine (chat/gameplay scoring, auto-punishment thresholds).
   Detail: `.claude/rules/elo.md`.
 - **`appeal/`** — Appeal workflow (auto- vs manual-ban wait periods).
@@ -99,12 +101,11 @@ consuming context in every session regardless of what you're touching.
 
 ## Cross-cutting conventions
 
-- **SSRF hardening on caller-controlled URLs.** Webhook delivery URLs are arbitrary caller input
-  to the open `ConnectorController` endpoint. `WebhookUrlValidator` enforces this
-  (`blackhole.webhook.allow-private-networks` must stay `false` outside local dev/loopback
-  testing). Any new feature accepting a caller-controlled URL (not just webhooks) needs
-  equivalent SSRF hardening, not just webhook delivery. `InvalidWebhookUrlException` is the
-  standard rejection path.
+- **SSRF hardening on caller-controlled URLs.** There is no caller-controlled-URL feature in the
+  codebase right now (the connector/webhook framework that used to be the example was removed
+  2026-07-09). If one is added back, it needs equivalent SSRF hardening to what
+  `WebhookUrlValidator` used to provide — validate before ever issuing a server-side request to a
+  caller-supplied URL, don't skip it because "it's just an admin-supplied value."
 - **Rate limiting stays out of the app.** Existing app-level rate limiting (e.g. report
   submission) is a deliberate exception already in place; don't add further app-level rate
   limiters for new endpoints — the operator handles that at the infra layer.
@@ -113,7 +114,7 @@ consuming context in every session regardless of what you're touching.
   state of that ambiguity first — several fix attempts have already been tried and reverted.
 - Config surface is env-var driven with local-dev defaults inline in `application.yml`
   (`${ENV_VAR:default}`); when adding a new tunable, follow that pattern and document intent in
-  a comment there rather than in code, consistent with how ELO/appeal/evasion/webhook config is
+  a comment there rather than in code, consistent with how ELO/appeal/evasion config is
   documented today.
 
 ## Contributing / commit conventions

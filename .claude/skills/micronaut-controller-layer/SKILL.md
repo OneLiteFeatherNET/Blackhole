@@ -119,8 +119,8 @@ or project. See `micronaut-dto-contract` for the `WidgetDTO.CreateRequest`/`Upda
 This isn't a hypothetical smell - it shows up in real, unrelated Micronaut projects:
 
 - **Blackhole** (`OneLiteFeatherNET/Blackhole`) - `PunishmentTemplateHandler`,
-  `PunishmentProfileHandler`, and parts of `AppealController`, `ConnectorController`,
-  `EloController`, `PunishmentEntityController`, `ReportController` inject a repository and/or
+  `PunishmentProfileHandler`, and parts of `AppealController`, `EloController`,
+  `PunishmentEntityController`, `ReportController` inject a repository and/or
   branch on business rules directly. A full worked refactor of `PunishmentTemplateHandler` (API
   interface, controller, service, outcome records) is at
   `.claude/skills/micronaut-service-layer/references/punishment-template-refactor-example.md`.
