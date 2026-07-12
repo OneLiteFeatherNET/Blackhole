@@ -67,16 +67,10 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
 
 ## Backend architecture (`backend/src/main/java/.../blackhole/backend/`)
 
-- **`controller/`** — REST controllers. API versioning follows Micronaut's built-in scheme
-  (`micronaut.router.versioning` in `application.yml`, docs.micronaut.io/latest/guide/#apiVersioning)
-  rather than a URI prefix: every business-facing controller carries a class-level
-  `@Version(ApiVersion.V1)`, and the version is resolved from the `X-API-VERSION` header or an
-  `api-version`/`v` query parameter — endpoint paths themselves stay version-less (e.g. `/punishment`,
-  not `/v1/punishment`). `default-version` is set to `1`, so callers that send no version at all
-  still route correctly. Infra/doc endpoints (health, prometheus, swagger) declare no `@Version`
-  and stay outside this scheme entirely. To introduce a breaking v2 of an endpoint, add a second
-  method annotated `@Version("2")` alongside the existing v1 method (same controller, same path) —
-  don't bump `ApiVersion.V1` itself or touch the URI.
+Per-package detail below is intentionally short — full detail for each loads automatically via
+`.claude/rules/*.md` (path-scoped) when you actually open a file in that package, instead of
+consuming context in every session regardless of what you're touching.
+
 - **No authentication system.** There is deliberately no JWT/`@Secured`/auth layer at all right
   now — every endpoint is open. The trust model is that only trusted callers can reach the API in
   the first place: admins/tools calling the REST API directly, or the Velocity plugin acting on
@@ -88,39 +82,21 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
     auth) — fields like `source`/`resolvedBy`/`reviewerId` are client-supplied and unverified.
     Don't design new features around a per-user identity claim existing yet — that's deferred to
     a dedicated future phase that would likely reintroduce some form of auth alongside it.
-- **`events/`** — Domain event bus over RabbitMQ. `BlackholeRabbitTopology` declares two
-  exchanges at channel-creation time (not via config, since this Micronaut RabbitMQ version lacks
-  declarative exchange config): a topic exchange `blackhole.events` for domain events consumed by
-  other services, and a fanout exchange `blackhole.cache.invalidate` for cross-replica Caffeine
-  cache invalidation so the API can scale horizontally. There is deliberately no generic connector/
-  webhook/signal-ingestion framework anymore (removed 2026-07-09 to keep the surface simpler) —
-  external-system integration would need to be designed fresh if it comes back.
-- **`elo/`** — Dual-ELO engine. Baseline/soft/hard thresholds and chat-toxicity scoring
-  parameters are all externally configured (see `application.yml`'s `blackhole.elo.*`); crossing
-  soft threshold triggers an automatic temporary punishment, hard threshold a permanent one. The
-  built-in `ToxicityScorer` is a placeholder keyword matcher, explicitly meant to be swapped for
-  a real classifier later — don't harden or extend its keyword list as if it were production
-  moderation logic.
-- **`appeal/`** — Appeal workflow. `min-days-auto` is intentionally shorter than
-  `min-days-manual`: auto-bans exist to save moderator time, so appealing one shouldn't cost more
-  of it via a longer mandatory wait.
-- **`evasion/`** — Ban-evasion detection via hashed IP correlation. Fully gated on
-  `BLACKHOLE_EVASION_IP_SALT` being set — `EvasionController` returns `503` rather than silently
-  computing a weak/unsalted-equivalent hash if the salt is unset. Treat the salt as
-  effectively unrotatable in place; check `IpCorrelationService`'s javadoc before ever changing it.
-- **`database/`** — Hibernate/JPA entities + Micronaut Data repositories. Liquibase
-  (`db/changelog/db.changelog-master.xml`, a single consolidated XML changelog) is the sole
-  schema owner; `jpa.default.properties.hibernate.hbm2ddl.auto` is deliberately `none`, not
-  `validate` — Hibernate's own JSON-column type expectations disagree with MariaDB's physical
-  representation of a JSON column, an unrelated dialect mismatch that would make `validate` fail
-  spuriously. Every changeSet uses fully native Liquibase changeTypes (`<createTable>`,
-  `<createIndex>`, `<addForeignKeyConstraint>`) rather than raw `<sql>`, keeping the changelog
-  database-portable rather than MariaDB-specific. One consequence: native Liquibase XML has no
-  changeType for arbitrary `CHECK` expressions on any database, so the JSON validity checks and
-  the `tinyint` ordinal-enum range checks MariaDB previously enforced at the DB layer are not
-  recreated here — enforcement of those is an application/Hibernate-layer concern only, not a
-  DB-layer guarantee. Add new changes as a new `<changeSet>` appended to the same file; never edit
-  an already-applied changeSet, always add a new one.
+- **`controller/`** — REST controllers; class-level `@Version` API versioning convention.
+  Detail: `.claude/rules/controller-versioning.md`.
+- **`events/`** — Domain event bus over RabbitMQ (`blackhole.events` topic exchange,
+  `blackhole.cache.invalidate` fanout exchange for cross-replica cache invalidation). There is
+  deliberately no generic connector/webhook/signal-ingestion framework anymore (removed
+  2026-07-09 to keep the surface simpler) — external-system integration would need to be designed
+  fresh if it comes back. Detail: `.claude/rules/events.md`.
+- **`elo/`** — Dual-ELO engine (chat/gameplay scoring, auto-punishment thresholds).
+  Detail: `.claude/rules/elo.md`.
+- **`appeal/`** — Appeal workflow (auto- vs manual-ban wait periods).
+  Detail: `.claude/rules/appeal.md`.
+- **`evasion/`** — Ban-evasion detection via hashed IP correlation.
+  Detail: `.claude/rules/evasion.md`.
+- **`database/`** — Hibernate/JPA + Liquibase schema ownership.
+  Detail: `.claude/rules/database.md`.
 - **`imports/`** — Vanilla ban-list import support (`VanillaImportController`).
 
 ## Cross-cutting conventions
@@ -177,3 +153,19 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
   push the branch and open a PR against `main` rather than leaving finished work uncommitted on a
   local/worktree branch. Confirm with the user before pushing/opening the PR if there's any doubt
   about whether the work is actually ready.
+- **Context management.** `.claude/PROGRESS.md` is the state that survives a context reset,
+  `/compact`, or a fresh session — the conversation itself does not. Check it at the start of a
+  session alongside the grounding step above, and keep it current: move a task into "Active" when
+  you start it, into "Recently completed" when you finish it, and if you stop mid-task, leave
+  enough detail (files touched, why, what's left) that a fresh session with no memory of this one
+  can resume. A `SessionStart`/`compact` hook (`.claude/hooks/reinject-progress-context.sh`)
+  re-injects it automatically after compaction. This file is for resuming work, not narrating it —
+  keep entries short; design rationale belongs in commits/PRs/Outline.
+- **Keep this file lean.** CLAUDE.md loads in full every session; length past ~200 lines measurably
+  hurts adherence. Before adding a new bullet, ask "would removing this cause a mistake?" — if not,
+  it doesn't belong here. Domain knowledge that's only *sometimes* relevant (a specific package's
+  internals, a review checklist) belongs in a skill (`.claude/skills/`, loaded only when relevant)
+  or a path-scoped rule (`.claude/rules/*.md` with `paths:` frontmatter), not appended here. A rule
+  that must always hold (never edit an applied Liquibase changeset, no `--force`/`--no-verify`)
+  belongs in a `.claude/settings.json` hook if it can be checked deterministically — see the hooks
+  already there — rather than relying on this file's prose, which is advisory, not enforced.

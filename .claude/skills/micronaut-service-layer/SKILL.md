@@ -92,7 +92,7 @@ branching logic live here", not "exactly one repository per service".
   `appeal/AppealEligibilityService.java`, `appeal/AppealDecisionService.java`,
   `imports/VanillaImportService.java`, `punishment/PunishmentApplicationService.java` - while
   `PunishmentTemplateHandler`, `PunishmentProfileHandler`, and parts of `AppealController`,
-  `ConnectorController`, `EloController`, `PunishmentEntityController`, `ReportController` still
+  `EloController`, `PunishmentEntityController`, `ReportController` still
   inject a repository straight into the controller with no service in between. The full
   four-file worked example (`PunishmentTemplateApi`, `PunishmentTemplateService`,
   `PunishmentTemplateController`, and the `CreateOutcome`/`UpdateOutcome` records) refactoring
