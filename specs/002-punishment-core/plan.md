@@ -71,9 +71,11 @@ Principle VI) being followed correctly. `meta_data` columns use a JSON column ty
 `MapStringObjectConverter`, same pattern as the ELO engine.
 
 **Testing**: JUnit 5 is wired at the root (`useJUnitPlatform()`, `jacocoTestReport`
-runs after `test`), but **no test sources exist** for this feature or any other feature
-in the repo (`backend/src/test` does not exist). Recorded here rather than silently
-assumed away, matching `specs/001-elo-engine/plan.md`'s note on the same gap.
+runs after `test`), but **no test sources exist for this feature** — the only test in
+the repo so far is
+`backend/src/test/java/.../playerresolver/service/PlayerResolverServiceTest.java`, an
+unrelated subsystem. Recorded here rather than silently assumed away, matching
+`specs/001-elo-engine/plan.md`'s note on the same gap.
 
 **Target Platform**: Linux server, single Micronaut HTTP API deployment per network
 (this repo's `backend` module); the Redis mirror and Rabbit consumer run in-process
@@ -193,7 +195,7 @@ backend/src/main/resources/
                                      # punishment_profiles/punishment_profiles_punishments/
                                      # punishment_evidence
 
-backend/src/test/                   # does not exist yet — see Technical Context "Testing"
+backend/src/test/                   # no punishment/ tests yet — see Technical Context "Testing"
 ```
 
 **Structure Decision**: No new module or service boundary — the punishment core is

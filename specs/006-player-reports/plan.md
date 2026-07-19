@@ -56,8 +56,9 @@ blob. `metaData` uses the same `MapStringObjectConverter`/JSON-column pattern as
 feature packages.
 
 **Testing**: JUnit 5 is wired at the root (`useJUnitPlatform()`), but **no test sources
-exist** for this feature (or any feature — no `backend/src/test` directory exists yet in
-this repo). Recorded here rather than silently assumed away, consistent with
+exist for this feature** — the only test in the repo so far is
+`backend/src/test/java/.../playerresolver/service/PlayerResolverServiceTest.java`, an
+unrelated subsystem. Recorded here rather than silently assumed away, consistent with
 `specs/001-elo-engine/plan.md`.
 
 **Target Platform**: Linux server, single Micronaut HTTP API deployment per network
@@ -153,7 +154,7 @@ backend/src/main/resources/
 ├── application.yml               # blackhole.report.* tunables (rate limit) + blackhole.elo.report.* (actioned-delta, reward-delta)
 └── db/changelog/                 # Liquibase changeset(s) for reports / report_evidence_references
 
-backend/src/test/                 # does not exist yet — see Technical Context "Testing"
+backend/src/test/                 # no report/ tests yet — see Technical Context "Testing"
 ```
 
 **Structure Decision**: No new module or service boundary — reports are fully contained

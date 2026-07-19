@@ -56,9 +56,10 @@ cd docker && docker compose up -d && cd ..
 ./gradlew :velocity:runVelocity
 ```
 
-There are currently no test source sets under any module (`src/test` doesn't exist yet) — when
-adding tests, JUnit 5 is already wired up via the Micronaut/root `build.gradle.kts` (`useJUnitPlatform()`,
-`jacocoTestReport` runs after `test`). Local dev/manual verification of the backend requires the
+Test coverage is minimal — only `backend/src/test/java/.../playerresolver/service/PlayerResolverServiceTest.java`
+exists so far, no other module has a `src/test` yet. JUnit 5 is wired up via the Micronaut/root
+`build.gradle.kts` (`useJUnitPlatform()`, `jacocoTestReport` runs after `test`), ready for more.
+Local dev/manual verification of the backend requires the
 real MariaDB + RabbitMQ containers from `docker/docker-compose.yml`; there's no in-memory/mocked
 path for those two dependencies (H2 is on the classpath but the app is wired to Liquibase+MariaDB
 by default — see `application.yml`).

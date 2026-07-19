@@ -51,9 +51,11 @@ JSON column via the shared `MapStringObjectConverter`, present on the entity but
 populated by any current write path.
 
 **Testing**: JUnit 5 is wired at the root (`useJUnitPlatform()`, `jacocoTestReport` runs
-after `test`), but **no test sources currently exist** for this feature (or any feature —
-no `backend/src/test` directory exists yet in this repo). Recorded here rather than
-silently assumed away so `/speckit-tasks` can decide whether to close it.
+after `test`), but **no test sources currently exist for this feature** — the only test
+in the repo so far is
+`backend/src/test/java/.../playerresolver/service/PlayerResolverServiceTest.java`, an
+unrelated subsystem. Recorded here rather than silently assumed away so
+`/speckit-tasks` can decide whether to close it.
 
 **Target Platform**: Linux server, single Micronaut HTTP API deployment per network
 (this repo's `backend` module); no offline/embedded execution mode. The only caller today
@@ -147,7 +149,7 @@ backend/src/main/resources/
 velocity/src/main/java/net/onelitefeather/blackhole/velocity/listener/
 └── PlayerLoginListener.java             # only current caller — recordEvasionSignal(), fire-and-forget on login
 
-backend/src/test/                        # does not exist yet — see Technical Context "Testing"
+backend/src/test/                        # no evasion/ tests yet — see Technical Context "Testing"
 ```
 
 **Structure Decision**: No new module or service boundary — ban-evasion detection is
