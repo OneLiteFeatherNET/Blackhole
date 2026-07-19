@@ -56,9 +56,10 @@ same `MapStringObjectConverter` pattern used elsewhere in the backend; `status` 
 no `CHECK`-expression changeType — see `.claude/rules/database.md`).
 
 **Testing**: JUnit 5 is wired at the root (`useJUnitPlatform()`), but **no test sources
-exist** for this feature, or any feature — no `backend/src/test` directory exists yet in
-this repo. Same gap already recorded in `specs/001-elo-engine/plan.md`; not re-litigated
-here.
+exist for this feature** — the only test in the repo so far is
+`backend/src/test/java/.../playerresolver/service/PlayerResolverServiceTest.java`, an
+unrelated subsystem. Same gap already recorded in `specs/001-elo-engine/plan.md`; not
+re-litigated here.
 
 **Target Platform**: Linux server, single Micronaut HTTP API deployment per network
 (this repo's `backend` module); no offline/embedded execution mode.
@@ -148,7 +149,7 @@ backend/src/main/resources/
 ├── application.yml               # blackhole.appeal.* tunables
 └── db/changelog/                 # Liquibase changesets for the appeals table
 
-backend/src/test/                 # does not exist yet — see Technical Context "Testing"
+backend/src/test/                 # no appeal/ tests yet — see Technical Context "Testing"
 ```
 
 **Structure Decision**: No new module or service boundary — the appeal workflow is fully

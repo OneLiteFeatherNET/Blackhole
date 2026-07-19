@@ -57,8 +57,9 @@ the `punishment`/`profile` features' own Liquibase changesets) that every other
 punishment-creation path writes to; this feature owns no schema of its own.
 
 **Testing**: JUnit 5 is wired at the root (`useJUnitPlatform()`), but **no test sources
-currently exist** for this feature (or any feature — no `backend/src/test` directory
-exists yet in this repo). Same gap as every other retroactively-planned feature in this
+currently exist for this feature** — the only test in the repo so far is
+`backend/src/test/java/.../playerresolver/service/PlayerResolverServiceTest.java`, an
+unrelated subsystem. Same gap as every other retroactively-planned feature in this
 repo; recorded here rather than silently assumed away.
 
 **Target Platform**: Linux server, single Micronaut HTTP API deployment per network
@@ -158,7 +159,7 @@ backend/src/main/java/net/onelitefeather/blackhole/backend/imports/
 backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/
 └── service/PunishmentApplicationService.java   # NOT called by this feature — see research.md
 
-backend/src/test/                 # does not exist yet — see Technical Context "Testing"
+backend/src/test/                 # no imports/ tests yet — see Technical Context "Testing"
 ```
 
 **Structure Decision**: No new module or service boundary — the import capability is

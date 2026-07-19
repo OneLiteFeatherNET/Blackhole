@@ -46,10 +46,12 @@ player, both track scores) and `elo_events` (append-only audit trail, indexed on
 custom `MapStringObjectConverter`.
 
 **Testing**: JUnit 5 is wired at the root (`useJUnitPlatform()`,
-`jacocoTestReport` runs after `test`), but **no test sources currently exist** for this
-feature (or any feature — no `backend/src/test` directory exists yet in this repo). This
-is a real gap, not a design choice; recorded here rather than silently assumed away so
-`/speckit-tasks` can decide whether to close it.
+`jacocoTestReport` runs after `test`), but **no test sources currently exist for this
+feature** — the only test in the repo so far is
+`backend/src/test/java/.../playerresolver/service/PlayerResolverServiceTest.java`,
+an unrelated subsystem. This is a real gap for this feature, not a design choice;
+recorded here rather than silently assumed away so `/speckit-tasks` can decide whether
+to close it.
 
 **Target Platform**: Linux server, single Micronaut HTTP API deployment per network
 (this repo's `backend` module); no offline/embedded execution mode.
@@ -146,7 +148,7 @@ backend/src/main/resources/
 ├── application.yml               # blackhole.elo.* tunables
 └── db/changelog/                 # Liquibase changesets for elo_profiles / elo_events
 
-backend/src/test/                 # does not exist yet — see Technical Context "Testing"
+backend/src/test/                 # no elo/ tests yet — see Technical Context "Testing"
 ```
 
 **Structure Decision**: No new module or service boundary — the ELO engine is fully
