@@ -260,6 +260,7 @@ bin/
 /docker/mariadb/data/undo001
 /docker/mariadb/data/undo002
 /docker/mariadb/data/undo003
+/docker/redis/data/dump.rdb
 /velocity/run/lang/messages.properties
 /velocity/run/lang/messages_ar_SA.properties
 /velocity/run/lang/messages_bg_BG.properties
