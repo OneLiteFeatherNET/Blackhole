@@ -11,6 +11,7 @@ import net.onelitefeather.blackhole.backend.elo.EloProfileRepository;
 import net.onelitefeather.blackhole.backend.elo.service.EloService;
 import net.onelitefeather.blackhole.backend.elo.EloTrack;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishType;
 import net.onelitefeather.phoca.metadata.Expirable;
 import net.onelitefeather.phoca.metadata.Metadata;
@@ -19,6 +20,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * A fixed, versioned, configuration-driven checklist - not free text per appeal - that
@@ -33,6 +35,7 @@ public class AppealEligibilityService {
     public static final int CHECKLIST_VERSION = 1;
 
     private final AppealRepository appealRepository;
+    private final PunishmentRepository punishmentRepository;
     private final EloProfileRepository eloProfileRepository;
     private final int minDaysManual;
     private final int minDaysAuto;
@@ -41,6 +44,7 @@ public class AppealEligibilityService {
 
     public AppealEligibilityService(
             AppealRepository appealRepository,
+            PunishmentRepository punishmentRepository,
             EloProfileRepository eloProfileRepository,
             @Value("${blackhole.appeal.min-days-manual:14}") int minDaysManual,
             @Value("${blackhole.appeal.min-days-auto:3}") int minDaysAuto,
@@ -48,11 +52,37 @@ public class AppealEligibilityService {
             @Value("${blackhole.elo.baseline:1000}") int eloBaseline
     ) {
         this.appealRepository = appealRepository;
+        this.punishmentRepository = punishmentRepository;
         this.eloProfileRepository = eloProfileRepository;
         this.minDaysManual = minDaysManual;
         this.minDaysAuto = minDaysAuto;
         this.repeatAppealCooldownDays = repeatAppealCooldownDays;
         this.eloBaseline = eloBaseline;
+    }
+
+    /**
+     * Looks up the punishment being appealed, evaluates it against the eligibility checklist,
+     * and records the resulting appeal - the full submission flow so {@code AppealController}
+     * never has to touch {@link PunishmentRepository}/{@link AppealRepository} directly.
+     *
+     * @return the saved appeal, or empty if {@code punishmentIdentifier} doesn't match any
+     * existing punishment (submission is rejected, nothing is recorded)
+     */
+    public Optional<AppealEntity> submitAppeal(String punishmentIdentifier, String appellantHash, String statement) {
+        PunishmentEntity punishment = this.punishmentRepository.findById(punishmentIdentifier).orElse(null);
+        if (punishment == null) {
+            return Optional.empty();
+        }
+
+        EligibilityResult eligibility = evaluate(punishment, appellantHash);
+        long now = System.currentTimeMillis();
+
+        AppealEntity appeal = new AppealEntity(
+                punishment, appellantHash, statement,
+                eligibility.eligible() ? AppealStatus.ELIGIBLE_PENDING_REVIEW : AppealStatus.INELIGIBLE,
+                eligibility.checklistSnapshot(), now, now, new HashMap<>()
+        );
+        return Optional.of(this.appealRepository.save(appeal));
     }
 
     public EligibilityResult evaluate(PunishmentEntity punishment, String appellantHash) {

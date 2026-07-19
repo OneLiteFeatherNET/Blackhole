@@ -2,9 +2,8 @@ package net.onelitefeather.blackhole.backend.appeal.controller;
 
 import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
 import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
+import net.onelitefeather.blackhole.backend.appeal.AppealReviewResult;
 import net.onelitefeather.blackhole.backend.appeal.AppealStatus;
-import net.onelitefeather.blackhole.backend.appeal.DecisionOutcome;
-import net.onelitefeather.blackhole.backend.appeal.EligibilityResult;
 import net.onelitefeather.blackhole.backend.appeal.dto.AppealDTO;
 import net.onelitefeather.blackhole.backend.appeal.dto.AppealReviewDTO;
 import net.onelitefeather.blackhole.backend.appeal.dto.AppealSubmissionDTO;
@@ -29,12 +28,9 @@ import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
-import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
-import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -42,17 +38,15 @@ import java.util.UUID;
  * gates whether an appeal is even reviewable at all, then a human reviewer decides within what
  * the checklist allows - never pure algorithmic auto-lift (a farming vector) and never
  * unconstrained human discretion (today's original problem this whole system exists to fix).
+ * {@code AppealRepository} is only used here for the plain, read-only appeal listing - the same
+ * accepted exception {@code EloController} makes for its own read endpoints - every other
+ * repository access lives in {@link AppealEligibilityService}/{@link AppealDecisionService}.
  */
 @Version(ApiVersion.V1)
 @Controller("/appeal")
 public class AppealController {
 
-    private static final Set<AppealStatus> VALID_DECISIONS = Set.of(
-            AppealStatus.GRANTED_FULL_LIFT, AppealStatus.GRANTED_DURATION_REDUCTION, AppealStatus.DENIED
-    );
-
     private final AppealRepository appealRepository;
-    private final PunishmentRepository punishmentRepository;
     private final AppealEligibilityService eligibilityService;
     private final AppealDecisionService decisionService;
     private final DomainEventPublisher eventPublisher;
@@ -60,13 +54,11 @@ public class AppealController {
     @Inject
     public AppealController(
             AppealRepository appealRepository,
-            PunishmentRepository punishmentRepository,
             AppealEligibilityService eligibilityService,
             AppealDecisionService decisionService,
             DomainEventPublisher eventPublisher
     ) {
         this.appealRepository = appealRepository;
-        this.punishmentRepository = punishmentRepository;
         this.eligibilityService = eligibilityService;
         this.decisionService = decisionService;
         this.eventPublisher = eventPublisher;
@@ -87,29 +79,23 @@ public class AppealController {
     @Validated
     @Post("/")
     public HttpResponse<?> submit(@Body @Valid AppealSubmissionDTO submission) {
-        PunishmentEntity punishment = this.punishmentRepository.findById(submission.punishmentIdentifier()).orElse(null);
-        if (punishment == null) {
+        Optional<AppealEntity> saved = this.eligibilityService.submitAppeal(
+                submission.punishmentIdentifier(), submission.appellantHash(), submission.statement()
+        );
+        if (saved.isEmpty()) {
             return HttpResponse.notFound();
         }
 
-        EligibilityResult eligibility = this.eligibilityService.evaluate(punishment, submission.appellantHash());
-        long now = System.currentTimeMillis();
-
-        AppealEntity appeal = new AppealEntity(
-                punishment, submission.appellantHash(), submission.statement(),
-                eligibility.eligible() ? AppealStatus.ELIGIBLE_PENDING_REVIEW : AppealStatus.INELIGIBLE,
-                eligibility.checklistSnapshot(), now, now, new HashMap<>()
-        );
-        AppealEntity saved = this.appealRepository.save(appeal);
-
+        AppealEntity appeal = saved.get();
+        boolean eligible = appeal.getStatus() == AppealStatus.ELIGIBLE_PENDING_REVIEW;
         this.eventPublisher.publish("appeal.submitted", Map.of(
-                "appealIdentifier", saved.getIdentifier().toString(),
+                "appealIdentifier", appeal.getIdentifier().toString(),
                 "owner", submission.appellantHash(),
                 "punishmentIdentifier", submission.punishmentIdentifier(),
-                "eligible", eligibility.eligible()
+                "eligible", eligible
         ));
 
-        return HttpResponse.ok(saved.toDTO());
+        return HttpResponse.ok(appeal.toDTO());
     }
 
     @Operation(
@@ -151,56 +137,24 @@ public class AppealController {
     @Validated
     @Post("/{identifier}/review")
     public HttpResponse<?> review(UUID identifier, @Body @Valid AppealReviewDTO review) {
-        AppealEntity appeal = this.appealRepository.findById(identifier).orElse(null);
-        if (appeal == null) {
-            return HttpResponse.notFound();
-        }
-        if (appeal.getStatus() != AppealStatus.ELIGIBLE_PENDING_REVIEW && appeal.getStatus() != AppealStatus.IN_REVIEW) {
-            return HttpResponse.status(HttpStatus.CONFLICT, "Appeal is not awaiting review");
-        }
-        if (!VALID_DECISIONS.contains(review.decision())) {
-            return HttpResponse.badRequest("decision must be one of " + VALID_DECISIONS);
-        }
-
-        PunishmentEntity punishment = appeal.getPunishment();
-        if (review.reviewerId().equals(punishment.getSource())) {
-            return HttpResponse.status(HttpStatus.FORBIDDEN, "Reviewer must not be the punishment's original source");
-        }
-
-        boolean severe = "SEVERE".equals(appeal.getEligibilityCheckResult().get("severityTier"));
-        if (severe && review.decision() == AppealStatus.GRANTED_FULL_LIFT) {
-            return HttpResponse.badRequest("SEVERE punishments can only receive a duration reduction, never a full lift");
-        }
-        if (review.decision() == AppealStatus.GRANTED_DURATION_REDUCTION) {
-            if (review.newExpirationAt() == null) {
-                return HttpResponse.badRequest("newExpirationAt is required for GRANTED_DURATION_REDUCTION");
+        AppealReviewResult result = this.decisionService.reviewAppeal(identifier, review);
+        return switch (result.kind()) {
+            case NOT_FOUND -> HttpResponse.notFound();
+            case NOT_AWAITING_REVIEW, PUNISHMENT_NOT_ACTIVE -> HttpResponse.status(HttpStatus.CONFLICT, result.message());
+            case INVALID_DECISION, SEVERE_FULL_LIFT_DISALLOWED, DURATION_REDUCTION_MISSING_EXPIRY, DURATION_REDUCTION_EXPIRY_NOT_FUTURE ->
+                    HttpResponse.badRequest(result.message());
+            case SELF_REVIEW -> HttpResponse.status(HttpStatus.FORBIDDEN, result.message());
+            case DECIDED -> {
+                AppealEntity appeal = result.appeal();
+                this.eventPublisher.publish("appeal.resolved", Map.of(
+                        "appealIdentifier", identifier.toString(),
+                        "owner", appeal.getAppellantHash(),
+                        "punishmentIdentifier", appeal.getPunishment().getIdentifier(),
+                        "decision", review.decision().toString(),
+                        "type", appeal.getPunishment().getType().toString()
+                ));
+                yield HttpResponse.ok(appeal.toDTO());
             }
-            if (review.newExpirationAt() <= System.currentTimeMillis()) {
-                return HttpResponse.badRequest("newExpirationAt must be in the future");
-            }
-        }
-
-        DecisionOutcome outcome = this.decisionService.applyDecision(
-                punishment, appeal.getAppellantHash(), review.decision(), review.newExpirationAt()
-        );
-        if (outcome == DecisionOutcome.PUNISHMENT_NOT_ACTIVE) {
-            return HttpResponse.status(HttpStatus.CONFLICT, "Punishment is no longer active");
-        }
-
-        appeal.setStatus(review.decision());
-        appeal.setDecidedBy(review.reviewerId());
-        appeal.setDecisionNote(review.decisionNote());
-        appeal.setUpdatedAt(System.currentTimeMillis());
-        AppealEntity saved = this.appealRepository.update(appeal);
-
-        this.eventPublisher.publish("appeal.resolved", Map.of(
-                "appealIdentifier", identifier.toString(),
-                "owner", appeal.getAppellantHash(),
-                "punishmentIdentifier", punishment.getIdentifier(),
-                "decision", review.decision().toString(),
-                "type", punishment.getType().toString()
-        ));
-
-        return HttpResponse.ok(saved.toDTO());
+        };
     }
 }
