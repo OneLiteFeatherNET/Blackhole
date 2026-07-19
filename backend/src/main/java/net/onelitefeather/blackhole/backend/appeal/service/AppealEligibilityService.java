@@ -5,6 +5,8 @@ import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
 import net.onelitefeather.blackhole.backend.appeal.AppealStatus;
 import net.onelitefeather.blackhole.backend.appeal.EligibilityResult;
 import io.micronaut.context.annotation.Value;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.elo.EloProfileEntity;
 import net.onelitefeather.blackhole.backend.elo.EloProfileRepository;
@@ -83,6 +85,14 @@ public class AppealEligibilityService {
                 eligibility.checklistSnapshot(), now, now, new HashMap<>()
         );
         return Optional.of(this.appealRepository.save(appeal));
+    }
+
+    /**
+     * Plain, read-only pass-through so {@code AppealController} never has to inject
+     * {@link AppealRepository} itself just to list appeals.
+     */
+    public Page<AppealEntity> findAll(Pageable pageable) {
+        return this.appealRepository.findAll(pageable);
     }
 
     public EligibilityResult evaluate(PunishmentEntity punishment, String appellantHash) {

@@ -1,7 +1,6 @@
 package net.onelitefeather.blackhole.backend.appeal.controller;
 
 import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
-import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
 import net.onelitefeather.blackhole.backend.appeal.AppealReviewResult;
 import net.onelitefeather.blackhole.backend.appeal.AppealStatus;
 import net.onelitefeather.blackhole.backend.appeal.dto.AppealDTO;
@@ -38,27 +37,24 @@ import java.util.UUID;
  * gates whether an appeal is even reviewable at all, then a human reviewer decides within what
  * the checklist allows - never pure algorithmic auto-lift (a farming vector) and never
  * unconstrained human discretion (today's original problem this whole system exists to fix).
- * {@code AppealRepository} is only used here for the plain, read-only appeal listing - the same
- * accepted exception {@code EloController} makes for its own read endpoints - every other
- * repository access lives in {@link AppealEligibilityService}/{@link AppealDecisionService}.
+ * No repository is injected here - all persistence access lives in
+ * {@link AppealEligibilityService}/{@link AppealDecisionService}, including the plain, read-only
+ * appeal listing.
  */
 @Version(ApiVersion.V1)
 @Controller("/appeal")
 public class AppealController {
 
-    private final AppealRepository appealRepository;
     private final AppealEligibilityService eligibilityService;
     private final AppealDecisionService decisionService;
     private final DomainEventPublisher eventPublisher;
 
     @Inject
     public AppealController(
-            AppealRepository appealRepository,
             AppealEligibilityService eligibilityService,
             AppealDecisionService decisionService,
             DomainEventPublisher eventPublisher
     ) {
-        this.appealRepository = appealRepository;
         this.eligibilityService = eligibilityService;
         this.decisionService = decisionService;
         this.eventPublisher = eventPublisher;
@@ -114,7 +110,7 @@ public class AppealController {
     )
     @Get("/")
     public HttpResponse<Page<AppealDTO>> getAll(Pageable pageable) {
-        Page<AppealEntity> entities = this.appealRepository.findAll(pageable);
+        Page<AppealEntity> entities = this.eligibilityService.findAll(pageable);
         return HttpResponse.ok(entities.map(AppealEntity::toDTO));
     }
 
