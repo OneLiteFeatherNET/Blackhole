@@ -6,10 +6,17 @@
 **Note**: This is a **retroactive** task breakdown — the feature is already implemented,
 including the `AppealController` layering fix, the `revokedBy` audit-trail stamp, and the
 non-atomicity Javadoc (all PR #123) that `plan.md`'s Constitution Check still lists as
-open (that check predates the fix). T001–T027 below describe already-shipped work,
-included so this list is a complete checklist `/speckit-converge` can verify against.
-**T028–T029 are the only genuinely outstanding items** — this feature is in noticeably
-better shape than its sibling specs at task-generation time.
+open (that check predates the fix). T001–T024 describe already-shipped work, verified
+and marked `[X]`. `/speckit-converge` additionally appended **T028** (`GET /appeal/`
+traceability to FR-019 — already fully implemented, just wasn't referenced by a task;
+closed immediately since there was nothing left to build). `/speckit-implement` then
+closed **T026** (`AppealApi` extraction), verified by compiling, checking the generated
+OpenAPI spec, and a live Docker test of submit/list/review including the review
+status-guard (409) and not-found (404) error paths. **T025** (DTO/`Error`-variant
+consolidation) is deliberately left open — same breaking-wire-format risk as every
+sibling spec, needs its own scoping decision. **T027** (full `quickstart.md`
+re-validation) is also left open — this feature is otherwise in noticeably better shape
+than its siblings.
 
 **Tests**: Not included — no test sources exist for this feature.
 
@@ -20,31 +27,31 @@ US4 = P2, US5 = P3).
 
 ## Phase 1: Setup
 
-- [ ] T001 Create the `appeal/` feature package structure (`controller/`, `service/`,
+- [X] T001 Create the `appeal/` feature package structure (`controller/`, `service/`,
       `dto/` subpackages) in `backend/src/main/java/net/onelitefeather/blackhole/backend/appeal/`
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-- [ ] T002 [P] Define `AppealStatus` enum (`SUBMITTED`, `ELIGIBLE_PENDING_REVIEW`,
+- [X] T002 [P] Define `AppealStatus` enum (`SUBMITTED`, `ELIGIBLE_PENDING_REVIEW`,
       `INELIGIBLE`, `IN_REVIEW`, `GRANTED_FULL_LIFT`, `GRANTED_DURATION_REDUCTION`,
       `DENIED` — note `SUBMITTED`/`IN_REVIEW` are intentionally unreachable today, per
       `data-model.md`'s State Transitions section) in `backend/.../appeal/AppealStatus.java`
-- [ ] T003 [P] Define `DecisionOutcome` enum (`APPLIED`, `PUNISHMENT_NOT_ACTIVE`) in
+- [X] T003 [P] Define `DecisionOutcome` enum (`APPLIED`, `PUNISHMENT_NOT_ACTIVE`) in
       `backend/.../appeal/DecisionOutcome.java`
-- [ ] T004 [P] Define `EligibilityResult` record (eligible/severe/checklistSnapshot) in
+- [X] T004 [P] Define `EligibilityResult` record (eligible/severe/checklistSnapshot) in
       `backend/.../appeal/EligibilityResult.java`
-- [ ] T005 Create `AppealEntity` (`appeals`: FK to `punishments`, `appellantHash`
+- [X] T005 Create `AppealEntity` (`appeals`: FK to `punishments`, `appellantHash`
       SHA-512-validated, `statement`, `status`, `eligibilityCheckResult` JSON,
       `decidedBy`/`decisionNote` nullable, real `createdAt`/`updatedAt` long columns) in
       `backend/.../appeal/AppealEntity.java` (depends on T002)
-- [ ] T006 [P] Create `AppealRepository` in `backend/.../appeal/AppealRepository.java`
+- [X] T006 [P] Create `AppealRepository` in `backend/.../appeal/AppealRepository.java`
       (depends on T005)
-- [ ] T007 [P] Add the Liquibase changeset(s) for `appeals` (append-only —
+- [X] T007 [P] Add the Liquibase changeset(s) for `appeals` (append-only —
       `drop-appeals-tenant` as a separate later changeset, never editing the original
       `create-appeals`) in `backend/src/main/resources/db/changelog/db.changelog-master.xml`
-- [ ] T008 [P] Add `blackhole.appeal.min-days-manual`/`min-days-auto`/
+- [X] T008 [P] Add `blackhole.appeal.min-days-manual`/`min-days-auto`/
       `repeat-appeal-cooldown-days` config keys in `backend/src/main/resources/application.yml`
 
 **Checkpoint**: Foundation ready.
@@ -60,15 +67,15 @@ recorded with its full checklist result (spec FR-001–FR-003, FR-006).
 eligible/ineligible verdict and full checklist; submit against a nonexistent punishment
 and confirm rejection.
 
-- [ ] T009 [P] [US1] Create `AppealSubmissionDTO`/`AppealDTO` in
+- [X] T009 [P] [US1] Create `AppealSubmissionDTO`/`AppealDTO` in
       `backend/.../appeal/dto/AppealSubmissionDTO.java` /
       `backend/.../appeal/dto/AppealDTO.java`
-- [ ] T010 [US1] Implement `AppealEligibilityService.submitAppeal` — look up the
+- [X] T010 [US1] Implement `AppealEligibilityService.submitAppeal` — look up the
       punishment (empty if missing), evaluate the checklist, persist the appeal as
       `ELIGIBLE_PENDING_REVIEW` or `INELIGIBLE` — in
       `backend/.../appeal/service/AppealEligibilityService.java` (depends on T004–T007,
       T009)
-- [ ] T011 [US1] Implement `POST /appeal/` in `AppealController`, delegating to
+- [X] T011 [US1] Implement `POST /appeal/` in `AppealController`, delegating to
       `submitAppeal`, publishing `appeal.submitted` — in
       `backend/.../appeal/controller/AppealController.java` (depends on T010)
 
@@ -85,16 +92,16 @@ blocks a submission within the repeat-appeal cooldown, both without human involv
 **Independent Test**: Appeal before the wait elapses and confirm ineligible; appeal again
 within the cooldown after a denial/ineligible verdict and confirm ineligible.
 
-- [ ] T012 [US2] Implement the wait-period check in `AppealEligibilityService.evaluate` —
+- [X] T012 [US2] Implement the wait-period check in `AppealEligibilityService.evaluate` —
       `minDaysRequired` = `min-days-auto` if `punishment.source == EloService.SYSTEM_ELO_SOURCE`
       else `min-days-manual`; `minTimeElapsed` from the punishment's creation-date metadata
       — in `backend/.../appeal/service/AppealEligibilityService.java` (depends on T010)
-- [ ] T013 [US2] Implement the repeat-appeal cooldown check — `isRepeatAppeal` true iff a
+- [X] T013 [US2] Implement the repeat-appeal cooldown check — `isRepeatAppeal` true iff a
       prior appeal against the *same* punishment has status `DENIED`/`INELIGIBLE` and was
       created within `repeat-appeal-cooldown-days`; appeals still
       `ELIGIBLE_PENDING_REVIEW` are excluded — in
       `backend/.../appeal/service/AppealEligibilityService.java` (depends on T012)
-- [ ] T014 [US2] Set `eligible = minTimeElapsed && !isRepeatAppeal` and version the
+- [X] T014 [US2] Set `eligible = minTimeElapsed && !isRepeatAppeal` and version the
       checklist snapshot (`CHECKLIST_VERSION`) — in
       `backend/.../appeal/service/AppealEligibilityService.java` (depends on T013)
 
@@ -111,27 +118,27 @@ self-review and non-awaiting-review appeals (spec FR-008, FR-011, FR-012, FR-013
 state and the appeal's decision record; attempt self-review and a second decision on an
 already-decided appeal and confirm both rejected.
 
-- [ ] T015 [P] [US3] Create `AppealReviewDTO` and `AppealReviewResult` (sealed outcome
+- [X] T015 [P] [US3] Create `AppealReviewDTO` and `AppealReviewResult` (sealed outcome
       record covering `NOT_FOUND`/`NOT_AWAITING_REVIEW`/`INVALID_DECISION`/`SELF_REVIEW`/
       `SEVERE_FULL_LIFT_DISALLOWED`/`DURATION_REDUCTION_MISSING_EXPIRY`/
       `DURATION_REDUCTION_EXPIRY_NOT_FUTURE`/`PUNISHMENT_NOT_ACTIVE`/`DECIDED`) in
       `backend/.../appeal/dto/AppealReviewDTO.java` / `backend/.../appeal/AppealReviewResult.java`
-- [ ] T016 [US3] Implement `AppealDecisionService.reviewAppeal` — status guard
+- [X] T016 [US3] Implement `AppealDecisionService.reviewAppeal` — status guard
       (`ELIGIBLE_PENDING_REVIEW`/`IN_REVIEW` only), decision-validity check
       (`GRANTED_FULL_LIFT`/`GRANTED_DURATION_REDUCTION`/`DENIED` only), self-review
       rejection (`reviewerId == punishment.source`) — in
       `backend/.../appeal/service/AppealDecisionService.java` (depends on T003, T005,
       T006, T015)
-- [ ] T017 [US3] Implement `AppealDecisionService.applyDecision` — `DENIED` is a no-op;
+- [X] T017 [US3] Implement `AppealDecisionService.applyDecision` — `DENIED` is a no-op;
       `GRANTED_FULL_LIFT`/`GRANTED_DURATION_REDUCTION` require the punishment to still be
       the profile's active slot occupant (else `PUNISHMENT_NOT_ACTIVE`), then revoke or
       reduce via the same active-slot/history mechanics as
       `specs/002-punishment-core/spec.md` — in
       `backend/.../appeal/service/AppealDecisionService.java` (depends on T016)
-- [ ] T018 [US3] Stamp `decidedBy`/`decisionNote`/`status`/`updatedAt` on the appeal and
+- [X] T018 [US3] Stamp `decidedBy`/`decisionNote`/`status`/`updatedAt` on the appeal and
       persist, returning the decided appeal — in
       `backend/.../appeal/service/AppealDecisionService.java` (depends on T017)
-- [ ] T019 [US3] Implement `POST /appeal/{identifier}/review` in `AppealController`,
+- [X] T019 [US3] Implement `POST /appeal/{identifier}/review` in `AppealController`,
       delegating to `reviewAppeal` and mapping every `AppealReviewResult.Kind` to its
       status code (404/409/400/403/200), publishing `appeal.resolved` on `DECIDED` — in
       `backend/.../appeal/controller/AppealController.java` (depends on T016–T018)
@@ -148,13 +155,13 @@ duration reduction still succeeds (spec FR-007, FR-009).
 **Independent Test**: Attempt a full lift against a SEVERE-tier appeal and confirm
 rejection; grant a duration reduction against the same appeal and confirm success.
 
-- [ ] T020 [US4] Classify `severityTier` as `"SEVERE"` iff `PunishType.NETWORK` and no
+- [X] T020 [US4] Classify `severityTier` as `"SEVERE"` iff `PunishType.NETWORK` and no
       expiration-date metadata (permanent, network-wide) during checklist evaluation — in
       `backend/.../appeal/service/AppealEligibilityService.java` (depends on T014)
-- [ ] T021 [US4] Reject `GRANTED_FULL_LIFT` when the appeal's stored `severityTier` is
+- [X] T021 [US4] Reject `GRANTED_FULL_LIFT` when the appeal's stored `severityTier` is
       `"SEVERE"` (`SEVERE_FULL_LIFT_DISALLOWED`), before `applyDecision` is ever called —
       in `backend/.../appeal/service/AppealDecisionService.java` (depends on T016, T020)
-- [ ] T022 [US4] Require and validate a future `newExpirationAt` for
+- [X] T022 [US4] Require and validate a future `newExpirationAt` for
       `GRANTED_DURATION_REDUCTION` (`DURATION_REDUCTION_MISSING_EXPIRY`/
       `DURATION_REDUCTION_EXPIRY_NOT_FUTURE`) — in
       `backend/.../appeal/service/AppealDecisionService.java` (depends on T016)
@@ -172,11 +179,11 @@ recovered to baseline, purely informational (spec FR-018).
 supporting standing and confirm the checklist reflects the difference without affecting
 `eligible`.
 
-- [ ] T023 [US5] Infer the supporting (non-triggering) `EloTrack` from the punishment's
+- [X] T023 [US5] Infer the supporting (non-triggering) `EloTrack` from the punishment's
       `eloTriggerReasonCode` metadata when present, or a best-effort default when the
       punishment wasn't system-triggered — in
       `backend/.../appeal/service/AppealEligibilityService.java` (depends on T014)
-- [ ] T024 [US5] Read `supportingEloScore` from `EloProfileRepository` (default to
+- [X] T024 [US5] Read `supportingEloScore` from `EloProfileRepository` (default to
       `blackhole.elo.baseline` if no profile exists yet — deliberately permissive) and set
       `supportingEloRecovered = score >= baseline`, informational only — in
       `backend/.../appeal/service/AppealEligibilityService.java` (depends on T023)
@@ -194,7 +201,7 @@ converged after PR #123.
       marker interface with `SubmitRequest`/`ReviewRequest`/`Response`/`Error` variants
       per `micronaut-dto-contract` — in `backend/.../appeal/dto/` (plan.md Constitution
       Check, Principle III)
-- [ ] T026 Extract an `AppealApi` interface carrying the `@Operation`/`@ApiResponse`
+- [X] T026 Extract an `AppealApi` interface carrying the `@Operation`/`@ApiResponse`
       annotations currently on `AppealController` directly, per
       `micronaut-openapi-contract` — in `backend/.../appeal/controller/` (do alongside
       T025)
@@ -233,7 +240,7 @@ contract debt. Recommend `/speckit-converge` next for independent confirmation.
 
 ## Phase 9: Convergence
 
-- [ ] T028 [P] Add a task entry tracing `GET /appeal/` (`AppealController.getAll`,
+- [X] T028 [P] Add a task entry tracing `GET /appeal/` (`AppealController.getAll`,
       already implemented) to FR-019 — the endpoint is fully functional but no task in
       this file's Phase 3–7 currently references it, a traceability gap found by
       `/speckit-converge`, not a functional one (missing)
