@@ -109,7 +109,7 @@ public class VanillaImportService {
             String owner = UUIDHasher.hash(rawUuid);
             PunishmentProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
 
-            if (profile != null && profile.getActiveBan() != null) {
+            if (profile != null && (profile.getActiveBan() != null || alreadyImportedFromVanilla(profile))) {
                 skippedExisting++;
                 continue;
             }
@@ -180,6 +180,16 @@ public class VanillaImportService {
         }
 
         return new VanillaImportResultDTO(dryRun, entries.size(), imported, skippedExisting, invalid, invalidEntries, ipsTotal, ipsTotal);
+    }
+
+    /**
+     * An already-expired legacy ban is written straight into {@code history} rather than the
+     * active-ban slot (see below), so checking only {@code getActiveBan()} let re-importing the
+     * same file duplicate one history entry per already-expired entry on every run. This also
+     * catches an active ban that has since expired locally and rotated into history.
+     */
+    private boolean alreadyImportedFromVanilla(PunishmentProfileEntity profile) {
+        return profile.getHistory().stream().anyMatch(p -> SYSTEM_IMPORT_SOURCE.equals(p.getSource()));
     }
 
     private PunishmentTemplateEntity findOrCreateTemplate(String reason, Map<String, PunishmentTemplateEntity> templateCache) {
