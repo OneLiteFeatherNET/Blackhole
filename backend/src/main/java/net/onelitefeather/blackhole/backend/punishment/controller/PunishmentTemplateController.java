@@ -1,9 +1,8 @@
 package net.onelitefeather.blackhole.backend.punishment.controller;
 
-import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
-import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishTemplateDTO;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishTemplateRequestDTO;
+import net.onelitefeather.blackhole.backend.punishment.service.PunishmentTemplateService;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
@@ -23,7 +22,6 @@ import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 
-import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -37,16 +35,16 @@ import java.util.UUID;
 @Controller("/template")
 public class PunishmentTemplateController {
 
-    private final PunishmentTemplateRepository templateRepository;
+    private final PunishmentTemplateService templateService;
 
     /**
      * Create a new PunishmentTemplateController
      *
-     * @param templateRepository the repository to use
+     * @param templateService the service to use
      */
     @Inject
-    public PunishmentTemplateController(PunishmentTemplateRepository templateRepository) {
-        this.templateRepository = templateRepository;
+    public PunishmentTemplateController(PunishmentTemplateService templateService) {
+        this.templateService = templateService;
     }
 
     /**
@@ -79,12 +77,10 @@ public class PunishmentTemplateController {
     )
     @Post("/")
     public HttpResponse<PunishTemplateDTO> addTemplate(@Valid @Body PunishTemplateRequestDTO template) {
-        if (template.identifier() != null) {
-            return HttpResponse.notAllowed();
-        }
-        PunishmentTemplateEntity dbEntity = PunishmentTemplateEntity.toEntity(template);
-        PunishmentTemplateEntity savedEntity = this.templateRepository.save(dbEntity);
-        return HttpResponse.ok(savedEntity.toDTO());
+        return switch (this.templateService.create(template)) {
+            case PunishmentTemplateService.CreateResult.Created created -> HttpResponse.ok(created.template());
+            case PunishmentTemplateService.CreateResult.IdentifierNotAllowed ignored -> HttpResponse.notAllowed();
+        };
     }
 
     /**
@@ -117,18 +113,11 @@ public class PunishmentTemplateController {
     )
     @Post(value = "/update")
     public HttpResponse<PunishTemplateDTO> updateTemplate(@Valid @Body PunishTemplateRequestDTO template) {
-        if (template.identifier() == null) {
-            return HttpResponse.badRequest();
-        }
-        PunishmentTemplateEntity existing = this.templateRepository.findById(template.identifier()).orElse(null);
-        if (existing == null) {
-            return HttpResponse.notFound();
-        }
-
-        PunishmentTemplateEntity savedEntity = this.templateRepository.update(
-                PunishmentTemplateEntity.toEntity(template)
-        );
-        return HttpResponse.ok(savedEntity.toDTO());
+        return switch (this.templateService.update(template)) {
+            case PunishmentTemplateService.UpdateResult.Updated updated -> HttpResponse.ok(updated.template());
+            case PunishmentTemplateService.UpdateResult.MissingIdentifier ignored -> HttpResponse.badRequest();
+            case PunishmentTemplateService.UpdateResult.NotFound ignored -> HttpResponse.notFound();
+        };
     }
 
     /**
@@ -157,14 +146,9 @@ public class PunishmentTemplateController {
     )
     @Delete(value = "/delete/{identifier}")
     public HttpResponse<PunishTemplateDTO> removeTemplate(@PathVariable UUID identifier) {
-        PunishmentTemplateEntity entity = this.templateRepository.findById(identifier).orElse(null);
-
-        if (entity == null) {
-            return HttpResponse.notFound();
-        }
-        this.templateRepository.delete(entity);
-
-        return HttpResponse.ok(entity.toDTO());
+        return this.templateService.remove(identifier)
+                .map(HttpResponse::ok)
+                .orElseGet(HttpResponse::notFound);
     }
 
     /**
@@ -191,8 +175,7 @@ public class PunishmentTemplateController {
     )
     @Get("/")
     public HttpResponse<Page<PunishTemplateDTO>> getAll(Pageable pageable) {
-        Page<PunishmentTemplateEntity> entities = this.templateRepository.findAll(pageable);
-        return HttpResponse.ok(entities.map(PunishmentTemplateEntity::toDTO));
+        return HttpResponse.ok(this.templateService.findAll(pageable));
     }
 
     /**
@@ -221,8 +204,7 @@ public class PunishmentTemplateController {
     )
     @Get("/{identifier}")
     public HttpResponse<PunishTemplateDTO> get(UUID identifier) {
-        Optional<PunishmentTemplateEntity> entity = this.templateRepository.findById(identifier);
-        return entity.map(PunishmentTemplateEntity::toDTO)
+        return this.templateService.find(identifier)
                 .map(HttpResponse::ok)
                 .orElseGet(HttpResponse::notFound);
     }

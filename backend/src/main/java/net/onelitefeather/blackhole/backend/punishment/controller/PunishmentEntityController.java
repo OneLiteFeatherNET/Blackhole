@@ -1,7 +1,6 @@
 package net.onelitefeather.blackhole.backend.punishment.controller;
 
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
-import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishEntryDTO;
 import net.onelitefeather.blackhole.backend.punishment.service.PunishmentApplicationService;
 import io.micronaut.data.model.Page;
@@ -29,21 +28,17 @@ import java.util.UUID;
 @Controller("/punishment")
 public class PunishmentEntityController {
 
-    private final PunishmentRepository punishmentRepository;
     private final PunishmentApplicationService punishmentApplicationService;
 
     /**
      * Create a new PunishmentEntityController with the given values.
      *
-     * @param punishmentRepository        the repository to list punishments
-     * @param punishmentApplicationService applies a punishment template to a profile
+     * @param punishmentApplicationService applies a punishment template to a profile, and lists punishments
      */
     @Inject
     public PunishmentEntityController(
-            PunishmentRepository punishmentRepository,
             PunishmentApplicationService punishmentApplicationService
     ) {
-        this.punishmentRepository = punishmentRepository;
         this.punishmentApplicationService = punishmentApplicationService;
     }
 
@@ -199,7 +194,7 @@ public class PunishmentEntityController {
     )
     @Get()
     public HttpResponse<Page<PunishEntryDTO>> getAll(Pageable pageable) {
-        Page<PunishmentEntity> entries = this.punishmentRepository.findAll(pageable);
+        Page<PunishmentEntity> entries = this.punishmentApplicationService.findAll(pageable);
         return HttpResponse.ok(entries.map(PunishmentEntity::toDTO));
     }
 }
