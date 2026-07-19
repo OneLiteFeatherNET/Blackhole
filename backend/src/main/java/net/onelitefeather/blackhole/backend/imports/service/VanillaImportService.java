@@ -107,9 +107,10 @@ public class VanillaImportService {
             }
 
             String owner = UUIDHasher.hash(rawUuid);
+            long createdMillis = parseCreated(entry.created());
             PunishmentProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
 
-            if (profile != null && (profile.getActiveBan() != null || alreadyImportedFromVanilla(profile))) {
+            if (profile != null && (profile.getActiveBan() != null || alreadyImportedFromVanilla(profile, createdMillis))) {
                 skippedExisting++;
                 continue;
             }
@@ -119,7 +120,6 @@ public class VanillaImportService {
                 continue;
             }
 
-            long createdMillis = parseCreated(entry.created());
             String reason = (entry.reason() == null || entry.reason().isBlank()) ? DEFAULT_REASON : entry.reason();
             PunishmentTemplateEntity template = findOrCreateTemplate(reason, templateCache);
 
@@ -187,9 +187,26 @@ public class VanillaImportService {
      * active-ban slot (see below), so checking only {@code getActiveBan()} let re-importing the
      * same file duplicate one history entry per already-expired entry on every run. This also
      * catches an active ban that has since expired locally and rotated into history.
+     *
+     * <p>Matches on {@code createdMillis} (the source file's own {@code created} timestamp,
+     * carried onto the punishment's {@link Metadata#META_DATA_KEY_CREATION_DATE}) rather than
+     * merely "any import-sourced entry exists" - {@link #SYSTEM_IMPORT_SOURCE} is one constant
+     * shared by every vanilla import ever run, so matching on source alone would permanently
+     * block this player from ever receiving a genuinely new imported ban again (e.g. from a
+     * later, updated {@code banned-players.json}) once they had a single prior import-sourced
+     * entry. Matching on the entry's own creation timestamp scopes the skip to "this exact
+     * source record was already imported."</p>
      */
-    private boolean alreadyImportedFromVanilla(PunishmentProfileEntity profile) {
-        return profile.getHistory().stream().anyMatch(p -> SYSTEM_IMPORT_SOURCE.equals(p.getSource()));
+    private boolean alreadyImportedFromVanilla(PunishmentProfileEntity profile, long createdMillis) {
+        return profile.getHistory().stream().anyMatch(p -> isSameImportedEntry(p, createdMillis));
+    }
+
+    private boolean isSameImportedEntry(PunishmentEntity punishment, long createdMillis) {
+        if (!SYSTEM_IMPORT_SOURCE.equals(punishment.getSource())) {
+            return false;
+        }
+        Object existingCreated = punishment.getMetaData().get(Metadata.META_DATA_KEY_CREATION_DATE);
+        return existingCreated instanceof Number number && number.longValue() == createdMillis;
     }
 
     private PunishmentTemplateEntity findOrCreateTemplate(String reason, Map<String, PunishmentTemplateEntity> templateCache) {
