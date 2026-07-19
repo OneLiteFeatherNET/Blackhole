@@ -268,3 +268,14 @@ layering fix. Remaining scope is T024 (verify-only) and **T025–T030**, with **
 T029 prioritized** — they're real correctness gaps against spec US5, not just layering
 cleanup. Recommend `/speckit-converge` next for independent confirmation, then
 `/speckit-implement` for T025–T030.
+
+---
+
+## Phase 9: Convergence
+
+- [ ] T031 Decide and act on `RedisTopology`'s hardcoded key/channel-name constants per
+      plan.md's Technical Context ("worth flagging for `/speckit-tasks`") — either make
+      them env-var configurable (coordinated with Velocity's matching mirror
+      implementation) or add an explicit code comment documenting why they're
+      intentionally fixed protocol constants rather than a tunable; no existing task
+      traces to this plan.md-flagged item (partial)
