@@ -228,3 +228,12 @@ Already delivered in full (T001–T024) via the original implementation plus the
 layering fix, `revokedBy` stamp, and race-window Javadoc. Remaining scope is just
 **T025–T027**, all lower-priority polish shared with every sibling spec's DTO/OpenAPI
 contract debt. Recommend `/speckit-converge` next for independent confirmation.
+
+---
+
+## Phase 9: Convergence
+
+- [ ] T028 [P] Add a task entry tracing `GET /appeal/` (`AppealController.getAll`,
+      already implemented) to FR-019 — the endpoint is fully functional but no task in
+      this file's Phase 3–7 currently references it, a traceability gap found by
+      `/speckit-converge`, not a functional one (missing)
