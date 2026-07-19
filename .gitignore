@@ -1,5 +1,7 @@
 .gradle
 build/
+# Transient "currently active feature" pointer, rewritten by every /speckit-specify run
+.specify/feature.json
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
