@@ -54,6 +54,17 @@ import java.util.UUID;
  * can be re-invoked on the same report, re-triggering its standing ELO effects each time - there
  * is no status state machine enforcing valid transitions. Preserved as-is; introducing one is a
  * separate, more invasive behavioral change.</p>
+ *
+ * <p><b>Known limitation (deferred, not fixed here):</b> {@code resolve}'s chain of side effects -
+ * optional punishment application, the report's own status/resolutionNote/resolvedBy/updatedAt
+ * update, up to two ELO deltas, and the final event publish - is not atomic. {@code @Transactional}
+ * is unusable in this codebase (see {@link EloService}'s class Javadoc for why). A failure partway
+ * through (e.g. the report {@code update()} throwing after
+ * {@code punishmentApplicationService.apply()} already succeeded) can leave a punishment applied
+ * against a report that never recorded its own resolution, or an ELO delta applied without the
+ * report reflecting the status that triggered it. This is an accepted race window in the same
+ * spirit as the one already documented for {@code EloService} and {@code AppealDecisionService},
+ * not newly introduced here.</p>
  */
 @Singleton
 public class ReportService {
