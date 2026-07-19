@@ -138,6 +138,14 @@ consuming context in every session regardless of what you're touching.
   codebase rather than relying on prior context, and pull current web knowledge for whatever
   specific library/API/security topic the task touches rather than relying solely on training
   data. This keeps reasoning grounded in current state instead of stale assumptions.
+- **Spec-Driven Development (spec-kit) is the primary planning workflow** for non-trivial feature
+  work: `/speckit-constitution` → `/speckit-specify` → `/speckit-plan` → `/speckit-tasks` →
+  `/speckit-implement`, using `/speckit-clarify`, `/speckit-analyze`, `/speckit-checklist` as
+  needed. `.specify/memory/constitution.md` holds this project's ratified architecture/product
+  principles (GDPR-by-design, no-auth-layer, layering, dual-ELO, infra-owns-rate-limiting) — a
+  spec or plan must not contradict it. Trivial fixes and small refactors don't need a full spec
+  cycle; use judgment. `.claude/PROGRESS.md` keeps its role below as the lighter session-level
+  continuity log — it complements `specs/` artifacts, it doesn't replace them.
 - **Session start sync (worktrees only).** If the session is running in a git worktree, before
   doing anything else: `git fetch origin` + `git pull` on `main` (in the main checkout, not the
   worktree), then hard-reset the worktree branch to match `main`
