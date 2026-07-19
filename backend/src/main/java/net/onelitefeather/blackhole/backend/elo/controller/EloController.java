@@ -1,15 +1,14 @@
 package net.onelitefeather.blackhole.backend.elo.controller;
 
 import net.onelitefeather.blackhole.backend.elo.EloEventEntity;
-import net.onelitefeather.blackhole.backend.elo.EloEventRepository;
 import net.onelitefeather.blackhole.backend.elo.EloProfileEntity;
-import net.onelitefeather.blackhole.backend.elo.EloProfileRepository;
 import net.onelitefeather.blackhole.backend.elo.ToxicityScorer;
 import net.onelitefeather.blackhole.backend.elo.dto.ChatSignalDTO;
 import net.onelitefeather.blackhole.backend.elo.dto.ChatToxicityResult;
 import net.onelitefeather.blackhole.backend.elo.dto.EloEventDTO;
 import net.onelitefeather.blackhole.backend.elo.dto.EloProfileDTO;
 import net.onelitefeather.blackhole.backend.elo.service.ChatToxicityService;
+import net.onelitefeather.blackhole.backend.elo.service.EloService;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
@@ -39,18 +38,15 @@ import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 public class EloController {
 
     private final ChatToxicityService chatToxicityService;
-    private final EloProfileRepository profileRepository;
-    private final EloEventRepository eventRepository;
+    private final EloService eloService;
 
     @Inject
     public EloController(
             ChatToxicityService chatToxicityService,
-            EloProfileRepository profileRepository,
-            EloEventRepository eventRepository
+            EloService eloService
     ) {
         this.chatToxicityService = chatToxicityService;
-        this.profileRepository = profileRepository;
-        this.eventRepository = eventRepository;
+        this.eloService = eloService;
     }
 
     @Operation(
@@ -85,7 +81,7 @@ public class EloController {
     @ApiResponse(responseCode = "404", description = "No ELO profile exists yet for this owner")
     @Get("/{owner}")
     public HttpResponse<EloProfileDTO> getProfile(String owner) {
-        EloProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
+        EloProfileEntity profile = this.eloService.getProfile(owner).orElse(null);
         if (profile == null) {
             return HttpResponse.notFound();
         }
@@ -108,7 +104,7 @@ public class EloController {
     )
     @Get("/{owner}/history")
     public HttpResponse<Page<EloEventDTO>> getHistory(String owner, Pageable pageable) {
-        Page<EloEventEntity> entries = this.eventRepository.findByOwner(owner, pageable);
+        Page<EloEventEntity> entries = this.eloService.getHistory(owner, pageable);
         return HttpResponse.ok(entries.map(EloEventEntity::toDTO));
     }
 }

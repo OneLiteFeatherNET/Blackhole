@@ -8,6 +8,8 @@ import net.onelitefeather.blackhole.backend.elo.EloProfileRepository;
 import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.EloTrack;
 import io.micronaut.context.annotation.Value;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.service.PunishmentApplicationService;
@@ -21,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -292,5 +295,26 @@ public class EloService {
             case CHAT -> "Automatic chat timeout (ELO system)";
             case GAMEPLAY -> "Automatic temporary ban (ELO system, gameplay)";
         };
+    }
+
+    /**
+     * Dashboard read: a player's current ELO standing, if any.
+     *
+     * @param owner the SHA-512-hashed owner
+     * @return the profile, or empty if none exists yet for this owner
+     */
+    public Optional<EloProfileEntity> getProfile(String owner) {
+        return this.profileRepository.findById(owner);
+    }
+
+    /**
+     * Dashboard read: the full audit trail of ELO changes for this owner.
+     *
+     * @param owner    the SHA-512-hashed owner
+     * @param pageable pagination/sorting parameters
+     * @return the paginated event history
+     */
+    public Page<EloEventEntity> getHistory(String owner, Pageable pageable) {
+        return this.eventRepository.findByOwner(owner, pageable);
     }
 }
