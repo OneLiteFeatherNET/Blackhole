@@ -8,6 +8,8 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.punishment.controller.PunishmentEntityController;
 import io.micronaut.context.BeanProvider;
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.service.EloService;
@@ -153,6 +155,13 @@ public class PunishmentApplicationService {
         this.eventPublisher.publish("punishment.created", punishmentCreatedPayload);
 
         return Optional.of(savedProfile);
+    }
+
+    /**
+     * Returns a paginated list of all punishment entries in the system.
+     */
+    public Page<PunishmentEntity> findAll(Pageable pageable) {
+        return this.punishmentRepository.findAll(pageable);
     }
 
     /**

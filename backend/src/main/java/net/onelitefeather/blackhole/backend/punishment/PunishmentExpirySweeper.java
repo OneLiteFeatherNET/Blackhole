@@ -38,7 +38,10 @@ public class PunishmentExpirySweeper {
         this.cacheInvalidationPublisher = cacheInvalidationPublisher;
     }
 
-    @Scheduled(fixedDelay = "1m", initialDelay = "1m")
+    @Scheduled(
+            fixedDelay = "${blackhole.punishment.expiry.sweep-interval:1m}",
+            initialDelay = "${blackhole.punishment.expiry.sweep-interval:1m}"
+    )
     void sweep() {
         int expiredCount = 0;
         Pageable pageable = Pageable.from(0, PAGE_SIZE);

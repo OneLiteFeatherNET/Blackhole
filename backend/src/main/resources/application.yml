@@ -65,6 +65,13 @@ blackhole:
       max-reports: ${BLACKHOLE_REPORT_RATE_LIMIT_MAX:5}
       max-reports-network-wide: ${BLACKHOLE_REPORT_RATE_LIMIT_MAX_NETWORK_WIDE:50}
       window: ${BLACKHOLE_REPORT_RATE_LIMIT_WINDOW:PT10M}
+  # PunishmentExpirySweeper periodically moves expired active bans/mutes into a profile's
+  # history, so expiry is an active background process rather than something only noticed the
+  # next time a profile happens to be read. sweep-interval controls how often that scan runs -
+  # shortened via env var for testing, 1 minute by default in production.
+  punishment:
+    expiry:
+      sweep-interval: ${BLACKHOLE_PUNISHMENT_EXPIRY_SWEEP_INTERVAL:1m}
   # Dual-ELO system (Phase 5): baseline is the network-wide starting/neutral score for both
   # tracks, and perma-ban-threshold the network-wide permanent-ban trigger. Crossing below
   # soft-threshold triggers an automatic temporary punishment; below perma-ban-threshold, a
