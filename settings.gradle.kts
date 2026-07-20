@@ -53,7 +53,7 @@ dependencyResolutionManagement {
             version("jetbrains.annotations", "26.1.0")
             version("jackson", "2.22.1")
             version("jakarta-annotation", "3.0.0")
-            version("openapi.generator", "7.23.0")
+            version("openapi.generator", "7.24.0")
             version("logstash-logback-encoder", "9.0")
             version("opentelemetry-instrumentation-alpha", "2.20.1-alpha")
             version("janino", "3.1.12")
