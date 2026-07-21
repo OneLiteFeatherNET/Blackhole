@@ -76,7 +76,7 @@ dependencyResolutionManagement {
             library("lettuce-core", "io.lettuce", "lettuce-core").versionRef("lettuce")
             library("cloud-velocity", "org.incendo", "cloud-velocity").version("2.0.0-SNAPSHOT")
             library("cloud-annotations", "org.incendo", "cloud-annotations").versionRef("cloud.commands")
-            library("cloudExtras", "org.incendo", "cloud-minecraft-extras").version("2.0.0-SNAPSHOT")
+            library("cloudExtras", "org.incendo", "cloud-minecraft-extras").version("2.0.0")
 
             // Observability — JSON logging + OpenTelemetry (see backend/build.gradle.kts).
             // Version managed by the Micronaut platform BOM (opentelemetry-bom).
