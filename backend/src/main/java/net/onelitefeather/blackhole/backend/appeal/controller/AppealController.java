@@ -12,19 +12,9 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
-import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Controller;
-import io.micronaut.http.annotation.Get;
-import io.micronaut.http.annotation.Post;
 import io.micronaut.core.version.annotation.Version;
-import io.micronaut.validation.Validated;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.inject.Inject;
-import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 
@@ -39,11 +29,12 @@ import java.util.UUID;
  * unconstrained human discretion (today's original problem this whole system exists to fix).
  * No repository is injected here - all persistence access lives in
  * {@link AppealEligibilityService}/{@link AppealDecisionService}, including the plain, read-only
- * appeal listing.
+ * appeal listing. Routing and OpenAPI annotations live on {@link AppealApi}, which this class
+ * implements.
  */
 @Version(ApiVersion.V1)
 @Controller("/appeal")
-public class AppealController {
+public class AppealController implements AppealApi {
 
     private final AppealEligibilityService eligibilityService;
     private final AppealDecisionService decisionService;
@@ -60,21 +51,8 @@ public class AppealController {
         this.eventPublisher = eventPublisher;
     }
 
-    @Operation(
-            summary = "Submit an appeal",
-            description = "Submits an appeal against a punishment. Immediately evaluated against the eligibility checklist.",
-            operationId = "submitAppeal",
-            tags = {"Appeal"}
-    )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Appeal submitted (status reflects whether it passed the eligibility checklist)",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AppealDTO.class))
-    )
-    @ApiResponse(responseCode = "404", description = "Punishment not found")
-    @Validated
-    @Post("/")
-    public HttpResponse<?> submit(@Body @Valid AppealSubmissionDTO submission) {
+    @Override
+    public HttpResponse<?> submit(AppealSubmissionDTO submission) {
         Optional<AppealEntity> saved = this.eligibilityService.submitAppeal(
                 submission.punishmentIdentifier(), submission.appellantHash(), submission.statement()
         );
@@ -94,45 +72,14 @@ public class AppealController {
         return HttpResponse.ok(appeal.toDTO());
     }
 
-    @Operation(
-            summary = "Get all appeals",
-            description = "Retrieves a paginated list of appeals",
-            operationId = "getAppeals",
-            tags = {"Appeal"}
-    )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Successfully retrieved appeals",
-            content = @Content(
-                    mediaType = "application/json",
-                    array = @ArraySchema(schema = @Schema(implementation = AppealDTO.class), arraySchema = @Schema(implementation = Page.class))
-            )
-    )
-    @Get("/")
+    @Override
     public HttpResponse<Page<AppealDTO>> getAll(Pageable pageable) {
         Page<AppealEntity> entities = this.eligibilityService.findAll(pageable);
         return HttpResponse.ok(entities.map(AppealEntity::toDTO));
     }
 
-    @Operation(
-            summary = "Review an appeal",
-            description = "Decides an eligible appeal. Rejects self-review (reviewerId matching the punishment's own source) "
-                    + "and full lifts of SEVERE punishments (duration reduction only).",
-            operationId = "reviewAppeal",
-            tags = {"Appeal"}
-    )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Appeal decided",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AppealDTO.class))
-    )
-    @ApiResponse(responseCode = "404", description = "Appeal not found")
-    @ApiResponse(responseCode = "400", description = "Invalid decision, or a full lift was attempted on a SEVERE punishment")
-    @ApiResponse(responseCode = "403", description = "reviewerId matches the punishment's original source (self-review)")
-    @ApiResponse(responseCode = "409", description = "Appeal is not awaiting review, or the punishment is no longer active")
-    @Validated
-    @Post("/{identifier}/review")
-    public HttpResponse<?> review(UUID identifier, @Body @Valid AppealReviewDTO review) {
+    @Override
+    public HttpResponse<?> review(UUID identifier, AppealReviewDTO review) {
         AppealReviewResult result = this.decisionService.reviewAppeal(identifier, review);
         return switch (result.kind()) {
             case NOT_FOUND -> HttpResponse.notFound();
