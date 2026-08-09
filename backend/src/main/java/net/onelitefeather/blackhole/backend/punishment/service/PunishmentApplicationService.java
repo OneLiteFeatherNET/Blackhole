@@ -37,6 +37,17 @@ import java.util.UUID;
  * publishing rather than duplicating it. Being the one chokepoint every punishment goes through
  * is also why a template's {@code eloDelta} is applied here rather than in each caller - it's
  * the only place guaranteed to see every temp-ban regardless of who/what issued it.
+ *
+ * <p><b>Known limitation (deferred, not fixed here):</b> {@link #apply}'s read-profile /
+ * save-punishment / optionally-apply-ELO-delta / rotate-active-slot / update-profile sequence,
+ * and {@link #revoke}'s equivalent read-modify-write, are not atomic - {@code @Transactional} is
+ * unusable in this codebase (see {@code EloService}'s class Javadoc for why). Two concurrent
+ * applications to the same owner+track could both read the same "no active punishment yet" state
+ * and both attempt to occupy the same slot; the unique DB constraint on
+ * {@code active_ban_identifier}/{@code active_chat_ban_identifier} rejects the second write
+ * rather than silently double-occupying the slot, but the caller sees an unhandled persistence
+ * exception rather than a clean "conflict" response. This is an accepted race window in the same
+ * spirit as the one already documented for {@code EloService}, not newly introduced here.</p>
  */
 @Singleton
 public class PunishmentApplicationService {
