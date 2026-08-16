@@ -1,5 +1,5 @@
 plugins {
-    id("xyz.jpenilla.run-velocity") version "3.0.2"
+    id("xyz.jpenilla.run-velocity") version "3.1.0"
     `maven-publish`
     alias(libs.plugins.shadow)
 }
