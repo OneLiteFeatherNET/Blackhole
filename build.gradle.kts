@@ -3,7 +3,7 @@
 // starter at the start of a line, so the raw value includes that trailing comment - strip it here.
 allprojects {
     group = "net.onelitefeather"
-    version = (version as String).substringBefore('#').trim()
+    version = "1.0.0" // x-release-please-version
 }
 
 subprojects {
