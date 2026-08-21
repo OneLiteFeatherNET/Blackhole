@@ -12,9 +12,10 @@
       "extra-files": [
         {
           "type": "generic",
-          "path": "gradle.properties"
+          "path": "build.gradle.kts"
         }
       ]
     }
-  }
+  },
+  "bootstrap-sha": "726f16e17c7bef019167a14d52bf0126e2ccf22d"
 }
