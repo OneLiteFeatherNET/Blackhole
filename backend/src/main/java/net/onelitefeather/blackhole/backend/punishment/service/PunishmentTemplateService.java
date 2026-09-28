@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.punishment.service;
 
+import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishTemplateDTO;
@@ -22,9 +23,11 @@ import java.util.UUID;
 public class PunishmentTemplateService {
 
     private final PunishmentTemplateRepository templateRepository;
+    private final PunishmentRepository punishmentRepository;
 
-    public PunishmentTemplateService(PunishmentTemplateRepository templateRepository) {
+    public PunishmentTemplateService(PunishmentTemplateRepository templateRepository, PunishmentRepository punishmentRepository) {
         this.templateRepository = templateRepository;
+        this.punishmentRepository = punishmentRepository;
     }
 
     /**
@@ -55,14 +58,24 @@ public class PunishmentTemplateService {
     }
 
     /**
-     * Deletes the template with {@code identifier}, returning its DTO, or empty if no template
-     * with that identifier exists.
+     * Deletes the template with {@code identifier} - see {@link RemoveResult.NotFound} /
+     * {@link RemoveResult.InUse}. Checks for referencing punishments first rather than letting
+     * the delete fail at the database level: {@code PunishmentEntity.template} is a live FK with
+     * no {@code ON DELETE} cascade/set-null configured, so an unchecked delete previously threw
+     * an unhandled foreign-key-constraint exception once any punishment had been created from the
+     * template - contradicting spec US5 Acceptance Scenario 3 and FR-010's "let network operators
+     * ... remove" a template (specs/002-punishment-core/tasks.md T029).
      */
-    public Optional<PunishTemplateDTO> remove(UUID identifier) {
-        return this.templateRepository.findById(identifier).map(entity -> {
-            this.templateRepository.delete(entity);
-            return entity.toDTO();
-        });
+    public RemoveResult remove(UUID identifier) {
+        PunishmentTemplateEntity entity = this.templateRepository.findById(identifier).orElse(null);
+        if (entity == null) {
+            return new RemoveResult.NotFound();
+        }
+        if (this.punishmentRepository.existsByTemplate_Identifier(identifier)) {
+            return new RemoveResult.InUse();
+        }
+        this.templateRepository.delete(entity);
+        return new RemoveResult.Removed(entity.toDTO());
     }
 
     /**
@@ -103,6 +116,22 @@ public class PunishmentTemplateService {
         }
 
         record NotFound() implements UpdateResult {
+        }
+    }
+
+    /**
+     * Outcome of {@link #remove(UUID)}, mapped 1:1 to an {@code HttpResponse} by the controller
+     * instead of the controller re-deriving what happened.
+     */
+    public sealed interface RemoveResult {
+        record Removed(PunishTemplateDTO template) implements RemoveResult {
+        }
+
+        record NotFound() implements RemoveResult {
+        }
+
+        /** At least one punishment still references this template - see {@link #remove(UUID)}. */
+        record InUse() implements RemoveResult {
         }
     }
 }
