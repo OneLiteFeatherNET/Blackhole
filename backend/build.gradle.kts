@@ -21,7 +21,7 @@ dependencies {
     // "net.onelitefeather" (from Otis's rootProject.group), NOT "net.onelitefeather.otis" -
     // that longer name is only the Java package prefix its OpenAPI generator emits
     // (net.onelitefeather.otis.client.*), a separate, unrelated setting.
-    implementation("net.onelitefeather:otis-client:1.16.2")
+    implementation("net.onelitefeather:otis-client:1.17.0")
     implementation(mn.micronaut.management)
     implementation(mn.micronaut.micrometer.core)
     implementation(mn.micronaut.micrometer.registry.prometheus)
