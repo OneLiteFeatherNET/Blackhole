@@ -10,10 +10,11 @@ describe('format', () => {
   })
 
   it('spells out durations in the UI language', () => {
-    expect(formatDuration('P7D', 'en')).toBe('7 days')
+    expect(formatDuration('P7D', 'en')).toBe('1 week')
+    expect(formatDuration('P10D', 'en')).toBe('10 days')
     expect(formatDuration('P1D', 'en')).toBe('1 day')
     expect(formatDuration('PT1H30M', 'en')).toBe('1 hour, 30 minutes')
-    expect(formatDuration('P7D', 'de')).toBe('7 Tage')
+    expect(formatDuration('P7D', 'de')).toBe('1 Woche')
   })
 
   it('returns text that is not a supported duration unchanged', () => {

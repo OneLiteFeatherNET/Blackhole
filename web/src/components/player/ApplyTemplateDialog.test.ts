@@ -62,7 +62,7 @@ describe('ApplyTemplateDialog', () => {
 
     expect(api.previewApply).toHaveBeenCalledWith(OWNER, 'hacking')
     expect(wrapper.get('[data-testid="preview"]').text()).toContain('Escalation step 2 of 3')
-    expect(wrapper.get('[data-testid="preview"]').text()).toContain('7 days, costs 150 ELO')
+    expect(wrapper.get('[data-testid="preview"]').text()).toContain('1 week, costs 150 ELO')
     expect(wrapper.get('[data-testid="preview"]').text()).toContain('Score in network: 900 to 750')
     expect(wrapper.find('[data-testid="permanent-warning"]').exists(), 'no warning below the threshold').toBe(false)
     expect(api.applyTemplate).not.toHaveBeenCalled()

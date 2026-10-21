@@ -58,7 +58,7 @@ describe('TemplatesView: list', () => {
     expect(row.text()).toContain('cheating')
     expect(row.text()).toContain('2 steps')
     expect(row.text()).toContain('1 day / 100')
-    expect(row.text()).toContain('7 days / 150')
+    expect(row.text()).toContain('1 week / 150')
 
     wrapper.unmount()
   })
