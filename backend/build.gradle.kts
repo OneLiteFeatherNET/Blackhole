@@ -56,6 +56,12 @@ dependencies {
     // Enables the <if>/<then>/<else> conditional in logback.xml.
     runtimeOnly(libs.janino)
 
+    // Evidence file storage on S3-compatible object storage (Apache-2.0). The CRT/Netty async
+    // clients are not needed: the blocking Apache client is enough for streamed uploads/ranges.
+    implementation(libs.awssdk.s3) {
+        exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
+    }
+
     testImplementation(mn.junit.jupiter.api)
     testImplementation(mn.junit.jupiter.params)
     testRuntimeOnly(mn.junit.jupiter.engine)
