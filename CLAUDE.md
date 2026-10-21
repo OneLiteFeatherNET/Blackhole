@@ -84,8 +84,7 @@ consuming context in every session regardless of what you're touching.
     a dedicated future phase that would likely reintroduce some form of auth alongside it.
 - **`controller/`** — REST controllers; class-level `@Version` API versioning convention.
   Detail: `.claude/rules/controller-versioning.md`.
-- **`events/`** — Domain event bus over RabbitMQ (`blackhole.events` topic exchange,
-  `blackhole.cache.invalidate` fanout exchange for cross-replica cache invalidation). There is
+- **`events/`** — Domain event bus over RabbitMQ (`blackhole.events` topic exchange). There is
   deliberately no generic connector/webhook/signal-ingestion framework anymore (removed
   2026-07-09 to keep the surface simpler) — external-system integration would need to be designed
   fresh if it comes back. Detail: `.claude/rules/events.md`.

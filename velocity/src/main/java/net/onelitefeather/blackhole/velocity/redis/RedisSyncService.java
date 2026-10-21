@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Read-only mirror of the backend's Redis-cached active-punishment state (written solely by the
@@ -49,6 +50,8 @@ import java.util.concurrent.ConcurrentMap;
 public final class RedisSyncService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RedisSyncService.class);
+    /** Bounds one shared-cache read, so a slow Redis can't stall tab completion. */
+    private static final long SHARED_CACHE_TIMEOUT_MILLIS = 200;
 
     private final ProxyServer proxyServer;
     private final BlackholeConfig config;
@@ -106,6 +109,31 @@ public final class RedisSyncService {
         if (this.client != null) {
             this.client.shutdown();
             this.client = null;
+        }
+    }
+
+    /**
+     * The backend's cached punishment template list as the JSON array the API returns, for tab
+     * completion. Empty on a miss, when Redis isn't connected, or on an error or timeout, so the
+     * caller falls back to the HTTP API (which repopulates the cache).
+     */
+    public Optional<String> readCachedTemplateList() {
+        return readSharedCache(RedisTopology.TEMPLATES_ALL_KEY);
+    }
+
+    private Optional<String> readSharedCache(@NotNull String key) {
+        StatefulRedisConnection<String, String> conn = this.connection;
+        if (conn == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.ofNullable(conn.async().get(key).get(SHARED_CACHE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return Optional.empty();
+        } catch (Exception e) {
+            LOGGER.warn("Shared cache read failed for {}, falling back to HTTP: {}", key, e.getMessage());
+            return Optional.empty();
         }
     }
 

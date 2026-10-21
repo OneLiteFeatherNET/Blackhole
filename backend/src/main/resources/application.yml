@@ -1,6 +1,5 @@
-# RabbitMQ backs the domain event bus (topic exchange blackhole.events) and cross-replica
-# cache invalidation (fanout exchange blackhole.cache.invalidate) - see
-# net.onelitefeather.blackhole.backend.events. Both exchanges are declared at channel-creation
+# RabbitMQ backs the domain event bus (topic exchange blackhole.events) - see
+# net.onelitefeather.blackhole.backend.events. The exchange is declared at channel-creation
 # time by BlackholeRabbitTopology, not via config, since this version of micronaut-rabbitmq has
 # no declarative exchange-config support.
 rabbitmq:
@@ -125,15 +124,28 @@ blackhole:
     detection-window-days: ${BLACKHOLE_EVASION_DETECTION_WINDOW_DAYS:7}
     retention-days: ${BLACKHOLE_EVASION_RETENTION_DAYS:90}
     retention-sweep-cron: ${BLACKHOLE_EVASION_RETENTION_SWEEP_CRON:`0 30 3 * * *`}
+  # Shared cache (net.onelitefeather.blackhole.backend.cache), stored in the Redis-protocol server
+  # above (Dragonfly in production) so every replica reads and evicts the same entries. Each
+  # entry expires after its per-resource TTL, so a missed eviction only causes bounded staleness.
+  # timeout caps how long one cache call may block a request; past it, or on any error, the call
+  # is treated as a miss and the database answers instead - the cache is never a source of truth.
+  cache:
+    timeout: ${BLACKHOLE_CACHE_TIMEOUT:PT0.2S}
+    profile:
+      ttl: ${BLACKHOLE_CACHE_PROFILE_TTL:PT30S}
+    elo:
+      ttl: ${BLACKHOLE_CACHE_ELO_TTL:PT30S}
+    template:
+      ttl: ${BLACKHOLE_CACHE_TEMPLATE_TTL:PT5M}
   # Player-name resolution, so moderators can tab-complete and target an OFFLINE player by name
   # (punishment enforcement is already fully UUID-driven at login - see PlayerLoginListener on
   # the Velocity side - so resolving a name to a UUID is the only missing piece). Resolvers are
   # tried in a fixed priority order (Otis, then Mojang, then NameMC) and the chain stops at the
-  # first hit; disabling one is a config change only, not a code change.
+  # first hit; disabling one is a config change only, not a code change. Hits are kept in the
+  # shared cache for ttl; misses are never cached.
   player-resolver:
     cache:
       ttl: ${BLACKHOLE_PLAYER_RESOLVER_CACHE_TTL:PT5M}
-      max-size: ${BLACKHOLE_PLAYER_RESOLVER_CACHE_MAX_SIZE:5000}
     # Otis is the team's own in-house player master-data service - the primary, most trustworthy
     # resolver. base-url has no default: it's a per-deployment private service address, unlike
     # Mojang's fixed public API below, so the resolver bean only loads once it's actually set.

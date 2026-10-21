@@ -21,8 +21,9 @@ workflow lets players contest both automatic and manual punishments.
 | `phoca`    | Shared utility library used across modules.                                                  |
 
 The backend is event-driven: RabbitMQ backs a domain event bus (`blackhole.events`) that other
-services can consume, plus a fanout exchange for cross-replica cache invalidation, so the API
-can be scaled horizontally.
+services can consume. Hot reads (punishment profiles, ELO profiles, templates and player
+resolutions) are served from one shared Redis-protocol cache (Dragonfly in production), so every
+replica reads and evicts the same entries and the API can be scaled horizontally.
 
 There is deliberately no authentication system right now: every endpoint is open. The trust
 model is that only trusted callers can reach the API at all - admins/tools calling the REST API
@@ -32,7 +33,7 @@ network/deployment level (firewalling, private networking), not by the applicati
 ### Tech stack
 
 - **Backend**: Java 21+, [Micronaut](https://micronaut.io/), Hibernate/JPA, Liquibase (PostgreSQL),
-  RabbitMQ, Caffeine cache, Micrometer + OpenTelemetry.
+  RabbitMQ, Dragonfly (Redis protocol) as the shared cache, Micrometer + OpenTelemetry.
 - **Proxy plugin**: [Velocity](https://velocitypowered.com/).
 - **Build**: Gradle (Kotlin DSL), multi-module.
 - **Releases**: [release-please](https://github.com/googleapis/release-please), driven by
@@ -40,7 +41,8 @@ network/deployment level (firewalling, private networking), not by the applicati
 
 ## Local development
 
-A `docker-compose.yml` under `docker/` provides PostgreSQL and RabbitMQ:
+A `docker-compose.yml` under `docker/` provides PostgreSQL, RabbitMQ and Dragonfly (Redis protocol,
+used for proxy sync and the shared cache):
 
 ```shell
 cd docker
@@ -60,6 +62,7 @@ Key environment variables (all have local-dev defaults, see
 |------------------------------------|-----------------------------------------------------------------------|
 | `JDBC_URL` / `JDBC_USER` / `JDBC_PASSWORD` | PostgreSQL connection (defaults match `docker/docker-compose.yml`). |
 | `RABBITMQ_HOST` / `RABBITMQ_USER` / `RABBITMQ_PASSWORD` | RabbitMQ connection.                              |
+| `REDIS_URI`                       | Redis-protocol server (Dragonfly) for proxy sync and the shared cache. |
 | `BLACKHOLE_EVASION_IP_SALT`       | Required for ban-evasion detection; that feature returns `503` until it's set. |
 
 Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
@@ -69,6 +72,15 @@ Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
 ```shell
 ./gradlew clean build
 ```
+
+### Upgrading from the in-process cache
+
+- Run Dragonfly in place of Redis: the compose service now uses the Dragonfly image. `REDIS_URI`
+  is unchanged, so proxies keep working. Deploy the backend and the proxies together.
+- The `blackhole.cache.invalidate` fanout exchange is no longer declared or used. Existing
+  RabbitMQ brokers keep it as an orphan exchange, which is harmless and can be deleted.
+- Cache keys are versioned (`blackhole:cache:v1:`), so entries written by an older release are
+  never read and expire on their own. Rolling back to the previous release is safe.
 
 ## Contributing
 

@@ -1,5 +1,8 @@
 package net.onelitefeather.blackhole.velocity.command;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
@@ -18,6 +21,7 @@ import net.onelitefeather.blackhole.client.model.PunishTemplateDTO;
 import net.onelitefeather.blackhole.client.model.PunishType;
 import net.onelitefeather.blackhole.velocity.BlackholeVelocity;
 import net.onelitefeather.blackhole.velocity.component.PunishmentTemplateComponent;
+import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.incendo.cloud.annotations.*;
 import org.incendo.cloud.annotations.parser.Parser;
@@ -53,14 +57,34 @@ public final class PunishCommand {
     private final PunishmentApi punishmentApi;
     private final PunishmentTemplatesApi punishmentTemplatesApi;
     private final PlayerApi playerApi;
+    private final RedisSyncService redisSyncService;
+    private final ObjectMapper objectMapper = ApiClient.createDefaultObjectMapper();
 
     @Inject
-    public PunishCommand(@NotNull ProxyServer proxyServer, @NotNull ApiClient apiClient) {
+    public PunishCommand(@NotNull ProxyServer proxyServer, @NotNull ApiClient apiClient, @NotNull RedisSyncService redisSyncService) {
         this.proxyServer = proxyServer;
         this.punishProfileApi = new PunishProfileApi(apiClient);
         this.punishmentApi = new PunishmentApi(apiClient);
         this.punishmentTemplatesApi = new PunishmentTemplatesApi(apiClient);
         this.playerApi = new PlayerApi(apiClient);
+        this.redisSyncService = redisSyncService;
+    }
+
+    /**
+     * The template list for tab completion: the backend's shared cache when it holds one, otherwise
+     * the API, whose listing repopulates that cache for the next keystroke.
+     */
+    private List<PunishTemplateDTO> allTemplatesForSuggestions() throws ApiException {
+        Optional<String> cached = this.redisSyncService.readCachedTemplateList();
+        if (cached.isPresent()) {
+            try {
+                return this.objectMapper.readValue(cached.get(), new TypeReference<List<PunishTemplateDTO>>() {
+                });
+            } catch (JsonProcessingException e) {
+                LOGGER.warn("Cached template list is unreadable, falling back to the API: {}", e.getMessage());
+            }
+        }
+        return this.punishmentTemplatesApi.getAllTemplates(Pageable.builder().build());
     }
 
     @Command("blackhole <user> ban <template>")
@@ -204,7 +228,7 @@ public final class PunishCommand {
         if (context.contains(BlackholeVelocity.PUNISH_TYPE_KEY)) {
             PunishType type = context.get(BlackholeVelocity.PUNISH_TYPE_KEY);
             try {
-                return this.punishmentTemplatesApi.getAllTemplates(Pageable.builder().build())
+                return allTemplatesForSuggestions()
                         .stream()
                         .filter(template -> template.getType() == type)
                         .map(PunishTemplateDTO::getReason)
@@ -216,7 +240,7 @@ public final class PunishCommand {
             }
         }
         try {
-            return this.punishmentTemplatesApi.getAllTemplates(Pageable.builder().build())
+            return allTemplatesForSuggestions()
                     .stream()
                     .map(PunishTemplateDTO::getReason)
                     .filter(reason -> reason.toLowerCase().contains(s.toLowerCase()))

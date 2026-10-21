@@ -17,6 +17,12 @@ final class RedisTopology {
         return "blackhole:punish:chatban:" + owner;
     }
 
+    /**
+     * The backend's full punishment template list in the shared cache, which the backend
+     * refreshes whenever it lists templates. Read here for tab completion only.
+     */
+    static final String TEMPLATES_ALL_KEY = "blackhole:cache:v1:templates:all";
+
     private RedisTopology() {
         throw new UnsupportedOperationException("This class cannot be instantiated");
     }

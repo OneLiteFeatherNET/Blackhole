@@ -25,7 +25,6 @@ dependencies {
     implementation(mn.micronaut.management)
     implementation(mn.micronaut.micrometer.core)
     implementation(mn.micronaut.micrometer.registry.prometheus)
-    implementation(mn.micronaut.cache.caffeine)
     implementation(mn.micronaut.data.spring.jpa)
     implementation(mn.micronaut.serde.jackson)
     implementation(mn.micronaut.hibernate.jpa)

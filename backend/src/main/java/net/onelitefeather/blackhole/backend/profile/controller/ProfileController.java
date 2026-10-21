@@ -1,6 +1,5 @@
 package net.onelitefeather.blackhole.backend.profile.controller;
 
-import net.onelitefeather.blackhole.backend.profile.CacheInvalidationPublisher;
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
@@ -8,6 +7,7 @@ import net.onelitefeather.blackhole.backend.profile.dto.PunishProfileDTO;
 import net.onelitefeather.blackhole.backend.profile.dto.PunishProfileRequestDTO;
 import net.onelitefeather.blackhole.backend.profile.dto.PunishProfileResponse;
 import net.onelitefeather.blackhole.backend.profile.dto.SessionInfoDTO;
+import net.onelitefeather.blackhole.backend.punishment.dto.PunishEntryDTO;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
@@ -34,6 +34,9 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentExpiry;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 @Version(ApiVersion.V1)
 @Controller("/profile")
@@ -42,27 +45,23 @@ public class ProfileController {
     private final PunishmentProfileRepository repository;
     private final DomainEventPublisher eventPublisher;
     private final ProfileCache profileCache;
-    private final CacheInvalidationPublisher cacheInvalidationPublisher;
 
     /**
      * Create a new ProfileController.
      *
-     * @param repository                 the repository to use
-     * @param eventPublisher             publishes domain events for successful writes
-     * @param profileCache               the hot-path profile-by-owner read cache
-     * @param cacheInvalidationPublisher invalidates the cache locally and across replicas on writes
+     * @param repository     the repository to use
+     * @param eventPublisher publishes domain events for successful writes
+     * @param profileCache   the hot-path profile-by-owner read cache, evicted on every write
      */
     @Inject
     public ProfileController(
             PunishmentProfileRepository repository,
             DomainEventPublisher eventPublisher,
-            ProfileCache profileCache,
-            CacheInvalidationPublisher cacheInvalidationPublisher
+            ProfileCache profileCache
     ) {
         this.repository = repository;
         this.eventPublisher = eventPublisher;
         this.profileCache = profileCache;
-        this.cacheInvalidationPublisher = cacheInvalidationPublisher;
     }
 
     /**
@@ -91,7 +90,7 @@ public class ProfileController {
     public HttpResponse<PunishProfileResponse> add(@Body @Valid PunishProfileRequestDTO profileEntity) {
         PunishmentProfileEntity entity = PunishmentProfileEntity.toEntity(profileEntity);
         PunishmentProfileEntity savedEntity = this.repository.save(entity);
-        this.cacheInvalidationPublisher.invalidate(profileEntity.owner());
+        this.profileCache.evict(profileEntity.owner());
         this.eventPublisher.publish("profile.created", Map.of(
                 "owner", profileEntity.owner()
         ));
@@ -141,7 +140,7 @@ public class ProfileController {
         }
         PunishmentProfileEntity entity = PunishmentProfileEntity.toEntity(profileEntity);
         PunishmentProfileEntity savedEntity = this.repository.update(entity);
-        this.cacheInvalidationPublisher.invalidate(owner);
+        this.profileCache.evict(owner);
         this.eventPublisher.publish("profile.updated", Map.of(
                 "owner", owner
         ));
@@ -189,7 +188,7 @@ public class ProfileController {
             return HttpResponse.badRequest(new PunishProfileResponse.ErrorResponse("There is no profile linked to the given owner"));
         }
         this.repository.delete(entity);
-        this.cacheInvalidationPublisher.invalidate(owner);
+        this.profileCache.evict(owner);
         this.eventPublisher.publish("profile.deleted", Map.of(
                 "owner", owner
         ));
@@ -258,13 +257,15 @@ public class ProfileController {
     public HttpResponse<PunishProfileResponse> getById(
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner
     ) {
-        boolean cacheHit = this.profileCache.get(owner).isPresent();
-        var entity = cacheHit ? this.profileCache.get(owner).orElse(null) : this.repository.findById(owner).orElse(null);
+        // A cached profile holding an already-expired punishment is treated as a miss, so the
+        // database path below still rotates it into history and publishes punishment.expired.
+        Optional<PunishProfileDTO> cached = this.profileCache.get(owner).filter(profile -> !hasExpiredPunishment(profile));
+        if (cached.isPresent()) {
+            return HttpResponse.ok(cached.get());
+        }
+        PunishmentProfileEntity entity = this.repository.findById(owner).orElse(null);
         if (entity == null) {
             return HttpResponse.notFound(new PunishProfileResponse.ErrorResponse("There is no profile linked to the given owner"));
-        }
-        if (!cacheHit) {
-            this.profileCache.put(owner, entity);
         }
         PunishmentEntity activeBan = entity.getActiveBan();
         PunishmentEntity activeChatBan = entity.getActiveChatBan();
@@ -283,9 +284,18 @@ public class ProfileController {
         }
         if (expired) {
             entity = this.repository.update(entity);
-            this.profileCache.put(owner, entity);
         }
-        return HttpResponse.ok(entity.toDTO());
+        PunishProfileDTO dto = entity.toDTO();
+        this.profileCache.put(owner, dto);
+        return HttpResponse.ok(dto);
+    }
+
+    private static boolean hasExpiredPunishment(PunishProfileDTO profile) {
+        return Stream.of(profile.activeBan(), profile.activeChatBan())
+                .filter(Objects::nonNull)
+                .flatMap(Optional::stream)
+                .map(PunishEntryDTO::metaData)
+                .anyMatch(PunishmentExpiry::isExpired);
     }
 
     private void publishExpired(String owner, PunishmentEntity expired) {

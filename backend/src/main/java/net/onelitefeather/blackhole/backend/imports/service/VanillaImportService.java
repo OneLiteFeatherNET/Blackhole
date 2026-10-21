@@ -8,11 +8,12 @@ import io.micronaut.core.type.Argument;
 import io.micronaut.json.JsonMapper;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
-import net.onelitefeather.blackhole.backend.profile.CacheInvalidationPublisher;
+import net.onelitefeather.blackhole.backend.profile.ProfileCache;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateCache;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishType;
@@ -60,7 +61,8 @@ public class VanillaImportService {
     private final PunishmentRepository punishmentRepository;
     private final PunishmentProfileRepository profileRepository;
     private final DomainEventPublisher eventPublisher;
-    private final CacheInvalidationPublisher cacheInvalidationPublisher;
+    private final ProfileCache profileCache;
+    private final PunishmentTemplateCache punishmentTemplateCache;
 
     public VanillaImportService(
             JsonMapper jsonMapper,
@@ -68,14 +70,16 @@ public class VanillaImportService {
             PunishmentRepository punishmentRepository,
             PunishmentProfileRepository profileRepository,
             DomainEventPublisher eventPublisher,
-            CacheInvalidationPublisher cacheInvalidationPublisher
+            ProfileCache profileCache,
+            PunishmentTemplateCache punishmentTemplateCache
     ) {
         this.jsonMapper = jsonMapper;
         this.templateRepository = templateRepository;
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
         this.eventPublisher = eventPublisher;
-        this.cacheInvalidationPublisher = cacheInvalidationPublisher;
+        this.profileCache = profileCache;
+        this.punishmentTemplateCache = punishmentTemplateCache;
     }
 
     public VanillaImportResultDTO importVanillaBans(byte[] bannedPlayersJson, byte[] bannedIpsJson, boolean dryRun) throws IOException {
@@ -155,7 +159,7 @@ public class VanillaImportService {
                 this.profileRepository.update(profile);
             }
 
-            this.cacheInvalidationPublisher.invalidate(owner);
+            this.profileCache.evict(owner);
             this.eventPublisher.publish("punishment.created", Map.of(
                     "owner", owner,
                     "punishmentIdentifier", savedPunishment.getIdentifier(),
@@ -211,9 +215,13 @@ public class VanillaImportService {
 
     private PunishmentTemplateEntity findOrCreateTemplate(String reason, Map<String, PunishmentTemplateEntity> templateCache) {
         return templateCache.computeIfAbsent(reason, r -> this.templateRepository.findByReasonAndType(r, PunishType.NETWORK)
-                .orElseGet(() -> this.templateRepository.save(new PunishmentTemplateEntity(
-                        null, r, PunishType.NETWORK, 0, Map.of("imported", true, "importSource", "vanilla")
-                ))));
+                .orElseGet(() -> {
+                    PunishmentTemplateEntity created = this.templateRepository.save(new PunishmentTemplateEntity(
+                            null, r, PunishType.NETWORK, 0, Map.of("imported", true, "importSource", "vanilla")
+                    ));
+                    this.punishmentTemplateCache.evictList();
+                    return created;
+                }));
     }
 
     private Optional<Long> parseExpiration(String expires) {

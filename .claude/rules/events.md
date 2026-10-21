@@ -8,10 +8,11 @@ paths:
 `events/` — Domain event bus over RabbitMQ. `BlackholeRabbitTopology` declares exchanges at
 channel-creation time (not via config, since this Micronaut RabbitMQ version lacks declarative
 exchange config): a topic exchange `blackhole.events` for domain events consumed by other
-services, and a fanout exchange `blackhole.cache.invalidate` for cross-replica Caffeine cache
-invalidation so the API can scale horizontally. `RedisSyncConsumer` binds a queue to specific
-routing keys (`punishment.created`/`.expired`/`.revoked`, `appeal.resolved`) on the topic
-exchange to keep a Redis-backed read model in sync.
+services. `RedisSyncConsumer` binds a queue to specific routing keys
+(`punishment.created`/`.expired`/`.revoked`, `appeal.resolved`) on the topic exchange to keep a
+Redis-backed read model in sync. Hot reads are not cached here: they live in the shared cache
+(`cache/`, Dragonfly over the Redis protocol), and writers evict the keys after their DB write, so
+no cross-replica broadcast is needed.
 
 There is deliberately no generic connector/webhook/signal-ingestion framework anymore (the
 `connector/` package, `WebhookDispatchConsumer`, `WebhookUrlValidator`, and `EloSignalConsumer`
