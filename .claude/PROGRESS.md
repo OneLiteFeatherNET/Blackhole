@@ -18,7 +18,9 @@
 
 ## Active
 
-_(nothing in flight right now)_
+- OpenSpec changes proposed, awaiting review before `/opsx:apply` (apply in this order):
+  1. `switch-to-postgresql` 2. `adopt-dragonfly-cache` 3. `staff-temp-bans-elo-escalation`
+  4. `add-admin-web-ui`. No implementation started yet. Build needs a JDK 25 (`JAVA_HOME`).
 
 ## Backlog
 
