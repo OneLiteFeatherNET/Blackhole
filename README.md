@@ -32,7 +32,7 @@ network/deployment level (firewalling, private networking), not by the applicati
 
 ### Tech stack
 
-- **Backend**: Java 21+, [Micronaut](https://micronaut.io/), Hibernate/JPA, Liquibase (MariaDB),
+- **Backend**: Java 21+, [Micronaut](https://micronaut.io/), Hibernate/JPA, Liquibase (PostgreSQL),
   RabbitMQ, Dragonfly (Redis protocol) as the shared cache, Micrometer + OpenTelemetry.
 - **Proxy plugin**: [Velocity](https://velocitypowered.com/).
 - **Build**: Gradle (Kotlin DSL), multi-module.
@@ -41,7 +41,7 @@ network/deployment level (firewalling, private networking), not by the applicati
 
 ## Local development
 
-A `docker-compose.yml` under `docker/` provides MariaDB, RabbitMQ and Dragonfly (Redis protocol,
+A `docker-compose.yml` under `docker/` provides PostgreSQL, RabbitMQ and Dragonfly (Redis protocol,
 used for proxy sync and the shared cache):
 
 ```shell
@@ -60,7 +60,7 @@ Key environment variables (all have local-dev defaults, see
 
 | Variable                          | Purpose                                                             |
 |------------------------------------|-----------------------------------------------------------------------|
-| `JDBC_URL` / `JDBC_USER` / `JDBC_PASSWORD` | MariaDB connection (defaults match `docker/docker-compose.yml`). |
+| `JDBC_URL` / `JDBC_USER` / `JDBC_PASSWORD` | PostgreSQL connection (defaults match `docker/docker-compose.yml`). |
 | `RABBITMQ_HOST` / `RABBITMQ_USER` / `RABBITMQ_PASSWORD` | RabbitMQ connection.                              |
 | `REDIS_URI`                       | Redis-protocol server (Dragonfly) for proxy sync and the shared cache. |
 | `BLACKHOLE_EVASION_IP_SALT`       | Required for ban-evasion detection; that feature returns `503` until it's set. |

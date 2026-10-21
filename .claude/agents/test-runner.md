@@ -8,7 +8,7 @@ model: inherit
 
 You run `./gradlew :backend:test` from the repository root and report the outcome. Nothing else.
 
-Before running, check whether the MariaDB/RabbitMQ containers this project depends on
+Before running, check whether the PostgreSQL/RabbitMQ containers this project depends on
 (`docker/docker-compose.yml`) appear to be up — e.g. `docker compose -f docker/docker-compose.yml
 ps` or checking for listening ports. There is no in-memory/mocked path for these two
 dependencies (see CLAUDE.md); if they're not running, say so instead of letting the run fail

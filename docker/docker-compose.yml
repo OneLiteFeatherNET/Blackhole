@@ -1,16 +1,17 @@
 # docker compose up -d
 services:
-  mariadb:
-    image: mariadb
-    container_name: 'mariadb_blackhole'
+  postgres:
+    image: postgres:18-alpine
+    container_name: 'postgres_blackhole'
     ports:
-      - "3336:3306"
+      - "5432:5432"
     shm_size: 128mb
     environment:
-      MARIADB_ROOT_PASSWORD: blackhole
-      MARIADB_DATABASE: blackhole
+      POSTGRES_USER: blackhole
+      POSTGRES_PASSWORD: blackhole
+      POSTGRES_DB: blackhole
     volumes:
-      - ./mariadb/data/:/var/lib/mysql
+      - ./postgres/data/:/var/lib/postgresql/data
     networks:
       - blackhole_go_net
   rabbitmq:
