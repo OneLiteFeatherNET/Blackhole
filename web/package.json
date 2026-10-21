@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "predev": "npm run generate",
-    "build": "vue-tsc -b && vite build",
+    "build": "vue-tsc --noEmit && vite build",
     "prebuild": "npm run generate",
     "preview": "vite preview",
     "test": "vitest run",
@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "generate:api": "openapi-typescript ../client/specs/blackhole-api-0.0.11.yml -o src/api/schema.d.ts",
     "generate": "node scripts/generate-md3-tokens.mjs && npm run generate:api",
-    "typecheck": "vue-tsc --noEmit -p tsconfig.app.json"
+    "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@fontsource/roboto": "^5.3.0",
