@@ -19,5 +19,19 @@ jobs:
         with:
           distribution: temurin
           java-version: 25
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
       - name: Build on ${{ matrix.os }}
         run: ./gradlew clean build
+
+  web_image:
+    if: github.repository_owner == 'OneLiteFeatherNET'
+    name: Build web image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Build the admin web UI image
+        run: docker build -f web/Dockerfile -t blackhole-web:pr .

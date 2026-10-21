@@ -1,0 +1,390 @@
+{
+  "nav": {
+    "label": "Main navigation",
+    "skip": "Skip to content",
+    "dashboard": "Dashboard",
+    "players": "Players",
+    "templates": "Templates",
+    "sections": "Sections",
+    "reports": "Reports",
+    "appeals": "Appeals"
+  },
+  "settings": {
+    "theme": {
+      "label": "Theme",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "locale": {
+      "label": "Language"
+    },
+    "actingAs": {
+      "label": "Acting as"
+    }
+  },
+  "state": {
+    "loading": "Loading",
+    "retry": "Retry",
+    "error": {
+      "VALIDATION": "The request was rejected",
+      "NOT_FOUND": "Not found",
+      "CONFLICT": "Conflicts with the current state",
+      "NETWORK": "The backend could not be reached",
+      "UNKNOWN": "Something went wrong"
+    }
+  },
+  "dashboard": {
+    "counters": "Key figures",
+    "openReports": "Open reports",
+    "pendingAppeals": "Pending appeals",
+    "escalations7d": "Escalations in 7 days",
+    "active": "Active punishments per section",
+    "latest": "Latest automatic permanent punishments",
+    "empty": "No automatic permanent punishments yet.",
+    "escalations": {
+      "section": "Section",
+      "player": "Player",
+      "when": "When",
+      "status": "Status",
+      "lifted": "Lifted",
+      "standing": "In force"
+    }
+  },
+  "scoreBar": {
+    "zone": {
+      "healthy": "healthy",
+      "soft": "soft zone",
+      "permanent": "permanent zone"
+    },
+    "valueText": "{score} - {zone}, permanent threshold {permanent}",
+    "valueTextSoft": "{score} - {zone}, soft threshold {soft}, permanent threshold {permanent}",
+    "soft": "Soft threshold {value}",
+    "permanent": "Permanent threshold {value}"
+  },
+  "enforcement": {
+    "MUTE": "Mute",
+    "BAN": "Ban",
+    "SERVER": "Server ban"
+  },
+  "elo": {
+    "reason": {
+      "TOXICITY_FLAG": "Toxic chat",
+      "ANTICHEAT_FLAG": "Anti-cheat flag",
+      "REPORT_ACTIONED": "Report actioned",
+      "MANUAL_ADJUSTMENT": "Manual adjustment",
+      "DECAY_RECOVERY": "Recovery over time",
+      "THRESHOLD_BAN": "Permanent threshold crossed",
+      "PUNISHMENT_APPLIED": "Punishment applied",
+      "REPORT_REWARDED": "Report rewarded",
+      "PARDON_RESET": "Reset after pardon",
+      "APPEAL_REFUND": "Refund after appeal"
+    }
+  },
+  "players": {
+    "intro": "Look up a player by their current Minecraft name. Names are only used for this lookup and are not stored.",
+    "name": "Player name",
+    "nameHint": "3 to 16 letters, digits or underscores",
+    "invalidName": "Enter a valid name: 3 to 16 letters, digits or underscores.",
+    "notFound": "No player named \"{name}\" was found.",
+    "search": "Look up"
+  },
+  "player": {
+    "backToSearch": "Back to search",
+    "invalidOwner": "This is not a valid player identifier.",
+    "scores": "Scores per section",
+    "scoreOf": "{section}: score {score}",
+    "active": "Active punishments",
+    "noActive": "No active punishments.",
+    "history": "Punishment history",
+    "noHistory": "No punishments so far.",
+    "eloHistory": "ELO history",
+    "noEloHistory": "No ELO changes recorded for this section.",
+    "permanent": "Permanent",
+    "temporary": "Temporary",
+    "automatic": "Automatic",
+    "lifted": "Lifted",
+    "ended": "Ended",
+    "noReason": "No reason recorded",
+    "step": "Escalation step",
+    "until": "Until",
+    "since": "Since",
+    "columns": {
+      "when": "When",
+      "section": "Section",
+      "reason": "Reason",
+      "step": "Step",
+      "cost": "ELO cost",
+      "status": "Status",
+      "delta": "Change",
+      "score": "Score after"
+    }
+  },
+  "actions": {
+    "cancel": "Cancel",
+    "apply": {
+      "open": "Apply template",
+      "title": "Apply template",
+      "template": "Template",
+      "choose": "Choose a template",
+      "loadingPreview": "Calculating the effect",
+      "step": "Escalation step {step} of {count}",
+      "stepDetail": "Duration {duration}, costs {cost} ELO",
+      "score": "Score in {section}: {before} to {after}",
+      "warning": "After this the player will be punished permanently in {section}: the score {after} is below the permanent threshold {threshold}.",
+      "confirm": "Apply",
+      "done": "Applied step {step} of {count}; the score is now {after}.",
+      "doneEscalated": "Applied; the player is now permanently punished in {section}.",
+      "noTemplates": "There are no templates yet."
+    },
+    "revoke": {
+      "open": "Revoke",
+      "title": "Revoke punishment in {section}",
+      "body": "The active punishment in {section} ends and moves to the history.",
+      "resets": "The punishment is permanent: the score in {section} is reset to the pardon score {pardon}.",
+      "confirm": "Revoke",
+      "done": "Revoked.",
+      "doneReset": "Revoked; the score in {section} is now {score}."
+    },
+    "adjust": {
+      "open": "Adjust score",
+      "title": "Adjust score in {section}",
+      "delta": "Change",
+      "deltaHint": "Negative lowers the score, positive raises it",
+      "note": "Note",
+      "noteHint": "Required; recorded with the change",
+      "invalidDelta": "Enter a whole number other than 0.",
+      "noteRequired": "A note is required.",
+      "preview": "Score in {section}: {before} to {after}",
+      "permanent": "Warning: the new score {after} is below the permanent threshold {threshold}. The player will be punished permanently in {section}.",
+      "soft": "The score falls below the soft threshold {threshold}. The player will receive an automatic temporary punishment in {section}.",
+      "confirm": "Adjust",
+      "done": "Score adjusted to {after}.",
+      "doneEscalated": "Score adjusted to {after}; the player is now permanently punished in {section}."
+    }
+  },
+  "templates": {
+    "title": "Punishment templates",
+    "intro": "Templates describe the punishments staff can apply. Each template lists escalation steps: the nth offence in its group uses the nth step.",
+    "new": "New template",
+    "edit": "Edit",
+    "empty": "There are no templates yet.",
+    "saved": "Template saved.",
+    "deleted": "Template deleted.",
+    "stepCount": "no steps | 1 step | {count} steps",
+    "columns": {
+      "key": "Key",
+      "reason": "Reason",
+      "section": "Section",
+      "group": "Escalation group",
+      "steps": "Steps (duration / ELO cost)",
+      "actions": "Actions"
+    },
+    "delete": {
+      "open": "Delete",
+      "title": "Delete template {key}?",
+      "body": "The template can no longer be applied. This cannot be undone.",
+      "confirm": "Delete",
+      "inUse": "The template is still in use: punishments that came from it exist, so it cannot be deleted."
+    },
+    "editor": {
+      "newTitle": "New template",
+      "editTitle": "Edit template {key}",
+      "key": "Key",
+      "keyHint": "Kebab-case, e.g. hacking",
+      "section": "Section",
+      "reason": "Reason",
+      "group": "Escalation group",
+      "groupHint": "Optional; defaults to the key",
+      "window": "Escalation window",
+      "windowHint": "Optional; how long an offence counts towards the next step, e.g. 90d",
+      "steps": "Escalation steps",
+      "stepsHint": "The first offence in the group uses step 1, the next step 2, and so on; the last step repeats.",
+      "duration": "Duration (step {n})",
+      "durationHint": "e.g. 30m, 12h, 3d or 1w 2d",
+      "cost": "ELO cost (step {n})",
+      "invalidCost": "Enter a whole number of 0 or more.",
+      "moveUp": "Move step {n} up",
+      "moveDown": "Move step {n} down",
+      "remove": "Remove step {n}",
+      "addStep": "Add step",
+      "save": "Save",
+      "sectionHint": "The ELO section this template charges and punishes in",
+      "sectionDisabled": "Disabled",
+      "reasonHint": "Shown to the player",
+      "advanced": "Advanced",
+      "advancedHint": "Offences in the same escalation group count together: each new offence within the window moves one step up. Without a group the key is used and the default window applies. Most templates need neither.",
+      "step": "Step {n}",
+      "costHint": "Deducted",
+      "summaryTitle": "What this means",
+      "summaryStep": "Offence {n}: {duration}, −{cost} ELO",
+      "summaryRepeat": "Further offences repeat the last step.",
+      "summaryStepFree": "Offence {n}: {duration}, no ELO cost"
+    }
+  },
+  "sections": {
+    "title": "Sections",
+    "intro": "A section is an area with its own ELO score and thresholds. Crossing them punishes automatically: below the soft threshold temporarily, below the permanent threshold permanently.",
+    "new": "New section",
+    "edit": "Edit",
+    "saved": "Section saved.",
+    "disabled": "Section disabled.",
+    "disabledPill": "Disabled",
+    "base": "Base",
+    "pardon": "Pardon",
+    "decay": "Recovery/day",
+    "soft": "Soft",
+    "permanent": "Permanent",
+    "columns": {
+      "section": "Section",
+      "enforcement": "Enforcement",
+      "servers": "Server patterns",
+      "scores": "Scores",
+      "thresholds": "Thresholds",
+      "actions": "Actions"
+    },
+    "disable": {
+      "open": "Disable",
+      "title": "Disable section {key}?",
+      "body": "No new punishments or score changes are possible in a disabled section. Running punishments continue. You can enable it again by editing it.",
+      "confirm": "Disable"
+    },
+    "editor": {
+      "newTitle": "New section",
+      "editTitle": "Edit section {key}",
+      "key": "Key",
+      "keyHint": "Kebab-case; cannot be changed later",
+      "name": "Name",
+      "enforcement": "Enforcement",
+      "servers": "Server patterns",
+      "serversHint": "Comma-separated, * and ? as wildcards, e.g. bedwars-*, bw-?",
+      "thresholds": "Scores and thresholds",
+      "baseScore": "Base score",
+      "baseScoreHint": "Where every player starts and recovers to",
+      "pardonScore": "Pardon score",
+      "pardonScoreHint": "Score after a permanent punishment is revoked",
+      "softThreshold": "Soft threshold",
+      "softThresholdHint": "Optional; falling below it punishes temporarily",
+      "softDuration": "Soft punishment duration",
+      "softDurationHint": "e.g. 3d; needs a soft threshold",
+      "permanentThreshold": "Permanent threshold",
+      "permanentThresholdHint": "Falling below it punishes permanently",
+      "decayPerDay": "Decay per day",
+      "decayHint": "Score recovered per day",
+      "permanentReason": "Permanent reason",
+      "permanentReasonHint": "Shown to the player when the automatic permanent punishment applies",
+      "enabled": "Section enabled",
+      "enabledHint": "Disabled sections accept no new punishments or score changes",
+      "invalidNumber": "Enter a whole number.",
+      "save": "Save"
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "filter": "Which reports to show",
+    "filterOpen": "Open",
+    "filterAll": "All",
+    "empty": "No open reports.",
+    "resolved": "Report resolved.",
+    "columns": {
+      "when": "Received",
+      "category": "Category",
+      "reported": "Reported player",
+      "reporter": "Reporter",
+      "description": "Description",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "category": {
+      "CHAT_ABUSE": "Chat abuse",
+      "CHEATING": "Cheating",
+      "GRIEFING": "Griefing",
+      "OTHER": "Other"
+    },
+    "status": {
+      "OPEN": "Open",
+      "UNDER_REVIEW": "Under review",
+      "ACTIONED": "Actioned",
+      "DISMISSED": "Dismissed"
+    },
+    "resolve": {
+      "open": "Resolve",
+      "title": "Resolve report",
+      "about": "Report about {player}",
+      "decisionLabel": "Decision",
+      "choose": "Choose a decision",
+      "decision": {
+        "ACTIONED": "Take action",
+        "DISMISSED": "Dismiss",
+        "UNDER_REVIEW": "Mark as under review"
+      },
+      "template": "Punishment template",
+      "noPunishment": "No punishment",
+      "templateHint": "The template is applied to the reported player right away.",
+      "note": "Note",
+      "noteHint": "Optional; recorded with the decision",
+      "confirm": "Save decision"
+    }
+  },
+  "appeals": {
+    "title": "Appeals",
+    "filter": "Which appeals to show",
+    "filterPending": "Pending",
+    "filterAll": "All",
+    "empty": "No pending appeals.",
+    "decided": "Appeal decided.",
+    "columns": {
+      "when": "Received",
+      "appellant": "Player",
+      "punishment": "Punishment",
+      "statement": "Statement",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "SUBMITTED": "Submitted",
+      "ELIGIBLE_PENDING_REVIEW": "Awaiting review",
+      "IN_REVIEW": "In review",
+      "GRANTED_FULL_LIFT": "Lifted",
+      "GRANTED_DURATION_REDUCTION": "Shortened",
+      "DENIED": "Denied",
+      "INELIGIBLE": "Not eligible"
+    },
+    "errors": {
+      "selfReview": "The reviewer is the one who issued the punishment. Configure a different reviewer UUID for the UI (see the web README) or let someone else decide.",
+      "notAwaiting": "The appeal is no longer awaiting a decision, or the punishment is no longer active. Reload the queue.",
+      "notFound": "The appeal does not exist any more."
+    },
+    "decide": {
+      "open": "Decide",
+      "title": "Decide appeal",
+      "decisionLabel": "Decision",
+      "choose": "Choose a decision",
+      "decision": {
+        "GRANTED_FULL_LIFT": "Lift the punishment completely",
+        "GRANTED_DURATION_REDUCTION": "Shorten the punishment",
+        "DENIED": "Deny the appeal"
+      },
+      "newEnd": "New end",
+      "newEndHint": "Must be in the future and before the current end",
+      "endRequired": "Choose when the punishment should end.",
+      "note": "Note",
+      "noteHint": "Optional; recorded with the decision",
+      "confirm": "Save decision"
+    }
+  },
+  "duration": {
+    "hint": "e.g. 30m, 12h, 3d or 1w 2d",
+    "preview": "= {text}",
+    "quickPicks": "Quick values",
+    "errors": {
+      "empty": "Enter a duration.",
+      "invalid": "Not a duration. Try 30m, 12h, 3d or 1w 2d.",
+      "missingUnit": "Add a unit: s, m, h, d or w, e.g. 30m.",
+      "unsupportedUnit": "Months and years are not supported because their length varies. Use days or weeks, e.g. 30d.",
+      "duplicateUnit": "Use each unit once, e.g. 1h 30m.",
+      "zero": "The duration must be longer than zero.",
+      "tooLarge": "Too long. The maximum is 10 years (3650d); use a permanent punishment instead."
+    }
+  }
+}

@@ -97,3 +97,4 @@ include("client")
 include("velocity")
 
 include("phoca")
+include("web")

@@ -109,45 +109,73 @@ public class PunishmentApplicationService implements SectionPunisher {
     }
 
     /**
-     * Applies a template to the owner: a temporary punishment in the template's section whose
-     * duration and ELO cost come from the escalation step the owner has reached. Creates the
-     * profile if this is their first punishment.
+     * What {@link #apply} would do for the same request right now, without changing anything: the
+     * escalation step the server selects, its cost, and whether the cost would leave the score below
+     * the section's permanent threshold. Shares every check and the step selection with
+     * {@link #apply}, so the preview cannot disagree with the application.
      *
-     * @return the {@link PunishmentDTO.ApplyResponse}, or a {@link PunishmentDTO.Error} for an
-     * invalid request, an unknown template or section, a disabled section, or an owner that is
-     * already permanently punished in the section - in every error case nothing changed
+     * @return the {@link PunishmentDTO.PreviewResponse}, or the {@link PunishmentDTO.Error} {@link #apply} would answer
      */
-    public PunishmentDTO apply(PunishmentDTO.ApplyRequest request) {
+    public PunishmentDTO preview(PunishmentDTO.ApplyRequest request) {
+        Planned planned = plan(request);
+        if (planned.error() != null) {
+            return planned.error();
+        }
+        SectionDTO.Response section = planned.plan().section();
+        StepSelector.Selection selection = planned.plan().selection();
+        int cost = selection.step().getEloCost();
+        int scoreBefore = this.eloScoring.get().score(request.owner(), section.key()).orElse(section.baseScore());
+        int scoreAfter = scoreBefore - cost;
+        return new PunishmentDTO.PreviewResponse(
+                section.key(), section.enforcement(), selection.index() + 1, selection.stepCount(),
+                selection.step().getDuration(), cost, scoreBefore, scoreAfter, section.permanentThreshold(),
+                cost > 0 && scoreAfter < section.permanentThreshold()
+        );
+    }
+
+    /** Everything {@link #apply} and {@link #preview} agree on before they diverge. */
+    private record Plan(PunishmentTemplateEntity template, SectionDTO.Response section, long now, String group, StepSelector.Selection selection) {
+    }
+
+    private record Planned(Plan plan, PunishmentDTO.Error error) {
+    }
+
+    private static Planned failed(ErrorKind kind, String message) {
+        return new Planned(null, new PunishmentDTO.Error(message, kind));
+    }
+
+    /** Validates the request and selects the escalation step, or says why the template cannot be applied. */
+    private Planned plan(PunishmentDTO.ApplyRequest request) {
         if (!OwnerHash.isValid(request.owner())) {
-            return error(ErrorKind.VALIDATION, "owner must be a sha-512 hash");
+            return failed(ErrorKind.VALIDATION, "owner must be a sha-512 hash");
         }
         if (request.source() == null) {
-            return error(ErrorKind.VALIDATION, "source is required");
+            return failed(ErrorKind.VALIDATION, "source is required");
         }
         boolean hasKey = request.templateKey() != null && !request.templateKey().isBlank();
         if (hasKey == (request.templateId() != null)) {
-            return error(ErrorKind.VALIDATION, "exactly one of templateKey and templateId is required");
+            return failed(ErrorKind.VALIDATION, "exactly one of templateKey and templateId is required");
         }
 
         PunishmentTemplateEntity template = (hasKey
                 ? this.templateRepository.findByTemplateKey(request.templateKey())
                 : this.templateRepository.findById(request.templateId())).orElse(null);
         if (template == null) {
-            return error(ErrorKind.NOT_FOUND, "there is no such punishment template");
+            return failed(ErrorKind.NOT_FOUND, "there is no such punishment template");
         }
         SectionDTO.Response section = this.sectionService.find(template.getSectionKey()).orElse(null);
         if (section == null) {
-            return error(ErrorKind.NOT_FOUND, "the template's section '" + template.getSectionKey() + "' does not exist");
+            return failed(ErrorKind.NOT_FOUND, "the template's section '" + template.getSectionKey() + "' does not exist");
         }
         if (!section.enabled()) {
-            return error(ErrorKind.CONFLICT, "section '" + section.key() + "' is disabled");
+            return failed(ErrorKind.CONFLICT, "section '" + section.key() + "' is disabled");
         }
 
         String owner = request.owner();
         PunishmentProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
         PunishmentEntity current = profile == null ? null : profile.getActive().get(section.key());
         if (current != null && current.isPermanent()) {
-            return error(ErrorKind.CONFLICT, "the player is already permanently punished in section '" + section.key() + "'");
+            return failed(ErrorKind.CONFLICT, "the player is already permanently punished in section '" + section.key() + "'");
         }
 
         long now = this.clock.millis();
@@ -157,6 +185,29 @@ public class PunishmentApplicationService implements SectionPunisher {
                 owner, group, now - window.toMillis()
         );
         StepSelector.Selection selection = StepSelector.select(template.getSteps(), counted);
+        return new Planned(new Plan(template, section, now, group, selection), null);
+    }
+
+    /**
+     * Applies a template to the owner: a temporary punishment in the template's section whose
+     * duration and ELO cost come from the escalation step the owner has reached. Creates the
+     * profile if this is their first punishment.
+     *
+     * @return the {@link PunishmentDTO.ApplyResponse}, or a {@link PunishmentDTO.Error} for an
+     * invalid request, an unknown template or section, a disabled section, or an owner that is
+     * already permanently punished in the section - in every error case nothing changed
+     */
+    public PunishmentDTO apply(PunishmentDTO.ApplyRequest request) {
+        Planned planned = plan(request);
+        if (planned.error() != null) {
+            return planned.error();
+        }
+        PunishmentTemplateEntity template = planned.plan().template();
+        SectionDTO.Response section = planned.plan().section();
+        String owner = request.owner();
+        long now = planned.plan().now();
+        String group = planned.plan().group();
+        StepSelector.Selection selection = planned.plan().selection();
         int cost = selection.step().getEloCost();
 
         Map<String, Object> metadata = new HashMap<>();
