@@ -8,10 +8,10 @@ import io.micronaut.context.annotation.Value;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.inject.Singleton;
-import net.onelitefeather.blackhole.backend.elo.EloProfileEntity;
-import net.onelitefeather.blackhole.backend.elo.EloProfileRepository;
+import net.onelitefeather.blackhole.backend.elo.EloScoring;
 import net.onelitefeather.blackhole.backend.elo.service.EloService;
-import net.onelitefeather.blackhole.backend.elo.EloTrack;
+import net.onelitefeather.blackhole.backend.section.SectionService;
+import net.onelitefeather.blackhole.backend.section.dto.SectionDTO;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishType;
@@ -34,32 +34,32 @@ import java.util.Optional;
 @Singleton
 public class AppealEligibilityService {
 
-    public static final int CHECKLIST_VERSION = 1;
+    public static final int CHECKLIST_VERSION = 2;
 
     private final AppealRepository appealRepository;
     private final PunishmentRepository punishmentRepository;
-    private final EloProfileRepository eloProfileRepository;
+    private final EloScoring eloScoring;
+    private final SectionService sectionService;
     private final int minDaysManual;
     private final int minDaysAuto;
     private final int repeatAppealCooldownDays;
-    private final int eloBaseline;
 
     public AppealEligibilityService(
             AppealRepository appealRepository,
             PunishmentRepository punishmentRepository,
-            EloProfileRepository eloProfileRepository,
+            EloScoring eloScoring,
+            SectionService sectionService,
             @Value("${blackhole.appeal.min-days-manual:14}") int minDaysManual,
             @Value("${blackhole.appeal.min-days-auto:3}") int minDaysAuto,
-            @Value("${blackhole.appeal.repeat-appeal-cooldown-days:7}") int repeatAppealCooldownDays,
-            @Value("${blackhole.elo.baseline:1000}") int eloBaseline
+            @Value("${blackhole.appeal.repeat-appeal-cooldown-days:7}") int repeatAppealCooldownDays
     ) {
         this.appealRepository = appealRepository;
         this.punishmentRepository = punishmentRepository;
-        this.eloProfileRepository = eloProfileRepository;
+        this.eloScoring = eloScoring;
+        this.sectionService = sectionService;
         this.minDaysManual = minDaysManual;
         this.minDaysAuto = minDaysAuto;
         this.repeatAppealCooldownDays = repeatAppealCooldownDays;
-        this.eloBaseline = eloBaseline;
     }
 
     /**
@@ -113,10 +113,17 @@ public class AppealEligibilityService {
 
         boolean severe = isSevere(punishment);
 
-        EloTrack supportingTrack = determineSupportingTrack(punishment, eloTriggerReasonCode);
-        EloProfileEntity eloProfile = this.eloProfileRepository.findById(appellantHash).orElse(null);
-        int supportingScore = eloProfile == null ? this.eloBaseline : eloProfile.getScore(supportingTrack);
-        boolean supportingRecovered = supportingScore >= this.eloBaseline;
+        String ownSection = sectionKeyOf(punishment);
+        List<SectionDTO.Response> supportingSections = this.sectionService.listEnabled().stream()
+                .filter(section -> !section.key().equals(ownSection))
+                .toList();
+        boolean supportingRecovered = true;
+        Integer lowestSupportingScore = null;
+        for (SectionDTO.Response section : supportingSections) {
+            int score = this.eloScoring.score(appellantHash, section.key()).orElse(section.baseScore());
+            lowestSupportingScore = lowestSupportingScore == null ? score : Math.min(lowestSupportingScore, score);
+            supportingRecovered &= score >= section.baseScore();
+        }
 
         boolean eligible = minTimeElapsed && !isRepeatAppeal;
 
@@ -130,8 +137,8 @@ public class AppealEligibilityService {
         checklist.put("isAutoTriggered", isAutoTriggered);
         checklist.put("eloTriggerReasonCode", eloTriggerReasonCode);
         checklist.put("severityTier", severe ? "SEVERE" : "STANDARD");
-        checklist.put("supportingEloTrack", supportingTrack.toString());
-        checklist.put("supportingEloScore", supportingScore);
+        checklist.put("supportingEloSections", supportingSections.stream().map(SectionDTO.Response::key).toList());
+        checklist.put("supportingEloScore", lowestSupportingScore);
         checklist.put("supportingEloRecovered", supportingRecovered);
         checklist.put("eligible", eligible);
 
@@ -143,18 +150,9 @@ public class AppealEligibilityService {
     }
 
     /**
-     * The track that did NOT trigger this punishment - its recovery status is a supporting
-     * good-faith signal for reviewers, not a hard gate. Falls back to inferring from the
-     * punishment's own type when the precise triggering signal isn't recorded (e.g. a manually
-     * staff-issued punishment, or a report-actioned one where either track could apply).
+     * The section a punishment belongs to. Transitional mapping from the legacy punishment type.
      */
-    private static EloTrack determineSupportingTrack(PunishmentEntity punishment, String eloTriggerReasonCode) {
-        if ("TOXICITY_FLAG".equals(eloTriggerReasonCode)) {
-            return EloTrack.GAMEPLAY;
-        }
-        if ("ANTICHEAT_FLAG".equals(eloTriggerReasonCode)) {
-            return EloTrack.CHAT;
-        }
-        return punishment.getType() == PunishType.CHAT ? EloTrack.GAMEPLAY : EloTrack.CHAT;
+    private static String sectionKeyOf(PunishmentEntity punishment) {
+        return punishment.getType() == PunishType.CHAT ? "chat" : "network";
     }
 }

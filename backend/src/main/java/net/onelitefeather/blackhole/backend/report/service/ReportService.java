@@ -11,8 +11,8 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
-import net.onelitefeather.blackhole.backend.elo.EloTrack;
-import net.onelitefeather.blackhole.backend.elo.service.EloService;
+import net.onelitefeather.blackhole.backend.elo.EloScoring;
+import net.onelitefeather.blackhole.backend.report.CategorySectionMapping;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.service.PunishmentApplicationService;
 
@@ -25,7 +25,7 @@ import java.util.UUID;
 /**
  * Owns the report lifecycle: rate-limited submission, and resolution (optionally applying a
  * punishment template to the reported player through {@link PunishmentApplicationService} and
- * feeding both ELO tracks' standing effects through {@link EloService}). Extracted from
+ * feeding the per-section ELO effects through {@link EloScoring}). Extracted from
  * {@code ReportController}, which previously inlined all of this directly - the most severe
  * layering gap found across the retroactive spec-kit review of the 6 subsystems (see
  * {@code specs/006-player-reports/plan.md}'s Constitution Check).
@@ -58,7 +58,7 @@ import java.util.UUID;
  * <p><b>Known limitation (deferred, not fixed here):</b> {@code resolve}'s chain of side effects -
  * optional punishment application, the report's own status/resolutionNote/resolvedBy/updatedAt
  * update, up to two ELO deltas, and the final event publish - is not atomic. {@code @Transactional}
- * is unusable in this codebase (see {@link EloService}'s class Javadoc for why). A failure partway
+ * is unusable in this codebase (see {@code EloService}'s class Javadoc for why). A failure partway
  * through (e.g. the report {@code update()} throwing after
  * {@code punishmentApplicationService.apply()} already succeeded) can leave a punishment applied
  * against a report that never recorded its own resolution, or an ELO delta applied without the
@@ -72,7 +72,8 @@ public class ReportService {
     private final ReportRepository reportRepository;
     private final DomainEventPublisher eventPublisher;
     private final PunishmentApplicationService punishmentApplicationService;
-    private final EloService eloService;
+    private final EloScoring eloService;
+    private final CategorySectionMapping categorySections;
     private final int rateLimitMaxReports;
     private final int rateLimitMaxReportsNetworkWide;
     private final Duration rateLimitWindow;
@@ -83,7 +84,8 @@ public class ReportService {
             ReportRepository reportRepository,
             DomainEventPublisher eventPublisher,
             PunishmentApplicationService punishmentApplicationService,
-            EloService eloService,
+            EloScoring eloService,
+            CategorySectionMapping categorySections,
             @Value("${blackhole.report.rate-limit.max-reports:5}") int rateLimitMaxReports,
             @Value("${blackhole.report.rate-limit.max-reports-network-wide:50}") int rateLimitMaxReportsNetworkWide,
             @Value("${blackhole.report.rate-limit.window:PT10M}") Duration rateLimitWindow,
@@ -94,6 +96,7 @@ public class ReportService {
         this.eventPublisher = eventPublisher;
         this.punishmentApplicationService = punishmentApplicationService;
         this.eloService = eloService;
+        this.categorySections = categorySections;
         this.rateLimitMaxReports = rateLimitMaxReports;
         this.rateLimitMaxReportsNetworkWide = rateLimitMaxReportsNetworkWide;
         this.rateLimitWindow = rateLimitWindow;
@@ -198,15 +201,11 @@ public class ReportService {
         ReportEntity saved = this.reportRepository.update(report);
 
         if (resolution.status() == ReportStatus.ACTIONED) {
-            EloTrack track = switch (report.getCategory()) {
-                case CHAT_ABUSE -> EloTrack.CHAT;
-                case CHEATING, GRIEFING -> EloTrack.GAMEPLAY;
-                case OTHER -> null;
-            };
-            if (track != null) {
+            String section = this.categorySections.sectionFor(report.getCategory()).orElse(null);
+            if (section != null) {
+                Map<String, Object> eloMetaData = Map.of("reportIdentifier", identifier.toString(), "category", report.getCategory().toString());
                 this.eloService.applyDelta(
-                        report.getReportedHash(), track, this.reportActionedDelta, EloReasonCode.REPORT_ACTIONED, null,
-                        Map.of("reportIdentifier", identifier.toString(), "category", report.getCategory().toString())
+                        report.getReportedHash(), section, this.reportActionedDelta, EloReasonCode.REPORT_ACTIONED, null, eloMetaData
                 );
 
                 // resolution.punishmentTemplateId() != null implies a punishment was actually
@@ -215,8 +214,7 @@ public class ReportService {
                 // someone, not merely when a staff member marked it ACTIONED without acting.
                 if (resolution.punishmentTemplateId() != null) {
                     this.eloService.applyDelta(
-                            report.getReporterHash(), track, this.reportRewardDelta, EloReasonCode.REPORT_REWARDED, null,
-                            Map.of("reportIdentifier", identifier.toString(), "category", report.getCategory().toString())
+                            report.getReporterHash(), section, this.reportRewardDelta, EloReasonCode.REPORT_REWARDED, null, eloMetaData
                     );
                 }
             }

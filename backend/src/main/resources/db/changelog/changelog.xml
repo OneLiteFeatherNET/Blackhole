@@ -385,4 +385,40 @@
                                  referencedTableName="punishment_sections" referencedColumnNames="section_key"/>
     </changeSet>
 
+    <!-- One ELO score per owner and punishment section. A missing row means the section's base
+         score. Replaces the chat_elo/gameplay_elo columns of elo_profiles, which are dropped by
+         drop-legacy-elo-columns once no code reads them. -->
+    <changeSet id="create-elo-scores" author="blackhole">
+        <createTable tableName="elo_scores">
+            <column name="owner" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="section_key" type="varchar(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="score" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="bigint">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="elo_scores" columnNames="owner, section_key" constraintName="pk_elo_scores"/>
+        <addForeignKeyConstraint constraintName="fk_elo_scores_section"
+                                 baseTableName="elo_scores" baseColumnNames="section_key"
+                                 referencedTableName="punishment_sections" referencedColumnNames="section_key"/>
+    </changeSet>
+
+    <!-- elo_events.track stays (nullable) for history written before sections existed; new events
+         carry section_key and leave track empty. -->
+    <changeSet id="add-section-to-elo-events" author="blackhole">
+        <addColumn tableName="elo_events">
+            <column name="section_key" type="varchar(64)"/>
+        </addColumn>
+        <createIndex indexName="idx_elo_events_owner_section" tableName="elo_events">
+            <column name="owner"/>
+            <column name="section_key"/>
+        </createIndex>
+    </changeSet>
+
 </databaseChangeLog>

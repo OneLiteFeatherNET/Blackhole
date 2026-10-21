@@ -1,340 +1,350 @@
 package net.onelitefeather.blackhole.backend.elo.service;
 
-import net.onelitefeather.blackhole.backend.elo.EffectiveEloSettings;
-import net.onelitefeather.blackhole.backend.elo.EloEventEntity;
-import net.onelitefeather.blackhole.backend.elo.EloEventRepository;
-import net.onelitefeather.blackhole.backend.elo.EloProfileEntity;
-import net.onelitefeather.blackhole.backend.elo.EloProfileRepository;
-import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
-import net.onelitefeather.blackhole.backend.elo.EloProfileCache;
-import net.onelitefeather.blackhole.backend.elo.EloTrack;
-import net.onelitefeather.blackhole.backend.elo.dto.EloProfileDTO;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.elo.EloChange;
+import net.onelitefeather.blackhole.backend.elo.EloEventEntity;
+import net.onelitefeather.blackhole.backend.elo.EloEventRepository;
+import net.onelitefeather.blackhole.backend.elo.EloProfileCache;
+import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
+import net.onelitefeather.blackhole.backend.elo.EloScoreEntity;
+import net.onelitefeather.blackhole.backend.elo.EloScoreId;
+import net.onelitefeather.blackhole.backend.elo.EloScoreRepository;
+import net.onelitefeather.blackhole.backend.elo.EloScoring;
+import net.onelitefeather.blackhole.backend.elo.EscalationPolicy;
+import net.onelitefeather.blackhole.backend.elo.dto.EloDTO;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
-import net.onelitefeather.blackhole.backend.punishment.service.PunishmentApplicationService;
-import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateCache;
-import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
-import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
-import net.onelitefeather.blackhole.backend.punishment.PunishType;
-import net.onelitefeather.phoca.metadata.Durationable;
+import net.onelitefeather.blackhole.backend.punishment.SectionPunisher;
+import net.onelitefeather.blackhole.backend.response.ErrorKind;
+import net.onelitefeather.blackhole.backend.section.SectionService;
+import net.onelitefeather.blackhole.backend.section.dto.SectionDTO;
+import net.onelitefeather.blackhole.backend.utils.Durations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
- * Central write path for both ELO tracks. Every mutation - a chat toxicity flag, an anticheat
- * signal, an actioned report, or nightly decay - goes through {@link #applyDelta}, so the
- * threshold check and audit trail are never bypassed regardless of which signal caused a
- * change.
+ * Central write path for the per-section ELO scores. Every mutation - a chat toxicity flag, an
+ * anticheat signal, an actioned report, a staff punishment, a manual adjustment or nightly decay -
+ * goes through here, so the threshold check and audit trail are never bypassed regardless of which
+ * signal caused a change.
  *
- * <p><b>Known limitation (deferred, not fixed here):</b> the roadmap calls for the threshold
- * check to run in the same transaction as the triggering write, so two concurrent violations on
- * the same track can't both race past the same threshold undetected. This was attempted via
- * {@code @Transactional}, but this project has two competing auto-configured
- * {@code TransactionOperations} beans for the "default" datasource
- * ({@code SpringHibernateTransactionOperations} from {@code micronaut-data-spring-jpa} and a
- * plain-JDBC one it pulls in transitively) that collide as soon as anything uses
- * {@code @Transactional} - the first real use of that annotation in this codebase. Resolving it
- * requires either untangling that dependency (attempted; swapping to
- * {@code micronaut-data-runtime} fixed the ambiguity but broke JPA repository operations
- * entirely - {@code PrimaryRepositoryOperations} disappeared too) or a properly-qualified
- * transaction manager bean, neither of which was safe to land without deeper Micronaut Data
- * expertise than this session could verify. In practice this is a narrow window (two
- * simultaneous violations for the exact same player/track landing in the same few
- * milliseconds), not something this phase's manual verification could exercise either way.</p>
+ * <p><b>Known limitation (deferred, not fixed here):</b> the threshold check should run in the same
+ * transaction as the triggering write, so two concurrent violations in the same section cannot both
+ * race past a threshold undetected. {@code @Transactional} is unusable in this codebase (two
+ * competing auto-configured {@code TransactionOperations} beans for the "default" datasource), so
+ * this keeps the narrow window of two simultaneous violations for the exact same player and section.
+ * The primary key of the active-punishment slot rejects a second concurrent permanent punishment.</p>
  */
 @Singleton
-public class EloService {
+public class EloService implements EloScoring {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EloService.class);
 
     /**
      * A well-defined, deterministic identity for punishments the ELO system applies
-     * automatically - never a real staff member. Distinct from Phase 2's vanilla-import source
-     * UUID, so the audit trail can tell "algorithm decided" apart from "an import" apart from
-     * "a human decided".
+     * automatically - never a real staff member. Distinct from the vanilla-import source UUID, so
+     * the audit trail can tell "algorithm decided" apart from "an import" apart from "a human decided".
      */
     public static final UUID SYSTEM_ELO_SOURCE = UUID.nameUUIDFromBytes("blackhole-elo-system".getBytes(StandardCharsets.UTF_8));
 
-    private static final String TIER_SOFT = "SOFT";
-    private static final String TIER_HARD = "HARD";
+    private static final int MAX_NOTE_LENGTH = 500;
 
-    private final EloProfileRepository profileRepository;
+    private final EloScoreRepository scoreRepository;
     private final EloEventRepository eventRepository;
-    private final PunishmentTemplateRepository templateRepository;
-    private final PunishmentApplicationService punishmentApplicationService;
+    private final SectionService sectionService;
+    private final SectionPunisher punisher;
+    private final EscalationPolicy escalationPolicy;
     private final DomainEventPublisher eventPublisher;
-    private final EloProfileCache eloProfileCache;
-    private final PunishmentTemplateCache templateCache;
-    private final EffectiveEloSettings settings;
-
-    private final int softThreshold;
-    private final int decayRecoveryPerDay;
+    private final EloProfileCache profileCache;
+    private final Clock clock;
     private final long decayIntervalMs;
-    private final String chatSoftDuration;
-    private final String gameplaySoftDuration;
 
     public EloService(
-            EloProfileRepository profileRepository,
+            EloScoreRepository scoreRepository,
             EloEventRepository eventRepository,
-            PunishmentTemplateRepository templateRepository,
-            PunishmentApplicationService punishmentApplicationService,
+            SectionService sectionService,
+            SectionPunisher punisher,
+            EscalationPolicy escalationPolicy,
             DomainEventPublisher eventPublisher,
-            EloProfileCache eloProfileCache,
-            PunishmentTemplateCache templateCache,
-            @Value("${blackhole.elo.baseline:1000}") int baseline,
-            @Value("${blackhole.elo.perma-ban-threshold:300}") int permaBanThreshold,
-            @Value("${blackhole.elo.perma-ban-template.chat-id:}") String permaBanTemplateChatId,
-            @Value("${blackhole.elo.perma-ban-template.gameplay-id:}") String permaBanTemplateGameplayId,
-            @Value("${blackhole.elo.soft-threshold:700}") int softThreshold,
-            @Value("${blackhole.elo.decay.recovery-per-day:10}") int decayRecoveryPerDay,
-            @Value("${blackhole.elo.decay.interval-ms:86400000}") long decayIntervalMs,
-            @Value("${blackhole.elo.auto-ban.chat-soft-duration:PT24H}") String chatSoftDuration,
-            @Value("${blackhole.elo.auto-ban.gameplay-soft-duration:P3D}") String gameplaySoftDuration
+            EloProfileCache profileCache,
+            Clock clock,
+            @Value("${blackhole.elo.decay.interval-ms:86400000}") long decayIntervalMs
     ) {
-        this.profileRepository = profileRepository;
+        this.scoreRepository = scoreRepository;
         this.eventRepository = eventRepository;
-        this.templateRepository = templateRepository;
-        this.punishmentApplicationService = punishmentApplicationService;
+        this.sectionService = sectionService;
+        this.punisher = punisher;
+        this.escalationPolicy = escalationPolicy;
         this.eventPublisher = eventPublisher;
-        this.eloProfileCache = eloProfileCache;
-        this.templateCache = templateCache;
-        this.settings = new EffectiveEloSettings(
-                baseline, baseline, permaBanThreshold, permaBanThreshold,
-                parseUuidOrNull(permaBanTemplateChatId), parseUuidOrNull(permaBanTemplateGameplayId)
-        );
-        this.softThreshold = softThreshold;
-        this.decayRecoveryPerDay = decayRecoveryPerDay;
+        this.profileCache = profileCache;
+        this.clock = clock;
         this.decayIntervalMs = decayIntervalMs;
-        this.chatSoftDuration = chatSoftDuration;
-        this.gameplaySoftDuration = gameplaySoftDuration;
     }
 
-    private static UUID parseUuidOrNull(String raw) {
-        return raw == null || raw.isBlank() ? null : UUID.fromString(raw);
-    }
-
-    /**
-     * Applies a delta to one track of a player's ELO profile, reconciling any pending decay
-     * first, recording an audit-trail event, and triggering an automatic punishment if this
-     * delta newly crosses the soft or hard threshold.
-     *
-     * @param owner            the SHA-512-hashed owner
-     * @param track            which of the two independent tracks this affects
-     * @param delta            signed change to apply (negative for violations)
-     * @param reasonCode       why this delta happened
-     * @param sourceEvidenceId optional reference to a {@code PunishmentEvidenceEntity}
-     * @param metaData         extra context for the audit trail
-     * @return the updated profile
-     */
-    public EloProfileEntity applyDelta(
+    @Override
+    public EloChange applyDelta(
             String owner,
-            EloTrack track,
+            String sectionKey,
             int delta,
-            EloReasonCode reasonCode,
+            EloReasonCode reason,
             UUID sourceEvidenceId,
             Map<String, Object> metaData
     ) {
-        long now = System.currentTimeMillis();
-        EloProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
-        boolean isNew = profile == null;
-        if (isNew) {
-            profile = new EloProfileEntity(owner, this.settings.baseEloChat(), this.settings.baseEloGameplay(), now, now, new HashMap<>());
+        SectionDTO.Response section = this.sectionService.find(sectionKey).orElse(null);
+        if (section == null) {
+            return new EloChange.Rejected(ErrorKind.NOT_FOUND, "there is no section with key '" + sectionKey + "'");
+        }
+        if (!section.enabled()) {
+            return new EloChange.Rejected(ErrorKind.CONFLICT, "section '" + sectionKey + "' is disabled");
         }
 
-        reconcileDecay(profile, track, now, this.settings.baseElo(track));
+        long now = this.clock.millis();
+        EloScoreEntity score = this.scoreRepository.findById(new EloScoreId(owner, sectionKey)).orElse(null);
+        boolean isNew = score == null;
+        if (isNew) {
+            score = new EloScoreEntity(owner, sectionKey, section.baseScore(), now);
+        }
 
-        int previousScore = profile.getScore(track);
-        int newScore = previousScore + delta;
-        profile.setScore(track, newScore);
-        profile.setUpdatedAt(track, now);
+        reconcileDecay(score, section, now);
 
-        EloProfileEntity savedProfile = isNew ? this.profileRepository.save(profile) : this.profileRepository.update(profile);
-        this.eloProfileCache.evict(owner);
+        int before = score.getScore();
+        int after = before + delta;
+        score.setScore(after);
+        score.setUpdatedAt(now);
+        if (isNew) {
+            this.scoreRepository.save(score);
+        } else {
+            this.scoreRepository.update(score);
+        }
+        this.profileCache.evict(owner);
 
         this.eventRepository.save(new EloEventEntity(
-                owner, track, delta, reasonCode, sourceEvidenceId, newScore, now,
-                metaData == null ? new HashMap<>() : metaData
+                owner, sectionKey, delta, reason, sourceEvidenceId, after, now,
+                metaData == null ? new HashMap<>() : new HashMap<>(metaData)
         ));
 
-        checkThresholds(owner, track, previousScore, newScore, reasonCode);
+        Optional<EloChange.AutomaticPunishment> automatic = escalate(owner, section, before, after, reason);
+        return new EloChange.Applied(sectionKey, before, after, automatic);
+    }
 
-        return savedProfile;
+    @Override
+    public Optional<Integer> score(String owner, String sectionKey) {
+        return this.sectionService.find(sectionKey).map(section -> this.scoreRepository
+                .findById(new EloScoreId(owner, sectionKey))
+                .map(EloScoreEntity::getScore)
+                .orElse(section.baseScore()));
+    }
+
+    @Override
+    public Optional<Integer> resetToPardon(String owner, String sectionKey, Map<String, Object> metaData) {
+        SectionDTO.Response section = this.sectionService.find(sectionKey).orElse(null);
+        if (section == null) {
+            return Optional.empty();
+        }
+        long now = this.clock.millis();
+        EloScoreEntity score = this.scoreRepository.findById(new EloScoreId(owner, sectionKey)).orElse(null);
+        boolean isNew = score == null;
+        if (isNew) {
+            score = new EloScoreEntity(owner, sectionKey, section.baseScore(), now);
+        }
+        int before = score.getScore();
+        int pardon = section.pardonScore();
+        score.setScore(pardon);
+        score.setUpdatedAt(now);
+        if (isNew) {
+            this.scoreRepository.save(score);
+        } else {
+            this.scoreRepository.update(score);
+        }
+        this.profileCache.evict(owner);
+        this.eventRepository.save(new EloEventEntity(
+                owner, sectionKey, pardon - before, EloReasonCode.PARDON_RESET, null, pardon, now,
+                metaData == null ? new HashMap<>() : new HashMap<>(metaData)
+        ));
+        return Optional.of(pardon);
     }
 
     /**
-     * Applies any decay owed since the track's last update, capped so it never overshoots
-     * {@code baseline} - only explicit violations/rewards can cross the baseline, pure decay
-     * only ever restores toward it. Mutates {@code profile} in place; does not save it (the
-     * caller saves once, after any further delta is applied on top).
+     * Lets the escalation policy decide and, if it says so, has the punisher apply the matching
+     * automatic punishment. Only decreases can escalate, so rewards skip the lookup of the active
+     * permanent punishment entirely.
+     */
+    private Optional<EloChange.AutomaticPunishment> escalate(
+            String owner, SectionDTO.Response section, int before, int after, EloReasonCode trigger
+    ) {
+        if (after >= before) {
+            return Optional.empty();
+        }
+        boolean hasActivePermanent = this.punisher.hasActivePermanent(owner, section.key());
+        EscalationPolicy.Decision decision = this.escalationPolicy.decide(
+                new EscalationPolicy.Context(owner, section, before, after, hasActivePermanent)
+        );
+        Map<String, Object> extraMetaData = Map.of("eloTriggerReasonCode", trigger.toString(), "sectionKey", section.key());
+
+        return switch (decision) {
+            case NONE -> Optional.empty();
+            case PERMANENT -> {
+                Optional<String> identifier = this.punisher.applyPermanent(owner, section, extraMetaData);
+                if (identifier.isEmpty()) {
+                    LOGGER.error("Permanent escalation in section {} failed to apply for {}", section.key(), owner);
+                    yield Optional.empty();
+                }
+                this.eventPublisher.publish("section.escalated", Map.of(
+                        "owner", owner,
+                        "section", section.key(),
+                        "resultingScore", after,
+                        "punishmentIdentifier", identifier.get()
+                ));
+                this.eventPublisher.publish("elo.threshold_crossed", Map.of(
+                        "owner", owner, "section", section.key(), "tier", EloChange.Tier.PERMANENT.name(), "resultingScore", after
+                ));
+                yield Optional.of(new EloChange.AutomaticPunishment(EloChange.Tier.PERMANENT, identifier.get()));
+            }
+            case SOFT -> {
+                Optional<Duration> duration = Durations.parsePositive(section.softDuration());
+                if (duration.isEmpty()) {
+                    LOGGER.error("Section {} has a soft threshold but no valid soft duration; skipping the soft punishment", section.key());
+                    yield Optional.empty();
+                }
+                Optional<String> identifier = this.punisher.applySoft(owner, section, duration.get(), extraMetaData);
+                if (identifier.isEmpty()) {
+                    LOGGER.error("Soft punishment in section {} failed to apply for {}", section.key(), owner);
+                    yield Optional.empty();
+                }
+                this.eventPublisher.publish("elo.threshold_crossed", Map.of(
+                        "owner", owner, "section", section.key(), "tier", EloChange.Tier.SOFT.name(), "resultingScore", after
+                ));
+                yield Optional.of(new EloChange.AutomaticPunishment(EloChange.Tier.SOFT, identifier.get()));
+            }
+        };
+    }
+
+    /**
+     * Applies any decay owed since the score's last update, capped so it never overshoots the
+     * section's base score - only explicit violations or rewards can cross the base, pure decay only
+     * restores toward it. Mutates {@code score} in place and records a {@code DECAY_RECOVERY} event;
+     * does not save the score (the caller saves once, after any further delta is applied on top).
      *
      * @return {@code true} if any decay was applied
      */
-    private boolean reconcileDecay(EloProfileEntity profile, EloTrack track, long now, int baseline) {
-        int currentScore = profile.getScore(track);
-        if (currentScore >= baseline) {
+    private boolean reconcileDecay(EloScoreEntity score, SectionDTO.Response section, long now) {
+        int current = score.getScore();
+        int base = section.baseScore();
+        if (current >= base || section.decayPerDay() <= 0) {
             return false;
         }
-        long lastUpdated = profile.getUpdatedAt(track);
-        long daysElapsed = (now - lastUpdated) / this.decayIntervalMs;
+        long daysElapsed = (now - score.getUpdatedAt()) / this.decayIntervalMs;
         if (daysElapsed <= 0) {
             return false;
         }
-        int recovery = (int) Math.min((long) this.decayRecoveryPerDay * daysElapsed, (long) (baseline - currentScore));
+        int recovery = (int) Math.min((long) section.decayPerDay() * daysElapsed, (long) (base - current));
         if (recovery <= 0) {
             return false;
         }
-        int newScore = currentScore + recovery;
-        profile.setScore(track, newScore);
-        profile.setUpdatedAt(track, now);
-
+        int recovered = current + recovery;
+        score.setScore(recovered);
+        score.setUpdatedAt(now);
         this.eventRepository.save(new EloEventEntity(
-                profile.getOwner(), track, recovery, EloReasonCode.DECAY_RECOVERY, null, newScore, now,
-                Map.of("daysElapsed", daysElapsed)
+                score.getOwner(), score.getSectionKey(), recovery, EloReasonCode.DECAY_RECOVERY, null, recovered, now,
+                new HashMap<>(Map.of("daysElapsed", daysElapsed))
         ));
         return true;
     }
 
     /**
-     * Reconciles pending decay for both tracks of a single profile and saves it if anything
-     * changed. Called by the nightly sweep so inactive players stay eventually consistent even
-     * without any triggering delta.
+     * Reconciles pending decay of a single stored score and saves it if anything changed. Called
+     * by the nightly sweep so inactive players stay eventually consistent even without any
+     * triggering delta.
      *
-     * @return {@code true} if the profile was updated
+     * @return {@code true} if the score was updated
      */
-    public boolean reconcileDecayForProfile(EloProfileEntity profile) {
-        long now = System.currentTimeMillis();
-        boolean chatChanged = reconcileDecay(profile, EloTrack.CHAT, now, this.settings.baseEloChat());
-        boolean gameplayChanged = reconcileDecay(profile, EloTrack.GAMEPLAY, now, this.settings.baseEloGameplay());
-        if (chatChanged || gameplayChanged) {
-            this.profileRepository.update(profile);
-            this.eloProfileCache.evict(profile.getOwner());
+    public boolean reconcileDecayForScore(EloScoreEntity score) {
+        SectionDTO.Response section = this.sectionService.find(score.getSectionKey()).orElse(null);
+        if (section == null) {
+            return false;
+        }
+        if (reconcileDecay(score, section, this.clock.millis())) {
+            this.scoreRepository.update(score);
+            this.profileCache.evict(score.getOwner());
             return true;
         }
         return false;
     }
 
     /**
-     * Only acts on a genuine downward crossing (was at/above the threshold, now below it) -
-     * otherwise a player already below the hard threshold would get re-banned on every
-     * subsequent violation.
-     */
-    private void checkThresholds(String owner, EloTrack track, int previousScore, int newScore, EloReasonCode triggeringReasonCode) {
-        int permaBanThreshold = this.settings.permaBanThreshold(track);
-        if (previousScore >= permaBanThreshold && newScore < permaBanThreshold) {
-            triggerPermaBan(owner, track, newScore, triggeringReasonCode);
-        } else if (previousScore >= this.softThreshold && newScore < this.softThreshold) {
-            triggerSoftAutoBan(owner, track, newScore, triggeringReasonCode);
-        }
-    }
-
-    /**
-     * Applies the network's explicitly-configured perma-ban template for this track. Unlike the
-     * soft tier, this deliberately does not fall back to auto-generating one - if none has been
-     * configured yet, enforcement is skipped (logged, and visible via
-     * {@code templateConfigured: false} on the published event) rather than have the system
-     * silently invent a ban with unreviewed wording/duration for its most severe consequence.
-     */
-    private void triggerPermaBan(String owner, EloTrack track, int resultingScore, EloReasonCode triggeringReasonCode) {
-        UUID templateId = this.settings.permaBanTemplateId(track);
-        boolean banApplied = false;
-
-        if (templateId == null) {
-            LOGGER.warn("{} crossed the perma-ban threshold on track {} but no perma-ban template is configured; skipping auto-ban", owner, track);
-        } else {
-            PunishmentTemplateEntity template = this.templateRepository.findById(templateId).orElse(null);
-            if (template == null) {
-                LOGGER.warn("{} crossed the perma-ban threshold on track {} but its configured perma-ban template {} no longer exists; skipping auto-ban", owner, track, templateId);
-            } else {
-                Map<String, Object> extraMetaData = Map.of("eloTriggerReasonCode", triggeringReasonCode.toString());
-                var applied = this.punishmentApplicationService.apply(owner, templateId, SYSTEM_ELO_SOURCE, extraMetaData);
-                banApplied = applied.isPresent();
-                if (!banApplied) {
-                    LOGGER.error("ELO perma-ban failed to apply configured template {} for {}: template vanished after lookup", templateId, owner);
-                }
-            }
-        }
-
-        this.eventPublisher.publish("elo.threshold_crossed", Map.of(
-                "owner", owner,
-                "track", track.toString(),
-                "tier", TIER_HARD,
-                "resultingScore", resultingScore,
-                "templateConfigured", banApplied
-        ));
-    }
-
-    private void triggerSoftAutoBan(String owner, EloTrack track, int resultingScore, EloReasonCode triggeringReasonCode) {
-        PunishmentTemplateEntity template = findOrCreateSoftAutoTemplate(track);
-        Map<String, Object> extraMetaData = Map.of("eloTriggerReasonCode", triggeringReasonCode.toString());
-        var applied = this.punishmentApplicationService.apply(owner, template.getIdentifier(), SYSTEM_ELO_SOURCE, extraMetaData);
-        if (applied.isEmpty()) {
-            LOGGER.error("ELO auto-ban failed to apply template {} for {}: template vanished after find-or-create", template.getIdentifier(), owner);
-        }
-
-        this.eventPublisher.publish("elo.threshold_crossed", Map.of(
-                "owner", owner,
-                "track", track.toString(),
-                "tier", TIER_SOFT,
-                "resultingScore", resultingScore
-        ));
-    }
-
-    private PunishmentTemplateEntity findOrCreateSoftAutoTemplate(EloTrack track) {
-        String reason = autoTemplateReason(track);
-        PunishType type = track == EloTrack.CHAT ? PunishType.CHAT : PunishType.NETWORK;
-        return this.templateRepository.findByReasonAndType(reason, type)
-                .orElseGet(() -> {
-                    Map<String, Object> metaData = new HashMap<>();
-                    metaData.put("auto", true);
-                    metaData.put("eloTriggered", true);
-                    metaData.put(Durationable.META_DATA_KEY_DURATION, track == EloTrack.CHAT ? this.chatSoftDuration : this.gameplaySoftDuration);
-                    PunishmentTemplateEntity created = this.templateRepository.save(new PunishmentTemplateEntity(null, reason, type, 0, metaData));
-                    this.templateCache.evictList();
-                    return created;
-                });
-    }
-
-    private String autoTemplateReason(EloTrack track) {
-        return switch (track) {
-            case CHAT -> "Automatic chat timeout (ELO system)";
-            case GAMEPLAY -> "Automatic temporary ban (ELO system, gameplay)";
-        };
-    }
-
-    /**
-     * Dashboard read: a player's current ELO standing, if any. Served from the shared cache when
-     * present; a found profile is cached, a missing one is not.
+     * Dashboard read: a player's standing in every enabled section, with the thresholds of each.
+     * A section the player was never scored in shows its base score. Served from the shared cache
+     * when present.
      *
      * @param owner the SHA-512-hashed owner
-     * @return the profile, or empty if none exists yet for this owner
      */
-    public Optional<EloProfileDTO> getProfile(String owner) {
-        Optional<EloProfileDTO> cached = this.eloProfileCache.get(owner);
+    public EloDTO.ProfileResponse getProfile(String owner) {
+        Optional<EloDTO.ProfileResponse> cached = this.profileCache.get(owner);
         if (cached.isPresent()) {
-            return cached;
+            return cached.get();
         }
-        Optional<EloProfileDTO> profile = this.profileRepository.findById(owner).map(EloProfileEntity::toDTO);
-        profile.ifPresent(dto -> this.eloProfileCache.put(owner, dto));
+        Map<String, Integer> scores = this.scoreRepository.findByIdOwner(owner).stream()
+                .collect(Collectors.toMap(EloScoreEntity::getSectionKey, EloScoreEntity::getScore, (a, b) -> a));
+        List<EloDTO.SectionScore> sections = this.sectionService.listEnabled().stream()
+                .map(section -> new EloDTO.SectionScore(
+                        section.key(), section.displayName(), section.enforcement(),
+                        scores.getOrDefault(section.key(), section.baseScore()), section.baseScore(),
+                        section.softThreshold(), section.permanentThreshold(), section.pardonScore()
+                ))
+                .toList();
+        EloDTO.ProfileResponse profile = new EloDTO.ProfileResponse(owner, sections);
+        this.profileCache.put(owner, profile);
         return profile;
     }
 
     /**
-     * Dashboard read: the full audit trail of ELO changes for this owner.
+     * Dashboard read: the audit trail of ELO changes for this owner.
      *
-     * @param owner    the SHA-512-hashed owner
-     * @param pageable pagination/sorting parameters
-     * @return the paginated event history
+     * @param owner      the SHA-512-hashed owner
+     * @param sectionKey restricts the history to one section, or {@code null} for all
+     * @param pageable   pagination/sorting parameters
      */
-    public Page<EloEventEntity> getHistory(String owner, Pageable pageable) {
-        return this.eventRepository.findByOwner(owner, pageable);
+    public Page<EloEventEntity> getHistory(String owner, String sectionKey, Pageable pageable) {
+        if (sectionKey == null || sectionKey.isBlank()) {
+            return this.eventRepository.findByOwner(owner, pageable);
+        }
+        return this.eventRepository.findByOwnerAndSectionKey(owner, sectionKey, pageable);
+    }
+
+    /**
+     * Applies a manual score adjustment, subject to the same threshold rules as any other delta.
+     *
+     * @return the {@link EloDTO.AdjustResponse}, or an {@link EloDTO.Error} for an invalid
+     * request or an unknown or disabled section
+     */
+    public EloDTO adjust(String owner, EloDTO.AdjustRequest request) {
+        if (request.delta() == 0) {
+            return new EloDTO.Error("delta must not be zero", ErrorKind.VALIDATION);
+        }
+        if (request.note() != null && request.note().length() > MAX_NOTE_LENGTH) {
+            return new EloDTO.Error("note must be at most " + MAX_NOTE_LENGTH + " characters", ErrorKind.VALIDATION);
+        }
+        Map<String, Object> metaData = new HashMap<>();
+        metaData.put("source", request.source().toString());
+        if (request.note() != null) {
+            metaData.put("note", request.note());
+        }
+        EloChange change = applyDelta(owner, request.section(), request.delta(), EloReasonCode.MANUAL_ADJUSTMENT, null, metaData);
+        return switch (change) {
+            case EloChange.Applied applied -> EloDTO.AdjustResponse.of(applied);
+            case EloChange.Rejected rejected -> new EloDTO.Error(rejected.message(), rejected.kind());
+        };
     }
 }
