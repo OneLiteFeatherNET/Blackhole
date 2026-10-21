@@ -1,11 +1,11 @@
 package net.onelitefeather.blackhole.velocity.component;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.translation.MiniMessageTranslationStore;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.kyori.adventure.text.renderer.TranslatableComponentRenderer;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
 import net.onelitefeather.blackhole.velocity.TestData;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens.Surface;
@@ -13,24 +13,30 @@ import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import org.junit.jupiter.api.Test;
 
+import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Base64;
 import java.util.Locale;
 import java.util.ResourceBundle;
+import java.util.UUID;
+import java.util.function.Predicate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PunishmentScreensTest {
 
-    private static final String ID = "a1b2c3d4-0000-4000-8000-000000000001";
+    private static final UUID UUID_ID = UUID.fromString("a1b2c3d4-0000-4000-8000-000000000001");
+    /** The identifier as the backend stores it: the UUID as 22 character URL-safe Base64. */
+    private static final String ID = Base64.getUrlEncoder().withoutPadding().encodeToString(
+            ByteBuffer.allocate(16).putLong(UUID_ID.getMostSignificantBits()).putLong(UUID_ID.getLeastSignificantBits()).array());
     private static final Instant NOW = Instant.parse("2026-10-21T20:06:00Z");
     private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
-    /** One hour minus one minute after {@link #NOW}: 21:05 UTC, 23:05 in Berlin. */
+    /** 59 minutes after {@link #NOW}: 21:05 UTC, 23:05 in Berlin. */
     private static final long IN_59_MIN = NOW.plusSeconds(59 * 60).toEpochMilli();
 
     private static TranslatableComponentRenderer<Locale> renderer() {
@@ -51,7 +57,7 @@ class PunishmentScreensTest {
     }
 
     private static PunishmentScreens screens(BlackholeConfig config) {
-        return new PunishmentScreens(CLOCK, config, TestData.standardRegistry());
+        return new PunishmentScreens(CLOCK, config, TestData.standardRegistry(), renderer());
     }
 
     private static PunishmentSyncMessage punishment(String section, EnforcementKind kind, Long expiresAt, String reason) {
@@ -59,96 +65,107 @@ class PunishmentScreensTest {
     }
 
     /** Plain text with the narrow no-break spaces of newer JDK locale data normalised. */
-    private static String plain(Component component, Locale locale) {
-        return PlainTextComponentSerializer.plainText().serialize(renderer().render(component, locale))
-                .replace(' ', ' ').replace(' ', ' ');
+    private static String plain(Component component) {
+        return PlainTextComponentSerializer.plainText().serialize(component).replace(' ', ' ').replace(' ', ' ');
     }
 
-    private static Component rendered(Component component, Locale locale) {
-        return renderer().render(component, locale);
+    private static Component screen(PunishmentScreens screens, PunishmentSyncMessage p, Locale locale, Surface surface, boolean moved) {
+        return screens.screen(p, locale, surface, moved);
+    }
+
+    private static String text(PunishmentSyncMessage p, Locale locale, Surface surface) {
+        return plain(screen(screens(config("", "")), p, locale, surface, false));
     }
 
     @Test
     void temporaryBanInGerman() {
-        Component screen = screens(config("", "")).screen(
-                punishment("network", EnforcementKind.BAN, IN_59_MIN, "Unerlaubte Clientmodifikation"),
-                Locale.GERMAN, Surface.DISCONNECT, false);
-
         assertEquals("""
                 Du wurdest vom Netzwerk ausgeschlossen
-                Grund: Unerlaubte Clientmodifikation
-                Dauer: noch 59 Minuten (bis 21.10.2026, 23:05 MESZ)
-                Bereich: Network
-                Strafen-ID: #A1B2C3D4""", plain(screen, Locale.GERMAN));
+
+                Grund
+                Unerlaubte Clientmodifikation
+
+                Verbleibend: 59 Minuten
+                bis 21.10.2026, 23:05 Uhr
+
+                Bereich: Network  ·  Strafen-ID: #A1B2C3D4""",
+                text(punishment("network", EnforcementKind.BAN, IN_59_MIN, "Unerlaubte Clientmodifikation"), Locale.GERMAN, Surface.DISCONNECT));
     }
 
     @Test
     void temporaryBanInEnglish() {
-        Component screen = screens(config("", "")).screen(
-                punishment("network", EnforcementKind.BAN, IN_59_MIN, "Client modification"),
-                Locale.ENGLISH, Surface.DISCONNECT, false);
-
         assertEquals("""
                 You have been banned from the network
-                Reason: Client modification
-                Duration: 59 minutes remaining (until Oct 21, 2026, 11:05 PM CEST)
-                Area: Network
-                Punishment ID: #A1B2C3D4""", plain(screen, Locale.ENGLISH));
+
+                Reason
+                Client modification
+
+                Remaining: 59 minutes
+                until Oct 21, 2026, 11:05 PM
+
+                Area: Network  ·  Punishment ID: #A1B2C3D4""",
+                text(punishment("network", EnforcementKind.BAN, IN_59_MIN, "Client modification"), Locale.ENGLISH, Surface.DISCONNECT));
+    }
+
+    @Test
+    void germanScreenFormatsTheDateInGermanToo() {
+        String text = text(punishment("network", EnforcementKind.BAN, IN_59_MIN, "x"), Locale.GERMAN, Surface.DISCONNECT);
+
+        assertTrue(text.contains("21.10.2026"), text);
+        assertFalse(text.contains("Oct"), text);
+        assertFalse(text.contains("PM"), text);
     }
 
     @Test
     void permanentBanSaysPermanentInBothLanguages() {
-        PunishmentScreens screens = screens(config("", ""));
         PunishmentSyncMessage ban = punishment("network", EnforcementKind.BAN, null, "Cheating");
 
-        assertTrue(plain(screens.screen(ban, Locale.GERMAN, Surface.DISCONNECT, false), Locale.GERMAN).contains("Dauer: dauerhaft"));
-        assertTrue(plain(screens.screen(ban, Locale.ENGLISH, Surface.DISCONNECT, false), Locale.ENGLISH).contains("Duration: permanent"));
+        assertTrue(text(ban, Locale.GERMAN, Surface.DISCONNECT).contains("Dauer: dauerhaft"));
+        assertTrue(text(ban, Locale.ENGLISH, Surface.DISCONNECT).contains("Duration: permanent"));
     }
 
     @Test
     void remainingTimeUsesDaysAndHours() {
         long expires = NOW.plusSeconds(2 * 86400 + 3 * 3600 + 17 * 60).toEpochMilli();
-        String text = plain(screens(config("", "")).screen(
-                punishment("network", EnforcementKind.BAN, expires, "x"), Locale.ENGLISH, Surface.DISCONNECT, false), Locale.ENGLISH);
 
-        assertTrue(text.contains("2 days 3 hours remaining"), text);
+        assertTrue(text(punishment("network", EnforcementKind.BAN, expires, "x"), Locale.ENGLISH, Surface.DISCONNECT)
+                .contains("Remaining: 2 days 3 hours"));
     }
 
     @Test
     void lessThanAMinuteIsSaidSo() {
         long expires = NOW.plusSeconds(20).toEpochMilli();
-        String text = plain(screens(config("", "")).screen(
-                punishment("network", EnforcementKind.BAN, expires, "x"), Locale.ENGLISH, Surface.DISCONNECT, false), Locale.ENGLISH);
 
-        assertTrue(text.contains("less than a minute remaining"), text);
+        assertTrue(text(punishment("network", EnforcementKind.BAN, expires, "x"), Locale.ENGLISH, Surface.DISCONNECT)
+                .contains("Remaining: less than a minute"));
     }
 
     @Test
     void appealIsShownOnlyWhenConfigured() {
         PunishmentSyncMessage ban = punishment("network", EnforcementKind.BAN, null, "x");
 
-        String without = plain(screens(config("", "")).screen(ban, Locale.ENGLISH, Surface.DISCONNECT, false), Locale.ENGLISH);
-        String with = plain(screens(config("https://example.org/appeal", "")).screen(ban, Locale.ENGLISH, Surface.DISCONNECT, false), Locale.ENGLISH);
+        String without = plain(screen(screens(config("", "")), ban, Locale.ENGLISH, Surface.DISCONNECT, false));
+        String with = plain(screen(screens(config("https://example.org/appeal", "")), ban, Locale.ENGLISH, Surface.DISCONNECT, false));
 
         assertFalse(without.contains("Appeal"), without);
-        assertTrue(with.endsWith("Appeal: https://example.org/appeal"), with);
+        assertTrue(with.endsWith("\n\nAppeal: https://example.org/appeal"), with);
     }
 
     @Test
     void appealOnDisconnectScreenIsPlainTextWithoutClick() {
         PunishmentSyncMessage ban = punishment("network", EnforcementKind.BAN, null, "x");
-        Component screen = screens(config("https://example.org/appeal", "our forum")).screen(ban, Locale.ENGLISH, Surface.DISCONNECT, false);
+        Component screen = screen(screens(config("https://example.org/appeal", "our forum")), ban, Locale.ENGLISH, Surface.DISCONNECT, false);
 
-        assertTrue(plain(screen, Locale.ENGLISH).endsWith("Appeal: our forum (https://example.org/appeal)"));
-        assertFalse(hasEvent(rendered(screen, Locale.ENGLISH), true), "disconnect screens cannot click");
+        assertTrue(plain(screen).endsWith("Appeal: our forum (https://example.org/appeal)"));
+        assertFalse(any(screen, c -> c.clickEvent() != null), "disconnect screens cannot click");
     }
 
     @Test
     void appealInChatIsClickable() {
         PunishmentSyncMessage ban = punishment("network", EnforcementKind.BAN, null, "x");
-        Component screen = rendered(screens(config("https://example.org/appeal", "our forum")).screen(ban, Locale.ENGLISH, Surface.CHAT, false), Locale.ENGLISH);
+        Component screen = screen(screens(config("https://example.org/appeal", "our forum")), ban, Locale.ENGLISH, Surface.CHAT, false);
 
-        assertTrue(hasEvent(screen, true));
+        assertTrue(any(screen, c -> c.clickEvent() != null));
     }
 
     @Test
@@ -158,86 +175,120 @@ class PunishmentScreensTest {
 
     @Test
     void fullIdIsOnHoverInChatOnly() {
-        PunishmentScreens screens = screens(config("", ""));
         PunishmentSyncMessage ban = punishment("network", EnforcementKind.BAN, null, "x");
 
-        assertTrue(hasEvent(rendered(screens.screen(ban, Locale.ENGLISH, Surface.CHAT, false), Locale.ENGLISH), false));
-        assertFalse(hasEvent(rendered(screens.screen(ban, Locale.ENGLISH, Surface.DISCONNECT, false), Locale.ENGLISH), false));
+        assertTrue(any(screen(screens(config("", "")), ban, Locale.ENGLISH, Surface.CHAT, false), c -> c.hoverEvent() != null));
+        assertFalse(any(screen(screens(config("", "")), ban, Locale.ENGLISH, Surface.DISCONNECT, false), c -> c.hoverEvent() != null));
+    }
+
+    @Test
+    void nothingIsBoldAndNoDarkGrayIsUsed() {
+        for (Surface surface : Surface.values()) {
+            for (Locale locale : new Locale[]{Locale.GERMAN, Locale.ENGLISH}) {
+                Component screen = screen(screens(config("https://example.org/appeal", "")),
+                        punishment("bedwars", EnforcementKind.SERVER, IN_59_MIN, "x"), locale, surface, true);
+
+                assertFalse(any(screen, c -> c.style().decoration(TextDecoration.BOLD) == net.kyori.adventure.text.format.TextDecoration.State.TRUE),
+                        "bold bleeds over every line of a centred screen");
+                assertFalse(any(screen, c -> c.color() == NamedTextColor.DARK_GRAY), "dark gray is unreadable on the blurred background");
+            }
+        }
+    }
+
+    @Test
+    void styleOfTheTitleDoesNotBleedIntoTheFollowingLines() {
+        Component screen = screen(screens(config("", "")), punishment("network", EnforcementKind.BAN, null, "x"),
+                Locale.ENGLISH, Surface.DISCONNECT, false);
+
+        // every red text is exactly the title; later lines carry their own colours only
+        StringBuilder red = new StringBuilder();
+        collect(screen, NamedTextColor.RED, red);
+        assertEquals("You have been banned from the network", red.toString());
     }
 
     @Test
     void serverSectionNamesTheExcludedServersAndTheMove() {
-        String text = plain(screens(config("", "")).screen(
-                punishment("bedwars", EnforcementKind.SERVER, null, "Griefing"), Locale.ENGLISH, Surface.CHAT, true), Locale.ENGLISH);
+        String text = plain(screen(screens(config("", "")),
+                punishment("bedwars", EnforcementKind.SERVER, null, "Griefing"), Locale.ENGLISH, Surface.DISCONNECT, true));
 
         assertEquals("""
                 You have been excluded from certain servers
-                Reason: Griefing
+
+                Reason
+                Griefing
+
                 Duration: permanent
-                Area: Bedwars
+
+                Area: Bedwars  ·  Punishment ID: #A1B2C3D4
                 Excluded servers: bedwars-*
-                You have been moved to the fallback server.
-                Punishment ID: #A1B2C3D4""", text);
+                You have been moved to the fallback server.""", text);
     }
 
     @Test
     void serverSectionWithoutMoveOmitsTheMoveLine() {
-        String text = plain(screens(config("", "")).screen(
-                punishment("bedwars", EnforcementKind.SERVER, null, "Griefing"), Locale.GERMAN, Surface.DISCONNECT, false), Locale.GERMAN);
+        String text = text(punishment("bedwars", EnforcementKind.SERVER, null, "Griefing"), Locale.GERMAN, Surface.DISCONNECT);
 
         assertTrue(text.contains("Gesperrte Server: bedwars-*"), text);
         assertFalse(text.contains("Fallback"), text);
     }
 
     @Test
-    void muteShowsReasonRemainingTimeAndId() {
-        String text = plain(screens(config("", "")).screen(
-                punishment("chat", EnforcementKind.MUTE, IN_59_MIN, "Beleidigung"), Locale.GERMAN, Surface.CHAT, false), Locale.GERMAN);
-
+    void muteInChatIsCompact() {
         assertEquals("""
                 Du wurdest stummgeschaltet
-                Grund: Beleidigung
-                Dauer: noch 59 Minuten (bis 21.10.2026, 23:05 MESZ)
-                Bereich: Chat
-                Strafen-ID: #A1B2C3D4""", text);
+                Grund
+                Beleidigung
+                Verbleibend: 59 Minuten
+                bis 21.10.2026, 23:05 Uhr
+                Bereich: Chat  ·  Strafen-ID: #A1B2C3D4""",
+                text(punishment("chat", EnforcementKind.MUTE, IN_59_MIN, "Beleidigung"), Locale.GERMAN, Surface.CHAT));
     }
 
     @Test
     void reasonCanUseTheDurationTag() {
-        String text = plain(screens(config("", "")).screen(
-                punishment("network", EnforcementKind.BAN, IN_59_MIN, "Banned <duration>"), Locale.ENGLISH, Surface.DISCONNECT, false), Locale.ENGLISH);
-
-        assertTrue(text.contains("Reason: Banned in 59 minutes"), text);
+        assertTrue(text(punishment("network", EnforcementKind.BAN, IN_59_MIN, "Banned <duration>"), Locale.ENGLISH, Surface.DISCONNECT)
+                .contains("Banned in 59 minutes"));
     }
 
     @Test
     void missingReasonFallsBackToTheDefault() {
-        String text = plain(screens(config("", "")).screen(
-                punishment("network", EnforcementKind.BAN, null, " "), Locale.ENGLISH, Surface.DISCONNECT, false), Locale.ENGLISH);
-
-        assertTrue(text.contains("Reason: You have been punished."), text);
+        assertTrue(text(punishment("network", EnforcementKind.BAN, null, " "), Locale.ENGLISH, Surface.DISCONNECT)
+                .contains("You have been punished."));
     }
 
     @Test
     void screenNeverContainsTheOwnerHash() {
-        String text = plain(screens(config("", "")).screen(
-                punishment("network", EnforcementKind.BAN, null, "x"), Locale.ENGLISH, Surface.CHAT, false), Locale.ENGLISH);
-
-        assertFalse(text.contains(TestData.OWNER));
+        assertFalse(text(punishment("network", EnforcementKind.BAN, null, "x"), Locale.ENGLISH, Surface.CHAT).contains(TestData.OWNER));
     }
 
     @Test
-    void shortIdIsTheFirstEightHexCharactersUpperCase() {
+    void shortIdIsTheHexOfTheFirstFourBytesOfTheBackendIdentifier() {
         assertEquals("#A1B2C3D4", PunishmentScreens.shortId(ID));
-        assertNull(PunishmentScreens.shortId(null));
-        assertNotNull(PunishmentScreens.shortId("abc"));
     }
 
-    private static boolean hasEvent(Component component, boolean click) {
-        boolean here = click ? component.clickEvent() instanceof ClickEvent
-                : component.hoverEvent() instanceof HoverEvent<?>;
-        return here || component.children().stream().anyMatch(child -> hasEvent(child, click))
+    @Test
+    void shortIdOfAPlainUuidIsTheSame() {
+        assertEquals("#A1B2C3D4", PunishmentScreens.shortId(UUID_ID.toString()));
+    }
+
+    @Test
+    void shortIdOfAnUnknownFormatIsAbsent() {
+        assertNull(PunishmentScreens.shortId(null));
+        assertNull(PunishmentScreens.shortId("abc"));
+        assertNull(PunishmentScreens.shortId("!".repeat(22)));
+    }
+
+    private static boolean any(Component component, Predicate<Component> test) {
+        return test.test(component) || component.children().stream().anyMatch(child -> any(child, test))
                 || (component instanceof net.kyori.adventure.text.TranslatableComponent t
-                && t.arguments().stream().anyMatch(arg -> hasEvent(arg.asComponent(), click)));
+                && t.arguments().stream().anyMatch(arg -> any(arg.asComponent(), test)));
+    }
+
+    /** Appends the text of every component whose own colour is {@code color}. */
+    private static void collect(Component component, NamedTextColor color, StringBuilder out) {
+        if (component.color() == color && component instanceof net.kyori.adventure.text.TextComponent text) {
+            out.append(text.content());
+        }
+        component.children().forEach(child -> collect(child, color, out));
     }
 }
