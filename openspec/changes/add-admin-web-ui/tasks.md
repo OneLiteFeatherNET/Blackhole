@@ -2,9 +2,9 @@
 
 ## 1. Backend support
 
-- [ ] 1.1 Add `owner` to the player lookup response; verify a unit test that it equals the proxy's hash for a fixed UUID
-- [ ] 1.2 Add `GET /dashboard/summary` (service + `DashboardApi` + thin controller, sealed DTO); verify service unit test and controller integration test
-- [ ] 1.3 Export the OpenAPI spec into `client/specs` with a version bump; verify `./gradlew :client:build`
+- [x] 1.1 Add `owner` to the player lookup response; verify a unit test that it equals the proxy's hash for a fixed UUID
+- [x] 1.2 Add `GET /dashboard/summary` (service + `DashboardApi` + thin controller, sealed DTO); verify service unit test and controller integration test
+- [x] 1.3 Export the OpenAPI spec into `client/specs` with a version bump; verify `./gradlew :client:build`
 
 ## 2. Project scaffold
 
