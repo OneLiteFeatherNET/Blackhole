@@ -1,0 +1,48 @@
+schema: spec-driven
+
+# Project context: the ratified architecture/product principles (migrated from the former
+# spec-kit constitution, .specify/memory/constitution.md v1.0.0). A proposal, spec, design or
+# task list must not contradict these. Changing a principle is itself an OpenSpec change that
+# edits this block and says why.
+context: |
+  Blackhole is a GDPR-compliant ban system for ONE Minecraft network per deployment
+  (Micronaut backend, Velocity proxy plugin, generated Java API client, Vue admin UI).
+
+  Principles (non-negotiable unless a change explicitly amends this block):
+  1. GDPR-by-design, single-tenant. PII (IPs, raw player UUIDs) is hashed/tokenized wherever
+     it is stored or published. No multi-tenancy, no tenantId discriminator; multiple
+     networks = multiple deployments.
+  2. No auth layer. No JWT/@Secured/micronaut-security; every endpoint is open and trust is
+     enforced at the network boundary (private network, VPN, reverse proxy with its own
+     auth). This also applies to the admin web UI. There is no verified per-actor identity:
+     source/resolvedBy/reviewerId are client-supplied; do not design around a verified
+     identity claim.
+  3. Layered backend: thin controllers (routing/versioning + one service call + response
+     mapping), business logic in a @Singleton service in its feature package, one sealed
+     DTO marker interface per resource (CreateRequest/UpdateRequest/Response/Error), services
+     answer expected failures with the Error variant instead of throwing, OpenAPI annotations
+     on a *Api interface. See the micronaut-* skills in .claude/skills/.
+  4. The dual-ELO engine stays automatic: chat and network (proxy/gameplay) scores are
+     independent; crossing configured thresholds must punish without a moderator online, and
+     every automatic or manual punishment stays contestable via the appeal workflow.
+  5. Infra owns rate limiting (only the existing report-submission limiter stays in-app).
+     Any server-side request to a caller-supplied URL needs SSRF hardening first.
+  6. Liquibase changesets are append-only (never edit an applied changeset).
+     @Transactional is currently unusable (bean ambiguity) - check before relying on it.
+
+  Stack: Java 25 toolchain, Micronaut 5, Hibernate/JPA, Liquibase, PostgreSQL, Dragonfly
+  (Redis protocol) for caching and proxy sync, RabbitMQ for domain events, Velocity +
+  Cloud commands, Vue 3 + Tailwind CSS with Material Design 3 tokens for the admin UI.
+  Config is env-var driven with local-dev defaults inline in application.yml
+  (${ENV_VAR:default}), each tunable documented by a comment there.
+  Commits and PR titles follow Conventional Commits (release-please).
+
+rules:
+  proposal:
+    - State what is out of scope.
+    - Mark API or schema changes that break the generated client or the Velocity plugin as BREAKING.
+  design:
+    - Name the Liquibase changesets a change appends, and how existing rows are migrated.
+  tasks:
+    - Every backend task group lands its own JUnit tests; every UI task group its own component/unit tests.
+    - Include regenerating the OpenAPI client spec (client/specs) when the HTTP API changes.
