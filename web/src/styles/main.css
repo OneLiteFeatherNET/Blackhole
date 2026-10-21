@@ -111,6 +111,41 @@
   --text-label-small--font-weight: 500;
 }
 
+/*
+ * MD3 state layer: a tint in the element's text color above its background, below its content.
+ * Hover 8%, focus and press 12%. Also draws the visible focus ring for keyboard users.
+ */
+@utility md-state {
+  position: relative;
+  isolation: isolate;
+  outline-offset: 2px;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background-color: currentColor;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 150ms ease-out;
+  }
+
+  &:hover::before {
+    opacity: 0.08;
+  }
+
+  &:focus-visible::before,
+  &:active::before {
+    opacity: 0.12;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--md-sys-color-primary);
+  }
+}
+
 html,
 body {
   margin: 0;
