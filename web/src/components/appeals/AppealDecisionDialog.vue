@@ -22,7 +22,6 @@ const error = ref('')
 const saving = ref(false)
 
 const options = computed(() => [
-  { value: '', label: t('appeals.decide.choose') },
   ...(['GRANTED_FULL_LIFT', 'GRANTED_DURATION_REDUCTION', 'DENIED'] as const).map((value) => ({
     value,
     label: t(`appeals.decide.decision.${value}`),
@@ -80,7 +79,7 @@ async function confirm(): Promise<void> {
   <MdDialog :open="open" :headline="t('appeals.decide.title')" @close="emit('close')">
     <div class="flex flex-col gap-5 pt-2">
       <p v-if="appeal" class="text-body-medium text-on-surface-variant">{{ appeal.statement }}</p>
-      <MdSelect v-model="decision" :label="t('appeals.decide.decisionLabel')" :options="options" />
+      <MdSelect v-model="decision" required :placeholder="t('appeals.decide.choose')" :label="t('appeals.decide.decisionLabel')" :options="options" />
       <MdTextField
         v-if="decision === 'GRANTED_DURATION_REDUCTION'"
         v-model="newEnd"

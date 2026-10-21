@@ -4,6 +4,7 @@
 // aria-activedescendant. The menu is teleported to <body> and positioned with fixed coordinates so
 // no dialog or scroll container can clip it.
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
+import { placeMenu, type MenuPlacement } from './menuPlacement'
 
 export interface SelectOption {
   value: string
@@ -16,12 +17,15 @@ export interface SelectOption {
 const props = withDefaults(
   defineProps<{
     label: string
+    /** Empty-state text of the field. Never an option: with no selection nothing is highlighted or checked. */
+    placeholder?: string
+    required?: boolean
     options: SelectOption[]
     supportingText?: string
     error?: string
     disabled?: boolean
   }>(),
-  { disabled: false },
+  { disabled: false, required: false },
 )
 const model = defineModel<string>({ default: '' })
 
@@ -36,11 +40,7 @@ const anchor = ref<HTMLElement | null>(null)
 const list = ref<HTMLElement | null>(null)
 const open = ref(false)
 const active = ref(-1)
-const placement = ref<{ left: number; width: number; top?: number; bottom?: number; maxHeight: number }>({
-  left: 0,
-  width: 0,
-  maxHeight: 320,
-})
+const placement = ref<MenuPlacement>({ left: 0, width: 0, maxHeight: 0, up: false })
 
 const selectedIndex = computed(() => props.options.findIndex((option) => option.value === model.value))
 const selectedLabel = computed(() => props.options[selectedIndex.value]?.label ?? '')
@@ -54,20 +54,11 @@ function firstEnabled(from: number, step: 1 | -1): number {
 
 function place(): void {
   if (!anchor.value) return
-  const rect = anchor.value.getBoundingClientRect()
-  const gap = 4
-  const margin = 8
-  const below = window.innerHeight - rect.bottom - margin
-  const above = rect.top - margin
-  // Open upwards only when the menu would be cut off below and there is more room above.
-  const wanted = Math.min(320, props.options.length * 48 + 16)
-  const up = below < wanted && above > below
-  placement.value = {
-    left: rect.left,
-    width: rect.width,
-    maxHeight: Math.max(120, Math.min(320, (up ? above : below) - gap)),
-    ...(up ? { bottom: window.innerHeight - rect.top + gap } : { top: rect.bottom + gap }),
-  }
+  placement.value = placeMenu(
+    anchor.value.getBoundingClientRect(),
+    { width: window.innerWidth, height: window.innerHeight },
+    props.options.length,
+  )
 }
 
 function scrollActiveIntoView(): void {
@@ -77,7 +68,8 @@ function scrollActiveIntoView(): void {
 async function openList(at: number = selectedIndex.value): Promise<void> {
   if (props.disabled || open.value) return
   place()
-  active.value = enabled(at) ? at : firstEnabled(0, 1)
+  // With nothing selected no option is highlighted until the user navigates.
+  active.value = enabled(at) ? at : -1
   open.value = true
   await nextTick()
   scrollActiveIntoView()
@@ -146,7 +138,8 @@ function onKeydown(event: KeyboardEvent): void {
   if (key === 'ArrowDown' || key === 'ArrowUp') {
     event.preventDefault()
     if (!open.value) {
-      void openList()
+      const first = key === 'ArrowDown' ? firstEnabled(0, 1) : firstEnabled(props.options.length - 1, -1)
+      void openList(selectedIndex.value >= 0 ? selectedIndex.value : first)
       return
     }
     const step = key === 'ArrowDown' ? 1 : -1
@@ -227,6 +220,7 @@ function toggle(): void {
         :aria-controls="listId"
         :aria-labelledby="`${labelId} ${valueId}`"
         :aria-activedescendant="open && active >= 0 ? optionId(active) : undefined"
+        :aria-required="props.required ? 'true' : undefined"
         :aria-invalid="props.error ? 'true' : undefined"
         :aria-describedby="message ? messageId : undefined"
         :disabled="props.disabled"
@@ -237,7 +231,8 @@ function toggle(): void {
         @click="toggle"
         @keydown="onKeydown"
       >
-        <span class="truncate">{{ selectedLabel }}</span>
+        <span v-if="selectedIndex >= 0" class="truncate">{{ selectedLabel }}</span>
+        <span v-else class="truncate text-on-surface-variant" data-testid="placeholder">{{ props.placeholder }}</span>
       </button>
       <span
         :id="labelId"
@@ -280,6 +275,8 @@ function toggle(): void {
           top: placement.top === undefined ? undefined : `${placement.top}px`,
           bottom: placement.bottom === undefined ? undefined : `${placement.bottom}px`,
           maxHeight: `${placement.maxHeight}px`,
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'var(--color-outline) transparent',
         }"
       >
         <li

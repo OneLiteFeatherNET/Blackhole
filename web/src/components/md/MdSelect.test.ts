@@ -243,4 +243,71 @@ describe('MdSelect', () => {
     expect(combobox.attributes('aria-invalid')).toBe('true')
     expect(document.getElementById(combobox.attributes('aria-describedby')!)?.textContent).toContain('Pflichtfeld')
   })
+
+  describe('placeholder', () => {
+    const empty = { placeholder: 'Wählen', required: true }
+
+    it('is the empty-state text of the field, not an option', async () => {
+      const { combobox, items } = setup('', empty)
+
+      expect(combobox.text()).toBe('Wählen')
+      expect(combobox.get('[data-testid="placeholder"]').classes()).toContain('text-on-surface-variant')
+
+      await combobox.trigger('click')
+
+      expect(items().map((item) => item.textContent?.trim())).not.toContain('Wählen')
+      expect(items()).toHaveLength(options.length)
+    })
+
+    it('checks no option and highlights none until the user navigates', async () => {
+      const { combobox, items, press } = setup('', empty)
+
+      await combobox.trigger('click')
+
+      expect(items().every((item) => item.getAttribute('aria-selected') === 'false')).toBe(true)
+      expect(combobox.attributes('aria-activedescendant')).toBeUndefined()
+
+      await press('ArrowDown')
+
+      expect(combobox.attributes('aria-activedescendant')).toBe(items()[0]!.id)
+    })
+
+    it('does not choose anything when Enter is pressed before navigating', async () => {
+      const { combobox, press, onUpdate } = setup('', empty)
+      await combobox.trigger('click')
+
+      await press('Enter')
+
+      expect(onUpdate).not.toHaveBeenCalled()
+      expect(combobox.attributes('aria-expanded')).toBe('false')
+    })
+
+    it('names the combobox by label and placeholder and flags it required', () => {
+      const { combobox } = setup('', empty)
+
+      const names = combobox.attributes('aria-labelledby')!.split(' ').map((id) => document.getElementById(id)?.textContent?.trim())
+      expect(names).toEqual(['Design', 'Wählen'])
+      expect(combobox.attributes('aria-required')).toBe('true')
+    })
+
+    it('opens on the first option with ArrowDown and the last with ArrowUp when nothing is selected', async () => {
+      const down = setup('', empty)
+      await down.press('ArrowDown')
+      expect(down.combobox.attributes('aria-activedescendant')).toBe(down.items()[0]!.id)
+      down.wrapper.unmount()
+
+      const up = setup('', empty)
+      await up.press('ArrowUp')
+      expect(up.combobox.attributes('aria-activedescendant')).toBe(up.items()[4]!.id)
+    })
+  })
+
+  it('bounds the open menu and positions it at the field width', async () => {
+    const { combobox, list } = setup('system')
+
+    await combobox.trigger('click')
+
+    expect(list()!.style.maxHeight).toMatch(/^\d+(\.\d+)?px$/)
+    expect(Number.parseFloat(list()!.style.maxHeight)).toBeLessThanOrEqual(5.5 * 48 + 16)
+  })
 })

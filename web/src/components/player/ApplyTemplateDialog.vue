@@ -23,7 +23,6 @@ const applying = ref(false)
 const error = ref('')
 
 const options = computed(() => [
-  { value: '', label: t('actions.apply.choose') },
   ...templates.value.map((template) => ({
     value: template.key,
     label: template.key,
@@ -79,8 +78,8 @@ async function confirm(): Promise<void> {
 
 <template>
   <MdDialog :open="open" :headline="t('actions.apply.title')" @close="emit('close')">
-    <div class="flex flex-col gap-4">
-      <MdSelect v-model="selected" :label="t('actions.apply.template')" :options="options" />
+    <div class="flex min-h-64 flex-col gap-4">
+      <MdSelect v-model="selected" required :placeholder="t('actions.apply.choose')" :label="t('actions.apply.template')" :options="options" />
       <MdProgress v-if="previewing" :label="t('actions.apply.loadingPreview')" />
       <div v-if="preview" data-testid="preview" class="flex flex-col gap-1 text-on-surface">
         <p class="text-title-small">{{ t('actions.apply.step', { step: preview.step, count: preview.stepCount }) }}</p>

@@ -23,7 +23,6 @@ const error = ref('')
 const saving = ref(false)
 
 const decisionOptions = computed(() => [
-  { value: '', label: t('reports.resolve.choose') },
   ...(['ACTIONED', 'DISMISSED', 'UNDER_REVIEW'] as const).map((value) => ({
     value,
     label: t(`reports.resolve.decision.${value}`),
@@ -79,7 +78,7 @@ async function confirm(): Promise<void> {
         {{ t('reports.resolve.about', { player: shortHash(report.reportedHash) }) }}
         <span v-if="report.description" class="block text-on-surface-variant">{{ report.description }}</span>
       </p>
-      <MdSelect v-model="decision" :label="t('reports.resolve.decisionLabel')" :options="decisionOptions" />
+      <MdSelect v-model="decision" required :placeholder="t('reports.resolve.choose')" :label="t('reports.resolve.decisionLabel')" :options="decisionOptions" />
       <MdSelect
         v-if="decision === 'ACTIONED'"
         v-model="templateId"
