@@ -58,6 +58,12 @@ dependencies {
 
     testImplementation(mn.junit.jupiter.api)
     testRuntimeOnly(mn.junit.jupiter.engine)
+    testImplementation(mn.micronaut.test.junit5)
+    // Integration tests run against real PostgreSQL/RabbitMQ/Redis containers (Testcontainers).
+    testImplementation(mn.testcontainers.postgres)
+    testImplementation(mn.testcontainers.rabbitmq)
+    testImplementation(mn.testcontainers.redis)
+    testImplementation("org.testcontainers:junit-jupiter")
 }
 
 java {
@@ -99,6 +105,14 @@ tasks {
     withType(JavaCompile::class.java) {
         options.encoding = "UTF-8"
         options.forkOptions.jvmArgs = listOf("-Dmicronaut.openapi.views.spec=rapidoc.enabled=true,openapi-explorer.enabled=true,swagger-ui.enabled=true,swagger-ui.theme=flattop")
+    }
+}
+
+// Integration tests (@Tag("integration")) need Docker for Testcontainers. Run the rest without it
+// via ./gradlew :backend:test -PexcludeTags=integration.
+tasks.withType<Test>().configureEach {
+    providers.gradleProperty("excludeTags").orNull?.let { tags ->
+        useJUnitPlatform { excludeTags(tags) }
     }
 }
 
