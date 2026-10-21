@@ -102,7 +102,7 @@ const summary = computed(() =>
     const cost = String(step.eloCost).trim()
     if (!duration.ok || !WHOLE_NUMBER.test(cost)) return []
     return [
-      t('templates.editor.summaryStep', {
+      t(Number(cost) === 0 ? 'templates.editor.summaryStepFree' : 'templates.editor.summaryStep', {
         n: index + 1,
         duration: describeDuration(duration.seconds, locale.value),
         cost: Number(cost),
@@ -201,6 +201,7 @@ const ICON = {
           <li
             v-for="(step, index) in steps"
             :key="step.id"
+            style="--md-field-bg: var(--color-surface-container)"
             class="flex flex-wrap items-start gap-x-3 gap-y-2 rounded-md-md bg-surface-container p-3"
           >
             <span
@@ -224,7 +225,7 @@ const ICON = {
             />
             <MdTextField
               v-model="step.eloCost"
-              class="order-3 basis-full sm:w-40 sm:basis-auto"
+              class="order-3 basis-full sm:w-44 sm:basis-auto"
               type="number"
               required
               :label="t('templates.editor.cost', { n: index + 1 })"

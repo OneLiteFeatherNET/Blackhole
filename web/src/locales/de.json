@@ -215,10 +215,11 @@
       "advanced": "Erweitert",
       "advancedHint": "Vergehen in derselben Eskalationsgruppe zählen zusammen: Jedes neue Vergehen innerhalb des Fensters führt eine Stufe weiter. Ohne Gruppe gilt der Schlüssel und das Standardfenster. Die meisten Vorlagen brauchen beides nicht.",
       "step": "Stufe {n}",
-      "costHint": "Wird vom Punktestand abgezogen",
+      "costHint": "Wird abgezogen",
       "summaryTitle": "Das bedeutet",
       "summaryStep": "{n}. Vergehen: {duration}, −{cost} ELO",
-      "summaryRepeat": "Weitere Vergehen wiederholen die letzte Stufe."
+      "summaryRepeat": "Weitere Vergehen wiederholen die letzte Stufe.",
+      "summaryStepFree": "{n}. Vergehen: {duration}, keine ELO-Kosten"
     }
   },
   "sections": {

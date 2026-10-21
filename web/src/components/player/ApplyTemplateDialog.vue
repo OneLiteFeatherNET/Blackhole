@@ -26,7 +26,8 @@ const options = computed(() => [
   { value: '', label: t('actions.apply.choose') },
   ...templates.value.map((template) => ({
     value: template.key,
-    label: `${template.key} - ${template.reason} (${template.section})`,
+    label: template.key,
+    description: `${template.reason} \u00b7 ${template.section}`,
   })),
 ])
 

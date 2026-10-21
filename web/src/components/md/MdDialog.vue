@@ -77,7 +77,7 @@ function onKeydown(event: KeyboardEvent) {
       <div class="mt-4 mb-6 text-body-medium text-on-surface-variant">
         <slot />
       </div>
-      <div class="sticky bottom-0 -mb-6 mt-auto flex justify-end gap-2 bg-surface-container-high pb-6 pt-2">
+      <div class="sticky -bottom-6 -mb-6 mt-auto flex justify-end gap-2 bg-surface-container-high pb-6 pt-2">
         <slot name="actions" />
       </div>
     </div>

@@ -50,4 +50,14 @@ describe('MdDialog', () => {
 
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
+
+  it('hands its own surface color to outlined fields so their label notch matches the dialog', async () => {
+    const wrapper = mount(MdDialog, { props: { open: true, headline: 'x' }, attachTo: document.body })
+    mounted.push(wrapper)
+
+    const panel = wrapper.get('[role="dialog"]')
+
+    expect(panel.classes()).toContain('bg-surface-container-high')
+    expect(panel.attributes('style')).toContain('--md-field-bg: var(--color-surface-container-high)')
+  })
 })

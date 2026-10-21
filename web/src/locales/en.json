@@ -215,10 +215,11 @@
       "advanced": "Advanced",
       "advancedHint": "Offences in the same escalation group count together: each new offence within the window moves one step up. Without a group the key is used and the default window applies. Most templates need neither.",
       "step": "Step {n}",
-      "costHint": "Deducted from the score",
+      "costHint": "Deducted",
       "summaryTitle": "What this means",
       "summaryStep": "Offence {n}: {duration}, −{cost} ELO",
-      "summaryRepeat": "Further offences repeat the last step."
+      "summaryRepeat": "Further offences repeat the last step.",
+      "summaryStepFree": "Offence {n}: {duration}, no ELO cost"
     }
   },
   "sections": {

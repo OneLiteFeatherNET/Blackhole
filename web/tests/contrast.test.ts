@@ -51,6 +51,19 @@ const PAIRS: Array<[string, string, number, string]> = [
   ['inverse-on-surface', 'inverse-surface', TEXT, 'snackbar'],
   ['inverse-primary', 'inverse-surface', TEXT, 'snackbar action'],
   ['outline', 'surface', UI, 'text field and select borders'],
+  // Dialogs sit on surface-container-high, menus and step rows on surface-container, cards on -low/-highest.
+  ['on-surface', 'surface-container-high', TEXT, 'dialog text and data table'],
+  ['on-surface-variant', 'surface-container-high', TEXT, 'dialog hints and outlined field labels'],
+  ['primary', 'surface-container-high', TEXT, 'text buttons and links in dialogs'],
+  ['error', 'surface-container-high', TEXT, 'field errors in dialogs'],
+  ['outline', 'surface-container-high', UI, 'field borders in dialogs'],
+  ['primary', 'surface-container-high', UI, 'focused field border in dialogs'],
+  ['on-surface', 'surface-container', TEXT, 'menu items, step rows'],
+  ['on-surface-variant', 'surface-container', TEXT, 'menu supporting text, field labels in step rows'],
+  ['outline', 'surface-container', UI, 'field borders in step rows'],
+  ['on-secondary-container', 'secondary-container', TEXT, 'selected menu item'],
+  ['on-surface', 'surface-container-low', TEXT, 'elevated cards'],
+  ['on-surface-variant', 'surface-container-low', TEXT, 'elevated card hints'],
   ['primary', 'surface', UI, 'focus ring'],
 ]
 

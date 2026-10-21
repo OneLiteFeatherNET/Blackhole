@@ -49,7 +49,7 @@ describe('ApplyTemplateDialog', () => {
     const { wrapper } = await mount()
 
     const options = (await listOptions(wrapper.get('[role="combobox"]'))).map((o) => o.label)
-    expect(options).toEqual(['Choose a template', 'hacking - Hacking (network)', 'spam - Spam (chat)'])
+    expect(options).toEqual(['Choose a template', 'hacking', 'spam'])
     expect(wrapper.get('[data-testid="confirm"]').attributes('disabled'), 'nothing chosen yet').toBeDefined()
 
     wrapper.unmount()
