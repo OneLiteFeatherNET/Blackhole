@@ -46,7 +46,9 @@ to the punished player.
    asks `GET /punishment/{ref}/evidence/count` asynchronously, caches the count briefly in
    the existing proxy-side cache (30 s) and appends the localised line. The Redis mirror is
    not extended: a count in the mirror would be stale once evidence is attached after the
-   ban. Failure or timeout omits the line.
+   ban. Failure or timeout omits the line. The backend counts only valid evidence, so evidence of a
+   lifted or revoked punishment never inflates the number. Captured chat lives as long as its
+   punishment record (no time-based expiry) - see the `add-punishment-evidence` design.
 6. **Threading.** All HTTP calls go through the plugin's existing async executor, never the
    Velocity event thread; listener code only appends to the buffer (O(1)).
 7. **Config** (`evidence.chat-capture.*`): `enabled`, `lines`, `context-lines`, `max-age`,

@@ -58,12 +58,18 @@ number is adjusted at implementation. Append-only; no existing rows to migrate -
 | `file_content_type` | varchar(100) null | sniffed |
 | `file_size` | bigint null | |
 | `file_sha256` | varchar(64) null | of the stored (re-encoded) bytes |
-| `retain_until` | bigint null | null = held (active punishment / open appeal / pending uses `created_at + pending-ttl`) |
+| `status` | smallint not null default 0 | VALID, REVOKED, LIFTED (ordinal enum); pending items are VALID with null `punishment_identifier` |
+| `status_changed_at` | bigint null | when the item became REVOKED / LIFTED |
+| `lifted_by_appeal` | uuid null | appeal that lifted the punishment (LIFTED only) |
 
 `evidence_audit` (append-only, no FK so it survives deletion): `identifier` uuid PK,
 `evidence_identifier` uuid, `punishment_identifier` varchar(255) null, `owner` varchar(255),
-`action` smallint (ATTACHED, VIEWED, DOWNLOADED, DELETED), `actor` uuid null, `reason`
-varchar(32) null, `at` bigint. No content columns, ever.
+`action` smallint (ATTACHED, VIEWED, VIEWED_INACTIVE, DOWNLOADED, DELETED), `actor` uuid null, `reason`
+varchar(32) null, `note` varchar(500) null (admin delete reason text), `at` bigint. No content columns, ever.
+
+The FK `punishment_identifier -> punishments(identifier)` is `ON DELETE CASCADE`: evidence lives
+exactly as long as the punishment record. Rows disappear with the punishment; the service
+hook deletes the blobs at the same time and the blob reconcile sweep catches any left behind.
 
 JSON validity and enum ranges are enforced in the service layer, not by `CHECK`, as
 `.claude/rules/database.md` requires. A row has exactly one of {payload, external_ref,
@@ -81,8 +87,7 @@ between the two steps self-heals.
   identifiers so the caller retries with the full id. Reuses the V7 short-id lookup.
 - Pre-punishment: the punishment-creating endpoints (template apply / direct punish) accept an
   optional `evidenceCorrelationId`. The creation service, after persisting, claims
-  `owner + correlationId` items in the same call (set `punishment_identifier`, `retain_until`
-  null; a claim publishes no extra event, the item was already announced when attached). Evidence arriving
+  `owner + correlationId` items in the same call (set `punishment_identifier`; a claim publishes no extra event, the item was already announced when attached). Evidence arriving
   *after* the ban uses the punishment identifier returned by the ban call. A late item with a
   correlation whose punishment already exists is not magically linked; callers use the id.
 - Pending items expire after `pending-ttl` (default P1D, set from `created_at`).
@@ -195,32 +200,66 @@ and display: only `evidenceCount` (punishment entry, appeal DTO, count endpoint)
 that player-facing flows use (`PunishEntryDTO`, `AppealDTO`) are tested to contain no field
 beyond the count. Per-actor access control stays deferred with the identity gap.
 
-### 10. Retention, erasure, GDPR
-Defaults (`blackhole.evidence.retention.*`, ISO-8601 durations, documented in `application.yml`):
-`after-end` P90D (owner decision; uniform for all kinds, env var
-`BLACKHOLE_EVIDENCE_RETENTION_AFTER_END`), `pending-ttl` P1D,
-`audit-retention` P365D, `sweep-interval` PT1H.
-- Active punishment (incl. permanent) or undecided appeal: `retain_until = null` (held).
-- Expiry sweep / revoke hook sets `retain_until = now + after-end`. A staff revoke **never**
-  deletes evidence early (owner decision; no erase flag). A granted full-lift appeal
-  deletes immediately (`APPEAL_LIFTED`) - **flagged for owner confirmation**: the owner said
-  "nie loeschen" for revoke; whether this also covers appeal full lift is not yet decided, and
-  the design keeps immediate erase until told otherwise (switching it to the revoke behaviour
-  is a one-line change in the lifecycle hook). The retention sweep deletes items with
-  `retain_until < now` that have no undecided appeal, and also re-derives state from the
-  punishment so a missed hook cannot leak evidence forever.
-- `DELETE /evidence/{id}` (staff) and `DELETE /evidence/owner/{owner}` (erasure request).
-  Deleting a punishment cascades in the service (blobs first, then rows), not via DB cascade.
-- Data-subject access: `GET /evidence?owner=` lists everything held for an owner hash (paged),
-  enough for an operator to answer an Art. 15 request; erasure honours Art. 17 unless the
-  operator keeps evidence for legal claims (Art. 17(3)(e)) - operator decision, hence the
-  endpoint is explicit and nothing erases automatically beyond the retention policy.
-- Evidence also mentions other players (chat). Speakers are hashes only; the operator's
-  lawful basis (typically Art. 6(1)(f) legitimate interest in enforcing network rules, with a
-  balancing test) and the privacy-notice wording are **operator concerns** documented in the
-  README, not decided by the software. Storage-limitation (Art. 5(1)(e)) is what the retention
-  settings serve.
+### 10. Evidence lifetime, lifted evidence, erasure, GDPR
+Owner decisions (network security has priority): **evidence lives exactly as long as its
+punishment record exists in the history.** There is no time-based expiry, no
+`BLACKHOLE_EVIDENCE_RETENTION_AFTER_END` and no retention sweep for time-based deletion.
+
+*Deletion paths (the only ones):*
+- (a) the punishment record is deleted: rows go via `ON DELETE CASCADE`, blobs are deleted by
+  the service hook in the same operation (reason `CASCADE`).
+- (b) an admin calls `DELETE /evidence/{id}` or `DELETE /evidence/owner/{owner}`. A `reason`
+  is mandatory (400 without it), an audit entry with reason, optional note and the unverified
+  actor is written per item (the entries contain no content and outlive the evidence), and
+  `evidence.deleted` is published. This is the path for data-subject erasure requests
+  (Art. 17); **the operator decides each request case by case** (for example refusing under
+  Art. 17(3)(e) when evidence is needed for legal claims). Nothing erases automatically.
+- Housekeeping only (`housekeeping.interval`, default PT1H): unclaimed correlation evidence
+  after `pending-ttl` (P1D, reason `UNCLAIMED_EXPIRED`), blobs without a row older than one day,
+  and optional audit-row purge if `audit-retention` is set (unset by default = keep). The
+  sweep never touches evidence that belongs to a punishment.
+
+*Lifted and revoked evidence - kept, marked, hidden by default:*
+- A granted full-lift appeal sets the punishment's items to `LIFTED` (`status_changed_at`,
+  `lifted_by_appeal`) instead of deleting them. Reductions and denials change nothing.
+- A staff revoke never deletes. **Proposal:** it marks the items `REVOKED` (same mechanics,
+  label "Strafe widerrufen" / "Punishment revoked"), because a revoked punishment's evidence
+  also no longer supports a current punishment. This is a proposal; if the owner prefers,
+  revoked evidence simply stays `VALID`.
+- Marked items are labelled ("Strafe per Appeal aufgehoben"), are **not** counted by
+  `evidenceCount`/the count endpoint, must not be presented as supporting a current
+  punishment, and are excluded from lists unless `includeInactive=true`; each such list is
+  audited (`VIEWED_INACTIVE`). The admin UI hides them behind the explicit toggle
+  "aufgehobene Beweise anzeigen".
+- **Honest limit:** there is no auth layer, so "admins only" cannot be enforced in the
+  application. The protection is the UI default (hidden), the audit entry and the deployment
+  boundary (only trusted callers reach the API). Anyone who can reach the API can pass
+  `includeInactive=true`. Per-actor control stays deferred with the identity gap.
+
+*GDPR rationale:*
+- **Purpose: network security** - preventing repeat offences and ban evasion by keeping the
+  basis of a sanction with the sanction.
+- **Storage limitation (Art. 5(1)(e))** is justified by tying evidence to the punishment
+  record's lifetime: the evidence is kept no longer than the record it substantiates, and is
+  erased with it. The software therefore does not impose a second clock; the operator's
+  punishment-history retention is the clock.
+- **Operator duties (documented in the README, not decided by the software):** document the
+  punishment-history retention period and its justification, and the lawful basis (typically
+  Art. 6(1)(f) legitimate interest with a balancing test); name the evidence categories (chat,
+  recordings, anticheat data, links) in the privacy notice and the records of processing
+  (Art. 30); answer access requests (Art. 15) with `GET /evidence?owner=&includeInactive=true`
+  and erasure/objection requests (Art. 17/21) through the admin delete path, deciding case by
+  case.
+- Evidence also mentions other players (chat). Speakers are hashes or per-evidence aliases only.
 - Audit trail: see `evidence_audit`; the actor is the unverified client-supplied UUID.
+
+*Storage growth and capacity planning:* with no time-based deletion, evidence grows with the
+punishment history. Operators size the bucket/volume for the expected history (for example
+videos up to 100 MiB x expected video evidence per month x retention of the punishment
+history), monitor usage, and may lower `max-video-bytes` or remove `video/*` from
+`allowed-types`. **S3 lifecycle expiry rules must not be used to delete evidence**; deletion goes
+through the admin path so database, blob and audit stay consistent. The blob reconcile sweep only
+removes blobs without a row.
 
 ### 11. API contract
 Version via `X-API-VERSION` 1 (class-level `@Version(ApiVersion.V1)`), version-less paths.
@@ -233,13 +272,13 @@ Per the micronaut-* skills: one sealed `EvidenceDTO` marker interface with neste
 |---|---|
 | `POST /evidence` | attach JSON-kind evidence (target by punishment/short id or owner+correlation) |
 | `POST /evidence/file` | multipart upload (`file`, `sourceSystem`, target fields, optional `description`) |
-| `GET /punishment/{ref}/evidence?page&size` | list (Micronaut `Pageable`, default 20, max 100) |
-| `GET /punishment/{ref}/evidence/count` | `{count}` - the only player-visible view |
+| `GET /punishment/{ref}/evidence?page&size&includeInactive` | list (Micronaut `Pageable`, default 20, max 100); `includeInactive=true` also returns `LIFTED`/`REVOKED` items and writes a `VIEWED_INACTIVE` audit entry |
+| `GET /punishment/{ref}/evidence/count` | `{count}` of `VALID` items - the only player-visible view |
 | `GET /evidence?owner=&page&size` | list by owner (access requests) |
 | `GET /evidence/{id}` | metadata + payload |
 | `GET /evidence/{id}/content` | file stream, `Range` aware |
-| `DELETE /evidence/{id}` | delete |
-| `DELETE /evidence/owner/{owner}` | erasure |
+| `DELETE /evidence/{id}?reason=&note=&source=` | admin delete; `reason` required (`ERASURE_REQUEST`, `WRONG_EVIDENCE`, `OTHER`), audited |
+| `DELETE /evidence/owner/{owner}?reason=&note=&source=` | erasure of all evidence of an owner hash; same required reason and per-item audit |
 
 Consistent with the existing API, the unverified actor is a client-supplied `source` UUID
 (body field, or query parameter on GET/DELETE), stored as `created_by` / audit `actor`; no
@@ -249,14 +288,14 @@ header or token scheme is introduced. Rate limiting is left to infra (CLAUDE.md)
 `evidence.attached` and `evidence.deleted` through `DomainEventPublisher` (fire-and-forget
 `Publisher<Void>`, see the fixed RabbitMQ publisher - no blocking call on the Netty event
 loop). Payloads: `{evidenceId, punishmentId|null, owner, kind, sourceSystem}` plus `reason`
-for deleted. No payload content, no file data. Added to `.claude/rules/events.md`. No
+for deleted (`MANUAL`, `ERASURE`, `CASCADE`, `UNCLAIMED_EXPIRED`). No payload content, no file data. Added to `.claude/rules/events.md`. No
 Redis/Dragonfly keys are written: evidence is not part of the proxy mirror; counts are read
 from the database.
 
 ### 13. Config
 `blackhole.evidence.*` in `application.yml` with `${ENV:default}` and a comment per tunable:
-`max-payload-bytes`, `max-chat-lines`, `pending-ttl`, `retention.after-end`,
-`retention.sweep-interval`, `audit-retention`, `files.storage` (`s3` default | `local`),
+`max-payload-bytes`, `max-chat-lines`, `pending-ttl`, `housekeeping.interval` (PT1H),
+`audit-retention` (unset = keep), `files.storage` (`s3` default | `local`),
 `files.local.path`, `files.max-image-bytes`, `files.max-video-bytes`, `files.max-image-pixels`,
 `files.allowed-types`, `files.s3.{endpoint,bucket,region,access-key,secret-key,path-style}`,
 `scan.enabled`, `scan.clamd.{host,port}`.
@@ -270,7 +309,11 @@ from the database.
   ratified model; the README states it prominently.
 - **Unverified `sourceSystem`/`createdBy`**: audit entries are not tamper-proof attributions.
 - **Raw-text chat storage** is a deliberate departure from the toxicity flow's hash-only rule,
-  bounded by line caps, redaction, retention and staff-only access.
+  bounded by line caps, redaction, the punishment-record lifetime and staff-only access.
+- **Unbounded growth**: with no time-based expiry, storage grows with the punishment history
+  (see capacity planning in decision 10); S3 lifecycle rules must not be used to delete evidence.
+- **Lifted-evidence hiding is advisory**: there is no auth layer, so the default hiding, the audit
+  and the deployment boundary are the only controls.
 - **Filesystem backend with several replicas** needs a shared volume; documented, S3 is the default.
 - **ClamAV memory (~1 GB) and slow first start**; scanning fails closed, so an unhealthy
   scanner blocks uploads (not other evidence kinds).
@@ -284,8 +327,8 @@ versions. Orphaned blobs removed by the reconcile sweep or by deleting the bucke
 
 ## Open Questions
 
-Open: does the owner's "never delete" for revoke also apply to appeal full lift (currently
-immediate erase); merging the legacy `punishment_evidence` table later.
+Whether evidence of revoked punishments should be marked `REVOKED` and hidden like `LIFTED`
+(proposed here, decision 10); merging the legacy `punishment_evidence` table later.
 
 ## Sources
 

@@ -9,7 +9,7 @@ systems know the check that flagged a player, replay systems hold a recording, t
 chat, staff have screenshots and Discord messages - none of it can be attached to a punishment
 today. The only related code is the hash-only `punishment_evidence` table written by the
 automatic chat-toxicity flow. Reviewers need the real material, third-party systems need a
-simple way to hand it over, and the GDPR obligations (retention, erasure, access, audit) have to
+simple way to hand it over, and the GDPR obligations (storage limitation, erasure, access, audit) have to
 be solved up front because evidence is personal data (chat text, video, other players' names).
 
 ## What Changes
@@ -31,12 +31,18 @@ be solved up front because evidence is personal data (chat text, video, other pl
   magic-byte content sniffing, image re-encoding to strip EXIF, and **ClamAV antivirus
   scanning in the first release** (compose service, fail-closed when configured). Staff download is **backend-proxied** (range requests for video), never
   presigned.
-- Retention: evidence is kept while the punishment is active or an appeal is open, deleted
-  `blackhole.evidence.retention.after-end` (default P90D, uniform for all kinds, env var
-  `BLACKHOLE_EVIDENCE_RETENTION_AFTER_END`) after it ends, immediately when an appeal fully
-  lifts it (flagged for owner confirmation, see design), never early on a staff revoke, and after P1D when never claimed by a punishment. Manual delete and
-  owner-scoped erasure endpoints. Append-only audit log (attached/viewed/downloaded/deleted)
-  without content.
+- Lifetime: evidence lives exactly as long as its punishment record exists in the history. There
+  is **no time-based expiry** and no retention env var. Deletion happens only when the
+  punishment record itself is deleted (cascade), or explicitly by an admin through a delete
+  endpoint that **requires a reason** and writes an audit entry - the path for data-subject
+  erasure requests, which the operator decides case by case. Housekeeping sweeps remove only
+  never-claimed correlation evidence (after P1D) and orphaned blobs.
+- Lifecycle marking instead of deletion: evidence of a punishment lifted by a granted appeal is
+  kept and marked `LIFTED` (liftedAt + appeal id); evidence of a staff-revoked punishment is
+  proposed to be marked `REVOKED`. Marked evidence is labelled, never counted as supporting a
+  current punishment, and hidden by default (API flag and admin UI toggle); showing it is
+  audited. Without an auth layer this cannot be enforced as "admins only" - see design.
+  Append-only audit log (attached/viewed/downloaded/deleted/viewed-lifted) without content.
 - Domain events `evidence.attached` and `evidence.deleted` (ids, hashed owner, kind - no content).
 - Staff-only visibility: content endpoints are for staff tools only; players learn solely the
   **count** (`evidenceCount` on the punishment entry and on the appeal DTO, plus a count
@@ -61,8 +67,8 @@ legal-basis determination (operator concern, see design).
 
 - `elo-scoring`: the "chat evidence stores only a hash" rule is scoped to the automatic
   toxicity flow so it no longer contradicts staff/proxy-submitted `CHAT_LOG` evidence.
-- `appeal-workflow`: appeal responses carry `evidenceCount`; a full-lift grant erases the
-  punishment's evidence; an open appeal holds retention.
+- `appeal-workflow`: appeal responses carry `evidenceCount`; a full-lift grant keeps the
+  punishment's evidence and marks it `LIFTED`.
 
 ## Impact
 
@@ -70,6 +76,6 @@ legal-basis determination (operator concern, see design).
   `blackhole.evidence.*`, hooks in the revoke / appeal-resolution / punishment-creation services,
   dependencies (`micronaut-object-storage-aws`, AWS SDK v2 `s3`), `client/specs` bump.
 - `docker/docker-compose.yml` (SeaweedFS and ClamAV services; ClamAV needs about 1 GB RAM),
-  README (storage options, retention, operator GDPR notes).
+  README (storage options, evidence lifetime, operator GDPR notes, capacity planning).
 - Depends on V7 (`feat/punishment-short-id`, open PR) being merged first: short-id lookup and
   migration numbering. The legacy `punishment_evidence` table and `EvidenceType` stay untouched.

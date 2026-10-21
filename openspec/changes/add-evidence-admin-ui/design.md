@@ -49,8 +49,17 @@ beyond the existing responsive shell.
    Aliases such as "Spieler A" (sent by the proxy) are shown as-is; unknown speakers render as "Player N". Nothing is written to local storage.
 7. **Privacy in the UI**: the actor sent as `source` is the existing configured operator UUID;
    a banner on the panel states that opening content is audited (`VIEWED`/`DOWNLOADED`).
-8. **Delete**: `MdDialog` confirm naming the item; on success the list refetches and a
-   snackbar confirms. In appeal review, delete is allowed (same API) but visually secondary.
+8. **Delete**: `MdDialog` confirm naming the item with a required reason select
+   (`ERASURE_REQUEST`, `WRONG_EVIDENCE`, `OTHER`) and an optional note; the confirm button stays
+   disabled until a reason is chosen. On success the list refetches and a snackbar confirms. In
+   appeal review, delete is allowed (same API) but visually secondary.
+8a. **Lifted evidence toggle**: the list calls the API without `includeInactive`; the switch
+   "aufgehobene Beweise anzeigen" refetches with `includeInactive=true` (which the backend audits
+   as `VIEWED_INACTIVE`). Items with status `LIFTED`/`REVOKED` carry a distinct chip and muted
+   style ("Strafe per Appeal aufgehoben" / "Strafe widerrufen") and are never shown in the
+   count badge. The toggle resets to off when the dialog or page closes and is not persisted.
+   The UI states honestly that this is a default, not an access restriction: with no auth
+   layer, protection relies on the UI default, the audit and the deployment boundary.
 9. **i18n and a11y**: all strings in both locale files (existing parity test); drop zone has
    `role="button"`, visible focus ring, `aria-live` region for progress; video has captions
    disabled-note; image `alt` is the display name.

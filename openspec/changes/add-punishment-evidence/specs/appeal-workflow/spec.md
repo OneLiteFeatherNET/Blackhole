@@ -3,26 +3,26 @@
 ## ADDED Requirements
 
 ### Requirement: Appeals expose only the evidence count
-Appeal responses SHALL include `evidenceCount`, the number of evidence items attached to the appealed punishment, and MUST NOT include evidence content, references, source systems or file metadata.
+Appeal responses SHALL include `evidenceCount`, the number of valid evidence items attached to the appealed punishment, and MUST NOT include evidence content, references, source systems or file metadata.
 
 #### Scenario: Count in appeal response
-- **WHEN** an appeal is read for a punishment with 3 evidence items
+- **WHEN** an appeal is read for a punishment with 3 valid evidence items
 - **THEN** the response contains `evidenceCount` 3 and no evidence content
 
-### Requirement: Granted full lift erases evidence
-When an appeal is granted as full lift, the system SHALL delete all evidence of the lifted punishment with reason `APPEAL_LIFTED`, including stored files. Reductions and denials MUST NOT delete evidence.
+### Requirement: Granted full lift keeps evidence marked as lifted
+When an appeal is granted as full lift, the system SHALL keep all evidence of the lifted punishment and mark it `LIFTED` with the lift time and the appeal id; it MUST NOT delete it. Reductions and denials MUST NOT change evidence.
 
-#### Scenario: Full lift deletes evidence
+#### Scenario: Full lift marks evidence
 - **WHEN** an appeal is granted as full lift for a punishment with a screenshot and an anticheat record
-- **THEN** both items and the stored file are deleted and `evidence.deleted` events with reason `APPEAL_LIFTED` are published
+- **THEN** both items and the stored file are kept with status `LIFTED`, liftedAt and the appeal id
 
-#### Scenario: Denial keeps evidence
+#### Scenario: Denial keeps evidence unchanged
 - **WHEN** an appeal is denied
 - **THEN** the punishment's evidence is unchanged
 
-### Requirement: Open appeal holds evidence retention
-Evidence of a punishment with an appeal that is not yet decided MUST NOT be deleted by the retention sweep.
+### Requirement: Evidence of an undecided appeal is kept
+Evidence of a punishment with an undecided appeal MUST remain available to the reviewer in the appeal review.
 
-#### Scenario: Retention elapsed during open appeal
-- **WHEN** the retention period of a punishment has elapsed but its appeal is still awaiting review
-- **THEN** the sweep keeps the evidence
+#### Scenario: Reviewer sees evidence
+- **WHEN** an appeal awaits review
+- **THEN** the valid evidence of the appealed punishment can be listed

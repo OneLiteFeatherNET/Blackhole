@@ -23,8 +23,9 @@ screenshot or remove wrong evidence without calling the API by hand.
   read from `/config.json`), per-file progress (XHR, since `fetch` has no upload progress),
   cancel, and server error messages (413/415/422/503) shown per file.
 - **Add link / replay** form (kind, URL, description) with scheme validation.
-- **Delete** with a confirm dialog.
-- Appeal review shows the evidence panel read-only plus delete.
+- **Delete** with a confirm dialog that **requires a reason** (erasure request, wrong evidence, other, plus optional note); the backend audits it.
+- **Lifted evidence** (punishment lifted by appeal, or revoked) is kept by the backend and **hidden by default**; an explicit toggle "aufgehobene Beweise anzeigen" / "Show lifted evidence" reveals it, each item labelled "Strafe per Appeal aufgehoben" (or "Strafe widerrufen"). Using the toggle is audited server-side; there is no auth layer, so this is a UI default, not an access control.
+- Appeal review shows the valid evidence panel read-only plus the same toggle and delete.
 - German and English strings; Material Design 3 components from `web/src/components/md/`.
 - Light, dark and keyboard accessibility as in the rest of the UI.
 

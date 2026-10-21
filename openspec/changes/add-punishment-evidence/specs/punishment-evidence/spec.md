@@ -33,7 +33,7 @@ The system SHALL accept evidence addressed by an `owner` hash and a client-chose
 
 #### Scenario: Unclaimed evidence expires
 - **WHEN** pending evidence is not claimed within the pending TTL
-- **THEN** the retention sweep deletes it and publishes `evidence.deleted` with reason `UNCLAIMED_EXPIRED`
+- **THEN** the housekeeping sweep deletes it and publishes `evidence.deleted` with reason `UNCLAIMED_EXPIRED`
 
 ### Requirement: Per-kind structured payloads
 The system SHALL validate the payload of each JSON kind against a schema that rejects undeclared properties, and MUST reject payloads larger than `blackhole.evidence.max-payload-bytes` (default 32768) with HTTP 413. `ANTICHEAT` requires `check` and permits `values` (flat string/number/boolean map), `violationLevel`, `server`, `detail`. `CHAT_LOG` requires 1 to `max-chat-lines` (default 50) lines of `{timestamp, speaker, text}`. `REPLAY` and `LINK` carry a reference and an optional `description`.
@@ -112,47 +112,76 @@ Evidence content and metadata SHALL be served only by the content endpoints, whi
 - **THEN** the response is HTTP 206 with exactly those bytes
 
 ### Requirement: Players learn only the count
-Punishment entries SHALL expose `evidenceCount`, and `GET /punishment/{ref}/evidence/count` SHALL return only the number of items; neither MAY reveal kind, source, reference, payload or file data.
+Punishment entries SHALL expose `evidenceCount`, and `GET /punishment/{ref}/evidence/count` SHALL return only the number of `VALID` items (lifted and revoked evidence is not counted); neither MAY reveal kind, source, reference, payload or file data.
 
 #### Scenario: Count only
 - **WHEN** the count endpoint is called for a punishment with 3 items
 - **THEN** the response contains `{"count": 3}` and nothing else
 
-### Requirement: Retention and deletion
-The system SHALL keep evidence while its punishment is active or has an undecided appeal, and delete it (rows and stored files) `blackhole.evidence.retention.after-end` (default P90D, uniform for all kinds) after the punishment expired or was revoked. A staff revoke MUST NOT delete evidence earlier than that. Staff MUST be able to delete any item, and an owner-scoped erasure MUST delete all evidence of an owner hash.
+### Requirement: Evidence lives as long as its punishment record
+The system MUST NOT delete evidence because of elapsed time. Evidence SHALL be deleted only when its punishment record is deleted (cascade, including stored files) or explicitly by an admin delete, and MUST otherwise be kept regardless of expiry, revocation or lift of the punishment.
 
-#### Scenario: Expired punishment
-- **WHEN** a punishment expired more than the retention period ago and has no open appeal
-- **THEN** its evidence and files are deleted and `evidence.deleted` events with reason `RETENTION` are published
+#### Scenario: Expired punishment keeps evidence
+- **WHEN** a punishment expired years ago and remains in the history
+- **THEN** its evidence and files are still present
 
 #### Scenario: Revoke keeps evidence
 - **WHEN** staff revoke an active punishment
-- **THEN** its evidence is kept until the retention period after the revocation has elapsed
+- **THEN** its evidence is not deleted
 
-#### Scenario: Owner erasure
-- **WHEN** erasure is requested for an owner hash
-- **THEN** all evidence of that owner is deleted with reason `ERASURE` and an audit entry per item remains without content
+#### Scenario: Punishment record deleted
+- **WHEN** a punishment record is deleted
+- **THEN** its evidence rows and files are deleted and `evidence.deleted` events with reason `CASCADE` are published
+
+### Requirement: Admin delete requires a reason
+Deleting one item or all evidence of an owner hash SHALL require a `reason` (`ERASURE_REQUEST`, `WRONG_EVIDENCE`, `OTHER`) and write an audit entry per deleted item containing the reason, optional note and client-supplied actor; a request without a reason MUST be rejected with HTTP 400 and delete nothing. The system MUST NOT erase evidence automatically for data-subject requests; the operator decides such requests case by case.
+
+#### Scenario: Delete without reason
+- **WHEN** an item is deleted without a reason
+- **THEN** the response is HTTP 400 and the item still exists
+
+#### Scenario: Erasure request handled
+- **WHEN** an admin deletes all evidence of an owner hash with reason `ERASURE_REQUEST`
+- **THEN** every item and file is deleted, an audit entry per item remains without content, and `evidence.deleted` events with reason `ERASURE` are published
+
+### Requirement: Housekeeping sweep
+A sweep MUST run every `blackhole.evidence.housekeeping.interval` (default PT1H) that deletes unclaimed pending evidence after the pending TTL and blobs without a database row older than one day, and MUST NOT delete evidence that belongs to a punishment.
 
 #### Scenario: Orphan blob
 - **WHEN** a blob exists in the store without a matching row for more than one day
-- **THEN** the reconcile sweep deletes it
+- **THEN** the sweep deletes it
 
-### Requirement: Retention sweep
-A sweep MUST run every `blackhole.evidence.retention.sweep-interval` (default PT1H), and a missed lifecycle hook MUST be corrected by the next sweep.
+#### Scenario: Claimed evidence untouched
+- **WHEN** the sweep runs and evidence belongs to a punishment, however old
+- **THEN** it is not deleted
 
-#### Scenario: Missed hook
-- **WHEN** a punishment ended and its retention was never set because a hook was missed
-- **THEN** the next sweep derives the state and applies the retention period
+### Requirement: Lifted and revoked evidence is marked and hidden by default
+When a punishment is lifted by a granted full-lift appeal, the system SHALL keep its evidence and mark it `LIFTED` with the lift time and appeal id. When a punishment is revoked by staff, the system SHALL mark its evidence `REVOKED`.
+
+#### Scenario: Revoke marks evidence
+- **WHEN** staff revoke a punishment
+- **THEN** its evidence is kept with status `REVOKED`
+
+### Requirement: Marked evidence access
+Marked evidence MUST be excluded from list responses unless `includeInactive=true` is passed, MUST NOT be counted in `evidenceCount`, MUST carry its status in every response, and listing it MUST write a `VIEWED_INACTIVE` audit entry. The system cannot restrict `includeInactive` to admins because no auth layer exists.
+
+#### Scenario: Default list hides lifted evidence
+- **WHEN** a punishment lifted by appeal is listed without `includeInactive`
+- **THEN** its lifted items are not returned and the count excludes them
+
+#### Scenario: Explicit inclusion is audited
+- **WHEN** the list is requested with `includeInactive=true`
+- **THEN** lifted items are returned with status `LIFTED`, liftedAt and the appeal id, and a `VIEWED_INACTIVE` audit entry is written
 
 ### Requirement: Audit trail
-The system SHALL append an audit entry (action `ATTACHED`, `VIEWED`, `DOWNLOADED`, `DELETED`, evidence id, punishment id, owner hash, client-supplied actor UUID, timestamp) for each such action. Audit entries MUST NOT contain evidence content, MUST survive deletion of the evidence, and MUST be purged after `blackhole.evidence.audit-retention` (default P365D).
+The system SHALL append an audit entry (action `ATTACHED`, `VIEWED`, `VIEWED_INACTIVE`, `DOWNLOADED`, `DELETED`, evidence id, punishment id, owner hash, client-supplied actor UUID, timestamp) for each such action. Audit entries MUST NOT contain evidence content, MUST survive deletion of the evidence, and are kept unless the operator sets `blackhole.evidence.audit-retention`.
 
 #### Scenario: Download audited
 - **WHEN** a staff tool downloads a stored file
 - **THEN** a `DOWNLOADED` audit entry with the supplied actor UUID is written
 
 ### Requirement: Evidence domain events
-The system SHALL publish `evidence.attached` (evidence id, punishment id or null, owner hash, kind, source system) and `evidence.deleted` (the same plus reason `MANUAL`, `RETENTION`, `APPEAL_LIFTED`, `ERASURE`, `UNCLAIMED_EXPIRED`) without blocking the request thread and without evidence content.
+The system SHALL publish `evidence.attached` (evidence id, punishment id or null, owner hash, kind, source system) and `evidence.deleted` (the same plus reason `MANUAL`, `ERASURE`, `CASCADE`, `UNCLAIMED_EXPIRED`) without blocking the request thread and without evidence content.
 
 #### Scenario: Attach publishes event
 - **WHEN** evidence is attached

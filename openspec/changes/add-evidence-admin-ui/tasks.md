@@ -17,7 +17,8 @@ mount per test.
 - [ ] 2.3 Safe link rendering (new tab, `noopener noreferrer`, non-http plain text); verify tests for `https:`, `javascript:` and `data:` values
 - [ ] 2.4 `FilePreview` (img/video from the content endpoint, `preload="metadata"`); verify tests that only image/video content types render media
 - [ ] 2.5 `EvidenceUpload` (drag-and-drop, picker, progress, cancel, advisory checks, per-file server errors); verify component tests with a drop event and a fake uploader
-- [ ] 2.6 `AddLinkDialog` and `DeleteEvidenceDialog`; verify tests for scheme validation and that cancel sends no request
+- [ ] 2.6 `AddLinkDialog` and `DeleteEvidenceDialog` (reason required); verify tests for scheme validation, that cancel sends no request and that confirm is disabled without a reason
+- [ ] 2.7 Lifted-evidence toggle and status chips (`LIFTED`, `REVOKED`), toggle off by default and not persisted; verify component tests that the default request omits `includeInactive`, the toggle sends `includeInactive=true`, and lifted items show the label and are excluded from the count badge
 
 ## 3. Integration into screens
 

@@ -51,7 +51,7 @@ The UI SHALL let staff upload evidence files by drag-and-drop or file picker, sh
 - **THEN** the file shows a "type not allowed" message and the list is unchanged
 
 ### Requirement: Add links and delete evidence
-The UI SHALL let staff add LINK and REPLAY evidence with scheme validation, and delete an item only after an explicit confirmation.
+The UI SHALL let staff add LINK and REPLAY evidence with scheme validation, and delete an item only after an explicit confirmation that includes a required reason.
 
 #### Scenario: Delete confirmed
 - **WHEN** a user confirms deletion of an item
@@ -60,6 +60,21 @@ The UI SHALL let staff add LINK and REPLAY evidence with scheme validation, and 
 #### Scenario: Delete cancelled
 - **WHEN** a user cancels the confirmation
 - **THEN** no request is sent
+
+#### Scenario: Reason required
+- **WHEN** no reason is selected
+- **THEN** the confirm button is disabled
+
+### Requirement: Lifted evidence hidden by default
+The UI SHALL hide evidence of punishments lifted by appeal or revoked by default, SHALL reveal it only after the user switches on "aufgehobene Beweise anzeigen", MUST label each such item ("Strafe per Appeal aufgehoben" or "Strafe widerrufen"), MUST NOT count it in the evidence badge and MUST NOT present it as supporting a current punishment. The toggle MUST NOT be persisted. The UI does not restrict the toggle to particular users because no auth layer exists.
+
+#### Scenario: Default view
+- **WHEN** a punishment lifted by appeal is opened
+- **THEN** its evidence is not listed and the request omits `includeInactive`
+
+#### Scenario: Toggle on
+- **WHEN** the user switches on the toggle
+- **THEN** lifted items appear labelled "Strafe per Appeal aufgehoben" and the request sets `includeInactive=true`
 
 ### Requirement: Localised and accessible evidence UI
 All evidence strings SHALL exist in German and English, and the drop zone, previews and dialogs MUST be keyboard operable with visible focus.
