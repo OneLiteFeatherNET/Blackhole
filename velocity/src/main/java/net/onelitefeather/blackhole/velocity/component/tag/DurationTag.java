@@ -11,6 +11,13 @@ public final class DurationTag {
         throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
     }
 
+    /**
+     * @return a translatable, human readable form of the duration ("in 2 days 3 hours")
+     */
+    public static Component format(Duration duration) {
+        return I18nHumanDuration.format(duration);
+    }
+
     public static TagResolver resolver(long endMillis, long nowMillis) {
         final Duration d = Duration.ofMillis(endMillis - nowMillis);
         final Component text = I18nHumanDuration.format(d);

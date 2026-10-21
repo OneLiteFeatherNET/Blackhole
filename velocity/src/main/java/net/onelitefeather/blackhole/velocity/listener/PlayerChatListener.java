@@ -6,13 +6,11 @@ import com.velocitypowered.api.event.player.PlayerChatEvent;
 import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
 import net.onelitefeather.blackhole.client.api.EloApi;
-import net.onelitefeather.blackhole.client.api.PunishProfileApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
-import net.onelitefeather.blackhole.client.model.ChatSignalDTO;
-import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
+import net.onelitefeather.blackhole.client.model.EloChatSignalRequest;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
-import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -20,19 +18,21 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Optional;
 
+/**
+ * Denies the chat messages of muted players (an active punishment in a MUTE section) and forwards
+ * the others to the backend for toxicity scoring.
+ */
 public final class PlayerChatListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerChatListener.class);
 
-    private final PunishProfileApi punishProfileApi;
     private final EloApi eloApi;
-    private final RedisSyncService redisSyncService;
+    private final PunishmentState state;
 
     @Inject
-    public PlayerChatListener(@NotNull ApiClient blackholeClient, @NotNull RedisSyncService redisSyncService) {
-        this.punishProfileApi = new PunishProfileApi(blackholeClient);
+    public PlayerChatListener(@NotNull ApiClient blackholeClient, @NotNull PunishmentState state) {
         this.eloApi = new EloApi(blackholeClient);
-        this.redisSyncService = redisSyncService;
+        this.state = state;
     }
 
     @Subscribe
@@ -40,53 +40,30 @@ public final class PlayerChatListener {
         Player player = event.getPlayer();
         String uuidHash = UUIDConverter.convertToSHA(player.getUniqueId());
 
-        Optional<PunishmentSyncMessage> cached = this.redisSyncService.getChatBanFast(uuidHash);
-        if (cached != null) {
-            // A definitive answer from a prior lookup this session - zero network calls, the
-            // whole point of this cache, since PlayerChatEvent fires on every single message.
-            if (cached.isPresent()) {
-                denyChat(event, player);
-            } else {
-                submitChatSignal(player, uuidHash, event.getMessage());
-            }
-            return;
-        }
-
-        // Cache miss (e.g. Redis was down at this player's login) - fall back to the pre-Redis
-        // HTTP check once, then seed the cache so every subsequent message this session is a hit.
-        PunishProfileDTO punishProfile;
+        Optional<PunishmentSyncMessage> mute;
         try {
-            punishProfile = this.punishProfileApi.getById(uuidHash);
-        } catch (ApiException e) {
-            LOGGER.error("Failed to fetch punish profile for player {}: {}", player.getUsername(), e.getMessage());
+            // Served from the local mirror once the player's state is known (zero network calls,
+            // since this event fires on every message); unknown state is loaded once and cached.
+            mute = this.state.activeMute(uuidHash);
+        } catch (PunishmentState.Unavailable e) {
+            LOGGER.error("Could not check the mute state of {}, delivering without scoring: {}", player.getUsername(), e.getMessage());
             return;
         }
-
-        var activeChatBan = punishProfile.getActiveChatBan();
-        if (activeChatBan != null) {
-            this.redisSyncService.seedChatBan(uuidHash, Optional.of(new PunishmentSyncMessage(
-                    uuidHash, PunishmentSyncMessage.SLOT_CHAT_BAN, PunishmentSyncMessage.STATE_SET,
-                    "CHAT", activeChatBan.getIdentifier(), null, null
-            )));
-            denyChat(event, player);
+        if (mute.isPresent()) {
+            event.setResult(PlayerChatEvent.ChatResult.denied());
+            player.sendMessage(Component.translatable("punishment.error.muted"));
             return;
         }
-        this.redisSyncService.seedChatBan(uuidHash, Optional.empty());
         submitChatSignal(player, uuidHash, event.getMessage());
     }
 
-    private void denyChat(PlayerChatEvent event, Player player) {
-        event.setResult(PlayerChatEvent.ChatResult.denied());
-        player.sendMessage(Component.translatable("punishment.error.muted"));
-    }
-
     /**
-     * Scores the message for the dual-ELO chat track. Best-effort - a failure here must never
+     * Scores the message for the chat section's ELO. Best-effort - a failure here must never
      * affect chat delivery, which has already been decided by the mute check above.
      */
     private void submitChatSignal(@NotNull Player player, @NotNull String uuidHash, @NotNull String message) {
         try {
-            this.eloApi.submitChatSignal(new ChatSignalDTO().owner(uuidHash).message(message));
+            this.eloApi.submitChatSignal(new EloChatSignalRequest().owner(uuidHash).message(message));
         } catch (ApiException e) {
             LOGGER.error("Failed to submit chat signal for ELO scoring for player {}: {}", player.getUsername(), e.getMessage());
         }

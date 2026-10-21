@@ -1,118 +1,84 @@
 package net.onelitefeather.blackhole.velocity.command;
 
 import com.google.inject.Inject;
-import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
-import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.Component;
-import net.onelitefeather.blackhole.client.api.PunishProfileApi;
-import net.onelitefeather.blackhole.client.api.PunishmentApi;
-import net.onelitefeather.blackhole.client.invoker.ApiClient;
-import net.onelitefeather.blackhole.client.invoker.ApiException;
-import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
-import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
+import net.onelitefeather.blackhole.client.model.EnforcementKind;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
+import net.onelitefeather.blackhole.velocity.punish.PunishService;
+import net.onelitefeather.blackhole.velocity.punish.TargetResolver.ResolvedTarget;
+import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Default;
 import org.incendo.cloud.annotations.Permission;
-import org.incendo.cloud.annotations.parser.Parser;
 import org.incendo.cloud.context.CommandContext;
-import org.incendo.cloud.context.CommandInput;
-import org.incendo.cloud.key.CloudKey;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.UUID;
+import java.util.Set;
 
 /**
- * Reverses an active ban/mute. Unlike {@link PunishCommand}'s {@code profile} parser, a pardon
- * target is typically offline (that's the whole point of unbanning them), so this command needs
- * its own parser that doesn't require a live {@link Player} - see {@link #parseProfile}.
+ * Lifts an active ban or mute. The target may be offline, so it is resolved like any other punishment
+ * target. Lifting a permanent punishment additionally needs {@value #PARDON_PERMANENT_PERMISSION}.
  */
 public final class PardonCommand {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(PardonCommand.class);
-    private static final CloudKey<String> DISPLAY_NAME_KEY = CloudKey.of("pardonDisplayName", String.class);
+    static final String PARDON_PERMANENT_PERMISSION = "blackhole.pardon.permanent";
 
-    private final ProxyServer proxyServer;
-    private final PunishProfileApi punishProfileApi;
-    private final PunishmentApi punishmentApi;
+    private final PunishService service;
+    private final PunishmentSyncHandler syncHandler;
 
     @Inject
-    public PardonCommand(@NotNull ProxyServer proxyServer, @NotNull ApiClient apiClient) {
-        this.proxyServer = proxyServer;
-        this.punishProfileApi = new PunishProfileApi(apiClient);
-        this.punishmentApi = new PunishmentApi(apiClient);
+    public PardonCommand(@NotNull PunishService service, @NotNull PunishmentSyncHandler syncHandler) {
+        this.service = service;
+        this.syncHandler = syncHandler;
     }
 
-    @Command("blackhole <user> unban")
-    @Command("unban <user>")
+    @Command("blackhole <user> unban [section]")
+    @Command("unban <user> [section]")
     @Permission("blackhole.unban")
-    @CommandDescription("Revoke a player's active ban")
+    @CommandDescription("Revoke a player's active ban (default section: network)")
     public void unbanPlayer(
             CommandContext<Player> context,
-            @Argument(value = "user", parserName = "pardon-profile") @NotNull PunishProfileDTO user
+            @Argument(value = "user", parserName = "target", suggestions = "players") @NotNull ResolvedTarget user,
+            @Argument("section") @Default("network") @NotNull String section
     ) {
-        if (user.getActiveBan() == null) {
-            context.sender().sendMessage(Component.translatable("punishment.error.unban.none_active"));
-            return;
-        }
-        try {
-            this.punishmentApi.revokeBan(user.getOwner(), context.sender().getUniqueId());
-        } catch (ApiException e) {
-            LOGGER.error("Failed to unban player {}: {}", user.getOwner(), e.getMessage());
-            context.sender().sendMessage(Component.translatable("punishment.error.unban"));
-            return;
-        }
-        context.sender().sendMessage(Component.translatable("punishment.success.unban").arguments(Component.text(context.get(DISPLAY_NAME_KEY))));
+        revoke(context.sender(), user, section, PunishService.BAN_KINDS, "unban");
     }
 
-    @Command("blackhole <user> unmute")
-    @Command("unmute <user>")
+    @Command("blackhole <user> unmute [section]")
+    @Command("unmute <user> [section]")
     @Permission("blackhole.unmute")
-    @CommandDescription("Revoke a player's active mute")
+    @CommandDescription("Revoke a player's active mute (default section: chat)")
     public void unmutePlayer(
             CommandContext<Player> context,
-            @Argument(value = "user", parserName = "pardon-profile") @NotNull PunishProfileDTO user
+            @Argument(value = "user", parserName = "target", suggestions = "players") @NotNull ResolvedTarget user,
+            @Argument("section") @Default("chat") @NotNull String section
     ) {
-        if (user.getActiveChatBan() == null) {
-            context.sender().sendMessage(Component.translatable("punishment.error.unmute.none_active"));
-            return;
-        }
-        try {
-            this.punishmentApi.revokeMute(user.getOwner(), context.sender().getUniqueId());
-        } catch (ApiException e) {
-            LOGGER.error("Failed to unmute player {}: {}", user.getOwner(), e.getMessage());
-            context.sender().sendMessage(Component.translatable("punishment.error.unmute"));
-            return;
-        }
-        context.sender().sendMessage(Component.translatable("punishment.success.unmute").arguments(Component.text(context.get(DISPLAY_NAME_KEY))));
+        revoke(context.sender(), user, section, PunishService.MUTE_KINDS, "unmute");
     }
 
-    @Parser(name = "pardon-profile")
-    public PunishProfileDTO parseProfile(CommandContext<CommandSource> context, CommandInput input) {
-        String name = input.readString();
-        context.store(DISPLAY_NAME_KEY, name);
-
-        String ownerHash = this.proxyServer.getPlayer(name)
-                .map(Player::getUniqueId)
-                .map(UUIDConverter::convertToSHA)
-                .orElseGet(() -> offlineOwnerHash(name));
-
-        try {
-            return this.punishProfileApi.getById(ownerHash);
-        } catch (ApiException e) {
-            LOGGER.error("Failed to fetch punish profile for {}: {}", name, e.getMessage());
-            throw new IllegalArgumentException("No punishment profile found for %s".formatted(name));
-        }
-    }
-
-    private static String offlineOwnerHash(String name) {
-        try {
-            return UUIDConverter.convertToSHA(UUID.fromString(name));
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Player(%s) is not online and is not a valid UUID".formatted(name));
+    private void revoke(Player sender, ResolvedTarget user, String section, Set<EnforcementKind> kinds, String action) {
+        boolean mayPardonPermanent = sender.hasPermission(PARDON_PERMANENT_PERMISSION);
+        PunishService.RevokeOutcome outcome = this.service.revoke(user.ownerHash(), section, sender.getUniqueId(), mayPardonPermanent, kinds);
+        switch (outcome) {
+            case PunishService.RevokeOutcome.Revoked revoked -> {
+                // Keeps this proxy's mirror right even if the Redis announcement is not delivered.
+                this.syncHandler.accept(new PunishmentSyncMessage(
+                        user.ownerHash(), section, null, PunishmentSyncMessage.STATE_CLEARED,
+                        revoked.response().getPunishment().getIdentifier(), null, null, null));
+                sender.sendMessage(Component.translatable("punishment.success." + action).arguments(Component.text(user.name())));
+            }
+            case PunishService.RevokeOutcome.NothingActive ignored ->
+                    sender.sendMessage(Component.translatable("punishment.error." + action + ".none_active"));
+            case PunishService.RevokeOutcome.PermanentNotAllowed ignored ->
+                    sender.sendMessage(Component.translatable("punishment.error.pardon.permanent_permission"));
+            case PunishService.RevokeOutcome.UnknownSection unknown ->
+                    sender.sendMessage(Component.translatable("punishment.error.section.unknown").arguments(Component.text(unknown.section())));
+            case PunishService.RevokeOutcome.WrongSection wrong ->
+                    sender.sendMessage(Component.translatable("punishment.error.section.wrong_kind").arguments(Component.text(wrong.section())));
+            case PunishService.RevokeOutcome.Failed ignored -> sender.sendMessage(Component.translatable("punishment.error." + action));
         }
     }
 }

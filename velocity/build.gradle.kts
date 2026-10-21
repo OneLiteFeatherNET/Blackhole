@@ -22,6 +22,8 @@ dependencies {
 
     compileOnly(libs.velocity.api)
 
+    // Adventure components and Player appear in the signatures of classes under test.
+    testImplementation(libs.velocity.api)
     testImplementation(mn.junit.jupiter.api)
     testRuntimeOnly(mn.junit.jupiter.engine)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

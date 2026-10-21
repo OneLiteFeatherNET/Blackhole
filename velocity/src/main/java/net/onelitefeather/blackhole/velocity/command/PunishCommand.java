@@ -1,253 +1,132 @@
 package net.onelitefeather.blackhole.velocity.command;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
-import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.Component;
-import net.onelitefeather.blackhole.client.api.PlayerApi;
-import net.onelitefeather.blackhole.client.api.PunishProfileApi;
-import net.onelitefeather.blackhole.client.api.PunishmentApi;
-import net.onelitefeather.blackhole.client.api.PunishmentTemplatesApi;
-import net.onelitefeather.blackhole.client.invoker.ApiClient;
-import net.onelitefeather.blackhole.client.invoker.ApiException;
-import net.onelitefeather.blackhole.client.model.Pageable;
-import net.onelitefeather.blackhole.client.model.PlayerResolveResponse;
-import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
-import net.onelitefeather.blackhole.client.model.PunishTemplateDTO;
-import net.onelitefeather.blackhole.client.model.PunishType;
-import net.onelitefeather.blackhole.velocity.BlackholeVelocity;
-import net.onelitefeather.blackhole.velocity.component.PunishmentTemplateComponent;
-import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
-import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
-import org.incendo.cloud.annotations.*;
-import org.incendo.cloud.annotations.parser.Parser;
+import net.onelitefeather.blackhole.client.model.EnforcementKind;
+import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
+import net.onelitefeather.blackhole.velocity.component.PunishmentMessages;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
+import net.onelitefeather.blackhole.velocity.enforcement.ProfileAdapter;
+import net.onelitefeather.blackhole.velocity.punish.PunishService;
+import net.onelitefeather.blackhole.velocity.punish.TargetResolver.ResolvedTarget;
+import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
+import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
+import org.incendo.cloud.annotations.Argument;
+import org.incendo.cloud.annotations.Command;
+import org.incendo.cloud.annotations.CommandDescription;
+import org.incendo.cloud.annotations.Permission;
 import org.incendo.cloud.annotations.suggestion.Suggestions;
 import org.incendo.cloud.context.CommandContext;
 import org.incendo.cloud.context.CommandInput;
-import org.incendo.cloud.key.CloudKey;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import java.time.Clock;
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.Set;
 
+/**
+ * The staff commands that punish a player by template key: {@code /ban} (BAN and SERVER sections),
+ * {@code /mute} (MUTE sections) and {@code /punish} (any section). Staff only pick a template; every
+ * punishment they create is temporary, permanent ones only result from the backend's escalation.
+ */
 public final class PunishCommand {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(PunishCommand.class);
-    static final CloudKey<ResolvedTarget> TARGET_KEY = CloudKey.of("target", ResolvedTarget.class);
-
-    /**
-     * A punishment target resolved either from a currently-connected {@link Player} or, if they
-     * aren't online, from the backend's player-resolver chain (Otis/Mojang/NameMC) - see
-     * {@link #parseProfile}. {@code onlinePlayer} is {@code null} for an offline target; callers
-     * must not disconnect/message a player directly in that case.
-     */
-    public record ResolvedTarget(UUID uuid, String name, @Nullable Player onlinePlayer) {
-    }
-
-    private final ProxyServer proxyServer;
-    private final PunishProfileApi punishProfileApi;
-    private final PunishmentApi punishmentApi;
-    private final PunishmentTemplatesApi punishmentTemplatesApi;
-    private final PlayerApi playerApi;
-    private final RedisSyncService redisSyncService;
-    private final ObjectMapper objectMapper = ApiClient.createDefaultObjectMapper();
+    private final PunishService service;
+    private final SectionRegistry sections;
+    private final PunishmentSyncHandler syncHandler;
+    private final Clock clock;
 
     @Inject
-    public PunishCommand(@NotNull ProxyServer proxyServer, @NotNull ApiClient apiClient, @NotNull RedisSyncService redisSyncService) {
-        this.proxyServer = proxyServer;
-        this.punishProfileApi = new PunishProfileApi(apiClient);
-        this.punishmentApi = new PunishmentApi(apiClient);
-        this.punishmentTemplatesApi = new PunishmentTemplatesApi(apiClient);
-        this.playerApi = new PlayerApi(apiClient);
-        this.redisSyncService = redisSyncService;
-    }
-
-    /**
-     * The template list for tab completion: the backend's shared cache when it holds one, otherwise
-     * the API, whose listing repopulates that cache for the next keystroke.
-     */
-    private List<PunishTemplateDTO> allTemplatesForSuggestions() throws ApiException {
-        Optional<String> cached = this.redisSyncService.readCachedTemplateList();
-        if (cached.isPresent()) {
-            try {
-                return this.objectMapper.readValue(cached.get(), new TypeReference<List<PunishTemplateDTO>>() {
-                });
-            } catch (JsonProcessingException e) {
-                LOGGER.warn("Cached template list is unreadable, falling back to the API: {}", e.getMessage());
-            }
-        }
-        return this.punishmentTemplatesApi.getAllTemplates(Pageable.builder().build());
+    public PunishCommand(
+            @NotNull PunishService service, @NotNull SectionRegistry sections,
+            @NotNull PunishmentSyncHandler syncHandler, @NotNull Clock clock
+    ) {
+        this.service = service;
+        this.sections = sections;
+        this.syncHandler = syncHandler;
+        this.clock = clock;
     }
 
     @Command("blackhole <user> ban <template>")
     @Command("ban <user> <template>")
     @Permission("blackhole.ban")
-    @CommandDescription("Ban a player from the server")
+    @CommandDescription("Ban a player with a template of a ban or server section")
     public void banPlayer(
             CommandContext<Player> context,
-            @Argument(value = "user", parserName = "profile", suggestions = "players") @NotNull PunishProfileDTO user,
-            @Argument(value = "template", parserName = "template") @NotNull PunishTemplateDTO template,
-            @Flag("server") Boolean server
+            @Argument(value = "user", parserName = "target", suggestions = "players") @NotNull ResolvedTarget user,
+            @Argument(value = "template", suggestions = "ban-templates") @NotNull String template
     ) {
-        if (server != null && template.getType() != PunishType.SERVER) {
-            context.sender().sendMessage(Component.translatable("punishment.error.template.only_server"));
-            return;
-        }
-
-        if (template.getIdentifier() == null) {
-            context.sender().sendMessage(Component.translatable("punishment.error.template.not_found").arguments(Component.text(template.getIdentifier().toString())));
-            return;
-        }
-
-        Optional<PunishProfileDTO> profile = Optional.empty();
-
-        try {
-            profile = Optional.ofNullable(this.punishmentApi.addActivePunishment(
-                    user.getOwner(),
-                    template.getIdentifier(),
-                    context.sender().getUniqueId()
-            )).map(PunishProfileDTO.class::cast);
-        } catch (ApiException e) {
-            LOGGER.error("Failed to ban player {}: {}", user.getOwner(), e.getMessage());
-            context.sender().sendMessage(Component.translatable("punishment.error.ban"));
-            return;
-        }
-
-        ResolvedTarget target = context.get(TARGET_KEY);
-        PunishProfileDTO updatedProfile = profile.orElseThrow();
-        if (target.onlinePlayer() != null) {
-            target.onlinePlayer().disconnect(PunishmentTemplateComponent.of(template, updatedProfile));
-        }
-        context.sender().sendMessage(Component.translatable("punishment.success.ban").arguments(Component.text(target.name())));
+        apply(context.sender(), user, template, PunishService.BAN_KINDS, "punishment.error.ban");
     }
 
     @Command("blackhole <user> mute <template>")
     @Command("mute <user> <template>")
     @Permission("blackhole.mute")
-    @CommandDescription("Mute a player on the server")
-    @PunishTypeScope(PunishType.CHAT)
+    @CommandDescription("Mute a player with a template of a mute section")
     public void mutePlayer(
             CommandContext<Player> context,
-            @Argument(value = "user", parserName = "profile", suggestions = "players") @NotNull PunishProfileDTO user,
-            @Argument(value = "template", parserName = "template") @NotNull PunishTemplateDTO template
+            @Argument(value = "user", parserName = "target", suggestions = "players") @NotNull ResolvedTarget user,
+            @Argument(value = "template", suggestions = "mute-templates") @NotNull String template
     ) {
-        if (template.getIdentifier() == null) {
-            context.sender().sendMessage(Component.translatable("punishment.error.template.not_found").arguments(Component.text(template.getIdentifier().toString())));
-            return;
-        }
-        Optional<PunishProfileDTO> profile = Optional.empty();
-        try {
-            profile = Optional.ofNullable(
-                    this.punishmentApi.addActivePunishment(
-                            user.getOwner(),
-                            template.getIdentifier(),
-                            context.sender().getUniqueId()
-                    )
-            ).map(PunishProfileDTO.class::cast);
-        } catch (ApiException e) {
-            LOGGER.error("Failed to mute player {}: {}", user.getOwner(), e.getMessage());
-            context.sender().sendMessage(Component.translatable("punishment.error.mute"));
-            return;
-        }
-        PunishProfileDTO updatedProfile = profile.orElseThrow();
-
-        context.sender().sendMessage(PunishmentTemplateComponent.of(template, updatedProfile));
+        apply(context.sender(), user, template, PunishService.MUTE_KINDS, "punishment.error.mute");
     }
 
-    @Parser(name = "profile")
-    public PunishProfileDTO parseProfile(CommandContext<CommandSource> context, CommandInput input) {
-        String name = input.readString();
-        Optional<Player> onlinePlayer = this.proxyServer.getPlayer(name);
+    @Command("blackhole <user> punish <template>")
+    @Command("punish <user> <template>")
+    @Permission("blackhole.punish")
+    @CommandDescription("Punish a player with any template")
+    public void punishPlayer(
+            CommandContext<Player> context,
+            @Argument(value = "user", parserName = "target", suggestions = "players") @NotNull ResolvedTarget user,
+            @Argument(value = "template", suggestions = "all-templates") @NotNull String template
+    ) {
+        apply(context.sender(), user, template, PunishService.ANY_KINDS, "punishment.error.punish");
+    }
 
-        UUID uuid;
-        String resolvedName;
-        if (onlinePlayer.isPresent()) {
-            uuid = onlinePlayer.get().getUniqueId();
-            resolvedName = onlinePlayer.get().getUsername();
-        } else {
-            // Not connected right now - fall back to the backend's resolver chain (Otis/Mojang/
-            // NameMC) so offline players can still be targeted; enforcement itself is already
-            // UUID-driven at login (PlayerLoginListener), so nothing further is needed here.
-            PlayerResolveResponse resolved;
-            try {
-                resolved = this.playerApi.resolvePlayer(name);
-            } catch (ApiException e) {
-                throw new IllegalArgumentException("Player(%s) not found".formatted(name));
-            }
-            uuid = resolved.getUuid();
-            resolvedName = resolved.getName();
-        }
-        context.store(TARGET_KEY, new ResolvedTarget(uuid, resolvedName, onlinePlayer.orElse(null)));
+    @Suggestions("ban-templates")
+    public List<String> suggestBanTemplates(CommandContext<Player> context, CommandInput input) {
+        return this.service.suggest(input.readString(), PunishService.BAN_KINDS);
+    }
 
-        try {
-            return this.punishProfileApi.getById(UUIDConverter.convertToSHA(uuid));
-        } catch (ApiException e) {
-            LOGGER.error("Failed to fetch punish profile for player {}: {}", name, e.getMessage());
-            return null;
+    @Suggestions("mute-templates")
+    public List<String> suggestMuteTemplates(CommandContext<Player> context, CommandInput input) {
+        return this.service.suggest(input.readString(), PunishService.MUTE_KINDS);
+    }
+
+    @Suggestions("all-templates")
+    public List<String> suggestAllTemplates(CommandContext<Player> context, CommandInput input) {
+        return this.service.suggest(input.readString(), PunishService.ANY_KINDS);
+    }
+
+    private void apply(Player sender, ResolvedTarget target, String templateKey, Set<EnforcementKind> kinds, String failureKey) {
+        PunishService.ApplyOutcome outcome = this.service.apply(target.ownerHash(), templateKey, sender.getUniqueId(), kinds);
+        switch (outcome) {
+            case PunishService.ApplyOutcome.Applied applied -> applied(sender, target, applied);
+            case PunishService.ApplyOutcome.TemplateNotFound missing ->
+                    sender.sendMessage(Component.translatable("punishment.error.template.not_found").arguments(Component.text(missing.key())));
+            case PunishService.ApplyOutcome.WrongSection wrong ->
+                    sender.sendMessage(Component.translatable("punishment.error.template.wrong_section").arguments(Component.text(wrong.key())));
+            case PunishService.ApplyOutcome.Failed failed -> sender.sendMessage(failed.status() == 409
+                    ? Component.translatable("punishment.error.conflict")
+                    : Component.translatable(failureKey));
         }
     }
 
-    @Suggestions("players")
-    public List<String> suggestPlayers(CommandContext<Player> context, CommandInput input) {
-        String prefix = input.readString();
-        return this.proxyServer.getAllPlayers().stream()
-                .map(Player::getUsername)
-                .filter(username -> username.toLowerCase().startsWith(prefix.toLowerCase()))
-                .toList();
-    }
+    private void applied(Player sender, ResolvedTarget target, PunishService.ApplyOutcome.Applied applied) {
+        PunishmentApplyResponse response = applied.response();
+        String section = applied.section().key();
+        PunishmentSyncMessage punished = ProfileAdapter.toMessage(target.ownerHash(), section, response.getPunishment(), this.sections);
 
-    @Parser(suggestions = "templates", name = "template")
-    public PunishTemplateDTO parseTemplate(CommandContext<CommandSource> context, CommandInput input) {
-        String name = input.readString();
-        boolean server = context.flags().isPresent("server");
-        List<PunishTemplateDTO> templates = List.of();
-        try {
-            templates = this.punishmentTemplatesApi.getAllTemplates(Pageable.builder().build());
-        } catch (ApiException e) {
-            throw new RuntimeException(e);
-        }
-        templates.removeIf(template -> server && template.getType() != PunishType.SERVER);
-        if (templates.isEmpty()) {
-            throw new IllegalArgumentException("No templates found");
-        }
+        // Enforce what is in force now: after an escalation that is the permanent punishment.
+        PunishmentSyncMessage inForce = response.getEscalation() == null
+                ? punished
+                : ProfileAdapter.toMessage(target.ownerHash(), section, response.getEscalation().getPunishment(), this.sections);
+        this.syncHandler.accept(inForce);
 
-        return templates.stream().filter(template -> template.getReason().equals(name)).findFirst().orElse(null);
-    }
-
-    @Suggestions(value = "templates")
-    public List<String> suggestions(CommandContext<Player> context, CommandInput input) {
-        String s = input.readString();
-        if (context.contains(BlackholeVelocity.PUNISH_TYPE_KEY)) {
-            PunishType type = context.get(BlackholeVelocity.PUNISH_TYPE_KEY);
-            try {
-                return allTemplatesForSuggestions()
-                        .stream()
-                        .filter(template -> template.getType() == type)
-                        .map(PunishTemplateDTO::getReason)
-                        .filter(reason -> reason.toLowerCase().contains(s.toLowerCase()))
-                        .toList();
-            } catch (ApiException e) {
-                LOGGER.error("Failed to fetch templates for suggestions: {}", e.getMessage());
-                return List.of();
-            }
+        if (applied.section().enforcement() == EnforcementKind.MUTE && target.onlinePlayer() != null) {
+            target.onlinePlayer().sendMessage(Component.translatable("punishment.info.muted"));
         }
-        try {
-            return allTemplatesForSuggestions()
-                    .stream()
-                    .map(PunishTemplateDTO::getReason)
-                    .filter(reason -> reason.toLowerCase().contains(s.toLowerCase()))
-                    .toList();
-        } catch (ApiException e) {
-            LOGGER.error("Failed to fetch templates for suggestions: {}", e.getMessage());
-            return List.of();
-        }
+        sender.sendMessage(PunishmentMessages.applied(target.name(), applied.section(), response, punished, this.clock.millis()));
     }
 }
