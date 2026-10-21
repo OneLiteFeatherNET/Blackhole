@@ -551,4 +551,18 @@
         <dropTable tableName="connector_registrations"/>
     </changeSet>
 
+    <changeSet id="postgresql-json-to-jsonb" author="blackhole" dbms="postgresql">
+        <comment>Hibernate maps @JdbcTypeCode(SqlTypes.JSON) to jsonb on PostgreSQL - align the json columns so schema validation passes</comment>
+        <modifyDataType tableName="punishment_templates" columnName="meta_data" newDataType="jsonb"/>
+        <modifyDataType tableName="punishments" columnName="meta_data" newDataType="jsonb"/>
+        <modifyDataType tableName="punishment_profiles" columnName="meta_data" newDataType="jsonb"/>
+        <modifyDataType tableName="punishment_evidence" columnName="meta_data" newDataType="jsonb"/>
+        <modifyDataType tableName="reports" columnName="meta_data" newDataType="jsonb"/>
+        <modifyDataType tableName="elo_profiles" columnName="meta_data" newDataType="jsonb"/>
+        <modifyDataType tableName="elo_events" columnName="meta_data" newDataType="jsonb"/>
+        <modifyDataType tableName="appeals" columnName="eligibility_check_result" newDataType="jsonb"/>
+        <modifyDataType tableName="appeals" columnName="meta_data" newDataType="jsonb"/>
+        <modifyDataType tableName="ip_correlation_tokens" columnName="meta_data" newDataType="jsonb"/>
+    </changeSet>
+
 </databaseChangeLog>

@@ -29,14 +29,12 @@ jpa:
     properties:
       hibernate:
         hbm2ddl:
-          auto: none
+          auto: validate
         show_sql: false
 
-# Liquibase is now the sole owner of the schema. hbm2ddl.auto is "none" rather than "validate"
-# because Hibernate's schema validator disagrees with its own DDL generator about the expected
-# column type for @JdbcTypeCode(SqlTypes.JSON) columns on MariaDB (MariaDB's JSON type is a
-# LONGTEXT + CHECK(json_valid(...)) alias; validate expects Types#JSON, create emits
-# Types#LONGVARCHAR) - a known Hibernate/MariaDB dialect mismatch, not specific to this schema.
+# Liquibase is the sole owner of the schema; Hibernate only validates it at startup
+# (hbm2ddl.auto=validate) and never creates or alters tables. A mismatch between an entity and
+# the PostgreSQL schema fails startup - fix it with a new appended Liquibase changeSet.
 liquibase:
   datasources:
     default:
