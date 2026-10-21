@@ -61,7 +61,7 @@ exists so far, no other module has a `src/test` yet. JUnit 5 is wired up via the
 `build.gradle.kts` (`useJUnitPlatform()`, `jacocoTestReport` runs after `test`), ready for more.
 Local dev/manual verification of the backend requires the
 real PostgreSQL + RabbitMQ containers from `docker/docker-compose.yml`; there's no in-memory/mocked
-path for those two dependencies (the app is wired to Liquibase+PostgreSQL — see `application.yml`).
+path for those two dependencies (the app is wired to Flyway+PostgreSQL — see `application.yml`).
 
 Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
 
@@ -94,7 +94,7 @@ consuming context in every session regardless of what you're touching.
   Detail: `.claude/rules/appeal.md`.
 - **`evasion/`** — Ban-evasion detection via hashed IP correlation.
   Detail: `.claude/rules/evasion.md`.
-- **`database/`** — Hibernate/JPA + Liquibase schema ownership.
+- **`database/`** — Hibernate/JPA + Flyway schema ownership.
   Detail: `.claude/rules/database.md`.
 - **`imports/`** — Vanilla ban-list import support (`VanillaImportController`).
 
@@ -174,6 +174,6 @@ consuming context in every session regardless of what you're touching.
   it doesn't belong here. Domain knowledge that's only *sometimes* relevant (a specific package's
   internals, a review checklist) belongs in a skill (`.claude/skills/`, loaded only when relevant)
   or a path-scoped rule (`.claude/rules/*.md` with `paths:` frontmatter), not appended here. A rule
-  that must always hold (never edit an applied Liquibase changeset, no `--force`/`--no-verify`)
+  that must always hold (never edit an applied Flyway migration, no `--force`/`--no-verify`)
   belongs in a `.claude/settings.json` hook if it can be checked deterministically — see the hooks
   already there — rather than relying on this file's prose, which is advisory, not enforced.

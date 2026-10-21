@@ -21,7 +21,7 @@
 - OpenSpec changes, implemented by Haiku agents on separate branches (based on `main`; merge
   this planning branch in before PRs so `openspec/` is included):
   - `feat/postgresql` (switch-to-postgresql): changelog rebuilt as PostgreSQL-only
-    `db/changelog/changelog.xml` (user decision), schema diff-verified via Liquibase CLI.
+    `db/changelog/changelog.xml` (user decision), schema diff-verified (since replaced by Flyway).
     Open: 1.1/1.2/2.2/3.x need a Gradle build + app start (unverified).
   - `feat/dragonfly-cache`: infra/docs/proxy committed; backend work parked as
     `WIP-dragonfly-backend.patch` (apply, build, test, then delete the patch). Branch does not
@@ -47,16 +47,16 @@
 ## Recently completed
 
 - Prompt-engineering audit of `.claude/agents/*.md`: added a one-example output-format anchor to
-  backend-reviewer, test-runner, and liquibase-checker (consistent report formatting across
+  backend-reviewer, test-runner, and migration-checker (consistent report formatting across
   invocations); confirmed the four `micronaut-*-layer` skills already meet the bar (trigger-clause
   descriptions, before/after examples, review checklists, real-codebase evidence) — no changes.
 - Split CLAUDE.md's per-package "Backend architecture" detail (controller versioning,
   events/connector, elo, appeal, evasion, database) into path-scoped `.claude/rules/*.md` files —
   CLAUDE.md dropped from 204 to 170 lines, detail now loads only when touching that package.
-- Added `.claude/agents/liquibase-checker.md` (read-only: native-changeType usage, append-only
-  placement, flags checks Liquibase XML can't express that need app-layer enforcement).
+- Added `.claude/agents/migration-checker.md` (read-only: native-changeType usage, append-only
+  placement, flags checks SQL migrations do not cover that need app-layer enforcement).
 - Added `.claude/settings.json` hooks: block `git push --force`/`--no-verify`, block hand-edits
-  to generated OpenAPI client sources, block edits to already-applied Liquibase `<changeSet>`
+  to generated OpenAPI client sources, block edits to already-applied Flyway migrations
   entries, require a passing `./gradlew :backend:test` before committing staged
   `backend/src/main/java` changes, re-inject `.claude/PROGRESS.md` after `/compact`.
 - Added `.claude/agents/backend-reviewer.md` (read-only layering review) and

@@ -74,7 +74,7 @@ admin UI (change `add-admin-web-ui`), migrating existing MariaDB data.
 ## Impact
 
 - Backend packages `elo/`, `punishment/`, `profile/`, `appeal/`, `report/`, new `section/`;
-  Liquibase changesets; `application.yml` (`blackhole.elo.*` restructured).
+  Flyway migrations; `application.yml` (`blackhole.elo.*` restructured).
 - OpenAPI spec bump in `client/specs` and `client/build.gradle.kts`; regenerated client.
 - Velocity plugin commands, listeners, Redis sync, i18n files.
 - Depends on `switch-to-postgresql` (schema is written for PostgreSQL) and should land after
