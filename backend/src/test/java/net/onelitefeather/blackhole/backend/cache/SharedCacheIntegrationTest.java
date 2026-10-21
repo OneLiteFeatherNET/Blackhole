@@ -5,13 +5,13 @@ import io.lettuce.core.api.StatefulRedisConnection;
 import io.micronaut.core.type.Argument;
 import io.micronaut.serde.ObjectMapper;
 import net.onelitefeather.blackhole.backend.playerresolver.ResolvedPlayer;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -29,10 +29,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * own random keys and opens its own connection, so tests do not depend on each other.</p>
  */
 @Tag("integration")
+@Testcontainers(disabledWithoutDocker = true)
 class SharedCacheIntegrationTest {
 
-    private static final GenericContainer<?> SERVER =
-            new GenericContainer<>("docker.dragonflydb.io/dragonflydb/dragonfly")
+    @Container
+    static final GenericContainer<?> SERVER =
+            new GenericContainer<>("docker.dragonflydb.io/dragonflydb/dragonfly:v1.31.0")
                     .withExposedPorts(6379)
                     .withCreateContainerCmdModifier(cmd -> cmd.getHostConfig().withUlimits(
                             new com.github.dockerjava.api.model.Ulimit[]{
@@ -40,16 +42,6 @@ class SharedCacheIntegrationTest {
 
     private RedisClient client;
     private StatefulRedisConnection<String, String> connection;
-
-    @BeforeAll
-    static void startServer() {
-        SERVER.start();
-    }
-
-    @AfterAll
-    static void stopServer() {
-        SERVER.stop();
-    }
 
     @BeforeEach
     void connect() {
