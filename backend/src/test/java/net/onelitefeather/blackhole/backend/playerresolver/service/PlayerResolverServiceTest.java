@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.playerresolver.service;
 
+import net.onelitefeather.blackhole.backend.cache.InMemorySharedCache;
 import net.onelitefeather.blackhole.backend.playerresolver.PlayerResolveCache;
 import net.onelitefeather.blackhole.backend.playerresolver.PlayerResolver;
 import net.onelitefeather.blackhole.backend.playerresolver.ResolvedPlayer;
@@ -16,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PlayerResolverServiceTest {
 
     private static PlayerResolverService serviceOf(List<PlayerResolver> resolvers) {
-        return new PlayerResolverService(resolvers, new PlayerResolveCache(Duration.ofMinutes(5), 100));
+        return new PlayerResolverService(resolvers, new PlayerResolveCache(new InMemorySharedCache(), Duration.ofMinutes(5)));
     }
 
     private static PlayerResolver fixedResolver(String forName, ResolvedPlayer result) {
@@ -79,5 +80,17 @@ class PlayerResolverServiceTest {
         service.resolve("Notch");
 
         assertEquals(1, calls[0]);
+    }
+
+    @Test
+    void aMissIsNotCachedSoALaterLookupQueriesTheResolversAgain() {
+        ResolvedPlayer later = new ResolvedPlayer(UUID.randomUUID(), "Late", "mojang");
+        boolean[] registered = {false};
+        PlayerResolverService service = serviceOf(List.of(name -> registered[0] ? Optional.of(later) : Optional.empty()));
+
+        assertTrue(service.resolve("Late").isEmpty());
+        registered[0] = true;
+
+        assertEquals(Optional.of(later), service.resolve("Late"));
     }
 }
