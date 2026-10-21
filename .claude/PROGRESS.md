@@ -18,9 +18,20 @@
 
 ## Active
 
-- OpenSpec changes proposed, awaiting review before `/opsx:apply` (apply in this order):
-  1. `switch-to-postgresql` 2. `adopt-dragonfly-cache` 3. `staff-temp-bans-elo-escalation`
-  4. `add-admin-web-ui`. No implementation started yet. Build needs a JDK 25 (`JAVA_HOME`).
+- OpenSpec changes, implemented by Haiku agents on separate branches (based on `main`; merge
+  this planning branch in before PRs so `openspec/` is included):
+  - `feat/postgresql` (switch-to-postgresql): changelog rebuilt as PostgreSQL-only
+    `db/changelog/changelog.xml` (user decision), schema diff-verified via Liquibase CLI.
+    Open: 1.1/1.2/2.2/3.x need a Gradle build + app start (unverified).
+  - `feat/dragonfly-cache`: infra/docs/proxy committed; backend work parked as
+    `WIP-dragonfly-backend.patch` (apply, build, test, then delete the patch). Branch does not
+    compile until the patch is applied.
+  - `feat/admin-web-ui`: scaffold + MD3 tokens/components + shell done (npm build/test green);
+    tasks 2.3, 4.2-4.7, 5.x pending (need core API); tick 2.1/2.2/3.1/3.2/4.1 in tasks.md.
+  - `staff-temp-bans-elo-escalation`: not started.
+- BLOCKER: Java builds need private Maven repo credentials
+  (`ORG_GRADLE_PROJECT_OneLiteFeatherRepositoryUsername` / `...Password` env vars). JDK 25 lives
+  at /root/jdk (set via ~/.gradle/gradle.properties); local PG/Redis/RabbitMQ were started by hand.
 
 ## Backlog
 
