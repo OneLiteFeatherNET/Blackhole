@@ -2,7 +2,7 @@
 
 ## 1. Sections
 
-- [ ] 1.1 Append changesets `create-punishment-sections` and `seed-punishment-sections` (chat/MUTE, network/BAN with design defaults); verify with `liquibase-checker` agent and an integration test that a fresh PostgreSQL lists both sections
+- [x] 1.1 Append changesets `create-punishment-sections` and `seed-punishment-sections` (chat/MUTE, network/BAN with design defaults); verify with `liquibase-checker` agent and an integration test that a fresh PostgreSQL lists both sections
 - [ ] 1.2 Append `add-servers-to-sections`; validate SERVER enforcement patterns (required, not for other kinds, no match-all); verify service unit tests for each rule
 - [ ] 1.3 Add `section/` feature package (entity, repository, sealed `SectionDTO`, service with threshold validation, `SectionApi` + thin controller, `section.changed` event + Redis pub/sub notification, shared-cache entry); verify with service unit tests for validation rules and an integration test for CRUD and disable
 

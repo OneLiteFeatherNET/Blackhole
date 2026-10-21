@@ -300,4 +300,70 @@
         </createIndex>
     </changeSet>
 
+    <!-- staff-temp-bans-elo-escalation: punishment sections. Each section owns a player's ELO
+         score, its thresholds and how it is enforced (MUTE / BAN / SERVER). enforcement is stored
+         as a string; the allowed values are enforced in the application layer (EnforcementKind). -->
+    <changeSet id="create-punishment-sections" author="blackhole">
+        <createTable tableName="punishment_sections">
+            <column name="section_key" type="varchar(64)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="display_name" type="varchar(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="enforcement" type="varchar(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="base_score" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="soft_threshold" type="int"/>
+            <column name="soft_duration" type="varchar(32)"/>
+            <column name="permanent_threshold" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="pardon_score" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="permanent_reason" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="decay_per_day" type="int" defaultValueNumeric="10">
+                <constraints nullable="false"/>
+            </column>
+            <column name="enabled" type="boolean" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="seed-punishment-sections" author="blackhole">
+        <insert tableName="punishment_sections">
+            <column name="section_key" value="chat"/>
+            <column name="display_name" value="Chat"/>
+            <column name="enforcement" value="MUTE"/>
+            <column name="base_score" valueNumeric="1000"/>
+            <column name="soft_threshold" valueNumeric="700"/>
+            <column name="soft_duration" value="PT24H"/>
+            <column name="permanent_threshold" valueNumeric="300"/>
+            <column name="pardon_score" valueNumeric="700"/>
+            <column name="permanent_reason" value="Permanently muted after repeated chat violations"/>
+            <column name="decay_per_day" valueNumeric="10"/>
+            <column name="enabled" valueBoolean="true"/>
+        </insert>
+        <insert tableName="punishment_sections">
+            <column name="section_key" value="network"/>
+            <column name="display_name" value="Network"/>
+            <column name="enforcement" value="BAN"/>
+            <column name="base_score" valueNumeric="1000"/>
+            <column name="soft_threshold" valueNumeric="700"/>
+            <column name="soft_duration" value="P3D"/>
+            <column name="permanent_threshold" valueNumeric="300"/>
+            <column name="pardon_score" valueNumeric="700"/>
+            <column name="permanent_reason" value="Permanently banned after repeated violations"/>
+            <column name="decay_per_day" valueNumeric="10"/>
+            <column name="enabled" valueBoolean="true"/>
+        </insert>
+    </changeSet>
+
 </databaseChangeLog>
