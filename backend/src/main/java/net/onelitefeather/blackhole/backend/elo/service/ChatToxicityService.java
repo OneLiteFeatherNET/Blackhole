@@ -23,8 +23,8 @@ import java.util.Map;
 /**
  * Scores a chat message and, if flagged, records a {@code PunishmentEvidenceEntity} (a hash of
  * the message, never the raw text - the whole point of the Phase 2 evidence model) and applies
- * the resulting ELO delta in the configured chat section. The raw message is only ever held in memory long enough to hash
- * and score it; it is never persisted.
+ * the resulting ELO delta in the configured chat section. The raw message is only ever held in
+ * memory long enough to hash and score it; it is never persisted.
  */
 @Singleton
 public class ChatToxicityService {
