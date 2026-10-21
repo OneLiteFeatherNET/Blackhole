@@ -8,7 +8,7 @@ import java.util.UUID;
  * deploy with a changed value shape ignores entries written by the previous version instead of
  * failing to deserialize them.
  *
- * <p>The proxy reads {@link #TEMPLATES_ALL} directly, so this format is a wire contract with the
+ * <p>The proxy reads {@link #TEMPLATES_ALL} and {@link #SECTIONS_ALL} directly, so this format is a wire contract with the
  * Velocity plugin's {@code RedisTopology} and must stay in sync with it.</p>
  */
 public final class CacheKeys {
@@ -17,6 +17,13 @@ public final class CacheKeys {
 
     /** The full punishment template list, as read by proxies for tab completion. */
     public static final String TEMPLATES_ALL = PREFIX + "templates:all";
+
+    /** The full section list, as read by proxies. */
+    public static final String SECTIONS_ALL = PREFIX + "sections:all";
+
+    public static String section(String key) {
+        return PREFIX + "section:" + key;
+    }
 
     public static String profile(String owner) {
         return PREFIX + "profile:" + owner;
