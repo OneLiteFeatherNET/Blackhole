@@ -1,0 +1,26 @@
+{
+  "nav": {
+    "label": "Main navigation",
+    "skip": "Skip to content",
+    "dashboard": "Dashboard",
+    "players": "Players",
+    "templates": "Templates",
+    "sections": "Sections",
+    "reports": "Reports",
+    "appeals": "Appeals"
+  },
+  "settings": {
+    "theme": {
+      "label": "Theme",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "locale": {
+      "label": "Language"
+    }
+  },
+  "placeholder": {
+    "body": "This view will be implemented in a later step."
+  }
+}

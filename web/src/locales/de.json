@@ -1,0 +1,26 @@
+{
+  "nav": {
+    "label": "Hauptnavigation",
+    "skip": "Zum Inhalt springen",
+    "dashboard": "Übersicht",
+    "players": "Spieler",
+    "templates": "Vorlagen",
+    "sections": "Bereiche",
+    "reports": "Meldungen",
+    "appeals": "Einsprüche"
+  },
+  "settings": {
+    "theme": {
+      "label": "Design",
+      "system": "System",
+      "light": "Hell",
+      "dark": "Dunkel"
+    },
+    "locale": {
+      "label": "Sprache"
+    }
+  },
+  "placeholder": {
+    "body": "Diese Ansicht wird in einem späteren Schritt umgesetzt."
+  }
+}
