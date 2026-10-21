@@ -39,7 +39,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function errorFromBody(status: number, body: unknown): ApiError {
   let message = ''
   let kind: ApiError['kind'] = 'UNKNOWN'
-  if (isRecord(body)) {
+  if (typeof body === 'string') {
+    // Some endpoints answer an error with a plain text body.
+    message = body.trim()
+  } else if (isRecord(body)) {
     const embedded = isRecord(body._embedded) ? body._embedded.errors : undefined
     if (typeof body.errorMessage === 'string') message = body.errorMessage
     else if (Array.isArray(embedded) && isRecord(embedded[0]) && typeof embedded[0].message === 'string') {

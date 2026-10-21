@@ -78,3 +78,18 @@ export interface ApiError {
 }
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError }
+
+/** How a report is resolved; a template is only allowed together with ACTIONED. */
+export interface ReportResolution {
+  status: ReportStatus
+  note?: string
+  /** Identifier of the template to apply to the reported player. */
+  templateId?: string
+}
+
+/** A decision on an appeal; `newExpirationAt` (epoch millis) is required for a duration reduction. */
+export interface AppealDecision {
+  decision: 'GRANTED_FULL_LIFT' | 'GRANTED_DURATION_REDUCTION' | 'DENIED'
+  note?: string
+  newExpirationAt?: number
+}

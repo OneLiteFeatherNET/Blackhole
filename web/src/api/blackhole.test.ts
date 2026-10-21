@@ -62,24 +62,37 @@ describe('loadConfig', () => {
   it('reads the operator UUID from config.json', async () => {
     const { impl } = fakeFetch([{ body: { source: SOURCE } }])
 
-    expect(await loadConfig(impl)).toEqual({ source: SOURCE })
+    expect(await loadConfig(impl)).toEqual({ source: SOURCE, reviewer: SOURCE })
+  })
+
+  it('reads a separate reviewer UUID when one is configured', async () => {
+    const reviewer = '99999999-8888-7777-6666-555555555555'
+    const { impl } = fakeFetch([{ body: { source: SOURCE, reviewer } }])
+
+    expect(await loadConfig(impl)).toEqual({ source: SOURCE, reviewer })
+  })
+
+  it('ignores an invalid reviewer and keeps the source', async () => {
+    const { impl } = fakeFetch([{ body: { source: SOURCE, reviewer: 'nope' } }])
+
+    expect(await loadConfig(impl)).toEqual({ source: SOURCE, reviewer: SOURCE })
   })
 
   it('falls back to the nil UUID when config.json is missing', async () => {
     const { impl } = fakeFetch([{ status: 404 }])
 
-    expect(await loadConfig(impl)).toEqual({ source: NIL_UUID })
+    expect(await loadConfig(impl)).toEqual({ source: NIL_UUID, reviewer: NIL_UUID })
   })
 
   it('falls back when config.json holds an invalid UUID', async () => {
     const { impl } = fakeFetch([{ body: { source: 'not-a-uuid' } }])
 
-    expect(await loadConfig(impl)).toEqual({ source: NIL_UUID })
+    expect(await loadConfig(impl)).toEqual({ source: NIL_UUID, reviewer: NIL_UUID })
   })
 
   it('falls back when the request fails', async () => {
     const { impl } = fakeFetch([new TypeError('offline')])
 
-    expect(await loadConfig(impl)).toEqual({ source: NIL_UUID })
+    expect(await loadConfig(impl)).toEqual({ source: NIL_UUID, reviewer: NIL_UUID })
   })
 })

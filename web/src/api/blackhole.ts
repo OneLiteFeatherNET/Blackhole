@@ -3,12 +3,16 @@ import type { components } from './schema'
 import type {
   ApiResult,
   ApplyPreview,
+  Appeal,
+  AppealDecision,
   ApplyResult,
   DashboardSummary,
   EloAdjustResult,
   EloEvent,
   EloProfile,
   PunishmentProfile,
+  Report,
+  ReportResolution,
   ResolvedPlayer,
   RevokeResult,
   Section,
@@ -21,6 +25,8 @@ export interface ApiOptions {
   baseUrl: string
   /** The operator UUID from /config.json, attached to every write as the acting source. */
   source: string
+  /** The UUID sent as `reviewerId` when deciding an appeal; defaults to `source`. */
+  reviewer?: string
   /** The free-text "acting as" label; prefixed to the notes the UI writes. Read on every call. */
   actingAs?: () => string
   fetch?: typeof fetch
@@ -62,6 +68,12 @@ export interface BlackholeApi {
   /** Replaces the section's definition; `draft.enabled` can re-enable a disabled section. */
   updateSection(draft: SectionDraft): Promise<ApiResult<Section>>
   disableSection(key: string): Promise<ApiResult<Section>>
+  /** All reports, newest first. */
+  reports(): Promise<ApiResult<Report[]>>
+  resolveReport(identifier: string, resolution: ReportResolution): Promise<ApiResult<Report>>
+  /** All appeals, newest first. */
+  appeals(): Promise<ApiResult<Appeal[]>>
+  reviewAppeal(identifier: string, decision: AppealDecision): Promise<ApiResult<Appeal>>
   /** What applying the template would do right now; changes nothing. */
   previewApply(owner: string, templateKey: string): Promise<ApiResult<ApplyPreview>>
   applyTemplate(owner: string, templateKey: string): Promise<ApiResult<ApplyResult>>
@@ -196,6 +208,48 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       toResult(http.POST('/section/update', { body: { ...sectionBody(draft), decayPerDay: draft.decayPerDay, enabled: draft.enabled } })),
 
     disableSection: (key) => toResult(http.POST('/section/{key}/disable', { params: { path: { key } } })),
+
+    async reports() {
+      const reports = await collectPages<Report>((page) =>
+        toResult(http.GET('/report', { params: { query: { pageable: NO_PAGEABLE } }, querySerializer: pageQuery(page) })),
+      )
+      return map(reports, (all) => [...all].sort((a, b) => b.createdAt - a.createdAt))
+    },
+
+    resolveReport: (identifier, resolution) =>
+      toResult(
+        http.POST('/report/{identifier}/resolve', {
+          params: { path: { identifier } },
+          body: {
+            status: resolution.status,
+            resolutionNote: resolution.note ? withActor(resolution.note, options.actingAs?.() ?? '') : null,
+            resolvedBy: options.source,
+            punishmentTemplateId: resolution.templateId ?? null,
+            // The backend wants the staff identity next to the template it applies.
+            punishmentSource: resolution.templateId ? options.source : null,
+          },
+        }),
+      ),
+
+    async appeals() {
+      const appeals = await collectPages<Appeal>((page) =>
+        toResult(http.GET('/appeal', { params: { query: { pageable: NO_PAGEABLE } }, querySerializer: pageQuery(page) })),
+      )
+      return map(appeals, (all) => [...all].sort((a, b) => b.createdAt - a.createdAt))
+    },
+
+    reviewAppeal: (identifier, decision) =>
+      toResult(
+        http.POST('/appeal/{identifier}/review', {
+          params: { path: { identifier } },
+          body: {
+            decision: decision.decision,
+            decisionNote: decision.note ? withActor(decision.note, options.actingAs?.() ?? '') : null,
+            reviewerId: options.reviewer ?? options.source,
+            newExpirationAt: decision.newExpirationAt ?? null,
+          },
+        }),
+      ),
 
     previewApply: (owner, templateKey) =>
       toResult(http.POST('/punishment/preview', { body: { owner, templateKey, source: options.source } })),

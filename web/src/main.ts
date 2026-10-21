@@ -23,7 +23,12 @@ const pinia = createPinia()
 createApp(App)
   .provide(
     API_KEY,
-    createBlackholeApi({ baseUrl: API_BASE_URL, source: config.source, actingAs: () => useUiStore(pinia).actingAs }),
+    createBlackholeApi({
+      baseUrl: API_BASE_URL,
+      source: config.source,
+      reviewer: config.reviewer,
+      actingAs: () => useUiStore(pinia).actingAs,
+    }),
   )
   .use(pinia)
   .use(i18n)

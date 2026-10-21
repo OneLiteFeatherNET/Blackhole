@@ -23,9 +23,6 @@
       "label": "Acting as"
     }
   },
-  "placeholder": {
-    "body": "This view will be implemented in a later step."
-  },
   "state": {
     "loading": "Loading",
     "retry": "Retry",
@@ -269,6 +266,100 @@
       "enabledHint": "Disabled sections accept no new punishments or score changes",
       "invalidNumber": "Enter a whole number.",
       "save": "Save"
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "filter": "Which reports to show",
+    "filterOpen": "Open",
+    "filterAll": "All",
+    "empty": "No open reports.",
+    "resolved": "Report resolved.",
+    "columns": {
+      "when": "Received",
+      "category": "Category",
+      "reported": "Reported player",
+      "reporter": "Reporter",
+      "description": "Description",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "category": {
+      "CHAT_ABUSE": "Chat abuse",
+      "CHEATING": "Cheating",
+      "GRIEFING": "Griefing",
+      "OTHER": "Other"
+    },
+    "status": {
+      "OPEN": "Open",
+      "UNDER_REVIEW": "Under review",
+      "ACTIONED": "Actioned",
+      "DISMISSED": "Dismissed"
+    },
+    "resolve": {
+      "open": "Resolve",
+      "title": "Resolve report",
+      "about": "Report about {player}",
+      "decisionLabel": "Decision",
+      "choose": "Choose a decision",
+      "decision": {
+        "ACTIONED": "Take action",
+        "DISMISSED": "Dismiss",
+        "UNDER_REVIEW": "Mark as under review"
+      },
+      "template": "Punishment template",
+      "noPunishment": "No punishment",
+      "templateHint": "The template is applied to the reported player right away.",
+      "note": "Note",
+      "noteHint": "Optional; recorded with the decision",
+      "confirm": "Save decision"
+    }
+  },
+  "appeals": {
+    "title": "Appeals",
+    "filter": "Which appeals to show",
+    "filterPending": "Pending",
+    "filterAll": "All",
+    "empty": "No pending appeals.",
+    "decided": "Appeal decided.",
+    "columns": {
+      "when": "Received",
+      "appellant": "Player",
+      "punishment": "Punishment",
+      "statement": "Statement",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "SUBMITTED": "Submitted",
+      "ELIGIBLE_PENDING_REVIEW": "Awaiting review",
+      "IN_REVIEW": "In review",
+      "GRANTED_FULL_LIFT": "Lifted",
+      "GRANTED_DURATION_REDUCTION": "Shortened",
+      "DENIED": "Denied",
+      "INELIGIBLE": "Not eligible"
+    },
+    "errors": {
+      "selfReview": "The reviewer is the one who issued the punishment. Configure a different reviewer UUID for the UI (see the web README) or let someone else decide.",
+      "notAwaiting": "The appeal is no longer awaiting a decision, or the punishment is no longer active. Reload the queue.",
+      "notFound": "The appeal does not exist any more."
+    },
+    "decide": {
+      "open": "Decide",
+      "title": "Decide appeal",
+      "decisionLabel": "Decision",
+      "choose": "Choose a decision",
+      "decision": {
+        "GRANTED_FULL_LIFT": "Lift the punishment completely",
+        "GRANTED_DURATION_REDUCTION": "Shorten the punishment",
+        "DENIED": "Deny the appeal"
+      },
+      "newEnd": "New end",
+      "newEndHint": "Must be in the future and before the current end",
+      "endRequired": "Choose when the punishment should end.",
+      "note": "Note",
+      "noteHint": "Optional; recorded with the decision",
+      "confirm": "Save decision"
     }
   }
 }

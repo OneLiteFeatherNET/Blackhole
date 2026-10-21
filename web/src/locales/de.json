@@ -23,9 +23,6 @@
       "label": "Handelnd als"
     }
   },
-  "placeholder": {
-    "body": "Diese Ansicht wird in einem späteren Schritt umgesetzt."
-  },
   "state": {
     "loading": "Lädt",
     "retry": "Erneut versuchen",
@@ -269,6 +266,100 @@
       "enabledHint": "Deaktivierte Bereiche nehmen keine neuen Strafen oder Punkteänderungen an",
       "invalidNumber": "Gib eine ganze Zahl ein.",
       "save": "Speichern"
+    }
+  },
+  "reports": {
+    "title": "Meldungen",
+    "filter": "Welche Meldungen angezeigt werden",
+    "filterOpen": "Offen",
+    "filterAll": "Alle",
+    "empty": "Keine offenen Meldungen.",
+    "resolved": "Meldung bearbeitet.",
+    "columns": {
+      "when": "Eingegangen",
+      "category": "Kategorie",
+      "reported": "Gemeldeter Spieler",
+      "reporter": "Melder",
+      "description": "Beschreibung",
+      "status": "Status",
+      "actions": "Aktionen"
+    },
+    "category": {
+      "CHAT_ABUSE": "Chat-Missbrauch",
+      "CHEATING": "Cheating",
+      "GRIEFING": "Griefing",
+      "OTHER": "Sonstiges"
+    },
+    "status": {
+      "OPEN": "Offen",
+      "UNDER_REVIEW": "In Prüfung",
+      "ACTIONED": "Bearbeitet",
+      "DISMISSED": "Abgelehnt"
+    },
+    "resolve": {
+      "open": "Bearbeiten",
+      "title": "Meldung bearbeiten",
+      "about": "Meldung über {player}",
+      "decisionLabel": "Entscheidung",
+      "choose": "Entscheidung wählen",
+      "decision": {
+        "ACTIONED": "Maßnahme ergreifen",
+        "DISMISSED": "Ablehnen",
+        "UNDER_REVIEW": "Als in Prüfung markieren"
+      },
+      "template": "Strafvorlage",
+      "noPunishment": "Keine Strafe",
+      "templateHint": "Die Vorlage wird sofort auf den gemeldeten Spieler angewendet.",
+      "note": "Notiz",
+      "noteHint": "Optional; wird mit der Entscheidung gespeichert",
+      "confirm": "Entscheidung speichern"
+    }
+  },
+  "appeals": {
+    "title": "Einsprüche",
+    "filter": "Welche Einsprüche angezeigt werden",
+    "filterPending": "Offen",
+    "filterAll": "Alle",
+    "empty": "Keine offenen Einsprüche.",
+    "decided": "Einspruch entschieden.",
+    "columns": {
+      "when": "Eingegangen",
+      "appellant": "Spieler",
+      "punishment": "Strafe",
+      "statement": "Stellungnahme",
+      "status": "Status",
+      "actions": "Aktionen"
+    },
+    "status": {
+      "SUBMITTED": "Eingereicht",
+      "ELIGIBLE_PENDING_REVIEW": "Wartet auf Prüfung",
+      "IN_REVIEW": "In Prüfung",
+      "GRANTED_FULL_LIFT": "Aufgehoben",
+      "GRANTED_DURATION_REDUCTION": "Verkürzt",
+      "DENIED": "Abgelehnt",
+      "INELIGIBLE": "Nicht zulässig"
+    },
+    "errors": {
+      "selfReview": "Die prüfende Person hat die Strafe selbst verhängt. Hinterlege eine andere Prüfer-UUID für die Oberfläche (siehe README von web) oder lass jemand anderen entscheiden.",
+      "notAwaiting": "Der Einspruch wartet nicht mehr auf eine Entscheidung oder die Strafe ist nicht mehr aktiv. Lade die Liste neu.",
+      "notFound": "Der Einspruch existiert nicht mehr."
+    },
+    "decide": {
+      "open": "Entscheiden",
+      "title": "Einspruch entscheiden",
+      "decisionLabel": "Entscheidung",
+      "choose": "Entscheidung wählen",
+      "decision": {
+        "GRANTED_FULL_LIFT": "Strafe vollständig aufheben",
+        "GRANTED_DURATION_REDUCTION": "Strafe verkürzen",
+        "DENIED": "Einspruch ablehnen"
+      },
+      "newEnd": "Neues Ende",
+      "newEndHint": "Muss in der Zukunft und vor dem bisherigen Ende liegen",
+      "endRequired": "Wähle, wann die Strafe enden soll.",
+      "note": "Notiz",
+      "noteHint": "Optional; wird mit der Entscheidung gespeichert",
+      "confirm": "Entscheidung speichern"
     }
   }
 }
