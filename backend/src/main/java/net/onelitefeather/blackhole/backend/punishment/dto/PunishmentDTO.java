@@ -63,6 +63,38 @@ public sealed interface PunishmentDTO {
     }
 
     /**
+     * What applying a template would do right now, without doing it: the escalation step the server
+     * selects, its cost and whether the cost would push the player into a permanent punishment.
+     *
+     * @param section              the section the template belongs to
+     * @param enforcement          how the section is enforced
+     * @param step                 the escalation step that would apply, starting at 1
+     * @param stepCount            how many steps the template has
+     * @param duration             the ISO-8601 duration of the step
+     * @param eloCost              the ELO the step would deduct
+     * @param scoreBefore          the section score now
+     * @param scoreAfter           the section score after the deduction
+     * @param permanentThreshold   the section's permanent threshold
+     * @param escalatesToPermanent whether the deduction would leave the score below that threshold
+     */
+    @Schema(name = "PunishmentPreviewResponse")
+    @Serdeable
+    @ReflectiveAccess
+    record PreviewResponse(
+            @NonNull String section,
+            @NonNull EnforcementKind enforcement,
+            int step,
+            int stepCount,
+            @NonNull String duration,
+            int eloCost,
+            int scoreBefore,
+            int scoreAfter,
+            int permanentThreshold,
+            boolean escalatesToPermanent
+    ) implements PunishmentDTO {
+    }
+
+    /**
      * A permanent punishment the system applied because a deduction left the score too low.
      *
      * @param punishment     the permanent punishment, now the section's active one

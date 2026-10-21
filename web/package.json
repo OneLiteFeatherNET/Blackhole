@@ -1,0 +1,47 @@
+{
+  "name": "web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "predev": "npm run generate",
+    "build": "vue-tsc --noEmit && vite build",
+    "prebuild": "npm run generate",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "pretest": "npm run generate",
+    "test:watch": "vitest",
+    "generate:api": "openapi-typescript ../client/specs/blackhole-api-0.0.11.yml -o src/api/schema.d.ts",
+    "generate": "node scripts/generate-md3-tokens.mjs && npm run generate:api",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource/roboto": "^5.3.0",
+    "openapi-fetch": "^0.17.0",
+    "pinia": "^4.1.0",
+    "vue": "^3.5.44",
+    "vue-i18n": "^11.4.16",
+    "vue-router": "^5.4.0"
+  },
+  "devDependencies": {
+    "@material/material-color-utilities": "^0.4.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24.19.2",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "@vue/test-utils": "^2.5.1",
+    "@vue/tsconfig": "^0.9.1",
+    "jsdom": "^29.1.1",
+    "openapi-typescript": "^7.13.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5",
+    "vue-tsc": "^3.3.13"
+  },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
+  }
+}

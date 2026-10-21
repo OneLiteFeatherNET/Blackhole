@@ -36,6 +36,11 @@ public class PunishmentEntityController implements PunishmentApi {
     }
 
     @Override
+    public HttpResponse<PunishmentDTO> preview(PunishmentDTO.ApplyRequest request) {
+        return toResponse(this.punishmentApplicationService.preview(request));
+    }
+
+    @Override
     public HttpResponse<PunishmentDTO> revoke(PunishmentDTO.RevokeRequest request) {
         return toResponse(this.punishmentApplicationService.revoke(request));
     }

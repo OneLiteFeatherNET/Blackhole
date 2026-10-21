@@ -19,6 +19,7 @@ workflow lets players contest both automatic and manual punishments.
 | `velocity` | A Velocity proxy plugin that enforces punishments and feeds chat/session data to the backend. |
 | `client`   | A Java API client generated from `client/specs/blackhole-api-*.yml` via OpenAPI Generator.   |
 | `phoca`    | Shared utility library used across modules.                                                  |
+| `web`      | The admin web UI (Vue 3, Material Design 3): dashboard, players, templates, sections, reports, appeals. |
 
 The backend is event-driven: RabbitMQ backs a domain event bus (`blackhole.events`) that other
 services can consume. Hot reads (punishment profiles, ELO profiles, templates and player
@@ -29,6 +30,14 @@ There is deliberately no authentication system right now: every endpoint is open
 model is that only trusted callers can reach the API at all - admins/tools calling the REST API
 directly, or the Velocity plugin acting on behalf of admins/moderators - enforced at the
 network/deployment level (firewalling, private networking), not by the application.
+
+### Admin web UI
+
+`web/` is a browser UI for admins and staff. Run it with `cd web && npm ci && npm run dev` (proxies
+`/api/` to a backend on `localhost:8080`), or as a container with `docker compose -f
+docker/docker-compose.yml up -d web` (http://localhost:8081). **It has no login, like the API:
+deploy it on a private network or behind a proxy that authenticates users.** See
+[web/README.md](web/README.md) for the container variables, the identity caveats and development.
 
 ### Tech stack
 

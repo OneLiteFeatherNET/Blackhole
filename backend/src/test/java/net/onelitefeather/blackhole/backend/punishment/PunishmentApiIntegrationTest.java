@@ -92,6 +92,34 @@ class PunishmentApiIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void thePreviewShowsTheStepThatApplyThenUsesAndChangesNothing() {
+        String owner = "a7".repeat(64);
+        post("/template", template("int-preview", "network", "P1D", 100, "P7D", 700));
+        apply(owner, "int-preview");
+
+        Reply preview = post("/punishment/preview", Map.of("owner", owner, "templateKey", "int-preview", "source", STAFF));
+
+        assertEquals(200, preview.status(), preview.body());
+        assertEquals(2, preview.json().get("step"), "the earlier offence moves the preview to step 2");
+        assertEquals("P7D", preview.json().get("duration"));
+        assertEquals(900, preview.json().get("scoreBefore"));
+        assertEquals(200, preview.json().get("scoreAfter"));
+        assertEquals(true, preview.json().get("escalatesToPermanent"), "200 is below the permanent threshold of 300");
+
+        Reply applied = apply(owner, "int-preview");
+        assertEquals(2, applied.json().get("step"), "apply uses the previewed step: " + applied.body());
+        assertEquals(200, applied.json().get("scoreAfter"));
+        assertNotNull(applied.json().get("escalation"), "and escalates as previewed");
+    }
+
+    @Test
+    void previewingAnUnknownTemplateIsNotFound() {
+        Reply reply = post("/punishment/preview", Map.of("owner", "a8".repeat(64), "templateKey", "int-no-such", "source", STAFF));
+
+        assertEquals(404, reply.status(), reply.body());
+    }
+
+    @Test
     void aMuteDoesNotLiftAnActiveBan() {
         String owner = "a2".repeat(64);
         post("/template", template("int-ban", "network", "P3D", 0));

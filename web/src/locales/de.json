@@ -1,0 +1,390 @@
+{
+  "nav": {
+    "label": "Hauptnavigation",
+    "skip": "Zum Inhalt springen",
+    "dashboard": "Übersicht",
+    "players": "Spieler",
+    "templates": "Vorlagen",
+    "sections": "Bereiche",
+    "reports": "Meldungen",
+    "appeals": "Einsprüche"
+  },
+  "settings": {
+    "theme": {
+      "label": "Design",
+      "system": "System",
+      "light": "Hell",
+      "dark": "Dunkel"
+    },
+    "locale": {
+      "label": "Sprache"
+    },
+    "actingAs": {
+      "label": "Handelnd als"
+    }
+  },
+  "state": {
+    "loading": "Lädt",
+    "retry": "Erneut versuchen",
+    "error": {
+      "VALIDATION": "Die Anfrage wurde abgelehnt",
+      "NOT_FOUND": "Nicht gefunden",
+      "CONFLICT": "Widerspricht dem aktuellen Zustand",
+      "NETWORK": "Das Backend ist nicht erreichbar",
+      "UNKNOWN": "Etwas ist schiefgelaufen"
+    }
+  },
+  "dashboard": {
+    "counters": "Kennzahlen",
+    "openReports": "Offene Meldungen",
+    "pendingAppeals": "Offene Einsprüche",
+    "escalations7d": "Eskalationen in 7 Tagen",
+    "active": "Aktive Strafen pro Bereich",
+    "latest": "Letzte automatische dauerhafte Strafen",
+    "empty": "Noch keine automatischen dauerhaften Strafen.",
+    "escalations": {
+      "section": "Bereich",
+      "player": "Spieler",
+      "when": "Zeitpunkt",
+      "status": "Status",
+      "lifted": "Aufgehoben",
+      "standing": "Aktiv"
+    }
+  },
+  "scoreBar": {
+    "zone": {
+      "healthy": "unauffällig",
+      "soft": "Zeitstrafen-Bereich",
+      "permanent": "Dauerstrafen-Bereich"
+    },
+    "valueText": "{score} - {zone}, Schwelle für Dauerstrafe {permanent}",
+    "valueTextSoft": "{score} - {zone}, Schwelle für Zeitstrafe {soft}, Schwelle für Dauerstrafe {permanent}",
+    "soft": "Zeitstrafen-Schwelle {value}",
+    "permanent": "Dauerstrafen-Schwelle {value}"
+  },
+  "enforcement": {
+    "MUTE": "Stummschaltung",
+    "BAN": "Bann",
+    "SERVER": "Server-Sperre"
+  },
+  "elo": {
+    "reason": {
+      "TOXICITY_FLAG": "Toxischer Chat",
+      "ANTICHEAT_FLAG": "Anti-Cheat-Hinweis",
+      "REPORT_ACTIONED": "Meldung bearbeitet",
+      "MANUAL_ADJUSTMENT": "Manuelle Anpassung",
+      "DECAY_RECOVERY": "Erholung über die Zeit",
+      "THRESHOLD_BAN": "Schwelle für Dauerstrafe unterschritten",
+      "PUNISHMENT_APPLIED": "Strafe verhängt",
+      "REPORT_REWARDED": "Meldung belohnt",
+      "PARDON_RESET": "Zurückgesetzt nach Begnadigung",
+      "APPEAL_REFUND": "Erstattung nach Einspruch"
+    }
+  },
+  "players": {
+    "intro": "Suche einen Spieler über seinen aktuellen Minecraft-Namen. Namen werden nur für diese Suche verwendet und nicht gespeichert.",
+    "name": "Spielername",
+    "nameHint": "3 bis 16 Buchstaben, Ziffern oder Unterstriche",
+    "invalidName": "Gib einen gültigen Namen ein: 3 bis 16 Buchstaben, Ziffern oder Unterstriche.",
+    "notFound": "Es wurde kein Spieler namens \"{name}\" gefunden.",
+    "search": "Suchen"
+  },
+  "player": {
+    "backToSearch": "Zurück zur Suche",
+    "invalidOwner": "Das ist keine gültige Spieler-Kennung.",
+    "scores": "Punktestand pro Bereich",
+    "scoreOf": "{section}: Punktestand {score}",
+    "active": "Aktive Strafen",
+    "noActive": "Keine aktiven Strafen.",
+    "history": "Strafenverlauf",
+    "noHistory": "Bisher keine Strafen.",
+    "eloHistory": "ELO-Verlauf",
+    "noEloHistory": "Für diesen Bereich sind keine ELO-Änderungen verzeichnet.",
+    "permanent": "Dauerhaft",
+    "temporary": "Befristet",
+    "automatic": "Automatisch",
+    "lifted": "Aufgehoben",
+    "ended": "Abgelaufen",
+    "noReason": "Kein Grund hinterlegt",
+    "step": "Eskalationsstufe",
+    "until": "Bis",
+    "since": "Seit",
+    "columns": {
+      "when": "Zeitpunkt",
+      "section": "Bereich",
+      "reason": "Grund",
+      "step": "Stufe",
+      "cost": "ELO-Kosten",
+      "status": "Status",
+      "delta": "Änderung",
+      "score": "Punktestand danach"
+    }
+  },
+  "actions": {
+    "cancel": "Abbrechen",
+    "apply": {
+      "open": "Vorlage anwenden",
+      "title": "Vorlage anwenden",
+      "template": "Vorlage",
+      "choose": "Vorlage wählen",
+      "loadingPreview": "Auswirkung wird berechnet",
+      "step": "Eskalationsstufe {step} von {count}",
+      "stepDetail": "Dauer {duration}, kostet {cost} ELO",
+      "score": "Punktestand in {section}: {before} auf {after}",
+      "warning": "Danach wird der Spieler in {section} dauerhaft bestraft: Der Punktestand {after} liegt unter der Schwelle für Dauerstrafen {threshold}.",
+      "confirm": "Anwenden",
+      "done": "Stufe {step} von {count} angewendet; der Punktestand beträgt jetzt {after}.",
+      "doneEscalated": "Angewendet; der Spieler ist jetzt in {section} dauerhaft bestraft.",
+      "noTemplates": "Es gibt noch keine Vorlagen."
+    },
+    "revoke": {
+      "open": "Aufheben",
+      "title": "Strafe in {section} aufheben",
+      "body": "Die aktive Strafe in {section} endet und wandert in den Verlauf.",
+      "resets": "Die Strafe ist dauerhaft: Der Punktestand in {section} wird auf den Begnadigungswert {pardon} zurückgesetzt.",
+      "confirm": "Aufheben",
+      "done": "Aufgehoben.",
+      "doneReset": "Aufgehoben; der Punktestand in {section} beträgt jetzt {score}."
+    },
+    "adjust": {
+      "open": "Punktestand anpassen",
+      "title": "Punktestand in {section} anpassen",
+      "delta": "Änderung",
+      "deltaHint": "Negativ senkt den Punktestand, positiv erhöht ihn",
+      "note": "Notiz",
+      "noteHint": "Pflichtfeld; wird mit der Änderung gespeichert",
+      "invalidDelta": "Gib eine ganze Zahl ungleich 0 ein.",
+      "noteRequired": "Eine Notiz ist erforderlich.",
+      "preview": "Punktestand in {section}: {before} auf {after}",
+      "permanent": "Achtung: Der neue Punktestand {after} liegt unter der Schwelle für Dauerstrafen {threshold}. Der Spieler wird in {section} dauerhaft bestraft.",
+      "soft": "Der Punktestand fällt unter die Zeitstrafen-Schwelle {threshold}. Der Spieler erhält in {section} automatisch eine befristete Strafe.",
+      "confirm": "Anpassen",
+      "done": "Punktestand auf {after} angepasst.",
+      "doneEscalated": "Punktestand auf {after} angepasst; der Spieler ist jetzt in {section} dauerhaft bestraft."
+    }
+  },
+  "templates": {
+    "title": "Strafvorlagen",
+    "intro": "Vorlagen beschreiben die Strafen, die das Team verhängen kann. Jede Vorlage hat Eskalationsstufen: Das n-te Vergehen in ihrer Gruppe nutzt die n-te Stufe.",
+    "new": "Neue Vorlage",
+    "edit": "Bearbeiten",
+    "empty": "Es gibt noch keine Vorlagen.",
+    "saved": "Vorlage gespeichert.",
+    "deleted": "Vorlage gelöscht.",
+    "stepCount": "keine Stufen | 1 Stufe | {count} Stufen",
+    "columns": {
+      "key": "Schlüssel",
+      "reason": "Grund",
+      "section": "Bereich",
+      "group": "Eskalationsgruppe",
+      "steps": "Stufen (Dauer / ELO-Kosten)",
+      "actions": "Aktionen"
+    },
+    "delete": {
+      "open": "Löschen",
+      "title": "Vorlage {key} löschen?",
+      "body": "Die Vorlage kann danach nicht mehr angewendet werden. Das lässt sich nicht rückgängig machen.",
+      "confirm": "Löschen",
+      "inUse": "Die Vorlage wird noch verwendet: Es existieren Strafen, die aus ihr entstanden sind, daher kann sie nicht gelöscht werden."
+    },
+    "editor": {
+      "newTitle": "Neue Vorlage",
+      "editTitle": "Vorlage {key} bearbeiten",
+      "key": "Schlüssel",
+      "keyHint": "Kebab-Case, z. B. hacking",
+      "section": "Bereich",
+      "reason": "Grund",
+      "group": "Eskalationsgruppe",
+      "groupHint": "Optional; standardmäßig der Schlüssel",
+      "window": "Eskalationsfenster",
+      "windowHint": "Optional; wie lange ein Vergehen für die nächste Stufe zählt, z. B. 90d",
+      "steps": "Eskalationsstufen",
+      "stepsHint": "Das erste Vergehen in der Gruppe nutzt Stufe 1, das nächste Stufe 2 und so weiter; die letzte Stufe wiederholt sich.",
+      "duration": "Dauer (Stufe {n})",
+      "durationHint": "z. B. 30m, 12h, 3d oder 1w 2d",
+      "cost": "ELO-Kosten (Stufe {n})",
+      "invalidCost": "Gib eine ganze Zahl ab 0 ein.",
+      "moveUp": "Stufe {n} nach oben",
+      "moveDown": "Stufe {n} nach unten",
+      "remove": "Stufe {n} entfernen",
+      "addStep": "Stufe hinzufügen",
+      "save": "Speichern",
+      "sectionHint": "Der ELO-Bereich, in dem diese Vorlage Punkte abzieht und bestraft",
+      "sectionDisabled": "Deaktiviert",
+      "reasonHint": "Wird dem Spieler angezeigt",
+      "advanced": "Erweitert",
+      "advancedHint": "Vergehen in derselben Eskalationsgruppe zählen zusammen: Jedes neue Vergehen innerhalb des Fensters führt eine Stufe weiter. Ohne Gruppe gilt der Schlüssel und das Standardfenster. Die meisten Vorlagen brauchen beides nicht.",
+      "step": "Stufe {n}",
+      "costHint": "Wird abgezogen",
+      "summaryTitle": "Das bedeutet",
+      "summaryStep": "{n}. Vergehen: {duration}, −{cost} ELO",
+      "summaryRepeat": "Weitere Vergehen wiederholen die letzte Stufe.",
+      "summaryStepFree": "{n}. Vergehen: {duration}, keine ELO-Kosten"
+    }
+  },
+  "sections": {
+    "title": "Bereiche",
+    "intro": "Ein Bereich hat einen eigenen ELO-Punktestand mit Schwellen. Beim Unterschreiten wird automatisch bestraft: unter der Zeitstrafen-Schwelle befristet, unter der Dauerstrafen-Schwelle dauerhaft.",
+    "new": "Neuer Bereich",
+    "edit": "Bearbeiten",
+    "saved": "Bereich gespeichert.",
+    "disabled": "Bereich deaktiviert.",
+    "disabledPill": "Deaktiviert",
+    "base": "Start",
+    "pardon": "Begnadigung",
+    "decay": "Erholung/Tag",
+    "soft": "Zeitstrafe",
+    "permanent": "Dauerstrafe",
+    "columns": {
+      "section": "Bereich",
+      "enforcement": "Durchsetzung",
+      "servers": "Server-Muster",
+      "scores": "Punktestände",
+      "thresholds": "Schwellen",
+      "actions": "Aktionen"
+    },
+    "disable": {
+      "open": "Deaktivieren",
+      "title": "Bereich {key} deaktivieren?",
+      "body": "In einem deaktivierten Bereich sind keine neuen Strafen oder Punkteänderungen möglich. Laufende Strafen bleiben bestehen. Über „Bearbeiten“ lässt er sich wieder aktivieren.",
+      "confirm": "Deaktivieren"
+    },
+    "editor": {
+      "newTitle": "Neuer Bereich",
+      "editTitle": "Bereich {key} bearbeiten",
+      "key": "Schlüssel",
+      "keyHint": "Kebab-Case; später nicht änderbar",
+      "name": "Name",
+      "enforcement": "Durchsetzung",
+      "servers": "Server-Muster",
+      "serversHint": "Kommagetrennt, * und ? als Platzhalter, z. B. bedwars-*, bw-?",
+      "thresholds": "Punktestände und Schwellen",
+      "baseScore": "Startpunktestand",
+      "baseScoreHint": "Hier startet jeder Spieler und erholt sich wieder hin",
+      "pardonScore": "Begnadigungswert",
+      "pardonScoreHint": "Punktestand nach dem Aufheben einer Dauerstrafe",
+      "softThreshold": "Zeitstrafen-Schwelle",
+      "softThresholdHint": "Optional; beim Unterschreiten wird befristet bestraft",
+      "softDuration": "Dauer der Zeitstrafe",
+      "softDurationHint": "z. B. 3d; braucht eine Zeitstrafen-Schwelle",
+      "permanentThreshold": "Dauerstrafen-Schwelle",
+      "permanentThresholdHint": "Beim Unterschreiten wird dauerhaft bestraft",
+      "decayPerDay": "Erholung pro Tag",
+      "decayHint": "Pro Tag zurückgewonnene Punkte",
+      "permanentReason": "Grund der Dauerstrafe",
+      "permanentReasonHint": "Wird dem Spieler gezeigt, wenn die automatische Dauerstrafe greift",
+      "enabled": "Bereich aktiv",
+      "enabledHint": "Deaktivierte Bereiche nehmen keine neuen Strafen oder Punkteänderungen an",
+      "invalidNumber": "Gib eine ganze Zahl ein.",
+      "save": "Speichern"
+    }
+  },
+  "reports": {
+    "title": "Meldungen",
+    "filter": "Welche Meldungen angezeigt werden",
+    "filterOpen": "Offen",
+    "filterAll": "Alle",
+    "empty": "Keine offenen Meldungen.",
+    "resolved": "Meldung bearbeitet.",
+    "columns": {
+      "when": "Eingegangen",
+      "category": "Kategorie",
+      "reported": "Gemeldeter Spieler",
+      "reporter": "Melder",
+      "description": "Beschreibung",
+      "status": "Status",
+      "actions": "Aktionen"
+    },
+    "category": {
+      "CHAT_ABUSE": "Chat-Missbrauch",
+      "CHEATING": "Cheating",
+      "GRIEFING": "Griefing",
+      "OTHER": "Sonstiges"
+    },
+    "status": {
+      "OPEN": "Offen",
+      "UNDER_REVIEW": "In Prüfung",
+      "ACTIONED": "Bearbeitet",
+      "DISMISSED": "Abgelehnt"
+    },
+    "resolve": {
+      "open": "Bearbeiten",
+      "title": "Meldung bearbeiten",
+      "about": "Meldung über {player}",
+      "decisionLabel": "Entscheidung",
+      "choose": "Entscheidung wählen",
+      "decision": {
+        "ACTIONED": "Maßnahme ergreifen",
+        "DISMISSED": "Ablehnen",
+        "UNDER_REVIEW": "Als in Prüfung markieren"
+      },
+      "template": "Strafvorlage",
+      "noPunishment": "Keine Strafe",
+      "templateHint": "Die Vorlage wird sofort auf den gemeldeten Spieler angewendet.",
+      "note": "Notiz",
+      "noteHint": "Optional; wird mit der Entscheidung gespeichert",
+      "confirm": "Entscheidung speichern"
+    }
+  },
+  "appeals": {
+    "title": "Einsprüche",
+    "filter": "Welche Einsprüche angezeigt werden",
+    "filterPending": "Offen",
+    "filterAll": "Alle",
+    "empty": "Keine offenen Einsprüche.",
+    "decided": "Einspruch entschieden.",
+    "columns": {
+      "when": "Eingegangen",
+      "appellant": "Spieler",
+      "punishment": "Strafe",
+      "statement": "Stellungnahme",
+      "status": "Status",
+      "actions": "Aktionen"
+    },
+    "status": {
+      "SUBMITTED": "Eingereicht",
+      "ELIGIBLE_PENDING_REVIEW": "Wartet auf Prüfung",
+      "IN_REVIEW": "In Prüfung",
+      "GRANTED_FULL_LIFT": "Aufgehoben",
+      "GRANTED_DURATION_REDUCTION": "Verkürzt",
+      "DENIED": "Abgelehnt",
+      "INELIGIBLE": "Nicht zulässig"
+    },
+    "errors": {
+      "selfReview": "Die prüfende Person hat die Strafe selbst verhängt. Hinterlege eine andere Prüfer-UUID für die Oberfläche (siehe README von web) oder lass jemand anderen entscheiden.",
+      "notAwaiting": "Der Einspruch wartet nicht mehr auf eine Entscheidung oder die Strafe ist nicht mehr aktiv. Lade die Liste neu.",
+      "notFound": "Der Einspruch existiert nicht mehr."
+    },
+    "decide": {
+      "open": "Entscheiden",
+      "title": "Einspruch entscheiden",
+      "decisionLabel": "Entscheidung",
+      "choose": "Entscheidung wählen",
+      "decision": {
+        "GRANTED_FULL_LIFT": "Strafe vollständig aufheben",
+        "GRANTED_DURATION_REDUCTION": "Strafe verkürzen",
+        "DENIED": "Einspruch ablehnen"
+      },
+      "newEnd": "Neues Ende",
+      "newEndHint": "Muss in der Zukunft und vor dem bisherigen Ende liegen",
+      "endRequired": "Wähle, wann die Strafe enden soll.",
+      "note": "Notiz",
+      "noteHint": "Optional; wird mit der Entscheidung gespeichert",
+      "confirm": "Entscheidung speichern"
+    }
+  },
+  "duration": {
+    "hint": "z. B. 30m, 12h, 3d oder 1w 2d",
+    "preview": "= {text}",
+    "quickPicks": "Schnellauswahl",
+    "errors": {
+      "empty": "Gib eine Dauer ein.",
+      "invalid": "Keine gültige Dauer. Versuche 30m, 12h, 3d oder 1w 2d.",
+      "missingUnit": "Ergänze eine Einheit: s, m, h, d (oder t) oder w, z. B. 30m.",
+      "unsupportedUnit": "Monate und Jahre werden nicht unterstützt, weil ihre Länge schwankt. Nimm Tage oder Wochen, z. B. 30d.",
+      "duplicateUnit": "Jede Einheit nur einmal, z. B. 1h 30m.",
+      "zero": "Die Dauer muss größer als null sein.",
+      "tooLarge": "Zu lang. Maximal 10 Jahre (3650d); nimm stattdessen eine dauerhafte Strafe."
+    }
+  }
+}
