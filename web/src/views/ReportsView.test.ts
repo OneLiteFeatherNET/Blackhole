@@ -1,4 +1,5 @@
 import { flushPromises } from '@vue/test-utils'
+import { chooseOption } from '../test/select'
 import { describe, expect, it, vi } from 'vitest'
 import type { Report, Template } from '../api/types'
 import { fail, mockApi, mountWithApp, ok } from '../test/mount'
@@ -115,7 +116,7 @@ describe('ReportsView: resolving', () => {
     const { wrapper } = await mount()
 
     await wrapper.get('[data-testid="resolve-r-1"]').trigger('click')
-    await wrapper.get('[role="dialog"] select').setValue('DISMISSED')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'DISMISSED')
     await dialogField(wrapper, 'Note').setValue('no evidence')
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
@@ -132,9 +133,9 @@ describe('ReportsView: resolving', () => {
     const { wrapper } = await mount()
 
     await wrapper.get('[data-testid="resolve-r-1"]').trigger('click')
-    expect(wrapper.findAll('[role="dialog"] select'), 'no template choice before a decision is made').toHaveLength(1)
-    await wrapper.get('[role="dialog"] select').setValue('ACTIONED')
-    await wrapper.findAll('[role="dialog"] select')[1]!.setValue('tpl-1')
+    expect(wrapper.findAll('[role="dialog"] [role="combobox"]'), 'no template choice before a decision is made').toHaveLength(1)
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'ACTIONED')
+    await chooseOption(wrapper.findAll('[role="dialog"] [role="combobox"]')[1]!, 'tpl-1')
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
 
@@ -147,10 +148,10 @@ describe('ReportsView: resolving', () => {
     const { api, mount } = setup()
     const { wrapper } = await mount()
     await wrapper.get('[data-testid="resolve-r-1"]').trigger('click')
-    await wrapper.get('[role="dialog"] select').setValue('ACTIONED')
-    await wrapper.findAll('[role="dialog"] select')[1]!.setValue('tpl-1')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'ACTIONED')
+    await chooseOption(wrapper.findAll('[role="dialog"] [role="combobox"]')[1]!, 'tpl-1')
 
-    await wrapper.get('[role="dialog"] select').setValue('DISMISSED')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'DISMISSED')
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
 
@@ -164,8 +165,8 @@ describe('ReportsView: resolving', () => {
     const { mount } = setup({ resolveReport })
     const { wrapper } = await mount()
     await wrapper.get('[data-testid="resolve-r-1"]').trigger('click')
-    await wrapper.get('[role="dialog"] select').setValue('ACTIONED')
-    await wrapper.findAll('[role="dialog"] select')[1]!.setValue('tpl-1')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'ACTIONED')
+    await chooseOption(wrapper.findAll('[role="dialog"] [role="combobox"]')[1]!, 'tpl-1')
 
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()

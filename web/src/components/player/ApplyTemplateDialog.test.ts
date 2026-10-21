@@ -1,4 +1,5 @@
 import { flushPromises } from '@vue/test-utils'
+import { chooseOption, listOptions } from '../../test/select'
 import { describe, expect, it, vi } from 'vitest'
 import type { ApplyPreview, ApplyResult, Template } from '../../api/types'
 import { fail, mockApi, mountWithApp, ok } from '../../test/mount'
@@ -38,7 +39,7 @@ function setup(overrides: Record<string, unknown> = {}) {
 }
 
 async function choose(wrapper: Awaited<ReturnType<ReturnType<typeof setup>['mount']>>['wrapper'], key: string) {
-  await wrapper.get('select').setValue(key)
+  await chooseOption(wrapper.get('[role="combobox"]'), key)
   await flushPromises()
 }
 
@@ -47,7 +48,7 @@ describe('ApplyTemplateDialog', () => {
     const { mount } = setup()
     const { wrapper } = await mount()
 
-    const options = wrapper.findAll('option').map((o) => o.text())
+    const options = (await listOptions(wrapper.get('[role="combobox"]'))).map((o) => o.label)
     expect(options).toEqual(['Choose a template', 'hacking - Hacking (network)', 'spam - Spam (chat)'])
     expect(wrapper.get('[data-testid="confirm"]').attributes('disabled'), 'nothing chosen yet').toBeDefined()
 

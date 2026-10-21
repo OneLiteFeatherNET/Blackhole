@@ -3,10 +3,11 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../../api/inject'
 import type { EnforcementKind, Section } from '../../api/types'
-import { formatDuration } from '../../format'
+import { parseDuration } from '../../duration'
 import MdButton from '../md/MdButton.vue'
 import MdCheckbox from '../md/MdCheckbox.vue'
 import MdDialog from '../md/MdDialog.vue'
+import MdDurationField from '../md/MdDurationField.vue'
 import MdSelect from '../md/MdSelect.vue'
 import MdTextField from '../md/MdTextField.vue'
 import { sectionFieldErrors, type FieldErrors } from '../templates/fieldErrors'
@@ -14,7 +15,7 @@ import { sectionFieldErrors, type FieldErrors } from '../templates/fieldErrors'
 const props = defineProps<{ open: boolean; section: Section | null }>()
 const emit = defineEmits<{ close: []; saved: [message: string] }>()
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const api = useApi()
 
 // Number inputs are kept as text so an empty or malformed value can be told from 0.
@@ -34,6 +35,8 @@ const form = ref({
 })
 const errors = ref<FieldErrors>({ fields: {}, general: [] })
 const saving = ref(false)
+
+const SOFT_CHIPS = ['1d', '3d', '7d']
 
 const editing = computed(() => props.section !== null)
 const isServer = computed(() => form.value.enforcement === 'SERVER')
@@ -84,13 +87,16 @@ async function save(): Promise<void> {
   if (String(form.value.softThreshold).trim() !== '' && !whole(form.value.softThreshold)) {
     local.softThreshold = t('sections.editor.invalidNumber')
   }
+  const hasSoft = String(form.value.softThreshold).trim() !== ''
+  // The duration only matters with a soft threshold; an empty one is left to the backend to explain.
+  const soft = parseDuration(form.value.softDuration)
+  if (hasSoft && form.value.softDuration.trim() !== '' && !soft.ok) local.softDuration = t(`duration.errors.${soft.reason}`)
   if (Object.keys(local).length > 0) {
     errors.value = { fields: local, general: [] }
     return
   }
 
   saving.value = true
-  const hasSoft = String(form.value.softThreshold).trim() !== ''
   const draft = {
     key: form.value.key,
     displayName: form.value.displayName,
@@ -98,7 +104,7 @@ async function save(): Promise<void> {
     servers: form.value.servers.split(',').map((pattern) => pattern.trim()).filter(Boolean),
     baseScore: Number(form.value.baseScore),
     softThreshold: hasSoft ? Number(form.value.softThreshold) : null,
-    softDuration: hasSoft ? form.value.softDuration.trim() || null : null,
+    softDuration: hasSoft && soft.ok ? soft.iso : null,
     permanentThreshold: Number(form.value.permanentThreshold),
     pardonScore: Number(form.value.pardonScore),
     permanentReason: form.value.permanentReason,
@@ -156,11 +162,12 @@ async function save(): Promise<void> {
         <MdTextField v-model="form.baseScore" type="number" required :label="t('sections.editor.baseScore')" :error="fieldError('baseScore')" :supporting-text="t('sections.editor.baseScoreHint')" />
         <MdTextField v-model="form.pardonScore" type="number" required :label="t('sections.editor.pardonScore')" :error="fieldError('pardonScore')" :supporting-text="t('sections.editor.pardonScoreHint')" />
         <MdTextField v-model="form.softThreshold" type="number" :label="t('sections.editor.softThreshold')" :error="fieldError('softThreshold')" :supporting-text="t('sections.editor.softThresholdHint')" />
-        <MdTextField
+        <MdDurationField
           v-model="form.softDuration"
           :label="t('sections.editor.softDuration')"
           :error="fieldError('softDuration')"
-          :supporting-text="form.softDuration ? formatDuration(form.softDuration, locale) : t('sections.editor.softDurationHint')"
+          :supporting-text="t('sections.editor.softDurationHint')"
+          :chips="SOFT_CHIPS"
         />
         <MdTextField v-model="form.permanentThreshold" type="number" required :label="t('sections.editor.permanentThreshold')" :error="fieldError('permanentThreshold')" :supporting-text="t('sections.editor.permanentThresholdHint')" />
         <MdTextField v-model="form.decayPerDay" type="number" required :label="t('sections.editor.decayPerDay')" :error="fieldError('decayPerDay')" :supporting-text="t('sections.editor.decayHint')" />

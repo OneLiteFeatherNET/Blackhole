@@ -197,18 +197,28 @@
       "group": "Eskalationsgruppe",
       "groupHint": "Optional; standardmäßig der Schlüssel",
       "window": "Eskalationsfenster",
-      "windowHint": "Optional, ISO-8601, z. B. P90D",
+      "windowHint": "Optional; wie lange ein Vergehen für die nächste Stufe zählt, z. B. 90d",
       "steps": "Eskalationsstufen",
       "stepsHint": "Das erste Vergehen in der Gruppe nutzt Stufe 1, das nächste Stufe 2 und so weiter; die letzte Stufe wiederholt sich.",
       "duration": "Dauer (Stufe {n})",
-      "durationHint": "ISO-8601, z. B. P7D oder PT12H",
+      "durationHint": "z. B. 30m, 12h, 3d oder 1w 2d",
       "cost": "ELO-Kosten (Stufe {n})",
       "invalidCost": "Gib eine ganze Zahl ab 0 ein.",
       "moveUp": "Stufe {n} nach oben",
       "moveDown": "Stufe {n} nach unten",
       "remove": "Stufe {n} entfernen",
       "addStep": "Stufe hinzufügen",
-      "save": "Speichern"
+      "save": "Speichern",
+      "sectionHint": "Der ELO-Bereich, in dem diese Vorlage Punkte abzieht und bestraft",
+      "sectionDisabled": "Deaktiviert",
+      "reasonHint": "Wird dem Spieler angezeigt",
+      "advanced": "Erweitert",
+      "advancedHint": "Vergehen in derselben Eskalationsgruppe zählen zusammen: Jedes neue Vergehen innerhalb des Fensters führt eine Stufe weiter. Ohne Gruppe gilt der Schlüssel und das Standardfenster. Die meisten Vorlagen brauchen beides nicht.",
+      "step": "Stufe {n}",
+      "costHint": "Wird vom Punktestand abgezogen",
+      "summaryTitle": "Das bedeutet",
+      "summaryStep": "{n}. Vergehen: {duration}, −{cost} ELO",
+      "summaryRepeat": "Weitere Vergehen wiederholen die letzte Stufe."
     }
   },
   "sections": {
@@ -255,7 +265,7 @@
       "softThreshold": "Zeitstrafen-Schwelle",
       "softThresholdHint": "Optional; beim Unterschreiten wird befristet bestraft",
       "softDuration": "Dauer der Zeitstrafe",
-      "softDurationHint": "ISO-8601, z. B. P3D; benötigt eine Zeitstrafen-Schwelle",
+      "softDurationHint": "z. B. 3d; braucht eine Zeitstrafen-Schwelle",
       "permanentThreshold": "Dauerstrafen-Schwelle",
       "permanentThresholdHint": "Beim Unterschreiten wird dauerhaft bestraft",
       "decayPerDay": "Erholung pro Tag",
@@ -360,6 +370,20 @@
       "note": "Notiz",
       "noteHint": "Optional; wird mit der Entscheidung gespeichert",
       "confirm": "Entscheidung speichern"
+    }
+  },
+  "duration": {
+    "hint": "z. B. 30m, 12h, 3d oder 1w 2d",
+    "preview": "= {text}",
+    "quickPicks": "Schnellauswahl",
+    "errors": {
+      "empty": "Gib eine Dauer ein.",
+      "invalid": "Keine gültige Dauer. Versuche 30m, 12h, 3d oder 1w 2d.",
+      "missingUnit": "Ergänze eine Einheit: s, m, h, d (oder t) oder w, z. B. 30m.",
+      "unsupportedUnit": "Monate und Jahre werden nicht unterstützt, weil ihre Länge schwankt. Nimm Tage oder Wochen, z. B. 30d.",
+      "duplicateUnit": "Jede Einheit nur einmal, z. B. 1h 30m.",
+      "zero": "Die Dauer muss größer als null sein.",
+      "tooLarge": "Zu lang. Maximal 10 Jahre (3650d); nimm stattdessen eine dauerhafte Strafe."
     }
   }
 }

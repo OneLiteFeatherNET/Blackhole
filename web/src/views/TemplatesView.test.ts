@@ -1,4 +1,5 @@
 import { flushPromises } from '@vue/test-utils'
+import { chooseOption, listOptions } from '../test/select'
 import { describe, expect, it, vi } from 'vitest'
 import type { Section, Template } from '../api/types'
 import { fail, mockApi, mountWithApp, ok } from '../test/mount'
@@ -98,8 +99,8 @@ describe('TemplatesView: create', () => {
     await wrapper.get('[data-testid="new-template"]').trigger('click')
     await dialogInput(wrapper, 'Key').setValue('spam')
     await dialogInput(wrapper, 'Reason').setValue('Spam')
-    await wrapper.get('[role="dialog"] select').setValue('chat')
-    await dialogInput(wrapper, 'Duration (step 1)').setValue('PT1H')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'chat')
+    await dialogInput(wrapper, 'Duration (step 1)').setValue('1h')
     await dialogInput(wrapper, 'ELO cost (step 1)').setValue('0')
     await wrapper.get('[data-testid="save"]').trigger('click')
     await flushPromises()
@@ -119,21 +120,21 @@ describe('TemplatesView: create', () => {
     wrapper.unmount()
   })
 
-  it('offers only enabled sections', async () => {
+  it('lists a disabled section as unavailable instead of hiding it', async () => {
     const { mount } = setup()
     const { wrapper } = await mount()
 
     await wrapper.get('[data-testid="new-template"]').trigger('click')
 
-    expect(wrapper.findAll('[role="dialog"] option').map((o) => o.attributes('value'))).toEqual(['chat', 'network'])
+    const options = await listOptions(wrapper.get('[role="dialog"] [role="combobox"]'))
+    expect(options.map((o) => [o.value, o.disabled])).toEqual([['chat', false], ['network', false], ['old', true]])
 
     wrapper.unmount()
   })
 
-  it('shows the validation error next to the step duration and saves nothing', async () => {
-    const createTemplate = vi.fn(async () => fail('step 1 needs a duration that is a positive ISO-8601 duration', 400, 'VALIDATION'))
+  it('shows an unreadable duration next to the step and saves nothing', async () => {
     const templates = vi.fn(async () => ok([] as Template[]))
-    const { mount } = setup({ createTemplate, templates })
+    const { api, mount } = setup({ templates })
     const { wrapper } = await mount()
     await wrapper.get('[data-testid="new-template"]').trigger('click')
     await dialogInput(wrapper, 'Key').setValue('spam')
@@ -147,11 +148,12 @@ describe('TemplatesView: create', () => {
     const duration = dialogInput(wrapper, 'Duration (step 1)')
     expect(duration.attributes('aria-invalid')).toBe('true')
     const message = wrapper.get(`[id="${duration.attributes('aria-describedby')}"]`)
-    expect(message.text()).toContain('step 1 needs a duration')
+    expect(message.text()).toContain('Not a duration')
+    expect(api.createTemplate).not.toHaveBeenCalled()
     expect(wrapper.find('[role="dialog"]').exists(), 'dialog stays open').toBe(true)
     expect(templates, 'the list was not reloaded').toHaveBeenCalledTimes(1)
 
-    await duration.setValue('P1D')
+    await duration.setValue('1d')
     expect(dialogInput(wrapper, 'Duration (step 1)').attributes('aria-invalid'), 'the message goes once the field is edited').toBeUndefined()
 
     wrapper.unmount()
@@ -164,7 +166,7 @@ describe('TemplatesView: create', () => {
     await wrapper.get('[data-testid="new-template"]').trigger('click')
     await dialogInput(wrapper, 'Key').setValue('spam')
     await dialogInput(wrapper, 'Reason').setValue('Spam')
-    await dialogInput(wrapper, 'Duration (step 1)').setValue('PT1H')
+    await dialogInput(wrapper, 'Duration (step 1)').setValue('1h')
     await dialogInput(wrapper, 'ELO cost (step 1)').setValue('0')
 
     await wrapper.get('[data-testid="save"]').trigger('click')
@@ -182,7 +184,7 @@ describe('TemplatesView: create', () => {
     await wrapper.get('[data-testid="new-template"]').trigger('click')
     await dialogInput(wrapper, 'Key').setValue('spam')
     await dialogInput(wrapper, 'Reason').setValue('Spam')
-    await dialogInput(wrapper, 'Duration (step 1)').setValue('PT1H')
+    await dialogInput(wrapper, 'Duration (step 1)').setValue('1h')
     await dialogInput(wrapper, 'ELO cost (step 1)').setValue('-5')
 
     await wrapper.get('[data-testid="save"]').trigger('click')
@@ -204,9 +206,9 @@ describe('TemplatesView: edit', () => {
 
     await wrapper.get('[data-testid="edit-hacking"]').trigger('click')
     expect(dialogInput(wrapper, 'Key').element).toHaveProperty('value', 'hacking')
-    expect(dialogInput(wrapper, 'Duration (step 2)').element).toHaveProperty('value', 'P7D')
+    expect(dialogInput(wrapper, 'Duration (step 2)').element).toHaveProperty('value', '1w')
     await wrapper.get('[data-testid="add-step"]').trigger('click')
-    await dialogInput(wrapper, 'Duration (step 3)').setValue('P30D')
+    await dialogInput(wrapper, 'Duration (step 3)').setValue('30d')
     await dialogInput(wrapper, 'ELO cost (step 3)').setValue('250')
     await wrapper.get('[data-testid="save"]').trigger('click')
     await flushPromises()
@@ -234,8 +236,8 @@ describe('TemplatesView: edit', () => {
     await wrapper.get('[data-testid="edit-hacking"]').trigger('click')
 
     await wrapper.get('[aria-label="Move step 2 up"]').trigger('click')
-    expect(dialogInput(wrapper, 'Duration (step 1)').element).toHaveProperty('value', 'P7D')
-    expect(dialogInput(wrapper, 'Duration (step 2)').element).toHaveProperty('value', 'P1D')
+    expect(dialogInput(wrapper, 'Duration (step 1)').element).toHaveProperty('value', '1w')
+    expect(dialogInput(wrapper, 'Duration (step 2)').element).toHaveProperty('value', '1d')
 
     await wrapper.get('[aria-label="Remove step 1"]').trigger('click')
     expect(wrapper.findAll('[role="dialog"] label').filter((l) => l.text().startsWith('Duration'))).toHaveLength(1)
@@ -308,6 +310,59 @@ describe('TemplatesView: delete', () => {
     expect(wrapper.get('[data-testid="error"]').text()).toContain('at least one punishment still references this template')
     expect(wrapper.find('[role="dialog"]').exists(), 'dialog stays open').toBe(true)
     expect(wrapper.find('tbody tr').exists(), 'the template is still listed').toBe(true)
+
+    wrapper.unmount()
+  })
+})
+
+describe('TemplatesView: editor structure', () => {
+  it('summarises the steps in words', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="edit-hacking"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="summary"]').text()).toContain('Offence 1: 1 day, −100 ELO')
+    expect(wrapper.get('[data-testid="summary"]').text()).toContain('Offence 2: 1 week, −150 ELO')
+
+    wrapper.unmount()
+  })
+
+  it('keeps the escalation settings collapsed for a new template until asked', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="new-template"]').trigger('click')
+    expect(wrapper.get('[data-testid="advanced-toggle"]').attributes('aria-expanded')).toBe('false')
+
+    await wrapper.get('[data-testid="advanced-toggle"]').trigger('click')
+    expect(wrapper.get('[data-testid="advanced-toggle"]').attributes('aria-expanded')).toBe('true')
+
+    wrapper.unmount()
+  })
+
+  it('opens the advanced section for a template that has an escalation group', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="edit-hacking"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="advanced-toggle"]').attributes('aria-expanded')).toBe('true')
+    expect(dialogInput(wrapper, 'Escalation window').element).toHaveProperty('value', '90d')
+
+    wrapper.unmount()
+  })
+
+  it('sends the escalation window as ISO-8601 when it was typed in the short form', async () => {
+    const { api, mount } = setup()
+    const { wrapper } = await mount()
+    await wrapper.get('[data-testid="edit-hacking"]').trigger('click')
+
+    await dialogInput(wrapper, 'Escalation window').setValue('2w')
+    await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    expect(api.updateTemplate).toHaveBeenCalledWith('id-hacking', expect.objectContaining({ escalationWindow: 'P14D' }))
 
     wrapper.unmount()
   })

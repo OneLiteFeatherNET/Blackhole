@@ -1,4 +1,5 @@
 import { flushPromises } from '@vue/test-utils'
+import { chooseOption } from '../test/select'
 import { describe, expect, it, vi } from 'vitest'
 import type { Appeal } from '../api/types'
 import { fail, mockApi, mountWithApp, ok } from '../test/mount'
@@ -99,7 +100,7 @@ describe('AppealsView: deciding', () => {
     const { wrapper } = await mount()
 
     await wrapper.get('[data-testid="decide-a-1"]').trigger('click')
-    await wrapper.get('[role="dialog"] select').setValue('GRANTED_FULL_LIFT')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'GRANTED_FULL_LIFT')
     await dialogField(wrapper, 'Note').setValue('first offence')
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
@@ -116,7 +117,7 @@ describe('AppealsView: deciding', () => {
     const { wrapper } = await mount()
 
     await wrapper.get('[data-testid="decide-a-1"]').trigger('click')
-    await wrapper.get('[role="dialog"] select').setValue('DENIED')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'DENIED')
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
 
@@ -131,7 +132,7 @@ describe('AppealsView: deciding', () => {
     await wrapper.get('[data-testid="decide-a-1"]').trigger('click')
     expect(wrapper.find('input[type="datetime-local"]').exists(), 'no end date before shortening is chosen').toBe(false)
 
-    await wrapper.get('[role="dialog"] select').setValue('GRANTED_DURATION_REDUCTION')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'GRANTED_DURATION_REDUCTION')
     await dialogField(wrapper, 'New end').setValue('2099-01-02T12:30')
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
@@ -149,7 +150,7 @@ describe('AppealsView: deciding', () => {
     const { api, mount } = setup()
     const { wrapper } = await mount()
     await wrapper.get('[data-testid="decide-a-1"]').trigger('click')
-    await wrapper.get('[role="dialog"] select').setValue('GRANTED_DURATION_REDUCTION')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'GRANTED_DURATION_REDUCTION')
 
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
@@ -165,7 +166,7 @@ describe('AppealsView: deciding', () => {
     const { mount } = setup({ reviewAppeal })
     const { wrapper } = await mount()
     await wrapper.get('[data-testid="decide-a-1"]').trigger('click')
-    await wrapper.get('[role="dialog"] select').setValue('DENIED')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'DENIED')
 
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
@@ -181,7 +182,7 @@ describe('AppealsView: deciding', () => {
     const { mount } = setup({ reviewAppeal })
     const { wrapper } = await mount()
     await wrapper.get('[data-testid="decide-a-1"]').trigger('click')
-    await wrapper.get('[role="dialog"] select').setValue('GRANTED_FULL_LIFT')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'GRANTED_FULL_LIFT')
 
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
@@ -196,7 +197,7 @@ describe('AppealsView: deciding', () => {
     const { mount } = setup({ reviewAppeal })
     const { wrapper } = await mount()
     await wrapper.get('[data-testid="decide-a-1"]').trigger('click')
-    await wrapper.get('[role="dialog"] select').setValue('DENIED')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'DENIED')
 
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()

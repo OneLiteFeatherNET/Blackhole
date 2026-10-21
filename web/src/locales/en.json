@@ -197,18 +197,28 @@
       "group": "Escalation group",
       "groupHint": "Optional; defaults to the key",
       "window": "Escalation window",
-      "windowHint": "Optional ISO-8601, e.g. P90D",
+      "windowHint": "Optional; how long an offence counts towards the next step, e.g. 90d",
       "steps": "Escalation steps",
       "stepsHint": "The first offence in the group uses step 1, the next step 2, and so on; the last step repeats.",
       "duration": "Duration (step {n})",
-      "durationHint": "ISO-8601, e.g. P7D or PT12H",
+      "durationHint": "e.g. 30m, 12h, 3d or 1w 2d",
       "cost": "ELO cost (step {n})",
       "invalidCost": "Enter a whole number of 0 or more.",
       "moveUp": "Move step {n} up",
       "moveDown": "Move step {n} down",
       "remove": "Remove step {n}",
       "addStep": "Add step",
-      "save": "Save"
+      "save": "Save",
+      "sectionHint": "The ELO section this template charges and punishes in",
+      "sectionDisabled": "Disabled",
+      "reasonHint": "Shown to the player",
+      "advanced": "Advanced",
+      "advancedHint": "Offences in the same escalation group count together: each new offence within the window moves one step up. Without a group the key is used and the default window applies. Most templates need neither.",
+      "step": "Step {n}",
+      "costHint": "Deducted from the score",
+      "summaryTitle": "What this means",
+      "summaryStep": "Offence {n}: {duration}, −{cost} ELO",
+      "summaryRepeat": "Further offences repeat the last step."
     }
   },
   "sections": {
@@ -255,7 +265,7 @@
       "softThreshold": "Soft threshold",
       "softThresholdHint": "Optional; falling below it punishes temporarily",
       "softDuration": "Soft punishment duration",
-      "softDurationHint": "ISO-8601, e.g. P3D; needs a soft threshold",
+      "softDurationHint": "e.g. 3d; needs a soft threshold",
       "permanentThreshold": "Permanent threshold",
       "permanentThresholdHint": "Falling below it punishes permanently",
       "decayPerDay": "Decay per day",
@@ -360,6 +370,20 @@
       "note": "Note",
       "noteHint": "Optional; recorded with the decision",
       "confirm": "Save decision"
+    }
+  },
+  "duration": {
+    "hint": "e.g. 30m, 12h, 3d or 1w 2d",
+    "preview": "= {text}",
+    "quickPicks": "Quick values",
+    "errors": {
+      "empty": "Enter a duration.",
+      "invalid": "Not a duration. Try 30m, 12h, 3d or 1w 2d.",
+      "missingUnit": "Add a unit: s, m, h, d or w, e.g. 30m.",
+      "unsupportedUnit": "Months and years are not supported because their length varies. Use days or weeks, e.g. 30d.",
+      "duplicateUnit": "Use each unit once, e.g. 1h 30m.",
+      "zero": "The duration must be longer than zero.",
+      "tooLarge": "Too long. The maximum is 10 years (3650d); use a permanent punishment instead."
     }
   }
 }

@@ -1,4 +1,5 @@
 import { flushPromises } from '@vue/test-utils'
+import { chooseOption } from '../test/select'
 import { describe, expect, it, vi } from 'vitest'
 import type { Section } from '../api/types'
 import { fail, mockApi, mountWithApp, ok } from '../test/mount'
@@ -199,7 +200,7 @@ describe('SectionsView: create', () => {
     await openNew(wrapper)
     await field(wrapper, 'Key').setValue('bedwars')
     await field(wrapper, 'Name').setValue('Bedwars')
-    await wrapper.get('[role="dialog"] select').setValue('SERVER')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'SERVER')
     await field(wrapper, 'Server patterns').setValue('bedwars-*')
     await field(wrapper, 'Base score').setValue('1000')
     await field(wrapper, 'Permanent threshold').setValue('300')
@@ -235,10 +236,10 @@ describe('SectionsView: create', () => {
 
     expect(wrapper.get('[role="dialog"]').text()).not.toContain('Server patterns')
 
-    await wrapper.get('[role="dialog"] select').setValue('SERVER')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'SERVER')
     expect(wrapper.get('[role="dialog"]').text()).toContain('Server patterns')
 
-    await wrapper.get('[role="dialog"] select').setValue('MUTE')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'MUTE')
     expect(wrapper.get('[role="dialog"]').text()).not.toContain('Server patterns')
 
     wrapper.unmount()
@@ -250,7 +251,7 @@ describe('SectionsView: create', () => {
     await openNew(wrapper)
     await field(wrapper, 'Key').setValue('arena')
     await field(wrapper, 'Name').setValue('Arena')
-    await wrapper.get('[role="dialog"] select').setValue('SERVER')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'SERVER')
     await field(wrapper, 'Server patterns').setValue(' arena-* , pvp-? ,, ')
     await field(wrapper, 'Permanent reason').setValue('x')
 

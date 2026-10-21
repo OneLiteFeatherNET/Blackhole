@@ -1,4 +1,5 @@
 import { flushPromises } from '@vue/test-utils'
+import { chooseOption } from '../test/select'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EloEvent, EloProfile, Punishment, PunishmentProfile } from '../api/types'
 import { useLookupStore } from '../stores/lookup'
@@ -115,7 +116,7 @@ describe('PlayerDetailView', () => {
     expect(rows[0]!.text()).toContain('-100')
     expect(rows[0]!.text()).toContain('Punishment applied')
 
-    await wrapper.get('select').setValue('network')
+    await chooseOption(wrapper.get('[role="combobox"]'), 'network')
     await flushPromises()
 
     expect(eloHistory).toHaveBeenLastCalledWith(OWNER, 'network')
@@ -190,7 +191,7 @@ describe('PlayerDetailView', () => {
 
       await wrapper.get('[data-testid="open-apply"]').trigger('click')
       await flushPromises()
-      await wrapper.get('[role="dialog"] select').setValue('hacking')
+      await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'hacking')
       await flushPromises()
       await wrapper.get('[data-testid="confirm"]').trigger('click')
       await flushPromises()
