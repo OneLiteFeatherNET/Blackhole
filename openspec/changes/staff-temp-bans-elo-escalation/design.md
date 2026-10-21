@@ -28,7 +28,7 @@ escalating the *ELO-system* soft punishment (only staff templates have steps).
    `enforcement` (`MUTE`|`BAN`|`SERVER`), `servers` (list of glob patterns, required and
    only allowed for SERVER), `base_score`, `soft_threshold` (nullable),
    `soft_duration` (nullable), `permanent_threshold`, `pardon_score`, `permanent_reason`,
-   `decay_per_day`, `enabled`. CRUD under `/section` (v1). Seeded by Liquibase `<insert>`:
+   `decay_per_day`, `enabled`. CRUD under `/section` (v1). Seeded by SQL `INSERT` in a Flyway migration:
    `chat` (MUTE, 1000/700/PT24H/300/700) and `network` (BAN, 1000/700/P3D/300/700).
    *Alternative:* keep the `EloTrack` enum and add a third value when needed - rejected,
    every new section would touch schema, services, proxy and UI.
@@ -62,12 +62,12 @@ escalating the *ELO-system* soft punishment (only staff templates have steps).
    explainable after template edits. *Alternatives:* per template (variants of one offence
    wouldn't add up) or per section (unrelated offences would escalate each other) - rejected
    per user decision. `type` and `elo_delta` columns become
-   unused (kept nullable; dropped in a later changeset once no code reads them). Punishments
+   unused (kept nullable; dropped in a later migration once no code reads them). Punishments
    get `section_key` and `permanent` columns.
 6. **Active slots per section**: table `active_punishments(owner, section_key,
    punishment_identifier)` PK (owner, section_key). Apply rotates only the target section's
    slot. Profile DTO exposes `active: Map<sectionKey, Punishment>` and `history`.
-   The two old FK columns are dropped by an appended changeset after code stops using them.
+   The two old FK columns are dropped by an appended migration after code stops using them.
 7. **Apply API**: `POST /punishment/apply` body `{owner, templateKey|templateId, source}`
    returns `ApplyResult{punishment, section, scoreBefore, scoreAfter, escalation?}` (sealed
    DTO with an `Error` variant: unknown template, disabled section, invalid owner). The old
@@ -96,9 +96,9 @@ escalating the *ELO-system* soft punishment (only staff templates have steps).
     offline targets; lifting a permanent punishment needs `blackhole.pardon.permanent`.
     Parser errors use i18n keys instead of returning null.
 
-## Liquibase changesets (appended)
+## Flyway migrations (appended, V2 onward)
 
-`create-punishment-sections` + `seed-punishment-sections`, `create-elo-scores`,
+Each is a `V<n>__<name>.sql` file, e.g. `create-punishment-sections` + `seed-punishment-sections`, `create-elo-scores`,
 `add-section-to-elo-events`, `add-section-columns-to-templates`,
 `add-section-columns-to-punishments`, `create-template-steps`, `add-servers-to-sections`
 (`punishment_section_servers(section_key, pattern)`), `create-active-punishments`, and (last, after code

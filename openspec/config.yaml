@@ -27,10 +27,10 @@ context: |
      every automatic or manual punishment stays contestable via the appeal workflow.
   5. Infra owns rate limiting (only the existing report-submission limiter stays in-app).
      Any server-side request to a caller-supplied URL needs SSRF hardening first.
-  6. Liquibase changesets are append-only (never edit an applied changeset).
+  6. Flyway migrations are append-only (never edit an applied migration).
      @Transactional is currently unusable (bean ambiguity) - check before relying on it.
 
-  Stack: Java 25 toolchain, Micronaut 5, Hibernate/JPA, Liquibase, PostgreSQL, Dragonfly
+  Stack: Java 25 toolchain, Micronaut 5, Hibernate/JPA, Flyway, PostgreSQL, Dragonfly
   (Redis protocol) for caching and proxy sync, RabbitMQ for domain events, Velocity +
   Cloud commands, Vue 3 + Tailwind CSS with Material Design 3 tokens for the admin UI.
   Config is env-var driven with local-dev defaults inline in application.yml
@@ -42,7 +42,7 @@ rules:
     - State what is out of scope.
     - Mark API or schema changes that break the generated client or the Velocity plugin as BREAKING.
   design:
-    - Name the Liquibase changesets a change appends, and how existing rows are migrated.
+    - Name the Flyway migrations (V<n>__*.sql) a change appends, and how existing rows are migrated.
   tasks:
     - Every backend task group lands its own JUnit tests; every UI task group its own component/unit tests.
     - Include regenerating the OpenAPI client spec (client/specs) when the HTTP API changes.
