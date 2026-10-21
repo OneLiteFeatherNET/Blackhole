@@ -22,5 +22,33 @@
   },
   "placeholder": {
     "body": "Diese Ansicht wird in einem späteren Schritt umgesetzt."
+  },
+  "state": {
+    "loading": "Lädt",
+    "retry": "Erneut versuchen",
+    "error": {
+      "VALIDATION": "Die Anfrage wurde abgelehnt",
+      "NOT_FOUND": "Nicht gefunden",
+      "CONFLICT": "Widerspricht dem aktuellen Zustand",
+      "NETWORK": "Das Backend ist nicht erreichbar",
+      "UNKNOWN": "Etwas ist schiefgelaufen"
+    }
+  },
+  "dashboard": {
+    "counters": "Kennzahlen",
+    "openReports": "Offene Meldungen",
+    "pendingAppeals": "Offene Einsprüche",
+    "escalations7d": "Eskalationen in 7 Tagen",
+    "active": "Aktive Strafen pro Bereich",
+    "latest": "Letzte automatische dauerhafte Strafen",
+    "empty": "Noch keine automatischen dauerhaften Strafen.",
+    "escalations": {
+      "section": "Bereich",
+      "player": "Spieler",
+      "when": "Zeitpunkt",
+      "status": "Status",
+      "lifted": "Aufgehoben",
+      "standing": "Aktiv"
+    }
   }
 }

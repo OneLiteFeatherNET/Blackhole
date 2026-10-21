@@ -6,12 +6,24 @@ import App from './App.vue'
 import { i18n } from './i18n'
 import { createAppRouter } from './router'
 import { THEME_STORAGE_KEY } from './stores/ui'
+import { API_KEY } from './api/inject'
+import { mockApi, ok } from './test/mount'
 
 async function mountApp(path = '/') {
   const router = createAppRouter(createMemoryHistory())
   await router.push(path)
   await router.isReady()
-  return mount(App, { global: { plugins: [createPinia(), i18n, router] }, attachTo: document.body })
+  return mount(App, {
+    global: {
+      plugins: [createPinia(), i18n, router],
+      provide: {
+        [API_KEY as symbol]: mockApi({
+          dashboard: async () => ok({ activePunishmentsBySection: [], latestEscalations: [] }),
+        }),
+      },
+    },
+    attachTo: document.body,
+  })
 }
 
 describe('App shell', () => {

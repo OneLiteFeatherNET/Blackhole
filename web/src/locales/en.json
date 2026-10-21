@@ -22,5 +22,33 @@
   },
   "placeholder": {
     "body": "This view will be implemented in a later step."
+  },
+  "state": {
+    "loading": "Loading",
+    "retry": "Retry",
+    "error": {
+      "VALIDATION": "The request was rejected",
+      "NOT_FOUND": "Not found",
+      "CONFLICT": "Conflicts with the current state",
+      "NETWORK": "The backend could not be reached",
+      "UNKNOWN": "Something went wrong"
+    }
+  },
+  "dashboard": {
+    "counters": "Key figures",
+    "openReports": "Open reports",
+    "pendingAppeals": "Pending appeals",
+    "escalations7d": "Escalations in 7 days",
+    "active": "Active punishments per section",
+    "latest": "Latest automatic permanent punishments",
+    "empty": "No automatic permanent punishments yet.",
+    "escalations": {
+      "section": "Section",
+      "player": "Player",
+      "when": "When",
+      "status": "Status",
+      "lifted": "Lifted",
+      "standing": "In force"
+    }
   }
 }
