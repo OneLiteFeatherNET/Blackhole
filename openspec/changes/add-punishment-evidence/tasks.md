@@ -34,7 +34,7 @@ no sleeps, no shared static state; integration tests (PostgreSQL, S3 container) 
 
 ## 5. Lifetime and lifecycle
 
-- [ ] 5.1 Lifecycle hooks: granted full-lift appeal marks evidence `LIFTED` (liftedAt, appeal id), staff revoke marks `REVOKED` (proposal; evidence never deleted), denial and reduction change nothing; verify unit tests with a fixed `Clock` for each transition
+- [ ] 5.1 Lifecycle hooks: granted full-lift appeal marks evidence `LIFTED` (liftedAt, appeal id), staff revoke marks `REVOKED` (evidence never deleted), denial and reduction change nothing; verify unit tests with a fixed `Clock` for each transition
 - [ ] 5.2 Cascade on punishment-record deletion: service hook deletes blobs and rows (reason `CASCADE`); verify a unit test with a fake store and an integration test that deleting the punishment removes rows and blobs
 - [ ] 5.3 `EvidenceHousekeepingSweeper` (scheduled): unclaimed pending evidence after `pending-ttl`, blobs without a row older than 1 day, optional audit purge when configured; verify unit tests driving the sweep method with a fake store and fixed `Clock` (claimed evidence of any age is never deleted, orphan older than 1 day removed, younger kept)
 
@@ -43,7 +43,7 @@ no sleeps, no shared static state; integration tests (PostgreSQL, S3 container) 
 - [ ] 6.1 Export the OpenAPI spec into `client/specs` with the next version number and bump the pin in `client/build.gradle.kts`; verify `./gradlew :client:build`
 - [ ] 6.2 Add SeaweedFS (S3, with a bucket-init step) and ClamAV services to `docker/docker-compose.yml`, documenting ClamAV's ~1 GB RAM and slow first start; verify `docker compose config` and a manual upload round trip incl. an EICAR rejection
 - [ ] 6.3 README section: storage options with the licence table, evidence lifetime (tied to the punishment record), "no auth: anyone on the network can read evidence, including lifted evidence via `includeInactive`", video metadata limitation, capacity planning and the warning not to use S3 lifecycle deletion, operator GDPR notes (punishment-history retention and lawful basis to document, privacy notice, access and erasure via the admin delete path decided case by case); add `.claude/rules/evidence.md`; verify documented env vars match `application.yml`
-- [ ] 6.4 End-to-end check against local PostgreSQL + RabbitMQ + Dragonfly with SeaweedFS (and once with filesystem) storage and ClamAV: anticheat-style evidence then ban, screenshot upload and ranged download, appeal full lift erases; record results in the PR description
+- [ ] 6.4 End-to-end check against local PostgreSQL + RabbitMQ + Dragonfly with SeaweedFS (and once with filesystem) storage and ClamAV: anticheat-style evidence then ban, screenshot upload and ranged download, appeal full lift marks the evidence `LIFTED` and hides it by default; record results in the PR description
 
 ## 7. Pull request
 

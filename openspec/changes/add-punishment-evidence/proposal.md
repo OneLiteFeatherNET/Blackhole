@@ -39,7 +39,7 @@ be solved up front because evidence is personal data (chat text, video, other pl
   never-claimed correlation evidence (after P1D) and orphaned blobs.
 - Lifecycle marking instead of deletion: evidence of a punishment lifted by a granted appeal is
   kept and marked `LIFTED` (liftedAt + appeal id); evidence of a staff-revoked punishment is
-  proposed to be marked `REVOKED`. Marked evidence is labelled, never counted as supporting a
+  marked `REVOKED` (owner decision). Marked evidence is labelled, never counted as supporting a
   current punishment, and hidden by default (API flag and admin UI toggle); showing it is
   audited. Without an auth layer this cannot be enforced as "admins only" - see design.
   Append-only audit log (attached/viewed/downloaded/deleted/viewed-lifted) without content.
@@ -77,5 +77,4 @@ legal-basis determination (operator concern, see design).
   dependencies (`micronaut-object-storage-aws`, AWS SDK v2 `s3`), `client/specs` bump.
 - `docker/docker-compose.yml` (SeaweedFS and ClamAV services; ClamAV needs about 1 GB RAM),
   README (storage options, evidence lifetime, operator GDPR notes, capacity planning).
-- Depends on V7 (`feat/punishment-short-id`, open PR) being merged first: short-id lookup and
-  migration numbering. The legacy `punishment_evidence` table and `EvidenceType` stay untouched.
+- Builds on V7 (punishment short id, merged): short-id lookup and migration numbering. The legacy `punishment_evidence` table and `EvidenceType` stay untouched.
