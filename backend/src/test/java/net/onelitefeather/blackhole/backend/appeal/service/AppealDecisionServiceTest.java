@@ -193,4 +193,43 @@ class AppealDecisionServiceTest {
         assertEquals(AppealReviewResult.Kind.DECIDED, result.kind());
         assertEquals(920, bed.eloBed.storedScore(OWNER, "chat"));
     }
+
+    @Test
+    void aReductionToALaterExpiryThanTheCurrentOneIsRejected() {
+        PunishmentEntity mute = givenStaffMute();
+        UUID appealId = givenAppeal(mute);
+        long current = ((Number) mute.getMetaData().get("expiration_date")).longValue();
+
+        AppealReviewResult result = service.reviewAppeal(appealId,
+                new AppealReviewDTO(AppealStatus.GRANTED_DURATION_REDUCTION, "longer?", REVIEWER, current + 1000));
+
+        assertEquals(AppealReviewResult.Kind.DURATION_REDUCTION_NOT_SHORTER, result.kind(), "extending is not a reduction");
+        assertEquals(current, ((Number) mute.getMetaData().get("expiration_date")).longValue(), "the expiry is unchanged");
+        assertEquals(AppealStatus.ELIGIBLE_PENDING_REVIEW, appeals.repository().findById(appealId).orElseThrow().getStatus());
+    }
+
+    @Test
+    void aReductionToTheSameExpiryIsRejected() {
+        PunishmentEntity mute = givenStaffMute();
+        UUID appealId = givenAppeal(mute);
+        long current = ((Number) mute.getMetaData().get("expiration_date")).longValue();
+
+        AppealReviewResult result = service.reviewAppeal(appealId,
+                new AppealReviewDTO(AppealStatus.GRANTED_DURATION_REDUCTION, "same", REVIEWER, current));
+
+        assertEquals(AppealReviewResult.Kind.DURATION_REDUCTION_NOT_SHORTER, result.kind(), "equal is not strictly before");
+    }
+
+    @Test
+    void aReductionToAnEarlierFutureExpiryIsAccepted() {
+        PunishmentEntity mute = givenStaffMute();
+        UUID appealId = givenAppeal(mute);
+        long earlier = bed.eloBed.clock.millis() + 1000;
+
+        AppealReviewResult result = service.reviewAppeal(appealId,
+                new AppealReviewDTO(AppealStatus.GRANTED_DURATION_REDUCTION, "shorter", REVIEWER, earlier));
+
+        assertEquals(AppealReviewResult.Kind.DECIDED, result.kind(), result.message());
+        assertEquals(earlier, ((Number) mute.getMetaData().get("expiration_date")).longValue());
+    }
 }

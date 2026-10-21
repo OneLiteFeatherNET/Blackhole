@@ -124,6 +124,11 @@ public class AppealDecisionService {
             if (review.newExpirationAt() <= this.clock.millis()) {
                 return AppealReviewResult.durationReductionExpiryNotFuture();
             }
+            // A punishment without an expiry is permanent: any future expiry shortens it.
+            if (punishment.getMetaData().get(Expirable.META_DATA_KEY_EXPIRATION_DATE) instanceof Number current
+                    && review.newExpirationAt() >= current.longValue()) {
+                return AppealReviewResult.durationReductionNotShorter();
+            }
         }
 
         DecisionOutcome outcome = applyDecision(
