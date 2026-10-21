@@ -1,6 +1,6 @@
 package net.onelitefeather.blackhole.backend.elo;
 
-import net.onelitefeather.blackhole.backend.elo.dto.EloEventDTO;
+import net.onelitefeather.blackhole.backend.elo.dto.EloDTO;
 import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -34,7 +34,7 @@ public class EloEventEntity {
 
     private String owner;
 
-    private EloTrack track;
+    private String sectionKey;
 
     private int delta;
 
@@ -56,7 +56,7 @@ public class EloEventEntity {
 
     public EloEventEntity(
             String owner,
-            EloTrack track,
+            String sectionKey,
             int delta,
             EloReasonCode reasonCode,
             UUID sourceEvidenceId,
@@ -65,7 +65,7 @@ public class EloEventEntity {
             Map<String, Object> metaData
     ) {
         this.owner = owner;
-        this.track = track;
+        this.sectionKey = sectionKey;
         this.delta = delta;
         this.reasonCode = reasonCode;
         this.sourceEvidenceId = sourceEvidenceId;
@@ -82,8 +82,8 @@ public class EloEventEntity {
         return owner;
     }
 
-    public EloTrack getTrack() {
-        return track;
+    public String getSectionKey() {
+        return sectionKey;
     }
 
     public int getDelta() {
@@ -110,9 +110,9 @@ public class EloEventEntity {
         return metaData;
     }
 
-    public EloEventDTO toDTO() {
-        return new EloEventDTO(
-                this.identifier, this.owner, this.track, this.delta,
+    public EloDTO.EventResponse toDTO() {
+        return new EloDTO.EventResponse(
+                this.identifier, this.owner, this.sectionKey, this.delta,
                 this.reasonCode, this.sourceEvidenceId, this.resultingScore, this.createdAt, this.metaData
         );
     }

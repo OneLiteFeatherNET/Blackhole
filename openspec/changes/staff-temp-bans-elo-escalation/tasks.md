@@ -8,10 +8,10 @@
 
 ## 2. Per-section ELO
 
-- [ ] 2.1 Append `create-elo-scores` and `add-section-to-elo-events`; replace track columns usage with per-section scores (missing row = base score) in the ELO write path; verify unit tests for independence and base-score reads
-- [ ] 2.2 Introduce the `EscalationPolicy` interface with the default threshold policy (soft = crossing rule, permanent = below threshold and no active permanent punishment); verify unit tests for crossing, already-escalated, pardoned-below-threshold and double-threshold cases
-- [ ] 2.3 Map toxicity flags (`blackhole.elo.chat.section`) and report categories (`blackhole.elo.report.category-sections`) to sections; remove `perma-ban-template.*` config; document new keys in `application.yml`; verify report and toxicity service tests
-- [ ] 2.4 Rework `GET /elo/{owner}` (per-section scores + thresholds, base scores instead of 404), history `section` filter and new `POST /elo/{owner}/adjust`, with `EloApi` interface and sealed DTOs; verify controller integration tests
+- [x] 2.1 Append `create-elo-scores` and `add-section-to-elo-events`; replace track columns usage with per-section scores (missing row = base score) in the ELO write path; verify unit tests for independence and base-score reads
+- [x] 2.2 Introduce the `EscalationPolicy` interface with the default threshold policy (soft = crossing rule, permanent = below threshold and no active permanent punishment); verify unit tests for crossing, already-escalated, pardoned-below-threshold and double-threshold cases
+- [x] 2.3 Map toxicity flags (`blackhole.elo.chat.section`) and report categories (`blackhole.elo.report.category-sections`) to sections; remove `perma-ban-template.*` config; document new keys in `application.yml`; verify report and toxicity service tests
+- [x] 2.4 Rework `GET /elo/{owner}` (per-section scores + thresholds, base scores instead of 404), history `section` filter and new `POST /elo/{owner}/adjust`, with `EloApi` interface and sealed DTOs; verify controller integration tests
 
 ## 3. Templates and punishments
 

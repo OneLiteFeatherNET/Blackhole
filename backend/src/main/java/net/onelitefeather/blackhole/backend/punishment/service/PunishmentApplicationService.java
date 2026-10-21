@@ -12,8 +12,8 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
+import net.onelitefeather.blackhole.backend.elo.EloScoring;
 import net.onelitefeather.blackhole.backend.elo.service.EloService;
-import net.onelitefeather.blackhole.backend.elo.EloTrack;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
@@ -57,7 +57,7 @@ public class PunishmentApplicationService {
     private final PunishmentTemplateRepository templateRepository;
     private final DomainEventPublisher eventPublisher;
     private final ProfileCache profileCache;
-    private final BeanProvider<EloService> eloServiceProvider;
+    private final BeanProvider<EloScoring> eloServiceProvider;
 
     /**
      * @param eloServiceProvider lazy - {@link EloService} itself depends on this service (to
@@ -71,7 +71,7 @@ public class PunishmentApplicationService {
             PunishmentTemplateRepository templateRepository,
             DomainEventPublisher eventPublisher,
             ProfileCache profileCache,
-            BeanProvider<EloService> eloServiceProvider
+            BeanProvider<EloScoring> eloServiceProvider
     ) {
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
@@ -127,8 +127,8 @@ public class PunishmentApplicationService {
         PunishmentEntity savedPunishment = this.punishmentRepository.save(punishment);
 
         if (template.getEloDelta() != 0 && !EloService.SYSTEM_ELO_SOURCE.equals(source)) {
-            EloTrack track = template.getType() == PunishType.CHAT ? EloTrack.CHAT : EloTrack.GAMEPLAY;
-            this.eloServiceProvider.get().applyDelta(owner, track, template.getEloDelta(), EloReasonCode.PUNISHMENT_APPLIED, null, Map.of(
+            String section = template.getType() == PunishType.CHAT ? "chat" : "network";
+            this.eloServiceProvider.get().applyDelta(owner, section, template.getEloDelta(), EloReasonCode.PUNISHMENT_APPLIED, null, Map.of(
                     "punishmentIdentifier", savedPunishment.getIdentifier(),
                     "templateIdentifier", templateId.toString()
             ));

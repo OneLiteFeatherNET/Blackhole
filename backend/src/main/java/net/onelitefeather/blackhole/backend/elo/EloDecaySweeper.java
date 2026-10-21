@@ -19,11 +19,11 @@ public class EloDecaySweeper {
     private static final Logger LOGGER = LoggerFactory.getLogger(EloDecaySweeper.class);
     private static final int PAGE_SIZE = 200;
 
-    private final EloProfileRepository profileRepository;
+    private final EloScoreRepository scoreRepository;
     private final EloService eloService;
 
-    public EloDecaySweeper(EloProfileRepository profileRepository, EloService eloService) {
-        this.profileRepository = profileRepository;
+    public EloDecaySweeper(EloScoreRepository scoreRepository, EloService eloService) {
+        this.scoreRepository = scoreRepository;
         this.eloService = eloService;
     }
 
@@ -31,11 +31,11 @@ public class EloDecaySweeper {
     void sweep() {
         int updatedCount = 0;
         Pageable pageable = Pageable.from(0, PAGE_SIZE);
-        Page<EloProfileEntity> page;
+        Page<EloScoreEntity> page;
         do {
-            page = this.profileRepository.findAll(pageable);
-            for (EloProfileEntity profile : page.getContent()) {
-                if (this.eloService.reconcileDecayForProfile(profile)) {
+            page = this.scoreRepository.findAll(pageable);
+            for (EloScoreEntity score : page.getContent()) {
+                if (this.eloService.reconcileDecayForScore(score)) {
                     updatedCount++;
                 }
             }
@@ -43,7 +43,7 @@ public class EloDecaySweeper {
         } while (page.getNumberOfElements() == PAGE_SIZE);
 
         if (updatedCount > 0) {
-            LOGGER.info("Applied ELO decay to {} profile(s) during nightly sweep", updatedCount);
+            LOGGER.info("Applied ELO decay to {} score(s) during nightly sweep", updatedCount);
         }
     }
 }
