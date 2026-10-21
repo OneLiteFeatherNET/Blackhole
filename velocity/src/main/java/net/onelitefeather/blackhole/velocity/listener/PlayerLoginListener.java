@@ -11,7 +11,7 @@ import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.EvasionRecordDTO;
 import net.onelitefeather.blackhole.client.model.SessionInfoDTO;
-import net.onelitefeather.blackhole.velocity.component.PunishmentMessages;
+import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
@@ -36,12 +36,14 @@ public final class PlayerLoginListener {
     private final PunishProfileApi punishProfileApi;
     private final EvasionApi evasionApi;
     private final PunishmentState state;
+    private final PunishmentScreens screens;
 
     @Inject
-    public PlayerLoginListener(@NotNull ApiClient apiClient, @NotNull PunishmentState state) {
+    public PlayerLoginListener(@NotNull ApiClient apiClient, @NotNull PunishmentState state, @NotNull PunishmentScreens screens) {
         this.punishProfileApi = new PunishProfileApi(apiClient);
         this.evasionApi = new EvasionApi(apiClient);
         this.state = state;
+        this.screens = screens;
     }
 
     /**
@@ -66,7 +68,8 @@ public final class PlayerLoginListener {
             return;
         }
         if (ban.isPresent()) {
-            event.setResult(ResultedEvent.ComponentResult.denied(PunishmentMessages.forPlayer(ban.get())));
+            event.setResult(ResultedEvent.ComponentResult.denied(
+                    this.screens.screen(ban.get(), PunishmentScreens.localeOf(player), PunishmentScreens.Surface.DISCONNECT, false)));
             return;
         }
         recordSessionInfo(player, uuidHash);
