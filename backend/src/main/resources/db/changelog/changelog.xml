@@ -366,4 +366,23 @@
         </insert>
     </changeSet>
 
+    <!-- Server name patterns (globs) of SERVER sections; one row per pattern. Whether a section
+         may list patterns at all, and that none matches every server, is enforced in the
+         application layer (ServerPatterns). -->
+    <changeSet id="add-servers-to-sections" author="blackhole">
+        <createTable tableName="punishment_section_servers">
+            <column name="section_key" type="varchar(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="pattern" type="varchar(64)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="punishment_section_servers" columnNames="section_key, pattern"
+                       constraintName="pk_punishment_section_servers"/>
+        <addForeignKeyConstraint constraintName="fk_punishment_section_servers_section"
+                                 baseTableName="punishment_section_servers" baseColumnNames="section_key"
+                                 referencedTableName="punishment_sections" referencedColumnNames="section_key"/>
+    </changeSet>
+
 </databaseChangeLog>
