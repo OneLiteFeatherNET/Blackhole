@@ -19,3 +19,7 @@ There is deliberately no generic connector/webhook/signal-ingestion framework an
 were removed 2026-07-09 to keep the API surface simpler) — external-system integration would
 need to be designed fresh if it comes back, including SSRF hardening for any caller-controlled
 URL a new design introduces (see CLAUDE.md's cross-cutting conventions).
+
+Publishing must stay non-blocking: `DomainEventRabbitPublisher.publish` returns a `Publisher<Void>`
+and `DomainEventPublisher` subscribes fire-and-forget. A `void` `@RabbitClient` method blocks on a
+Mono, which Reactor refuses on Netty event-loop threads (where controllers and services run).
