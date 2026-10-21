@@ -62,7 +62,8 @@ public final class PunishmentTestBed {
 
     /** The ELO engine, punishing through {@link #punishmentService} exactly as in the application. */
     public final EloService elo = new EloService(
-            eloBed.scoreRepository.repository(), eloBed.eventRepository.repository(), eloBed.sections, punishmentService,
+            eloBed.scoreRepository.repository(), new InMemoryEloScoreWriter(eloBed.scoreRepository.repository()),
+            eloBed.eventRepository.repository(), eloBed.sections, punishmentService,
             new ThresholdEscalationPolicy(), eloBed.events, eloBed.profileCache, eloBed.clock, 86_400_000L);
 
     /** Stores a template with the given steps (duration, cost) and returns it. */

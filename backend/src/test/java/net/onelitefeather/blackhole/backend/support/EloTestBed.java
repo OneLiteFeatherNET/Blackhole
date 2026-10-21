@@ -53,7 +53,7 @@ public final class EloTestBed {
         addSection("chat", EnforcementKind.MUTE, "PT24H");
         addSection("network", EnforcementKind.BAN, "P3D");
         this.elo = new EloService(
-                scoreRepository.repository(), eventRepository.repository(), sections, punisher, policy,
+                scoreRepository.repository(), new InMemoryEloScoreWriter(scoreRepository.repository()), eventRepository.repository(), sections, punisher, policy,
                 events, profileCache, clock, 86_400_000L);
     }
 

@@ -12,6 +12,7 @@ import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.EloScoreEntity;
 import net.onelitefeather.blackhole.backend.elo.EloScoreId;
 import net.onelitefeather.blackhole.backend.elo.EloScoreRepository;
+import net.onelitefeather.blackhole.backend.elo.EloScoreWriter;
 import net.onelitefeather.blackhole.backend.elo.EloScoring;
 import net.onelitefeather.blackhole.backend.elo.EscalationPolicy;
 import net.onelitefeather.blackhole.backend.elo.dto.EloDTO;
@@ -40,12 +41,13 @@ import java.util.stream.Collectors;
  * goes through here, so the threshold check and audit trail are never bypassed regardless of which
  * signal caused a change.
  *
- * <p><b>Known limitation (deferred, not fixed here):</b> the threshold check should run in the same
- * transaction as the triggering write, so two concurrent violations in the same section cannot both
- * race past a threshold undetected. {@code @Transactional} is unusable in this codebase (two
- * competing auto-configured {@code TransactionOperations} beans for the "default" datasource), so
- * this keeps the narrow window of two simultaneous violations for the exact same player and section.
- * The primary key of the active-punishment slot rejects a second concurrent permanent punishment.</p>
+ * <p>Score writes are single atomic statements ({@link EloScoreWriter}), so concurrent deltas for the
+ * same player and section add up instead of overwriting each other, and the resulting score the
+ * threshold check sees is the one actually stored. {@code @Transactional} is unusable in this
+ * codebase (two competing auto-configured {@code TransactionOperations} beans for the "default"
+ * datasource), so the event row and the escalation are separate steps after the score write; two
+ * simultaneous violations for the same player and section can still both observe "no active
+ * permanent punishment", which the primary key of the active-punishment slot resolves.</p>
  */
 @Singleton
 public class EloService implements EloScoring {
@@ -62,6 +64,7 @@ public class EloService implements EloScoring {
     private static final int MAX_NOTE_LENGTH = 500;
 
     private final EloScoreRepository scoreRepository;
+    private final EloScoreWriter scoreWriter;
     private final EloEventRepository eventRepository;
     private final SectionService sectionService;
     private final SectionPunisher punisher;
@@ -73,6 +76,7 @@ public class EloService implements EloScoring {
 
     public EloService(
             EloScoreRepository scoreRepository,
+            EloScoreWriter scoreWriter,
             EloEventRepository eventRepository,
             SectionService sectionService,
             SectionPunisher punisher,
@@ -83,6 +87,7 @@ public class EloService implements EloScoring {
             @Value("${blackhole.elo.decay.interval-ms:86400000}") long decayIntervalMs
     ) {
         this.scoreRepository = scoreRepository;
+        this.scoreWriter = scoreWriter;
         this.eventRepository = eventRepository;
         this.sectionService = sectionService;
         this.punisher = punisher;
@@ -111,23 +116,14 @@ public class EloService implements EloScoring {
         }
 
         long now = this.clock.millis();
-        EloScoreEntity score = this.scoreRepository.findById(new EloScoreId(owner, sectionKey)).orElse(null);
-        boolean isNew = score == null;
-        if (isNew) {
-            score = new EloScoreEntity(owner, sectionKey, section.baseScore(), now);
+        EloScoreEntity existing = this.scoreRepository.findById(new EloScoreId(owner, sectionKey)).orElse(null);
+        if (existing != null) {
+            reconcileDecay(existing, section, now);
         }
 
-        reconcileDecay(score, section, now);
-
-        int before = score.getScore();
-        int after = before + delta;
-        score.setScore(after);
-        score.setUpdatedAt(now);
-        if (isNew) {
-            this.scoreRepository.save(score);
-        } else {
-            this.scoreRepository.update(score);
-        }
+        // One atomic statement: concurrent deltas add up and a first write cannot collide on the key.
+        int after = this.scoreWriter.addDelta(owner, sectionKey, section.baseScore(), delta, now);
+        int before = after - delta;
         this.profileCache.evict(owner);
 
         this.eventRepository.save(new EloEventEntity(
@@ -154,20 +150,10 @@ public class EloService implements EloScoring {
             return Optional.empty();
         }
         long now = this.clock.millis();
-        EloScoreEntity score = this.scoreRepository.findById(new EloScoreId(owner, sectionKey)).orElse(null);
-        boolean isNew = score == null;
-        if (isNew) {
-            score = new EloScoreEntity(owner, sectionKey, section.baseScore(), now);
-        }
-        int before = score.getScore();
+        int before = this.scoreRepository.findById(new EloScoreId(owner, sectionKey))
+                .map(EloScoreEntity::getScore).orElse(section.baseScore());
         int pardon = section.pardonScore();
-        score.setScore(pardon);
-        score.setUpdatedAt(now);
-        if (isNew) {
-            this.scoreRepository.save(score);
-        } else {
-            this.scoreRepository.update(score);
-        }
+        this.scoreWriter.setScore(owner, sectionKey, pardon, now);
         this.profileCache.evict(owner);
         this.eventRepository.save(new EloEventEntity(
                 owner, sectionKey, pardon - before, EloReasonCode.PARDON_RESET, null, pardon, now,
@@ -239,8 +225,9 @@ public class EloService implements EloScoring {
     /**
      * Applies any decay owed since the score's last update, capped so it never overshoots the
      * section's base score - only explicit violations or rewards can cross the base, pure decay only
-     * restores toward it. Mutates {@code score} in place and records a {@code DECAY_RECOVERY} event;
-     * does not save the score (the caller saves once, after any further delta is applied on top).
+     * restores toward it. The recovery is written conditionally on the row not having changed since it
+     * was read; if somebody else wrote it meanwhile nothing is applied now and the decay is picked up
+     * later. Records a {@code DECAY_RECOVERY} event when it was applied.
      *
      * @return {@code true} if any decay was applied
      */
@@ -258,9 +245,10 @@ public class EloService implements EloScoring {
         if (recovery <= 0) {
             return false;
         }
+        if (!this.scoreWriter.recover(score.getOwner(), score.getSectionKey(), recovery, score.getUpdatedAt(), now)) {
+            return false;
+        }
         int recovered = current + recovery;
-        score.setScore(recovered);
-        score.setUpdatedAt(now);
         this.eventRepository.save(new EloEventEntity(
                 score.getOwner(), score.getSectionKey(), recovery, EloReasonCode.DECAY_RECOVERY, null, recovered, now,
                 new HashMap<>(Map.of("daysElapsed", daysElapsed))
@@ -281,7 +269,6 @@ public class EloService implements EloScoring {
             return false;
         }
         if (reconcileDecay(score, section, this.clock.millis())) {
-            this.scoreRepository.update(score);
             this.profileCache.evict(score.getOwner());
             return true;
         }
