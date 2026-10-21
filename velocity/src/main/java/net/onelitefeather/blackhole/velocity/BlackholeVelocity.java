@@ -138,6 +138,6 @@ public class BlackholeVelocity {
         var classLoader = BlackholeVelocity.class.getClassLoader();
         store.registerAll(Locale.ENGLISH, ResourceBundle.getBundle("blackhole", Locale.ENGLISH, classLoader), false);
         store.registerAll(Locale.GERMAN, ResourceBundle.getBundle("blackhole", Locale.GERMAN, classLoader), false);
-        GlobalTranslator.get().addSource(store);
+        GlobalTranslator.translator().addSource(store);
     }
 }
