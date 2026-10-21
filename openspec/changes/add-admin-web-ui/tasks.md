@@ -8,18 +8,18 @@
 
 ## 2. Project scaffold
 
-- [ ] 2.1 Create `web/` with Vite + Vue 3 + TypeScript, Vue Router, Pinia, vue-i18n, Tailwind CSS v4, Vitest; verify `npm ci && npm run build && npm test` succeed
-- [ ] 2.2 Add `web/build.gradle.kts` (node-gradle plugin) and include it in `settings.gradle.kts`; Node 22 in `build-pr.yml`; verify `./gradlew :web:build`
-- [ ] 2.3 Generate `src/api/schema.d.ts` with openapi-typescript from the pinned spec before build, and the API wrapper (version header, source UUID from `/config.json`); verify `vue-tsc --noEmit` passes and a unit test checks headers
+- [x] 2.1 Create `web/` with Vite + Vue 3 + TypeScript, Vue Router, Pinia, vue-i18n, Tailwind CSS v4, Vitest; verify `npm ci && npm run build && npm test` succeed
+- [x] 2.2 Add `web/build.gradle.kts` (node-gradle plugin) and include it in `settings.gradle.kts`; Node 22 in `build-pr.yml`; verify `./gradlew :web:build`
+- [x] 2.3 Generate `src/api/schema.d.ts` with openapi-typescript from the pinned spec before build, and the API wrapper (version header, source UUID from `/config.json`); verify `vue-tsc --noEmit` passes and a unit test checks headers
 
 ## 3. MD3 design system
 
-- [ ] 3.1 Generate MD3 light/dark color tokens from the seed color with material-color-utilities and map tokens, type scale, shape and elevation in Tailwind `@theme`; theme toggle with persisted override; verify a unit test for scheme switching
-- [ ] 3.2 Implement `web/src/components/md/` (button variants, text field, select, card, dialog, navigation rail/drawer, top app bar, chip, snackbar, data table, progress) with state layers and focus rings; verify component tests and an accessibility pass (keyboard focus, contrast) noted in the PR
+- [x] 3.1 Generate MD3 light/dark color tokens from the seed color with material-color-utilities and map tokens, type scale, shape and elevation in Tailwind `@theme`; theme toggle with persisted override; verify a unit test for scheme switching
+- [x] 3.2 Implement `web/src/components/md/` (button variants, text field, select, card, dialog, navigation rail/drawer, top app bar, chip, snackbar, data table, progress) with state layers and focus rings; verify component tests and an accessibility pass (keyboard focus, contrast) noted in the PR
 
 ## 4. Screens
 
-- [ ] 4.1 App shell with navigation and German/English i18n; verify all strings exist in both locale files via a test
+- [x] 4.1 App shell with navigation and German/English i18n; verify all strings exist in both locale files via a test
 - [ ] 4.2 Dashboard; verify component test with mocked API
 - [ ] 4.3 Player lookup + detail (section score bars with thresholds, active punishments, history, ELO history); verify component tests for found/not-found
 - [ ] 4.4 Player actions: apply template (preview shows the step that will apply), revoke, adjust score with escalation preview; verify tests that the warning shows when cost crosses the permanent threshold

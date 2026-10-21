@@ -25,3 +25,4 @@ dist-ssr
 
 # Generated
 src/styles/md3-tokens.generated.css
+src/api/schema.d.ts
