@@ -3,10 +3,13 @@ package net.onelitefeather.blackhole.velocity.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -31,12 +34,76 @@ public class BlackholeConfig {
     private String fallbackServer;
 
     /**
+     * Where punished players can contest a punishment, shown on their punishment screen. Empty to
+     * show no appeal hint. Only http(s) links are used.
+     */
+    private String appealUrl;
+
+    /**
+     * Optional label for {@link #appealUrl} (e.g. "our forum"); the link itself is shown if empty.
+     */
+    private String appealText;
+
+    /**
+     * The time zone absolute punishment end times are shown in (an id like {@code Europe/Berlin});
+     * the proxy's system zone if empty or invalid.
+     */
+    private String timeZone;
+
+    /**
      * Creates a new configuration with default values.
      */
     public BlackholeConfig() {
         this.baseUrl = "http://localhost:8080";
         this.redisUri = "redis://localhost:6379";
         this.fallbackServer = "lobby";
+        this.appealUrl = "";
+        this.appealText = "";
+        this.timeZone = ZoneId.systemDefault().getId();
+    }
+
+    /**
+     * @return the appeal link, or null if none (or not an http/https link) is configured
+     */
+    public @Nullable String getAppealUrl() {
+        if (appealUrl == null) {
+            return null;
+        }
+        String url = appealUrl.strip();
+        return url.startsWith("https://") || url.startsWith("http://") ? url : null;
+    }
+
+    /**
+     * @return the label shown for the appeal link, or null if none is configured
+     */
+    public @Nullable String getAppealText() {
+        return appealText == null || appealText.isBlank() ? null : appealText.strip();
+    }
+
+    public void setAppealUrl(@NotNull String appealUrl) {
+        this.appealUrl = appealUrl;
+    }
+
+    public void setAppealText(@NotNull String appealText) {
+        this.appealText = appealText;
+    }
+
+    public void setTimeZone(@NotNull String timeZone) {
+        this.timeZone = timeZone;
+    }
+
+    /**
+     * @return the configured time zone, the system zone if unset or invalid
+     */
+    public @NotNull ZoneId getZone() {
+        if (timeZone == null || timeZone.isBlank()) {
+            return ZoneId.systemDefault();
+        }
+        try {
+            return ZoneId.of(timeZone.strip());
+        } catch (DateTimeException e) {
+            return ZoneId.systemDefault();
+        }
     }
 
     /**

@@ -18,6 +18,13 @@ public final class DurationTag {
         return I18nHumanDuration.format(duration);
     }
 
+    /**
+     * @return the remaining time as "2 days 3 hours remaining", localized
+     */
+    public static Component remaining(Duration duration) {
+        return I18nHumanDuration.remaining(duration);
+    }
+
     public static TagResolver resolver(long endMillis, long nowMillis) {
         final Duration d = Duration.ofMillis(endMillis - nowMillis);
         final Component text = I18nHumanDuration.format(d);

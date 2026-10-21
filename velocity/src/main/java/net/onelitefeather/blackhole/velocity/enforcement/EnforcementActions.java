@@ -5,7 +5,7 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.text.Component;
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
-import net.onelitefeather.blackhole.velocity.component.PunishmentMessages;
+import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
@@ -31,16 +31,19 @@ public final class EnforcementActions {
     private final PunishmentState state;
     private final BlackholeConfig config;
     private final Clock clock;
+    private final PunishmentScreens screens;
 
     public EnforcementActions(
             @NotNull ProxyServer proxy, @NotNull SectionRegistry sections, @NotNull PunishmentState state,
-            @NotNull BlackholeConfig config, @NotNull Clock clock
+            @NotNull BlackholeConfig config, @NotNull Clock clock,
+            @NotNull PunishmentScreens screens
     ) {
         this.proxy = proxy;
         this.sections = sections;
         this.state = state;
         this.config = config;
         this.clock = clock;
+        this.screens = screens;
     }
 
     /**
@@ -69,16 +72,19 @@ public final class EnforcementActions {
             return;
         }
         findPlayer(punishment.owner()).ifPresent(player -> {
-            Component message = PunishmentMessages.forPlayer(punishment);
             if (kind == EnforcementKind.BAN) {
-                player.disconnect(message);
+                player.disconnect(screen(player, punishment, PunishmentScreens.Surface.DISCONNECT, false));
             } else {
-                moveOffCoveredServer(player, punishment, message);
+                moveOffCoveredServer(player, punishment);
             }
         });
     }
 
-    private void moveOffCoveredServer(Player player, PunishmentSyncMessage punishment, Component message) {
+    private Component screen(Player player, PunishmentSyncMessage punishment, PunishmentScreens.Surface surface, boolean moved) {
+        return this.screens.screen(punishment, PunishmentScreens.localeOf(player), surface, moved);
+    }
+
+    private void moveOffCoveredServer(Player player, PunishmentSyncMessage punishment) {
         String current = player.getCurrentServer().map(connection -> connection.getServerInfo().getName()).orElse(null);
         if (current == null || !Enforcement.coversServer(punishment, this.sections, current, this.clock.millis())) {
             return;
@@ -88,14 +94,14 @@ public final class EnforcementActions {
                 .filter(server -> this.state.activeServerBan(owner, server.getServerInfo().getName()).isEmpty())
                 .orElse(null);
         if (fallback == null) {
-            player.disconnect(message);
+            player.disconnect(screen(player, punishment, PunishmentScreens.Surface.DISCONNECT, false));
             return;
         }
-        player.sendMessage(message);
+        player.sendMessage(screen(player, punishment, PunishmentScreens.Surface.CHAT, true));
         player.createConnectionRequest(fallback).connect().thenAccept(result -> {
             if (!result.isSuccessful()) {
                 LOGGER.warn("Could not move {} to the fallback server, disconnecting instead", player.getUsername());
-                player.disconnect(message);
+                player.disconnect(screen(player, punishment, PunishmentScreens.Surface.DISCONNECT, false));
             }
         });
     }

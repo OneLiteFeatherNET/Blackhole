@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.velocity.module;
 
 import com.google.inject.AbstractModule;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
+import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.enforcement.EnforcementActions;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
@@ -30,6 +31,7 @@ import java.time.Clock;
  * @param backend     the backend calls of the staff commands
  * @param service     the decisions behind the staff commands
  * @param clock       the time source
+ * @param screens     builds the texts punished players see
  */
 public record BlackholeClientModule(
         @NotNull ApiClient apiClient,
@@ -42,7 +44,8 @@ public record BlackholeClientModule(
         @NotNull EnforcementActions actions,
         @NotNull BackendGateway backend,
         @NotNull PunishService service,
-        @NotNull Clock clock
+        @NotNull Clock clock,
+        @NotNull PunishmentScreens screens
 ) {
 
     /**
@@ -63,6 +66,7 @@ public record BlackholeClientModule(
                 bind(BackendGateway.class).toInstance(backend);
                 bind(PunishService.class).toInstance(service);
                 bind(Clock.class).toInstance(clock);
+                bind(PunishmentScreens.class).toInstance(screens);
             }
         };
     }
