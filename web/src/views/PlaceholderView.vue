@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
+import MdCard from '../components/md/MdCard.vue'
 
 const { t } = useI18n()
-const route = useRoute()
 </script>
 
 <template>
-  <div>
-    <h1 class="text-headline-small text-on-surface">{{ t(String(route.meta.titleKey)) }}</h1>
-    <p class="mt-2 text-body-large text-on-surface-variant">{{ t('placeholder.body') }}</p>
-  </div>
+  <MdCard>
+    <p class="text-body-large text-on-surface-variant">{{ t('placeholder.body') }}</p>
+  </MdCard>
 </template>
