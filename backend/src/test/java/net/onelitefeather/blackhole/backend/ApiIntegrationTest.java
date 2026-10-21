@@ -1,0 +1,81 @@
+package net.onelitefeather.blackhole.backend;
+
+import io.micronaut.context.ApplicationContext;
+import io.micronaut.core.type.Argument;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.client.HttpClient;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.json.JsonMapper;
+import io.micronaut.runtime.server.EmbeddedServer;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Base for tests that call the REST API of an application started against the real containers.
+ * Every test starts its own application context; the containers (and so the database) live for the
+ * whole test class, so tests must use their own keys and owners to stay independent.
+ */
+public abstract class ApiIntegrationTest extends PostgresIntegrationTest {
+
+    /** A response reduced to what the tests assert on. */
+    public record Reply(int status, String body, JsonMapper mapper) {
+
+        public Map<String, Object> json() {
+            try {
+                return this.mapper.readValue(this.body, Argument.mapOf(String.class, Object.class));
+            } catch (IOException e) {
+                throw new IllegalStateException("not a JSON object: " + this.body, e);
+            }
+        }
+
+        public List<Map<String, Object>> jsonList() {
+            try {
+                return this.mapper.readValue(this.body, Argument.listOf(Argument.mapOf(String.class, Object.class)));
+            } catch (IOException e) {
+                throw new IllegalStateException("not a JSON array: " + this.body, e);
+            }
+        }
+    }
+
+    protected ApplicationContext context;
+    protected EmbeddedServer server;
+    private HttpClient client;
+    private JsonMapper mapper;
+
+    @BeforeEach
+    void startApplication() {
+        this.context = ApplicationContext.run(EmbeddedServer.class, contextProperties()).getApplicationContext();
+        this.server = this.context.getBean(EmbeddedServer.class);
+        this.client = this.context.createBean(HttpClient.class, this.server.getURL());
+        this.mapper = this.context.getBean(JsonMapper.class);
+    }
+
+    @AfterEach
+    void stopApplication() {
+        this.client.close();
+        this.context.close();
+    }
+
+    protected Reply get(String path) {
+        return call(HttpRequest.GET(path));
+    }
+
+    protected Reply post(String path, Object body) {
+        return call(body == null ? HttpRequest.POST(path, "") : HttpRequest.POST(path, body));
+    }
+
+    private Reply call(HttpRequest<?> request) {
+        try {
+            HttpResponse<String> response = this.client.toBlocking().exchange(request, String.class);
+            return new Reply(response.code(), response.body(), this.mapper);
+        } catch (HttpClientResponseException e) {
+            String body = e.getResponse().getBody(String.class).orElse("");
+            return new Reply(e.getStatus().getCode(), body, this.mapper);
+        }
+    }
+}
