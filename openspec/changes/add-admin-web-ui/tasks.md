@@ -29,5 +29,5 @@
 
 ## 5. Deployment and docs
 
-- [ ] 5.1 Multi-stage Dockerfile + nginx config (SPA fallback, `/api/` proxy, runtime `/config.json`), compose service; verify `docker build` in CI and manual run against the backend
-- [ ] 5.2 README section for the UI (dev server, build, deployment behind private network/auth proxy); verify the documented commands run
+- [x] 5.1 Multi-stage Dockerfile + nginx config (SPA fallback, `/api/` proxy, runtime `/config.json`), compose service; verify `docker build` in CI and manual run against the backend
+- [x] 5.2 README section for the UI (dev server, build, deployment behind private network/auth proxy); verify the documented commands run
