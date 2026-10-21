@@ -70,6 +70,11 @@ blackhole:
   punishment:
     expiry:
       sweep-interval: ${BLACKHOLE_PUNISHMENT_EXPIRY_SWEEP_INTERVAL:1m}
+    # Escalating staff templates: the step of a template is chosen by how many of the player's earlier,
+    # not-lifted punishments in the template's escalation group were created within this window
+    # (ISO-8601). A template can carry its own window; this is the fallback for templates without one.
+    escalation:
+      default-window: ${BLACKHOLE_PUNISHMENT_ESCALATION_DEFAULT_WINDOW:P365D}
   # ELO scoring is per punishment section (chat and network ship by default; operators add more via
   # /section). A section owns its base score, soft and permanent thresholds, soft duration, pardon
   # score and decay rate - they are data managed through the API, not config. Crossing below a
