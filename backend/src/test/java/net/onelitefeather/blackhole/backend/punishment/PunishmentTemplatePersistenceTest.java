@@ -25,7 +25,7 @@ class PunishmentTemplatePersistenceTest extends PostgresIntegrationTest {
                     new PunishmentTemplateEntity(null, "spam", PunishType.CHAT, 0, metaData));
 
             PunishmentTemplateEntity found = repository.findById(saved.getIdentifier()).orElseThrow();
-            assertEquals(metaData, found.getMetaData());
+            assertEquals(metaData, found.getMetaData(), "JSON metadata must survive a save/load round trip through PostgreSQL jsonb");
         }
     }
 }
