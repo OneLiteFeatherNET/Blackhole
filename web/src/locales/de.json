@@ -50,5 +50,74 @@
       "lifted": "Aufgehoben",
       "standing": "Aktiv"
     }
+  },
+  "scoreBar": {
+    "zone": {
+      "healthy": "unauffällig",
+      "soft": "Zeitstrafen-Bereich",
+      "permanent": "Dauerstrafen-Bereich"
+    },
+    "valueText": "{score} - {zone}, Schwelle für Dauerstrafe {permanent}",
+    "valueTextSoft": "{score} - {zone}, Schwelle für Zeitstrafe {soft}, Schwelle für Dauerstrafe {permanent}",
+    "soft": "Zeitstrafen-Schwelle {value}",
+    "permanent": "Dauerstrafen-Schwelle {value}"
+  },
+  "enforcement": {
+    "MUTE": "Stummschaltung",
+    "BAN": "Bann",
+    "SERVER": "Server-Sperre"
+  },
+  "elo": {
+    "reason": {
+      "TOXICITY_FLAG": "Toxischer Chat",
+      "ANTICHEAT_FLAG": "Anti-Cheat-Hinweis",
+      "REPORT_ACTIONED": "Meldung bearbeitet",
+      "MANUAL_ADJUSTMENT": "Manuelle Anpassung",
+      "DECAY_RECOVERY": "Erholung über die Zeit",
+      "THRESHOLD_BAN": "Schwelle für Dauerstrafe unterschritten",
+      "PUNISHMENT_APPLIED": "Strafe verhängt",
+      "REPORT_REWARDED": "Meldung belohnt",
+      "PARDON_RESET": "Zurückgesetzt nach Begnadigung",
+      "APPEAL_REFUND": "Erstattung nach Einspruch"
+    }
+  },
+  "players": {
+    "intro": "Suche einen Spieler über seinen aktuellen Minecraft-Namen. Namen werden nur für diese Suche verwendet und nicht gespeichert.",
+    "name": "Spielername",
+    "nameHint": "3 bis 16 Buchstaben, Ziffern oder Unterstriche",
+    "invalidName": "Gib einen gültigen Namen ein: 3 bis 16 Buchstaben, Ziffern oder Unterstriche.",
+    "notFound": "Es wurde kein Spieler namens \"{name}\" gefunden.",
+    "search": "Suchen"
+  },
+  "player": {
+    "backToSearch": "Zurück zur Suche",
+    "invalidOwner": "Das ist keine gültige Spieler-Kennung.",
+    "scores": "Punktestand pro Bereich",
+    "scoreOf": "{section}: Punktestand {score}",
+    "active": "Aktive Strafen",
+    "noActive": "Keine aktiven Strafen.",
+    "history": "Strafenverlauf",
+    "noHistory": "Bisher keine Strafen.",
+    "eloHistory": "ELO-Verlauf",
+    "noEloHistory": "Für diesen Bereich sind keine ELO-Änderungen verzeichnet.",
+    "permanent": "Dauerhaft",
+    "temporary": "Befristet",
+    "automatic": "Automatisch",
+    "lifted": "Aufgehoben",
+    "ended": "Abgelaufen",
+    "noReason": "Kein Grund hinterlegt",
+    "step": "Eskalationsstufe",
+    "until": "Bis",
+    "since": "Seit",
+    "columns": {
+      "when": "Zeitpunkt",
+      "section": "Bereich",
+      "reason": "Grund",
+      "step": "Stufe",
+      "cost": "ELO-Kosten",
+      "status": "Status",
+      "delta": "Änderung",
+      "score": "Punktestand danach"
+    }
   }
 }

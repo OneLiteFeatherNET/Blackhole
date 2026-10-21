@@ -50,5 +50,74 @@
       "lifted": "Lifted",
       "standing": "In force"
     }
+  },
+  "scoreBar": {
+    "zone": {
+      "healthy": "healthy",
+      "soft": "soft zone",
+      "permanent": "permanent zone"
+    },
+    "valueText": "{score} - {zone}, permanent threshold {permanent}",
+    "valueTextSoft": "{score} - {zone}, soft threshold {soft}, permanent threshold {permanent}",
+    "soft": "Soft threshold {value}",
+    "permanent": "Permanent threshold {value}"
+  },
+  "enforcement": {
+    "MUTE": "Mute",
+    "BAN": "Ban",
+    "SERVER": "Server ban"
+  },
+  "elo": {
+    "reason": {
+      "TOXICITY_FLAG": "Toxic chat",
+      "ANTICHEAT_FLAG": "Anti-cheat flag",
+      "REPORT_ACTIONED": "Report actioned",
+      "MANUAL_ADJUSTMENT": "Manual adjustment",
+      "DECAY_RECOVERY": "Recovery over time",
+      "THRESHOLD_BAN": "Permanent threshold crossed",
+      "PUNISHMENT_APPLIED": "Punishment applied",
+      "REPORT_REWARDED": "Report rewarded",
+      "PARDON_RESET": "Reset after pardon",
+      "APPEAL_REFUND": "Refund after appeal"
+    }
+  },
+  "players": {
+    "intro": "Look up a player by their current Minecraft name. Names are only used for this lookup and are not stored.",
+    "name": "Player name",
+    "nameHint": "3 to 16 letters, digits or underscores",
+    "invalidName": "Enter a valid name: 3 to 16 letters, digits or underscores.",
+    "notFound": "No player named \"{name}\" was found.",
+    "search": "Look up"
+  },
+  "player": {
+    "backToSearch": "Back to search",
+    "invalidOwner": "This is not a valid player identifier.",
+    "scores": "Scores per section",
+    "scoreOf": "{section}: score {score}",
+    "active": "Active punishments",
+    "noActive": "No active punishments.",
+    "history": "Punishment history",
+    "noHistory": "No punishments so far.",
+    "eloHistory": "ELO history",
+    "noEloHistory": "No ELO changes recorded for this section.",
+    "permanent": "Permanent",
+    "temporary": "Temporary",
+    "automatic": "Automatic",
+    "lifted": "Lifted",
+    "ended": "Ended",
+    "noReason": "No reason recorded",
+    "step": "Escalation step",
+    "until": "Until",
+    "since": "Since",
+    "columns": {
+      "when": "When",
+      "section": "Section",
+      "reason": "Reason",
+      "step": "Step",
+      "cost": "ELO cost",
+      "status": "Status",
+      "delta": "Change",
+      "score": "Score after"
+    }
   }
 }

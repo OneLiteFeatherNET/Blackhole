@@ -1,36 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { createBlackholeApi } from './blackhole'
 import { loadConfig, NIL_UUID } from './config'
+import { fakeFetch } from '../test/fakeFetch'
 
 const SOURCE = '11111111-2222-3333-4444-555555555555'
-
-interface Recorded {
-  url: string
-  method: string
-  headers: Headers
-  body: string
-}
-
-/** A fetch that records requests and answers from a queue; no network, no timers. */
-function fakeFetch(responses: Array<{ status?: number; body?: unknown } | Error>) {
-  const calls: Recorded[] = []
-  const impl = async (input: Request | string | URL, init?: RequestInit): Promise<Response> => {
-    const request = input instanceof Request ? input : new Request(new URL(String(input), 'http://ui.test'), init)
-    calls.push({
-      url: request.url,
-      method: request.method,
-      headers: request.headers,
-      body: await request.clone().text(),
-    })
-    const next = responses.shift()
-    if (next instanceof Error) throw next
-    return new Response(next?.body === undefined ? null : JSON.stringify(next.body), {
-      status: next?.status ?? 200,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-  return { calls, impl: impl as unknown as typeof fetch }
-}
 
 describe('createBlackholeApi', () => {
   it('sends the API version header on every request', async () => {

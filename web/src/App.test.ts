@@ -19,6 +19,9 @@ async function mountApp(path = '/') {
       provide: {
         [API_KEY as symbol]: mockApi({
           dashboard: async () => ok({ activePunishmentsBySection: [], latestEscalations: [] }),
+          profile: async () => ok({ active: {}, history: [] }),
+          eloProfile: async () => ok({ owner: '', sections: [] }),
+          eloHistory: async () => ok([]),
         }),
       },
     },
@@ -38,6 +41,14 @@ describe('App shell', () => {
 
     expect(wrapper.get('nav').attributes('aria-label')).toBe('Hauptnavigation')
     expect(wrapper.get('h1').text()).toBe('Spieler')
+    expect(wrapper.get('a[aria-current="page"]').text()).toBe('Spieler')
+
+    wrapper.unmount()
+  })
+
+  it('keeps the players entry current on a player detail page', async () => {
+    const wrapper = await mountApp(`/players/${'ab'.repeat(64)}`)
+
     expect(wrapper.get('a[aria-current="page"]').text()).toBe('Spieler')
 
     wrapper.unmount()
