@@ -21,4 +21,4 @@
 
 ## 5. Pull request
 
-- [ ] 5.1 Open the pull request titled `refactor(database)!: replace liquibase with flyway` with a BREAKING CHANGE note (databases created by Liquibase must be dropped and recreated); verify CI is green
+- [x] 5.1 Open the pull request titled `refactor(database)!: replace liquibase with flyway` with a BREAKING CHANGE note (databases created by Liquibase must be dropped and recreated); verify CI is green
