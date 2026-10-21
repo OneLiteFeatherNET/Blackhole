@@ -5,11 +5,18 @@ import net.onelitefeather.blackhole.backend.playerresolver.service.PlayerLookupS
 import io.micronaut.core.version.annotation.Version;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Controller;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 
+/**
+ * Resolving a name calls Mojang/Otis/NameMC through blocking clients, which must not run on the
+ * Netty event loop - hence {@link ExecuteOn} on the blocking executor.
+ */
 @Version(ApiVersion.V1)
 @Controller("/player")
+@ExecuteOn(TaskExecutors.BLOCKING)
 public class PlayerLookupController implements PlayerLookupApi {
 
     private final PlayerLookupService playerLookupService;
