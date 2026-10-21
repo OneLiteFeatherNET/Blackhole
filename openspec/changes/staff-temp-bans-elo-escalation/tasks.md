@@ -26,7 +26,7 @@
 
 ## 4. API client
 
-- [ ] 4.1 Export the new OpenAPI spec to `client/specs/blackhole-api-<next>.yml`, bump `inputSpec` in `client/build.gradle.kts`; verify `./gradlew :client:build`
+- [x] 4.1 Export the new OpenAPI spec to `client/specs/blackhole-api-<next>.yml`, bump `inputSpec` in `client/build.gradle.kts`; verify `./gradlew :client:build`
 
 ## 5. Velocity plugin
 
