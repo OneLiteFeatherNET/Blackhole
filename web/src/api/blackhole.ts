@@ -12,6 +12,7 @@ import type {
   ResolvedPlayer,
   RevokeResult,
   Section,
+  SectionDraft,
   Template,
   TemplateDraft,
 } from './types'
@@ -57,6 +58,10 @@ export interface BlackholeApi {
   /** Fails with a CONFLICT while a punishment still references the template. */
   deleteTemplate(identifier: string): Promise<ApiResult<Template>>
   sections(): Promise<ApiResult<Section[]>>
+  createSection(draft: SectionDraft): Promise<ApiResult<Section>>
+  /** Replaces the section's definition; `draft.enabled` can re-enable a disabled section. */
+  updateSection(draft: SectionDraft): Promise<ApiResult<Section>>
+  disableSection(key: string): Promise<ApiResult<Section>>
   /** What applying the template would do right now; changes nothing. */
   previewApply(owner: string, templateKey: string): Promise<ApiResult<ApplyPreview>>
   applyTemplate(owner: string, templateKey: string): Promise<ApiResult<ApplyResult>>
@@ -113,6 +118,24 @@ function templateBody(draft: TemplateDraft) {
   }
 }
 
+/** Server patterns only exist for SERVER sections; a blank soft threshold means the section has none. */
+function sectionBody(draft: SectionDraft) {
+  const hasSoft = draft.softThreshold !== null
+  return {
+    key: draft.key.trim(),
+    displayName: draft.displayName.trim(),
+    enforcement: draft.enforcement,
+    servers: draft.enforcement === 'SERVER' ? draft.servers.map((pattern) => pattern.trim()).filter(Boolean) : [],
+    baseScore: draft.baseScore,
+    softThreshold: hasSoft ? draft.softThreshold : null,
+    softDuration: hasSoft ? draft.softDuration?.trim() || null : null,
+    permanentThreshold: draft.permanentThreshold,
+    pardonScore: draft.pardonScore,
+    permanentReason: draft.permanentReason.trim(),
+    decayPerDay: draft.decayPerDay,
+  }
+}
+
 export function createBlackholeApi(options: ApiOptions): BlackholeApi {
   const http = createHttp({ baseUrl: options.baseUrl, fetch: options.fetch })
 
@@ -166,6 +189,13 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       toResult(http.DELETE('/template/delete/{identifier}', { params: { path: { identifier } } })),
 
     sections: () => toResult(http.GET('/section')),
+
+    createSection: (draft) => toResult(http.POST('/section', { body: sectionBody(draft) })),
+
+    updateSection: (draft) =>
+      toResult(http.POST('/section/update', { body: { ...sectionBody(draft), decayPerDay: draft.decayPerDay, enabled: draft.enabled } })),
+
+    disableSection: (key) => toResult(http.POST('/section/{key}/disable', { params: { path: { key } } })),
 
     previewApply: (owner, templateKey) =>
       toResult(http.POST('/punishment/preview', { body: { owner, templateKey, source: options.source } })),

@@ -134,6 +134,80 @@ describe('template management', () => {
   })
 })
 
+describe('section management', () => {
+  const draft = {
+    key: 'bedwars',
+    displayName: ' Bedwars ',
+    enforcement: 'SERVER' as const,
+    servers: [' bedwars-* ', ''],
+    baseScore: 1000,
+    softThreshold: null,
+    softDuration: 'P3D',
+    permanentThreshold: 300,
+    pardonScore: 700,
+    permanentReason: ' banned ',
+    decayPerDay: 10,
+    enabled: true,
+  }
+
+  it('creates a server section with trimmed patterns', async () => {
+    const { api, calls } = apiWith([{ body: { key: 'bedwars' } }])
+
+    await api.createSection(draft)
+
+    expect(new URL(calls[0]!.url).pathname).toBe('/api/section')
+    expect(JSON.parse(calls[0]!.body)).toEqual({
+      key: 'bedwars',
+      displayName: 'Bedwars',
+      enforcement: 'SERVER',
+      servers: ['bedwars-*'],
+      baseScore: 1000,
+      softThreshold: null,
+      softDuration: null,
+      permanentThreshold: 300,
+      pardonScore: 700,
+      permanentReason: 'banned',
+      decayPerDay: 10,
+    })
+  })
+
+  it('sends no patterns for a section that is not a server section', async () => {
+    const { api, calls } = apiWith([{ body: {} }])
+
+    await api.createSection({ ...draft, enforcement: 'BAN', softThreshold: 700 })
+
+    const body = JSON.parse(calls[0]!.body)
+    expect(body.servers).toEqual([])
+    expect(body.softDuration, 'a soft threshold keeps its duration').toBe('P3D')
+  })
+
+  it('updates with the enabled flag', async () => {
+    const { api, calls } = apiWith([{ body: {} }])
+
+    await api.updateSection({ ...draft, enabled: false })
+
+    expect(new URL(calls[0]!.url).pathname).toBe('/api/section/update')
+    expect(JSON.parse(calls[0]!.body).enabled).toBe(false)
+  })
+
+  it('disables a section by key', async () => {
+    const { api, calls } = apiWith([{ body: {} }])
+
+    await api.disableSection('chat')
+
+    expect(calls[0]!.method).toBe('POST')
+    expect(new URL(calls[0]!.url).pathname).toBe('/api/section/chat/disable')
+  })
+
+  it('surfaces a duplicate key as a conflict', async () => {
+    const { api } = apiWith([{ status: 409, body: { errorMessage: "a section with key 'chat' already exists", kind: 'CONFLICT' } }])
+
+    const result = await api.createSection(draft)
+
+    expect(result.ok === false && result.error.kind).toBe('CONFLICT')
+  })
+})
+
 describe('sections', () => {
   it('lists the sections', async () => {
     const { api, calls } = apiWith([{ body: [{ key: 'chat' }, { key: 'network' }] }])

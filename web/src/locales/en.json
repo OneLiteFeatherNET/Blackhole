@@ -213,5 +213,62 @@
       "addStep": "Add step",
       "save": "Save"
     }
+  },
+  "sections": {
+    "title": "Sections",
+    "intro": "A section is an area with its own ELO score and thresholds. Crossing them punishes automatically: below the soft threshold temporarily, below the permanent threshold permanently.",
+    "new": "New section",
+    "edit": "Edit",
+    "saved": "Section saved.",
+    "disabled": "Section disabled.",
+    "disabledPill": "Disabled",
+    "base": "Base",
+    "pardon": "Pardon",
+    "decay": "Recovery/day",
+    "soft": "Soft",
+    "permanent": "Permanent",
+    "columns": {
+      "section": "Section",
+      "enforcement": "Enforcement",
+      "servers": "Server patterns",
+      "scores": "Scores",
+      "thresholds": "Thresholds",
+      "actions": "Actions"
+    },
+    "disable": {
+      "open": "Disable",
+      "title": "Disable section {key}?",
+      "body": "No new punishments or score changes are possible in a disabled section. Running punishments continue. You can enable it again by editing it.",
+      "confirm": "Disable"
+    },
+    "editor": {
+      "newTitle": "New section",
+      "editTitle": "Edit section {key}",
+      "key": "Key",
+      "keyHint": "Kebab-case; cannot be changed later",
+      "name": "Name",
+      "enforcement": "Enforcement",
+      "servers": "Server patterns",
+      "serversHint": "Comma-separated, * and ? as wildcards, e.g. bedwars-*, bw-?",
+      "thresholds": "Scores and thresholds",
+      "baseScore": "Base score",
+      "baseScoreHint": "Where every player starts and recovers to",
+      "pardonScore": "Pardon score",
+      "pardonScoreHint": "Score after a permanent punishment is revoked",
+      "softThreshold": "Soft threshold",
+      "softThresholdHint": "Optional; falling below it punishes temporarily",
+      "softDuration": "Soft punishment duration",
+      "softDurationHint": "ISO-8601, e.g. P3D; needs a soft threshold",
+      "permanentThreshold": "Permanent threshold",
+      "permanentThresholdHint": "Falling below it punishes permanently",
+      "decayPerDay": "Decay per day",
+      "decayHint": "Score recovered per day",
+      "permanentReason": "Permanent reason",
+      "permanentReasonHint": "Shown to the player when the automatic permanent punishment applies",
+      "enabled": "Section enabled",
+      "enabledHint": "Disabled sections accept no new punishments or score changes",
+      "invalidNumber": "Enter a whole number.",
+      "save": "Save"
+    }
   }
 }

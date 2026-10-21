@@ -213,5 +213,62 @@
       "addStep": "Stufe hinzufügen",
       "save": "Speichern"
     }
+  },
+  "sections": {
+    "title": "Bereiche",
+    "intro": "Ein Bereich hat einen eigenen ELO-Punktestand mit Schwellen. Beim Unterschreiten wird automatisch bestraft: unter der Zeitstrafen-Schwelle befristet, unter der Dauerstrafen-Schwelle dauerhaft.",
+    "new": "Neuer Bereich",
+    "edit": "Bearbeiten",
+    "saved": "Bereich gespeichert.",
+    "disabled": "Bereich deaktiviert.",
+    "disabledPill": "Deaktiviert",
+    "base": "Start",
+    "pardon": "Begnadigung",
+    "decay": "Erholung/Tag",
+    "soft": "Zeitstrafe",
+    "permanent": "Dauerstrafe",
+    "columns": {
+      "section": "Bereich",
+      "enforcement": "Durchsetzung",
+      "servers": "Server-Muster",
+      "scores": "Punktestände",
+      "thresholds": "Schwellen",
+      "actions": "Aktionen"
+    },
+    "disable": {
+      "open": "Deaktivieren",
+      "title": "Bereich {key} deaktivieren?",
+      "body": "In einem deaktivierten Bereich sind keine neuen Strafen oder Punkteänderungen möglich. Laufende Strafen bleiben bestehen. Über „Bearbeiten“ lässt er sich wieder aktivieren.",
+      "confirm": "Deaktivieren"
+    },
+    "editor": {
+      "newTitle": "Neuer Bereich",
+      "editTitle": "Bereich {key} bearbeiten",
+      "key": "Schlüssel",
+      "keyHint": "Kebab-Case; später nicht änderbar",
+      "name": "Name",
+      "enforcement": "Durchsetzung",
+      "servers": "Server-Muster",
+      "serversHint": "Kommagetrennt, * und ? als Platzhalter, z. B. bedwars-*, bw-?",
+      "thresholds": "Punktestände und Schwellen",
+      "baseScore": "Startpunktestand",
+      "baseScoreHint": "Hier startet jeder Spieler und erholt sich wieder hin",
+      "pardonScore": "Begnadigungswert",
+      "pardonScoreHint": "Punktestand nach dem Aufheben einer Dauerstrafe",
+      "softThreshold": "Zeitstrafen-Schwelle",
+      "softThresholdHint": "Optional; beim Unterschreiten wird befristet bestraft",
+      "softDuration": "Dauer der Zeitstrafe",
+      "softDurationHint": "ISO-8601, z. B. P3D; benötigt eine Zeitstrafen-Schwelle",
+      "permanentThreshold": "Dauerstrafen-Schwelle",
+      "permanentThresholdHint": "Beim Unterschreiten wird dauerhaft bestraft",
+      "decayPerDay": "Erholung pro Tag",
+      "decayHint": "Pro Tag zurückgewonnene Punkte",
+      "permanentReason": "Grund der Dauerstrafe",
+      "permanentReasonHint": "Wird dem Spieler gezeigt, wenn die automatische Dauerstrafe greift",
+      "enabled": "Bereich aktiv",
+      "enabledHint": "Deaktivierte Bereiche nehmen keine neuen Strafen oder Punkteänderungen an",
+      "invalidNumber": "Gib eine ganze Zahl ein.",
+      "save": "Speichern"
+    }
   }
 }

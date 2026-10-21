@@ -6,10 +6,11 @@ const props = withDefaults(
     label: string
     type?: string
     required?: boolean
+    disabled?: boolean
     error?: string
     supportingText?: string
   }>(),
-  { type: 'text', required: false },
+  { type: 'text', required: false, disabled: false },
 )
 const model = defineModel<string>({ default: '' })
 
@@ -26,9 +27,10 @@ const message = computed(() => props.error || props.supportingText)
         v-model="model"
         :type="props.type"
         :required="props.required"
+        :disabled="props.disabled"
         :aria-invalid="props.error ? 'true' : undefined"
         :aria-describedby="message ? messageId : undefined"
-        class="h-14 w-full rounded-md-xs border bg-transparent px-4 text-body-large text-on-surface outline-none focus:border-2 focus:-outline-offset-2 focus:outline-2 focus:outline-primary"
+        class="h-14 w-full rounded-md-xs border bg-transparent px-4 text-body-large text-on-surface outline-none disabled:opacity-[0.38] focus:border-2 focus:-outline-offset-2 focus:outline-2 focus:outline-primary"
         :class="props.error ? 'border-error border-2' : 'border-outline hover:border-on-surface'"
       />
       <label

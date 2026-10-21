@@ -17,6 +17,12 @@ describe('MdTextField', () => {
     expect(onUpdate).toHaveBeenLastCalledWith('Steve')
   })
 
+  it('can be disabled', () => {
+    const wrapper = mount(MdTextField, { props: { label: 'Schlüssel', modelValue: 'chat', disabled: true } })
+
+    expect(wrapper.get('input').attributes('disabled')).toBeDefined()
+  })
+
   it('shows the error next to the field and links it for assistive technology', () => {
     const wrapper = mount(MdTextField, {
       props: { label: 'Dauer', modelValue: '', error: 'Dauer muss positiv sein' },
