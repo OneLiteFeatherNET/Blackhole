@@ -1,19 +1,24 @@
 #!/bin/bash
-# Liquibase changelogs are append-only in this repo (CLAUDE.md, database/ section):
-# never edit an already-applied <changeSet>, always append a new one.
+# Flyway migrations are append-only in this repo (CLAUDE.md, database/ section): never edit an
+# already-applied V<n>__*.sql file, add a new migration with the next version instead.
+# A migration counts as applied once it is tracked by git (index/HEAD) or exists on origin/main.
+# Creating a new, untracked migration file is allowed.
 INPUT=$(cat)
-TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
-OLD_STRING=$(echo "$INPUT" | jq -r '.tool_input.old_string // empty')
 
-if [[ "$FILE_PATH" == *db/changelog/changelog.xml ]]; then
-  if [ "$TOOL_NAME" = "Write" ]; then
-    echo "Blocked: don't Write (full overwrite) changelog.xml — use Edit to append a new <changeSet>, preserving all existing ones." >&2
-    exit 2
-  fi
-  if printf '%s' "$OLD_STRING" | grep -q '<changeSet'; then
-    echo "Blocked: this edit modifies/removes an existing <changeSet> in changelog.xml. Changelogs are append-only here — add a NEW <changeSet> instead (e.g. inserted just before </databaseChangeLog>)." >&2
-    exit 2
-  fi
+case "$FILE_PATH" in
+  */db/migration/V*__*.sql) ;;
+  *) exit 0 ;;
+esac
+
+DIR=$(dirname "$FILE_PATH")
+[ -d "$DIR" ] || exit 0
+ROOT=$(git -C "$DIR" rev-parse --show-toplevel 2>/dev/null) || exit 0
+REL=${FILE_PATH#"$ROOT"/}
+
+if git -C "$ROOT" ls-files --error-unmatch -- "$REL" >/dev/null 2>&1 \
+  || git -C "$ROOT" cat-file -e "origin/main:$REL" 2>/dev/null; then
+  echo "Blocked: $REL is an already-committed Flyway migration. Migrations are append-only here - add a NEW db/migration/V<next>__<description>.sql instead of editing an applied one." >&2
+  exit 2
 fi
 exit 0
