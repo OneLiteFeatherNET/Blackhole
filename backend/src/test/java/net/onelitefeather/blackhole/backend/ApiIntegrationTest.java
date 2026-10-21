@@ -49,10 +49,23 @@ public abstract class ApiIntegrationTest extends PostgresIntegrationTest {
 
     @BeforeEach
     void startApplication() {
-        this.context = ApplicationContext.run(EmbeddedServer.class, contextProperties()).getApplicationContext();
+        this.context = ApplicationContext.run(EmbeddedServer.class, applicationProperties()).getApplicationContext();
         this.server = this.context.getBean(EmbeddedServer.class);
         this.client = this.context.createBean(HttpClient.class, this.server.getURL());
         this.mapper = this.context.getBean(JsonMapper.class);
+    }
+
+    /** Per-test property overrides on top of the container wiring; none by default. */
+    protected Map<String, Object> extraProperties() {
+        return Map.of();
+    }
+
+    private Map<String, Object> applicationProperties() {
+        Map<String, Object> properties = new java.util.HashMap<>(contextProperties());
+        // A random free port, so the tests do not depend on 8080 being free on the machine.
+        properties.put("micronaut.server.port", -1);
+        properties.putAll(extraProperties());
+        return properties;
     }
 
     @AfterEach

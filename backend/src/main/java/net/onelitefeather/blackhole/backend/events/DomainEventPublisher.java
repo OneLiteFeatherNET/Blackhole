@@ -3,6 +3,7 @@ package net.onelitefeather.blackhole.backend.events;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 
 import java.util.Map;
 import java.util.UUID;
@@ -40,7 +41,11 @@ public class DomainEventPublisher {
                 payload
         );
         try {
-            this.rabbitPublisher.publish(eventType, event);
+            // Fire and forget: subscribing never blocks the calling thread (which may be a Netty
+            // event-loop thread); failures surface asynchronously through the error callback.
+            Flux.from(this.rabbitPublisher.publish(eventType, event)).subscribe(
+                    ignored -> { },
+                    e -> LOGGER.error("Failed to publish domain event {}: {}", eventType, e.getMessage()));
         } catch (RuntimeException e) {
             // The event bus is an additive side channel; a broker hiccup must never fail the
             // primary write path that triggered it.
