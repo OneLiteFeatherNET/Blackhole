@@ -63,6 +63,30 @@ describe('profile', () => {
   })
 })
 
+describe('lists the backend leaves out when they are empty', () => {
+  it('gives a section without server patterns an empty list', async () => {
+    const { api } = apiWith([{ body: [{ key: 'chat', enforcement: 'MUTE' }] }])
+
+    const result = await api.sections()
+
+    expect(result.ok && result.data[0]!.servers).toEqual([])
+  })
+
+  it('gives a player without sections an empty list', async () => {
+    const { api } = apiWith([{ body: { owner: OWNER } }])
+
+    const result = await api.eloProfile(OWNER)
+
+    expect(result.ok && result.data.sections).toEqual([])
+  })
+
+  it('treats an empty page as no items', async () => {
+    const { api } = apiWith([{ body: { totalSize: 0 } }])
+
+    expect(await api.templates()).toEqual({ ok: true, data: [] })
+  })
+})
+
 describe('eloHistory', () => {
   const event = (createdAt: number) => ({ identifier: `e-${createdAt}`, delta: -10, createdAt })
 

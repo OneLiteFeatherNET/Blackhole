@@ -16,6 +16,6 @@ export default defineConfig({
   build: { target: 'es2022' },
   test: {
     environment: 'jsdom',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'nginx/**/*.test.ts', 'tests/**/*.test.ts'],
   },
 })

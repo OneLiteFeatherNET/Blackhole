@@ -173,7 +173,10 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       return map(result, (profile) => ({ active: profile.active ?? {}, history: profile.history ?? [] }))
     },
 
-    eloProfile: (owner) => toResult(http.GET('/elo/{owner}', { params: { path: { owner } } })),
+    async eloProfile(owner) {
+      const result = await toResult(http.GET('/elo/{owner}', { params: { path: { owner } } }))
+      return map(result, (profile) => ({ ...profile, sections: profile.sections ?? [] }))
+    },
 
     async eloHistory(owner, section) {
       const events = await collectPages<EloEvent>((page) =>
@@ -187,10 +190,12 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       return map(events, (all) => [...all].sort((a, b) => b.createdAt - a.createdAt))
     },
 
-    templates: () =>
-      collectPages<Template>((page) =>
+    async templates() {
+      const templates = await collectPages<Template>((page) =>
         toResult(http.GET('/template', { params: { query: { pageable: NO_PAGEABLE } }, querySerializer: pageQuery(page) })),
-      ),
+      )
+      return map(templates, (all) => all.map((template) => ({ ...template, steps: template.steps ?? [] })))
+    },
 
     createTemplate: (draft) => toResult(http.POST('/template', { body: templateBody(draft) })),
 
@@ -200,7 +205,11 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     deleteTemplate: (identifier) =>
       toResult(http.DELETE('/template/delete/{identifier}', { params: { path: { identifier } } })),
 
-    sections: () => toResult(http.GET('/section')),
+    async sections() {
+      const result = await toResult(http.GET('/section'))
+      // The backend leaves empty lists out of its JSON (a BAN or MUTE section has no server patterns).
+      return map(result, (all) => (all ?? []).map((section) => ({ ...section, servers: section.servers ?? [] })))
+    },
 
     createSection: (draft) => toResult(http.POST('/section', { body: sectionBody(draft) })),
 

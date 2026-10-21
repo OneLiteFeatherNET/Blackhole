@@ -72,7 +72,7 @@ function onKeydown(event: KeyboardEvent) {
       <div class="mt-4 text-body-medium text-on-surface-variant">
         <slot />
       </div>
-      <div class="mt-6 flex justify-end gap-2">
+      <div class="sticky bottom-0 -mb-6 mt-6 flex justify-end gap-2 bg-surface-container-high pb-6 pt-2">
         <slot name="actions" />
       </div>
     </div>

@@ -151,6 +151,9 @@ describe('TemplatesView: create', () => {
     expect(wrapper.find('[role="dialog"]').exists(), 'dialog stays open').toBe(true)
     expect(templates, 'the list was not reloaded').toHaveBeenCalledTimes(1)
 
+    await duration.setValue('P1D')
+    expect(dialogInput(wrapper, 'Duration (step 1)').attributes('aria-invalid'), 'the message goes once the field is edited').toBeUndefined()
+
     wrapper.unmount()
   })
 

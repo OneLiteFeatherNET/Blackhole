@@ -66,6 +66,11 @@ watch(
 )
 
 const fieldError = (name: string) => errors.value.fields[name] ?? ''
+
+// A message about a field is stale as soon as the form is edited.
+watch(form, () => {
+  if (Object.keys(errors.value.fields).length > 0) errors.value = { fields: {}, general: errors.value.general }
+}, { deep: true })
 const WHOLE_NUMBER = /^-?\d+$/
 const whole = (value: unknown) => WHOLE_NUMBER.test(String(value).trim())
 

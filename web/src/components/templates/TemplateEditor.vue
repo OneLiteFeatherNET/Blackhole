@@ -71,6 +71,11 @@ const remove = (index: number) => (steps.value = steps.value.filter((_, i) => i 
 const addStep = () => steps.value.push(newRow())
 
 const fieldError = (name: string) => errors.value.fields[name] ?? ''
+
+// A message about a field is stale as soon as the form is edited.
+watch([key, reason, section, escalationGroup, escalationWindow, steps], () => {
+  if (Object.keys(errors.value.fields).length > 0) errors.value = { fields: {}, general: errors.value.general }
+}, { deep: true })
 const WHOLE_NUMBER = /^\d+$/
 
 async function save(): Promise<void> {
@@ -158,7 +163,7 @@ async function save(): Promise<void> {
             />
             <MdTextField
               v-model="step.eloCost"
-              class="w-36"
+              class="w-44"
               type="number"
               required
               :label="t('templates.editor.cost', { n: index + 1 })"
