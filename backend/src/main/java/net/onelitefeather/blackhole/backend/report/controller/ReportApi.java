@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.report.controller;
 
 import net.onelitefeather.blackhole.backend.report.dto.ReportDTO;
+import net.onelitefeather.blackhole.backend.report.dto.ReportErrorDTO;
 import net.onelitefeather.blackhole.backend.report.dto.ReportRequestDTO;
 import net.onelitefeather.blackhole.backend.report.dto.ReportResolutionDTO;
 import io.micronaut.data.model.Page;
@@ -65,8 +66,21 @@ public interface ReportApi {
             description = "Report successfully resolved",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ReportDTO.class))
     )
-    @ApiResponse(responseCode = "404", description = "Report or punishment template not found")
-    @ApiResponse(responseCode = "400", description = "punishmentSource is required when punishmentTemplateId is set")
+    @ApiResponse(
+            responseCode = "404", description = "There is no report with this identifier",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ReportErrorDTO.class))
+    )
+    @ApiResponse(
+            responseCode = "400",
+            description = "punishmentSource is missing, a template was given for a report that is not ACTIONED, "
+                    + "or the template or its section does not exist",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ReportErrorDTO.class))
+    )
+    @ApiResponse(
+            responseCode = "409",
+            description = "The report is already resolved, the template's section is disabled, or the player is already permanently punished there",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ReportErrorDTO.class))
+    )
     @Validated
     @Post("/{identifier}/resolve")
     HttpResponse<?> resolve(UUID identifier, @Body @Valid ReportResolutionDTO resolution);

@@ -19,7 +19,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+import net.onelitefeather.blackhole.backend.response.ErrorKind;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -35,7 +38,7 @@ class ReportServiceTest {
             Map.of("CHAT_ABUSE", "chat", "CHEATING", "network", "GRIEFING", "network", "OTHER", ""));
     private final PunishmentTestBed bed = new PunishmentTestBed();
     private final ReportService service = new ReportService(
-            reports.repository(), new RecordingEventPublisher(), bed.punishmentService, scoring, mapping, 5, 50, Duration.ofMinutes(10), -100, 50);
+            reports.repository(), new RecordingEventPublisher(), bed.punishmentService, scoring, mapping, bed.eloBed.clock, 5, 50, Duration.ofMinutes(10), -100, 50);
 
     private UUID givenReport(ReportCategory category) {
         UUID id = UUID.randomUUID();
@@ -90,22 +93,87 @@ class ReportServiceTest {
 
         assertInstanceOf(ReportService.ResolveResult.Success.class, resolveWithTemplate(id, template.getIdentifier()));
 
-        assertEquals(2, scoring.deltas().size(), "reported player penalised, reporter rewarded");
-        assertEquals(REPORTER, scoring.deltas().get(1).owner());
-        assertEquals("network", scoring.deltas().get(1).section());
-        assertEquals(50, scoring.deltas().get(1).delta());
-        assertEquals(EloReasonCode.REPORT_REWARDED, scoring.deltas().get(1).reason());
+        assertEquals(1, scoring.deltas().size(), "only the reporter is rewarded; the template's step cost is the penalty");
+        assertEquals(REPORTER, scoring.deltas().getFirst().owner());
+        assertEquals("network", scoring.deltas().getFirst().section());
+        assertEquals(50, scoring.deltas().getFirst().delta());
+        assertEquals(EloReasonCode.REPORT_REWARDED, scoring.deltas().getFirst().reason());
         assertTrue(bed.profiles.repository().findById(REPORTED).isPresent(), "the punishment was applied to the reported player");
     }
 
     @Test
-    void aResolutionWithAnUnknownTemplateIsNotFoundAndLeavesTheReportOpen() {
+    void aResolutionWithAnUnknownTemplateIsATypedErrorDistinctFromAMissingReport() {
         UUID id = givenReport(ReportCategory.CHEATING);
 
-        assertInstanceOf(ReportService.ResolveResult.NotFound.class, resolveWithTemplate(id, UUID.randomUUID()));
+        var result = assertInstanceOf(ReportService.ResolveResult.PunishmentRejected.class, resolveWithTemplate(id, UUID.randomUUID()));
 
+        assertEquals(ErrorKind.VALIDATION, result.kind(), "a missing template is a problem of the request, not a missing report");
+        assertFalse(result.message().isBlank(), "the error carries a message");
         assertEquals(ReportStatus.OPEN, reports.repository().findById(id).orElseThrow().getStatus(), "no partial completion");
         assertTrue(scoring.deltas().isEmpty());
+    }
+
+    @Test
+    void resolvingAMissingReportIsNotFound() {
+        assertInstanceOf(ReportService.ResolveResult.NotFound.class, resolve(UUID.randomUUID(), ReportStatus.ACTIONED));
+    }
+
+    @Test
+    void anActionedReportWithATemplateDoesNotApplyTheActionedDeltaOnTop() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+        var template = bed.givenTemplate("grief", "network", null, PunishmentTestBed.step("P3D", 100));
+
+        resolveWithTemplate(id, template.getIdentifier());
+
+        assertTrue(scoring.deltas().stream().noneMatch(d -> d.reason() == EloReasonCode.REPORT_ACTIONED),
+                "the template's step cost is the only deduction");
+        assertEquals(900, bed.elo.score(REPORTED, "network").orElseThrow(), "the step cost was deducted once");
+    }
+
+    @Test
+    void aTemplateOnADismissedReportIsRejectedAndNothingIsApplied() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+        var template = bed.givenTemplate("grief", "network", null, PunishmentTestBed.step("P3D", 100));
+
+        var result = assertInstanceOf(ReportService.ResolveResult.TemplateNotAllowed.class,
+                service.resolve(id, new ReportResolutionDTO(ReportStatus.DISMISSED, "note", UUID.randomUUID(), template.getIdentifier(), UUID.randomUUID())));
+
+        assertFalse(result.message().isBlank());
+        assertFalse(bed.profiles.repository().findById(REPORTED).isPresent(), "no punishment was applied");
+        assertEquals(ReportStatus.OPEN, reports.repository().findById(id).orElseThrow().getStatus());
+    }
+
+    @Test
+    void aResolvedReportCannotBeResolvedAgain() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+        resolve(id, ReportStatus.ACTIONED);
+        scoring.deltas().clear();
+
+        assertInstanceOf(ReportService.ResolveResult.AlreadyResolved.class, resolve(id, ReportStatus.ACTIONED));
+
+        assertTrue(scoring.deltas().isEmpty(), "the standing ELO effects must not repeat");
+    }
+
+    @Test
+    void aSecondResolutionWithATemplateDoesNotPunishAgain() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+        var template = bed.givenTemplate("grief", "network", null, PunishmentTestBed.step("P3D", 100));
+        resolveWithTemplate(id, template.getIdentifier());
+        int punishmentsBefore = bed.punishments.all().size();
+
+        assertInstanceOf(ReportService.ResolveResult.AlreadyResolved.class, resolveWithTemplate(id, template.getIdentifier()));
+
+        assertEquals(punishmentsBefore, bed.punishments.all().size(), "no second punishment");
+    }
+
+    @Test
+    void theResolutionTimestampComesFromTheInjectedClock() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+        bed.eloBed.clock.advance(Duration.ofHours(5));
+
+        resolve(id, ReportStatus.DISMISSED);
+
+        assertEquals(bed.eloBed.clock.millis(), reports.repository().findById(id).orElseThrow().getUpdatedAt());
     }
 
     @Test

@@ -18,6 +18,7 @@ import net.onelitefeather.blackhole.backend.punishment.dto.PunishmentDTO;
 import net.onelitefeather.blackhole.backend.punishment.service.PunishmentApplicationService;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -52,10 +53,12 @@ import java.util.UUID;
  * reintroduced, authentication) everywhere at once rather than patching one endpoint
  * inconsistently with the rest.</p>
  *
- * <p><b>Known limitation (deferred, not fixed here):</b> {@code resolve} accepts any status and
- * can be re-invoked on the same report, re-triggering its standing ELO effects each time - there
- * is no status state machine enforcing valid transitions. Preserved as-is; introducing one is a
- * separate, more invasive behavioral change.</p>
+ * <p>A report resolves once: resolving an already {@code ACTIONED} or {@code DISMISSED} report is
+ * refused ({@link ResolveResult.AlreadyResolved}) so neither the template nor the ELO effects repeat.
+ * With a template, the template's step cost is the only deduction from the reported player; the
+ * flat {@code actioned-delta} applies to an {@code ACTIONED} report without a template. A template
+ * is only accepted together with {@code ACTIONED}. The check-then-resolve is not atomic, so two
+ * simultaneous resolutions of one open report can both pass it.</p>
  *
  * <p><b>Known limitation (deferred, not fixed here):</b> {@code resolve}'s chain of side effects -
  * optional punishment application, the report's own status/resolutionNote/resolvedBy/updatedAt
@@ -76,6 +79,7 @@ public class ReportService {
     private final PunishmentApplicationService punishmentApplicationService;
     private final EloScoring eloService;
     private final CategorySectionMapping categorySections;
+    private final Clock clock;
     private final int rateLimitMaxReports;
     private final int rateLimitMaxReportsNetworkWide;
     private final Duration rateLimitWindow;
@@ -88,6 +92,7 @@ public class ReportService {
             PunishmentApplicationService punishmentApplicationService,
             EloScoring eloService,
             CategorySectionMapping categorySections,
+            Clock clock,
             @Value("${blackhole.report.rate-limit.max-reports:5}") int rateLimitMaxReports,
             @Value("${blackhole.report.rate-limit.max-reports-network-wide:50}") int rateLimitMaxReportsNetworkWide,
             @Value("${blackhole.report.rate-limit.window:PT10M}") Duration rateLimitWindow,
@@ -99,6 +104,7 @@ public class ReportService {
         this.punishmentApplicationService = punishmentApplicationService;
         this.eloService = eloService;
         this.categorySections = categorySections;
+        this.clock = clock;
         this.rateLimitMaxReports = rateLimitMaxReports;
         this.rateLimitMaxReportsNetworkWide = rateLimitMaxReportsNetworkWide;
         this.rateLimitWindow = rateLimitWindow;
@@ -126,14 +132,27 @@ public class ReportService {
         record Success(ReportDTO report) implements ResolveResult {
         }
 
+        /** There is no report with the given identifier. */
         record NotFound() implements ResolveResult {
+        }
+
+        /** The report was already resolved (actioned or dismissed); nothing is applied a second time. */
+        record AlreadyResolved(ReportStatus status) implements ResolveResult {
+        }
+
+        /** A punishment template was given for a resolution that is not {@code ACTIONED}. */
+        record TemplateNotAllowed(String message) implements ResolveResult {
         }
 
         record PunishmentSourceRequired() implements ResolveResult {
         }
 
-        /** The punishment could not be applied (disabled section, already permanently punished, invalid request). */
-        record PunishmentRejected(String message) implements ResolveResult {
+        /**
+         * The punishment could not be applied: an unknown template or section (a problem of the
+         * request, {@code VALIDATION}), a disabled section or an already permanently punished player
+         * ({@code CONFLICT}).
+         */
+        record PunishmentRejected(ErrorKind kind, String message) implements ResolveResult {
         }
     }
 
@@ -142,7 +161,7 @@ public class ReportService {
     }
 
     public SubmitResult submit(ReportRequestDTO submission) {
-        long now = System.currentTimeMillis();
+        long now = this.clock.millis();
         long windowStart = now - this.rateLimitWindow.toMillis();
 
         long recentNetworkReports = this.reportRepository.countByCreatedAtGreaterThan(windowStart);
@@ -188,7 +207,14 @@ public class ReportService {
             return new ResolveResult.NotFound();
         }
 
+        if (report.getStatus() == ReportStatus.ACTIONED || report.getStatus() == ReportStatus.DISMISSED) {
+            return new ResolveResult.AlreadyResolved(report.getStatus());
+        }
+
         if (resolution.punishmentTemplateId() != null) {
+            if (resolution.status() != ReportStatus.ACTIONED) {
+                return new ResolveResult.TemplateNotAllowed("a punishment template can only be applied when the report is ACTIONED");
+            }
             if (resolution.punishmentSource() == null) {
                 return new ResolveResult.PunishmentSourceRequired();
             }
@@ -196,25 +222,30 @@ public class ReportService {
                     report.getReportedHash(), null, resolution.punishmentTemplateId(), resolution.punishmentSource()
             ));
             if (applied instanceof PunishmentDTO.Error error) {
-                return error.kind() == ErrorKind.NOT_FOUND
-                        ? new ResolveResult.NotFound()
-                        : new ResolveResult.PunishmentRejected(error.errorMessage());
+                // A missing template or section is reported as a problem of the request, so it cannot be
+                // mistaken for "report not found".
+                ErrorKind kind = error.kind() == ErrorKind.NOT_FOUND ? ErrorKind.VALIDATION : error.kind();
+                return new ResolveResult.PunishmentRejected(kind, error.errorMessage());
             }
         }
 
         report.setStatus(resolution.status());
         report.setResolutionNote(resolution.resolutionNote());
         report.setResolvedBy(resolution.resolvedBy());
-        report.setUpdatedAt(System.currentTimeMillis());
+        report.setUpdatedAt(this.clock.millis());
         ReportEntity saved = this.reportRepository.update(report);
 
         if (resolution.status() == ReportStatus.ACTIONED) {
             String section = this.categorySections.sectionFor(report.getCategory()).orElse(null);
             if (section != null) {
                 Map<String, Object> eloMetaData = Map.of("reportIdentifier", identifier.toString(), "category", report.getCategory().toString());
-                this.eloService.applyDelta(
-                        report.getReportedHash(), section, this.reportActionedDelta, EloReasonCode.REPORT_ACTIONED, null, eloMetaData
-                );
+                // With a template the step's own cost (taken when the template was applied above) is the
+                // deduction; the flat actioned delta is only for an ACTIONED report without a template.
+                if (resolution.punishmentTemplateId() == null) {
+                    this.eloService.applyDelta(
+                            report.getReportedHash(), section, this.reportActionedDelta, EloReasonCode.REPORT_ACTIONED, null, eloMetaData
+                    );
+                }
 
                 // resolution.punishmentTemplateId() != null implies a punishment was actually
                 // applied above (an empty apply() result returns NotFound before this point is
