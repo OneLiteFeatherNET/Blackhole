@@ -12,12 +12,12 @@ import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
-import net.onelitefeather.blackhole.client.invoker.Configuration;
 import net.onelitefeather.blackhole.velocity.command.PardonCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishInfoCommand;
 import net.onelitefeather.blackhole.velocity.command.EloCommand;
 import net.onelitefeather.blackhole.velocity.command.TargetParser;
+import net.onelitefeather.blackhole.velocity.config.BlackholeApiClients;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.listener.PlayerChatListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerClientBrandListener;
@@ -80,8 +80,12 @@ public class BlackholeVelocity {
         registerTranslations();
         this.config = BlackholeConfig.load(dataDirectory.resolve("config.json"));
         this.logger.info("Loaded configuration with base URL: {}", config.getBaseUrl());
-        this.client = Configuration.getDefaultApiClient();
-        this.client.setBasePath(this.config.getBaseUrl());
+        try {
+            this.client = BlackholeApiClients.create(this.config.getBaseUrl());
+        } catch (IllegalArgumentException e) {
+            this.logger.error("{} - the plugin cannot reach the backend until config.json is fixed.", e.getMessage());
+            throw e;
+        }
         this.logger.info("Initialized Blackhole client");
 
         Clock clock = Clock.systemUTC();
