@@ -41,6 +41,6 @@ _None - no externally observable behavior changes; this is a persistence-layer s
 
 - `backend/build.gradle.kts` (drivers, Testcontainers test deps)
 - `backend/src/main/resources/application.yml` (datasource defaults, hbm2ddl)
-- `backend/src/main/resources/db/changelog/db.changelog-master.xml` (new changesets only)
+- `backend/src/main/resources/db/changelog/changelog.xml` (replaces `db.changelog-master.xml`; one PostgreSQL-only baseline)
 - `docker/docker-compose.yml`, `README.md`, `CLAUDE.md`, `.claude/rules/database.md`
 - Operators must provision PostgreSQL and set `JDBC_*` env vars before upgrading.

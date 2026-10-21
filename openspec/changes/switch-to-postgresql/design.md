@@ -13,8 +13,8 @@ GitHub Actions runners have it.
 ## Goals / Non-Goals
 
 **Goals:**
-- A fresh PostgreSQL database is fully created by the existing changelog plus appended
-  changesets, and Hibernate validates against it at startup.
+- A fresh PostgreSQL database is fully created by one consolidated changelog, and Hibernate
+  validates against it at startup.
 - One supported database, one set of defaults, one docker-compose stack.
 
 **Non-Goals:**
@@ -25,12 +25,15 @@ GitHub Actions runners have it.
 
 1. **PostgreSQL only, no dual support.** Keeping MariaDB would mean testing every future
    changeset twice. Alternative (env-switchable) rejected per user decision.
-2. **`jsonb` instead of `json`.** Hibernate's PostgreSQL dialect maps `SqlTypes.JSON` to
-   `jsonb`; leaving the columns as `json` would make `validate` fail and relies on implicit
-   casts on every write. Appended changeset `postgresql-json-to-jsonb` uses
-   `<modifyDataType newDataType="jsonb">` per JSON column, guarded with `dbms="postgresql"`.
-   On a fresh database it runs right after table creation, so no row conversion is involved;
-   PostgreSQL's built-in `json -> jsonb` assignment cast covers any rows that do exist.
+2. **`jsonb` directly, in one PostgreSQL-only changelog.** Hibernate's PostgreSQL dialect maps
+   `SqlTypes.JSON` to `jsonb`; `json` columns would make `validate` fail. The old
+   `db.changelog-master.xml` created `json` columns and then converted them in a
+   `postgresql-json-to-jsonb` changeset, but it cannot run on PostgreSQL: the FK onto
+   `punishment_profiles.owner` is added before `owner` is the sole primary key. No data is
+   migrated, so the old file is replaced by `db/changelog/changelog.xml`, which creates the final
+   schema directly with `jsonb` columns. The `postgresql-json-to-jsonb` changeset no longer
+   exists. The resulting schema was verified equal to the old changelog's final schema (its
+   changesets applied to PostgreSQL, with the FK changeset moved after the primary key change).
 3. **`tinyint` stays as declared.** Liquibase already emits `SMALLINT` for `tinyint` on
    PostgreSQL, which is what Hibernate expects for ordinal enums - no changeset needed.
    Verified during implementation by `validate` succeeding.

@@ -8,7 +8,7 @@
 
 ## 2. Schema
 
-- [ ] 2.1 Append changeset `postgresql-json-to-jsonb` (`dbms="postgresql"`, one `<modifyDataType>` per JSON column) and verify Liquibase applies the full changelog to an empty PostgreSQL without errors
+- [x] 2.1 Replace `db.changelog-master.xml` with one PostgreSQL-only `db/changelog/changelog.xml` (native changeTypes, `jsonb` JSON columns, no `postgresql-json-to-jsonb` changeset); verify Liquibase applies it to an empty PostgreSQL and `pg_dump --schema-only` equals the final schema of the old changelog
 - [ ] 2.2 Switch `jpa.default.properties.hibernate.hbm2ddl.auto` to `validate`, update its comment, and verify the backend starts with validation passing (fix any mismatch with further appended changesets)
 
 ## 3. Tests
@@ -18,4 +18,4 @@
 
 ## 4. Documentation
 
-- [ ] 4.1 Update README (tech stack, local development, env vars), CLAUDE.md and `.claude/rules/database.md` from MariaDB to PostgreSQL; verify no remaining `mariadb` mention via `grep -ri mariadb --exclude-dir=.git .` except the historical changelog comment
+- [x] 4.1 Update README (tech stack, local development, env vars), CLAUDE.md and `.claude/rules/database.md` from MariaDB to PostgreSQL; verify no remaining `mariadb` mention via `grep -ri mariadb --exclude-dir=.git .` except the historical changelog comment
