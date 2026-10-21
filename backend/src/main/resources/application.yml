@@ -15,32 +15,31 @@ rabbitmq:
 redis:
   uri: ${REDIS_URI:`redis://localhost:6379`}
 
-# Datasource
+# Datasource - PostgreSQL is the only supported database. Defaults match docker/docker-compose.yml.
 datasources:
   default:
-    url: ${JDBC_URL:`jdbc:mariadb://127.0.0.1:3336/blackhole`}
+    url: ${JDBC_URL:`jdbc:postgresql://127.0.0.1:5432/blackhole`}
     password: ${JDBC_PASSWORD:`blackhole`}
-    username: ${JDBC_USER:`root`}
-    driver-class-name: ${JDBC_DRIVER:`org.mariadb.jdbc.Driver`}
+    username: ${JDBC_USER:`blackhole`}
+    driver-class-name: ${JDBC_DRIVER:`org.postgresql.Driver`}
 # JPA
 jpa:
   default:
     properties:
       hibernate:
         hbm2ddl:
-          auto: none
+          auto: validate
         show_sql: false
 
-# Liquibase is now the sole owner of the schema. hbm2ddl.auto is "none" rather than "validate"
-# because Hibernate's schema validator disagrees with its own DDL generator about the expected
-# column type for @JdbcTypeCode(SqlTypes.JSON) columns on MariaDB (MariaDB's JSON type is a
-# LONGTEXT + CHECK(json_valid(...)) alias; validate expects Types#JSON, create emits
-# Types#LONGVARCHAR) - a known Hibernate/MariaDB dialect mismatch, not specific to this schema.
+# Liquibase is the sole owner of the schema; Hibernate only validates it at startup
+# (hbm2ddl.auto=validate) and never creates or alters tables. changelog.xml is a PostgreSQL-only
+# baseline built on an empty database (no MariaDB history is replayed). A mismatch between an
+# entity and the schema fails startup - fix it with a new appended Liquibase changeSet.
 liquibase:
   datasources:
     default:
       enabled: true
-      change-log: classpath:db/changelog/db.changelog-master.xml
+      change-log: classpath:db/changelog/changelog.xml
 
 # Metrics scraping is expected to be protected at the network level, like every other endpoint
 # (see the no-auth note below) - a scrape target shouldn't need a bearer token either way.

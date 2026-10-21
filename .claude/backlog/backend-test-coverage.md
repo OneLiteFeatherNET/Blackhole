@@ -10,7 +10,7 @@
       commit (Conventional Commits, per CLAUDE.md), check the box, stop the iteration.
     - Circuit breaker: if 3 consecutive iterations fail to get a green
       `./gradlew :backend:test` for their package, stop the loop and surface the
-      failure instead of continuing — these packages depend on real MariaDB/RabbitMQ
+      failure instead of continuing — these packages depend on real PostgreSQL/RabbitMQ
       (docker/docker-compose.yml must be up; there's no in-memory/mocked path, see
       CLAUDE.md), so a red run is often infra, not code.
     - Update .claude/PROGRESS.md's "Active" section with which package is in flight

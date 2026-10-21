@@ -6,18 +6,13 @@ paths:
 
 # Database layer (Hibernate/JPA + Liquibase)
 
-Hibernate/JPA entities + Micronaut Data repositories. Liquibase
-(`db/changelog/db.changelog-master.xml`, a single consolidated XML changelog) is the sole
-schema owner; `jpa.default.properties.hibernate.hbm2ddl.auto` is deliberately `none`, not
-`validate` — Hibernate's own JSON-column type expectations disagree with MariaDB's physical
-representation of a JSON column, an unrelated dialect mismatch that would make `validate` fail
-spuriously. Every changeSet uses fully native Liquibase changeTypes (`<createTable>`,
-`<createIndex>`, `<addForeignKeyConstraint>`) rather than raw `<sql>`, keeping the changelog
-database-portable rather than MariaDB-specific. One consequence: native Liquibase XML has no
-changeType for arbitrary `CHECK` expressions on any database, so the JSON validity checks and
-the `tinyint` ordinal-enum range checks MariaDB previously enforced at the DB layer are not
-recreated here — enforcement of those is an application/Hibernate-layer concern only, not a
-DB-layer guarantee.
+Hibernate/JPA entities + Micronaut Data repositories on PostgreSQL. Liquibase
+(`db/changelog/changelog.xml`, one PostgreSQL-only consolidated changelog) is the sole schema
+owner. `jpa.default.properties.hibernate.hbm2ddl.auto` is `validate`: Hibernate checks the schema
+at startup and never alters it. JSON columns are `jsonb`. Every changeSet uses native Liquibase
+changeTypes (`<createTable>`, `<createIndex>`, `<addForeignKeyConstraint>`), not raw `<sql>`.
+Native Liquibase XML has no changeType for arbitrary `CHECK` expressions, so JSON validity and
+`smallint` ordinal-enum range checks are enforced in the application layer, not the database.
 
 Add new changes as a new `<changeSet>` appended to the same file; never edit an already-applied
 changeSet, always add a new one. This is enforced by a `PreToolUse` hook
