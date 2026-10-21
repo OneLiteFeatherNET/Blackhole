@@ -4,13 +4,13 @@ import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.proxy.Player;
-import net.kyori.adventure.text.Component;
-import net.onelitefeather.blackhole.velocity.component.PunishmentMessages;
+import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -21,10 +21,12 @@ import java.util.Optional;
 public final class ServerConnectListener {
 
     private final PunishmentState state;
+    private final PunishmentScreens screens;
 
     @Inject
-    public ServerConnectListener(@NotNull PunishmentState state) {
+    public ServerConnectListener(@NotNull PunishmentState state, @NotNull PunishmentScreens screens) {
         this.state = state;
+        this.screens = screens;
     }
 
     @Subscribe
@@ -35,12 +37,12 @@ public final class ServerConnectListener {
         if (ban.isEmpty()) {
             return;
         }
-        Component message = PunishmentMessages.forPlayer(ban.get());
+        Locale locale = PunishmentScreens.localeOf(player);
         event.setResult(ServerPreConnectEvent.ServerResult.denied());
         if (player.getCurrentServer().isPresent()) {
-            player.sendMessage(message);
+            player.sendMessage(this.screens.screen(ban.get(), locale, PunishmentScreens.Surface.CHAT, false));
         } else {
-            player.disconnect(message);
+            player.disconnect(this.screens.screen(ban.get(), locale, PunishmentScreens.Surface.DISCONNECT, false));
         }
     }
 }

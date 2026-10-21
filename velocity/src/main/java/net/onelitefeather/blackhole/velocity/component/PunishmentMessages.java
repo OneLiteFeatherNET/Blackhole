@@ -1,8 +1,6 @@
 package net.onelitefeather.blackhole.velocity.component;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
-import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.velocity.component.tag.DurationTag;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
@@ -19,18 +17,6 @@ public final class PunishmentMessages {
 
     private PunishmentMessages() {
         throw new UnsupportedOperationException("This class cannot be instantiated");
-    }
-
-    /**
-     * The message a punished player sees (disconnect, denied connect): the punishment's reason with
-     * the remaining time available as {@code <duration>}.
-     */
-    public static @NotNull Component forPlayer(@NotNull PunishmentSyncMessage punishment) {
-        if (punishment.reason() == null || punishment.reason().isBlank()) {
-            return Component.translatable("punishment.reason.default");
-        }
-        TagResolver duration = punishment.expiresAt() == null ? TagResolver.empty() : DurationTag.resolver(punishment.expiresAt());
-        return MiniMessage.miniMessage().deserialize(punishment.reason(), duration);
     }
 
     /**

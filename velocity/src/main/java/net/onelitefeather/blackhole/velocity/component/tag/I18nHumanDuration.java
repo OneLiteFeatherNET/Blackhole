@@ -36,6 +36,26 @@ final class I18nHumanDuration {
         return translatable("duration.in", joined);
     }
 
+    /**
+     * "2 days 3 hours" style remaining time with the two most significant units, for the text
+     * "remaining ..." ({@code duration.remaining}); under a minute reads "less than a minute".
+     */
+    public static Component remaining(Duration duration) {
+        long seconds = Math.max(0, duration.getSeconds());
+        long days = seconds / 86400; seconds %= 86400;
+        long hours = seconds / 3600; seconds %= 3600;
+        long minutes = seconds / 60;
+
+        List<Component> parts = new ArrayList<>(2);
+        if (days > 0) parts.add(unit("duration.remaining.day", days));
+        if (hours > 0) parts.add(unit("duration.remaining.hour", hours));
+        if (minutes > 0 && days == 0) parts.add(unit("duration.remaining.minute", minutes));
+        if (parts.isEmpty()) {
+            return translatable("duration.remaining.soon");
+        }
+        return translatable("duration.remaining", joinWithSpace(parts));
+    }
+
     private static Component unit(String baseKey, long n) {
         String key = baseKey + (n == 1 ? ".one" : ".other");
         return translatable(key, text(n));

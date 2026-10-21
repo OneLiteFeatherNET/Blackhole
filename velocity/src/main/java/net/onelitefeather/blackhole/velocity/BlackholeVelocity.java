@@ -17,6 +17,7 @@ import net.onelitefeather.blackhole.velocity.command.PunishCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishInfoCommand;
 import net.onelitefeather.blackhole.velocity.command.EloCommand;
 import net.onelitefeather.blackhole.velocity.command.TargetParser;
+import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.config.BlackholeApiClients;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.listener.PlayerChatListener;
@@ -94,7 +95,8 @@ public class BlackholeVelocity {
         PunishmentMirror mirror = new PunishmentMirror();
         BackendGateway backend = new HttpBackendGateway(this.client, this.redisSyncService);
         PunishmentState state = new PunishmentState(sections, mirror, this.redisSyncService, owner -> backend.profile(owner), clock);
-        EnforcementActions actions = new EnforcementActions(this.server, sections, state, this.config, clock);
+        PunishmentScreens screens = new PunishmentScreens(clock, this.config, sections);
+        EnforcementActions actions = new EnforcementActions(this.server, sections, state, this.config, clock, screens);
         PunishmentSyncHandler syncHandler = new PunishmentSyncHandler(mirror, actions);
         PunishService punishService = new PunishService(backend, sections);
 
@@ -106,7 +108,7 @@ public class BlackholeVelocity {
 
         Injector childInjector = this.injector.createChildInjector(
                 new BlackholeClientModule(this.client, this.config, this.redisSyncService, sections, mirror, state,
-                        syncHandler, actions, backend, punishService, clock).asModule(),
+                        syncHandler, actions, backend, punishService, clock, screens).asModule(),
                 new CloudInjectionModule<>(
                         CommandSource.class,
                         ExecutionCoordinator.simpleCoordinator(),
