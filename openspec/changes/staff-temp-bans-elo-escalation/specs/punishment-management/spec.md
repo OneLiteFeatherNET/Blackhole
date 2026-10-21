@@ -3,18 +3,19 @@
 ## MODIFIED Requirements
 
 ### Requirement: Punishment templates
-The system SHALL let callers create, update, list, fetch and delete punishment templates under `/template`. A template MUST carry a unique kebab-case key, a reason, a section key of an existing section, a positive ISO-8601 duration, a non-negative `eloCost` and a metadata map. Creation MUST reject a supplied identifier; update MUST require the identifier of an existing template.
+The system SHALL let callers create, update, list, fetch and delete punishment templates under `/template`. A template MUST carry a unique kebab-case key, a reason, a section key of an existing section, an escalation group, an optional escalation window, one or more ordered steps each with a positive ISO-8601 duration and a non-negative `eloCost`, and a metadata map. Creation MUST reject a supplied identifier; update MUST require the identifier of an existing template.
 
 #### Scenario: Create a template
-- **WHEN** `POST /template/` is called with key `hacking-1`, reason, section `network`, duration P7D, eloCost 150 and no identifier
-- **THEN** the template is stored and returned with a generated identifier
+- **WHEN** `POST /template/` is called with key `hacking`, reason, section `network`, steps P1D/100, P7D/150, P30D/250 and no identifier
+- **THEN** the template is stored with its three steps in order and returned with a generated identifier
+- **AND** its escalation group defaults to `hacking`
 
 #### Scenario: Create with identifier rejected
 - **WHEN** `POST /template/` is called with an identifier set
 - **THEN** the request is rejected and no template is created
 
 #### Scenario: Permanent template rejected
-- **WHEN** a template is submitted without a duration, with a zero or negative duration, or with a negative eloCost
+- **WHEN** a template is submitted without steps, or with a step that has no duration, a zero or negative duration, or a negative eloCost
 - **THEN** the request is rejected with a validation error
 
 #### Scenario: Unknown section rejected
@@ -34,10 +35,10 @@ The system SHALL let callers create, update, list, fetch and delete punishment t
 - **THEN** the response is 409
 
 ### Requirement: Template duration determines expiry
-A punishment applied from a template SHALL receive an expiration date equal to the application time plus the template's duration. Only punishments created by the system's permanent escalation MAY be permanent.
+A punishment applied from a template SHALL receive an expiration date equal to the application time plus the duration of the selected escalation step. Only punishments created by the system's permanent escalation MAY be permanent.
 
 #### Scenario: Temporary template
-- **WHEN** a template with duration P3D is applied
+- **WHEN** a template whose selected step has duration P3D is applied
 - **THEN** the created punishment expires three days after application
 
 #### Scenario: Permanent template
@@ -45,12 +46,12 @@ A punishment applied from a template SHALL receive an expiration date equal to t
 - **THEN** the created punishment has no expiration date, no template and is marked permanent
 
 ### Requirement: Applying a template creates a punishment
-`POST /punishment/apply` with owner, template (key or identifier) and source SHALL create a temporary punishment from the template in its section, record the source and timestamps, create the profile if absent, and return the punishment, the section, the section score before and after the ELO cost, and any escalation it caused. Unknown templates, disabled sections or invalid owner hashes MUST produce an error result without any change.
+`POST /punishment/apply` with owner, template (key or identifier) and source SHALL create a temporary punishment from the template in its section, record the source and timestamps, create the profile if absent, and return the punishment, the section, the selected step and step count, the section score before and after the ELO cost, and any escalation it caused. Unknown templates, disabled sections or invalid owner hashes MUST produce an error result without any change.
 
 #### Scenario: Apply to a first-time offender
-- **WHEN** template `spam-1` (section `chat`, eloCost 50) is applied to an owner without a profile
+- **WHEN** template `spam` (section `chat`, first step eloCost 50) is applied to an owner without a profile
 - **THEN** a profile is created holding the new punishment as the active `chat` punishment
-- **AND** the response reports `chat` score 1000 before and 950 after
+- **AND** the response reports step 1 of the template's steps and `chat` score 1000 before and 950 after
 - **AND** `profile.created` and `punishment.created` events are published
 
 #### Scenario: Unknown template
@@ -73,10 +74,10 @@ Each profile SHALL hold at most one active punishment per section. Applying a pu
 - **THEN** the new punishment occupies the `chat` slot and the `network` ban stays active
 
 ### Requirement: Template ELO delta
-When a template is applied by any source other than the ELO system itself, the system SHALL deduct the template's `eloCost` from the owner's score in the template's section with reason PUNISHMENT_APPLIED, referencing the punishment and template, and record the deducted cost on the punishment. A cost of 0 MUST NOT create an ELO event.
+When a template is applied by any source other than the ELO system itself, the system SHALL deduct the selected step's `eloCost` from the owner's score in the template's section with reason PUNISHMENT_APPLIED, referencing the punishment and template, and record the deducted cost on the punishment. A cost of 0 MUST NOT create an ELO event.
 
 #### Scenario: Manual ban with ELO delta
-- **WHEN** a staff source applies a `network` template with eloCost 200
+- **WHEN** a staff source applies a `network` template whose selected step has eloCost 200
 - **THEN** the owner's `network` score decreases by 200 with reason PUNISHMENT_APPLIED
 - **AND** the punishment records an ELO cost of 200
 
@@ -114,3 +115,38 @@ The system SHALL mirror active punishment state per section into Redis key `blac
 #### Scenario: Expiry of a mute clears the mute key
 - **WHEN** a `chat` punishment expires, whether by the sweep or on profile read
 - **THEN** key `blackhole:punish:chat:<owner>` is deleted and a CLEARED message for section `chat` is published
+
+## ADDED Requirements
+
+### Requirement: Escalation step selection
+When a template is applied, the system SHALL select step `min(n, stepCount - 1)` (zero-based), where `n` is the number of the owner's earlier punishments in the template's escalation group created within the escalation window (template value or `blackhole.punishment.escalation.default-window`, default P365D) that were not revoked and not lifted by a granted appeal. Expired punishments MUST count.
+
+#### Scenario: Second offence uses second step
+- **WHEN** template `hacking` (steps P1D, P7D, P30D) is applied to a player who has one expired `hacking` punishment from last month
+- **THEN** the new punishment lasts 7 days and is recorded as step 2 of 3
+
+#### Scenario: Beyond the last step
+- **WHEN** the player already has three counted punishments in the group
+- **THEN** the last step (P30D) is applied again
+
+#### Scenario: Old offences outside the window
+- **WHEN** the player's only earlier `hacking` punishment is older than the escalation window
+- **THEN** the first step is applied
+
+#### Scenario: Lifted punishment does not count
+- **WHEN** the player's earlier punishment in the group was revoked or lifted on appeal
+- **THEN** it is not counted for step selection
+
+### Requirement: Shared escalation groups
+Templates SHALL be able to share an escalation group, so that punishments from any template of the group count towards each other's steps; each template uses its own steps.
+
+#### Scenario: Variants of one offence escalate together
+- **WHEN** templates `killaura` and `fly` both use escalation group `hacking` and a player with one counted `killaura` punishment is punished with `fly`
+- **THEN** `fly`'s second step is applied
+
+### Requirement: Escalation details are recorded
+Every template-based punishment SHALL record its escalation group, selected step, step count and deducted ELO cost, so its history entry stays explainable after the template is edited or deleted.
+
+#### Scenario: Template edited later
+- **WHEN** a template's steps are changed after a player was punished with it
+- **THEN** the player's history still shows the original step, duration and ELO cost

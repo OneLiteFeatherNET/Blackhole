@@ -13,8 +13,9 @@ report and appeal queues.
   Design 3 tokens (color roles generated from a seed color, light/dark scheme, MD3 type scale,
   shape and elevation) and a small in-repo MD3 component set.
 - Screens: dashboard, player lookup + player detail (section scores with thresholds, active
-  punishments, history, ELO history, manual adjustment, revoke), templates CRUD, sections
-  configuration, reports queue, appeals queue.
+  punishments, history with escalation steps, ELO history, manual adjustment, revoke),
+  templates CRUD with escalation-step editor and escalation group, sections configuration
+  incl. server patterns for server-scoped sections, reports queue, appeals queue.
 - Typed API client generated from the same OpenAPI spec file as the Java client.
 - German (default) and English UI texts.
 - Container image (static files + reverse proxy to the backend under one origin) and a

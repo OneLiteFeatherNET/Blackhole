@@ -47,29 +47,37 @@ The player detail SHALL allow applying a template, revoking an active punishment
 
 #### Scenario: Apply template with escalation preview
 - **WHEN** a user selects a template whose ELO cost would drop the score below the permanent threshold
-- **THEN** the confirmation warns that the player will be permanently punished in that section before anything is applied
+- **THEN** the confirmation shows the escalation step that will be used and warns that the player will be permanently punished in that section before anything is applied
 
 #### Scenario: Revoke permanent ban
 - **WHEN** a user confirms revoking a permanent punishment
 - **THEN** the punishment is lifted and the detail shows the score reset to the section's pardon score
 
 ### Requirement: Template management
-The UI SHALL list, create, edit and delete templates with key, reason, section, duration and ELO cost, showing validation errors returned by the API next to the affected field. Deleting a template still referenced MUST show the conflict instead of failing silently.
+The UI SHALL list, create, edit and delete templates with key, reason, section, escalation group, escalation window and an ordered list of steps (duration and ELO cost each, add/remove/reorder), showing validation errors returned by the API next to the affected field. Deleting a template still referenced MUST show the conflict instead of failing silently.
 
 #### Scenario: Create template
 - **WHEN** a user submits a valid template form
 - **THEN** the template appears in the list
 
 #### Scenario: Invalid duration
-- **WHEN** a user submits a template without a positive duration
-- **THEN** the duration field shows the validation error and nothing is saved
+- **WHEN** a user submits a template with a step that has no positive duration
+- **THEN** that step's duration field shows the validation error and nothing is saved
+
+#### Scenario: Edit escalation steps
+- **WHEN** a user adds a third step P30D/250 to template `hacking` and saves
+- **THEN** the template list shows three steps for `hacking`
 
 ### Requirement: Section configuration
-The UI SHALL list sections and let users create, edit and disable them, editing enforcement kind, base score, soft threshold and duration, permanent threshold, pardon score and permanent reason.
+The UI SHALL list sections and let users create, edit and disable them, editing enforcement kind, server patterns (only for SERVER sections), base score, soft threshold and duration, permanent threshold, pardon score and permanent reason.
 
 #### Scenario: Change permanent threshold
 - **WHEN** a user changes the `network` permanent threshold to 250 and saves
 - **THEN** the section list shows the new threshold
+
+#### Scenario: Create a server section
+- **WHEN** a user creates section `bedwars` with enforcement SERVER and pattern `bedwars-*`
+- **THEN** the section list shows `bedwars` with its pattern
 
 ### Requirement: Report and appeal queues
 The UI SHALL list open reports and pending appeals and let users resolve reports and decide appeals with the decisions the API supports.

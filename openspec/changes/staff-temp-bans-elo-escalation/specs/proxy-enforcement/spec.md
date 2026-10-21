@@ -3,11 +3,11 @@
 ## MODIFIED Requirements
 
 ### Requirement: Staff ban command
-The proxy SHALL provide `/ban <user> <template>` and `/blackhole <user> ban <template>`, requiring permission `blackhole.ban` and accepting only templates of sections with enforcement BAN. It MUST apply the template via the backend with the sender's UUID as source, disconnect a connected target with the rendered punishment message, and reply with target, section, duration and the ELO change; if the backend escalated, the reply MUST also state the permanent ban.
+The proxy SHALL provide `/ban <user> <template>` and `/blackhole <user> ban <template>`, requiring permission `blackhole.ban` and accepting only templates of sections with enforcement BAN or SERVER. It MUST apply the template via the backend with the sender's UUID as source, disconnect a connected target (BAN) or move it off matching servers (SERVER) with the rendered punishment message, and reply with target, section, duration, escalation step and the ELO change; if the backend escalated, the reply MUST also state the permanent ban.
 
 #### Scenario: Ban an online player
-- **WHEN** a staff member with `blackhole.ban` runs `/ban Steve hacking-1` and Steve is connected
-- **THEN** the backend records a temporary `network` ban, Steve is disconnected with the rendered message, and the sender sees the duration and the `network` score change
+- **WHEN** a staff member with `blackhole.ban` runs `/ban Steve hacking` and Steve is connected
+- **THEN** the backend records a temporary `network` ban, Steve is disconnected with the rendered message, and the sender sees the duration, the step (e.g. "2/3") and the `network` score change
 
 #### Scenario: Ban escalates to permanent
 - **WHEN** the backend reports that the ban's ELO cost triggered a permanent `network` ban
@@ -18,7 +18,7 @@ The proxy SHALL provide `/ban <user> <template>` and `/blackhole <user> ban <tem
 - **THEN** the backend records the punishment, no disconnect is attempted, and the sender receives the ban result
 
 #### Scenario: Server flag with a non-server template
-- **WHEN** a staff member runs `/ban Steve spam-1` where `spam-1` belongs to a MUTE section (the former `--server` flag no longer exists)
+- **WHEN** a staff member runs `/ban Steve spam` where `spam` belongs to a MUTE section (the former `--server` flag is replaced by SERVER sections)
 - **THEN** nothing is applied and the sender receives `punishment.error.template.wrong_section`
 
 #### Scenario: Backend rejects the ban
@@ -33,7 +33,7 @@ The proxy SHALL provide `/ban <user> <template>` and `/blackhole <user> ban <tem
 The proxy SHALL provide `/mute <user> <template>` and `/blackhole <user> mute <template>`, requiring permission `blackhole.mute` and accepting only templates of sections with enforcement MUTE. It MUST apply the template via the backend with the sender's UUID as source, inform a connected target, and reply with section, duration, ELO change and any escalation. On backend failure the sender MUST receive `punishment.error.mute`.
 
 #### Scenario: Mute a player
-- **WHEN** a staff member with `blackhole.mute` runs `/mute Steve spam-1`
+- **WHEN** a staff member with `blackhole.mute` runs `/mute Steve spam`
 - **THEN** the backend records a temporary `chat` mute, Steve is told he is muted, and the sender sees duration and `chat` score change
 
 #### Scenario: Backend rejects the mute
@@ -48,7 +48,7 @@ The proxy SHALL provide `/mute <user> <template>` and `/blackhole <user> mute <t
 The template argument SHALL be given as a template key. The proxy MUST select the template with exactly that key from the templates eligible for the command; an unknown key MUST fail the command with `punishment.error.template.not_found` and the entered key, never with an internal error.
 
 #### Scenario: Template selected by reason
-- **WHEN** a staff member enters `hacking-1` and a template with that key exists
+- **WHEN** a staff member enters `hacking` and a template with that key exists
 - **THEN** that template is used for the punishment
 
 #### Scenario: Server flag restricts candidates
@@ -56,7 +56,7 @@ The template argument SHALL be given as a template key. The proxy MUST select th
 - **THEN** the command fails with `punishment.error.template.not_found` naming the key and nothing is punished
 
 ### Requirement: Template tab completion
-For the template argument the proxy SHALL suggest the keys of templates eligible for the command (BAN sections for ban, MUTE sections for mute, all for punish) that contain the typed text, compared case-insensitively. When templates cannot be loaded, the proxy MUST suggest nothing instead of failing.
+For the template argument the proxy SHALL suggest the keys of templates eligible for the command (BAN and SERVER sections for ban, MUTE sections for mute, all for punish) that contain the typed text, compared case-insensitively. When templates cannot be loaded, the proxy MUST suggest nothing instead of failing.
 
 #### Scenario: Suggest matching template reasons
 - **WHEN** a staff member tab-completes `/mute Steve sp`
@@ -67,7 +67,7 @@ For the template argument the proxy SHALL suggest the keys of templates eligible
 - **THEN** the proxy returns an empty suggestion list
 
 ### Requirement: Staff unban command
-The proxy SHALL provide `/unban <user> [section]` and `/blackhole <user> unban [section]`, requiring `blackhole.unban`; the section defaults to `network` and must have enforcement BAN. Targets resolve like ban targets, including offline players. Lifting a permanent punishment MUST additionally require `blackhole.pardon.permanent`. The sender receives `punishment.success.unban`, `punishment.error.unban.none_active` or `punishment.error.unban`.
+The proxy SHALL provide `/unban <user> [section]` and `/blackhole <user> unban [section]`, requiring `blackhole.unban`; the section defaults to `network` and must have enforcement BAN or SERVER. Targets resolve like ban targets, including offline players. Lifting a permanent punishment MUST additionally require `blackhole.pardon.permanent`. The sender receives `punishment.success.unban`, `punishment.error.unban.none_active` or `punishment.error.unban`.
 
 #### Scenario: Revoke an active ban by UUID
 - **WHEN** a staff member with `blackhole.unban` runs `/unban Steve` while Steve is offline with an active temp `network` ban
@@ -108,7 +108,7 @@ On every login the proxy SHALL first report an evasion sighting (owner hash and 
 - **THEN** the player is disconnected with the rendered message of that punishment
 
 #### Scenario: Server-scoped ban does not block the proxy
-- **WHEN** a player whose only active punishment is in section `chat` logs in
+- **WHEN** a player whose only active punishments are in section `chat` or in a SERVER section logs in
 - **THEN** the login is allowed and session info is recorded
 
 #### Scenario: Redis unavailable
@@ -166,12 +166,27 @@ When a SET message for a section with enforcement BAN is received and the owner 
 
 ## ADDED Requirements
 
+### Requirement: Server connect enforcement
+When a player connects to a backend server, the proxy SHALL deny the connection if the player has an active punishment in a SERVER section with a pattern matching that server's name, show the rendered punishment message, and keep the player on their current server. When a SERVER punishment becomes active while the player is on a matching server, the proxy MUST move them to the configured fallback server, or disconnect them if none is available.
+
+#### Scenario: Banned from bedwars
+- **WHEN** a player with an active `bedwars` punishment (pattern `bedwars-*`) tries to connect to `bedwars-3`
+- **THEN** the connection is denied with the punishment message and the player stays on their current server
+
+#### Scenario: Other servers stay reachable
+- **WHEN** the same player connects to `skywars-1`
+- **THEN** the connection is allowed
+
+#### Scenario: Banned while playing
+- **WHEN** a `bedwars` ban is applied while the player is on `bedwars-1`
+- **THEN** the player is moved to the fallback server and shown the punishment message
+
 ### Requirement: Generic punish command
 The proxy SHALL provide `/punish <user> <template>` requiring `blackhole.punish`, accepting a template of any section and behaving like the ban or mute command matching that section's enforcement kind.
 
 #### Scenario: Punish with a chat template
-- **WHEN** a staff member with `blackhole.punish` runs `/punish Steve spam-1`
-- **THEN** the result is the same as `/mute Steve spam-1`
+- **WHEN** a staff member with `blackhole.punish` runs `/punish Steve spam`
+- **THEN** the result is the same as `/mute Steve spam`
 
 ### Requirement: ELO info command
 The proxy SHALL provide `/elo <user>` requiring `blackhole.elo.view`, showing the target's score in every section together with the section's soft and permanent thresholds and whether a permanent punishment is active.

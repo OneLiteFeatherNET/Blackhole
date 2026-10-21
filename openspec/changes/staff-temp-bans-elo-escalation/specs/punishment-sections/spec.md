@@ -6,8 +6,19 @@ Defines punishment sections (e.g. chat, network) as configurable units that each
 
 ## ADDED Requirements
 
+### Requirement: Server-scoped sections
+A section with enforcement SERVER SHALL list one or more backend server name patterns (glob, e.g. `bedwars-*`); its punishments apply only to servers matching a pattern. Patterns MUST be required for SERVER sections, rejected for other kinds, and a pattern matching every server MUST be rejected.
+
+#### Scenario: Create a server section
+- **WHEN** a section `bedwars` with enforcement SERVER and pattern `bedwars-*` is created
+- **THEN** it is stored with its own base score, thresholds and pardon score
+
+#### Scenario: Missing patterns rejected
+- **WHEN** a SERVER section is submitted without patterns, or with only `*`
+- **THEN** the request is rejected with a validation error
+
 ### Requirement: Section registry
-The system SHALL manage punishment sections via `/section` (create, update, list, get, disable). A section MUST have a unique kebab-case key, a display name, an enforcement kind (MUTE or BAN), a base score, a permanent threshold, a pardon score and a permanent reason, and MAY have a soft threshold with soft duration.
+The system SHALL manage punishment sections via `/section` (create, update, list, get, disable). A section MUST have a unique kebab-case key, a display name, an enforcement kind (MUTE, BAN or SERVER), a base score, a permanent threshold, a pardon score and a permanent reason, and MAY have a soft threshold with soft duration.
 
 #### Scenario: Create a section
 - **WHEN** `POST /section` is called with key `pvp`, enforcement BAN, base 1000, permanent threshold 300, pardon 700 and a permanent reason
@@ -30,6 +41,10 @@ A punishment, ELO deduction or escalation in one section MUST NOT change the sco
 #### Scenario: Chat escalation leaves network untouched
 - **WHEN** a player is permanently muted in section `chat`
 - **THEN** the player can still join the network and their `network` score is unchanged
+
+#### Scenario: Server ban leaves the network open
+- **WHEN** a player is permanently banned from section `bedwars`
+- **THEN** the player can still join the network and other servers, and their `network` score is unchanged
 
 ### Requirement: Automatic permanent ban per section
 After any negative score change in a section, if the resulting score is below the section's permanent threshold and the player has no active permanent punishment in that section, the system SHALL apply a permanent punishment in that section, attributed to the ELO system source and carrying the section's permanent reason.

@@ -14,12 +14,21 @@ and the system bans permanently from that section once its score is too low.
 ## What Changes
 
 - **Punishment sections** become a first-class, data-driven concept. A section (seeded: `chat`
-  enforced as mute, `network` enforced as proxy ban) owns its own ELO score per player, its
+  enforced as mute, `network` enforced as proxy ban; operators can add server-scoped sections
+  such as `bedwars` matching `bedwars-*`) owns its own ELO score per player, its
   thresholds, its permanent-ban reason and its pardon score. New sections with an existing
-  enforcement kind need no code change.
+  enforcement kind (MUTE, BAN, SERVER) need no code change.
+- **Server-specific bans**: a SERVER section lists backend-server name patterns; its
+  punishments block connecting to matching servers only (the player stays on the network and
+  is moved to a fallback server), with their own ELO score and permanent escalation.
 - **BREAKING** Templates are always temporary and belong to a section: required `key` (command
-  slug), `section`, `duration` (ISO-8601, > 0) and `eloCost` (>= 0) replace `type`,
-  `eloDelta` and the metadata-duration convention. Permanent templates no longer exist.
+  slug), `section` and an ordered list of **escalation steps**, each with `duration`
+  (ISO-8601, > 0) and `eloCost` (>= 0), replace `type`, `eloDelta` and the metadata-duration
+  convention. Permanent templates no longer exist.
+- **Escalating bans**: the step is chosen by the number of the player's earlier, not-lifted
+  punishments in the template's escalation group (default: the template key; templates can
+  share a group) within the template's escalation window; beyond the last step the last step
+  repeats.
 - **BREAKING** Applying a template by any non-system source creates a temporary punishment in
   the template's section and deducts `eloCost` from that section's score; the apply endpoint
   returns the punishment, score before/after and any escalation.
@@ -37,26 +46,29 @@ and the system bans permanently from that section once its score is too low.
   (`blackhole:punish:<section>:<owner>`); proxies enforce by the section's enforcement kind.
 - Proxy commands: `/ban` and `/mute` select templates of ban/mute sections by key, `/punish`
   takes any template, `/elo <player>` shows section scores; staff feedback shows duration, ELO
-  change and escalation. `--server` flag and SERVER-scoped bans are removed from commands.
+  change, escalation step and permanent escalation. `/ban` covers BAN and SERVER sections;
+  the old `--server` flag is replaced by SERVER sections.
 
-Out of scope: per-server (SERVER) bans, duration escalation ladders, staff identity/auth,
+Out of scope: staff identity/auth,
 admin UI (change `add-admin-web-ui`), migrating existing MariaDB data.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `punishment-sections`: the section registry (enforcement kind, thresholds, pardon score,
-  permanent reason) and the automatic permanent escalation per section.
+- `punishment-sections`: the section registry (enforcement kind incl. server scope,
+  thresholds, pardon score, permanent reason) and the automatic permanent escalation per
+  section.
 
 ### Modified Capabilities
 
 - `elo-scoring`: tracks become per-section scores; threshold behaviour, report/toxicity mapping,
   read endpoints and a manual adjustment endpoint change.
-- `punishment-management`: templates (temporary-only, sectioned, ELO cost), apply semantics and
-  result, per-section active slots, revocation, Redis mirroring keys.
-- `proxy-enforcement`: ban/mute/punish/elo commands, template argument by key, login/chat
-  enforcement and sync keyed by section.
+- `punishment-management`: templates (temporary-only, sectioned, escalation steps with ELO
+  cost), step selection, apply semantics and result, per-section active slots, revocation,
+  Redis mirroring keys.
+- `proxy-enforcement`: ban/mute/punish/elo commands, template argument by key, login/chat/
+  server-connect enforcement and sync keyed by section.
 - `appeal-workflow`: ELO consequences of granted appeals.
 
 ## Impact
