@@ -52,10 +52,11 @@ public final class PunishmentTestBed {
                     .finder("findByTemplateKey", args -> this.templates.all().stream()
                             .filter(t -> args[0].equals(t.getTemplateKey())).findFirst())
                     .build();
+    public final InMemoryProfileSlots slots = new InMemoryProfileSlots(profiles.repository(), punishments.repository());
     public final ProfileCache profileCache = new ProfileCache(eloBed.sharedCache, Duration.ofSeconds(30));
     public final PunishmentTemplateCache templateCache = new PunishmentTemplateCache(eloBed.sharedCache, Duration.ofMinutes(5));
     public final PunishmentApplicationService punishmentService = new PunishmentApplicationService(
-            punishments.repository(), profiles.repository(), templates.repository(), eloBed.sections, eloBed.events,
+            punishments.repository(), profiles.repository(), slots, templates.repository(), eloBed.sections, eloBed.events,
             profileCache, () -> this.elo, eloBed.clock, Duration.ofDays(365));
     public final PunishmentTemplateService templateService = new PunishmentTemplateService(
             templates.repository(), punishments.repository(), templateCache, eloBed.sections);

@@ -23,7 +23,7 @@ class ActivePunishmentExpirerTest {
 
     private final PunishmentTestBed bed = new PunishmentTestBed();
     private final ActivePunishmentExpirer expirer = new ActivePunishmentExpirer(
-            bed.profiles.repository(), bed.eloBed.sections, bed.eloBed.events, bed.profileCache, bed.eloBed.clock);
+            bed.profiles.repository(), bed.slots, bed.eloBed.sections, bed.eloBed.events, bed.profileCache, bed.eloBed.clock);
 
     private void givenMuteAndBan() {
         bed.givenTemplate("spam", "chat", null, step("PT1H", 0));

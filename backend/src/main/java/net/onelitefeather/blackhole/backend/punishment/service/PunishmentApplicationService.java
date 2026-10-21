@@ -11,6 +11,7 @@ import net.onelitefeather.blackhole.backend.elo.EloScoring;
 import net.onelitefeather.blackhole.backend.elo.service.EloService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
+import net.onelitefeather.blackhole.backend.profile.ProfileSlots;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
@@ -51,12 +52,14 @@ import java.util.Optional;
  * only then deducts the cost - so a deduction that escalates replaces the staff punishment with the
  * permanent one instead of being overwritten by it.</p>
  *
- * <p><b>Known limitation (deferred, not fixed here):</b> the read-profile / save-punishment /
- * occupy-slot / deduct sequence is not atomic - {@code @Transactional} is unusable in this codebase
- * (see {@link EloService}'s class Javadoc for why). Two concurrent applications to the same owner and
- * section could both read the same "slot empty" state; the primary key of {@code active_punishments}
- * rejects the second write rather than silently double-occupying the slot, but the caller sees an
- * unhandled persistence exception instead of a clean conflict. This is an accepted race window.</p>
+ * <p>The slot write is atomic per (owner, section) row ({@link ProfileSlots#occupy}): a concurrent
+ * apply in another section, or a telemetry update, is never overwritten, and two concurrent applies
+ * in the same section end with one active punishment and the other in the history. A punishment is
+ * saved before it can occupy the slot (the slot references it); if occupying fails or is refused it
+ * is deleted again, so no orphan counts towards escalation. {@code @Transactional} is unusable in this
+ * codebase (see {@link EloService}'s class Javadoc), so the sequence "read profile / save punishment /
+ * occupy slot / deduct" as a whole is still not one transaction: the permanent-punishment pre-check in
+ * {@link #apply} can be stale, which {@code occupy} closes by never replacing a permanent punishment.</p>
  */
 @Singleton
 public class PunishmentApplicationService implements SectionPunisher {
@@ -67,6 +70,7 @@ public class PunishmentApplicationService implements SectionPunisher {
 
     private final PunishmentRepository punishmentRepository;
     private final PunishmentProfileRepository profileRepository;
+    private final ProfileSlots slots;
     private final PunishmentTemplateRepository templateRepository;
     private final SectionService sectionService;
     private final DomainEventPublisher eventPublisher;
@@ -83,6 +87,7 @@ public class PunishmentApplicationService implements SectionPunisher {
     public PunishmentApplicationService(
             PunishmentRepository punishmentRepository,
             PunishmentProfileRepository profileRepository,
+            ProfileSlots slots,
             PunishmentTemplateRepository templateRepository,
             SectionService sectionService,
             DomainEventPublisher eventPublisher,
@@ -93,6 +98,7 @@ public class PunishmentApplicationService implements SectionPunisher {
     ) {
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
+        this.slots = slots;
         this.templateRepository = templateRepository;
         this.sectionService = sectionService;
         this.eventPublisher = eventPublisher;
@@ -163,7 +169,9 @@ public class PunishmentApplicationService implements SectionPunisher {
         );
         punishment.recordEscalation(group, selection.index(), selection.stepCount(), cost);
         PunishmentEntity saved = this.punishmentRepository.save(punishment);
-        place(profile, owner, section, saved);
+        if (!place(owner, section, saved)) {
+            return error(ErrorKind.CONFLICT, "the player is already permanently punished in section '" + section.key() + "'");
+        }
 
         int scoreBefore;
         int scoreAfter;
@@ -220,8 +228,7 @@ public class PunishmentApplicationService implements SectionPunisher {
                 IdGenerator.generateId(), EloService.SYSTEM_ELO_SOURCE, owner, section.key(), true, now, null, metadata
         );
         PunishmentEntity saved = this.punishmentRepository.save(punishment);
-        place(this.profileRepository.findById(owner).orElse(null), owner, section, saved);
-        return Optional.of(saved.getIdentifier());
+        return place(owner, section, saved) ? Optional.of(saved.getIdentifier()) : Optional.empty();
     }
 
     @Override
@@ -243,41 +250,56 @@ public class PunishmentApplicationService implements SectionPunisher {
                 IdGenerator.generateId(), EloService.SYSTEM_ELO_SOURCE, owner, section.key(), false, now, null, metadata
         );
         PunishmentEntity saved = this.punishmentRepository.save(punishment);
-        place(profile, owner, section, saved);
-        return Optional.of(saved.getIdentifier());
+        return place(owner, section, saved) ? Optional.of(saved.getIdentifier()) : Optional.empty();
     }
 
     /**
-     * Makes {@code punishment} the section's active punishment, moving the one it replaces into
-     * history, creating the profile if needed, then evicts the cached profile and announces the
-     * punishment.
+     * Makes {@code punishment} the section's active punishment (the one it replaces moves into
+     * history), creating the profile if needed, then evicts the cached profile and announces the
+     * punishment. If the slot cannot be taken the already saved punishment is discarded again so it
+     * cannot count towards escalation.
+     *
+     * @return {@code false} if a permanent punishment holds the slot and the punishment was discarded
      */
-    private void place(PunishmentProfileEntity profile, String owner, SectionDTO.Response section, PunishmentEntity punishment) {
-        boolean isNewProfile = profile == null;
-        if (isNewProfile) {
-            profile = new PunishmentProfileEntity(owner, new HashMap<>(), new ArrayList<>(), new HashMap<>());
+    private boolean place(String owner, SectionDTO.Response section, PunishmentEntity punishment) {
+        ProfileSlots.Placement placement;
+        try {
+            placement = this.slots.occupy(owner, section.key(), punishment.getIdentifier());
+        } catch (RuntimeException e) {
+            discardOrphan(punishment);
+            throw e;
         }
-        PunishmentEntity replaced = profile.getActive().put(section.key(), punishment);
-        if (replaced != null) {
-            profile.getHistory().add(replaced);
-        }
-        if (isNewProfile) {
-            this.profileRepository.save(profile);
-        } else {
-            this.profileRepository.update(profile);
+        if (!placement.occupied()) {
+            discardOrphan(punishment);
+            return false;
         }
         this.profileCache.evict(owner);
 
-        if (isNewProfile) {
+        if (placement.profileCreated()) {
             this.eventPublisher.publish("profile.created", Map.of("owner", owner));
         }
         this.eventPublisher.publish("punishment.created", PunishmentEvents.created(punishment, section));
+        return true;
+    }
+
+    /** Removes a punishment that never became active; if it cannot be deleted it is lifted instead. */
+    private void discardOrphan(PunishmentEntity punishment) {
+        try {
+            this.punishmentRepository.delete(punishment);
+        } catch (RuntimeException deleteFailure) {
+            LOGGER.warn("Could not delete the unplaced punishment {}; lifting it instead", punishment.getIdentifier(), deleteFailure);
+            punishment.setLifted(true);
+            this.punishmentRepository.update(punishment);
+        }
     }
 
     /**
      * Revokes the owner's active punishment in one section: it moves to history, is marked lifted
      * so it no longer counts for escalation, and - if it was permanent - the owner's score in the
      * section is reset to the section's pardon score.
+     *
+     * <p>A staff revoke of a temporary punishment does <b>not</b> refund its ELO cost; only a granted
+     * appeal that fully lifts it does (see the appeal decision service).</p>
      *
      * @return the {@link PunishmentDTO.RevokeResponse}, or a {@link PunishmentDTO.Error} if the
      * request is invalid or the owner has no active punishment in that section
@@ -293,14 +315,15 @@ public class PunishmentApplicationService implements SectionPunisher {
             return error(ErrorKind.NOT_FOUND, "the player has no active punishment in section '" + request.section() + "'");
         }
 
+        // Clears only if the slot still holds the punishment we read, so a punishment applied
+        // concurrently in the meantime is never removed by mistake.
+        if (!this.slots.clearIf(owner, request.section(), active.getIdentifier())) {
+            return error(ErrorKind.NOT_FOUND, "the player has no active punishment in section '" + request.section() + "'");
+        }
         active.getMetaData().put("revokedBy", request.source().toString());
         active.getMetaData().put(Metadata.META_DATA_KEY_UPDATE_DATE, this.clock.millis());
         active.setLifted(true);
         this.punishmentRepository.update(active);
-
-        profile.getActive().remove(request.section());
-        profile.getHistory().add(active);
-        this.profileRepository.update(profile);
         this.profileCache.evict(owner);
 
         Integer scoreReset = null;

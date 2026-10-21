@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.profile.controller;
 
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
+import net.onelitefeather.blackhole.backend.profile.ProfileSlots;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.profile.dto.PunishProfileDTO;
@@ -30,7 +31,7 @@ import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.ActivePunishmentExpirer;
 
-import java.util.ArrayList;
+import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -43,6 +44,8 @@ public class ProfileController {
     private final DomainEventPublisher eventPublisher;
     private final ProfileCache profileCache;
     private final ActivePunishmentExpirer expirer;
+    private final ProfileSlots slots;
+    private final Clock clock;
 
     /**
      * Create a new ProfileController.
@@ -51,18 +54,24 @@ public class ProfileController {
      * @param eventPublisher publishes domain events for successful writes
      * @param profileCache   the hot-path profile-by-owner read cache, evicted on every write
      * @param expirer        rotates expired active punishments into history when a profile is read
+     * @param slots          row-level profile writes (session telemetry)
+     * @param clock          source of the last-seen timestamp
      */
     @Inject
     public ProfileController(
             PunishmentProfileRepository repository,
             DomainEventPublisher eventPublisher,
             ProfileCache profileCache,
-            ActivePunishmentExpirer expirer
+            ActivePunishmentExpirer expirer,
+            ProfileSlots slots,
+            Clock clock
     ) {
         this.repository = repository;
         this.eventPublisher = eventPublisher;
         this.profileCache = profileCache;
         this.expirer = expirer;
+        this.slots = slots;
+        this.clock = clock;
     }
 
     /**
@@ -303,24 +312,17 @@ public class ProfileController {
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
             @Body @Valid SessionInfoDTO info
     ) {
-        PunishmentProfileEntity profile = this.repository.findById(owner).orElse(null);
-        boolean isNew = profile == null;
-        if (isNew) {
-            profile = new PunishmentProfileEntity(owner, new HashMap<>(), new ArrayList<>(), new HashMap<>());
-        }
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> sessionInfo = (Map<String, Object>) profile.getMetaData()
-                .computeIfAbsent("sessionInfo", key -> new HashMap<String, Object>());
+        Map<String, Object> fields = new HashMap<>();
         if (info.protocolVersion() != null) {
-            sessionInfo.put("protocolVersion", info.protocolVersion());
+            fields.put("protocolVersion", info.protocolVersion());
         }
         if (info.clientBrand() != null) {
-            sessionInfo.put("clientBrand", info.clientBrand());
+            fields.put("clientBrand", info.clientBrand());
         }
-        sessionInfo.put("lastSeenAt", System.currentTimeMillis());
+        fields.put("lastSeenAt", this.clock.millis());
 
-        PunishmentProfileEntity saved = isNew ? this.repository.save(profile) : this.repository.update(profile);
-        return HttpResponse.ok(saved.toDTO());
+        // Only the session fields are written, so a punishment applied at the same moment survives.
+        this.slots.mergeSessionInfo(owner, fields);
+        return HttpResponse.ok(this.repository.findById(owner).orElseThrow().toDTO());
     }
 }

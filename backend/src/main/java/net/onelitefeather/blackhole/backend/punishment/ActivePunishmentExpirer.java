@@ -3,6 +3,7 @@ package net.onelitefeather.blackhole.backend.punishment;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
+import net.onelitefeather.blackhole.backend.profile.ProfileSlots;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.section.SectionService;
@@ -22,6 +23,7 @@ import java.util.Map;
 public class ActivePunishmentExpirer {
 
     private final PunishmentProfileRepository profileRepository;
+    private final ProfileSlots slots;
     private final SectionService sectionService;
     private final DomainEventPublisher eventPublisher;
     private final ProfileCache profileCache;
@@ -29,12 +31,14 @@ public class ActivePunishmentExpirer {
 
     public ActivePunishmentExpirer(
             PunishmentProfileRepository profileRepository,
+            ProfileSlots slots,
             SectionService sectionService,
             DomainEventPublisher eventPublisher,
             ProfileCache profileCache,
             Clock clock
     ) {
         this.profileRepository = profileRepository;
+        this.slots = slots;
         this.sectionService = sectionService;
         this.eventPublisher = eventPublisher;
         this.profileCache = profileCache;
@@ -49,28 +53,45 @@ public class ActivePunishmentExpirer {
     }
 
     /**
-     * Rotates every expired active punishment of {@code profile} into its history, saves the
-     * profile, evicts its cached copy and publishes {@code punishment.expired} per punishment.
-     * {@code profile} is mutated in place.
+     * Rotates every expired active punishment of {@code profile} into its history, evicts its cached
+     * copy and publishes {@code punishment.expired} per punishment. Each slot is cleared on its own
+     * row and only while it still holds the expired punishment, so a punishment applied concurrently
+     * to the same section is never removed. {@code profile} is updated in place to reflect the result.
      *
      * @return {@code true} if anything expired
      */
     public boolean expire(PunishmentProfileEntity profile) {
         long now = this.clock.millis();
+        String owner = profile.getOwner();
         List<PunishmentEntity> expired = new ArrayList<>();
-        profile.getActive().entrySet().removeIf(entry -> {
-            if (PunishmentExpiry.isExpired(entry.getValue(), now)) {
-                expired.add(entry.getValue());
-                return true;
+        boolean lostRace = false;
+        for (Map.Entry<String, PunishmentEntity> entry : List.copyOf(profile.getActive().entrySet())) {
+            if (!PunishmentExpiry.isExpired(entry.getValue(), now)) {
+                continue;
             }
-            return false;
-        });
+            if (this.slots.clearIf(owner, entry.getKey(), entry.getValue().getIdentifier())) {
+                expired.add(entry.getValue());
+            } else {
+                lostRace = true;
+            }
+        }
+        if (lostRace) {
+            // The slot changed under us; show what is stored now instead of our stale copy.
+            this.profileRepository.findById(owner).ifPresent(fresh -> {
+                profile.getActive().clear();
+                profile.getActive().putAll(fresh.getActive());
+                profile.getHistory().clear();
+                profile.getHistory().addAll(fresh.getHistory());
+            });
+            this.profileCache.evict(owner);
+        } else if (!expired.isEmpty()) {
+            expired.forEach(punishment -> profile.getActive().remove(punishment.getSectionKey()));
+            expired.stream().filter(punishment -> !profile.getHistory().contains(punishment)).forEach(profile.getHistory()::add);
+        }
         if (expired.isEmpty()) {
             return false;
         }
-        profile.getHistory().addAll(expired);
-        this.profileRepository.update(profile);
-        this.profileCache.evict(profile.getOwner());
+        this.profileCache.evict(owner);
         for (PunishmentEntity punishment : expired) {
             SectionDTO.Response section = this.sectionService.find(punishment.getSectionKey()).orElse(null);
             this.eventPublisher.publish("punishment.expired", PunishmentEvents.expired(punishment, section));

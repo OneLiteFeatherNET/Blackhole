@@ -33,7 +33,7 @@ class AppealDecisionServiceTest {
     private final InMemoryRepository<AppealRepository, AppealEntity, UUID> appeals =
             InMemoryRepository.<AppealRepository, AppealEntity, UUID>of(AppealRepository.class, AppealEntity::getIdentifier).build();
     private final AppealDecisionService service = new AppealDecisionService(
-            appeals.repository(), bed.punishments.repository(), bed.profiles.repository(), bed.profileCache,
+            appeals.repository(), bed.punishments.repository(), bed.profiles.repository(), bed.slots, bed.profileCache,
             bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.eloBed.clock);
 
     /** A staff mute that cost 80 ELO; the chat score is 920 afterwards. */

@@ -13,6 +13,7 @@ import net.onelitefeather.blackhole.backend.elo.EloScoring;
 import net.onelitefeather.blackhole.backend.elo.service.EloService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
+import net.onelitefeather.blackhole.backend.profile.ProfileSlots;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
@@ -59,6 +60,7 @@ public class AppealDecisionService {
     private final AppealRepository appealRepository;
     private final PunishmentRepository punishmentRepository;
     private final PunishmentProfileRepository profileRepository;
+    private final ProfileSlots slots;
     private final ProfileCache profileCache;
     private final EloScoring eloScoring;
     private final SectionService sectionService;
@@ -69,6 +71,7 @@ public class AppealDecisionService {
             AppealRepository appealRepository,
             PunishmentRepository punishmentRepository,
             PunishmentProfileRepository profileRepository,
+            ProfileSlots slots,
             ProfileCache profileCache,
             EloScoring eloScoring,
             SectionService sectionService,
@@ -78,6 +81,7 @@ public class AppealDecisionService {
         this.appealRepository = appealRepository;
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
+        this.slots = slots;
         this.profileCache = profileCache;
         this.eloScoring = eloScoring;
         this.sectionService = sectionService;
@@ -175,9 +179,7 @@ public class AppealDecisionService {
             active.setLifted(true);
             this.punishmentRepository.update(active);
 
-            profile.getActive().remove(punishment.getSectionKey());
-            profile.getHistory().add(active);
-            this.profileRepository.update(profile);
+            this.slots.clearIf(owner, punishment.getSectionKey(), active.getIdentifier());
 
             restoreElo(owner, active, eloMetaData);
         } else if (decision == AppealStatus.GRANTED_DURATION_REDUCTION) {
