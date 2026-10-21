@@ -7,7 +7,7 @@ import net.onelitefeather.blackhole.backend.appeal.AppealStatus;
 import net.onelitefeather.blackhole.backend.appeal.DecisionOutcome;
 import net.onelitefeather.blackhole.backend.appeal.dto.AppealReviewDTO;
 import jakarta.inject.Singleton;
-import net.onelitefeather.blackhole.backend.profile.CacheInvalidationPublisher;
+import net.onelitefeather.blackhole.backend.profile.ProfileCache;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
@@ -43,18 +43,18 @@ public class AppealDecisionService {
     private final AppealRepository appealRepository;
     private final PunishmentRepository punishmentRepository;
     private final PunishmentProfileRepository profileRepository;
-    private final CacheInvalidationPublisher cacheInvalidationPublisher;
+    private final ProfileCache profileCache;
 
     public AppealDecisionService(
             AppealRepository appealRepository,
             PunishmentRepository punishmentRepository,
             PunishmentProfileRepository profileRepository,
-            CacheInvalidationPublisher cacheInvalidationPublisher
+            ProfileCache profileCache
     ) {
         this.appealRepository = appealRepository;
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
-        this.cacheInvalidationPublisher = cacheInvalidationPublisher;
+        this.profileCache = profileCache;
     }
 
     /**
@@ -159,7 +159,7 @@ public class AppealDecisionService {
             this.punishmentRepository.update(punishment);
         }
 
-        this.cacheInvalidationPublisher.invalidate(owner);
+        this.profileCache.evict(owner);
         return DecisionOutcome.APPLIED;
     }
 }

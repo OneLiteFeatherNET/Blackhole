@@ -6,13 +6,16 @@ import net.onelitefeather.blackhole.backend.elo.EloEventRepository;
 import net.onelitefeather.blackhole.backend.elo.EloProfileEntity;
 import net.onelitefeather.blackhole.backend.elo.EloProfileRepository;
 import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
+import net.onelitefeather.blackhole.backend.elo.EloProfileCache;
 import net.onelitefeather.blackhole.backend.elo.EloTrack;
+import net.onelitefeather.blackhole.backend.elo.dto.EloProfileDTO;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.service.PunishmentApplicationService;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateCache;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishType;
@@ -69,6 +72,8 @@ public class EloService {
     private final PunishmentTemplateRepository templateRepository;
     private final PunishmentApplicationService punishmentApplicationService;
     private final DomainEventPublisher eventPublisher;
+    private final EloProfileCache eloProfileCache;
+    private final PunishmentTemplateCache templateCache;
     private final EffectiveEloSettings settings;
 
     private final int softThreshold;
@@ -83,6 +88,8 @@ public class EloService {
             PunishmentTemplateRepository templateRepository,
             PunishmentApplicationService punishmentApplicationService,
             DomainEventPublisher eventPublisher,
+            EloProfileCache eloProfileCache,
+            PunishmentTemplateCache templateCache,
             @Value("${blackhole.elo.baseline:1000}") int baseline,
             @Value("${blackhole.elo.perma-ban-threshold:300}") int permaBanThreshold,
             @Value("${blackhole.elo.perma-ban-template.chat-id:}") String permaBanTemplateChatId,
@@ -98,6 +105,8 @@ public class EloService {
         this.templateRepository = templateRepository;
         this.punishmentApplicationService = punishmentApplicationService;
         this.eventPublisher = eventPublisher;
+        this.eloProfileCache = eloProfileCache;
+        this.templateCache = templateCache;
         this.settings = new EffectiveEloSettings(
                 baseline, baseline, permaBanThreshold, permaBanThreshold,
                 parseUuidOrNull(permaBanTemplateChatId), parseUuidOrNull(permaBanTemplateGameplayId)
@@ -149,6 +158,7 @@ public class EloService {
         profile.setUpdatedAt(track, now);
 
         EloProfileEntity savedProfile = isNew ? this.profileRepository.save(profile) : this.profileRepository.update(profile);
+        this.eloProfileCache.evict(owner);
 
         this.eventRepository.save(new EloEventEntity(
                 owner, track, delta, reasonCode, sourceEvidenceId, newScore, now,
@@ -206,6 +216,7 @@ public class EloService {
         boolean gameplayChanged = reconcileDecay(profile, EloTrack.GAMEPLAY, now, this.settings.baseEloGameplay());
         if (chatChanged || gameplayChanged) {
             this.profileRepository.update(profile);
+            this.eloProfileCache.evict(profile.getOwner());
             return true;
         }
         return false;
@@ -286,7 +297,9 @@ public class EloService {
                     metaData.put("auto", true);
                     metaData.put("eloTriggered", true);
                     metaData.put(Durationable.META_DATA_KEY_DURATION, track == EloTrack.CHAT ? this.chatSoftDuration : this.gameplaySoftDuration);
-                    return this.templateRepository.save(new PunishmentTemplateEntity(null, reason, type, 0, metaData));
+                    PunishmentTemplateEntity created = this.templateRepository.save(new PunishmentTemplateEntity(null, reason, type, 0, metaData));
+                    this.templateCache.evictList();
+                    return created;
                 });
     }
 
@@ -298,13 +311,20 @@ public class EloService {
     }
 
     /**
-     * Dashboard read: a player's current ELO standing, if any.
+     * Dashboard read: a player's current ELO standing, if any. Served from the shared cache when
+     * present; a found profile is cached, a missing one is not.
      *
      * @param owner the SHA-512-hashed owner
      * @return the profile, or empty if none exists yet for this owner
      */
-    public Optional<EloProfileEntity> getProfile(String owner) {
-        return this.profileRepository.findById(owner);
+    public Optional<EloProfileDTO> getProfile(String owner) {
+        Optional<EloProfileDTO> cached = this.eloProfileCache.get(owner);
+        if (cached.isPresent()) {
+            return cached;
+        }
+        Optional<EloProfileDTO> profile = this.profileRepository.findById(owner).map(EloProfileEntity::toDTO);
+        profile.ifPresent(dto -> this.eloProfileCache.put(owner, dto));
+        return profile;
     }
 
     /**

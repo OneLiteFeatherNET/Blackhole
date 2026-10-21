@@ -1,35 +1,40 @@
 package net.onelitefeather.blackhole.backend.profile;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
+import io.micronaut.context.annotation.Value;
+import io.micronaut.core.type.Argument;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.cache.CacheKeys;
+import net.onelitefeather.blackhole.backend.cache.SharedCache;
+import net.onelitefeather.blackhole.backend.profile.dto.PunishProfileDTO;
 
 import java.time.Duration;
 import java.util.Optional;
 
 /**
- * In-memory cache for the profile-by-owner hot path (hit on every Velocity login and every chat
- * message). Bounded by a short TTL so a missed cross-replica invalidation only causes brief
- * staleness rather than a permanently stale read; see {@code CacheInvalidationPublisher} /
- * {@code CacheInvalidationConsumer} for the RabbitMQ fanout that keeps replicas in sync on writes.
+ * Hot-path profile-by-owner cache (hit on every Velocity login and every chat message), kept in the
+ * {@link SharedCache} so every replica reads the same entry. Every write to a profile calls
+ * {@link #evict} after its database write, so the next read on any replica reloads it.
  */
 @Singleton
 public class ProfileCache {
 
-    private final Cache<String, PunishmentProfileEntity> cache = Caffeine.newBuilder()
-            .maximumSize(10_000)
-            .expireAfterWrite(Duration.ofSeconds(30))
-            .build();
+    private final SharedCache sharedCache;
+    private final Duration ttl;
 
-    public Optional<PunishmentProfileEntity> get(String owner) {
-        return Optional.ofNullable(this.cache.getIfPresent(owner));
+    public ProfileCache(SharedCache sharedCache, @Value("${blackhole.cache.profile.ttl:PT30S}") Duration ttl) {
+        this.sharedCache = sharedCache;
+        this.ttl = ttl;
     }
 
-    public void put(String owner, PunishmentProfileEntity entity) {
-        this.cache.put(owner, entity);
+    public Optional<PunishProfileDTO> get(String owner) {
+        return this.sharedCache.get(CacheKeys.profile(owner), Argument.of(PunishProfileDTO.class));
     }
 
-    public void invalidate(String owner) {
-        this.cache.invalidate(owner);
+    public void put(String owner, PunishProfileDTO profile) {
+        this.sharedCache.put(CacheKeys.profile(owner), Argument.of(PunishProfileDTO.class), profile, this.ttl);
+    }
+
+    public void evict(String owner) {
+        this.sharedCache.evict(CacheKeys.profile(owner));
     }
 }

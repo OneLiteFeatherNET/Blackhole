@@ -1,7 +1,6 @@
 package net.onelitefeather.blackhole.backend.elo.controller;
 
 import net.onelitefeather.blackhole.backend.elo.EloEventEntity;
-import net.onelitefeather.blackhole.backend.elo.EloProfileEntity;
 import net.onelitefeather.blackhole.backend.elo.ToxicityScorer;
 import net.onelitefeather.blackhole.backend.elo.dto.ChatSignalDTO;
 import net.onelitefeather.blackhole.backend.elo.dto.ChatToxicityResult;
@@ -81,11 +80,11 @@ public class EloController {
     @ApiResponse(responseCode = "404", description = "No ELO profile exists yet for this owner")
     @Get("/{owner}")
     public HttpResponse<EloProfileDTO> getProfile(String owner) {
-        EloProfileEntity profile = this.eloService.getProfile(owner).orElse(null);
+        EloProfileDTO profile = this.eloService.getProfile(owner).orElse(null);
         if (profile == null) {
             return HttpResponse.notFound();
         }
-        return HttpResponse.ok(profile.toDTO());
+        return HttpResponse.ok(profile);
     }
 
     @Operation(

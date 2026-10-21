@@ -18,7 +18,6 @@ public class BlackholeRabbitTopology extends ChannelInitializer {
     @Override
     public void initialize(Channel channel, String name) throws IOException {
         channel.exchangeDeclare(RabbitTopology.EVENTS_EXCHANGE, BuiltinExchangeType.TOPIC, true);
-        channel.exchangeDeclare(RabbitTopology.CACHE_INVALIDATE_EXCHANGE, BuiltinExchangeType.FANOUT, true);
 
         channel.queueDeclare(RabbitTopology.REDIS_SYNC_QUEUE, true, false, false, null);
         channel.queueBind(RabbitTopology.REDIS_SYNC_QUEUE, RabbitTopology.EVENTS_EXCHANGE, "punishment.created");

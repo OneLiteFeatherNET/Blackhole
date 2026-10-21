@@ -5,7 +5,7 @@ import io.micronaut.data.model.Pageable;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
-import net.onelitefeather.blackhole.backend.profile.CacheInvalidationPublisher;
+import net.onelitefeather.blackhole.backend.profile.ProfileCache;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import org.slf4j.Logger;
@@ -26,16 +26,16 @@ public class PunishmentExpirySweeper {
 
     private final PunishmentProfileRepository profileRepository;
     private final DomainEventPublisher eventPublisher;
-    private final CacheInvalidationPublisher cacheInvalidationPublisher;
+    private final ProfileCache profileCache;
 
     public PunishmentExpirySweeper(
             PunishmentProfileRepository profileRepository,
             DomainEventPublisher eventPublisher,
-            CacheInvalidationPublisher cacheInvalidationPublisher
+            ProfileCache profileCache
     ) {
         this.profileRepository = profileRepository;
         this.eventPublisher = eventPublisher;
-        this.cacheInvalidationPublisher = cacheInvalidationPublisher;
+        this.profileCache = profileCache;
     }
 
     @Scheduled(
@@ -82,7 +82,7 @@ public class PunishmentExpirySweeper {
 
         if (changed) {
             this.profileRepository.update(profile);
-            this.cacheInvalidationPublisher.invalidate(profile.getOwner());
+            this.profileCache.evict(profile.getOwner());
         }
         return changed;
     }

@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
  * The sole writer of active-punishment state into Redis. Called only from {@link RedisSyncConsumer}
  * as a side effect of a domain event, never from a request thread - so a Redis hiccup here can
  * never fail the primary write path that triggered it, matching
- * {@code CacheInvalidationPublisher}'s resilience convention.
+ * {@link net.onelitefeather.blackhole.backend.cache.SharedCache}'s fail-open convention.
  */
 @Singleton
 public class PunishmentRedisWriter {

@@ -15,7 +15,7 @@ import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.service.EloService;
 import net.onelitefeather.blackhole.backend.elo.EloTrack;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
-import net.onelitefeather.blackhole.backend.profile.CacheInvalidationPublisher;
+import net.onelitefeather.blackhole.backend.profile.ProfileCache;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.utils.IdGenerator;
@@ -56,7 +56,7 @@ public class PunishmentApplicationService {
     private final PunishmentProfileRepository profileRepository;
     private final PunishmentTemplateRepository templateRepository;
     private final DomainEventPublisher eventPublisher;
-    private final CacheInvalidationPublisher cacheInvalidationPublisher;
+    private final ProfileCache profileCache;
     private final BeanProvider<EloService> eloServiceProvider;
 
     /**
@@ -70,14 +70,14 @@ public class PunishmentApplicationService {
             PunishmentProfileRepository profileRepository,
             PunishmentTemplateRepository templateRepository,
             DomainEventPublisher eventPublisher,
-            CacheInvalidationPublisher cacheInvalidationPublisher,
+            ProfileCache profileCache,
             BeanProvider<EloService> eloServiceProvider
     ) {
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
         this.templateRepository = templateRepository;
         this.eventPublisher = eventPublisher;
-        this.cacheInvalidationPublisher = cacheInvalidationPublisher;
+        this.profileCache = profileCache;
         this.eloServiceProvider = eloServiceProvider;
     }
 
@@ -150,7 +150,7 @@ public class PunishmentApplicationService {
 
         PunishmentProfileEntity savedProfile = isNewProfile ? this.profileRepository.save(profile) : this.profileRepository.update(profile);
 
-        this.cacheInvalidationPublisher.invalidate(owner);
+        this.profileCache.evict(owner);
 
         if (isNewProfile) {
             this.eventPublisher.publish("profile.created", Map.of("owner", owner));
@@ -222,7 +222,7 @@ public class PunishmentApplicationService {
         }
         PunishmentProfileEntity savedProfile = this.profileRepository.update(profile);
 
-        this.cacheInvalidationPublisher.invalidate(owner);
+        this.profileCache.evict(owner);
         this.eventPublisher.publish("punishment.revoked", Map.of(
                 "owner", owner,
                 "punishmentIdentifier", active.getIdentifier(),
