@@ -95,7 +95,7 @@ public class BlackholeVelocity {
         PunishmentMirror mirror = new PunishmentMirror();
         BackendGateway backend = new HttpBackendGateway(this.client, this.redisSyncService);
         PunishmentState state = new PunishmentState(sections, mirror, this.redisSyncService, owner -> backend.profile(owner), clock);
-        PunishmentScreens screens = new PunishmentScreens(clock, this.config, sections);
+        PunishmentScreens screens = new PunishmentScreens(clock, this.config, sections, GlobalTranslator.renderer());
         EnforcementActions actions = new EnforcementActions(this.server, sections, state, this.config, clock, screens);
         PunishmentSyncHandler syncHandler = new PunishmentSyncHandler(mirror, actions);
         PunishService punishService = new PunishService(backend, sections);
