@@ -60,9 +60,8 @@ Test coverage is minimal — only `backend/src/test/java/.../playerresolver/serv
 exists so far, no other module has a `src/test` yet. JUnit 5 is wired up via the Micronaut/root
 `build.gradle.kts` (`useJUnitPlatform()`, `jacocoTestReport` runs after `test`), ready for more.
 Local dev/manual verification of the backend requires the
-real MariaDB + RabbitMQ containers from `docker/docker-compose.yml`; there's no in-memory/mocked
-path for those two dependencies (H2 is on the classpath but the app is wired to Liquibase+MariaDB
-by default — see `application.yml`).
+real PostgreSQL + RabbitMQ containers from `docker/docker-compose.yml`; there's no in-memory/mocked
+path for those two dependencies (the app is wired to Liquibase+PostgreSQL — see `application.yml`).
 
 Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
 

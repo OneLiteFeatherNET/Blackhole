@@ -6,13 +6,13 @@ TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 OLD_STRING=$(echo "$INPUT" | jq -r '.tool_input.old_string // empty')
 
-if [[ "$FILE_PATH" == *db.changelog-master.xml ]]; then
+if [[ "$FILE_PATH" == *db/changelog/changelog.xml ]]; then
   if [ "$TOOL_NAME" = "Write" ]; then
-    echo "Blocked: don't Write (full overwrite) db.changelog-master.xml — use Edit to append a new <changeSet>, preserving all existing ones." >&2
+    echo "Blocked: don't Write (full overwrite) changelog.xml — use Edit to append a new <changeSet>, preserving all existing ones." >&2
     exit 2
   fi
   if printf '%s' "$OLD_STRING" | grep -q '<changeSet'; then
-    echo "Blocked: this edit modifies/removes an existing <changeSet> in db.changelog-master.xml. Changelogs are append-only here — add a NEW <changeSet> instead (e.g. inserted just before </databaseChangeLog>)." >&2
+    echo "Blocked: this edit modifies/removes an existing <changeSet> in changelog.xml. Changelogs are append-only here — add a NEW <changeSet> instead (e.g. inserted just before </databaseChangeLog>)." >&2
     exit 2
   fi
 fi
