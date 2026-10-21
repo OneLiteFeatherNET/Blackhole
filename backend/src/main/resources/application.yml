@@ -16,13 +16,13 @@ rabbitmq:
 redis:
   uri: ${REDIS_URI:`redis://localhost:6379`}
 
-# Datasource
+# Datasource - PostgreSQL is the only supported database. Defaults match docker/docker-compose.yml.
 datasources:
   default:
-    url: ${JDBC_URL:`jdbc:mariadb://127.0.0.1:3336/blackhole`}
+    url: ${JDBC_URL:`jdbc:postgresql://127.0.0.1:5432/blackhole`}
     password: ${JDBC_PASSWORD:`blackhole`}
-    username: ${JDBC_USER:`root`}
-    driver-class-name: ${JDBC_DRIVER:`org.mariadb.jdbc.Driver`}
+    username: ${JDBC_USER:`blackhole`}
+    driver-class-name: ${JDBC_DRIVER:`org.postgresql.Driver`}
 # JPA
 jpa:
   default:
