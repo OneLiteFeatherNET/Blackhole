@@ -507,6 +507,49 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PunishmentError"
+  /punishment/preview:
+    post:
+      tags:
+      - Punishment
+      summary: Preview applying a template
+      description: "Answers what applying the template would do right now - the escalation\
+        \ step, its cost, the resulting score and whether the player would be punished\
+        \ permanently - without changing anything. Takes the same request as /punishment/apply\
+        \ and fails with the same errors."
+      operationId: previewPunishment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishmentApplyRequest"
+        required: true
+      responses:
+        "200":
+          description: What applying the template would do
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentPreviewResponse"
+        "400":
+          description: "Invalid request (owner must be a SHA-512 hash, exactly one\
+            \ of templateKey and templateId)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+        "404":
+          description: Unknown template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+        "409":
+          description: "The template's section is disabled, or the player is already\
+            \ permanently punished in it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
   /punishment/revoke:
     post:
       tags:
@@ -1588,6 +1631,8 @@ components:
         source:
           type: string
           format: uuid
+      description: Apply a template to a player. Exactly one of `templateKey` and
+        `templateId` is required.
     PunishmentApplyResponse:
       required:
       - enforcement
@@ -1603,24 +1648,30 @@ components:
           $ref: "#/components/schemas/PunishEntryDTO"
         section:
           type: string
+          description: the section it belongs to
         enforcement:
           $ref: "#/components/schemas/EnforcementKind"
         step:
           type: integer
+          description: "the escalation step that was applied, starting at 1"
           format: int32
         stepCount:
           type: integer
+          description: how many steps the template has
           format: int32
         scoreBefore:
           type: integer
+          description: the section score before the ELO cost
           format: int32
         scoreAfter:
           type: integer
+          description: the section score after the ELO cost
           format: int32
         escalation:
           nullable: true
           allOf:
           - $ref: "#/components/schemas/PunishmentEscalation"
+      description: The result of applying a template.
     PunishmentError:
       required:
       - errorMessage
@@ -1641,7 +1692,62 @@ components:
           $ref: "#/components/schemas/PunishEntryDTO"
         resultingScore:
           type: integer
+          description: the section score that triggered it
           format: int32
+      description: A permanent punishment the system applied because a deduction left
+        the score too low.
+    PunishmentPreviewResponse:
+      required:
+      - duration
+      - eloCost
+      - enforcement
+      - escalatesToPermanent
+      - permanentThreshold
+      - scoreAfter
+      - scoreBefore
+      - section
+      - step
+      - stepCount
+      type: object
+      properties:
+        section:
+          type: string
+          description: the section the template belongs to
+        enforcement:
+          $ref: "#/components/schemas/EnforcementKind"
+        step:
+          type: integer
+          description: "the escalation step that would apply, starting at 1"
+          format: int32
+        stepCount:
+          type: integer
+          description: how many steps the template has
+          format: int32
+        duration:
+          type: string
+          description: the ISO-8601 duration of the step
+        eloCost:
+          type: integer
+          description: the ELO the step would deduct
+          format: int32
+        scoreBefore:
+          type: integer
+          description: the section score now
+          format: int32
+        scoreAfter:
+          type: integer
+          description: the section score after the deduction
+          format: int32
+        permanentThreshold:
+          type: integer
+          description: the section's permanent threshold
+          format: int32
+        escalatesToPermanent:
+          type: boolean
+          description: whether the deduction would leave the score below that threshold
+      description: "What applying a template would do right now, without doing it:\
+        \ the escalation step the server selects, its cost and whether the cost would\
+        \ push the player into a permanent punishment."
     PunishmentRevokeRequest:
       required:
       - owner
@@ -1669,10 +1775,14 @@ components:
           $ref: "#/components/schemas/PunishEntryDTO"
         section:
           type: string
+          description: the section it belonged to
         scoreReset:
           type: integer
+          description: "the section score after a permanent punishment was pardoned,\
+            \ else `null`"
           format: int32
           nullable: true
+      description: The result of revoking a section's active punishment.
     ReportCategory:
       type: string
       enum:

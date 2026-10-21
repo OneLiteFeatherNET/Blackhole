@@ -37,6 +37,25 @@ public interface PunishmentApi {
     HttpResponse<PunishmentDTO> apply(@Valid @Body PunishmentDTO.ApplyRequest request);
 
     @Operation(
+            summary = "Preview applying a template",
+            description = "Answers what applying the template would do right now - the escalation step, its cost, the "
+                    + "resulting score and whether the player would be punished permanently - without changing anything. "
+                    + "Takes the same request as /punishment/apply and fails with the same errors.",
+            operationId = "previewPunishment",
+            tags = {"Punishment"}
+    )
+    @ApiResponse(responseCode = "200", description = "What applying the template would do",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.PreviewResponse.class)))
+    @ApiResponse(responseCode = "400", description = "Invalid request (owner must be a SHA-512 hash, exactly one of templateKey and templateId)",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
+    @ApiResponse(responseCode = "404", description = "Unknown template",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
+    @ApiResponse(responseCode = "409", description = "The template's section is disabled, or the player is already permanently punished in it",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
+    @Post("/preview")
+    HttpResponse<PunishmentDTO> preview(@Valid @Body PunishmentDTO.ApplyRequest request);
+
+    @Operation(
             summary = "Revoke the active punishment of a section",
             description = "Moves the player's active punishment in the section into history. Revoking a permanent "
                     + "punishment resets the player's score in that section to the section's pardon score.",
