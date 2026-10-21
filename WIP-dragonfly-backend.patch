@@ -1,0 +1,1661 @@
+diff --git a/backend/build.gradle.kts b/backend/build.gradle.kts
+index 71e2390..6bc4715 100644
+--- a/backend/build.gradle.kts
++++ b/backend/build.gradle.kts
+@@ -25,7 +25,6 @@ dependencies {
+     implementation(mn.micronaut.management)
+     implementation(mn.micronaut.micrometer.core)
+     implementation(mn.micronaut.micrometer.registry.prometheus)
+-    implementation(mn.micronaut.cache.caffeine)
+     implementation(mn.micronaut.data.spring.jpa)
+     implementation(mn.micronaut.serde.jackson)
+     implementation(mn.micronaut.hibernate.jpa)
+@@ -60,6 +59,17 @@ dependencies {
+ 
+     testImplementation(mn.junit.jupiter.api)
+     testRuntimeOnly(mn.junit.jupiter.engine)
++    testImplementation(mn.testcontainers.core)
++}
++
++tasks.test {
++    useJUnitPlatform {
++        // Docker-backed tests carry the "integration" tag and are skipped by default, so the
++        // unit suite (and the pre-commit hook) runs without Docker. Opt in with -PincludeIntegration.
++        if (!providers.gradleProperty("includeIntegration").isPresent) {
++            excludeTags("integration")
++        }
++    }
+ }
+ 
+ java {
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/appeal/service/AppealDecisionService.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/appeal/service/AppealDecisionService.java
+index dd41d8d..af810a5 100644
+--- a/backend/src/main/java/net/onelitefeather/blackhole/backend/appeal/service/AppealDecisionService.java
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/appeal/service/AppealDecisionService.java
+@@ -7,7 +7,7 @@ import net.onelitefeather.blackhole.backend.appeal.AppealStatus;
+ import net.onelitefeather.blackhole.backend.appeal.DecisionOutcome;
+ import net.onelitefeather.blackhole.backend.appeal.dto.AppealReviewDTO;
+ import jakarta.inject.Singleton;
+-import net.onelitefeather.blackhole.backend.profile.CacheInvalidationPublisher;
++import net.onelitefeather.blackhole.backend.profile.ProfileCache;
+ import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
+ import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
+ import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
+@@ -43,18 +43,18 @@ public class AppealDecisionService {
+     private final AppealRepository appealRepository;
+     private final PunishmentRepository punishmentRepository;
+     private final PunishmentProfileRepository profileRepository;
+-    private final CacheInvalidationPublisher cacheInvalidationPublisher;
++    private final ProfileCache profileCache;
+ 
+     public AppealDecisionService(
+             AppealRepository appealRepository,
+             PunishmentRepository punishmentRepository,
+             PunishmentProfileRepository profileRepository,
+-            CacheInvalidationPublisher cacheInvalidationPublisher
++            ProfileCache profileCache
+     ) {
+         this.appealRepository = appealRepository;
+         this.punishmentRepository = punishmentRepository;
+         this.profileRepository = profileRepository;
+-        this.cacheInvalidationPublisher = cacheInvalidationPublisher;
++        this.profileCache = profileCache;
+     }
+ 
+     /**
+@@ -159,7 +159,7 @@ public class AppealDecisionService {
+             this.punishmentRepository.update(punishment);
+         }
+ 
+-        this.cacheInvalidationPublisher.invalidate(owner);
++        this.profileCache.evict(owner);
+         return DecisionOutcome.APPLIED;
+     }
+ }
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/cache/CacheKeys.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/cache/CacheKeys.java
+new file mode 100644
+index 0000000..814fc9f
+--- /dev/null
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/cache/CacheKeys.java
+@@ -0,0 +1,41 @@
++package net.onelitefeather.blackhole.backend.cache;
++
++import java.util.Locale;
++import java.util.UUID;
++
++/**
++ * Key namespace for the {@link SharedCache}. Every key carries the schema version segment, so a
++ * deploy with a changed value shape ignores entries written by the previous version instead of
++ * failing to deserialize them.
++ *
++ * <p>The proxy reads {@link #TEMPLATES_ALL} directly, so this format is a wire contract with the
++ * Velocity plugin's {@code RedisTopology} and must stay in sync with it.</p>
++ */
++public final class CacheKeys {
++
++    private static final String PREFIX = "blackhole:cache:v1:";
++
++    /** The full punishment template list, as read by proxies for tab completion. */
++    public static final String TEMPLATES_ALL = PREFIX + "templates:all";
++
++    public static String profile(String owner) {
++        return PREFIX + "profile:" + owner;
++    }
++
++    public static String elo(String owner) {
++        return PREFIX + "elo:" + owner;
++    }
++
++    public static String template(UUID identifier) {
++        return PREFIX + "template:" + identifier;
++    }
++
++    /** Keyed by the public player name, so only the name and the resolved public UUID are stored. */
++    public static String player(String name) {
++        return PREFIX + "player:" + name.toLowerCase(Locale.ROOT);
++    }
++
++    private CacheKeys() {
++        throw new UnsupportedOperationException("This class cannot be instantiated");
++    }
++}
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/cache/SharedCache.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/cache/SharedCache.java
+new file mode 100644
+index 0000000..31ef54b
+--- /dev/null
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/cache/SharedCache.java
+@@ -0,0 +1,91 @@
++package net.onelitefeather.blackhole.backend.cache;
++
++import io.lettuce.core.api.StatefulRedisConnection;
++import io.micronaut.context.annotation.Value;
++import io.micronaut.core.type.Argument;
++import io.micronaut.json.JsonMapper;
++import jakarta.inject.Singleton;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++
++import java.nio.charset.StandardCharsets;
++import java.time.Duration;
++import java.util.Arrays;
++import java.util.Optional;
++import java.util.concurrent.TimeUnit;
++
++/**
++ * JSON values in the shared Redis-protocol cache (Dragonfly in production), read and written over
++ * the existing Lettuce connection.
++ *
++ * <p>Fail-open: every call is bounded by {@code blackhole.cache.timeout}, and any error or timeout
++ * on read is a miss, while on write or evict it is logged and swallowed. The cache is never a
++ * source of truth, so a cache outage must never fail a request.</p>
++ */
++@Singleton
++public class SharedCache {
++
++    private static final Logger LOGGER = LoggerFactory.getLogger(SharedCache.class);
++
++    private final StatefulRedisConnection<String, String> connection;
++    private final JsonMapper jsonMapper;
++    private final long timeoutMillis;
++
++    public SharedCache(
++            StatefulRedisConnection<String, String> connection,
++            JsonMapper jsonMapper,
++            @Value("${blackhole.cache.timeout:PT0.2S}") Duration timeout
++    ) {
++        this.connection = connection;
++        this.jsonMapper = jsonMapper;
++        this.timeoutMillis = timeout.toMillis();
++    }
++
++    /**
++     * Reads and deserializes the value at {@code key}.
++     *
++     * @return the cached value, or empty on a miss, timeout or any error
++     */
++    public <T> Optional<T> get(String key, Argument<T> type) {
++        try {
++            String json = this.connection.async().get(key).get(this.timeoutMillis, TimeUnit.MILLISECONDS);
++            return json == null ? Optional.empty() : Optional.ofNullable(this.jsonMapper.readValue(json, type));
++        } catch (InterruptedException e) {
++            Thread.currentThread().interrupt();
++            LOGGER.warn("Shared cache read interrupted for {}", key);
++        } catch (Exception e) {
++            LOGGER.warn("Shared cache read failed for {}, treating as a miss: {}", key, e.getMessage());
++        }
++        return Optional.empty();
++    }
++
++    /**
++     * Serializes {@code value} as {@code type} and stores it at {@code key} for {@code ttl}. The type
++     * is explicit so that generic values such as lists keep their element type.
++     */
++    public <T> void put(String key, Argument<T> type, T value, Duration ttl) {
++        try {
++            String json = new String(this.jsonMapper.writeValueAsBytes(type, value), StandardCharsets.UTF_8);
++            this.connection.async().psetex(key, ttl.toMillis(), json).get(this.timeoutMillis, TimeUnit.MILLISECONDS);
++        } catch (InterruptedException e) {
++            Thread.currentThread().interrupt();
++            LOGGER.warn("Shared cache write interrupted for {}", key);
++        } catch (Exception e) {
++            LOGGER.error("Shared cache write failed for {}: {}", key, e.getMessage());
++        }
++    }
++
++    /**
++     * Deletes the given keys. Missing keys are ignored.
++     */
++    public void evict(String... keys) {
++        try {
++            this.connection.async().del(keys).get(this.timeoutMillis, TimeUnit.MILLISECONDS);
++        } catch (InterruptedException e) {
++            Thread.currentThread().interrupt();
++            LOGGER.warn("Shared cache evict interrupted for {}", Arrays.toString(keys));
++        } catch (Exception e) {
++            LOGGER.error("Shared cache evict failed for {}: {}", Arrays.toString(keys), e.getMessage());
++        }
++    }
++}
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/elo/EloProfileCache.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/elo/EloProfileCache.java
+new file mode 100644
+index 0000000..9b38dbd
+--- /dev/null
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/elo/EloProfileCache.java
+@@ -0,0 +1,39 @@
++package net.onelitefeather.blackhole.backend.elo;
++
++import io.micronaut.context.annotation.Value;
++import io.micronaut.core.type.Argument;
++import jakarta.inject.Singleton;
++import net.onelitefeather.blackhole.backend.cache.CacheKeys;
++import net.onelitefeather.blackhole.backend.cache.SharedCache;
++import net.onelitefeather.blackhole.backend.elo.dto.EloProfileDTO;
++
++import java.time.Duration;
++import java.util.Optional;
++
++/**
++ * Shared-cache entry for a player's ELO standing, read by the dashboard. Every ELO write (a delta
++ * or a decay reconciliation) evicts it.
++ */
++@Singleton
++public class EloProfileCache {
++
++    private final SharedCache sharedCache;
++    private final Duration ttl;
++
++    public EloProfileCache(SharedCache sharedCache, @Value("${blackhole.cache.elo.ttl:PT30S}") Duration ttl) {
++        this.sharedCache = sharedCache;
++        this.ttl = ttl;
++    }
++
++    public Optional<EloProfileDTO> get(String owner) {
++        return this.sharedCache.get(CacheKeys.elo(owner), Argument.of(EloProfileDTO.class));
++    }
++
++    public void put(String owner, EloProfileDTO profile) {
++        this.sharedCache.put(CacheKeys.elo(owner), Argument.of(EloProfileDTO.class), profile, this.ttl);
++    }
++
++    public void evict(String owner) {
++        this.sharedCache.evict(CacheKeys.elo(owner));
++    }
++}
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/elo/controller/EloController.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/elo/controller/EloController.java
+index 7561559..d184fa8 100644
+--- a/backend/src/main/java/net/onelitefeather/blackhole/backend/elo/controller/EloController.java
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/elo/controller/EloController.java
+@@ -1,7 +1,6 @@
+ package net.onelitefeather.blackhole.backend.elo.controller;
+ 
+ import net.onelitefeather.blackhole.backend.elo.EloEventEntity;
+-import net.onelitefeather.blackhole.backend.elo.EloProfileEntity;
+ import net.onelitefeather.blackhole.backend.elo.ToxicityScorer;
+ import net.onelitefeather.blackhole.backend.elo.dto.ChatSignalDTO;
+ import net.onelitefeather.blackhole.backend.elo.dto.ChatToxicityResult;
+@@ -81,11 +80,11 @@ public class EloController {
+     @ApiResponse(responseCode = "404", description = "No ELO profile exists yet for this owner")
+     @Get("/{owner}")
+     public HttpResponse<EloProfileDTO> getProfile(String owner) {
+-        EloProfileEntity profile = this.eloService.getProfile(owner).orElse(null);
++        EloProfileDTO profile = this.eloService.getProfile(owner).orElse(null);
+         if (profile == null) {
+             return HttpResponse.notFound();
+         }
+-        return HttpResponse.ok(profile.toDTO());
++        return HttpResponse.ok(profile);
+     }
+ 
+     @Operation(
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/elo/service/EloService.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/elo/service/EloService.java
+index a661cb0..f321b0c 100644
+--- a/backend/src/main/java/net/onelitefeather/blackhole/backend/elo/service/EloService.java
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/elo/service/EloService.java
+@@ -6,13 +6,16 @@ import net.onelitefeather.blackhole.backend.elo.EloEventRepository;
+ import net.onelitefeather.blackhole.backend.elo.EloProfileEntity;
+ import net.onelitefeather.blackhole.backend.elo.EloProfileRepository;
+ import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
++import net.onelitefeather.blackhole.backend.elo.EloProfileCache;
+ import net.onelitefeather.blackhole.backend.elo.EloTrack;
++import net.onelitefeather.blackhole.backend.elo.dto.EloProfileDTO;
+ import io.micronaut.context.annotation.Value;
+ import io.micronaut.data.model.Page;
+ import io.micronaut.data.model.Pageable;
+ import jakarta.inject.Singleton;
+ import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+ import net.onelitefeather.blackhole.backend.punishment.service.PunishmentApplicationService;
++import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateCache;
+ import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
+ import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
+ import net.onelitefeather.blackhole.backend.punishment.PunishType;
+@@ -69,6 +72,8 @@ public class EloService {
+     private final PunishmentTemplateRepository templateRepository;
+     private final PunishmentApplicationService punishmentApplicationService;
+     private final DomainEventPublisher eventPublisher;
++    private final EloProfileCache eloProfileCache;
++    private final PunishmentTemplateCache templateCache;
+     private final EffectiveEloSettings settings;
+ 
+     private final int softThreshold;
+@@ -83,6 +88,8 @@ public class EloService {
+             PunishmentTemplateRepository templateRepository,
+             PunishmentApplicationService punishmentApplicationService,
+             DomainEventPublisher eventPublisher,
++            EloProfileCache eloProfileCache,
++            PunishmentTemplateCache templateCache,
+             @Value("${blackhole.elo.baseline:1000}") int baseline,
+             @Value("${blackhole.elo.perma-ban-threshold:300}") int permaBanThreshold,
+             @Value("${blackhole.elo.perma-ban-template.chat-id:}") String permaBanTemplateChatId,
+@@ -98,6 +105,8 @@ public class EloService {
+         this.templateRepository = templateRepository;
+         this.punishmentApplicationService = punishmentApplicationService;
+         this.eventPublisher = eventPublisher;
++        this.eloProfileCache = eloProfileCache;
++        this.templateCache = templateCache;
+         this.settings = new EffectiveEloSettings(
+                 baseline, baseline, permaBanThreshold, permaBanThreshold,
+                 parseUuidOrNull(permaBanTemplateChatId), parseUuidOrNull(permaBanTemplateGameplayId)
+@@ -149,6 +158,7 @@ public class EloService {
+         profile.setUpdatedAt(track, now);
+ 
+         EloProfileEntity savedProfile = isNew ? this.profileRepository.save(profile) : this.profileRepository.update(profile);
++        this.eloProfileCache.evict(owner);
+ 
+         this.eventRepository.save(new EloEventEntity(
+                 owner, track, delta, reasonCode, sourceEvidenceId, newScore, now,
+@@ -206,6 +216,7 @@ public class EloService {
+         boolean gameplayChanged = reconcileDecay(profile, EloTrack.GAMEPLAY, now, this.settings.baseEloGameplay());
+         if (chatChanged || gameplayChanged) {
+             this.profileRepository.update(profile);
++            this.eloProfileCache.evict(profile.getOwner());
+             return true;
+         }
+         return false;
+@@ -286,7 +297,9 @@ public class EloService {
+                     metaData.put("auto", true);
+                     metaData.put("eloTriggered", true);
+                     metaData.put(Durationable.META_DATA_KEY_DURATION, track == EloTrack.CHAT ? this.chatSoftDuration : this.gameplaySoftDuration);
+-                    return this.templateRepository.save(new PunishmentTemplateEntity(null, reason, type, 0, metaData));
++                    PunishmentTemplateEntity created = this.templateRepository.save(new PunishmentTemplateEntity(null, reason, type, 0, metaData));
++                    this.templateCache.evictList();
++                    return created;
+                 });
+     }
+ 
+@@ -298,13 +311,20 @@ public class EloService {
+     }
+ 
+     /**
+-     * Dashboard read: a player's current ELO standing, if any.
++     * Dashboard read: a player's current ELO standing, if any. Served from the shared cache when
++     * present; a found profile is cached, a missing one is not.
+      *
+      * @param owner the SHA-512-hashed owner
+      * @return the profile, or empty if none exists yet for this owner
+      */
+-    public Optional<EloProfileEntity> getProfile(String owner) {
+-        return this.profileRepository.findById(owner);
++    public Optional<EloProfileDTO> getProfile(String owner) {
++        Optional<EloProfileDTO> cached = this.eloProfileCache.get(owner);
++        if (cached.isPresent()) {
++            return cached;
++        }
++        Optional<EloProfileDTO> profile = this.profileRepository.findById(owner).map(EloProfileEntity::toDTO);
++        profile.ifPresent(dto -> this.eloProfileCache.put(owner, dto));
++        return profile;
+     }
+ 
+     /**
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/events/BlackholeRabbitTopology.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/events/BlackholeRabbitTopology.java
+index bb2b7e1..bc6d267 100644
+--- a/backend/src/main/java/net/onelitefeather/blackhole/backend/events/BlackholeRabbitTopology.java
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/events/BlackholeRabbitTopology.java
+@@ -18,7 +18,6 @@ public class BlackholeRabbitTopology extends ChannelInitializer {
+     @Override
+     public void initialize(Channel channel, String name) throws IOException {
+         channel.exchangeDeclare(RabbitTopology.EVENTS_EXCHANGE, BuiltinExchangeType.TOPIC, true);
+-        channel.exchangeDeclare(RabbitTopology.CACHE_INVALIDATE_EXCHANGE, BuiltinExchangeType.FANOUT, true);
+ 
+         channel.queueDeclare(RabbitTopology.REDIS_SYNC_QUEUE, true, false, false, null);
+         channel.queueBind(RabbitTopology.REDIS_SYNC_QUEUE, RabbitTopology.EVENTS_EXCHANGE, "punishment.created");
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/events/RabbitTopology.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/events/RabbitTopology.java
+index cf82a51..3ac5460 100644
+--- a/backend/src/main/java/net/onelitefeather/blackhole/backend/events/RabbitTopology.java
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/events/RabbitTopology.java
+@@ -8,17 +8,13 @@ public final class RabbitTopology {
+     /** Topic exchange for domain events (routing key = event type, e.g. {@code punishment.created}). */
+     public static final String EVENTS_EXCHANGE = "blackhole.events";
+ 
+-    /** Fanout exchange: every backend replica invalidates its own local profile cache. */
+-    public static final String CACHE_INVALIDATE_EXCHANGE = "blackhole.cache.invalidate";
+-
+     /**
+      * Durable queue bound to {@link #EVENTS_EXCHANGE} with routing keys {@code punishment.created},
+      * {@code punishment.expired}, {@code punishment.revoked} and {@code appeal.resolved} - feeds
+      * {@code RedisSyncConsumer}, which mirrors active-punishment state into Redis so every
+      * Velocity proxy in a multi-proxy network sees consistent ban/mute state without querying
+-     * this API on every login/chat message. A single shared queue (not a per-replica one like
+-     * {@link #CACHE_INVALIDATE_EXCHANGE}'s consumers): Redis is the one cross-proxy source of
+-     * truth, so each event must be processed exactly once, not by every backend replica.
++     * this API on every login/chat message. A single shared queue: Redis is the one cross-proxy
++     * source of truth, so each event must be processed exactly once, not by every backend replica.
+      */
+     public static final String REDIS_SYNC_QUEUE = "blackhole.redis.sync";
+ 
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/imports/service/VanillaImportService.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/imports/service/VanillaImportService.java
+index 4d44b9e..9d0ff74 100644
+--- a/backend/src/main/java/net/onelitefeather/blackhole/backend/imports/service/VanillaImportService.java
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/imports/service/VanillaImportService.java
+@@ -8,11 +8,12 @@ import io.micronaut.core.type.Argument;
+ import io.micronaut.json.JsonMapper;
+ import jakarta.inject.Singleton;
+ import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+-import net.onelitefeather.blackhole.backend.profile.CacheInvalidationPublisher;
++import net.onelitefeather.blackhole.backend.profile.ProfileCache;
+ import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
+ import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
+ import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
+ import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
++import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateCache;
+ import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
+ import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
+ import net.onelitefeather.blackhole.backend.punishment.PunishType;
+@@ -60,7 +61,8 @@ public class VanillaImportService {
+     private final PunishmentRepository punishmentRepository;
+     private final PunishmentProfileRepository profileRepository;
+     private final DomainEventPublisher eventPublisher;
+-    private final CacheInvalidationPublisher cacheInvalidationPublisher;
++    private final ProfileCache profileCache;
++    private final PunishmentTemplateCache punishmentTemplateCache;
+ 
+     public VanillaImportService(
+             JsonMapper jsonMapper,
+@@ -68,14 +70,16 @@ public class VanillaImportService {
+             PunishmentRepository punishmentRepository,
+             PunishmentProfileRepository profileRepository,
+             DomainEventPublisher eventPublisher,
+-            CacheInvalidationPublisher cacheInvalidationPublisher
++            ProfileCache profileCache,
++            PunishmentTemplateCache punishmentTemplateCache
+     ) {
+         this.jsonMapper = jsonMapper;
+         this.templateRepository = templateRepository;
+         this.punishmentRepository = punishmentRepository;
+         this.profileRepository = profileRepository;
+         this.eventPublisher = eventPublisher;
+-        this.cacheInvalidationPublisher = cacheInvalidationPublisher;
++        this.profileCache = profileCache;
++        this.punishmentTemplateCache = punishmentTemplateCache;
+     }
+ 
+     public VanillaImportResultDTO importVanillaBans(byte[] bannedPlayersJson, byte[] bannedIpsJson, boolean dryRun) throws IOException {
+@@ -155,7 +159,7 @@ public class VanillaImportService {
+                 this.profileRepository.update(profile);
+             }
+ 
+-            this.cacheInvalidationPublisher.invalidate(owner);
++            this.profileCache.evict(owner);
+             this.eventPublisher.publish("punishment.created", Map.of(
+                     "owner", owner,
+                     "punishmentIdentifier", savedPunishment.getIdentifier(),
+@@ -211,9 +215,13 @@ public class VanillaImportService {
+ 
+     private PunishmentTemplateEntity findOrCreateTemplate(String reason, Map<String, PunishmentTemplateEntity> templateCache) {
+         return templateCache.computeIfAbsent(reason, r -> this.templateRepository.findByReasonAndType(r, PunishType.NETWORK)
+-                .orElseGet(() -> this.templateRepository.save(new PunishmentTemplateEntity(
+-                        null, r, PunishType.NETWORK, 0, Map.of("imported", true, "importSource", "vanilla")
+-                ))));
++                .orElseGet(() -> {
++                    PunishmentTemplateEntity created = this.templateRepository.save(new PunishmentTemplateEntity(
++                            null, r, PunishType.NETWORK, 0, Map.of("imported", true, "importSource", "vanilla")
++                    ));
++                    this.punishmentTemplateCache.evictList();
++                    return created;
++                }));
+     }
+ 
+     private Optional<Long> parseExpiration(String expires) {
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/playerresolver/PlayerResolveCache.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/playerresolver/PlayerResolveCache.java
+index 5c9cea9..9b4e75d 100644
+--- a/backend/src/main/java/net/onelitefeather/blackhole/backend/playerresolver/PlayerResolveCache.java
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/playerresolver/PlayerResolveCache.java
+@@ -1,39 +1,35 @@
+ package net.onelitefeather.blackhole.backend.playerresolver;
+ 
+-import com.github.benmanes.caffeine.cache.Cache;
+-import com.github.benmanes.caffeine.cache.Caffeine;
+ import io.micronaut.context.annotation.Value;
++import io.micronaut.core.type.Argument;
+ import jakarta.inject.Singleton;
++import net.onelitefeather.blackhole.backend.cache.CacheKeys;
++import net.onelitefeather.blackhole.backend.cache.SharedCache;
+ 
+ import java.time.Duration;
+ import java.util.Optional;
+ 
+ /**
+- * In-memory cache for resolved name-to-UUID lookups, keyed by lowercased name. Mirrors
+- * {@code ProfileCache}'s shape but, unlike it, isn't wired into the cross-replica invalidation
+- * fanout - resolved-name data barely ever changes, so a short TTL is a sufficient staleness bound
+- * on its own.
++ * Shared-cache view of resolved name-to-UUID lookups, keyed by the lowercased name. Only successful
++ * resolutions are stored (see {@code PlayerResolverService}), and resolved-name data barely changes,
++ * so a TTL is the only staleness bound and no cross-replica eviction is needed.
+  */
+ @Singleton
+ public class PlayerResolveCache {
+ 
+-    private final Cache<String, ResolvedPlayer> cache;
++    private final SharedCache sharedCache;
++    private final Duration ttl;
+ 
+-    public PlayerResolveCache(
+-            @Value("${blackhole.player-resolver.cache.ttl}") Duration ttl,
+-            @Value("${blackhole.player-resolver.cache.max-size}") long maxSize
+-    ) {
+-        this.cache = Caffeine.newBuilder()
+-                .maximumSize(maxSize)
+-                .expireAfterWrite(ttl)
+-                .build();
++    public PlayerResolveCache(SharedCache sharedCache, @Value("${blackhole.player-resolver.cache.ttl}") Duration ttl) {
++        this.sharedCache = sharedCache;
++        this.ttl = ttl;
+     }
+ 
+     public Optional<ResolvedPlayer> get(String name) {
+-        return Optional.ofNullable(this.cache.getIfPresent(name.toLowerCase()));
++        return this.sharedCache.get(CacheKeys.player(name), Argument.of(ResolvedPlayer.class));
+     }
+ 
+     public void put(String name, ResolvedPlayer resolved) {
+-        this.cache.put(name.toLowerCase(), resolved);
++        this.sharedCache.put(CacheKeys.player(name), Argument.of(ResolvedPlayer.class), resolved, this.ttl);
+     }
+ }
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/playerresolver/ResolvedPlayer.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/playerresolver/ResolvedPlayer.java
+index bb61e3a..209b020 100644
+--- a/backend/src/main/java/net/onelitefeather/blackhole/backend/playerresolver/ResolvedPlayer.java
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/playerresolver/ResolvedPlayer.java
+@@ -1,10 +1,13 @@
+ package net.onelitefeather.blackhole.backend.playerresolver;
+ 
++import io.micronaut.serde.annotation.Serdeable;
++
+ import java.util.UUID;
+ 
+ /**
+  * @param source which {@link PlayerResolver} produced this result, e.g. {@code "otis"} - kept in
+  *               the DTO response so callers/logs can tell where a UUID came from.
+  */
++@Serdeable
+ public record ResolvedPlayer(UUID uuid, String name, String source) {
+ }
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/profile/ProfileCache.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/profile/ProfileCache.java
+index 8135e01..acd1b5b 100644
+--- a/backend/src/main/java/net/onelitefeather/blackhole/backend/profile/ProfileCache.java
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/profile/ProfileCache.java
+@@ -1,35 +1,40 @@
+ package net.onelitefeather.blackhole.backend.profile;
+ 
+-import com.github.benmanes.caffeine.cache.Cache;
+-import com.github.benmanes.caffeine.cache.Caffeine;
++import io.micronaut.context.annotation.Value;
++import io.micronaut.core.type.Argument;
+ import jakarta.inject.Singleton;
++import net.onelitefeather.blackhole.backend.cache.CacheKeys;
++import net.onelitefeather.blackhole.backend.cache.SharedCache;
++import net.onelitefeather.blackhole.backend.profile.dto.PunishProfileDTO;
+ 
+ import java.time.Duration;
+ import java.util.Optional;
+ 
+ /**
+- * In-memory cache for the profile-by-owner hot path (hit on every Velocity login and every chat
+- * message). Bounded by a short TTL so a missed cross-replica invalidation only causes brief
+- * staleness rather than a permanently stale read; see {@code CacheInvalidationPublisher} /
+- * {@code CacheInvalidationConsumer} for the RabbitMQ fanout that keeps replicas in sync on writes.
++ * Hot-path profile-by-owner cache (hit on every Velocity login and every chat message), kept in the
++ * {@link SharedCache} so every replica reads the same entry. Every write to a profile calls
++ * {@link #evict} after its database write, so the next read on any replica reloads it.
+  */
+ @Singleton
+ public class ProfileCache {
+ 
+-    private final Cache<String, PunishmentProfileEntity> cache = Caffeine.newBuilder()
+-            .maximumSize(10_000)
+-            .expireAfterWrite(Duration.ofSeconds(30))
+-            .build();
++    private final SharedCache sharedCache;
++    private final Duration ttl;
+ 
+-    public Optional<PunishmentProfileEntity> get(String owner) {
+-        return Optional.ofNullable(this.cache.getIfPresent(owner));
++    public ProfileCache(SharedCache sharedCache, @Value("${blackhole.cache.profile.ttl:PT30S}") Duration ttl) {
++        this.sharedCache = sharedCache;
++        this.ttl = ttl;
+     }
+ 
+-    public void put(String owner, PunishmentProfileEntity entity) {
+-        this.cache.put(owner, entity);
++    public Optional<PunishProfileDTO> get(String owner) {
++        return this.sharedCache.get(CacheKeys.profile(owner), Argument.of(PunishProfileDTO.class));
+     }
+ 
+-    public void invalidate(String owner) {
+-        this.cache.invalidate(owner);
++    public void put(String owner, PunishProfileDTO profile) {
++        this.sharedCache.put(CacheKeys.profile(owner), Argument.of(PunishProfileDTO.class), profile, this.ttl);
++    }
++
++    public void evict(String owner) {
++        this.sharedCache.evict(CacheKeys.profile(owner));
+     }
+ }
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/profile/controller/ProfileController.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/profile/controller/ProfileController.java
+index af676f8..3b4ebb4 100644
+--- a/backend/src/main/java/net/onelitefeather/blackhole/backend/profile/controller/ProfileController.java
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/profile/controller/ProfileController.java
+@@ -1,6 +1,5 @@
+ package net.onelitefeather.blackhole.backend.profile.controller;
+ 
+-import net.onelitefeather.blackhole.backend.profile.CacheInvalidationPublisher;
+ import net.onelitefeather.blackhole.backend.profile.ProfileCache;
+ import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
+ import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
+@@ -8,6 +7,7 @@ import net.onelitefeather.blackhole.backend.profile.dto.PunishProfileDTO;
+ import net.onelitefeather.blackhole.backend.profile.dto.PunishProfileRequestDTO;
+ import net.onelitefeather.blackhole.backend.profile.dto.PunishProfileResponse;
+ import net.onelitefeather.blackhole.backend.profile.dto.SessionInfoDTO;
++import net.onelitefeather.blackhole.backend.punishment.dto.PunishEntryDTO;
+ import io.micronaut.data.model.Page;
+ import io.micronaut.data.model.Pageable;
+ import io.micronaut.http.HttpResponse;
+@@ -34,6 +34,9 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentExpiry;
+ import java.util.ArrayList;
+ import java.util.HashMap;
+ import java.util.Map;
++import java.util.Objects;
++import java.util.Optional;
++import java.util.stream.Stream;
+ 
+ @Version(ApiVersion.V1)
+ @Controller("/profile")
+@@ -42,27 +45,23 @@ public class ProfileController {
+     private final PunishmentProfileRepository repository;
+     private final DomainEventPublisher eventPublisher;
+     private final ProfileCache profileCache;
+-    private final CacheInvalidationPublisher cacheInvalidationPublisher;
+ 
+     /**
+      * Create a new ProfileController.
+      *
+-     * @param repository                 the repository to use
+-     * @param eventPublisher             publishes domain events for successful writes
+-     * @param profileCache               the hot-path profile-by-owner read cache
+-     * @param cacheInvalidationPublisher invalidates the cache locally and across replicas on writes
++     * @param repository     the repository to use
++     * @param eventPublisher publishes domain events for successful writes
++     * @param profileCache   the hot-path profile-by-owner read cache, evicted on every write
+      */
+     @Inject
+     public ProfileController(
+             PunishmentProfileRepository repository,
+             DomainEventPublisher eventPublisher,
+-            ProfileCache profileCache,
+-            CacheInvalidationPublisher cacheInvalidationPublisher
++            ProfileCache profileCache
+     ) {
+         this.repository = repository;
+         this.eventPublisher = eventPublisher;
+         this.profileCache = profileCache;
+-        this.cacheInvalidationPublisher = cacheInvalidationPublisher;
+     }
+ 
+     /**
+@@ -91,7 +90,7 @@ public class ProfileController {
+     public HttpResponse<PunishProfileResponse> add(@Body @Valid PunishProfileRequestDTO profileEntity) {
+         PunishmentProfileEntity entity = PunishmentProfileEntity.toEntity(profileEntity);
+         PunishmentProfileEntity savedEntity = this.repository.save(entity);
+-        this.cacheInvalidationPublisher.invalidate(profileEntity.owner());
++        this.profileCache.evict(profileEntity.owner());
+         this.eventPublisher.publish("profile.created", Map.of(
+                 "owner", profileEntity.owner()
+         ));
+@@ -141,7 +140,7 @@ public class ProfileController {
+         }
+         PunishmentProfileEntity entity = PunishmentProfileEntity.toEntity(profileEntity);
+         PunishmentProfileEntity savedEntity = this.repository.update(entity);
+-        this.cacheInvalidationPublisher.invalidate(owner);
++        this.profileCache.evict(owner);
+         this.eventPublisher.publish("profile.updated", Map.of(
+                 "owner", owner
+         ));
+@@ -189,7 +188,7 @@ public class ProfileController {
+             return HttpResponse.badRequest(new PunishProfileResponse.ErrorResponse("There is no profile linked to the given owner"));
+         }
+         this.repository.delete(entity);
+-        this.cacheInvalidationPublisher.invalidate(owner);
++        this.profileCache.evict(owner);
+         this.eventPublisher.publish("profile.deleted", Map.of(
+                 "owner", owner
+         ));
+@@ -258,14 +257,16 @@ public class ProfileController {
+     public HttpResponse<PunishProfileResponse> getById(
+             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner
+     ) {
+-        boolean cacheHit = this.profileCache.get(owner).isPresent();
+-        var entity = cacheHit ? this.profileCache.get(owner).orElse(null) : this.repository.findById(owner).orElse(null);
++        // A cached profile holding an already-expired punishment is treated as a miss, so the
++        // database path below still rotates it into history and publishes punishment.expired.
++        Optional<PunishProfileDTO> cached = this.profileCache.get(owner).filter(profile -> !hasExpiredPunishment(profile));
++        if (cached.isPresent()) {
++            return HttpResponse.ok(cached.get());
++        }
++        PunishmentProfileEntity entity = this.repository.findById(owner).orElse(null);
+         if (entity == null) {
+             return HttpResponse.notFound(new PunishProfileResponse.ErrorResponse("There is no profile linked to the given owner"));
+         }
+-        if (!cacheHit) {
+-            this.profileCache.put(owner, entity);
+-        }
+         PunishmentEntity activeBan = entity.getActiveBan();
+         PunishmentEntity activeChatBan = entity.getActiveChatBan();
+         boolean expired = false;
+@@ -283,9 +284,18 @@ public class ProfileController {
+         }
+         if (expired) {
+             entity = this.repository.update(entity);
+-            this.profileCache.put(owner, entity);
+         }
+-        return HttpResponse.ok(entity.toDTO());
++        PunishProfileDTO dto = entity.toDTO();
++        this.profileCache.put(owner, dto);
++        return HttpResponse.ok(dto);
++    }
++
++    private static boolean hasExpiredPunishment(PunishProfileDTO profile) {
++        return Stream.of(profile.activeBan(), profile.activeChatBan())
++                .filter(Objects::nonNull)
++                .flatMap(Optional::stream)
++                .map(PunishEntryDTO::metaData)
++                .anyMatch(PunishmentExpiry::isExpired);
+     }
+ 
+     private void publishExpired(String owner, PunishmentEntity expired) {
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentExpiry.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentExpiry.java
+index b9dfbd4..66a251f 100644
+--- a/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentExpiry.java
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentExpiry.java
+@@ -2,6 +2,8 @@ package net.onelitefeather.blackhole.backend.punishment;
+ 
+ import net.onelitefeather.phoca.metadata.Expirable;
+ 
++import java.util.Map;
++
+ /**
+  * Shared logic for checking whether an applied punishment has expired. Permanent punishments
+  * never carry an expiration date in their metadata, so absence of the key means "not expired".
+@@ -19,7 +21,18 @@ public final class PunishmentExpiry {
+      * @return {@code true} if the punishment carries an expiration date in the past
+      */
+     public static boolean isExpired(PunishmentEntity punishment) {
+-        Object expirationDate = punishment.getMetaData().get(Expirable.META_DATA_KEY_EXPIRATION_DATE);
++        return isExpired(punishment.getMetaData());
++    }
++
++    /**
++     * Same check as {@link #isExpired(PunishmentEntity)}, for a punishment's metadata alone - used
++     * on cached profile DTOs, which carry the metadata but not the entity.
++     *
++     * @param metaData the punishment's metadata
++     * @return {@code true} if the metadata carries an expiration date in the past
++     */
++    public static boolean isExpired(Map<String, Object> metaData) {
++        Object expirationDate = metaData.get(Expirable.META_DATA_KEY_EXPIRATION_DATE);
+         return expirationDate instanceof Long millis && millis < System.currentTimeMillis();
+     }
+ }
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentExpirySweeper.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentExpirySweeper.java
+index 14001d4..36231ff 100644
+--- a/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentExpirySweeper.java
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentExpirySweeper.java
+@@ -5,7 +5,7 @@ import io.micronaut.data.model.Pageable;
+ import io.micronaut.scheduling.annotation.Scheduled;
+ import jakarta.inject.Singleton;
+ import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+-import net.onelitefeather.blackhole.backend.profile.CacheInvalidationPublisher;
++import net.onelitefeather.blackhole.backend.profile.ProfileCache;
+ import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
+ import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
+ import org.slf4j.Logger;
+@@ -26,16 +26,16 @@ public class PunishmentExpirySweeper {
+ 
+     private final PunishmentProfileRepository profileRepository;
+     private final DomainEventPublisher eventPublisher;
+-    private final CacheInvalidationPublisher cacheInvalidationPublisher;
++    private final ProfileCache profileCache;
+ 
+     public PunishmentExpirySweeper(
+             PunishmentProfileRepository profileRepository,
+             DomainEventPublisher eventPublisher,
+-            CacheInvalidationPublisher cacheInvalidationPublisher
++            ProfileCache profileCache
+     ) {
+         this.profileRepository = profileRepository;
+         this.eventPublisher = eventPublisher;
+-        this.cacheInvalidationPublisher = cacheInvalidationPublisher;
++        this.profileCache = profileCache;
+     }
+ 
+     @Scheduled(
+@@ -82,7 +82,7 @@ public class PunishmentExpirySweeper {
+ 
+         if (changed) {
+             this.profileRepository.update(profile);
+-            this.cacheInvalidationPublisher.invalidate(profile.getOwner());
++            this.profileCache.evict(profile.getOwner());
+         }
+         return changed;
+     }
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentRedisWriter.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentRedisWriter.java
+index e09af7a..99a684f 100644
+--- a/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentRedisWriter.java
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentRedisWriter.java
+@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
+  * The sole writer of active-punishment state into Redis. Called only from {@link RedisSyncConsumer}
+  * as a side effect of a domain event, never from a request thread - so a Redis hiccup here can
+  * never fail the primary write path that triggered it, matching
+- * {@code CacheInvalidationPublisher}'s resilience convention.
++ * {@link net.onelitefeather.blackhole.backend.cache.SharedCache}'s fail-open convention.
+  */
+ @Singleton
+ public class PunishmentRedisWriter {
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentTemplateCache.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentTemplateCache.java
+new file mode 100644
+index 0000000..f45d207
+--- /dev/null
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentTemplateCache.java
+@@ -0,0 +1,60 @@
++package net.onelitefeather.blackhole.backend.punishment;
++
++import io.micronaut.context.annotation.Value;
++import io.micronaut.core.type.Argument;
++import jakarta.inject.Singleton;
++import net.onelitefeather.blackhole.backend.cache.CacheKeys;
++import net.onelitefeather.blackhole.backend.cache.SharedCache;
++import net.onelitefeather.blackhole.backend.punishment.dto.PunishTemplateDTO;
++
++import java.time.Duration;
++import java.util.List;
++import java.util.Optional;
++import java.util.UUID;
++
++/**
++ * Shared-cache entries for punishment templates: each template by identifier, and the full list
++ * that Velocity proxies read for command tab completion. Every template write evicts both.
++ */
++@Singleton
++public class PunishmentTemplateCache {
++
++    private final SharedCache sharedCache;
++    private final Duration ttl;
++
++    public PunishmentTemplateCache(SharedCache sharedCache, @Value("${blackhole.cache.template.ttl:PT5M}") Duration ttl) {
++        this.sharedCache = sharedCache;
++        this.ttl = ttl;
++    }
++
++    public Optional<PunishTemplateDTO> get(UUID identifier) {
++        return this.sharedCache.get(CacheKeys.template(identifier), Argument.of(PunishTemplateDTO.class));
++    }
++
++    public void put(UUID identifier, PunishTemplateDTO template) {
++        this.sharedCache.put(CacheKeys.template(identifier), Argument.of(PunishTemplateDTO.class), template, this.ttl);
++    }
++
++    /**
++     * Stores the full template list under {@link CacheKeys#TEMPLATES_ALL}, as the JSON array the API
++     * returns.
++     */
++    public void putAll(List<PunishTemplateDTO> templates) {
++        this.sharedCache.put(CacheKeys.TEMPLATES_ALL, Argument.listOf(PunishTemplateDTO.class), templates, this.ttl);
++    }
++
++    /**
++     * Evicts one template and the full list, so a create, update or delete is visible on the next
++     * read of either.
++     */
++    public void evict(UUID identifier) {
++        this.sharedCache.evict(CacheKeys.template(identifier), CacheKeys.TEMPLATES_ALL);
++    }
++
++    /**
++     * Evicts only the full list, for a write that creates a template no one has cached by id yet.
++     */
++    public void evictList() {
++        this.sharedCache.evict(CacheKeys.TEMPLATES_ALL);
++    }
++}
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/service/PunishmentApplicationService.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/service/PunishmentApplicationService.java
+index a241004..efce3f7 100644
+--- a/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/service/PunishmentApplicationService.java
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/service/PunishmentApplicationService.java
+@@ -15,7 +15,7 @@ import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
+ import net.onelitefeather.blackhole.backend.elo.service.EloService;
+ import net.onelitefeather.blackhole.backend.elo.EloTrack;
+ import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+-import net.onelitefeather.blackhole.backend.profile.CacheInvalidationPublisher;
++import net.onelitefeather.blackhole.backend.profile.ProfileCache;
+ import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
+ import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
+ import net.onelitefeather.blackhole.backend.utils.IdGenerator;
+@@ -56,7 +56,7 @@ public class PunishmentApplicationService {
+     private final PunishmentProfileRepository profileRepository;
+     private final PunishmentTemplateRepository templateRepository;
+     private final DomainEventPublisher eventPublisher;
+-    private final CacheInvalidationPublisher cacheInvalidationPublisher;
++    private final ProfileCache profileCache;
+     private final BeanProvider<EloService> eloServiceProvider;
+ 
+     /**
+@@ -70,14 +70,14 @@ public class PunishmentApplicationService {
+             PunishmentProfileRepository profileRepository,
+             PunishmentTemplateRepository templateRepository,
+             DomainEventPublisher eventPublisher,
+-            CacheInvalidationPublisher cacheInvalidationPublisher,
++            ProfileCache profileCache,
+             BeanProvider<EloService> eloServiceProvider
+     ) {
+         this.punishmentRepository = punishmentRepository;
+         this.profileRepository = profileRepository;
+         this.templateRepository = templateRepository;
+         this.eventPublisher = eventPublisher;
+-        this.cacheInvalidationPublisher = cacheInvalidationPublisher;
++        this.profileCache = profileCache;
+         this.eloServiceProvider = eloServiceProvider;
+     }
+ 
+@@ -150,7 +150,7 @@ public class PunishmentApplicationService {
+ 
+         PunishmentProfileEntity savedProfile = isNewProfile ? this.profileRepository.save(profile) : this.profileRepository.update(profile);
+ 
+-        this.cacheInvalidationPublisher.invalidate(owner);
++        this.profileCache.evict(owner);
+ 
+         if (isNewProfile) {
+             this.eventPublisher.publish("profile.created", Map.of("owner", owner));
+@@ -222,7 +222,7 @@ public class PunishmentApplicationService {
+         }
+         PunishmentProfileEntity savedProfile = this.profileRepository.update(profile);
+ 
+-        this.cacheInvalidationPublisher.invalidate(owner);
++        this.profileCache.evict(owner);
+         this.eventPublisher.publish("punishment.revoked", Map.of(
+                 "owner", owner,
+                 "punishmentIdentifier", active.getIdentifier(),
+diff --git a/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/service/PunishmentTemplateService.java b/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/service/PunishmentTemplateService.java
+index 725c2a6..b5714a9 100644
+--- a/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/service/PunishmentTemplateService.java
++++ b/backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/service/PunishmentTemplateService.java
+@@ -1,6 +1,7 @@
+ package net.onelitefeather.blackhole.backend.punishment.service;
+ 
+ import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
++import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateCache;
+ import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
+ import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
+ import net.onelitefeather.blackhole.backend.punishment.dto.PunishTemplateDTO;
+@@ -9,8 +10,10 @@ import io.micronaut.data.model.Page;
+ import io.micronaut.data.model.Pageable;
+ import jakarta.inject.Singleton;
+ 
++import java.util.List;
+ import java.util.Optional;
+ import java.util.UUID;
++import java.util.stream.StreamSupport;
+ 
+ /**
+  * Owns {@link PunishmentTemplateRepository} on behalf of {@code PunishmentTemplateController},
+@@ -24,10 +27,16 @@ public class PunishmentTemplateService {
+ 
+     private final PunishmentTemplateRepository templateRepository;
+     private final PunishmentRepository punishmentRepository;
++    private final PunishmentTemplateCache templateCache;
+ 
+-    public PunishmentTemplateService(PunishmentTemplateRepository templateRepository, PunishmentRepository punishmentRepository) {
++    public PunishmentTemplateService(
++            PunishmentTemplateRepository templateRepository,
++            PunishmentRepository punishmentRepository,
++            PunishmentTemplateCache templateCache
++    ) {
+         this.templateRepository = templateRepository;
+         this.punishmentRepository = punishmentRepository;
++        this.templateCache = templateCache;
+     }
+ 
+     /**
+@@ -39,6 +48,7 @@ public class PunishmentTemplateService {
+             return new CreateResult.IdentifierNotAllowed();
+         }
+         PunishmentTemplateEntity saved = this.templateRepository.save(PunishmentTemplateEntity.toEntity(template));
++        this.templateCache.evict(saved.getIdentifier());
+         return new CreateResult.Created(saved.toDTO());
+     }
+ 
+@@ -54,6 +64,7 @@ public class PunishmentTemplateService {
+             return new UpdateResult.NotFound();
+         }
+         PunishmentTemplateEntity saved = this.templateRepository.update(PunishmentTemplateEntity.toEntity(template));
++        this.templateCache.evict(template.identifier());
+         return new UpdateResult.Updated(saved.toDTO());
+     }
+ 
+@@ -75,21 +86,36 @@ public class PunishmentTemplateService {
+             return new RemoveResult.InUse();
+         }
+         this.templateRepository.delete(entity);
++        this.templateCache.evict(identifier);
+         return new RemoveResult.Removed(entity.toDTO());
+     }
+ 
+     /**
+-     * Returns a paginated list of all templates.
++     * Returns a paginated list of all templates. Also refreshes the full list in the shared cache:
++     * proxies read that list for tab completion and call this endpoint only when it is missing, so
++     * a listing is what repopulates it. Templates are few, so the extra full read is cheap.
+      */
+     public Page<PunishTemplateDTO> findAll(Pageable pageable) {
+-        return this.templateRepository.findAll(pageable).map(PunishmentTemplateEntity::toDTO);
++        Page<PunishTemplateDTO> page = this.templateRepository.findAll(pageable).map(PunishmentTemplateEntity::toDTO);
++        List<PunishTemplateDTO> all = StreamSupport.stream(this.templateRepository.findAll().spliterator(), false)
++                .map(PunishmentTemplateEntity::toDTO)
++                .toList();
++        this.templateCache.putAll(all);
++        return page;
+     }
+ 
+     /**
+-     * Returns the template with {@code identifier}, if any.
++     * Returns the template with {@code identifier}, if any. Served from the shared cache when
++     * present; a found template is cached, a missing one is not.
+      */
+     public Optional<PunishTemplateDTO> find(UUID identifier) {
+-        return this.templateRepository.findById(identifier).map(PunishmentTemplateEntity::toDTO);
++        Optional<PunishTemplateDTO> cached = this.templateCache.get(identifier);
++        if (cached.isPresent()) {
++            return cached;
++        }
++        Optional<PunishTemplateDTO> template = this.templateRepository.findById(identifier).map(PunishmentTemplateEntity::toDTO);
++        template.ifPresent(dto -> this.templateCache.put(identifier, dto));
++        return template;
+     }
+ 
+     /**
+diff --git a/backend/src/test/java/net/onelitefeather/blackhole/backend/cache/CacheKeysTest.java b/backend/src/test/java/net/onelitefeather/blackhole/backend/cache/CacheKeysTest.java
+new file mode 100644
+index 0000000..77585ab
+--- /dev/null
++++ b/backend/src/test/java/net/onelitefeather/blackhole/backend/cache/CacheKeysTest.java
+@@ -0,0 +1,30 @@
++package net.onelitefeather.blackhole.backend.cache;
++
++import org.junit.jupiter.api.Test;
++
++import java.util.UUID;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++
++class CacheKeysTest {
++
++    @Test
++    void keysCarryTheVersionedNamespace() {
++        assertEquals("blackhole:cache:v1:profile:abc", CacheKeys.profile("abc"));
++        assertEquals("blackhole:cache:v1:elo:abc", CacheKeys.elo("abc"));
++        assertEquals("blackhole:cache:v1:templates:all", CacheKeys.TEMPLATES_ALL);
++    }
++
++    @Test
++    void templateKeyIsTheIdentifier() {
++        UUID id = UUID.fromString("00000000-0000-0000-0000-000000000001");
++
++        assertEquals("blackhole:cache:v1:template:00000000-0000-0000-0000-000000000001", CacheKeys.template(id));
++    }
++
++    @Test
++    void playerKeyIsCaseInsensitive() {
++        assertEquals(CacheKeys.player("Notch"), CacheKeys.player("notch"));
++        assertEquals("blackhole:cache:v1:player:notch", CacheKeys.player("NOTCH"));
++    }
++}
+diff --git a/backend/src/test/java/net/onelitefeather/blackhole/backend/cache/InMemorySharedCache.java b/backend/src/test/java/net/onelitefeather/blackhole/backend/cache/InMemorySharedCache.java
+new file mode 100644
+index 0000000..11dd4eb
+--- /dev/null
++++ b/backend/src/test/java/net/onelitefeather/blackhole/backend/cache/InMemorySharedCache.java
+@@ -0,0 +1,43 @@
++package net.onelitefeather.blackhole.backend.cache;
++
++import io.micronaut.core.type.Argument;
++
++import java.time.Duration;
++import java.util.HashMap;
++import java.util.Map;
++import java.util.Optional;
++
++/**
++ * A {@link SharedCache} that keeps values in a map instead of Redis, for unit tests. TTLs are not
++ * enforced; tests check which keys are present and evicted.
++ */
++public final class InMemorySharedCache extends SharedCache {
++
++    private final Map<String, Object> entries = new HashMap<>();
++
++    public InMemorySharedCache() {
++        super(null, null, Duration.ofMillis(200));
++    }
++
++    @Override
++    @SuppressWarnings("unchecked")
++    public <T> Optional<T> get(String key, Argument<T> type) {
++        return Optional.ofNullable((T) this.entries.get(key));
++    }
++
++    @Override
++    public <T> void put(String key, Argument<T> type, T value, Duration ttl) {
++        this.entries.put(key, value);
++    }
++
++    @Override
++    public void evict(String... keys) {
++        for (String key : keys) {
++            this.entries.remove(key);
++        }
++    }
++
++    public boolean contains(String key) {
++        return this.entries.containsKey(key);
++    }
++}
+diff --git a/backend/src/test/java/net/onelitefeather/blackhole/backend/cache/SharedCacheIntegrationTest.java b/backend/src/test/java/net/onelitefeather/blackhole/backend/cache/SharedCacheIntegrationTest.java
+new file mode 100644
+index 0000000..976ad21
+--- /dev/null
++++ b/backend/src/test/java/net/onelitefeather/blackhole/backend/cache/SharedCacheIntegrationTest.java
+@@ -0,0 +1,83 @@
++package net.onelitefeather.blackhole.backend.cache;
++
++import io.lettuce.core.RedisClient;
++import io.lettuce.core.api.StatefulRedisConnection;
++import io.micronaut.core.type.Argument;
++import io.micronaut.serde.ObjectMapper;
++import net.onelitefeather.blackhole.backend.playerresolver.ResolvedPlayer;
++import org.junit.jupiter.api.AfterAll;
++import org.junit.jupiter.api.BeforeAll;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++import org.testcontainers.containers.GenericContainer;
++
++import java.time.Duration;
++import java.util.Optional;
++import java.util.UUID;
++
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++/**
++ * Runs {@link SharedCache} against a real Redis-protocol server (Testcontainers). Needs Docker, so it
++ * is tagged {@code integration} and excluded from the default test task.
++ */
++@Tag("integration")
++class SharedCacheIntegrationTest {
++
++    private static final GenericContainer<?> SERVER = new GenericContainer<>("redis:8-alpine").withExposedPorts(6379);
++    private static RedisClient client;
++    private static StatefulRedisConnection<String, String> connection;
++
++    @BeforeAll
++    static void startServer() {
++        SERVER.start();
++        client = RedisClient.create("redis://" + SERVER.getHost() + ":" + SERVER.getMappedPort(6379));
++        connection = client.connect();
++    }
++
++    @AfterAll
++    static void stopServer() {
++        connection.close();
++        client.shutdown();
++        SERVER.stop();
++    }
++
++    private static SharedCache cache() {
++        return new SharedCache(connection, ObjectMapper.getDefault(), Duration.ofSeconds(2));
++    }
++
++    @Test
++    void aPutIsReadBackAsTheSameValue() {
++        String key = CacheKeys.player("RoundTrip");
++        ResolvedPlayer resolved = new ResolvedPlayer(UUID.randomUUID(), "RoundTrip", "otis");
++        SharedCache cache = cache();
++
++        cache.put(key, Argument.of(ResolvedPlayer.class), resolved, Duration.ofMinutes(1));
++
++        assertEquals(Optional.of(resolved), cache.get(key, Argument.of(ResolvedPlayer.class)));
++    }
++
++    @Test
++    void anEntryIsGoneAfterItsTtl() throws InterruptedException {
++        String key = "blackhole:cache:v1:test:expiry";
++        SharedCache cache = cache();
++        cache.put(key, Argument.of(String.class), "short-lived", Duration.ofMillis(200));
++
++        Thread.sleep(500);
++
++        assertTrue(cache.get(key, Argument.of(String.class)).isEmpty());
++    }
++
++    @Test
++    void evictRemovesTheEntry() {
++        String key = "blackhole:cache:v1:test:evict";
++        SharedCache cache = cache();
++        cache.put(key, Argument.of(String.class), "to-be-evicted", Duration.ofMinutes(1));
++
++        cache.evict(key);
++
++        assertFalse(cache.get(key, Argument.of(String.class)).isPresent());
++    }
++}
+diff --git a/backend/src/test/java/net/onelitefeather/blackhole/backend/cache/SharedCacheTest.java b/backend/src/test/java/net/onelitefeather/blackhole/backend/cache/SharedCacheTest.java
+new file mode 100644
+index 0000000..e81f90a
+--- /dev/null
++++ b/backend/src/test/java/net/onelitefeather/blackhole/backend/cache/SharedCacheTest.java
+@@ -0,0 +1,64 @@
++package net.onelitefeather.blackhole.backend.cache;
++
++import io.lettuce.core.api.StatefulRedisConnection;
++import io.micronaut.core.type.Argument;
++import io.micronaut.json.JsonMapper;
++import org.junit.jupiter.api.Test;
++
++import java.lang.reflect.Proxy;
++import java.time.Duration;
++import java.util.Optional;
++
++import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
++import static org.junit.jupiter.api.Assertions.assertEquals;
++
++class SharedCacheTest {
++
++    /**
++     * A connection whose every use fails, as Lettuce does when the server is unreachable. The
++     * cache must treat that as a miss on read and as a swallowed error on write and evict.
++     */
++    @SuppressWarnings("unchecked")
++    private static StatefulRedisConnection<String, String> unreachableConnection() {
++        return (StatefulRedisConnection<String, String>) Proxy.newProxyInstance(
++                SharedCacheTest.class.getClassLoader(),
++                new Class<?>[]{StatefulRedisConnection.class},
++                (proxy, method, args) -> {
++                    throw new IllegalStateException("connection refused");
++                }
++        );
++    }
++
++    private static JsonMapper stubJsonMapper() {
++        return (JsonMapper) Proxy.newProxyInstance(
++                SharedCacheTest.class.getClassLoader(),
++                new Class<?>[]{JsonMapper.class},
++                (proxy, method, args) -> "{}"
++        );
++    }
++
++    private static SharedCache cacheOnDownServer() {
++        return new SharedCache(unreachableConnection(), stubJsonMapper(), Duration.ofMillis(200));
++    }
++
++    @Test
++    void readIsAMissWhenTheCacheIsDown() {
++        Optional<String> value = cacheOnDownServer().get("blackhole:cache:v1:profile:x", Argument.of(String.class));
++
++        assertEquals(Optional.empty(), value);
++    }
++
++    @Test
++    void writeDoesNotFailTheCallerWhenTheCacheIsDown() {
++        SharedCache cache = cacheOnDownServer();
++
++        assertDoesNotThrow(() -> cache.put("blackhole:cache:v1:profile:x", Argument.of(String.class), "value", Duration.ofSeconds(30)));
++    }
++
++    @Test
++    void evictDoesNotFailTheCallerWhenTheCacheIsDown() {
++        SharedCache cache = cacheOnDownServer();
++
++        assertDoesNotThrow(() -> cache.evict("blackhole:cache:v1:profile:x", "blackhole:cache:v1:elo:x"));
++    }
++}
+diff --git a/backend/src/test/java/net/onelitefeather/blackhole/backend/elo/service/EloEvictionTest.java b/backend/src/test/java/net/onelitefeather/blackhole/backend/elo/service/EloEvictionTest.java
+new file mode 100644
+index 0000000..3698602
+--- /dev/null
++++ b/backend/src/test/java/net/onelitefeather/blackhole/backend/elo/service/EloEvictionTest.java
+@@ -0,0 +1,49 @@
++package net.onelitefeather.blackhole.backend.elo.service;
++
++import net.onelitefeather.blackhole.backend.cache.CacheKeys;
++import net.onelitefeather.blackhole.backend.cache.InMemorySharedCache;
++import net.onelitefeather.blackhole.backend.elo.EloEventRepository;
++import net.onelitefeather.blackhole.backend.elo.EloProfileCache;
++import net.onelitefeather.blackhole.backend.elo.EloProfileRepository;
++import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
++import net.onelitefeather.blackhole.backend.elo.EloTrack;
++import net.onelitefeather.blackhole.backend.elo.dto.EloProfileDTO;
++import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateCache;
++import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
++import net.onelitefeather.blackhole.backend.support.RecordingEventPublisher;
++import net.onelitefeather.blackhole.backend.support.Stubs;
++import org.junit.jupiter.api.Test;
++
++import java.time.Duration;
++import java.util.Map;
++
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++class EloEvictionTest {
++
++    private static final String OWNER = "cd".repeat(64);
++
++    @Test
++    void anEloDeltaEvictsTheCachedProfile() {
++        InMemorySharedCache sharedCache = new InMemorySharedCache();
++        EloProfileCache eloProfileCache = new EloProfileCache(sharedCache, Duration.ofSeconds(30));
++        eloProfileCache.put(OWNER, new EloProfileDTO(OWNER, 1000, 1000, 0L, 0L, Map.of()));
++        assertTrue(sharedCache.contains(CacheKeys.elo(OWNER)));
++
++        EloService service = new EloService(
++                Stubs.repository(EloProfileRepository.class, Map.of()),
++                Stubs.repository(EloEventRepository.class, Map.of()),
++                Stubs.repository(PunishmentTemplateRepository.class, Map.of()),
++                null,
++                new RecordingEventPublisher(),
++                eloProfileCache,
++                new PunishmentTemplateCache(sharedCache, Duration.ofMinutes(5)),
++                1000, 300, "", "", 700, 10, 86_400_000L, "PT24H", "P3D"
++        );
++
++        service.applyDelta(OWNER, EloTrack.CHAT, -50, EloReasonCode.TOXICITY_FLAG, null, Map.of());
++
++        assertFalse(sharedCache.contains(CacheKeys.elo(OWNER)));
++    }
++}
+diff --git a/backend/src/test/java/net/onelitefeather/blackhole/backend/playerresolver/service/PlayerResolverServiceTest.java b/backend/src/test/java/net/onelitefeather/blackhole/backend/playerresolver/service/PlayerResolverServiceTest.java
+index 4a91ec5..5e1c234 100644
+--- a/backend/src/test/java/net/onelitefeather/blackhole/backend/playerresolver/service/PlayerResolverServiceTest.java
++++ b/backend/src/test/java/net/onelitefeather/blackhole/backend/playerresolver/service/PlayerResolverServiceTest.java
+@@ -1,5 +1,6 @@
+ package net.onelitefeather.blackhole.backend.playerresolver.service;
+ 
++import net.onelitefeather.blackhole.backend.cache.InMemorySharedCache;
+ import net.onelitefeather.blackhole.backend.playerresolver.PlayerResolveCache;
+ import net.onelitefeather.blackhole.backend.playerresolver.PlayerResolver;
+ import net.onelitefeather.blackhole.backend.playerresolver.ResolvedPlayer;
+@@ -16,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
+ class PlayerResolverServiceTest {
+ 
+     private static PlayerResolverService serviceOf(List<PlayerResolver> resolvers) {
+-        return new PlayerResolverService(resolvers, new PlayerResolveCache(Duration.ofMinutes(5), 100));
++        return new PlayerResolverService(resolvers, new PlayerResolveCache(new InMemorySharedCache(), Duration.ofMinutes(5)));
+     }
+ 
+     private static PlayerResolver fixedResolver(String forName, ResolvedPlayer result) {
+@@ -80,4 +81,16 @@ class PlayerResolverServiceTest {
+ 
+         assertEquals(1, calls[0]);
+     }
++
++    @Test
++    void aMissIsNotCachedSoALaterLookupQueriesTheResolversAgain() {
++        ResolvedPlayer later = new ResolvedPlayer(UUID.randomUUID(), "Late", "mojang");
++        boolean[] registered = {false};
++        PlayerResolverService service = serviceOf(List.of(name -> registered[0] ? Optional.of(later) : Optional.empty()));
++
++        assertTrue(service.resolve("Late").isEmpty());
++        registered[0] = true;
++
++        assertEquals(Optional.of(later), service.resolve("Late"));
++    }
+ }
+diff --git a/backend/src/test/java/net/onelitefeather/blackhole/backend/punishment/service/ProfileEvictionTest.java b/backend/src/test/java/net/onelitefeather/blackhole/backend/punishment/service/ProfileEvictionTest.java
+new file mode 100644
+index 0000000..291ca51
+--- /dev/null
++++ b/backend/src/test/java/net/onelitefeather/blackhole/backend/punishment/service/ProfileEvictionTest.java
+@@ -0,0 +1,82 @@
++package net.onelitefeather.blackhole.backend.punishment.service;
++
++import net.onelitefeather.blackhole.backend.cache.InMemorySharedCache;
++import net.onelitefeather.blackhole.backend.profile.ProfileCache;
++import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
++import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
++import net.onelitefeather.blackhole.backend.profile.dto.PunishProfileDTO;
++import net.onelitefeather.blackhole.backend.punishment.PunishType;
++import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
++import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
++import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
++import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
++import net.onelitefeather.blackhole.backend.support.RecordingEventPublisher;
++import net.onelitefeather.blackhole.backend.support.Stubs;
++import org.junit.jupiter.api.Test;
++
++import java.time.Duration;
++import java.util.ArrayList;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.Optional;
++import java.util.UUID;
++
++import static org.junit.jupiter.api.Assertions.assertFalse;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++class ProfileEvictionTest {
++
++    private static final String OWNER = "ab".repeat(64);
++
++    private final InMemorySharedCache sharedCache = new InMemorySharedCache();
++    private final ProfileCache profileCache = new ProfileCache(sharedCache, Duration.ofSeconds(30));
++
++    private static PunishProfileDTO cachedProfile() {
++        return new PunishProfileDTO(OWNER, Optional.empty(), Optional.empty(), List.of(), Map.of());
++    }
++
++    private static PunishmentTemplateEntity serverTemplate(UUID templateId) {
++        return new PunishmentTemplateEntity(templateId, "Griefing", PunishType.SERVER, 0, new HashMap<>());
++    }
++
++    @Test
++    void applyingATemplateEvictsTheCachedProfile() {
++        UUID templateId = UUID.randomUUID();
++        profileCache.put(OWNER, cachedProfile());
++        PunishmentApplicationService service = new PunishmentApplicationService(
++                Stubs.repository(PunishmentRepository.class, Map.of()),
++                Stubs.repository(PunishmentProfileRepository.class, Map.of()),
++                Stubs.repository(PunishmentTemplateRepository.class, Map.of(templateId, serverTemplate(templateId))),
++                new RecordingEventPublisher(),
++                profileCache,
++                null
++        );
++
++        assertTrue(service.apply(OWNER, templateId, UUID.randomUUID()).isPresent());
++
++        assertFalse(profileCache.get(OWNER).isPresent());
++    }
++
++    @Test
++    void revokingABanEvictsTheCachedProfile() {
++        UUID templateId = UUID.randomUUID();
++        PunishmentEntity activeBan = new PunishmentEntity(
++                "punishment-1", UUID.randomUUID(), PunishType.SERVER, null, serverTemplate(templateId), new HashMap<>()
++        );
++        PunishmentProfileEntity stored = new PunishmentProfileEntity(OWNER, null, activeBan, new ArrayList<>(), new HashMap<>());
++        profileCache.put(OWNER, cachedProfile());
++        PunishmentApplicationService service = new PunishmentApplicationService(
++                Stubs.repository(PunishmentRepository.class, Map.of()),
++                Stubs.repository(PunishmentProfileRepository.class, Map.of(OWNER, stored)),
++                Stubs.repository(PunishmentTemplateRepository.class, Map.of()),
++                new RecordingEventPublisher(),
++                profileCache,
++                null
++        );
++
++        assertTrue(service.revokeBan(OWNER, UUID.randomUUID()).isPresent());
++
++        assertFalse(profileCache.get(OWNER).isPresent());
++    }
++}
+diff --git a/backend/src/test/java/net/onelitefeather/blackhole/backend/punishment/service/TemplateEvictionTest.java b/backend/src/test/java/net/onelitefeather/blackhole/backend/punishment/service/TemplateEvictionTest.java
+new file mode 100644
+index 0000000..6d19eba
+--- /dev/null
++++ b/backend/src/test/java/net/onelitefeather/blackhole/backend/punishment/service/TemplateEvictionTest.java
+@@ -0,0 +1,77 @@
++package net.onelitefeather.blackhole.backend.punishment.service;
++
++import net.onelitefeather.blackhole.backend.cache.CacheKeys;
++import net.onelitefeather.blackhole.backend.cache.InMemorySharedCache;
++import net.onelitefeather.blackhole.backend.punishment.PunishType;
++import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
++import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateCache;
++import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
++import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
++import net.onelitefeather.blackhole.backend.punishment.dto.PunishTemplateDTO;
++import net.onelitefeather.blackhole.backend.punishment.dto.PunishTemplateRequestDTO;
++import net.onelitefeather.blackhole.backend.support.Stubs;
++import org.junit.jupiter.api.Test;
++
++import java.time.Duration;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.UUID;
++
++import static org.junit.jupiter.api.Assertions.assertFalse;
++
++class TemplateEvictionTest {
++
++    private final InMemorySharedCache sharedCache = new InMemorySharedCache();
++    private final PunishmentTemplateCache templateCache = new PunishmentTemplateCache(sharedCache, Duration.ofMinutes(5));
++
++    private PunishmentTemplateService service(Map<?, ?> templatesById) {
++        return new PunishmentTemplateService(
++                Stubs.repository(PunishmentTemplateRepository.class, templatesById),
++                Stubs.repository(PunishmentRepository.class, Map.of()),
++                templateCache
++        );
++    }
++
++    private void primeCache(UUID id) {
++        templateCache.put(id, new PunishTemplateDTO(Map.of(), "Old", PunishType.SERVER, 0, id));
++        templateCache.putAll(List.of(new PunishTemplateDTO(Map.of(), "Old", PunishType.SERVER, 0, id)));
++    }
++
++    private void assertTemplateCacheCleared(UUID id) {
++        assertFalse(sharedCache.contains(CacheKeys.template(id)));
++        assertFalse(sharedCache.contains(CacheKeys.TEMPLATES_ALL));
++    }
++
++    @Test
++    void updatingATemplateEvictsItAndTheList() {
++        UUID id = UUID.randomUUID();
++        PunishmentTemplateEntity existing = new PunishmentTemplateEntity(id, "Old", PunishType.SERVER, 0, new HashMap<>());
++        primeCache(id);
++
++        service(Map.of(id, existing)).update(new PunishTemplateRequestDTO(new HashMap<>(), "New", PunishType.SERVER, 0, id));
++
++        assertTemplateCacheCleared(id);
++    }
++
++    @Test
++    void removingATemplateEvictsItAndTheList() {
++        UUID id = UUID.randomUUID();
++        PunishmentTemplateEntity existing = new PunishmentTemplateEntity(id, "Old", PunishType.SERVER, 0, new HashMap<>());
++        primeCache(id);
++
++        service(Map.of(id, existing)).remove(id);
++
++        assertTemplateCacheCleared(id);
++    }
++
++    @Test
++    void creatingATemplateEvictsTheList() {
++        UUID id = UUID.randomUUID();
++        primeCache(id);
++
++        service(Map.of()).create(new PunishTemplateRequestDTO(new HashMap<>(), "New", PunishType.SERVER, 0, null));
++
++        assertFalse(sharedCache.contains(CacheKeys.TEMPLATES_ALL));
++    }
++}
+diff --git a/backend/src/test/java/net/onelitefeather/blackhole/backend/support/RecordingEventPublisher.java b/backend/src/test/java/net/onelitefeather/blackhole/backend/support/RecordingEventPublisher.java
+new file mode 100644
+index 0000000..3419254
+--- /dev/null
++++ b/backend/src/test/java/net/onelitefeather/blackhole/backend/support/RecordingEventPublisher.java
+@@ -0,0 +1,20 @@
++package net.onelitefeather.blackhole.backend.support;
++
++import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
++
++import java.util.Map;
++
++/**
++ * A {@link DomainEventPublisher} that drops events instead of sending them to RabbitMQ.
++ */
++public final class RecordingEventPublisher extends DomainEventPublisher {
++
++    public RecordingEventPublisher() {
++        super(null);
++    }
++
++    @Override
++    public void publish(String eventType, Map<String, Object> payload) {
++        // events are not under test here
++    }
++}
+diff --git a/backend/src/test/java/net/onelitefeather/blackhole/backend/support/Stubs.java b/backend/src/test/java/net/onelitefeather/blackhole/backend/support/Stubs.java
+new file mode 100644
+index 0000000..2e0e90f
+--- /dev/null
++++ b/backend/src/test/java/net/onelitefeather/blackhole/backend/support/Stubs.java
+@@ -0,0 +1,49 @@
++package net.onelitefeather.blackhole.backend.support;
++
++import java.lang.reflect.Proxy;
++import java.util.Map;
++import java.util.Optional;
++
++/**
++ * Hand-rolled stand-ins for the Micronaut Data repositories, which only exist as generated beans.
++ */
++public final class Stubs {
++
++    /**
++     * A repository whose {@code findById} answers from {@code byId}, whose {@code save} and
++     * {@code update} return their argument, and whose every other method returns an empty or zero
++     * value.
++     */
++    @SuppressWarnings("unchecked")
++    public static <T> T repository(Class<T> type, Map<?, ?> byId) {
++        return (T) Proxy.newProxyInstance(
++                Stubs.class.getClassLoader(),
++                new Class<?>[]{type},
++                (proxy, method, args) -> switch (method.getName()) {
++                    case "findById" -> Optional.ofNullable(byId.get(args[0]));
++                    case "save", "update" -> args[0];
++                    default -> defaultValue(method.getReturnType());
++                }
++        );
++    }
++
++    private static Object defaultValue(Class<?> type) {
++        if (type == Optional.class) {
++            return Optional.empty();
++        }
++        if (type == boolean.class) {
++            return false;
++        }
++        if (type == int.class) {
++            return 0;
++        }
++        if (type == long.class) {
++            return 0L;
++        }
++        return null;
++    }
++
++    private Stubs() {
++        throw new UnsupportedOperationException("This class cannot be instantiated");
++    }
++}
