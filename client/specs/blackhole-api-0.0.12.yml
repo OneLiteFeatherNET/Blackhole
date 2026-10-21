@@ -95,6 +95,21 @@ paths:
         "409":
           description: "Appeal is not awaiting review, or the punishment is no longer\
             \ active"
+  /dashboard/summary:
+    get:
+      tags:
+      - Dashboard
+      summary: Dashboard summary
+      description: "Active punishments per section, open reports, pending appeals,\
+        \ escalations of the last 7 days and the latest automatic permanent punishments"
+      operationId: getDashboardSummary
+      responses:
+        "200":
+          description: The current summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummaryResponse"
   /elo/chat:
     post:
       tags:
@@ -272,6 +287,7 @@ paths:
     get:
       tags:
       - PunishProfile
+      summary: Get all punishment profiles.
       description: Get all existing punishment profiles
       operationId: getProfiles
       parameters:
@@ -293,9 +309,11 @@ paths:
     post:
       tags:
       - PunishProfile
+      summary: Add a new punishment profile.
       description: Add a new profile for punishments
       operationId: addProfile
       requestBody:
+        description: the profile to add
         content:
           application/json:
             schema:
@@ -312,11 +330,13 @@ paths:
     delete:
       tags:
       - PunishProfile
+      summary: Delete a punishment profile by the owner.
       description: Delete a punish profile via uuid
       operationId: removeProfile
       parameters:
       - name: owner
         in: path
+        description: the owner of the profile
         required: true
         schema:
           pattern: "^[a-fA-F0-9]{128}$"
@@ -340,6 +360,7 @@ paths:
     post:
       tags:
       - PunishProfile
+      summary: Get a punishment profile by the owner.
       description: Update a punishment profile
       operationId: updateProfile
       parameters:
@@ -351,6 +372,7 @@ paths:
           type: string
           x-pattern-message: Owner must be a sha-512 hash
       requestBody:
+        description: the profile to get
         content:
           application/json:
             schema:
@@ -374,6 +396,7 @@ paths:
     get:
       tags:
       - PunishProfile
+      summary: Get a punishment profile by the owner.
       description: Get a profile by id
       operationId: getById
       parameters:
@@ -402,6 +425,10 @@ paths:
     post:
       tags:
       - PunishProfile
+      summary: "Records session telemetry (Phase 7's dashboard enrichment: Java/Bedrock\
+        \ protocol version and client brand) into the profile's existing metaData,\
+        \ so the already-existing profile listing/get endpoints surface it without\
+        \ a separate dashboard endpoint."
       description: Records session telemetry (protocol version / client brand) for
         the dashboard
       operationId: updateSessionInfo
@@ -472,6 +499,49 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PunishmentApplyResponse"
+        "400":
+          description: "Invalid request (owner must be a SHA-512 hash, exactly one\
+            \ of templateKey and templateId)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+        "404":
+          description: Unknown template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+        "409":
+          description: "The template's section is disabled, or the player is already\
+            \ permanently punished in it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+  /punishment/preview:
+    post:
+      tags:
+      - Punishment
+      summary: Preview applying a template
+      description: "Answers what applying the template would do right now - the escalation\
+        \ step, its cost, the resulting score and whether the player would be punished\
+        \ permanently - without changing anything. Takes the same request as /punishment/apply\
+        \ and fails with the same errors."
+      operationId: previewPunishment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishmentApplyRequest"
+        required: true
+      responses:
+        "200":
+          description: What applying the template would do
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentPreviewResponse"
         "400":
           description: "Invalid request (owner must be a SHA-512 hash, exactly one\
             \ of templateKey and templateId)"
@@ -996,16 +1066,22 @@ components:
         decisionNote:
           maxLength: 2000
           type: string
+          description: an optional note explaining the decision
           nullable: true
         reviewerId:
           type: string
+          description: the staff/system identity making this decision; rejected if
+            it matches the punishment's own `source` (self-review exclusion)
           format: uuid
         newExpirationAt:
           type: integer
+          description: "required when `decision` is `GRANTED_DURATION_REDUCTION` -\
+            \ the new, sooner expiration timestamp (epoch millis)"
           format: int64
           nullable: true
     AppealStatus:
       type: string
+      description: The lifecycle state of an appeal.
       enum:
       - SUBMITTED
       - ELIGIBLE_PENDING_REVIEW
@@ -1033,6 +1109,69 @@ components:
           maxLength: 2000
           minLength: 1
           type: string
+    DashboardEscalation:
+      required:
+      - identifier
+      - owner
+      - section
+      type: object
+      properties:
+        identifier:
+          type: string
+        owner:
+          type: string
+          description: Hashed owner; open the player detail with it
+        section:
+          type: string
+        createdAt:
+          type: integer
+          description: Creation time in epoch millis
+          format: int64
+        lifted:
+          type: boolean
+          description: Whether it has been revoked or lifted since
+      description: An automatic permanent punishment
+    DashboardSectionCount:
+      required:
+      - active
+      - section
+      type: object
+      properties:
+        section:
+          type: string
+        active:
+          type: integer
+          format: int64
+      description: Active punishments held in one section
+    DashboardSummaryResponse:
+      required:
+      - activePunishmentsBySection
+      - latestEscalations
+      type: object
+      properties:
+        activePunishmentsBySection:
+          type: array
+          description: Active punishments per section sorted by key; enabled sections
+            are zero-filled
+          items:
+            $ref: "#/components/schemas/DashboardSectionCount"
+        openReports:
+          type: integer
+          description: Reports that are OPEN or UNDER_REVIEW
+          format: int64
+        pendingAppeals:
+          type: integer
+          description: "Appeals that are submitted, eligible or in review"
+          format: int64
+        escalationsLast7Days:
+          type: integer
+          description: Automatic permanent punishments created in the last 7 days
+          format: int64
+        latestEscalations:
+          type: array
+          description: "Most recent automatic permanent punishments, newest first"
+          items:
+            $ref: "#/components/schemas/DashboardEscalation"
     EloAdjustRequest:
       required:
       - delta
@@ -1072,6 +1211,8 @@ components:
           nullable: true
           allOf:
           - $ref: "#/components/schemas/EloEscalationInfo"
+      description: "Result of an adjustment: the score change and the punishment the\
+        \ system applied because of it."
     EloChatSignalRequest:
       required:
       - message
@@ -1116,8 +1257,11 @@ components:
       properties:
         tier:
           type: string
+          description: '`SOFT` (temporary) or `PERMANENT`'
         punishmentIdentifier:
           type: string
+          description: the created punishment
+      description: An automatic punishment caused by a score change.
     EloEventResponse:
       required:
       - createdAt
@@ -1170,6 +1314,10 @@ components:
             $ref: "#/components/schemas/EloSectionScore"
     EloReasonCode:
       type: string
+      description: |-
+        Why an `EloEventEntity` happened. This is the audit trail that lets a reviewer (or a future Phase 6 appeal) tell an algorithmic decision apart from a human one.
+
+        Stored by ordinal: only ever append new codes at the end.
       enum:
       - TOXICITY_FLAG
       - ANTICHEAT_FLAG
@@ -1181,6 +1329,18 @@ components:
       - REPORT_REWARDED
       - PARDON_RESET
       - APPEAL_REFUND
+      x-enum-descriptions:
+      - ""
+      - ""
+      - ""
+      - ""
+      - ""
+      - ""
+      - ""
+      - ""
+      - A permanent punishment was lifted and the section score reset to the section's
+        pardon score.
+      - A granted appeal gave back the ELO cost of a staff temporary punishment.
     EloSectionScore:
       required:
       - baseScore
@@ -1214,23 +1374,40 @@ components:
         pardonScore:
           type: integer
           format: int32
+      description: "One section's score of a player, with the thresholds that decide\
+        \ what happens when it drops."
     EnforcementKind:
       type: string
+      description: "How a section's punishments are enforced. The kinds are an enum,\
+        \ not data, because the proxy has to implement each of them: a new section\
+        \ of an existing kind needs no code change, a new kind does."
       enum:
       - MUTE
       - BAN
       - SERVER
+      x-enum-descriptions:
+      - The player cannot chat.
+      - The player cannot join the network.
+      - The player cannot connect to backend servers matching the section's patterns.
     ErrorKind:
       type: string
+      description: "Why an expected failure happened, carried by a resource's `Error`\
+        \ variant so a controller can map it 1:1 to a status without re-deriving the\
+        \ cause."
       enum:
       - VALIDATION
       - NOT_FOUND
       - CONFLICT
+      x-enum-descriptions:
+      - The request is malformed or breaks a business rule of its own (400).
+      - The addressed resource does not exist (404).
+      - The request is valid but conflicts with current state (409).
     ErrorResponse:
       type: object
       properties:
         The error message:
           type: string
+          description: the error message
       description: The error response when something went wrong on profile requests
     EvasionRecordDTO:
       required:
@@ -1292,6 +1469,10 @@ components:
           type: string
         source:
           type: string
+        owner:
+          type: string
+          description: SHA-512 hash of the UUID exactly as proxies compute it; use
+            it for all owner-keyed calls
     PunishEntryDTO:
       required:
       - identifier
@@ -1305,37 +1486,53 @@ components:
       properties:
         identifier:
           type: string
+          description: the identifier of the punishment
         shortId:
           type: string
+          description: "the short ID players quote, `#` and eight upper case hex characters"
         source:
           type: string
+          description: the source of the punishment
           format: uuid
         section:
           type: string
+          description: the section it belongs to
         scope:
           type: string
+          description: "the optional scope (e.g. event/community) it is restricted\
+            \ to, or `null`"
           nullable: true
         permanent:
           type: boolean
+          description: whether it is a permanent punishment issued by the system's
+            escalation
         lifted:
           type: boolean
+          description: whether it was revoked or lifted by a granted appeal
         createdAt:
           type: integer
+          description: creation time in epoch millis
           format: int64
           nullable: true
         escalationGroup:
           type: string
+          description: "the escalation group a template punishment counted towards,\
+            \ else `null`"
           nullable: true
         stepIndex:
           type: integer
+          description: "the zero-based escalation step that was applied, else `null`"
           format: int32
           nullable: true
         stepCount:
           type: integer
+          description: "how many steps the template had when it was applied, else\
+            \ `null`"
           format: int32
           nullable: true
         eloCost:
           type: integer
+          description: "the ELO deducted when it was applied, else `null`"
           format: int32
           nullable: true
         template:
@@ -1346,6 +1543,8 @@ components:
           type: object
           additionalProperties:
             type: object
+          description: the metadata of the punishment
+      description: An applied punishment as it appears in profiles and apply results.
     PunishProfileDTO:
       required:
       - active
@@ -1394,6 +1593,7 @@ components:
           type: object
           additionalProperties:
             type: object
+      description: Request body for creating/updating a punishment profile.
     PunishProfileResponse:
       type: object
     PunishTemplateCreateRequest:
@@ -1429,6 +1629,8 @@ components:
           additionalProperties:
             type: object
           nullable: true
+      description: "Unknown properties are rejected, so a client that sends an `identifier`\
+        \ on create gets a 400 instead of having it silently ignored."
     PunishTemplateError:
       required:
       - errorMessage
@@ -1481,9 +1683,13 @@ components:
         duration:
           minLength: 1
           type: string
+          description: "ISO-8601 duration, greater than zero"
         eloCost:
           type: integer
+          description: "ELO deducted from the section when this step is applied, zero\
+            \ or more"
           format: int32
+      description: One escalation step.
     PunishTemplateUpdateRequest:
       required:
       - identifier
@@ -1541,6 +1747,8 @@ components:
         source:
           type: string
           format: uuid
+      description: Apply a template to a player. Exactly one of `templateKey` and
+        `templateId` is required.
     PunishmentApplyResponse:
       required:
       - enforcement
@@ -1556,24 +1764,30 @@ components:
           $ref: "#/components/schemas/PunishEntryDTO"
         section:
           type: string
+          description: the section it belongs to
         enforcement:
           $ref: "#/components/schemas/EnforcementKind"
         step:
           type: integer
+          description: "the escalation step that was applied, starting at 1"
           format: int32
         stepCount:
           type: integer
+          description: how many steps the template has
           format: int32
         scoreBefore:
           type: integer
+          description: the section score before the ELO cost
           format: int32
         scoreAfter:
           type: integer
+          description: the section score after the ELO cost
           format: int32
         escalation:
           nullable: true
           allOf:
           - $ref: "#/components/schemas/PunishmentEscalation"
+      description: The result of applying a template.
     PunishmentError:
       required:
       - errorMessage
@@ -1594,7 +1808,62 @@ components:
           $ref: "#/components/schemas/PunishEntryDTO"
         resultingScore:
           type: integer
+          description: the section score that triggered it
           format: int32
+      description: A permanent punishment the system applied because a deduction left
+        the score too low.
+    PunishmentPreviewResponse:
+      required:
+      - duration
+      - eloCost
+      - enforcement
+      - escalatesToPermanent
+      - permanentThreshold
+      - scoreAfter
+      - scoreBefore
+      - section
+      - step
+      - stepCount
+      type: object
+      properties:
+        section:
+          type: string
+          description: the section the template belongs to
+        enforcement:
+          $ref: "#/components/schemas/EnforcementKind"
+        step:
+          type: integer
+          description: "the escalation step that would apply, starting at 1"
+          format: int32
+        stepCount:
+          type: integer
+          description: how many steps the template has
+          format: int32
+        duration:
+          type: string
+          description: the ISO-8601 duration of the step
+        eloCost:
+          type: integer
+          description: the ELO the step would deduct
+          format: int32
+        scoreBefore:
+          type: integer
+          description: the section score now
+          format: int32
+        scoreAfter:
+          type: integer
+          description: the section score after the deduction
+          format: int32
+        permanentThreshold:
+          type: integer
+          description: the section's permanent threshold
+          format: int32
+        escalatesToPermanent:
+          type: boolean
+          description: whether the deduction would leave the score below that threshold
+      description: "What applying a template would do right now, without doing it:\
+        \ the escalation step the server selects, its cost and whether the cost would\
+        \ push the player into a permanent punishment."
     PunishmentRevokeRequest:
       required:
       - owner
@@ -1622,12 +1891,17 @@ components:
           $ref: "#/components/schemas/PunishEntryDTO"
         section:
           type: string
+          description: the section it belonged to
         scoreReset:
           type: integer
+          description: "the section score after a permanent punishment was pardoned,\
+            \ else `null`"
           format: int32
           nullable: true
+      description: The result of revoking a section's active punishment.
     ReportCategory:
       type: string
+      description: What kind of behavior a report is about.
       enum:
       - CHAT_ABUSE
       - CHEATING
@@ -1645,26 +1919,31 @@ components:
       properties:
         identifier:
           type: string
+          description: "the identifier of the report, `null` when submitting"
           format: uuid
           nullable: true
         reporterHash:
           minLength: 1
           pattern: "^[a-fA-F0-9]{128}$"
           type: string
+          description: SHA-512 hash of the reporting player
           x-pattern-message: reporterHash must be a sha-512 hash
         reportedHash:
           minLength: 1
           pattern: "^[a-fA-F0-9]{128}$"
           type: string
+          description: SHA-512 hash of the reported player
           x-pattern-message: reportedHash must be a sha-512 hash
         category:
           $ref: "#/components/schemas/ReportCategory"
         description:
           maxLength: 1000
           type: string
+          description: a bounded free-text description
           nullable: true
         evidenceReferences:
           type: array
+          description: optional references to `PunishmentEvidenceEntity` entries
           nullable: true
           items:
             type: string
@@ -1675,22 +1954,29 @@ components:
           - $ref: "#/components/schemas/ReportStatus"
         createdAt:
           type: integer
+          description: epoch millis when the report was submitted
           format: int64
         updatedAt:
           type: integer
+          description: epoch millis of the last status change
           format: int64
         resolvedBy:
           type: string
+          description: "the staff/system identity that resolved this report, if resolved"
           format: uuid
           nullable: true
         resolutionNote:
           maxLength: 1000
           type: string
+          description: "a note explaining the resolution, if resolved"
           nullable: true
         metaData:
           type: object
           additionalProperties:
             type: object
+          description: extensible metadata
+      description: A player report. `status`/`createdAt`/`updatedAt`/`resolvedBy`/
+        `resolutionNote` are server-controlled - a submission simply leaves them unset/default.
     ReportErrorDTO:
       required:
       - errorMessage
@@ -1699,8 +1985,11 @@ components:
       properties:
         errorMessage:
           type: string
+          description: what went wrong
         kind:
           $ref: "#/components/schemas/ErrorKind"
+      description: "The body of a failed report resolution, so every expected failure\
+        \ is distinguishable by its message and kind instead of a bare status code."
     ReportRequestDTO:
       required:
       - category
@@ -1713,20 +2002,24 @@ components:
           minLength: 1
           pattern: "^[a-fA-F0-9]{128}$"
           type: string
+          description: SHA-512 hash of the reporting player
           x-pattern-message: reporterHash must be a sha-512 hash
         reportedHash:
           minLength: 1
           pattern: "^[a-fA-F0-9]{128}$"
           type: string
+          description: SHA-512 hash of the reported player
           x-pattern-message: reportedHash must be a sha-512 hash
         category:
           $ref: "#/components/schemas/ReportCategory"
         description:
           maxLength: 1000
           type: string
+          description: a bounded free-text description
           nullable: true
         evidenceReferences:
           type: array
+          description: optional references to `PunishmentEvidenceEntity` entries
           nullable: true
           items:
             type: string
@@ -1735,6 +2028,10 @@ components:
           type: object
           additionalProperties:
             type: object
+          description: extensible metadata
+      description: "Request body for submitting a player report. `status`/`createdAt`/\
+        \ `updatedAt`/`resolvedBy`/`resolutionNote` are server-controlled and have\
+        \ no place here - see ReportDTO, the response type, for those."
     ReportResolutionDTO:
       required:
       - resolvedBy
@@ -1746,20 +2043,30 @@ components:
         resolutionNote:
           maxLength: 1000
           type: string
+          description: an optional note explaining the decision
           nullable: true
         resolvedBy:
           type: string
+          description: the staff/system identity resolving this report
           format: uuid
         punishmentTemplateId:
           type: string
+          description: an optional template to apply to the reported player
           format: uuid
           nullable: true
         punishmentSource:
           type: string
+          description: the staff/system identity applying the punishment; required
+            if `punishmentTemplateId` is set
           format: uuid
           nullable: true
+      description: Request body for resolving a report. Providing `punishmentTemplateId`
+        (together with `punishmentSource`) applies that template to the reported player
+        as part of the same resolution - the report system's actual integration point
+        with punishments.
     ReportStatus:
       type: string
+      description: The lifecycle state of a report.
       enum:
       - OPEN
       - UNDER_REVIEW
@@ -1937,6 +2244,11 @@ components:
           maxLength: 64
           type: string
           nullable: true
+      description: "Session telemetry captured at login/brand-negotiation time (Phase\
+        \ 7's dashboard enrichment). Both fields are optional and merged, not overwritten,\
+        \ into the profile's existing session info - `protocolVersion` arrives at\
+        \ login, `clientBrand` arrives slightly later as a separate plugin-channel\
+        \ negotiation, so a single caller rarely has both at once."
     Sort:
       required:
       - orderBy
