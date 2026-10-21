@@ -98,3 +98,6 @@ bin/
 /velocity/run/plugins/velocity-all_RunVelocity_plugin.jar
 /velocity/run/forwarding.secret
 /velocity/run/velocity.toml
+
+### Velocity run directory ###
+velocity/run/
