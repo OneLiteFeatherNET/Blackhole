@@ -523,4 +523,17 @@
                                  referencedTableName="punishments" referencedColumnNames="identifier"/>
     </changeSet>
 
+    <!-- Appended last, after the code switched to elo_scores / active_punishments, so no code reads
+         the legacy structures any more. elo_profiles held nothing but the two track scores (plus an
+         unused metadata column), so the whole table goes. Deployments start on a fresh database;
+         no rows are migrated. -->
+    <changeSet id="drop-legacy-elo-columns" author="blackhole">
+        <dropTable tableName="elo_profiles"/>
+    </changeSet>
+
+    <changeSet id="drop-legacy-profile-slots" author="blackhole">
+        <dropColumn tableName="punishment_profiles" columnName="active_ban_identifier"/>
+        <dropColumn tableName="punishment_profiles" columnName="active_chat_ban_identifier"/>
+    </changeSet>
+
 </databaseChangeLog>

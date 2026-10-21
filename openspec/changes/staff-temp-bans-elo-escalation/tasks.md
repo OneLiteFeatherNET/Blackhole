@@ -22,7 +22,7 @@
 - [x] 3.5 Implement `POST /punishment/revoke` per section with pardon-score reset for permanent punishments; remove old apply/revoke paths; verify tests for temp revoke, permanent revoke reset and 404
 - [x] 3.6 Apply appeal ELO effects (PARDON_RESET, APPEAL_REFUND) in the appeal decision path; verify appeal service tests for full lift, reduction and denial
 - [x] 3.7 Switch the Redis mirror to `blackhole:punish:<section>:<owner>` messages with section + enforcement; verify a Redis-backed integration test for set/TTL/clear
-- [ ] 3.8 Append `drop-legacy-elo-columns` and `drop-legacy-profile-slots` once no code reads them; verify `hbm2ddl validate` passes on startup
+- [x] 3.8 Append `drop-legacy-elo-columns` and `drop-legacy-profile-slots` once no code reads them; verify `hbm2ddl validate` passes on startup
 
 ## 4. API client
 
