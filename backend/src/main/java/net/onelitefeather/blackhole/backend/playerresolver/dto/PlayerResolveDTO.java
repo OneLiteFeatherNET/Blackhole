@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.backend.playerresolver.dto;
 
 import io.micronaut.serde.annotation.Serdeable;
 import io.swagger.v3.oas.annotations.media.Schema;
+import net.onelitefeather.blackhole.backend.imports.UUIDHasher;
 import net.onelitefeather.blackhole.backend.playerresolver.ResolvedPlayer;
 import net.onelitefeather.blackhole.backend.response.ErrorResponse;
 
@@ -17,10 +18,16 @@ public sealed interface PlayerResolveDTO {
 
     @Schema(name = "PlayerResolveResponse")
     @Serdeable
-    record Response(UUID uuid, String name, String source) implements PlayerResolveDTO {
+    record Response(
+            UUID uuid,
+            String name,
+            String source,
+            @Schema(description = "SHA-512 hash of the UUID exactly as proxies compute it; use it for all owner-keyed calls")
+            String owner
+    ) implements PlayerResolveDTO {
 
         public static Response of(ResolvedPlayer resolved) {
-            return new Response(resolved.uuid(), resolved.name(), resolved.source());
+            return new Response(resolved.uuid(), resolved.name(), resolved.source(), UUIDHasher.hash(resolved.uuid()));
         }
     }
 
