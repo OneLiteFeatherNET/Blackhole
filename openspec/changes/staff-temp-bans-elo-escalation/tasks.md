@@ -30,14 +30,14 @@
 
 ## 5. Velocity plugin
 
-- [ ] 5.1 Load sections (shared cache, API fallback) and reload on `section.changed`; per-section sync cache, login (BAN sections) and chat (MUTE sections) enforcement, cross-proxy kick; verify unit tests for enforcement decisions with a stubbed mirror
+- [x] 5.1 Load sections (shared cache, API fallback) and reload on `section.changed`; per-section sync cache, login (BAN sections) and chat (MUTE sections) enforcement, cross-proxy kick; verify unit tests for enforcement decisions with a stubbed mirror
 - [ ] 5.2 Enforce SERVER sections on `ServerPreConnectEvent` (glob match on server name) and move players on a matching server to the fallback server when a SERVER ban arrives (disconnect if none); verify unit tests for pattern matching and manual run with two backend servers
 - [ ] 5.3 Rewrite `/ban` (BAN + SERVER sections), `/mute`, add `/punish` with template-by-key parsing, section filtering, i18n errors (no null/NPE) and result messages incl. step (n/m), ELO change and permanent escalation; remove `--server`; verify parser unit tests and manual run via `:velocity:runVelocity`
 - [ ] 5.4 Rework `/unban`/`/unmute` (optional section incl. SERVER sections for unban, offline targets via resolver, `blackhole.pardon.permanent`) and add `/elo <player>`; verify manual run and i18n keys present in both `blackhole_en.properties` and `blackhole_de.properties`
 
 ## 6. Documentation and integration
 
-- [ ] 6.1 Update README (staff workflow, sections, permissions table), `.claude/rules/elo.md`; verify docs match command syntax in code
+- [x] 6.1 Update README (staff workflow, sections, permissions table), `.claude/rules/elo.md`; verify docs match command syntax in code
 - [ ] 6.2 End-to-end check against local PostgreSQL + Dragonfly + RabbitMQ: staff temp-bans climb the steps until escalation, permanent ban enforced on login, a SERVER-section ban blocks only matching servers, revoke resets score; record the result in the PR description
 
 ## Workflow follow-up
