@@ -37,6 +37,28 @@ services:
     volumes:
       - ./redis/data/:/data
 
+  # The admin web UI at http://localhost:8081. It has no login of its own and neither has the API it
+  # proxies, so it only listens on localhost here; anywhere else put it on a private network or
+  # behind a proxy that authenticates (see web/README.md). The backend is expected on the host
+  # (./gradlew :backend:run); point BLACKHOLE_BACKEND_URL elsewhere to use another one.
+  web:
+    build:
+      context: ..
+      dockerfile: web/Dockerfile
+    container_name: 'web_blackhole'
+    environment:
+      BLACKHOLE_BACKEND_URL: ${BLACKHOLE_BACKEND_URL:-http://host.docker.internal:8080}
+      # Attributed to every punishment, note and decision made through the UI (unverified).
+      BLACKHOLE_UI_SOURCE: ${BLACKHOLE_UI_SOURCE:-00000000-0000-4000-8000-000000000001}
+      # Optional; the UUID that decides appeals. Defaults to BLACKHOLE_UI_SOURCE.
+      BLACKHOLE_UI_REVIEWER: ${BLACKHOLE_UI_REVIEWER:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:8081:8080"
+    networks:
+      - blackhole_go_net
+
 networks:
   blackhole_go_net:
     driver: bridge
