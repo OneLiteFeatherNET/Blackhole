@@ -5,7 +5,7 @@ import { createMemoryHistory } from 'vue-router'
 import App from './App.vue'
 import { i18n } from './i18n'
 import { createAppRouter } from './router'
-import { THEME_STORAGE_KEY } from './stores/ui'
+import { ACTING_AS_STORAGE_KEY, THEME_STORAGE_KEY } from './stores/ui'
 import { API_KEY } from './api/inject'
 import { mockApi, ok } from './test/mount'
 
@@ -50,6 +50,16 @@ describe('App shell', () => {
     const wrapper = await mountApp(`/players/${'ab'.repeat(64)}`)
 
     expect(wrapper.get('a[aria-current="page"]').text()).toBe('Spieler')
+
+    wrapper.unmount()
+  })
+
+  it('remembers the acting-as label from the top bar', async () => {
+    const wrapper = await mountApp('/')
+
+    await wrapper.get('input').setValue('Alex')
+
+    expect(localStorage.getItem(ACTING_AS_STORAGE_KEY)).toBe('Alex')
 
     wrapper.unmount()
   })

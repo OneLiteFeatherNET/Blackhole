@@ -22,7 +22,7 @@
 - [x] 4.1 App shell with navigation and German/English i18n; verify all strings exist in both locale files via a test
 - [x] 4.2 Dashboard; verify component test with mocked API
 - [x] 4.3 Player lookup + detail (section score bars with thresholds, active punishments, history, ELO history); verify component tests for found/not-found
-- [ ] 4.4 Player actions: apply template (preview shows the step that will apply), revoke, adjust score with escalation preview; verify tests that the warning shows when cost crosses the permanent threshold
+- [x] 4.4 Player actions: apply template (preview shows the step that will apply), revoke, adjust score with escalation preview; verify tests that the warning shows when cost crosses the permanent threshold
 - [ ] 4.5 Templates CRUD with escalation-step editor (add/remove/reorder), escalation group/window, field-level API errors and delete conflict; verify component tests
 - [ ] 4.6 Sections configuration incl. server patterns for SERVER sections; verify component tests
 - [ ] 4.7 Reports and appeals queues; verify component tests

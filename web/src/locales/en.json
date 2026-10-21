@@ -18,6 +18,9 @@
     },
     "locale": {
       "label": "Language"
+    },
+    "actingAs": {
+      "label": "Acting as"
     }
   },
   "placeholder": {
@@ -118,6 +121,49 @@
       "status": "Status",
       "delta": "Change",
       "score": "Score after"
+    }
+  },
+  "actions": {
+    "cancel": "Cancel",
+    "apply": {
+      "open": "Apply template",
+      "title": "Apply template",
+      "template": "Template",
+      "choose": "Choose a template",
+      "loadingPreview": "Calculating the effect",
+      "step": "Escalation step {step} of {count}",
+      "stepDetail": "Duration {duration}, costs {cost} ELO",
+      "score": "Score in {section}: {before} to {after}",
+      "warning": "After this the player will be punished permanently in {section}: the score {after} is below the permanent threshold {threshold}.",
+      "confirm": "Apply",
+      "done": "Applied step {step} of {count}; the score is now {after}.",
+      "doneEscalated": "Applied; the player is now permanently punished in {section}.",
+      "noTemplates": "There are no templates yet."
+    },
+    "revoke": {
+      "open": "Revoke",
+      "title": "Revoke punishment in {section}",
+      "body": "The active punishment in {section} ends and moves to the history.",
+      "resets": "The punishment is permanent: the score in {section} is reset to the pardon score {pardon}.",
+      "confirm": "Revoke",
+      "done": "Revoked.",
+      "doneReset": "Revoked; the score in {section} is now {score}."
+    },
+    "adjust": {
+      "open": "Adjust score",
+      "title": "Adjust score in {section}",
+      "delta": "Change",
+      "deltaHint": "Negative lowers the score, positive raises it",
+      "note": "Note",
+      "noteHint": "Required; recorded with the change",
+      "invalidDelta": "Enter a whole number other than 0.",
+      "noteRequired": "A note is required.",
+      "preview": "Score in {section}: {before} to {after}",
+      "permanent": "Warning: the new score {after} is below the permanent threshold {threshold}. The player will be punished permanently in {section}.",
+      "soft": "The score falls below the soft threshold {threshold}. The player will receive an automatic temporary punishment in {section}.",
+      "confirm": "Adjust",
+      "done": "Score adjusted to {after}.",
+      "doneEscalated": "Score adjusted to {after}; the player is now permanently punished in {section}."
     }
   }
 }

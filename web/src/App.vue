@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
 import MdNavigationRail from './components/md/MdNavigationRail.vue'
 import MdSelect from './components/md/MdSelect.vue'
+import MdTextField from './components/md/MdTextField.vue'
 import MdTopAppBar from './components/md/MdTopAppBar.vue'
 import type { Locale } from './i18n'
 import { useUiStore, type ThemeChoice } from './stores/ui'
@@ -49,6 +50,10 @@ const theme = computed({
   get: () => ui.theme,
   set: (value: string) => ui.setTheme(value as ThemeChoice),
 })
+const actingAs = computed({
+  get: () => ui.actingAs,
+  set: (value: string) => ui.setActingAs(value),
+})
 const locale = computed({
   get: () => ui.locale,
   set: (value: string) => ui.setLocale(value as Locale),
@@ -67,6 +72,7 @@ const locale = computed({
     <div class="flex min-w-0 flex-1 flex-col">
       <MdTopAppBar :title="title">
         <template #actions>
+          <MdTextField v-model="actingAs" class="w-44" :label="t('settings.actingAs.label')" />
           <MdSelect v-model="theme" class="w-36" :label="t('settings.theme.label')" :options="themeOptions" />
           <MdSelect
             v-model="locale"

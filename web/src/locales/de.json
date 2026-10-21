@@ -18,6 +18,9 @@
     },
     "locale": {
       "label": "Sprache"
+    },
+    "actingAs": {
+      "label": "Handelnd als"
     }
   },
   "placeholder": {
@@ -118,6 +121,49 @@
       "status": "Status",
       "delta": "Änderung",
       "score": "Punktestand danach"
+    }
+  },
+  "actions": {
+    "cancel": "Abbrechen",
+    "apply": {
+      "open": "Vorlage anwenden",
+      "title": "Vorlage anwenden",
+      "template": "Vorlage",
+      "choose": "Vorlage wählen",
+      "loadingPreview": "Auswirkung wird berechnet",
+      "step": "Eskalationsstufe {step} von {count}",
+      "stepDetail": "Dauer {duration}, kostet {cost} ELO",
+      "score": "Punktestand in {section}: {before} auf {after}",
+      "warning": "Danach wird der Spieler in {section} dauerhaft bestraft: Der Punktestand {after} liegt unter der Schwelle für Dauerstrafen {threshold}.",
+      "confirm": "Anwenden",
+      "done": "Stufe {step} von {count} angewendet; der Punktestand beträgt jetzt {after}.",
+      "doneEscalated": "Angewendet; der Spieler ist jetzt in {section} dauerhaft bestraft.",
+      "noTemplates": "Es gibt noch keine Vorlagen."
+    },
+    "revoke": {
+      "open": "Aufheben",
+      "title": "Strafe in {section} aufheben",
+      "body": "Die aktive Strafe in {section} endet und wandert in den Verlauf.",
+      "resets": "Die Strafe ist dauerhaft: Der Punktestand in {section} wird auf den Begnadigungswert {pardon} zurückgesetzt.",
+      "confirm": "Aufheben",
+      "done": "Aufgehoben.",
+      "doneReset": "Aufgehoben; der Punktestand in {section} beträgt jetzt {score}."
+    },
+    "adjust": {
+      "open": "Punktestand anpassen",
+      "title": "Punktestand in {section} anpassen",
+      "delta": "Änderung",
+      "deltaHint": "Negativ senkt den Punktestand, positiv erhöht ihn",
+      "note": "Notiz",
+      "noteHint": "Pflichtfeld; wird mit der Änderung gespeichert",
+      "invalidDelta": "Gib eine ganze Zahl ungleich 0 ein.",
+      "noteRequired": "Eine Notiz ist erforderlich.",
+      "preview": "Punktestand in {section}: {before} auf {after}",
+      "permanent": "Achtung: Der neue Punktestand {after} liegt unter der Schwelle für Dauerstrafen {threshold}. Der Spieler wird in {section} dauerhaft bestraft.",
+      "soft": "Der Punktestand fällt unter die Zeitstrafen-Schwelle {threshold}. Der Spieler erhält in {section} automatisch eine befristete Strafe.",
+      "confirm": "Anpassen",
+      "done": "Punktestand auf {after} angepasst.",
+      "doneEscalated": "Punktestand auf {after} angepasst; der Spieler ist jetzt in {section} dauerhaft bestraft."
     }
   }
 }

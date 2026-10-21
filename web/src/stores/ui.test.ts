@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { i18n } from '../i18n'
-import { LOCALE_STORAGE_KEY, THEME_STORAGE_KEY, useUiStore } from './ui'
+import { ACTING_AS_STORAGE_KEY, LOCALE_STORAGE_KEY, THEME_STORAGE_KEY, useUiStore } from './ui'
 
 // The store reads storage and the document when it is created, so each test gets a fresh pinia.
 function freshStore() {
@@ -60,6 +60,32 @@ describe('ui store: theme', () => {
 
     expect(store.theme).toBe('system')
     expect(document.documentElement.dataset.theme).toBeUndefined()
+  })
+})
+
+describe('ui store: acting as', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('starts empty', () => {
+    expect(freshStore().actingAs).toBe('')
+  })
+
+  it('stores the trimmed label and restores it on the next start', () => {
+    freshStore().setActingAs('  Alex ')
+
+    expect(localStorage.getItem(ACTING_AS_STORAGE_KEY)).toBe('Alex')
+    expect(freshStore().actingAs).toBe('Alex')
+  })
+
+  it('removes the stored label when it is cleared', () => {
+    const store = freshStore()
+    store.setActingAs('Alex')
+
+    store.setActingAs('   ')
+
+    expect(localStorage.getItem(ACTING_AS_STORAGE_KEY)).toBeNull()
   })
 })
 

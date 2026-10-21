@@ -12,8 +12,7 @@ import { createAppRouter } from '../router'
  * A BlackholeApi where only the given methods exist. Calling any other method fails the test with
  * its name, so a screen can never silently talk to something the test did not expect.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function mockApi(methods: Partial<Record<keyof BlackholeApi, (...args: any[]) => unknown>> = {}): BlackholeApi {
+export function mockApi(methods: Partial<Record<keyof BlackholeApi, unknown>> = {}): BlackholeApi {
   return new Proxy(methods as unknown as BlackholeApi, {
     get(target, name: string) {
       if (name in target) return (target as unknown as Record<string, unknown>)[name]

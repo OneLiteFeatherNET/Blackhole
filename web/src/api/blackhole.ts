@@ -2,18 +2,38 @@ import { createHttp, map, toResult } from './http'
 import type { components } from './schema'
 import type {
   ApiResult,
+  ApplyPreview,
+  ApplyResult,
   DashboardSummary,
+  EloAdjustResult,
   EloEvent,
   EloProfile,
   PunishmentProfile,
   ResolvedPlayer,
+  RevokeResult,
+  Template,
 } from './types'
 
 export interface ApiOptions {
   baseUrl: string
   /** The operator UUID from /config.json, attached to every write as the acting source. */
   source: string
+  /** The free-text "acting as" label; prefixed to the notes the UI writes. Read on every call. */
+  actingAs?: () => string
   fetch?: typeof fetch
+}
+
+/** Staff-written notes are limited to 500 characters by the backend. */
+export const MAX_NOTE_LENGTH = 500
+
+/**
+ * Prefixes a note with the unverified "acting as" label, so the audit trail shows who the operator
+ * says they are. Truncates to the backend's limit.
+ */
+export function withActor(note: string, actingAs: string): string {
+  const label = actingAs.trim()
+  const text = label ? `[${label}] ${note}` : note
+  return text.slice(0, MAX_NOTE_LENGTH)
 }
 
 /**
@@ -29,6 +49,12 @@ export interface BlackholeApi {
   eloProfile(owner: string): Promise<ApiResult<EloProfile>>
   /** All events of one section, newest first. */
   eloHistory(owner: string, section: string): Promise<ApiResult<EloEvent[]>>
+  templates(): Promise<ApiResult<Template[]>>
+  /** What applying the template would do right now; changes nothing. */
+  previewApply(owner: string, templateKey: string): Promise<ApiResult<ApplyPreview>>
+  applyTemplate(owner: string, templateKey: string): Promise<ApiResult<ApplyResult>>
+  revoke(owner: string, section: string): Promise<ApiResult<RevokeResult>>
+  adjustElo(owner: string, change: { section: string; delta: number; note: string }): Promise<ApiResult<EloAdjustResult>>
 }
 
 const PAGE_SIZE = 200
@@ -106,5 +132,32 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       )
       return map(events, (all) => [...all].sort((a, b) => b.createdAt - a.createdAt))
     },
+
+    templates: () =>
+      collectPages<Template>((page) =>
+        toResult(http.GET('/template', { params: { query: { pageable: NO_PAGEABLE } }, querySerializer: pageQuery(page) })),
+      ),
+
+    previewApply: (owner, templateKey) =>
+      toResult(http.POST('/punishment/preview', { body: { owner, templateKey, source: options.source } })),
+
+    applyTemplate: (owner, templateKey) =>
+      toResult(http.POST('/punishment/apply', { body: { owner, templateKey, source: options.source } })),
+
+    revoke: (owner, section) =>
+      toResult(http.POST('/punishment/revoke', { body: { owner, section, source: options.source } })),
+
+    adjustElo: (owner, change) =>
+      toResult(
+        http.POST('/elo/{owner}/adjust', {
+          params: { path: { owner } },
+          body: {
+            section: change.section,
+            delta: change.delta,
+            note: withActor(change.note, options.actingAs?.() ?? ''),
+            source: options.source,
+          },
+        }),
+      ),
   }
 }

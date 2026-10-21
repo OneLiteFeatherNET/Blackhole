@@ -171,6 +171,90 @@ describe('PlayerDetailView', () => {
     wrapper.unmount()
   })
 
+  describe('staff actions', () => {
+    const template = { identifier: 'id-1', key: 'hacking', reason: 'Hacking', section: 'network', steps: [] }
+    const preview = {
+      section: 'network', enforcement: 'BAN', step: 2, stepCount: 3, duration: 'P7D', eloCost: 150,
+      scoreBefore: 900, scoreAfter: 750, permanentThreshold: 300, escalatesToPermanent: false,
+    }
+
+    it('applies a template from the detail, then reloads the player and confirms with a message', async () => {
+      const profileCall = vi.fn(async () => ok(profile))
+      const applyTemplate = vi.fn(async () => ok({ step: 2, stepCount: 3, scoreAfter: 750, section: 'network' }))
+      const { wrapper } = await open(OWNER, {
+        profile: profileCall,
+        templates: vi.fn(async () => ok([template])),
+        previewApply: vi.fn(async () => ok(preview)),
+        applyTemplate,
+      })
+
+      await wrapper.get('[data-testid="open-apply"]').trigger('click')
+      await flushPromises()
+      await wrapper.get('[role="dialog"] select').setValue('hacking')
+      await flushPromises()
+      await wrapper.get('[data-testid="confirm"]').trigger('click')
+      await flushPromises()
+
+      expect(applyTemplate).toHaveBeenCalledWith(OWNER, 'hacking')
+      expect(profileCall, 'profile loaded again after the action').toHaveBeenCalledTimes(2)
+      expect(wrapper.find('[role="dialog"]').exists(), 'dialog closed').toBe(false)
+      expect(wrapper.get('[role="status"]').text()).toContain('Applied step 2 of 3; the score is now 750.')
+
+      wrapper.unmount()
+    })
+
+    it('revokes the active punishment of a section after confirmation', async () => {
+      const revoke = vi.fn(async () => ok({ section: 'network' }))
+      const { wrapper } = await open(OWNER, { revoke })
+
+      await wrapper.get('[data-testid="open-revoke-network"]').trigger('click')
+      await flushPromises()
+      expect(revoke, 'nothing happens before the confirmation').not.toHaveBeenCalled()
+      await wrapper.get('[data-testid="confirm"]').trigger('click')
+      await flushPromises()
+
+      expect(revoke).toHaveBeenCalledWith(OWNER, 'network')
+      expect(wrapper.get('[role="status"]').text()).toContain('Revoked.')
+
+      wrapper.unmount()
+    })
+
+    it('adjusts a section score with a note', async () => {
+      const adjustElo = vi.fn(async () => ok({ section: 'chat', scoreBefore: 900, scoreAfter: 850 }))
+      const { wrapper } = await open(OWNER, { adjustElo })
+
+      await wrapper.get('[data-testid="open-adjust-chat"]').trigger('click')
+      await flushPromises()
+      const [delta, note] = wrapper.findAll('[role="dialog"] input')
+      await delta!.setValue('-50')
+      await note!.setValue('spam wave')
+      await wrapper.get('[data-testid="confirm"]').trigger('click')
+      await flushPromises()
+
+      expect(adjustElo).toHaveBeenCalledWith(OWNER, { section: 'chat', delta: -50, note: 'spam wave' })
+      expect(wrapper.get('[role="status"]').text()).toContain('Score adjusted to 850.')
+
+      wrapper.unmount()
+    })
+
+    it('leaves the player unchanged when a dialog is cancelled', async () => {
+      const revoke = vi.fn()
+      const profileCall = vi.fn(async () => ok(profile))
+      const { wrapper } = await open(OWNER, { revoke, profile: profileCall })
+
+      await wrapper.get('[data-testid="open-revoke-network"]').trigger('click')
+      await flushPromises()
+      await wrapper.get('[data-testid="cancel"]').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+      expect(revoke).not.toHaveBeenCalled()
+      expect(profileCall).toHaveBeenCalledTimes(1)
+
+      wrapper.unmount()
+    })
+  })
+
   it('keeps no player identifier in browser storage', async () => {
     const { wrapper } = await open()
     useLookupStore().remember(OWNER, 'Steve')

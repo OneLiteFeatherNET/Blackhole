@@ -6,6 +6,7 @@ import { loadConfig } from './api/config'
 import { API_KEY } from './api/inject'
 import { i18n } from './i18n'
 import router from './router'
+import { useUiStore } from './stores/ui'
 import '@fontsource/roboto/latin-400.css'
 import '@fontsource/roboto/latin-500.css'
 import '@fontsource/roboto/latin-ext-400.css'
@@ -17,9 +18,14 @@ const API_BASE_URL = '/api'
 
 const config = await loadConfig()
 
+const pinia = createPinia()
+
 createApp(App)
-  .provide(API_KEY, createBlackholeApi({ baseUrl: API_BASE_URL, source: config.source }))
-  .use(createPinia())
+  .provide(
+    API_KEY,
+    createBlackholeApi({ baseUrl: API_BASE_URL, source: config.source, actingAs: () => useUiStore(pinia).actingAs }),
+  )
+  .use(pinia)
   .use(i18n)
   .use(router)
   .mount('#app')

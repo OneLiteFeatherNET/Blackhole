@@ -6,6 +6,7 @@ export type ThemeChoice = 'system' | 'light' | 'dark'
 
 export const THEME_STORAGE_KEY = 'blackhole.theme'
 export const LOCALE_STORAGE_KEY = 'blackhole.locale'
+export const ACTING_AS_STORAGE_KEY = 'blackhole.actingAs'
 
 function isThemeChoice(value: unknown): value is ThemeChoice {
   return value === 'system' || value === 'light' || value === 'dark'
@@ -28,6 +29,14 @@ function writeStorage(key: string, value: string): void {
   }
 }
 
+function removeStorage(key: string): void {
+  try {
+    localStorage.removeItem(key)
+  } catch {
+    // Nothing to remove.
+  }
+}
+
 /** "system" removes the override so the OS preference (see md3-tokens.generated.css) decides. */
 export function applyTheme(choice: ThemeChoice): void {
   const root = document.documentElement
@@ -44,6 +53,8 @@ export const useUiStore = defineStore('ui', () => {
 
   const theme = ref<ThemeChoice>(isThemeChoice(storedTheme) ? storedTheme : 'system')
   const locale = ref<Locale>(isLocale(storedLocale) ? storedLocale : DEFAULT_LOCALE)
+  // The operator's self-declared name; unverified, only written into notes (see the identity gap).
+  const actingAs = ref(readStorage(ACTING_AS_STORAGE_KEY) ?? '')
 
   applyTheme(theme.value)
   i18n.global.locale.value = locale.value
@@ -62,5 +73,11 @@ export const useUiStore = defineStore('ui', () => {
     document.documentElement.lang = next
   }
 
-  return { theme, locale, setTheme, setLocale }
+  function setActingAs(label: string): void {
+    actingAs.value = label.trim()
+    if (actingAs.value) writeStorage(ACTING_AS_STORAGE_KEY, actingAs.value)
+    else removeStorage(ACTING_AS_STORAGE_KEY)
+  }
+
+  return { theme, locale, actingAs, setTheme, setLocale, setActingAs }
 })

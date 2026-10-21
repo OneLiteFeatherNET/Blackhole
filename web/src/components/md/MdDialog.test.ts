@@ -28,6 +28,17 @@ describe('MdDialog', () => {
     expect(document.activeElement).toBe(dialog.element)
   })
 
+  it('takes focus when it is mounted already open', async () => {
+    const wrapper = mount(MdDialog, {
+      props: { open: true, headline: 'Bestätigen' },
+      attachTo: document.body,
+    })
+    mounted.push(wrapper)
+    await flushPromises()
+
+    expect(document.activeElement).toBe(wrapper.get('[role="dialog"]').element)
+  })
+
   it('emits close when Escape is pressed', async () => {
     const wrapper = mount(MdDialog, {
       props: { open: true, headline: 'Bestätigen' },

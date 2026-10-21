@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDateTime, shortHash } from './format'
+import { formatDateTime, formatDuration, shortHash } from './format'
 
 describe('format', () => {
   it('formats a timestamp in the requested language and zone', () => {
@@ -7,6 +7,19 @@ describe('format', () => {
 
     expect(formatDateTime(at, 'en', 'UTC')).toContain('Jan 2, 2030')
     expect(formatDateTime(at, 'de', 'UTC')).toContain('02.01.2030')
+  })
+
+  it('spells out durations in the UI language', () => {
+    expect(formatDuration('P7D', 'en')).toBe('7 days')
+    expect(formatDuration('P1D', 'en')).toBe('1 day')
+    expect(formatDuration('PT1H30M', 'en')).toBe('1 hour, 30 minutes')
+    expect(formatDuration('P7D', 'de')).toBe('7 Tage')
+  })
+
+  it('returns text that is not a supported duration unchanged', () => {
+    expect(formatDuration('soon', 'en')).toBe('soon')
+    expect(formatDuration('P', 'en')).toBe('P')
+    expect(formatDuration('P1M', 'en'), 'months are not a Duration').toBe('P1M')
   })
 
   it('shortens an owner hash to eight characters and an ellipsis', () => {

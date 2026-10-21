@@ -24,6 +24,8 @@ watch(
       returnFocusTo = null
     }
   },
+  // A dialog that is mounted already open (e.g. behind a v-if) must take focus as well.
+  { immediate: true },
 )
 
 function onKeydown(event: KeyboardEvent) {
