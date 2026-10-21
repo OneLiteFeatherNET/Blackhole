@@ -38,6 +38,9 @@ public final class PunishmentTestBed {
                             .filter(p -> args[0].equals(p.getOwner()) && args[1].equals(p.getEscalationGroup()))
                             .filter(p -> !p.isLifted() && p.getCreatedAt() >= (Long) args[2])
                             .count())
+                    .finder("findByShortId", args -> this.punishments.all().stream()
+                            .filter(p -> args[0].equals(p.getShortId()))
+                            .toList())
                     .finder("existsByTemplate_Identifier", args -> this.punishments.all().stream()
                             .anyMatch(p -> p.getTemplate() != null && args[0].equals(p.getTemplate().getIdentifier())))
                     .build();

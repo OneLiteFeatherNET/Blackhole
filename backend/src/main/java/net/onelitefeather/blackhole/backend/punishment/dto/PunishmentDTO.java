@@ -11,6 +11,7 @@ import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.response.ErrorResponse;
 import net.onelitefeather.blackhole.backend.section.EnforcementKind;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -98,6 +99,13 @@ public sealed interface PunishmentDTO {
             @NonNull String section,
             @Nullable Integer scoreReset
     ) implements PunishmentDTO {
+    }
+
+    /** The punishments that match a short ID; several if short IDs collide, none if nothing matches. */
+    @Schema(name = "PunishmentShortIdMatches")
+    @Serdeable
+    @ReflectiveAccess
+    record ShortIdMatches(@NonNull List<PunishEntryDTO> punishments) implements PunishmentDTO {
     }
 
     @Schema(name = "PunishmentError")

@@ -57,6 +57,7 @@ dependencies {
     runtimeOnly(libs.janino)
 
     testImplementation(mn.junit.jupiter.api)
+    testImplementation(mn.junit.jupiter.params)
     testRuntimeOnly(mn.junit.jupiter.engine)
     testImplementation(mn.micronaut.test.junit5)
     // Integration tests run against real PostgreSQL/RabbitMQ/Redis containers (Testcontainers).

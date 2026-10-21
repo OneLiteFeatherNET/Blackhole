@@ -3,10 +3,17 @@ package net.onelitefeather.blackhole.backend.punishment;
 import io.micronaut.data.annotation.Repository;
 import io.micronaut.data.repository.PageableRepository;
 
+import java.util.List;
 import java.util.UUID;
 
 @Repository
 public interface PunishmentRepository extends PageableRepository<PunishmentEntity, String> {
+
+    /**
+     * Every punishment with the given short ID key (eight upper case hex characters). Not unique:
+     * short IDs are four bytes, so a lookup can match several punishments.
+     */
+    List<PunishmentEntity> findByShortId(String shortId);
 
     /**
      * Whether any punishment still references the given template - checked before allowing a
