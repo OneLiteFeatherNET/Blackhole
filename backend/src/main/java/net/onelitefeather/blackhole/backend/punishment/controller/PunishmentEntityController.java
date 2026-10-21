@@ -50,6 +50,15 @@ public class PunishmentEntityController implements PunishmentApi {
         return HttpResponse.ok(this.punishmentApplicationService.findAll(pageable));
     }
 
+    @Override
+    public HttpResponse<?> findByShortId(String shortId) {
+        return switch (this.punishmentApplicationService.findByShortId(shortId)) {
+            case PunishmentDTO.ShortIdMatches matches -> HttpResponse.ok(matches.punishments());
+            case PunishmentDTO.Error error -> HttpResponse.status(error.kind().status()).body(error);
+            default -> HttpResponse.serverError();
+        };
+    }
+
     private static HttpResponse<PunishmentDTO> toResponse(PunishmentDTO result) {
         if (result instanceof PunishmentDTO.Error error) {
             return HttpResponse.<PunishmentDTO>status(error.kind().status()).body(error);

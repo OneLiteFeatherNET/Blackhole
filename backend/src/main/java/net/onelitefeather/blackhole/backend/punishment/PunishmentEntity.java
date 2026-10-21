@@ -25,11 +25,18 @@ import java.util.UUID;
  */
 @Serdeable
 @Entity
-@Table(name = "punishments", indexes = {@Index(columnList = "identifier")})
+@Table(name = "punishments", indexes = {@Index(columnList = "identifier"), @Index(name = "idx_punishments_short_id", columnList = "short_id")})
 public class PunishmentEntity {
 
     @Id
     private String identifier;
+
+    /**
+     * The key of the short ID players quote ({@link PunishmentShortId}), derived from the identifier.
+     * Not unique: four bytes collide.
+     */
+    @Column(name = "short_id", length = 8, nullable = false)
+    private String shortId;
 
     private UUID source;
 
@@ -80,6 +87,7 @@ public class PunishmentEntity {
     public static PunishmentEntity toEntity(PunishEntryDTO entry, String owner) {
         PunishmentEntity entity = new PunishmentEntity();
         entity.identifier = entry.identifier();
+        entity.shortId = PunishmentShortId.storageKey(entry.identifier());
         entity.source = entry.source();
         entity.owner = owner;
         entity.sectionKey = entry.section();
@@ -127,6 +135,7 @@ public class PunishmentEntity {
             Map<String, Object> metaData
     ) {
         this.identifier = identifier;
+        this.shortId = PunishmentShortId.storageKey(identifier);
         this.source = source;
         this.owner = owner;
         this.sectionKey = sectionKey;
@@ -148,6 +157,10 @@ public class PunishmentEntity {
 
     public String getIdentifier() {
         return identifier;
+    }
+
+    public String getShortId() {
+        return shortId;
     }
 
     public UUID getSource() {
@@ -213,6 +226,7 @@ public class PunishmentEntity {
     public PunishEntryDTO toDTO() {
         return new PunishEntryDTO(
                 this.identifier,
+                PunishmentShortId.display(this.shortId),
                 this.source,
                 this.sectionKey,
                 this.scope,

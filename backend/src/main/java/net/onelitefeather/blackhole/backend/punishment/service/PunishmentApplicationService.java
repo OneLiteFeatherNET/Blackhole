@@ -17,6 +17,7 @@ import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEvents;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentShortId;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.punishment.SectionPunisher;
@@ -396,6 +397,20 @@ public class PunishmentApplicationService implements SectionPunisher {
      */
     public Page<PunishEntryDTO> findAll(Pageable pageable) {
         return this.punishmentRepository.findAll(pageable).map(PunishmentEntity::toDTO);
+    }
+
+    /**
+     * Finds the punishments whose short ID matches what a player quoted.
+     *
+     * @param shortId the short ID as typed, with or without {@code #}, in any case
+     * @return the {@link PunishmentDTO.ShortIdMatches} (empty if nothing matches), or a
+     * {@link PunishmentDTO.Error} if the input is not exactly eight hex characters
+     */
+    public PunishmentDTO findByShortId(String shortId) {
+        return PunishmentShortId.parse(shortId)
+                .<PunishmentDTO>map(key -> new PunishmentDTO.ShortIdMatches(
+                        this.punishmentRepository.findByShortId(key).stream().map(PunishmentEntity::toDTO).toList()))
+                .orElseGet(() -> error(ErrorKind.VALIDATION, "a short id is # followed by exactly eight hex characters"));
     }
 
     private static PunishmentDTO.Error error(ErrorKind kind, String message) {

@@ -5,6 +5,7 @@ import { expiresAt, isAutomatic, reasonOf, stepLabel } from './punishmentInfo'
 function punishment(overrides: Partial<Punishment> = {}): Punishment {
   return {
     identifier: 'p-1',
+    shortId: 'ABC123',
     source: '11111111-2222-3333-4444-555555555555',
     section: 'network',
     permanent: false,

@@ -14,6 +14,7 @@ import java.util.UUID;
  * An applied punishment as it appears in profiles and apply results.
  *
  * @param identifier      the identifier of the punishment
+ * @param shortId         the short ID players quote, {@code #} and eight upper case hex characters
  * @param source          the source of the punishment
  * @param section         the section it belongs to
  * @param scope           the optional scope (e.g. event/community) it is restricted to, or {@code null}
@@ -34,6 +35,7 @@ import java.util.UUID;
 @ReflectiveAccess
 public record PunishEntryDTO(
         String identifier,
+        String shortId,
         UUID source,
         String section,
         @Nullable String scope,

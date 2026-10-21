@@ -5,6 +5,7 @@ import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -70,6 +71,22 @@ public interface PunishmentApi {
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
     @Post("/revoke")
     HttpResponse<PunishmentDTO> revoke(@Valid @Body PunishmentDTO.RevokeRequest request);
+
+    @Operation(
+            summary = "Find punishments by short ID",
+            description = "Finds the punishments whose short ID (the # and eight hex characters players are shown, e.g. "
+                    + "#A1B2C3D4) matches. The # is optional and the case is ignored. Short IDs are four bytes and can "
+                    + "collide, so the result is a list: empty if nothing matches, several if they collide.",
+            operationId = "findPunishmentsByShortId",
+            tags = {"Punishment"}
+    )
+    @ApiResponse(responseCode = "200", description = "The matching punishments, possibly none",
+            content = @Content(mediaType = "application/json",
+                    array = @ArraySchema(schema = @Schema(implementation = PunishEntryDTO.class))))
+    @ApiResponse(responseCode = "400", description = "Not a short ID (exactly eight hex characters, optionally after #)",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
+    @Get("/short/{shortId}")
+    HttpResponse<?> findByShortId(@PathVariable String shortId);
 
     @Operation(
             summary = "Get all punishments",
