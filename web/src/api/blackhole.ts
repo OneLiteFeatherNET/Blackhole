@@ -11,7 +11,9 @@ import type {
   PunishmentProfile,
   ResolvedPlayer,
   RevokeResult,
+  Section,
   Template,
+  TemplateDraft,
 } from './types'
 
 export interface ApiOptions {
@@ -50,6 +52,11 @@ export interface BlackholeApi {
   /** All events of one section, newest first. */
   eloHistory(owner: string, section: string): Promise<ApiResult<EloEvent[]>>
   templates(): Promise<ApiResult<Template[]>>
+  createTemplate(draft: TemplateDraft): Promise<ApiResult<Template>>
+  updateTemplate(identifier: string, draft: TemplateDraft): Promise<ApiResult<Template>>
+  /** Fails with a CONFLICT while a punishment still references the template. */
+  deleteTemplate(identifier: string): Promise<ApiResult<Template>>
+  sections(): Promise<ApiResult<Section[]>>
   /** What applying the template would do right now; changes nothing. */
   previewApply(owner: string, templateKey: string): Promise<ApiResult<ApplyPreview>>
   applyTemplate(owner: string, templateKey: string): Promise<ApiResult<ApplyResult>>
@@ -92,6 +99,18 @@ async function collectPages<T>(fetchPage: (page: number) => Promise<ApiResult<un
     if (page + 1 >= content.totalPages) break
   }
   return { ok: true, data: items }
+}
+
+/** Blank optional text means "not set"; the backend then falls back to the template key / its default window. */
+function templateBody(draft: TemplateDraft) {
+  return {
+    key: draft.key.trim(),
+    reason: draft.reason.trim(),
+    section: draft.section,
+    escalationGroup: draft.escalationGroup?.trim() || null,
+    escalationWindow: draft.escalationWindow?.trim() || null,
+    steps: draft.steps.map((step) => ({ duration: step.duration.trim(), eloCost: step.eloCost })),
+  }
 }
 
 export function createBlackholeApi(options: ApiOptions): BlackholeApi {
@@ -137,6 +156,16 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       collectPages<Template>((page) =>
         toResult(http.GET('/template', { params: { query: { pageable: NO_PAGEABLE } }, querySerializer: pageQuery(page) })),
       ),
+
+    createTemplate: (draft) => toResult(http.POST('/template', { body: templateBody(draft) })),
+
+    updateTemplate: (identifier, draft) =>
+      toResult(http.POST('/template/update', { body: { identifier, ...templateBody(draft) } })),
+
+    deleteTemplate: (identifier) =>
+      toResult(http.DELETE('/template/delete/{identifier}', { params: { path: { identifier } } })),
+
+    sections: () => toResult(http.GET('/section')),
 
     previewApply: (owner, templateKey) =>
       toResult(http.POST('/punishment/preview', { body: { owner, templateKey, source: options.source } })),

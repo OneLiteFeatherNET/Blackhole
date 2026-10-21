@@ -165,5 +165,53 @@
       "done": "Score adjusted to {after}.",
       "doneEscalated": "Score adjusted to {after}; the player is now permanently punished in {section}."
     }
+  },
+  "templates": {
+    "title": "Punishment templates",
+    "intro": "Templates describe the punishments staff can apply. Each template lists escalation steps: the nth offence in its group uses the nth step.",
+    "new": "New template",
+    "edit": "Edit",
+    "empty": "There are no templates yet.",
+    "saved": "Template saved.",
+    "deleted": "Template deleted.",
+    "stepCount": "no steps | 1 step | {count} steps",
+    "columns": {
+      "key": "Key",
+      "reason": "Reason",
+      "section": "Section",
+      "group": "Escalation group",
+      "steps": "Steps (duration / ELO cost)",
+      "actions": "Actions"
+    },
+    "delete": {
+      "open": "Delete",
+      "title": "Delete template {key}?",
+      "body": "The template can no longer be applied. This cannot be undone.",
+      "confirm": "Delete",
+      "inUse": "The template is still in use: punishments that came from it exist, so it cannot be deleted."
+    },
+    "editor": {
+      "newTitle": "New template",
+      "editTitle": "Edit template {key}",
+      "key": "Key",
+      "keyHint": "Kebab-case, e.g. hacking",
+      "section": "Section",
+      "reason": "Reason",
+      "group": "Escalation group",
+      "groupHint": "Optional; defaults to the key",
+      "window": "Escalation window",
+      "windowHint": "Optional ISO-8601, e.g. P90D",
+      "steps": "Escalation steps",
+      "stepsHint": "The first offence in the group uses step 1, the next step 2, and so on; the last step repeats.",
+      "duration": "Duration (step {n})",
+      "durationHint": "ISO-8601, e.g. P7D or PT12H",
+      "cost": "ELO cost (step {n})",
+      "invalidCost": "Enter a whole number of 0 or more.",
+      "moveUp": "Move step {n} up",
+      "moveDown": "Move step {n} down",
+      "remove": "Remove step {n}",
+      "addStep": "Add step",
+      "save": "Save"
+    }
   }
 }

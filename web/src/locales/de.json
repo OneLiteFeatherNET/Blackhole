@@ -165,5 +165,53 @@
       "done": "Punktestand auf {after} angepasst.",
       "doneEscalated": "Punktestand auf {after} angepasst; der Spieler ist jetzt in {section} dauerhaft bestraft."
     }
+  },
+  "templates": {
+    "title": "Strafvorlagen",
+    "intro": "Vorlagen beschreiben die Strafen, die das Team verhängen kann. Jede Vorlage hat Eskalationsstufen: Das n-te Vergehen in ihrer Gruppe nutzt die n-te Stufe.",
+    "new": "Neue Vorlage",
+    "edit": "Bearbeiten",
+    "empty": "Es gibt noch keine Vorlagen.",
+    "saved": "Vorlage gespeichert.",
+    "deleted": "Vorlage gelöscht.",
+    "stepCount": "keine Stufen | 1 Stufe | {count} Stufen",
+    "columns": {
+      "key": "Schlüssel",
+      "reason": "Grund",
+      "section": "Bereich",
+      "group": "Eskalationsgruppe",
+      "steps": "Stufen (Dauer / ELO-Kosten)",
+      "actions": "Aktionen"
+    },
+    "delete": {
+      "open": "Löschen",
+      "title": "Vorlage {key} löschen?",
+      "body": "Die Vorlage kann danach nicht mehr angewendet werden. Das lässt sich nicht rückgängig machen.",
+      "confirm": "Löschen",
+      "inUse": "Die Vorlage wird noch verwendet: Es existieren Strafen, die aus ihr entstanden sind, daher kann sie nicht gelöscht werden."
+    },
+    "editor": {
+      "newTitle": "Neue Vorlage",
+      "editTitle": "Vorlage {key} bearbeiten",
+      "key": "Schlüssel",
+      "keyHint": "Kebab-Case, z. B. hacking",
+      "section": "Bereich",
+      "reason": "Grund",
+      "group": "Eskalationsgruppe",
+      "groupHint": "Optional; standardmäßig der Schlüssel",
+      "window": "Eskalationsfenster",
+      "windowHint": "Optional, ISO-8601, z. B. P90D",
+      "steps": "Eskalationsstufen",
+      "stepsHint": "Das erste Vergehen in der Gruppe nutzt Stufe 1, das nächste Stufe 2 und so weiter; die letzte Stufe wiederholt sich.",
+      "duration": "Dauer (Stufe {n})",
+      "durationHint": "ISO-8601, z. B. P7D oder PT12H",
+      "cost": "ELO-Kosten (Stufe {n})",
+      "invalidCost": "Gib eine ganze Zahl ab 0 ein.",
+      "moveUp": "Stufe {n} nach oben",
+      "moveDown": "Stufe {n} nach unten",
+      "remove": "Stufe {n} entfernen",
+      "addStep": "Stufe hinzufügen",
+      "save": "Speichern"
+    }
   }
 }

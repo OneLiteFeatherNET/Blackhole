@@ -72,6 +72,79 @@ describe('withActor', () => {
   })
 })
 
+describe('template management', () => {
+  const draft = {
+    key: ' hacking ',
+    reason: 'Hacking',
+    section: 'network',
+    escalationGroup: ' ',
+    escalationWindow: 'P30D',
+    steps: [{ duration: ' P1D ', eloCost: 100 }],
+  }
+
+  it('creates a template, trimming text and dropping a blank group', async () => {
+    const { api, calls } = apiWith([{ body: { key: 'hacking' } }])
+
+    await api.createTemplate(draft)
+
+    expect(new URL(calls[0]!.url).pathname).toBe('/api/template')
+    expect(JSON.parse(calls[0]!.body)).toEqual({
+      key: 'hacking',
+      reason: 'Hacking',
+      section: 'network',
+      escalationGroup: null,
+      escalationWindow: 'P30D',
+      steps: [{ duration: 'P1D', eloCost: 100 }],
+    })
+  })
+
+  it('updates a template by identifier', async () => {
+    const { api, calls } = apiWith([{ body: { key: 'hacking' } }])
+
+    await api.updateTemplate('id-1', draft)
+
+    expect(new URL(calls[0]!.url).pathname).toBe('/api/template/update')
+    expect(JSON.parse(calls[0]!.body).identifier).toBe('id-1')
+  })
+
+  it('reports the validation error of a step with its message', async () => {
+    const { api } = apiWith([
+      { status: 400, body: { errorMessage: 'step 1 needs a duration that is a positive ISO-8601 duration', kind: 'VALIDATION' } },
+    ])
+
+    const result = await api.createTemplate(draft)
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toMatchObject({ status: 400, kind: 'VALIDATION', message: expect.stringContaining('step 1') })
+  })
+
+  it('deletes a template and surfaces the conflict while it is referenced', async () => {
+    const { api, calls } = apiWith([
+      { status: 409, body: { errorMessage: 'at least one punishment still references this template', kind: 'CONFLICT' } },
+    ])
+
+    const result = await api.deleteTemplate('id-1')
+
+    expect(calls[0]!.method).toBe('DELETE')
+    expect(new URL(calls[0]!.url).pathname).toBe('/api/template/delete/id-1')
+    expect(result).toEqual({
+      ok: false,
+      error: { status: 409, message: 'at least one punishment still references this template', kind: 'CONFLICT' },
+    })
+  })
+})
+
+describe('sections', () => {
+  it('lists the sections', async () => {
+    const { api, calls } = apiWith([{ body: [{ key: 'chat' }, { key: 'network' }] }])
+
+    const result = await api.sections()
+
+    expect(result.ok && result.data.map((s) => s.key)).toEqual(['chat', 'network'])
+    expect(new URL(calls[0]!.url).pathname).toBe('/api/section')
+  })
+})
+
 describe('templates', () => {
   it('collects every page', async () => {
     const { api, calls } = apiWith([

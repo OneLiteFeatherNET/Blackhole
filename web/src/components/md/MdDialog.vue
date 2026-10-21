@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref, useId, watch } from 'vue'
 
-const props = defineProps<{ open: boolean; headline: string }>()
+const props = defineProps<{ open: boolean; headline: string; wide?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
 const titleId = useId()
@@ -64,7 +64,8 @@ function onKeydown(event: KeyboardEvent) {
       aria-modal="true"
       :aria-labelledby="titleId"
       tabindex="-1"
-      class="relative w-full max-w-md rounded-md-xl bg-surface-container-high p-6 text-on-surface shadow-md-3 outline-none"
+      class="relative max-h-[90dvh] w-full overflow-y-auto rounded-md-xl bg-surface-container-high p-6 text-on-surface shadow-md-3 outline-none"
+      :class="props.wide ? 'max-w-2xl' : 'max-w-md'"
       @keydown="onKeydown"
     >
       <h2 :id="titleId" class="text-headline-small text-on-surface">{{ props.headline }}</h2>
