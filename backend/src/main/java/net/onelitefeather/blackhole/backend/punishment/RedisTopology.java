@@ -23,14 +23,6 @@ public final class RedisTopology {
     /** Pub/Sub channel announcing that the section list changed; the message is the changed section key. */
     public static final String SECTION_CHANGED_CHANNEL = "blackhole.section.changed";
 
-    public static String banKey(String owner) {
-        return "blackhole:punish:ban:" + owner;
-    }
-
-    public static String chatBanKey(String owner) {
-        return "blackhole:punish:chatban:" + owner;
-    }
-
     /**
      * Key holding the active punishment of {@code owner} in {@code section}.
      */

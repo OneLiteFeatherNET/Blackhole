@@ -21,6 +21,7 @@ public class BlackholeRabbitTopology extends ChannelInitializer {
 
         channel.queueDeclare(RabbitTopology.REDIS_SYNC_QUEUE, true, false, false, null);
         channel.queueBind(RabbitTopology.REDIS_SYNC_QUEUE, RabbitTopology.EVENTS_EXCHANGE, "punishment.created");
+        channel.queueBind(RabbitTopology.REDIS_SYNC_QUEUE, RabbitTopology.EVENTS_EXCHANGE, "punishment.updated");
         channel.queueBind(RabbitTopology.REDIS_SYNC_QUEUE, RabbitTopology.EVENTS_EXCHANGE, "punishment.expired");
         channel.queueBind(RabbitTopology.REDIS_SYNC_QUEUE, RabbitTopology.EVENTS_EXCHANGE, "punishment.revoked");
         channel.queueBind(RabbitTopology.REDIS_SYNC_QUEUE, RabbitTopology.EVENTS_EXCHANGE, "appeal.resolved");

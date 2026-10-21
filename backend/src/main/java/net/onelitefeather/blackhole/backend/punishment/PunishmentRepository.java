@@ -10,9 +10,17 @@ public interface PunishmentRepository extends PageableRepository<PunishmentEntit
 
     /**
      * Whether any punishment still references the given template - checked before allowing a
-     * template to be deleted, since {@link PunishmentEntity#template} is a live FK with no
-     * {@code ON DELETE} cascade/set-null configured (see
-     * {@code specs/002-punishment-core/tasks.md} T029).
+     * template to be deleted, since {@link PunishmentEntity#getTemplate()} is a live FK with no
+     * {@code ON DELETE} cascade/set-null configured.
      */
     boolean existsByTemplate_Identifier(UUID templateIdentifier);
+
+    /**
+     * How many of the owner's punishments in an escalation group were created at or after
+     * {@code createdSince} and were not lifted (revoked, or lifted by a granted appeal). Expired
+     * punishments count. This is the {@code n} of escalation step selection.
+     */
+    long countByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals(
+            String owner, String escalationGroup, long createdSince
+    );
 }

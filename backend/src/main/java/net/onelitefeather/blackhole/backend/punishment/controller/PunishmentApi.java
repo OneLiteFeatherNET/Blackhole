@@ -1,112 +1,56 @@
 package net.onelitefeather.blackhole.backend.punishment.controller;
 
-import net.onelitefeather.blackhole.backend.punishment.dto.PunishEntryDTO;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.annotation.Body;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
-import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Pattern;
-import net.onelitefeather.blackhole.backend.profile.dto.PunishProfileResponse;
-
-import java.util.UUID;
+import net.onelitefeather.blackhole.backend.punishment.dto.PunishEntryDTO;
+import net.onelitefeather.blackhole.backend.punishment.dto.PunishmentDTO;
 
 public interface PunishmentApi {
 
     @Operation(
-            summary = "Add active punishment",
-            description = "Creates and applies an active punishment to a player profile based on a punishment template",
-            operationId = "addActivePunishment",
+            summary = "Apply a punishment template",
+            description = "Applies a template to a player: creates a temporary punishment in the template's section with "
+                    + "the duration and ELO cost of the escalation step the player has reached, deducts the cost, and "
+                    + "reports the step, the score before and after, and any permanent escalation it caused.",
+            operationId = "applyPunishment",
             tags = {"Punishment"}
     )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Punishment successfully applied to profile",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = PunishProfileResponse.class)
-            )
-    )
-    @ApiResponse(
-            responseCode = "404",
-            description = "Profile or template not found"
-    )
-    @ApiResponse(
-            responseCode = "400",
-            description = "Invalid input parameters (owner must be SHA-512 hash)"
-    )
-    @Validated
-    @Post("/active/{owner}/{templateId}/{source}")
-    HttpResponse<PunishProfileResponse> add(
-            @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
-            UUID templateId,
-            UUID source
-    );
+    @ApiResponse(responseCode = "200", description = "Punishment applied",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.ApplyResponse.class)))
+    @ApiResponse(responseCode = "400", description = "Invalid request (owner must be a SHA-512 hash, exactly one of templateKey and templateId)",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
+    @ApiResponse(responseCode = "404", description = "Unknown template",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
+    @ApiResponse(responseCode = "409", description = "The template's section is disabled, or the player is already permanently punished in it",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
+    @Post("/apply")
+    HttpResponse<PunishmentDTO> apply(@Valid @Body PunishmentDTO.ApplyRequest request);
 
     @Operation(
-            summary = "Revoke active ban",
-            description = "Revokes a player's active ban (SERVER or NETWORK), moving it into history",
-            operationId = "revokeBan",
+            summary = "Revoke the active punishment of a section",
+            description = "Moves the player's active punishment in the section into history. Revoking a permanent "
+                    + "punishment resets the player's score in that section to the section's pardon score.",
+            operationId = "revokePunishment",
             tags = {"Punishment"}
     )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Ban successfully revoked",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = PunishProfileResponse.class)
-            )
-    )
-    @ApiResponse(
-            responseCode = "404",
-            description = "Profile not found, or has no active ban"
-    )
-    @ApiResponse(
-            responseCode = "400",
-            description = "Invalid input parameters (owner must be SHA-512 hash)"
-    )
-    @Validated
-    @Post("/active/{owner}/ban/revoke/{source}")
-    HttpResponse<PunishProfileResponse> revokeBan(
-            @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
-            UUID source
-    );
-
-    @Operation(
-            summary = "Revoke active mute",
-            description = "Revokes a player's active chat ban, moving it into history",
-            operationId = "revokeMute",
-            tags = {"Punishment"}
-    )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Mute successfully revoked",
-            content = @Content(
-                    mediaType = "application/json",
-                    schema = @Schema(implementation = PunishProfileResponse.class)
-            )
-    )
-    @ApiResponse(
-            responseCode = "404",
-            description = "Profile not found, or has no active mute"
-    )
-    @ApiResponse(
-            responseCode = "400",
-            description = "Invalid input parameters (owner must be SHA-512 hash)"
-    )
-    @Validated
-    @Post("/active/{owner}/mute/revoke/{source}")
-    HttpResponse<PunishProfileResponse> revokeMute(
-            @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
-            UUID source
-    );
+    @ApiResponse(responseCode = "200", description = "Punishment revoked",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.RevokeResponse.class)))
+    @ApiResponse(responseCode = "400", description = "Invalid request (owner must be a SHA-512 hash)",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
+    @ApiResponse(responseCode = "404", description = "The player has no active punishment in that section",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
+    @Post("/revoke")
+    HttpResponse<PunishmentDTO> revoke(@Valid @Body PunishmentDTO.RevokeRequest request);
 
     @Operation(
             summary = "Get all punishments",
@@ -114,17 +58,10 @@ public interface PunishmentApi {
             operationId = "getPunishments",
             tags = {"Punishment"}
     )
-    @ApiResponse(
-            responseCode = "200",
-            description = "Successfully retrieved punishment entries",
-            content = @Content(
-                    mediaType = "application/json",
-                    array = @ArraySchema(
-                            schema = @Schema(implementation = PunishEntryDTO.class),
-                            arraySchema = @Schema(implementation = Page.class)
-                    )
-            )
-    )
+    @ApiResponse(responseCode = "200", description = "Successfully retrieved punishment entries",
+            content = @Content(mediaType = "application/json",
+                    array = @ArraySchema(schema = @Schema(implementation = PunishEntryDTO.class),
+                            arraySchema = @Schema(implementation = Page.class))))
     @Get()
     HttpResponse<Page<PunishEntryDTO>> getAll(Pageable pageable);
 }

@@ -13,12 +13,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Map;
 
 /**
  * Mirrors active-punishment state into Redis so every Velocity proxy in a multi-proxy network
  * sees consistent ban/mute state without querying the backend on every login/chat message.
- * Consumes {@code punishment.created}/{@code expired}/{@code revoked} and
+ * Consumes {@code punishment.created}/{@code updated}/{@code expired}/{@code revoked} and
  * {@code appeal.resolved} off the shared {@link RabbitTopology#REDIS_SYNC_QUEUE} - a shared
  * (not per-replica) queue, since Redis is the one cross-proxy source of truth and each event
  * must be processed exactly once.
@@ -35,12 +34,12 @@ public class RedisSyncConsumer {
 
     private final ChannelPool channelPool;
     private final JsonMapper jsonMapper;
-    private final PunishmentRedisWriter redisWriter;
+    private final PunishmentSyncHandler handler;
 
-    public RedisSyncConsumer(@Named("default") ChannelPool channelPool, JsonMapper jsonMapper, PunishmentRedisWriter redisWriter) {
+    public RedisSyncConsumer(@Named("default") ChannelPool channelPool, JsonMapper jsonMapper, PunishmentSyncHandler handler) {
         this.channelPool = channelPool;
         this.jsonMapper = jsonMapper;
-        this.redisWriter = redisWriter;
+        this.handler = handler;
     }
 
     @EventListener
@@ -65,55 +64,6 @@ public class RedisSyncConsumer {
     }
 
     private void handle(byte[] body) throws IOException {
-        DomainEvent event = this.jsonMapper.readValue(body, DomainEvent.class);
-        Map<String, Object> payload = event.payload();
-        String owner = String.valueOf(payload.get("owner"));
-        String punishmentIdentifier = stringOrNull(payload.get("punishmentIdentifier"));
-
-        switch (event.eventType()) {
-            case "punishment.created" -> {
-                String type = String.valueOf(payload.get("type"));
-                String templateIdentifier = stringOrNull(payload.get("templateIdentifier"));
-                Long expiresAt = asLong(payload.get("expiresAt"));
-                if ("CHAT".equals(type)) {
-                    this.redisWriter.setChatBan(owner, punishmentIdentifier, templateIdentifier, expiresAt);
-                } else {
-                    this.redisWriter.setBan(owner, type, punishmentIdentifier, templateIdentifier, expiresAt);
-                }
-            }
-            case "punishment.expired", "punishment.revoked" -> clearSlot(owner, String.valueOf(payload.get("type")), punishmentIdentifier);
-            case "appeal.resolved" -> {
-                if ("GRANTED_FULL_LIFT".equals(String.valueOf(payload.get("decision")))) {
-                    clearSlot(owner, String.valueOf(payload.get("type")), punishmentIdentifier);
-                }
-            }
-            default -> LOGGER.debug("Ignoring unrelated event type {} on the Redis sync queue", event.eventType());
-        }
-    }
-
-    private void clearSlot(String owner, String type, String punishmentIdentifier) {
-        if ("CHAT".equals(type)) {
-            this.redisWriter.clearChatBan(owner, punishmentIdentifier);
-        } else {
-            this.redisWriter.clearBan(owner, type, punishmentIdentifier);
-        }
-    }
-
-    private static String stringOrNull(Object value) {
-        return value == null ? null : value.toString();
-    }
-
-    private static Long asLong(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-        try {
-            return Long.parseLong(value.toString());
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        this.handler.handle(this.jsonMapper.readValue(body, DomainEvent.class));
     }
 }

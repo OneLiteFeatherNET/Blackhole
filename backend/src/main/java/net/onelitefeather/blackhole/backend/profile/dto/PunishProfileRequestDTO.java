@@ -9,7 +9,6 @@ import net.onelitefeather.blackhole.backend.punishment.dto.PunishEntryDTO;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Request body for creating/updating a punishment profile.
@@ -18,8 +17,7 @@ import java.util.Optional;
 @ReflectiveAccess
 public record PunishProfileRequestDTO(
         @NonNull @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
-        @Nullable Optional<PunishEntryDTO> activeChatBan,
-        @Nullable Optional<PunishEntryDTO> activeBan,
+        @Nullable Map<String, PunishEntryDTO> active,
         @Nullable List<PunishEntryDTO> history,
         @NonNull Map<String, Object> metaData
 ) {

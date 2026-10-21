@@ -10,14 +10,14 @@ import io.micronaut.data.model.Pageable;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.elo.EloScoring;
 import net.onelitefeather.blackhole.backend.elo.service.EloService;
+import net.onelitefeather.blackhole.backend.section.EnforcementKind;
 import net.onelitefeather.blackhole.backend.section.SectionService;
 import net.onelitefeather.blackhole.backend.section.dto.SectionDTO;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
-import net.onelitefeather.blackhole.backend.punishment.PunishType;
-import net.onelitefeather.phoca.metadata.Expirable;
 import net.onelitefeather.phoca.metadata.Metadata;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -40,6 +40,7 @@ public class AppealEligibilityService {
     private final PunishmentRepository punishmentRepository;
     private final EloScoring eloScoring;
     private final SectionService sectionService;
+    private final Clock clock;
     private final int minDaysManual;
     private final int minDaysAuto;
     private final int repeatAppealCooldownDays;
@@ -49,6 +50,7 @@ public class AppealEligibilityService {
             PunishmentRepository punishmentRepository,
             EloScoring eloScoring,
             SectionService sectionService,
+            Clock clock,
             @Value("${blackhole.appeal.min-days-manual:14}") int minDaysManual,
             @Value("${blackhole.appeal.min-days-auto:3}") int minDaysAuto,
             @Value("${blackhole.appeal.repeat-appeal-cooldown-days:7}") int repeatAppealCooldownDays
@@ -57,6 +59,7 @@ public class AppealEligibilityService {
         this.punishmentRepository = punishmentRepository;
         this.eloScoring = eloScoring;
         this.sectionService = sectionService;
+        this.clock = clock;
         this.minDaysManual = minDaysManual;
         this.minDaysAuto = minDaysAuto;
         this.repeatAppealCooldownDays = repeatAppealCooldownDays;
@@ -77,7 +80,7 @@ public class AppealEligibilityService {
         }
 
         EligibilityResult eligibility = evaluate(punishment, appellantHash);
-        long now = System.currentTimeMillis();
+        long now = this.clock.millis();
 
         AppealEntity appeal = new AppealEntity(
                 punishment, appellantHash, statement,
@@ -96,7 +99,7 @@ public class AppealEligibilityService {
     }
 
     public EligibilityResult evaluate(PunishmentEntity punishment, String appellantHash) {
-        long now = System.currentTimeMillis();
+        long now = this.clock.millis();
         long creationDate = ((Number) punishment.getMetaData().get(Metadata.META_DATA_KEY_CREATION_DATE)).longValue();
         String eloTriggerReasonCode = (String) punishment.getMetaData().get("eloTriggerReasonCode");
         boolean isAutoTriggered = EloService.SYSTEM_ELO_SOURCE.equals(punishment.getSource());
@@ -113,7 +116,7 @@ public class AppealEligibilityService {
 
         boolean severe = isSevere(punishment);
 
-        String ownSection = sectionKeyOf(punishment);
+        String ownSection = punishment.getSectionKey();
         List<SectionDTO.Response> supportingSections = this.sectionService.listEnabled().stream()
                 .filter(section -> !section.key().equals(ownSection))
                 .toList();
@@ -145,14 +148,13 @@ public class AppealEligibilityService {
         return new EligibilityResult(eligible, severe, checklist);
     }
 
-    private static boolean isSevere(PunishmentEntity punishment) {
-        return punishment.getType() == PunishType.NETWORK && !punishment.getMetaData().containsKey(Expirable.META_DATA_KEY_EXPIRATION_DATE);
-    }
-
     /**
-     * The section a punishment belongs to. Transitional mapping from the legacy punishment type.
+     * A permanent network-wide (BAN) punishment is the one severe tier, which an appeal can only
+     * shorten, never lift outright.
      */
-    private static String sectionKeyOf(PunishmentEntity punishment) {
-        return punishment.getType() == PunishType.CHAT ? "chat" : "network";
+    private boolean isSevere(PunishmentEntity punishment) {
+        return punishment.isPermanent() && this.sectionService.find(punishment.getSectionKey())
+                .map(section -> section.enforcement() == EnforcementKind.BAN)
+                .orElse(false);
     }
 }

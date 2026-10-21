@@ -421,4 +421,106 @@
         </createIndex>
     </changeSet>
 
+    <!-- Templates belong to a section and are addressed by a unique key (the command slug).
+         punishment_templates.type and elo_delta stay (type nullable, elo_delta defaulting to 0) but
+         are no longer read; a later changeset drops them. template_key is nullable for rows that
+         predate this change; the application layer requires it on every template it writes. -->
+    <changeSet id="add-section-columns-to-templates" author="blackhole">
+        <addColumn tableName="punishment_templates">
+            <column name="template_key" type="varchar(64)"/>
+            <column name="section_key" type="varchar(64)"/>
+        </addColumn>
+        <addUniqueConstraint tableName="punishment_templates" columnNames="template_key"
+                             constraintName="uk_punishment_templates_key"/>
+        <addForeignKeyConstraint constraintName="fk_punishment_templates_section"
+                                 baseTableName="punishment_templates" baseColumnNames="section_key"
+                                 referencedTableName="punishment_sections" referencedColumnNames="section_key"/>
+    </changeSet>
+
+    <!-- Punishments know their owner and section. permanent marks the system's escalation
+         punishments (no template, no expiry); lifted marks punishments that were revoked or lifted
+         by a granted appeal, which escalation step selection must not count. -->
+    <changeSet id="add-section-columns-to-punishments" author="blackhole">
+        <addColumn tableName="punishments">
+            <column name="owner" type="varchar(255)"/>
+            <column name="section_key" type="varchar(64)"/>
+            <column name="permanent" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="lifted" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="bigint"/>
+        </addColumn>
+        <addForeignKeyConstraint constraintName="fk_punishments_section"
+                                 baseTableName="punishments" baseColumnNames="section_key"
+                                 referencedTableName="punishment_sections" referencedColumnNames="section_key"/>
+    </changeSet>
+
+    <!-- Escalation: a template lists ordered steps (duration + ELO cost) and belongs to an
+         escalation group with an optional window. A punishment records the group, the chosen step,
+         the step count and the deducted cost, so its history stays explainable after the template is
+         edited. Durations are ISO-8601 strings, validated in the application layer. -->
+    <changeSet id="create-template-steps" author="blackhole">
+        <createTable tableName="punishment_template_steps">
+            <column name="template_identifier" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="step_index" type="int">
+                <constraints nullable="false"/>
+            </column>
+            <column name="duration" type="varchar(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="elo_cost" type="int">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="punishment_template_steps" columnNames="template_identifier, step_index"
+                       constraintName="pk_punishment_template_steps"/>
+        <addForeignKeyConstraint constraintName="fk_punishment_template_steps_template"
+                                 baseTableName="punishment_template_steps" baseColumnNames="template_identifier"
+                                 referencedTableName="punishment_templates" referencedColumnNames="identifier"/>
+        <addColumn tableName="punishment_templates">
+            <column name="escalation_group" type="varchar(64)"/>
+            <column name="escalation_window" type="varchar(32)"/>
+        </addColumn>
+        <addColumn tableName="punishments">
+            <column name="escalation_group" type="varchar(64)"/>
+            <column name="step_index" type="int"/>
+            <column name="step_count" type="int"/>
+            <column name="elo_cost" type="int"/>
+        </addColumn>
+        <createIndex indexName="idx_punishments_owner_group_created" tableName="punishments">
+            <column name="owner"/>
+            <column name="escalation_group"/>
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- One active punishment per owner and section. Replaces the two fixed slots of
+         punishment_profiles (dropped by drop-legacy-profile-slots). The primary key makes a second
+         concurrent write to the same slot fail instead of silently double-occupying it. -->
+    <changeSet id="create-active-punishments" author="blackhole">
+        <createTable tableName="active_punishments">
+            <column name="owner" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="section_key" type="varchar(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="punishment_identifier" type="varchar(255)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_active_punishments_punishment"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="active_punishments" columnNames="owner, section_key"
+                       constraintName="pk_active_punishments"/>
+        <addForeignKeyConstraint constraintName="fk_active_punishments_profile"
+                                 baseTableName="active_punishments" baseColumnNames="owner"
+                                 referencedTableName="punishment_profiles" referencedColumnNames="owner"/>
+        <addForeignKeyConstraint constraintName="fk_active_punishments_punishment"
+                                 baseTableName="active_punishments" baseColumnNames="punishment_identifier"
+                                 referencedTableName="punishments" referencedColumnNames="identifier"/>
+    </changeSet>
+
 </databaseChangeLog>

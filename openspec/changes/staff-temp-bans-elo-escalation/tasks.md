@@ -15,13 +15,13 @@
 
 ## 3. Templates and punishments
 
-- [ ] 3.1 Append `add-section-columns-to-templates` and `add-section-columns-to-punishments`; enforce key uniqueness (409), existing section, positive duration and non-negative eloCost in the template service; verify unit tests for each validation error
-- [ ] 3.2 Append `create-template-steps` (+ `escalation_group`, `escalation_window` columns and index `punishments(owner, escalation_group, created_at)`); implement step selection (window, revoked/appeal-lifted excluded, expired counted, clamp to last step, shared groups) and record group/step/stepCount/cost on the punishment; verify unit tests for each scenario of "Escalation step selection" and "Shared escalation groups"
-- [ ] 3.3 Append `create-active-punishments`; rotate only the target section's slot on apply; fix expiry-on-read publishing the section; verify tests "mute does not lift a ban" and "expired mute clears chat key"
-- [ ] 3.4 Implement `POST /punishment/apply` returning the apply result (step, score before/after, escalation) and record the deducted cost on the punishment; create system permanent punishments without template; verify integration test covering apply -> deduction -> escalation
-- [ ] 3.5 Implement `POST /punishment/revoke` per section with pardon-score reset for permanent punishments; remove old apply/revoke paths; verify tests for temp revoke, permanent revoke reset and 404
-- [ ] 3.6 Apply appeal ELO effects (PARDON_RESET, APPEAL_REFUND) in the appeal decision path; verify appeal service tests for full lift, reduction and denial
-- [ ] 3.7 Switch the Redis mirror to `blackhole:punish:<section>:<owner>` messages with section + enforcement; verify a Redis-backed integration test for set/TTL/clear
+- [x] 3.1 Append `add-section-columns-to-templates` and `add-section-columns-to-punishments`; enforce key uniqueness (409), existing section, positive duration and non-negative eloCost in the template service; verify unit tests for each validation error
+- [x] 3.2 Append `create-template-steps` (+ `escalation_group`, `escalation_window` columns and index `punishments(owner, escalation_group, created_at)`); implement step selection (window, revoked/appeal-lifted excluded, expired counted, clamp to last step, shared groups) and record group/step/stepCount/cost on the punishment; verify unit tests for each scenario of "Escalation step selection" and "Shared escalation groups"
+- [x] 3.3 Append `create-active-punishments`; rotate only the target section's slot on apply; fix expiry-on-read publishing the section; verify tests "mute does not lift a ban" and "expired mute clears chat key"
+- [x] 3.4 Implement `POST /punishment/apply` returning the apply result (step, score before/after, escalation) and record the deducted cost on the punishment; create system permanent punishments without template; verify integration test covering apply -> deduction -> escalation
+- [x] 3.5 Implement `POST /punishment/revoke` per section with pardon-score reset for permanent punishments; remove old apply/revoke paths; verify tests for temp revoke, permanent revoke reset and 404
+- [x] 3.6 Apply appeal ELO effects (PARDON_RESET, APPEAL_REFUND) in the appeal decision path; verify appeal service tests for full lift, reduction and denial
+- [x] 3.7 Switch the Redis mirror to `blackhole:punish:<section>:<owner>` messages with section + enforcement; verify a Redis-backed integration test for set/TTL/clear
 - [ ] 3.8 Append `drop-legacy-elo-columns` and `drop-legacy-profile-slots` once no code reads them; verify `hbm2ddl validate` passes on startup
 
 ## 4. API client

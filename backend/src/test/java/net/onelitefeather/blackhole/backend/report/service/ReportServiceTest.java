@@ -9,6 +9,7 @@ import net.onelitefeather.blackhole.backend.report.ReportStatus;
 import net.onelitefeather.blackhole.backend.report.dto.ReportResolutionDTO;
 import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.RecordingEloScoring;
+import net.onelitefeather.blackhole.backend.support.PunishmentTestBed;
 import net.onelitefeather.blackhole.backend.support.RecordingEventPublisher;
 import org.junit.jupiter.api.Test;
 
@@ -32,8 +33,9 @@ class ReportServiceTest {
             InMemoryRepository.<ReportRepository, ReportEntity, UUID>of(ReportRepository.class, ReportEntity::getIdentifier).build();
     private final CategorySectionMapping mapping = new CategorySectionMapping(
             Map.of("CHAT_ABUSE", "chat", "CHEATING", "network", "GRIEFING", "network", "OTHER", ""));
+    private final PunishmentTestBed bed = new PunishmentTestBed();
     private final ReportService service = new ReportService(
-            reports.repository(), new RecordingEventPublisher(), null, scoring, mapping, 5, 50, Duration.ofMinutes(10), -100, 50);
+            reports.repository(), new RecordingEventPublisher(), bed.punishmentService, scoring, mapping, 5, 50, Duration.ofMinutes(10), -100, 50);
 
     private UUID givenReport(ReportCategory category) {
         UUID id = UUID.randomUUID();
@@ -75,6 +77,47 @@ class ReportServiceTest {
         assertInstanceOf(ReportService.ResolveResult.Success.class, resolve(id, ReportStatus.ACTIONED));
 
         assertTrue(scoring.deltas().isEmpty(), "category OTHER has no ELO effect");
+    }
+
+    private ReportService.ResolveResult resolveWithTemplate(UUID id, UUID templateId) {
+        return service.resolve(id, new ReportResolutionDTO(ReportStatus.ACTIONED, "note", UUID.randomUUID(), templateId, UUID.randomUUID()));
+    }
+
+    @Test
+    void anActionedReportWithAPunishmentAlsoRewardsTheReporterInTheSameSection() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+        var template = bed.givenTemplate("grief", "network", null, PunishmentTestBed.step("P3D", 0));
+
+        assertInstanceOf(ReportService.ResolveResult.Success.class, resolveWithTemplate(id, template.getIdentifier()));
+
+        assertEquals(2, scoring.deltas().size(), "reported player penalised, reporter rewarded");
+        assertEquals(REPORTER, scoring.deltas().get(1).owner());
+        assertEquals("network", scoring.deltas().get(1).section());
+        assertEquals(50, scoring.deltas().get(1).delta());
+        assertEquals(EloReasonCode.REPORT_REWARDED, scoring.deltas().get(1).reason());
+        assertTrue(bed.profiles.repository().findById(REPORTED).isPresent(), "the punishment was applied to the reported player");
+    }
+
+    @Test
+    void aResolutionWithAnUnknownTemplateIsNotFoundAndLeavesTheReportOpen() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+
+        assertInstanceOf(ReportService.ResolveResult.NotFound.class, resolveWithTemplate(id, UUID.randomUUID()));
+
+        assertEquals(ReportStatus.OPEN, reports.repository().findById(id).orElseThrow().getStatus(), "no partial completion");
+        assertTrue(scoring.deltas().isEmpty());
+    }
+
+    @Test
+    void aResolutionWhoseTemplateSectionIsDisabledIsRejectedAndLeavesTheReportOpen() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+        var template = bed.givenTemplate("grief", "network", null, PunishmentTestBed.step("P3D", 0));
+        bed.eloBed.sections.disable("network");
+
+        assertInstanceOf(ReportService.ResolveResult.PunishmentRejected.class, resolveWithTemplate(id, template.getIdentifier()));
+
+        assertEquals(ReportStatus.OPEN, reports.repository().findById(id).orElseThrow().getStatus(), "no partial completion");
+        assertTrue(scoring.deltas().isEmpty());
     }
 
     @Test
