@@ -58,7 +58,7 @@ public final class PunishCommand {
     private final PunishmentTemplatesApi punishmentTemplatesApi;
     private final PlayerApi playerApi;
     private final RedisSyncService redisSyncService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = ApiClient.createDefaultObjectMapper();
 
     @Inject
     public PunishCommand(@NotNull ProxyServer proxyServer, @NotNull ApiClient apiClient, @NotNull RedisSyncService redisSyncService) {
