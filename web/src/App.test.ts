@@ -1,4 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { chooseOption } from './test/select'
 import { createPinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryHistory } from 'vue-router'
@@ -66,13 +67,13 @@ describe('App shell', () => {
 
   it('switches the language and the theme from the top bar', async () => {
     const wrapper = await mountApp('/')
-    const [themeSelect, localeSelect] = wrapper.findAll('select')
+    const [themeSelect, localeSelect] = wrapper.findAll('[role="combobox"]')
 
-    await themeSelect!.setValue('dark')
+    await chooseOption(themeSelect!, 'dark')
     expect(document.documentElement.dataset.theme).toBe('dark')
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark')
 
-    await localeSelect!.setValue('en')
+    await chooseOption(localeSelect!, 'en')
     await flushPromises()
     expect(wrapper.get('nav').attributes('aria-label')).toBe('Main navigation')
     expect(wrapper.get('h1').text()).toBe('Dashboard')

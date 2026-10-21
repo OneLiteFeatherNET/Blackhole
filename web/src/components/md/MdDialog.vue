@@ -56,7 +56,11 @@ function onKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div v-if="props.open" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div
+    v-if="props.open"
+    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+    :class="{ 'max-sm:p-0': props.wide }"
+  >
     <div class="absolute inset-0 bg-scrim/[0.32]" @click="emit('close')" />
     <div
       ref="panel"
@@ -64,15 +68,16 @@ function onKeydown(event: KeyboardEvent) {
       aria-modal="true"
       :aria-labelledby="titleId"
       tabindex="-1"
-      class="relative max-h-[90dvh] w-full overflow-y-auto rounded-md-xl bg-surface-container-high p-6 text-on-surface shadow-md-3 outline-none"
-      :class="props.wide ? 'max-w-2xl' : 'max-w-md'"
+      style="--md-field-bg: var(--color-surface-container-high)"
+      class="relative flex max-h-[90dvh] w-full flex-col overflow-y-auto rounded-md-xl bg-surface-container-high p-6 text-on-surface shadow-md-3 outline-none"
+      :class="props.wide ? 'max-w-2xl max-sm:h-dvh max-sm:max-h-none max-sm:rounded-none' : 'max-w-md'"
       @keydown="onKeydown"
     >
       <h2 :id="titleId" class="text-headline-small text-on-surface">{{ props.headline }}</h2>
-      <div class="mt-4 text-body-medium text-on-surface-variant">
+      <div class="mt-4 mb-6 text-body-medium text-on-surface-variant">
         <slot />
       </div>
-      <div class="sticky bottom-0 -mb-6 mt-6 flex justify-end gap-2 bg-surface-container-high pb-6 pt-2">
+      <div class="sticky bottom-0 -mb-6 mt-auto flex justify-end gap-2 bg-surface-container-high pb-6 pt-2">
         <slot name="actions" />
       </div>
     </div>

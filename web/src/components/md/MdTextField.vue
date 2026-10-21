@@ -35,7 +35,7 @@ const message = computed(() => props.error || props.supportingText)
       />
       <label
         :for="inputId"
-        class="pointer-events-none absolute top-0 left-3 -translate-y-1/2 bg-surface px-1 text-body-small"
+        class="pointer-events-none absolute top-0 left-3 -translate-y-1/2 bg-(--md-field-bg,var(--color-surface)) px-1 text-body-small"
         :class="props.error ? 'text-error' : 'text-on-surface-variant'"
       >
         {{ props.label }}<span v-if="props.required" aria-hidden="true"> *</span>
@@ -44,6 +44,7 @@ const message = computed(() => props.error || props.supportingText)
     <p
       v-if="message"
       :id="messageId"
+      aria-live="polite"
       class="px-4 text-body-small"
       :class="props.error ? 'text-error' : 'text-on-surface-variant'"
     >
