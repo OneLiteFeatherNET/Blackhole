@@ -14,7 +14,9 @@ import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.EloScoring;
 import net.onelitefeather.blackhole.backend.report.CategorySectionMapping;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.punishment.dto.PunishmentDTO;
 import net.onelitefeather.blackhole.backend.punishment.service.PunishmentApplicationService;
+import net.onelitefeather.blackhole.backend.response.ErrorKind;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -129,6 +131,10 @@ public class ReportService {
 
         record PunishmentSourceRequired() implements ResolveResult {
         }
+
+        /** The punishment could not be applied (disabled section, already permanently punished, invalid request). */
+        record PunishmentRejected(String message) implements ResolveResult {
+        }
     }
 
     public Page<ReportDTO> getAll(Pageable pageable) {
@@ -186,11 +192,13 @@ public class ReportService {
             if (resolution.punishmentSource() == null) {
                 return new ResolveResult.PunishmentSourceRequired();
             }
-            var applied = this.punishmentApplicationService.apply(
-                    report.getReportedHash(), resolution.punishmentTemplateId(), resolution.punishmentSource()
-            );
-            if (applied.isEmpty()) {
-                return new ResolveResult.NotFound();
+            PunishmentDTO applied = this.punishmentApplicationService.apply(new PunishmentDTO.ApplyRequest(
+                    report.getReportedHash(), null, resolution.punishmentTemplateId(), resolution.punishmentSource()
+            ));
+            if (applied instanceof PunishmentDTO.Error error) {
+                return error.kind() == ErrorKind.NOT_FOUND
+                        ? new ResolveResult.NotFound()
+                        : new ResolveResult.PunishmentRejected(error.errorMessage());
             }
         }
 

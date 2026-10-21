@@ -70,6 +70,8 @@ public class ReportController implements ReportApi {
             case ReportService.ResolveResult.NotFound ignored -> HttpResponse.notFound();
             case ReportService.ResolveResult.PunishmentSourceRequired ignored ->
                     HttpResponse.badRequest("punishmentSource is required when punishmentTemplateId is set");
+            case ReportService.ResolveResult.PunishmentRejected rejected ->
+                    HttpResponse.status(io.micronaut.http.HttpStatus.CONFLICT, rejected.message());
         };
     }
 }

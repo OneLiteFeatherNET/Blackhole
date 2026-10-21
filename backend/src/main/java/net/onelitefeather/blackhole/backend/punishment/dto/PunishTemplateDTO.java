@@ -1,67 +1,92 @@
 package net.onelitefeather.blackhole.backend.punishment.dto;
 
-import net.onelitefeather.blackhole.backend.punishment.PunishType;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.annotation.ReflectiveAccess;
 import io.micronaut.serde.annotation.Serdeable;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import net.onelitefeather.phoca.metadata.Durationable;
-import net.onelitefeather.phoca.metadata.Metadata;
+import jakarta.validation.constraints.NotEmpty;
+import net.onelitefeather.blackhole.backend.response.ErrorKind;
+import net.onelitefeather.blackhole.backend.response.ErrorResponse;
 
-import java.time.Duration;
+import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Wire contract of {@code /template}. A template is always temporary: it belongs to a section and
+ * lists ordered escalation steps; the system alone issues permanent punishments.
+ */
+@Schema(description = "A punishment template: a reason, a section and an escalation ladder of steps")
 @Serdeable
-@ReflectiveAccess
-public record PunishTemplateDTO(
-        @NonNull @NotBlank Map<String, Object> metaData,
-        @NonNull @NotBlank String reason,
-        @NonNull @NotBlank PunishType type,
-        int eloDelta,
-        @Nullable UUID identifier
-) implements Metadata, Durationable {
+public sealed interface PunishTemplateDTO {
 
-    public static final String META_DATA_KEY_TRANSLATABLE = "translatable";
-
-    @Override
-    public void addMetaData(String key, Object value) {
-        this.metaData.put(key, value);
+    /**
+     * One escalation step.
+     *
+     * @param duration ISO-8601 duration, greater than zero
+     * @param eloCost  ELO deducted from the section when this step is applied, zero or more
+     */
+    @Schema(name = "PunishTemplateStep")
+    @Serdeable
+    @ReflectiveAccess
+    record Step(@NonNull @NotBlank String duration, int eloCost) {
     }
 
-    @Override
-    public void removeMetaData(String key) {
-        this.metaData.remove(key);
+    /**
+     * Unknown properties are rejected, so a client that sends an {@code identifier} on create gets a
+     * 400 instead of having it silently ignored.
+     */
+    @Schema(name = "PunishTemplateCreateRequest")
+    @Serdeable
+    @ReflectiveAccess
+    @JsonIgnoreProperties(ignoreUnknown = false)
+    record CreateRequest(
+            @NonNull @NotBlank String key,
+            @NonNull @NotBlank String reason,
+            @NonNull @NotBlank String section,
+            @Nullable String escalationGroup,
+            @Nullable String escalationWindow,
+            @NonNull @NotEmpty List<Step> steps,
+            @Nullable Map<String, Object> metaData
+    ) implements PunishTemplateDTO {
     }
 
-    @Override
-    public boolean hasMetaData(String key) {
-        return this.metaData.containsKey(key);
+    @Schema(name = "PunishTemplateUpdateRequest")
+    @Serdeable
+    @ReflectiveAccess
+    record UpdateRequest(
+            @NonNull UUID identifier,
+            @NonNull @NotBlank String key,
+            @NonNull @NotBlank String reason,
+            @NonNull @NotBlank String section,
+            @Nullable String escalationGroup,
+            @Nullable String escalationWindow,
+            @NonNull @NotEmpty List<Step> steps,
+            @Nullable Map<String, Object> metaData
+    ) implements PunishTemplateDTO {
     }
 
-    @Override
-    public Optional<Object> getMetaData(String key) {
-        return Optional.ofNullable(this.metaData.get(key));
+    @Schema(name = "PunishTemplateResponse")
+    @Serdeable
+    @ReflectiveAccess
+    record Response(
+            @NonNull UUID identifier,
+            @NonNull String key,
+            @NonNull String reason,
+            @NonNull String section,
+            @NonNull String escalationGroup,
+            @Nullable String escalationWindow,
+            @NonNull List<Step> steps,
+            @NonNull Map<String, Object> metaData
+    ) implements PunishTemplateDTO {
     }
 
-    public boolean translatable() {
-        return hasMetaData(PunishTemplateDTO.META_DATA_KEY_TRANSLATABLE);
-    }
-
-    @Override
-    public long creationDate() {
-        return Optional.ofNullable(this.metaData.get(Metadata.META_DATA_KEY_CREATION_DATE)).map(Long.class::cast).orElseThrow();
-    }
-
-    @Override
-    public long updateDate() {
-        return Optional.ofNullable(this.metaData.get(Metadata.META_DATA_KEY_UPDATE_DATE)).map(Long.class::cast).orElseThrow();
-    }
-
-    @Override
-    public Duration duration() {
-        return Optional.ofNullable(this.metaData.get(META_DATA_KEY_DURATION)).map(Duration.class::cast).orElseThrow();
+    @Schema(name = "PunishTemplateError")
+    @Serdeable
+    @ReflectiveAccess
+    record Error(@NonNull String errorMessage, @NonNull ErrorKind kind) implements PunishTemplateDTO, ErrorResponse {
     }
 }

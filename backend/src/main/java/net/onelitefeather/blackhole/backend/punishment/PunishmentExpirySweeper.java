@@ -4,14 +4,10 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
-import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
-import net.onelitefeather.blackhole.backend.profile.ProfileCache;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Map;
 
 /**
  * Periodically moves expired active bans/mutes into a profile's history. This makes expiry an
@@ -25,17 +21,11 @@ public class PunishmentExpirySweeper {
     private static final int PAGE_SIZE = 200;
 
     private final PunishmentProfileRepository profileRepository;
-    private final DomainEventPublisher eventPublisher;
-    private final ProfileCache profileCache;
+    private final ActivePunishmentExpirer expirer;
 
-    public PunishmentExpirySweeper(
-            PunishmentProfileRepository profileRepository,
-            DomainEventPublisher eventPublisher,
-            ProfileCache profileCache
-    ) {
+    public PunishmentExpirySweeper(PunishmentProfileRepository profileRepository, ActivePunishmentExpirer expirer) {
         this.profileRepository = profileRepository;
-        this.eventPublisher = eventPublisher;
-        this.profileCache = profileCache;
+        this.expirer = expirer;
     }
 
     @Scheduled(
@@ -47,9 +37,9 @@ public class PunishmentExpirySweeper {
         Pageable pageable = Pageable.from(0, PAGE_SIZE);
         Page<PunishmentProfileEntity> page;
         do {
-            page = this.profileRepository.findByActiveBanIsNotNullOrActiveChatBanIsNotNull(pageable);
+            page = this.profileRepository.findWithActivePunishments(pageable);
             for (PunishmentProfileEntity profile : page.getContent()) {
-                if (sweepProfile(profile)) {
+                if (this.expirer.expire(profile)) {
                     expiredCount++;
                 }
             }
@@ -57,41 +47,7 @@ public class PunishmentExpirySweeper {
         } while (page.getNumberOfElements() == PAGE_SIZE);
 
         if (expiredCount > 0) {
-            LOGGER.info("Expired {} active punishment(s) during scheduled sweep", expiredCount);
+            LOGGER.info("Expired active punishments of {} profile(s) during scheduled sweep", expiredCount);
         }
-    }
-
-    private boolean sweepProfile(PunishmentProfileEntity profile) {
-        boolean changed = false;
-
-        PunishmentEntity activeBan = profile.getActiveBan();
-        if (activeBan != null && PunishmentExpiry.isExpired(activeBan)) {
-            profile.getHistory().add(activeBan);
-            profile.setActiveBan(null);
-            changed = true;
-            publishExpired(profile, activeBan);
-        }
-
-        PunishmentEntity activeChatBan = profile.getActiveChatBan();
-        if (activeChatBan != null && PunishmentExpiry.isExpired(activeChatBan)) {
-            profile.getHistory().add(activeChatBan);
-            profile.setActiveChatBan(null);
-            changed = true;
-            publishExpired(profile, activeChatBan);
-        }
-
-        if (changed) {
-            this.profileRepository.update(profile);
-            this.profileCache.evict(profile.getOwner());
-        }
-        return changed;
-    }
-
-    private void publishExpired(PunishmentProfileEntity profile, PunishmentEntity expired) {
-        this.eventPublisher.publish("punishment.expired", Map.of(
-                "owner", profile.getOwner(),
-                "punishmentIdentifier", expired.getIdentifier(),
-                "type", expired.getType().toString()
-        ));
     }
 }

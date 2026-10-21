@@ -191,6 +191,11 @@ public class EloService implements EloScoring {
         EscalationPolicy.Decision decision = this.escalationPolicy.decide(
                 new EscalationPolicy.Context(owner, section, before, after, hasActivePermanent)
         );
+        if (decision == EscalationPolicy.Decision.SOFT && trigger == EloReasonCode.PUNISHMENT_APPLIED) {
+            // The staff member's own temporary punishment already occupies the section's slot; an
+            // additional automatic one would replace it with a possibly shorter punishment.
+            return Optional.empty();
+        }
         Map<String, Object> extraMetaData = Map.of("eloTriggerReasonCode", trigger.toString(), "sectionKey", section.key());
 
         return switch (decision) {

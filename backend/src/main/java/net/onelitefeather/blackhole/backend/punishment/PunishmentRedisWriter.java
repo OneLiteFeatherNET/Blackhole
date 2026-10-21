@@ -6,56 +6,41 @@ import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Clock;
+
 /**
- * The sole writer of active-punishment state into Redis. Called only from {@link RedisSyncConsumer}
+ * The sole writer of active-punishment state into Redis. Called only from {@link PunishmentSyncHandler}
  * as a side effect of a domain event, never from a request thread - so a Redis hiccup here can
  * never fail the primary write path that triggered it, matching
  * {@link net.onelitefeather.blackhole.backend.cache.SharedCache}'s fail-open convention.
+ *
+ * <p>The state of one owner in one section lives under {@link RedisTopology#punishKey}; a temporary
+ * punishment's key expires with it, a permanent one's does not.</p>
  */
 @Singleton
-public class PunishmentRedisWriter {
+public class PunishmentRedisWriter implements PunishmentMirror {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PunishmentRedisWriter.class);
-    private static final String SLOT_BAN = "BAN";
-    private static final String SLOT_CHAT_BAN = "CHAT_BAN";
 
     private final StatefulRedisConnection<String, String> connection;
     private final JsonMapper jsonMapper;
+    private final Clock clock;
 
-    public PunishmentRedisWriter(StatefulRedisConnection<String, String> connection, JsonMapper jsonMapper) {
+    public PunishmentRedisWriter(StatefulRedisConnection<String, String> connection, JsonMapper jsonMapper, Clock clock) {
         this.connection = connection;
         this.jsonMapper = jsonMapper;
+        this.clock = clock;
     }
 
-    public void setBan(String owner, String type, String punishmentIdentifier, String templateIdentifier, Long expiresAt) {
-        set(RedisTopology.banKey(owner), new PunishmentSyncMessage(
-                owner, SLOT_BAN, "SET", type, punishmentIdentifier, templateIdentifier, expiresAt
-        ), expiresAt);
-    }
-
-    public void clearBan(String owner, String type, String punishmentIdentifier) {
-        clear(RedisTopology.banKey(owner), new PunishmentSyncMessage(
-                owner, SLOT_BAN, "CLEARED", type, punishmentIdentifier, null, null
-        ));
-    }
-
-    public void setChatBan(String owner, String punishmentIdentifier, String templateIdentifier, Long expiresAt) {
-        set(RedisTopology.chatBanKey(owner), new PunishmentSyncMessage(
-                owner, SLOT_CHAT_BAN, "SET", "CHAT", punishmentIdentifier, templateIdentifier, expiresAt
-        ), expiresAt);
-    }
-
-    public void clearChatBan(String owner, String punishmentIdentifier) {
-        clear(RedisTopology.chatBanKey(owner), new PunishmentSyncMessage(
-                owner, SLOT_CHAT_BAN, "CLEARED", "CHAT", punishmentIdentifier, null, null
-        ));
-    }
-
-    private void set(String key, PunishmentSyncMessage message, Long expiresAt) {
+    @Override
+    public void set(String section, String enforcement, String owner, String punishmentIdentifier, String templateIdentifier, String reason, Long expiresAt) {
+        String key = RedisTopology.punishKey(section, owner);
         try {
-            String json = this.jsonMapper.writeValueAsString(message);
+            String json = this.jsonMapper.writeValueAsString(new PunishmentSyncMessage(
+                    owner, section, enforcement, "SET", punishmentIdentifier, templateIdentifier, reason, expiresAt
+            ));
             if (expiresAt != null) {
-                long ttlMillis = expiresAt - System.currentTimeMillis();
+                long ttlMillis = expiresAt - this.clock.millis();
                 if (ttlMillis > 0) {
                     this.connection.sync().psetex(key, ttlMillis, json);
                 } else {
@@ -71,10 +56,14 @@ public class PunishmentRedisWriter {
         }
     }
 
-    private void clear(String key, PunishmentSyncMessage message) {
+    @Override
+    public void clear(String section, String enforcement, String owner, String punishmentIdentifier) {
+        String key = RedisTopology.punishKey(section, owner);
         try {
             this.connection.sync().del(key);
-            String json = this.jsonMapper.writeValueAsString(message);
+            String json = this.jsonMapper.writeValueAsString(new PunishmentSyncMessage(
+                    owner, section, enforcement, "CLEARED", punishmentIdentifier, null, null, null
+            ));
             this.connection.sync().publish(RedisTopology.PUNISHMENT_SYNC_CHANNEL, json);
         } catch (Exception e) {
             LOGGER.error("Failed to clear Redis punishment cache for key {}: {}", key, e.getMessage());

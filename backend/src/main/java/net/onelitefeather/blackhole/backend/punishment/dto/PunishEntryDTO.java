@@ -1,6 +1,6 @@
 package net.onelitefeather.blackhole.backend.punishment.dto;
 
-import net.onelitefeather.blackhole.backend.punishment.PunishType;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.annotation.ReflectiveAccess;
 import io.micronaut.serde.annotation.Serdeable;
 import net.onelitefeather.phoca.metadata.Expirable;
@@ -11,16 +11,23 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Represents a punish entry which can be used to store the punishment in the database.
+ * An applied punishment as it appears in profiles and apply results.
  *
- * @param identifier the identifier of the punishment
- * @param source     the source of the punishment
- * @param type       the type this punishment was actually applied as
- * @param scope      the optional scope (e.g. event/community) this punishment is restricted to, or {@code null} for network-wide
- * @param template   the template of the punishment
- * @param metaData   the metadata of the punishment
+ * @param identifier      the identifier of the punishment
+ * @param source          the source of the punishment
+ * @param section         the section it belongs to
+ * @param scope           the optional scope (e.g. event/community) it is restricted to, or {@code null}
+ * @param permanent       whether it is a permanent punishment issued by the system's escalation
+ * @param lifted          whether it was revoked or lifted by a granted appeal
+ * @param createdAt       creation time in epoch millis
+ * @param escalationGroup the escalation group a template punishment counted towards, else {@code null}
+ * @param stepIndex       the zero-based escalation step that was applied, else {@code null}
+ * @param stepCount       how many steps the template had when it was applied, else {@code null}
+ * @param eloCost         the ELO deducted when it was applied, else {@code null}
+ * @param template        the template it came from, or {@code null} for system punishments
+ * @param metaData        the metadata of the punishment
  * @author theEvilReaper
- * @version 1.0.0
+ * @version 2.0.0
  * @since 1.0.0
  */
 @Serdeable
@@ -28,9 +35,16 @@ import java.util.UUID;
 public record PunishEntryDTO(
         String identifier,
         UUID source,
-        PunishType type,
-        String scope,
-        PunishTemplateDTO template,
+        String section,
+        @Nullable String scope,
+        boolean permanent,
+        boolean lifted,
+        @Nullable Long createdAt,
+        @Nullable String escalationGroup,
+        @Nullable Integer stepIndex,
+        @Nullable Integer stepCount,
+        @Nullable Integer eloCost,
+        @Nullable PunishTemplateDTO.Response template,
         Map<String, Object> metaData
 ) implements Metadata, Expirable {
 

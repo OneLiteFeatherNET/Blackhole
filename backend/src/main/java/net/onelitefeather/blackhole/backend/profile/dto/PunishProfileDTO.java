@@ -16,8 +16,7 @@ import java.util.Optional;
 @ReflectiveAccess
 public record PunishProfileDTO(
         @NonNull @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
-        @Nullable Optional<PunishEntryDTO> activeChatBan,
-        @Nullable Optional<PunishEntryDTO> activeBan,
+        @NonNull Map<String, PunishEntryDTO> active,
         @Nullable List<PunishEntryDTO> history,
         @NonNull Map<String, Object> metaData
 ) implements Metadata, PunishProfileResponse {
@@ -41,17 +40,6 @@ public record PunishProfileDTO(
     public Optional<Object> getMetaData(String key) {
         return Optional.ofNullable(this.metaData.get(key));
     }
-
-    @Override
-    public Optional<PunishEntryDTO> activeChatBan() {
-        return this.activeChatBan;
-    }
-
-    @Override
-    public Optional<PunishEntryDTO> activeBan() {
-        return this.activeBan;
-    }
-
 
     @Override
     public long creationDate() {

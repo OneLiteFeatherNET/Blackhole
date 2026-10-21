@@ -28,15 +28,12 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
-import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
-import net.onelitefeather.blackhole.backend.punishment.PunishmentExpiry;
+import net.onelitefeather.blackhole.backend.punishment.ActivePunishmentExpirer;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 @Version(ApiVersion.V1)
 @Controller("/profile")
@@ -45,6 +42,7 @@ public class ProfileController {
     private final PunishmentProfileRepository repository;
     private final DomainEventPublisher eventPublisher;
     private final ProfileCache profileCache;
+    private final ActivePunishmentExpirer expirer;
 
     /**
      * Create a new ProfileController.
@@ -52,16 +50,19 @@ public class ProfileController {
      * @param repository     the repository to use
      * @param eventPublisher publishes domain events for successful writes
      * @param profileCache   the hot-path profile-by-owner read cache, evicted on every write
+     * @param expirer        rotates expired active punishments into history when a profile is read
      */
     @Inject
     public ProfileController(
             PunishmentProfileRepository repository,
             DomainEventPublisher eventPublisher,
-            ProfileCache profileCache
+            ProfileCache profileCache,
+            ActivePunishmentExpirer expirer
     ) {
         this.repository = repository;
         this.eventPublisher = eventPublisher;
         this.profileCache = profileCache;
+        this.expirer = expirer;
     }
 
     /**
@@ -267,42 +268,17 @@ public class ProfileController {
         if (entity == null) {
             return HttpResponse.notFound(new PunishProfileResponse.ErrorResponse("There is no profile linked to the given owner"));
         }
-        PunishmentEntity activeBan = entity.getActiveBan();
-        PunishmentEntity activeChatBan = entity.getActiveChatBan();
-        boolean expired = false;
-        if (activeBan != null && PunishmentExpiry.isExpired(activeBan)) {
-            entity.setActiveBan(null);
-            entity.getHistory().add(activeBan);
-            publishExpired(owner, activeBan);
-            expired = true;
-        }
-        if (activeChatBan != null && PunishmentExpiry.isExpired(activeChatBan)) {
-            entity.setActiveChatBan(null);
-            entity.getHistory().add(activeChatBan);
-            publishExpired(owner, activeChatBan);
-            expired = true;
-        }
-        if (expired) {
-            entity = this.repository.update(entity);
-        }
+        // Rotates expired punishments into history, saves the profile and publishes punishment.expired.
+        this.expirer.expire(entity);
         PunishProfileDTO dto = entity.toDTO();
         this.profileCache.put(owner, dto);
         return HttpResponse.ok(dto);
     }
 
-    private static boolean hasExpiredPunishment(PunishProfileDTO profile) {
-        return Stream.of(profile.activeBan(), profile.activeChatBan())
-                .filter(Objects::nonNull)
-                .flatMap(Optional::stream)
+    private boolean hasExpiredPunishment(PunishProfileDTO profile) {
+        return profile.active().values().stream()
                 .map(PunishEntryDTO::metaData)
-                .anyMatch(PunishmentExpiry::isExpired);
-    }
-
-    private void publishExpired(String owner, PunishmentEntity expired) {
-        this.eventPublisher.publish("punishment.expired", Map.of(
-                "owner", owner,
-                "punishmentIdentifier", expired.getIdentifier()
-        ));
+                .anyMatch(this.expirer::isExpired);
     }
 
     /**
@@ -330,7 +306,7 @@ public class ProfileController {
         PunishmentProfileEntity profile = this.repository.findById(owner).orElse(null);
         boolean isNew = profile == null;
         if (isNew) {
-            profile = new PunishmentProfileEntity(owner, null, null, new ArrayList<>(), new HashMap<>());
+            profile = new PunishmentProfileEntity(owner, new HashMap<>(), new ArrayList<>(), new HashMap<>());
         }
 
         @SuppressWarnings("unchecked")

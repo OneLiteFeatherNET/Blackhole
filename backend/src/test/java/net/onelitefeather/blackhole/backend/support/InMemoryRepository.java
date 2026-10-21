@@ -25,7 +25,9 @@ public final class InMemoryRepository<R, T, ID> {
     private final Map<ID, T> store = new LinkedHashMap<>();
     private final R proxy;
 
-    private InMemoryRepository(Class<R> type, Function<T, ID> idOf, Map<String, Function<Object[], Object>> finders) {
+    private InMemoryRepository(
+            Class<R> type, Function<T, ID> idOf, Function<T, T> assignId, Map<String, Function<Object[], Object>> finders
+    ) {
         this.proxy = type.cast(Proxy.newProxyInstance(
                 InMemoryRepository.class.getClassLoader(),
                 new Class<?>[]{type},
@@ -38,7 +40,8 @@ public final class InMemoryRepository<R, T, ID> {
                         case "findById" -> Optional.ofNullable(this.store.get(args[0]));
                         case "existsById" -> this.store.containsKey(args[0]);
                         case "save", "update" -> {
-                            @SuppressWarnings("unchecked") T entity = (T) args[0];
+                            @SuppressWarnings("unchecked") T given = (T) args[0];
+                            T entity = idOf.apply(given) == null && assignId != null ? assignId.apply(given) : given;
                             this.store.put(idOf.apply(entity), entity);
                             yield entity;
                         }
@@ -105,6 +108,7 @@ public final class InMemoryRepository<R, T, ID> {
         private final Class<R> type;
         private final Function<T, ID> idOf;
         private final Map<String, Function<Object[], Object>> finders = new LinkedHashMap<>();
+        private Function<T, T> assignId;
 
         private Builder(Class<R> type, Function<T, ID> idOf) {
             this.type = type;
@@ -117,8 +121,17 @@ public final class InMemoryRepository<R, T, ID> {
             return this;
         }
 
+        /**
+         * Like the database, hands an entity saved without an id a generated one: {@code assignId}
+         * returns a copy of the entity that carries an id.
+         */
+        public Builder<R, T, ID> assigningIds(Function<T, T> assignId) {
+            this.assignId = assignId;
+            return this;
+        }
+
         public InMemoryRepository<R, T, ID> build() {
-            return new InMemoryRepository<>(this.type, this.idOf, this.finders);
+            return new InMemoryRepository<>(this.type, this.idOf, this.assignId, this.finders);
         }
     }
 }

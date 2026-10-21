@@ -1,18 +1,32 @@
 package net.onelitefeather.blackhole.backend.profile;
 
+import io.micronaut.serde.annotation.Serdeable;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.MapKeyColumn;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
 import net.onelitefeather.blackhole.backend.profile.dto.PunishProfileDTO;
 import net.onelitefeather.blackhole.backend.profile.dto.PunishProfileRequestDTO;
-import io.micronaut.serde.annotation.Serdeable;
-import jakarta.persistence.*;
-import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
+/**
+ * A player's punishment state: at most one active punishment per section, plus the history of every
+ * punishment that was replaced, expired or lifted.
+ */
 @Serdeable
 @Entity
 @Table(name = "punishment_profiles")
@@ -21,11 +35,18 @@ public class PunishmentProfileEntity {
     @Id
     private String owner;
 
-    @OneToOne
-    private PunishmentEntity activeChatBan;
-
-    @OneToOne
-    private PunishmentEntity activeBan;
+    /**
+     * The active punishment per section key. Applying a punishment replaces only the slot of its
+     * own section.
+     */
+    @OneToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "active_punishments",
+            joinColumns = @JoinColumn(name = "owner"),
+            inverseJoinColumns = @JoinColumn(name = "punishment_identifier")
+    )
+    @MapKeyColumn(name = "section_key")
+    private Map<String, PunishmentEntity> active = new HashMap<>();
 
     @OneToMany(fetch = FetchType.EAGER)
     private List<PunishmentEntity> history;
@@ -41,18 +62,18 @@ public class PunishmentProfileEntity {
      * @return the converted PunishmentProfileEntity
      */
     public static PunishmentProfileEntity toEntity(PunishProfileRequestDTO profile) {
+        Map<String, PunishmentEntity> active = new HashMap<>();
+        if (profile.active() != null) {
+            profile.active().forEach((section, entry) -> active.put(section, PunishmentEntity.toEntity(entry, profile.owner())));
+        }
         return new PunishmentProfileEntity(
                 profile.owner(),
-                PunishmentEntity.toEntity(profile.activeChatBan()),
-                PunishmentEntity.toEntity(profile.activeBan()),
-                PunishmentEntity.toEntities(profile.history()),
+                active,
+                PunishmentEntity.toEntities(profile.history(), profile.owner()),
                 profile.metaData()
         );
     }
 
-    /**
-     * Create a new PunishmentProfileEntity.
-     */
     public PunishmentProfileEntity() {
         // Default constructor for JPA
     }
@@ -60,99 +81,48 @@ public class PunishmentProfileEntity {
     /**
      * Create a new PunishmentProfileEntity.
      *
-     * @param owner         the owner of the profile
-     * @param activeChatBan the active chat ban
-     * @param activeBan     the active ban
-     * @param history       the history
-     * @param metaData      the metadata
+     * @param owner    the owner of the profile
+     * @param active   the active punishment per section key
+     * @param history  the history
+     * @param metaData the metadata
      */
     public PunishmentProfileEntity(
             String owner,
-            PunishmentEntity activeChatBan,
-            PunishmentEntity activeBan,
+            Map<String, PunishmentEntity> active,
             List<PunishmentEntity> history,
             Map<String, Object> metaData
     ) {
         this.owner = owner;
-        this.activeChatBan = activeChatBan;
-        this.activeBan = activeBan;
+        this.active = active;
         this.history = history;
         this.metaData = metaData;
     }
 
-    /**
-     * Set the active ban of the profile.
-     *
-     * @param activeBan the active ban
-     */
-    public void setActiveBan(PunishmentEntity activeBan) {
-        this.activeBan = activeBan;
-    }
-
-    /**
-     * Set the active chat ban of the profile.
-     *
-     * @param activeChatBan the active chat ban
-     */
-    public void setActiveChatBan(PunishmentEntity activeChatBan) {
-        this.activeChatBan = activeChatBan;
-    }
-
-    /**
-     * Get the owner of the profile.
-     *
-     * @return the owner
-     */
     public String getOwner() {
         return owner;
     }
 
     /**
-     * Get the active ban of the profile.
-     *
-     * @return the active ban
+     * The active punishment per section key; mutate it to occupy or clear a slot.
      */
-    public PunishmentEntity getActiveBan() {
-        return activeBan;
+    public Map<String, PunishmentEntity> getActive() {
+        return active;
     }
 
-    /**
-     * Get the active chat ban of the profile.
-     *
-     * @return the active chat ban
-     */
-    public PunishmentEntity getActiveChatBan() {
-        return activeChatBan;
-    }
-
-    /**
-     * Get the history of the profile.
-     *
-     * @return the history
-     */
     public List<PunishmentEntity> getHistory() {
         return history;
     }
 
-    /**
-     * Get the metadata of the profile.
-     *
-     * @return the metadata
-     */
     public Map<String, Object> getMetaData() {
         return metaData;
     }
 
-    /**
-     * Convert the entity to a DTO.
-     *
-     * @return the created to variant
-     */
     public PunishProfileDTO toDTO() {
+        Map<String, net.onelitefeather.blackhole.backend.punishment.dto.PunishEntryDTO> activeDtos = this.active.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().toDTO(), (a, b) -> a, LinkedHashMap::new));
         return new PunishProfileDTO(
                 this.owner,
-                Optional.ofNullable(this.activeChatBan).map(PunishmentEntity::toDTO),
-                Optional.ofNullable(this.activeBan).map(PunishmentEntity::toDTO),
+                activeDtos,
                 this.history.stream().map(PunishmentEntity::toDTO).toList(),
                 this.metaData
         );

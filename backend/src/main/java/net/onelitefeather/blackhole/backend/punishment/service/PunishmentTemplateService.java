@@ -1,26 +1,29 @@
 package net.onelitefeather.blackhole.backend.punishment.service;
 
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
+import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateCache;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
+import net.onelitefeather.blackhole.backend.punishment.TemplateSpec;
+import net.onelitefeather.blackhole.backend.punishment.TemplateStep;
+import net.onelitefeather.blackhole.backend.punishment.TemplateValidator;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishTemplateDTO;
-import net.onelitefeather.blackhole.backend.punishment.dto.PunishTemplateRequestDTO;
-import io.micronaut.data.model.Page;
-import io.micronaut.data.model.Pageable;
-import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.response.ErrorKind;
+import net.onelitefeather.blackhole.backend.section.SectionService;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.StreamSupport;
 
 /**
- * Owns {@link PunishmentTemplateRepository} on behalf of {@code PunishmentTemplateController},
- * which previously called the repository directly from all 5 endpoints. This replicates the
- * exact same validation/response semantics the controller used to implement inline - a pure
- * layering fix, not a contract change (see {@code micronaut-service-layer}/{@code
- * micronaut-controller-layer}).
+ * Owns the template repository on behalf of {@code PunishmentTemplateController}: validated CRUD for
+ * temporary, sectioned templates with escalation steps. Expected failures are returned as
+ * {@link PunishTemplateDTO.Error}.
  */
 @Singleton
 public class PunishmentTemplateService {
@@ -28,66 +31,84 @@ public class PunishmentTemplateService {
     private final PunishmentTemplateRepository templateRepository;
     private final PunishmentRepository punishmentRepository;
     private final PunishmentTemplateCache templateCache;
+    private final SectionService sectionService;
 
     public PunishmentTemplateService(
             PunishmentTemplateRepository templateRepository,
             PunishmentRepository punishmentRepository,
-            PunishmentTemplateCache templateCache
+            PunishmentTemplateCache templateCache,
+            SectionService sectionService
     ) {
         this.templateRepository = templateRepository;
         this.punishmentRepository = punishmentRepository;
         this.templateCache = templateCache;
+        this.sectionService = sectionService;
     }
 
     /**
-     * Creates a new template. {@code identifier} must be {@code null} for creation - see
-     * {@link CreateResult.IdentifierNotAllowed}.
+     * Creates a template. Its escalation group defaults to its key.
+     *
+     * @return the stored {@link PunishTemplateDTO.Response}, or an {@link PunishTemplateDTO.Error}:
+     * validation (400) for a bad definition or unknown section, conflict (409) for a taken key
      */
-    public CreateResult create(PunishTemplateRequestDTO template) {
-        if (template.identifier() != null) {
-            return new CreateResult.IdentifierNotAllowed();
+    public PunishTemplateDTO create(PunishTemplateDTO.CreateRequest request) {
+        TemplateSpec spec = TemplateSpec.of(request);
+        PunishTemplateDTO.Error problem = problemWith(spec);
+        if (problem != null) {
+            return problem;
         }
-        PunishmentTemplateEntity saved = this.templateRepository.save(PunishmentTemplateEntity.toEntity(template));
+        if (this.templateRepository.findByTemplateKey(spec.key()).isPresent()) {
+            return keyTaken(spec.key());
+        }
+        PunishmentTemplateEntity saved = this.templateRepository.save(toEntity(null, spec));
         this.templateCache.evict(saved.getIdentifier());
-        return new CreateResult.Created(saved.toDTO());
+        return saved.toDTO();
     }
 
     /**
-     * Updates an existing template. {@code identifier} is required and must reference an
-     * existing template - see {@link UpdateResult.MissingIdentifier} / {@link UpdateResult.NotFound}.
+     * Replaces every editable field of an existing template. Punishments applied earlier keep the
+     * step, duration and cost they recorded.
+     *
+     * @return the stored {@link PunishTemplateDTO.Response}, or an {@link PunishTemplateDTO.Error}:
+     * not found (404), validation (400), or conflict (409) if the key belongs to another template
      */
-    public UpdateResult update(PunishTemplateRequestDTO template) {
-        if (template.identifier() == null) {
-            return new UpdateResult.MissingIdentifier();
+    public PunishTemplateDTO update(PunishTemplateDTO.UpdateRequest request) {
+        if (this.templateRepository.findById(request.identifier()).isEmpty()) {
+            return new PunishTemplateDTO.Error("there is no template with identifier " + request.identifier(), ErrorKind.NOT_FOUND);
         }
-        if (this.templateRepository.findById(template.identifier()).isEmpty()) {
-            return new UpdateResult.NotFound();
+        TemplateSpec spec = TemplateSpec.of(request);
+        PunishTemplateDTO.Error problem = problemWith(spec);
+        if (problem != null) {
+            return problem;
         }
-        PunishmentTemplateEntity saved = this.templateRepository.update(PunishmentTemplateEntity.toEntity(template));
-        this.templateCache.evict(template.identifier());
-        return new UpdateResult.Updated(saved.toDTO());
+        Optional<PunishmentTemplateEntity> sameKey = this.templateRepository.findByTemplateKey(spec.key());
+        if (sameKey.isPresent() && !sameKey.get().getIdentifier().equals(request.identifier())) {
+            return keyTaken(spec.key());
+        }
+        PunishmentTemplateEntity saved = this.templateRepository.update(toEntity(request.identifier(), spec));
+        this.templateCache.evict(request.identifier());
+        return saved.toDTO();
     }
 
     /**
-     * Deletes the template with {@code identifier} - see {@link RemoveResult.NotFound} /
-     * {@link RemoveResult.InUse}. Checks for referencing punishments first rather than letting
-     * the delete fail at the database level: {@code PunishmentEntity.template} is a live FK with
-     * no {@code ON DELETE} cascade/set-null configured, so an unchecked delete previously threw
-     * an unhandled foreign-key-constraint exception once any punishment had been created from the
-     * template - contradicting spec US5 Acceptance Scenario 3 and FR-010's "let network operators
-     * ... remove" a template (specs/002-punishment-core/tasks.md T029).
+     * Deletes the template with {@code identifier}. Checks for referencing punishments first rather
+     * than letting the delete fail at the database level: {@code PunishmentEntity.template} is a
+     * live FK with no {@code ON DELETE} cascade/set-null configured.
+     *
+     * @return the removed {@link PunishTemplateDTO.Response}, or an {@link PunishTemplateDTO.Error}:
+     * not found (404), or conflict (409) if a punishment still references the template
      */
-    public RemoveResult remove(UUID identifier) {
+    public PunishTemplateDTO remove(UUID identifier) {
         PunishmentTemplateEntity entity = this.templateRepository.findById(identifier).orElse(null);
         if (entity == null) {
-            return new RemoveResult.NotFound();
+            return new PunishTemplateDTO.Error("there is no template with identifier " + identifier, ErrorKind.NOT_FOUND);
         }
         if (this.punishmentRepository.existsByTemplate_Identifier(identifier)) {
-            return new RemoveResult.InUse();
+            return new PunishTemplateDTO.Error("at least one punishment still references this template", ErrorKind.CONFLICT);
         }
         this.templateRepository.delete(entity);
         this.templateCache.evict(identifier);
-        return new RemoveResult.Removed(entity.toDTO());
+        return entity.toDTO();
     }
 
     /**
@@ -95,9 +116,9 @@ public class PunishmentTemplateService {
      * proxies read that list for tab completion and call this endpoint only when it is missing, so
      * a listing is what repopulates it. Templates are few, so the extra full read is cheap.
      */
-    public Page<PunishTemplateDTO> findAll(Pageable pageable) {
-        Page<PunishTemplateDTO> page = this.templateRepository.findAll(pageable).map(PunishmentTemplateEntity::toDTO);
-        List<PunishTemplateDTO> all = StreamSupport.stream(this.templateRepository.findAll().spliterator(), false)
+    public Page<PunishTemplateDTO.Response> findAll(Pageable pageable) {
+        Page<PunishTemplateDTO.Response> page = this.templateRepository.findAll(pageable).map(PunishmentTemplateEntity::toDTO);
+        List<PunishTemplateDTO.Response> all = StreamSupport.stream(this.templateRepository.findAll().spliterator(), false)
                 .map(PunishmentTemplateEntity::toDTO)
                 .toList();
         this.templateCache.putAll(all);
@@ -108,56 +129,37 @@ public class PunishmentTemplateService {
      * Returns the template with {@code identifier}, if any. Served from the shared cache when
      * present; a found template is cached, a missing one is not.
      */
-    public Optional<PunishTemplateDTO> find(UUID identifier) {
-        Optional<PunishTemplateDTO> cached = this.templateCache.get(identifier);
+    public Optional<PunishTemplateDTO.Response> find(UUID identifier) {
+        Optional<PunishTemplateDTO.Response> cached = this.templateCache.get(identifier);
         if (cached.isPresent()) {
             return cached;
         }
-        Optional<PunishTemplateDTO> template = this.templateRepository.findById(identifier).map(PunishmentTemplateEntity::toDTO);
+        Optional<PunishTemplateDTO.Response> template = this.templateRepository.findById(identifier).map(PunishmentTemplateEntity::toDTO);
         template.ifPresent(dto -> this.templateCache.put(identifier, dto));
         return template;
     }
 
-    /**
-     * Outcome of {@link #create(PunishTemplateRequestDTO)}, mapped 1:1 to an {@code HttpResponse}
-     * by the controller instead of the controller re-deriving what happened.
-     */
-    public sealed interface CreateResult {
-        record Created(PunishTemplateDTO template) implements CreateResult {
+    private PunishTemplateDTO.Error problemWith(TemplateSpec spec) {
+        List<String> errors = TemplateValidator.validate(spec);
+        if (!errors.isEmpty()) {
+            return new PunishTemplateDTO.Error(String.join("; ", errors), ErrorKind.VALIDATION);
         }
-
-        record IdentifierNotAllowed() implements CreateResult {
+        if (this.sectionService.find(spec.section()).isEmpty()) {
+            return new PunishTemplateDTO.Error("there is no section with key '" + spec.section() + "'", ErrorKind.VALIDATION);
         }
+        return null;
     }
 
-    /**
-     * Outcome of {@link #update(PunishTemplateRequestDTO)}, mapped 1:1 to an {@code HttpResponse}
-     * by the controller instead of the controller re-deriving what happened.
-     */
-    public sealed interface UpdateResult {
-        record Updated(PunishTemplateDTO template) implements UpdateResult {
-        }
-
-        record MissingIdentifier() implements UpdateResult {
-        }
-
-        record NotFound() implements UpdateResult {
-        }
+    private static PunishTemplateDTO.Error keyTaken(String key) {
+        return new PunishTemplateDTO.Error("a template with key '" + key + "' already exists", ErrorKind.CONFLICT);
     }
 
-    /**
-     * Outcome of {@link #remove(UUID)}, mapped 1:1 to an {@code HttpResponse} by the controller
-     * instead of the controller re-deriving what happened.
-     */
-    public sealed interface RemoveResult {
-        record Removed(PunishTemplateDTO template) implements RemoveResult {
-        }
-
-        record NotFound() implements RemoveResult {
-        }
-
-        /** At least one punishment still references this template - see {@link #remove(UUID)}. */
-        record InUse() implements RemoveResult {
-        }
+    private static PunishmentTemplateEntity toEntity(UUID identifier, TemplateSpec spec) {
+        return new PunishmentTemplateEntity(
+                identifier, spec.key(), spec.reason(), spec.section(), spec.effectiveGroup(),
+                spec.escalationWindow() == null || spec.escalationWindow().isBlank() ? null : spec.escalationWindow().trim(),
+                spec.steps().stream().map(step -> new TemplateStep(step.duration().trim(), step.eloCost())).toList(),
+                spec.metaData() == null ? new HashMap<>() : new HashMap<>(spec.metaData())
+        );
     }
 }

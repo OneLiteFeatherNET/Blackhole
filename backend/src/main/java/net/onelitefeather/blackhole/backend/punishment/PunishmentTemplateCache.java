@@ -27,20 +27,20 @@ public class PunishmentTemplateCache {
         this.ttl = ttl;
     }
 
-    public Optional<PunishTemplateDTO> get(UUID identifier) {
-        return this.sharedCache.get(CacheKeys.template(identifier), Argument.of(PunishTemplateDTO.class));
+    public Optional<PunishTemplateDTO.Response> get(UUID identifier) {
+        return this.sharedCache.get(CacheKeys.template(identifier), Argument.of(PunishTemplateDTO.Response.class));
     }
 
-    public void put(UUID identifier, PunishTemplateDTO template) {
-        this.sharedCache.put(CacheKeys.template(identifier), Argument.of(PunishTemplateDTO.class), template, this.ttl);
+    public void put(UUID identifier, PunishTemplateDTO.Response template) {
+        this.sharedCache.put(CacheKeys.template(identifier), Argument.of(PunishTemplateDTO.Response.class), template, this.ttl);
     }
 
     /**
      * Stores the full template list under {@link CacheKeys#TEMPLATES_ALL}, as the JSON array the API
      * returns.
      */
-    public void putAll(List<PunishTemplateDTO> templates) {
-        this.sharedCache.put(CacheKeys.TEMPLATES_ALL, Argument.listOf(PunishTemplateDTO.class), templates, this.ttl);
+    public void putAll(List<PunishTemplateDTO.Response> templates) {
+        this.sharedCache.put(CacheKeys.TEMPLATES_ALL, Argument.listOf(PunishTemplateDTO.Response.class), templates, this.ttl);
     }
 
     /**
