@@ -140,6 +140,59 @@ blackhole:
       ttl: ${BLACKHOLE_CACHE_TEMPLATE_TTL:PT5M}
     section:
       ttl: ${BLACKHOLE_CACHE_SECTION_TTL:PT5M}
+  # Punishment evidence (net.onelitefeather.blackhole.backend.evidence): anticheat records, replay
+  # links, chat excerpts, links and uploaded screenshots/videos attached to punishments. There is
+  # NO time-based expiry: evidence lives as long as its punishment record, and is deleted only with
+  # it or by an admin (DELETE /evidence, reason required, audited). Never use S3 lifecycle rules to
+  # delete evidence - that would leave the database and the audit trail inconsistent.
+  evidence:
+    # Largest accepted structured payload (ANTICHEAT / CHAT_LOG / descriptions), in bytes -> HTTP 413.
+    max-payload-bytes: ${BLACKHOLE_EVIDENCE_MAX_PAYLOAD_BYTES:32768}
+    # Most lines one CHAT_LOG item may carry.
+    max-chat-lines: ${BLACKHOLE_EVIDENCE_MAX_CHAT_LINES:50}
+    # Evidence posted with an owner + correlationId before its punishment exists is deleted
+    # (reason UNCLAIMED_EXPIRED) when no punishment claims it within this ISO-8601 duration.
+    pending-ttl: ${BLACKHOLE_EVIDENCE_PENDING_TTL:P1D}
+    # Audit rows are kept indefinitely unless the operator sets a retention (ISO-8601 duration).
+    # Leave empty to keep them.
+    audit-retention: ${BLACKHOLE_EVIDENCE_AUDIT_RETENTION:}
+    housekeeping:
+      # How often the sweep runs: deletes unclaimed pending evidence after pending-ttl, blobs
+      # without a database row older than one day, and (only if audit-retention is set) old audit
+      # rows. It never deletes evidence that belongs to a punishment.
+      interval: ${BLACKHOLE_EVIDENCE_HOUSEKEEPING_INTERVAL:PT1H}
+    files:
+      # Where uploaded files are stored: s3 (any S3-compatible service, the default) or local
+      # (a directory; for tiny single-replica setups, or a shared volume).
+      storage: ${BLACKHOLE_EVIDENCE_FILES_STORAGE:s3}
+      # Size caps per type, in bytes. Uploads are streamed to a bounded temp file, never held in memory.
+      max-image-bytes: ${BLACKHOLE_EVIDENCE_FILES_MAX_IMAGE_BYTES:10485760}
+      max-video-bytes: ${BLACKHOLE_EVIDENCE_FILES_MAX_VIDEO_BYTES:104857600}
+      # Images with more pixels are rejected before decoding (decompression-bomb guard).
+      max-image-pixels: ${BLACKHOLE_EVIDENCE_FILES_MAX_IMAGE_PIXELS:50000000}
+      # The type is detected from the file's magic bytes; the client's MIME type is ignored.
+      # Remove video/* to disable video uploads (their container metadata is not stripped).
+      allowed-types: ${BLACKHOLE_EVIDENCE_FILES_ALLOWED_TYPES:image/png,image/jpeg,video/mp4,video/webm}
+      local:
+        path: ${BLACKHOLE_EVIDENCE_FILES_LOCAL_PATH:evidence-files}
+      s3:
+        # Leave the endpoint empty for AWS S3; set it for SeaweedFS, Ceph, R2, B2, ... (path-style).
+        endpoint: ${BLACKHOLE_EVIDENCE_S3_ENDPOINT:`http://localhost:8333`}
+        bucket: ${BLACKHOLE_EVIDENCE_S3_BUCKET:blackhole-evidence}
+        region: ${BLACKHOLE_EVIDENCE_S3_REGION:us-east-1}
+        access-key: ${BLACKHOLE_EVIDENCE_S3_ACCESS_KEY:blackhole}
+        secret-key: ${BLACKHOLE_EVIDENCE_S3_SECRET_KEY:blackhole-secret}
+        path-style: ${BLACKHOLE_EVIDENCE_S3_PATH_STYLE:true}
+    scan:
+      # Antivirus scan of uploads through a ClamAV clamd (INSTREAM). Fails closed: while enabled,
+      # an infected file is rejected (422) and an unreachable scanner rejects the upload (503).
+      # ClamAV needs about 1 GB RAM and downloads its signatures on first start. Only disable this
+      # explicitly, in deployments that scan uploads elsewhere.
+      enabled: ${BLACKHOLE_EVIDENCE_SCAN_ENABLED:true}
+      clamd:
+        host: ${BLACKHOLE_EVIDENCE_SCAN_CLAMD_HOST:localhost}
+        port: ${BLACKHOLE_EVIDENCE_SCAN_CLAMD_PORT:3310}
+        timeout: ${BLACKHOLE_EVIDENCE_SCAN_CLAMD_TIMEOUT:PT30S}
   # Player-name resolution, so moderators can tab-complete and target an OFFLINE player by name
   # (punishment enforcement is already fully UUID-driven at login - see PlayerLoginListener on
   # the Velocity side - so resolving a name to a UUID is the only missing piece). Resolvers are
@@ -175,6 +228,14 @@ micronaut:
   # Server
   server:
     port: ${PORT:8080}
+    # Evidence file uploads are multipart and as large as the biggest allowed video, so the default
+    # 10 MB request / 1 MB file caps are raised: the file cap follows max-video-bytes, the request
+    # cap must stay above it (headroom for the form fields) - raise both if you raise the video
+    # limit. The evidence layer enforces the real per-type limits while streaming; structured
+    # evidence is capped separately by blackhole.evidence.max-payload-bytes.
+    max-request-size: ${BLACKHOLE_MAX_REQUEST_SIZE:110MB}
+    multipart:
+      max-file-size: ${BLACKHOLE_EVIDENCE_FILES_MAX_VIDEO_BYTES:104857600}
 
 # OpenAPI
   router:
