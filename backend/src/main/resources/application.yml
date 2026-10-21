@@ -33,13 +33,14 @@ jpa:
         show_sql: false
 
 # Liquibase is the sole owner of the schema; Hibernate only validates it at startup
-# (hbm2ddl.auto=validate) and never creates or alters tables. A mismatch between an entity and
-# the PostgreSQL schema fails startup - fix it with a new appended Liquibase changeSet.
+# (hbm2ddl.auto=validate) and never creates or alters tables. changelog.xml is a PostgreSQL-only
+# baseline built on an empty database (no MariaDB history is replayed). A mismatch between an
+# entity and the schema fails startup - fix it with a new appended Liquibase changeSet.
 liquibase:
   datasources:
     default:
       enabled: true
-      change-log: classpath:db/changelog/db.changelog-master.xml
+      change-log: classpath:db/changelog/changelog.xml
 
 # Metrics scraping is expected to be protected at the network level, like every other endpoint
 # (see the no-auth note below) - a scrape target shouldn't need a bearer token either way.
