@@ -50,15 +50,33 @@ The soft threshold SHALL trigger only when the score before the delta was at or 
 - **THEN** no new soft automatic punishment is applied
 
 ### Requirement: Report outcome deltas
-When a report is resolved as ACTIONED, the system SHALL apply `blackhole.elo.report.actioned-delta` (default -100) to the reported player's score in the section mapped from the report category by `blackhole.elo.report.category-sections` (default CHAT_ABUSE to `chat`; CHEATING and GRIEFING to `network`; OTHER to none). If the resolution also applied a punishment, the reporter MUST receive `report.reward-delta` (default 50) in the same section.
+A report SHALL be resolved at most once: resolving a report that is already ACTIONED or DISMISSED MUST be refused with 409 and apply nothing. When a report is resolved as ACTIONED **without** a punishment template, the system SHALL apply `blackhole.elo.report.actioned-delta` (default -100) to the reported player's score in the section mapped from the report category by `blackhole.elo.report.category-sections` (default CHAT_ABUSE to `chat`; CHEATING and GRIEFING to `network`; OTHER to none). When it is resolved as ACTIONED **with** a template, only the template's step cost is deducted (through the normal apply path) and the actioned delta MUST NOT be applied in addition; the reporter then receives `report.reward-delta` (default 50) in the mapped section. A template MUST only be accepted together with status ACTIONED (otherwise 400), and a template or section that does not exist MUST be a 400 with an error body, distinguishable from a missing report (404).
+
+#### Scenario: Actioned cheating report without punishment
+- **WHEN** a CHEATING report is resolved ACTIONED without a template
+- **THEN** the reported player's `network` score receives -100 with reason REPORT_ACTIONED
+- **AND** the reporter receives no reward
 
 #### Scenario: Actioned cheating report with punishment
-- **WHEN** a CHEATING report is resolved ACTIONED with a punishment template applied
-- **THEN** the reported player's `network` score receives -100 with reason REPORT_ACTIONED
+- **WHEN** a CHEATING report is resolved ACTIONED with a template whose step costs 100
+- **THEN** the reported player's `network` score is reduced by 100 once, by the template's cost
+- **AND** no REPORT_ACTIONED delta is applied
 - **AND** the reporter's `network` score receives +50 with reason REPORT_REWARDED
 
+#### Scenario: Template on a dismissed report
+- **WHEN** a report is resolved DISMISSED with a template
+- **THEN** the response is 400 and nothing is applied
+
+#### Scenario: Resolving twice
+- **WHEN** an already ACTIONED report is resolved again
+- **THEN** the response is 409 and neither the template nor any ELO delta is applied again
+
+#### Scenario: Unknown template
+- **WHEN** a report is resolved with a template identifier that does not exist
+- **THEN** the response is 400 with an error body and the report stays unresolved
+
 #### Scenario: Actioned report in category OTHER
-- **WHEN** a report in category OTHER is resolved ACTIONED
+- **WHEN** a report in category OTHER is resolved ACTIONED without a template
 - **THEN** no ELO delta is applied to either party
 
 ### Requirement: ELO profile and history read endpoints
