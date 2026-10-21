@@ -32,7 +32,7 @@ network/deployment level (firewalling, private networking), not by the applicati
 
 ### Tech stack
 
-- **Backend**: Java 21+, [Micronaut](https://micronaut.io/), Hibernate/JPA, Liquibase (PostgreSQL),
+- **Backend**: Java 21+, [Micronaut](https://micronaut.io/), Hibernate/JPA, Flyway (PostgreSQL),
   RabbitMQ, Dragonfly (Redis protocol) as the shared cache, Micrometer + OpenTelemetry.
 - **Proxy plugin**: [Velocity](https://velocitypowered.com/).
 - **Build**: Gradle (Kotlin DSL), multi-module.
