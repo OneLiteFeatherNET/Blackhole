@@ -22,6 +22,8 @@ dependencies {
 
     compileOnly(libs.velocity.api)
 
+    // Adventure components and Player appear in the signatures of classes under test.
+    testImplementation(libs.velocity.api)
     testImplementation(mn.junit.jupiter.api)
     testRuntimeOnly(mn.junit.jupiter.engine)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -32,7 +34,7 @@ tasks {
         // Configure the Velocity version for our task.
         // This is the only required configuration besides applying the plugin.
         // Your plugin's jar (or shadowJar if present) will be used automatically.
-        velocityVersion("3.3.0-SNAPSHOT")
+        velocityVersion("3.5.1")
     }
 }
 

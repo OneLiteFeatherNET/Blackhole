@@ -7,14 +7,29 @@ import net.onelitefeather.blackhole.backend.appeal.AppealStatus;
 import net.onelitefeather.blackhole.backend.appeal.DecisionOutcome;
 import net.onelitefeather.blackhole.backend.appeal.dto.AppealReviewDTO;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.elo.EloChange;
+import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
+import net.onelitefeather.blackhole.backend.elo.EloScoring;
+import net.onelitefeather.blackhole.backend.elo.service.EloService;
+import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
+import net.onelitefeather.blackhole.backend.profile.ProfileSlots;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentEvents;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
+import net.onelitefeather.blackhole.backend.section.SectionService;
+import net.onelitefeather.blackhole.backend.section.dto.SectionDTO;
 import net.onelitefeather.phoca.metadata.Expirable;
 import net.onelitefeather.phoca.metadata.Metadata;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.time.Clock;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -36,6 +51,8 @@ import java.util.UUID;
 @Singleton
 public class AppealDecisionService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(AppealDecisionService.class);
+
     private static final Set<AppealStatus> VALID_DECISIONS = Set.of(
             AppealStatus.GRANTED_FULL_LIFT, AppealStatus.GRANTED_DURATION_REDUCTION, AppealStatus.DENIED
     );
@@ -43,18 +60,33 @@ public class AppealDecisionService {
     private final AppealRepository appealRepository;
     private final PunishmentRepository punishmentRepository;
     private final PunishmentProfileRepository profileRepository;
+    private final ProfileSlots slots;
     private final ProfileCache profileCache;
+    private final EloScoring eloScoring;
+    private final SectionService sectionService;
+    private final DomainEventPublisher eventPublisher;
+    private final Clock clock;
 
     public AppealDecisionService(
             AppealRepository appealRepository,
             PunishmentRepository punishmentRepository,
             PunishmentProfileRepository profileRepository,
-            ProfileCache profileCache
+            ProfileSlots slots,
+            ProfileCache profileCache,
+            EloScoring eloScoring,
+            SectionService sectionService,
+            DomainEventPublisher eventPublisher,
+            Clock clock
     ) {
         this.appealRepository = appealRepository;
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
+        this.slots = slots;
         this.profileCache = profileCache;
+        this.eloScoring = eloScoring;
+        this.sectionService = sectionService;
+        this.eventPublisher = eventPublisher;
+        this.clock = clock;
     }
 
     /**
@@ -89,8 +121,13 @@ public class AppealDecisionService {
             if (review.newExpirationAt() == null) {
                 return AppealReviewResult.durationReductionMissingExpiry();
             }
-            if (review.newExpirationAt() <= System.currentTimeMillis()) {
+            if (review.newExpirationAt() <= this.clock.millis()) {
                 return AppealReviewResult.durationReductionExpiryNotFuture();
+            }
+            // A punishment without an expiry is permanent: any future expiry shortens it.
+            if (punishment.getMetaData().get(Expirable.META_DATA_KEY_EXPIRATION_DATE) instanceof Number current
+                    && review.newExpirationAt() >= current.longValue()) {
+                return AppealReviewResult.durationReductionNotShorter();
             }
         }
 
@@ -104,8 +141,9 @@ public class AppealDecisionService {
         appeal.setStatus(review.decision());
         appeal.setDecidedBy(review.reviewerId());
         appeal.setDecisionNote(review.decisionNote());
-        appeal.setUpdatedAt(System.currentTimeMillis());
+        appeal.setUpdatedAt(this.clock.millis());
         AppealEntity saved = this.appealRepository.update(appeal);
+        publishResolved(appealIdentifier, saved, punishment, review);
 
         return AppealReviewResult.decided(saved);
     }
@@ -133,33 +171,79 @@ public class AppealDecisionService {
             return DecisionOutcome.PUNISHMENT_NOT_ACTIVE;
         }
 
-        boolean isActiveBan = profile.getActiveBan() != null && profile.getActiveBan().getIdentifier().equals(punishment.getIdentifier());
-        boolean isActiveChatBan = !isActiveBan && profile.getActiveChatBan() != null
-                && profile.getActiveChatBan().getIdentifier().equals(punishment.getIdentifier());
-        if (!isActiveBan && !isActiveChatBan) {
+        PunishmentEntity active = profile.getActive().get(punishment.getSectionKey());
+        if (active == null || !active.getIdentifier().equals(punishment.getIdentifier())) {
             return DecisionOutcome.PUNISHMENT_NOT_ACTIVE;
         }
 
+        long now = this.clock.millis();
+        Map<String, Object> eloMetaData = Map.of("punishmentIdentifier", active.getIdentifier(), "revokedBy", revokedBy.toString());
         if (decision == AppealStatus.GRANTED_FULL_LIFT) {
-            PunishmentEntity active = isActiveBan ? profile.getActiveBan() : profile.getActiveChatBan();
             active.getMetaData().put("revokedBy", revokedBy.toString());
-            active.getMetaData().put(Metadata.META_DATA_KEY_UPDATE_DATE, System.currentTimeMillis());
+            active.getMetaData().put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
+            active.setLifted(true);
             this.punishmentRepository.update(active);
 
-            profile.getHistory().add(active);
-            if (isActiveBan) {
-                profile.setActiveBan(null);
-            } else {
-                profile.setActiveChatBan(null);
-            }
-            this.profileRepository.update(profile);
+            this.slots.clearIf(owner, punishment.getSectionKey(), active.getIdentifier());
+
+            restoreElo(owner, active, eloMetaData);
         } else if (decision == AppealStatus.GRANTED_DURATION_REDUCTION) {
-            punishment.getMetaData().put(Expirable.META_DATA_KEY_EXPIRATION_DATE, newExpirationAt);
-            punishment.getMetaData().put(Metadata.META_DATA_KEY_UPDATE_DATE, System.currentTimeMillis());
-            this.punishmentRepository.update(punishment);
+            boolean wasPermanent = active.isPermanent();
+            active.getMetaData().put(Expirable.META_DATA_KEY_EXPIRATION_DATE, newExpirationAt);
+            active.getMetaData().put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
+            active.setPermanent(false);
+            this.punishmentRepository.update(active);
+            if (wasPermanent) {
+                this.eloScoring.resetToPardon(owner, active.getSectionKey(), eloMetaData);
+            }
         }
 
         this.profileCache.evict(owner);
         return DecisionOutcome.APPLIED;
+    }
+
+    /**
+     * A lifted permanent punishment sets the section score to the pardon score; a lifted staff
+     * temporary punishment gives back the ELO cost recorded on it. Free punishments (the ELO
+     * system's own soft ones) have nothing to give back.
+     */
+    private void restoreElo(String owner, PunishmentEntity lifted, Map<String, Object> eloMetaData) {
+        if (lifted.isPermanent()) {
+            this.eloScoring.resetToPardon(owner, lifted.getSectionKey(), eloMetaData);
+            return;
+        }
+        Integer cost = lifted.getEloCost();
+        if (cost != null && cost > 0 && !EloService.SYSTEM_ELO_SOURCE.equals(lifted.getSource())) {
+            Map<String, Object> metaData = new HashMap<>(eloMetaData);
+            metaData.put("refundedCost", cost);
+            EloChange change = this.eloScoring.applyDelta(owner, lifted.getSectionKey(), cost, EloReasonCode.APPEAL_REFUND, null, metaData);
+            if (change instanceof EloChange.Rejected rejected) {
+                LOGGER.warn("Could not refund {} ELO of lifted punishment {}: {}", cost, lifted.getIdentifier(), rejected.message());
+            }
+        }
+    }
+
+    /**
+     * Announces a decided appeal. A full lift clears the proxies' mirror; a duration reduction
+     * re-announces the punishment with its new expiry so the mirror's TTL follows.
+     */
+    private void publishResolved(UUID appealIdentifier, AppealEntity appeal, PunishmentEntity punishment, AppealReviewDTO review) {
+        SectionDTO.Response section = this.sectionService.find(punishment.getSectionKey()).orElse(null);
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("appealIdentifier", appealIdentifier.toString());
+        payload.put("owner", appeal.getAppellantHash());
+        payload.put("punishmentIdentifier", punishment.getIdentifier());
+        payload.put("section", punishment.getSectionKey());
+        payload.put("decision", review.decision().toString());
+        if (section != null) {
+            payload.put("enforcement", section.enforcement().name());
+        }
+        this.eventPublisher.publish("appeal.resolved", payload);
+        if (review.decision() == AppealStatus.GRANTED_DURATION_REDUCTION) {
+            Map<String, Object> updated = PunishmentEvents.created(punishment, section);
+            updated.put("expiresAt", review.newExpirationAt());
+            updated.put("permanent", false);
+            this.eventPublisher.publish("punishment.updated", updated);
+        }
     }
 }

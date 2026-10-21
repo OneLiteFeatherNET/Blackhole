@@ -9,20 +9,25 @@ import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.velocity.component.tag.DurationTag;
 import net.onelitefeather.phoca.metadata.Expirable;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
 public final class PunishProfileComponents {
 
     public static @NotNull Component componentRepresentation(@NotNull String userName, @NotNull PunishProfileDTO profile) {
-        return header(userName, "profile:")
-                .append(Component.newline())
-                .append(Component.text("Active ban: ", NamedTextColor.GRAY))
-                .append(renderEntryOrNone(profile.getActiveBan()))
-                .append(Component.newline())
-                .append(Component.text("Active mute: ", NamedTextColor.GRAY))
-                .append(renderEntryOrNone(profile.getActiveChatBan()));
+        Component body = header(userName, "profile:");
+        Map<String, PunishEntryDTO> active = profile.getActive() == null ? Map.of() : new TreeMap<>(profile.getActive());
+        if (active.isEmpty()) {
+            return body.append(Component.newline()).append(Component.text("No active punishments.", NamedTextColor.GREEN));
+        }
+        for (Map.Entry<String, PunishEntryDTO> entry : active.entrySet()) {
+            body = body.append(Component.newline())
+                    .append(Component.text(entry.getKey() + ": ", NamedTextColor.GRAY))
+                    .append(renderEntry(entry.getValue()));
+        }
+        return body;
     }
 
     public static @NotNull Component historyRepresentation(@NotNull String userName, @NotNull PunishProfileDTO profile) {
@@ -47,19 +52,21 @@ public final class PunishProfileComponents {
                 .append(Component.text(suffix));
     }
 
-    private static @NotNull Component renderEntryOrNone(@Nullable PunishEntryDTO entry) {
-        return entry == null ? Component.text("None", NamedTextColor.GREEN) : renderEntry(entry);
-    }
-
     private static @NotNull Component renderEntry(@NotNull PunishEntryDTO entry) {
-        Component reason = MiniMessage.miniMessage().deserialize(entry.getTemplate().getReason(), expirationResolver(entry));
-        return Component.text("[" + entry.getTemplate().getType() + "] ", NamedTextColor.RED)
-                .append(reason);
+        String reason = entry.getTemplate() != null ? entry.getTemplate().getReason() : null;
+        if (reason == null && entry.getMetaData() != null && entry.getMetaData().get("reason") instanceof String fromMeta) {
+            reason = fromMeta;
+        }
+        Component text = reason == null
+                ? Component.translatable("punishment.reason.default")
+                : MiniMessage.miniMessage().deserialize(reason, expirationResolver(entry));
+        String section = entry.getSection() == null ? "?" : entry.getSection();
+        String kind = Boolean.TRUE.equals(entry.getPermanent()) ? "permanent" : "temporary";
+        return Component.text("[" + section + ", " + kind + "] ", NamedTextColor.RED).append(text);
     }
 
     private static @NotNull TagResolver expirationResolver(@NotNull PunishEntryDTO entry) {
-        Object expirationDate = entry.getMetaData().get(Expirable.META_DATA_KEY_EXPIRATION_DATE);
-        if (expirationDate instanceof Number number) {
+        if (entry.getMetaData() != null && entry.getMetaData().get(Expirable.META_DATA_KEY_EXPIRATION_DATE) instanceof Number number) {
             return DurationTag.resolver(number.longValue());
         }
         return TagResolver.empty();

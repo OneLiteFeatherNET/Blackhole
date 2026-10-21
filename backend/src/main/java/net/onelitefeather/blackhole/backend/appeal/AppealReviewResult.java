@@ -20,6 +20,7 @@ public record AppealReviewResult(Kind kind, String message, AppealEntity appeal)
         SEVERE_FULL_LIFT_DISALLOWED,
         DURATION_REDUCTION_MISSING_EXPIRY,
         DURATION_REDUCTION_EXPIRY_NOT_FUTURE,
+        DURATION_REDUCTION_NOT_SHORTER,
         PUNISHMENT_NOT_ACTIVE,
         DECIDED
     }
@@ -54,6 +55,12 @@ public record AppealReviewResult(Kind kind, String message, AppealEntity appeal)
 
     public static AppealReviewResult durationReductionExpiryNotFuture() {
         return new AppealReviewResult(Kind.DURATION_REDUCTION_EXPIRY_NOT_FUTURE, "newExpirationAt must be in the future", null);
+    }
+
+    public static AppealReviewResult durationReductionNotShorter() {
+        return new AppealReviewResult(
+                Kind.DURATION_REDUCTION_NOT_SHORTER, "newExpirationAt must be strictly before the punishment's current expiry", null
+        );
     }
 
     public static AppealReviewResult punishmentNotActive() {

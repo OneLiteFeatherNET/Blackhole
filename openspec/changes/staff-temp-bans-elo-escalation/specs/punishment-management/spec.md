@@ -86,12 +86,16 @@ When a template is applied by any source other than the ELO system itself, the s
 - **THEN** no ELO cost is deducted for that punishment
 
 ### Requirement: Manual revocation
-The system SHALL let callers revoke an owner's active punishment in a section via `POST /punishment/revoke` with owner, section and source, recording the revoking source in the punishment metadata, moving it to history and publishing `punishment.revoked` with the section. Revoking a permanent punishment MUST set the owner's score in that section to the section's pardon score. If there is no active punishment in that section the response MUST be 404.
+The system SHALL let callers revoke an owner's active punishment in a section via `POST /punishment/revoke` with owner, section and source, recording the revoking source in the punishment metadata, moving it to history and publishing `punishment.revoked` with the section. Revoking a permanent punishment MUST set the owner's score in that section to the section's pardon score. A staff revoke of a temporary punishment MUST NOT refund the ELO cost it was charged; only a granted appeal that fully lifts it does (see `appeal-workflow`). If there is no active punishment in that section the response MUST be 404.
 
 #### Scenario: Revoke an active mute
 - **WHEN** the revoke endpoint is called for section `chat` of an owner with an active chat punishment
 - **THEN** the punishment moves to history with `revokedBy` recorded and the `chat` slot is cleared
 - **AND** `punishment.revoked` is published with owner, punishment identifier, section and revokedBy
+
+#### Scenario: Revoking a temporary punishment does not refund its cost
+- **WHEN** a staff temporary `chat` mute that cost 80 ELO is revoked via the revoke endpoint
+- **THEN** the owner's `chat` score is unchanged by the revoke
 
 #### Scenario: Revoke a permanent ban
 - **WHEN** a permanent `network` ban is revoked for an owner with `network` score 150 and pardon score 700

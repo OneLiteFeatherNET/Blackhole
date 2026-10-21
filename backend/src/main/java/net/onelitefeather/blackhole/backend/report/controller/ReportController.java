@@ -2,7 +2,9 @@ package net.onelitefeather.blackhole.backend.report.controller;
 
 import net.onelitefeather.blackhole.backend.report.dto.ReportRequestDTO;
 import net.onelitefeather.blackhole.backend.report.dto.ReportResolutionDTO;
+import net.onelitefeather.blackhole.backend.report.dto.ReportErrorDTO;
 import net.onelitefeather.blackhole.backend.report.service.ReportService;
+import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
@@ -67,9 +69,19 @@ public class ReportController implements ReportApi {
         ReportService.ResolveResult result = this.reportService.resolve(identifier, resolution);
         return switch (result) {
             case ReportService.ResolveResult.Success success -> HttpResponse.ok(success.report());
-            case ReportService.ResolveResult.NotFound ignored -> HttpResponse.notFound();
+            case ReportService.ResolveResult.NotFound ignored ->
+                    error(ErrorKind.NOT_FOUND, "there is no report with this identifier");
+            case ReportService.ResolveResult.AlreadyResolved already ->
+                    error(ErrorKind.CONFLICT, "the report is already resolved (" + already.status() + ")");
+            case ReportService.ResolveResult.TemplateNotAllowed notAllowed ->
+                    error(ErrorKind.VALIDATION, notAllowed.message());
             case ReportService.ResolveResult.PunishmentSourceRequired ignored ->
-                    HttpResponse.badRequest("punishmentSource is required when punishmentTemplateId is set");
+                    error(ErrorKind.VALIDATION, "punishmentSource is required when punishmentTemplateId is set");
+            case ReportService.ResolveResult.PunishmentRejected rejected -> error(rejected.kind(), rejected.message());
         };
+    }
+
+    private static HttpResponse<?> error(ErrorKind kind, String message) {
+        return HttpResponse.status(kind.status()).body(new ReportErrorDTO(message, kind));
     }
 }

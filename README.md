@@ -39,6 +39,64 @@ network/deployment level (firewalling, private networking), not by the applicati
 - **Releases**: [release-please](https://github.com/googleapis/release-please), driven by
   [Conventional Commits](https://www.conventionalcommits.org/) — see [Contributing](#contributing).
 
+## Staff workflow
+
+Staff never decide that someone is banned forever. They apply a **temporary** punishment from a
+template; each application costs ELO in the template's **section**, and when a section score falls
+below its permanent threshold the system itself replaces the active punishment with a permanent one.
+
+### Sections
+
+A section owns one ELO score per player, its thresholds, its permanent-ban reason and its pardon
+score, and says how it is enforced:
+
+| Enforcement | Effect on the proxy                                                                |
+|-------------|-------------------------------------------------------------------------------------|
+| `BAN`       | The player cannot log in.                                                           |
+| `MUTE`      | The player's chat messages are not delivered.                                       |
+| `SERVER`    | The player cannot connect to backend servers matching the section's glob patterns. |
+
+Two sections are seeded: `chat` (MUTE) and `network` (BAN). Operators add more through
+`POST /section`, for example `bedwars` as SERVER with the pattern `bedwars-*` (`*` matches any run
+of characters, `?` one character, case-insensitive). A player stays on the network when a SERVER
+section punishes them; if they stand on a matching server when it arrives they are moved to the
+`fallbackServer` of the proxy config (default `lobby`), or disconnected if there is none.
+There is one active punishment per player and section: a mute never lifts a ban.
+
+### Templates and escalation
+
+A template has a `key` (what staff type), a `section` and ordered **steps**, each with a `duration`
+(ISO-8601, greater than zero) and an `eloCost` (zero or more). The step is chosen by how many earlier
+punishments the player has in the template's escalation group (default: the template key) within the
+escalation window (default 365 days, `blackhole.punishment.escalation.default-window`) that were not
+revoked or lifted by an appeal; beyond the last step the last step repeats. Applying a template
+deducts the step's cost; if the section score is then below its permanent threshold and no permanent
+punishment is active, the player is punished permanently. A staff revoke of a temporary punishment
+does **not** refund its ELO cost; a granted appeal that fully lifts it does. Lifting a permanent
+punishment (revoke or appeal) sets the section score to the section's pardon score.
+
+### Proxy commands
+
+| Command                              | Permission                      | What it does                                                        |
+|--------------------------------------|---------------------------------|---------------------------------------------------------------------|
+| `/ban <player> <template>`           | `blackhole.ban`                 | Applies a template of a `BAN` or `SERVER` section.                  |
+| `/mute <player> <template>`          | `blackhole.mute`                | Applies a template of a `MUTE` section.                             |
+| `/punish <player> <template>`        | `blackhole.punish`              | Applies a template of any section.                                  |
+| `/unban <player> [section]`          | `blackhole.unban`               | Lifts the active ban (section defaults to `network`; `BAN`/`SERVER`). |
+| `/unmute <player> [section]`         | `blackhole.unmute`              | Lifts the active mute (section defaults to `chat`).                 |
+| `/elo <player>`                      | `blackhole.elo.view`            | Shows the score, thresholds and permanent state of every section.   |
+| `/blackhole <player> info`           | `blackhole.user.info`           | Shows the active punishments.                                       |
+| `/blackhole <player> history <sort>` | `blackhole.ban.history`         | Shows the punishment history.                                       |
+| (lifting a permanent punishment)     | `blackhole.pardon.permanent`    | Additionally required by `/unban` and `/unmute` for permanent ones. |
+
+`<template>` is the template key, tab-completed from the templates eligible for the command. The
+player may be offline (a name the backend can resolve, or a UUID). No command accepts a duration or a
+permanent flag. The former `--server` flag is gone: use a `SERVER` section. After applying, the sender
+sees the section, how long it lasts, the step (`n/m`), the ELO change and, if the cost triggered it,
+the permanent escalation. Upgrading from earlier releases: templates are selected by key instead of
+by reason, and the proxy reads the Redis keys `blackhole:punish:<section>:<owner>`; deploy backend and
+proxies together.
+
 ## Local development
 
 A `docker-compose.yml` under `docker/` provides PostgreSQL, RabbitMQ and Dragonfly (Redis protocol,

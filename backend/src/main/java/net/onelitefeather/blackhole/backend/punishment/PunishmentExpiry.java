@@ -18,21 +18,23 @@ public final class PunishmentExpiry {
      * Checks whether a punishment has expired.
      *
      * @param punishment the punishment to check
-     * @return {@code true} if the punishment carries an expiration date in the past
+     * @param now        the current time in epoch millis
+     * @return {@code true} if the punishment carries an expiration date before {@code now}
      */
-    public static boolean isExpired(PunishmentEntity punishment) {
-        return isExpired(punishment.getMetaData());
+    public static boolean isExpired(PunishmentEntity punishment, long now) {
+        return isExpired(punishment.getMetaData(), now);
     }
 
     /**
-     * Same check as {@link #isExpired(PunishmentEntity)}, for a punishment's metadata alone - used
-     * on cached profile DTOs, which carry the metadata but not the entity.
+     * Same check as {@link #isExpired(PunishmentEntity, long)}, for a punishment's metadata alone -
+     * used on cached profile DTOs, which carry the metadata but not the entity.
      *
      * @param metaData the punishment's metadata
-     * @return {@code true} if the metadata carries an expiration date in the past
+     * @param now      the current time in epoch millis
+     * @return {@code true} if the metadata carries an expiration date before {@code now}
      */
-    public static boolean isExpired(Map<String, Object> metaData) {
+    public static boolean isExpired(Map<String, Object> metaData, long now) {
         Object expirationDate = metaData.get(Expirable.META_DATA_KEY_EXPIRATION_DATE);
-        return expirationDate instanceof Long millis && millis < System.currentTimeMillis();
+        return expirationDate instanceof Number millis && millis.longValue() < now;
     }
 }

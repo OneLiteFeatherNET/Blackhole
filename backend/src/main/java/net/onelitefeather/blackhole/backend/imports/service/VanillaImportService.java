@@ -13,10 +13,9 @@ import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
-import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateCache;
-import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
-import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
-import net.onelitefeather.blackhole.backend.punishment.PunishType;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentEvents;
+import net.onelitefeather.blackhole.backend.section.SectionService;
+import net.onelitefeather.blackhole.backend.section.dto.SectionDTO;
 import net.onelitefeather.blackhole.backend.utils.IdGenerator;
 import net.onelitefeather.phoca.metadata.Expirable;
 import net.onelitefeather.phoca.metadata.Metadata;
@@ -25,6 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -56,40 +56,46 @@ public class VanillaImportService {
 
     private static final String DEFAULT_REASON = "Imported vanilla ban";
 
+    /**
+     * Vanilla bans keep players off the whole server, so they land in the network-wide ban section.
+     */
+    private static final String IMPORT_SECTION = "network";
+
     private final JsonMapper jsonMapper;
-    private final PunishmentTemplateRepository templateRepository;
     private final PunishmentRepository punishmentRepository;
     private final PunishmentProfileRepository profileRepository;
     private final DomainEventPublisher eventPublisher;
     private final ProfileCache profileCache;
-    private final PunishmentTemplateCache punishmentTemplateCache;
+    private final SectionService sectionService;
+    private final Clock clock;
 
     public VanillaImportService(
             JsonMapper jsonMapper,
-            PunishmentTemplateRepository templateRepository,
             PunishmentRepository punishmentRepository,
             PunishmentProfileRepository profileRepository,
             DomainEventPublisher eventPublisher,
             ProfileCache profileCache,
-            PunishmentTemplateCache punishmentTemplateCache
+            SectionService sectionService,
+            Clock clock
     ) {
         this.jsonMapper = jsonMapper;
-        this.templateRepository = templateRepository;
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
         this.eventPublisher = eventPublisher;
         this.profileCache = profileCache;
-        this.punishmentTemplateCache = punishmentTemplateCache;
+        this.sectionService = sectionService;
+        this.clock = clock;
     }
 
     public VanillaImportResultDTO importVanillaBans(byte[] bannedPlayersJson, byte[] bannedIpsJson, boolean dryRun) throws IOException {
+        SectionDTO.Response section = this.sectionService.find(IMPORT_SECTION)
+                .orElseThrow(() -> new IllegalStateException("Vanilla bans are imported into section '" + IMPORT_SECTION + "', which does not exist"));
         List<VanillaBanEntry> entries = this.jsonMapper.readValue(bannedPlayersJson, Argument.listOf(VanillaBanEntry.class));
 
         int imported = 0;
         int skippedExisting = 0;
         int invalid = 0;
         List<String> invalidEntries = new ArrayList<>();
-        Map<String, PunishmentTemplateEntity> templateCache = new HashMap<>();
 
         for (VanillaBanEntry entry : entries) {
             UUID rawUuid;
@@ -114,7 +120,7 @@ public class VanillaImportService {
             long createdMillis = parseCreated(entry.created());
             PunishmentProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
 
-            if (profile != null && (profile.getActiveBan() != null || alreadyImportedFromVanilla(profile, createdMillis))) {
+            if (profile != null && (profile.getActive().containsKey(IMPORT_SECTION) || alreadyImportedFromVanilla(profile, createdMillis))) {
                 skippedExisting++;
                 continue;
             }
@@ -125,48 +131,45 @@ public class VanillaImportService {
             }
 
             String reason = (entry.reason() == null || entry.reason().isBlank()) ? DEFAULT_REASON : entry.reason();
-            PunishmentTemplateEntity template = findOrCreateTemplate(reason, templateCache);
 
             Map<String, Object> metaData = new HashMap<>();
             metaData.put(Metadata.META_DATA_KEY_CREATION_DATE, createdMillis);
             metaData.put(Metadata.META_DATA_KEY_UPDATE_DATE, createdMillis);
+            metaData.put("reason", reason);
+            metaData.put("importSource", "vanilla");
             expirationMillis.ifPresent(exp -> metaData.put(Expirable.META_DATA_KEY_EXPIRATION_DATE, exp));
 
             PunishmentEntity punishment = new PunishmentEntity(
-                    IdGenerator.generateId(), SYSTEM_IMPORT_SOURCE, PunishType.NETWORK, null, template, metaData
+                    IdGenerator.generateId(), SYSTEM_IMPORT_SOURCE, owner, IMPORT_SECTION, expirationMillis.isEmpty(), createdMillis, null, metaData
             );
             PunishmentEntity savedPunishment = this.punishmentRepository.save(punishment);
 
-            boolean alreadyExpired = expirationMillis.isPresent() && expirationMillis.get() <= System.currentTimeMillis();
+            boolean alreadyExpired = expirationMillis.isPresent() && expirationMillis.get() <= this.clock.millis();
 
             if (profile == null) {
                 List<PunishmentEntity> history = new ArrayList<>();
-                PunishmentEntity activeBan = null;
+                Map<String, PunishmentEntity> active = new HashMap<>();
                 if (alreadyExpired) {
                     history.add(savedPunishment);
                 } else {
-                    activeBan = savedPunishment;
+                    active.put(IMPORT_SECTION, savedPunishment);
                 }
-                profile = new PunishmentProfileEntity(owner, null, activeBan, history, new HashMap<>());
+                profile = new PunishmentProfileEntity(owner, active, history, new HashMap<>());
                 this.profileRepository.save(profile);
                 this.eventPublisher.publish("profile.created", Map.of("owner", owner));
             } else {
                 if (alreadyExpired) {
                     profile.getHistory().add(savedPunishment);
                 } else {
-                    profile.setActiveBan(savedPunishment);
+                    profile.getActive().put(IMPORT_SECTION, savedPunishment);
                 }
                 this.profileRepository.update(profile);
             }
 
             this.profileCache.evict(owner);
-            this.eventPublisher.publish("punishment.created", Map.of(
-                    "owner", owner,
-                    "punishmentIdentifier", savedPunishment.getIdentifier(),
-                    "templateIdentifier", template.getIdentifier().toString(),
-                    "type", PunishType.NETWORK.toString(),
-                    "importSource", "vanilla"
-            ));
+            Map<String, Object> created = PunishmentEvents.created(savedPunishment, section);
+            created.put("importSource", "vanilla");
+            this.eventPublisher.publish("punishment.created", created);
 
             imported++;
         }
@@ -188,7 +191,7 @@ public class VanillaImportService {
 
     /**
      * An already-expired legacy ban is written straight into {@code history} rather than the
-     * active-ban slot (see below), so checking only {@code getActiveBan()} let re-importing the
+     * active slot (see below), so checking only the active slot let re-importing the
      * same file duplicate one history entry per already-expired entry on every run. This also
      * catches an active ban that has since expired locally and rotated into history.
      *
@@ -213,17 +216,6 @@ public class VanillaImportService {
         return existingCreated instanceof Number number && number.longValue() == createdMillis;
     }
 
-    private PunishmentTemplateEntity findOrCreateTemplate(String reason, Map<String, PunishmentTemplateEntity> templateCache) {
-        return templateCache.computeIfAbsent(reason, r -> this.templateRepository.findByReasonAndType(r, PunishType.NETWORK)
-                .orElseGet(() -> {
-                    PunishmentTemplateEntity created = this.templateRepository.save(new PunishmentTemplateEntity(
-                            null, r, PunishType.NETWORK, 0, Map.of("imported", true, "importSource", "vanilla")
-                    ));
-                    this.punishmentTemplateCache.evictList();
-                    return created;
-                }));
-    }
-
     private Optional<Long> parseExpiration(String expires) {
         if (expires == null || expires.isBlank() || "forever".equalsIgnoreCase(expires.trim())) {
             return Optional.empty();
@@ -233,12 +225,12 @@ public class VanillaImportService {
 
     private long parseCreated(String created) {
         if (created == null || created.isBlank()) {
-            return System.currentTimeMillis();
+            return this.clock.millis();
         }
         try {
             return OffsetDateTime.parse(created, VANILLA_DATE_FORMAT).toInstant().toEpochMilli();
         } catch (DateTimeParseException e) {
-            return System.currentTimeMillis();
+            return this.clock.millis();
         }
     }
 }

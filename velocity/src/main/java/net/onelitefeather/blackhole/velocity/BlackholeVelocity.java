@@ -13,28 +13,40 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.Configuration;
-import net.onelitefeather.blackhole.client.model.PunishType;
 import net.onelitefeather.blackhole.velocity.command.PardonCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishInfoCommand;
-import net.onelitefeather.blackhole.velocity.command.PunishTypeScope;
+import net.onelitefeather.blackhole.velocity.command.EloCommand;
+import net.onelitefeather.blackhole.velocity.command.TargetParser;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.listener.PlayerChatListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerClientBrandListener;
+import net.onelitefeather.blackhole.velocity.listener.PlayerDisconnectListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerLoginListener;
+import net.onelitefeather.blackhole.velocity.listener.ServerConnectListener;
 import net.onelitefeather.blackhole.velocity.module.BlackholeClientModule;
+import net.onelitefeather.blackhole.velocity.enforcement.EnforcementActions;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
+import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
+import net.onelitefeather.blackhole.velocity.punish.HttpBackendGateway;
+import net.onelitefeather.blackhole.velocity.punish.PunishService;
 import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
+import net.onelitefeather.blackhole.velocity.section.BackendSectionSource;
+import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import net.kyori.adventure.text.minimessage.translation.MiniMessageTranslationStore;
 import net.kyori.adventure.translation.GlobalTranslator;
 import org.incendo.cloud.SenderMapper;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.execution.ExecutionCoordinator;
-import org.incendo.cloud.key.CloudKey;
 import org.incendo.cloud.velocity.CloudInjectionModule;
 import org.incendo.cloud.velocity.VelocityCommandManager;
 import org.slf4j.Logger;
 
 import java.nio.file.Path;
+import java.time.Clock;
+import java.util.concurrent.CompletableFuture;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
@@ -46,7 +58,6 @@ import java.util.ResourceBundle;
         authors = {"theEvilReaper", "TheMeinerLP"}
 )
 public class BlackholeVelocity {
-    public static final CloudKey<PunishType> PUNISH_TYPE_KEY = CloudKey.of("punishType", PunishType.class);
     private final Injector injector;
     private final ProxyServer server;
     private final Path dataDirectory;
@@ -72,29 +83,46 @@ public class BlackholeVelocity {
         this.client = Configuration.getDefaultApiClient();
         this.client.setBasePath(this.config.getBaseUrl());
         this.logger.info("Initialized Blackhole client");
-        this.redisSyncService = new RedisSyncService(this.server, this.config, this.client);
+
+        Clock clock = Clock.systemUTC();
+        this.redisSyncService = new RedisSyncService(this.config);
+        SectionRegistry sections = new SectionRegistry(new BackendSectionSource(this.redisSyncService, this.client));
+        PunishmentMirror mirror = new PunishmentMirror();
+        BackendGateway backend = new HttpBackendGateway(this.client, this.redisSyncService);
+        PunishmentState state = new PunishmentState(sections, mirror, this.redisSyncService, owner -> backend.profile(owner), clock);
+        EnforcementActions actions = new EnforcementActions(this.server, sections, state, this.config, clock);
+        PunishmentSyncHandler syncHandler = new PunishmentSyncHandler(mirror, actions);
+        PunishService punishService = new PunishService(backend, sections);
+
+        this.redisSyncService.onPunishmentSync(syncHandler::accept);
+        // The reload calls the backend, so it must not run on the Redis callback thread.
+        this.redisSyncService.onSectionChanged(changed -> CompletableFuture.runAsync(sections::reload));
         this.redisSyncService.connect();
-        Injector childInjector = this.injector.createChildInjector(new BlackholeClientModule(this.client, this.config, this.redisSyncService),  new CloudInjectionModule<>(
-                CommandSource.class,
-                ExecutionCoordinator.simpleCoordinator(),
-                SenderMapper.identity()
-        ));
+        sections.reload();
+
+        Injector childInjector = this.injector.createChildInjector(
+                new BlackholeClientModule(this.client, this.config, this.redisSyncService, sections, mirror, state,
+                        syncHandler, actions, backend, punishService, clock).asModule(),
+                new CloudInjectionModule<>(
+                        CommandSource.class,
+                        ExecutionCoordinator.simpleCoordinator(),
+                        SenderMapper.identity()
+                ));
         final VelocityCommandManager<CommandSource> commandManager = childInjector.getInstance(
                 Key.get(new TypeLiteral<VelocityCommandManager<CommandSource>>() {
                 })
         );
         AnnotationParser<CommandSource> annotationParser = new AnnotationParser<>(commandManager, CommandSource.class);
-        annotationParser.registerBuilderModifier(
-                PunishTypeScope.class,
-                (typeScope, builder) -> builder.meta(PUNISH_TYPE_KEY, typeScope.value())
-        );
+        annotationParser.parse(childInjector.getInstance(TargetParser.class));
         annotationParser.parse(childInjector.getInstance(PunishCommand.class));
         annotationParser.parse(childInjector.getInstance(PunishInfoCommand.class));
         annotationParser.parse(childInjector.getInstance(PardonCommand.class));
+        annotationParser.parse(childInjector.getInstance(EloCommand.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerLoginListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerChatListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerClientBrandListener.class));
-        server.getEventManager().register(this, this.redisSyncService);
+        server.getEventManager().register(this, childInjector.getInstance(ServerConnectListener.class));
+        server.getEventManager().register(this, childInjector.getInstance(PlayerDisconnectListener.class));
     }
 
     @Subscribe

@@ -1,82 +1,66 @@
 package net.onelitefeather.blackhole.velocity.redis;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.inject.Inject;
-import com.velocitypowered.api.event.Subscribe;
-import com.velocitypowered.api.event.connection.DisconnectEvent;
-import com.velocitypowered.api.proxy.Player;
-import com.velocitypowered.api.proxy.ProxyServer;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
-import io.lettuce.core.api.sync.RedisCommands;
 import io.lettuce.core.pubsub.RedisPubSubAdapter;
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
-import net.onelitefeather.blackhole.client.api.PunishProfileApi;
-import net.onelitefeather.blackhole.client.invoker.ApiClient;
-import net.onelitefeather.blackhole.client.invoker.ApiException;
-import net.onelitefeather.blackhole.client.model.PunishEntryDTO;
-import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
-import net.onelitefeather.blackhole.velocity.component.PunishmentTemplateComponent;
+import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
-import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
+import net.onelitefeather.blackhole.velocity.section.SectionInfo;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
- * Read-only mirror of the backend's Redis-cached active-punishment state (written solely by the
- * backend's {@code RedisSyncConsumer}). Backs two things:
+ * The proxy's connection to the backend's Redis: a read-only view of the mirrored active
+ * punishments (one key per section and owner, written solely by the backend), the shared-cache
+ * lists of sections and templates, and the two pub/sub channels - punishment sync messages and
+ * section changes - which it hands to registered listeners.
  *
- * <ul>
- *     <li>a login/chat fast path that avoids an HTTP round-trip to the backend on every check
- *     ({@link #fetchAndTrack} / {@link #getChatBanFast}), seeded from Redis or, on a cache miss,
- *     from the caller's own HTTP fallback via {@link #seedChatBan};</li>
- *     <li>immediate cross-proxy enforcement: when a ban is applied on a different proxy while a
- *     player is connected to this one, the pub/sub delta received here disconnects them right
- *     away instead of waiting for their next login.</li>
- * </ul>
- *
- * <p>Every public lookup either returns a definitive answer or throws, so callers can catch and
- * fall back to the pre-existing HTTP check - Redis being unreachable must never make a
- * login/chat check fail outright.</p>
+ * <p>Every read either returns a definitive answer or says "unavailable" (an exception from
+ * {@link #read}, an empty {@link Optional} from the cache reads), so callers can fall back to the
+ * backend over HTTP - Redis being unreachable must never make a login or chat check fail outright.</p>
  */
-public final class RedisSyncService {
+public final class RedisSyncService implements PunishmentState.KeyReader {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RedisSyncService.class);
     /** Bounds one shared-cache read, so a slow Redis can't stall tab completion. */
     private static final long SHARED_CACHE_TIMEOUT_MILLIS = 200;
 
-    private final ProxyServer proxyServer;
     private final BlackholeConfig config;
-    private final PunishProfileApi punishProfileApi;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
-    /** Absent key = never looked up this session; {@code Optional.empty()} = confirmed inactive. */
-    private final ConcurrentMap<String, Optional<PunishmentSyncMessage>> banCache = new ConcurrentHashMap<>();
-    private final ConcurrentMap<String, Optional<PunishmentSyncMessage>> chatBanCache = new ConcurrentHashMap<>();
+    private final SyncCodec codec = new SyncCodec();
+    private final List<Consumer<PunishmentSyncMessage>> syncListeners = new CopyOnWriteArrayList<>();
+    private final List<Consumer<String>> sectionListeners = new CopyOnWriteArrayList<>();
 
     private RedisClient client;
     private StatefulRedisConnection<String, String> connection;
     private StatefulRedisPubSubConnection<String, String> pubSubConnection;
 
-    @Inject
-    public RedisSyncService(@NotNull ProxyServer proxyServer, @NotNull BlackholeConfig config, @NotNull ApiClient apiClient) {
-        this.proxyServer = proxyServer;
+    public RedisSyncService(@NotNull BlackholeConfig config) {
         this.config = config;
-        this.punishProfileApi = new PunishProfileApi(apiClient);
+    }
+
+    /** Registers a listener for punishment sync messages; call before {@link #connect}. */
+    public void onPunishmentSync(@NotNull Consumer<PunishmentSyncMessage> listener) {
+        this.syncListeners.add(listener);
+    }
+
+    /** Registers a listener for section changes (the changed section's key); call before {@link #connect}. */
+    public void onSectionChanged(@NotNull Consumer<String> listener) {
+        this.sectionListeners.add(listener);
     }
 
     /**
-     * Connects to Redis and subscribes to the punishment-sync channel. A failure here is logged
-     * and leaves the service disconnected rather than propagating - every proxy must keep working
-     * against the backend over plain HTTP if Redis is unavailable at startup.
+     * Connects to Redis and subscribes to the sync channels. A failure here is logged and leaves
+     * the service disconnected rather than propagating - every proxy must keep working against the
+     * backend over plain HTTP if Redis is unavailable at startup.
      */
     public void connect() {
         try {
@@ -86,10 +70,10 @@ public final class RedisSyncService {
             this.pubSubConnection.addListener(new RedisPubSubAdapter<String, String>() {
                 @Override
                 public void message(String channel, String message) {
-                    onMessage(message);
+                    onMessage(channel, message);
                 }
             });
-            this.pubSubConnection.sync().subscribe(RedisTopology.PUNISHMENT_SYNC_CHANNEL);
+            this.pubSubConnection.sync().subscribe(RedisTopology.PUNISHMENT_SYNC_CHANNEL, RedisTopology.SECTION_CHANGED_CHANNEL);
             LOGGER.info("Connected to Redis for cross-proxy punishment sync at {}", this.config.getRedisUri());
         } catch (RuntimeException e) {
             LOGGER.error("Failed to connect to Redis at {} - falling back to per-request HTTP checks: {}", this.config.getRedisUri(), e.getMessage());
@@ -113,12 +97,31 @@ public final class RedisSyncService {
     }
 
     /**
-     * The backend's cached punishment template list as the JSON array the API returns, for tab
-     * completion. Empty on a miss, when Redis isn't connected, or on an error or timeout, so the
-     * caller falls back to the HTTP API (which repopulates the cache).
+     * @throws IllegalStateException if Redis isn't connected - callers must fall back to HTTP
      */
-    public Optional<String> readCachedTemplateList() {
-        return readSharedCache(RedisTopology.TEMPLATES_ALL_KEY);
+    @Override
+    public Optional<PunishmentSyncMessage> read(@NotNull String section, @NotNull String owner) {
+        StatefulRedisConnection<String, String> conn = this.connection;
+        if (conn == null) {
+            throw new IllegalStateException("Redis is not connected");
+        }
+        return this.codec.tryMessage(conn.sync().get(RedisTopology.punishKey(section, owner)));
+    }
+
+    /**
+     * The backend's cached punishment template list, for tab completion and template lookup. Empty
+     * on a miss, when Redis isn't connected, or on an error or timeout, so the caller falls back to
+     * the HTTP API (which repopulates the cache).
+     */
+    public Optional<List<PunishTemplateResponse>> readCachedTemplates() {
+        return readSharedCache(RedisTopology.TEMPLATES_ALL_KEY).flatMap(this.codec::templates);
+    }
+
+    /**
+     * The backend's cached section list; empty if unavailable, so the registry uses the HTTP API.
+     */
+    public Optional<List<SectionInfo>> readCachedSections() {
+        return readSharedCache(RedisTopology.SECTIONS_ALL_KEY).flatMap(this.codec::sections);
     }
 
     private Optional<String> readSharedCache(@NotNull String key) {
@@ -137,103 +140,27 @@ public final class RedisSyncService {
         }
     }
 
-    /**
-     * Reads both the ban and chat-ban keys for {@code ownerHash} and seeds both local caches from
-     * the result, so the chat check right after login is a guaranteed cache hit.
-     *
-     * @return the active ban, if any
-     * @throws IllegalStateException if Redis isn't connected - callers must fall back to HTTP
-     */
-    public Optional<PunishmentSyncMessage> fetchAndTrack(@NotNull String ownerHash) {
-        requireConnected();
-        RedisCommands<String, String> sync = this.connection.sync();
-        Optional<PunishmentSyncMessage> ban = parse(sync.get(RedisTopology.banKey(ownerHash)));
-        Optional<PunishmentSyncMessage> chat = parse(sync.get(RedisTopology.chatBanKey(ownerHash)));
-        this.banCache.put(ownerHash, ban);
-        this.chatBanCache.put(ownerHash, chat);
-        return ban;
-    }
-
-    /**
-     * @return {@code null} if this player's mute state was never looked up this session (caller
-     * must fall back to HTTP and then call {@link #seedChatBan}), otherwise a definitive answer
-     */
-    public @Nullable Optional<PunishmentSyncMessage> getChatBanFast(@NotNull String ownerHash) {
-        return this.chatBanCache.get(ownerHash);
-    }
-
-    public void seedChatBan(@NotNull String ownerHash, @NotNull Optional<PunishmentSyncMessage> value) {
-        this.chatBanCache.put(ownerHash, value);
-    }
-
-    @Subscribe
-    public void onDisconnect(@NotNull DisconnectEvent event) {
-        String ownerHash = UUIDConverter.convertToSHA(event.getPlayer().getUniqueId());
-        this.banCache.remove(ownerHash);
-        this.chatBanCache.remove(ownerHash);
-    }
-
-    private void onMessage(String rawJson) {
-        PunishmentSyncMessage message;
-        try {
-            message = this.objectMapper.readValue(rawJson, PunishmentSyncMessage.class);
-        } catch (JsonProcessingException e) {
-            LOGGER.warn("Failed to parse incoming punishment sync message: {}", e.getMessage());
+    private void onMessage(String channel, String message) {
+        if (RedisTopology.SECTION_CHANGED_CHANNEL.equals(channel)) {
+            notifyAll(this.sectionListeners, message);
             return;
         }
-        boolean active = PunishmentSyncMessage.STATE_SET.equals(message.state());
-        Optional<PunishmentSyncMessage> value = active ? Optional.of(message) : Optional.empty();
-
-        if (PunishmentSyncMessage.SLOT_CHAT_BAN.equals(message.slot())) {
-            this.chatBanCache.put(message.owner(), value);
+        Optional<PunishmentSyncMessage> parsed = this.codec.tryMessage(message);
+        if (parsed.isEmpty()) {
+            LOGGER.warn("Ignoring an unreadable punishment sync message");
             return;
         }
-
-        this.banCache.put(message.owner(), value);
-        if (active) {
-            kickIfConnectedHere(message);
-        }
+        notifyAll(this.syncListeners, parsed.get());
     }
 
-    /**
-     * A ban was just applied on (possibly) another proxy. The owner hash is one-way, so the only
-     * way to tell whether the affected player is connected to this proxy is to hash every
-     * currently-online player and compare - the same thing {@code PlayerLoginListener}/
-     * {@code PlayerChatListener} already do per-player, just run here across the online list.
-     */
-    private void kickIfConnectedHere(PunishmentSyncMessage message) {
-        for (Player player : this.proxyServer.getAllPlayers()) {
-            if (!UUIDConverter.convertToSHA(player.getUniqueId()).equals(message.owner())) {
-                continue;
-            }
+    /** A failing listener must neither stop the others nor kill the Redis callback thread. */
+    private static <T> void notifyAll(List<Consumer<T>> listeners, T value) {
+        for (Consumer<T> listener : listeners) {
             try {
-                PunishProfileDTO profile = this.punishProfileApi.getById(message.owner());
-                PunishEntryDTO activeBan = profile.getActiveBan();
-                if (activeBan != null) {
-                    player.disconnect(PunishmentTemplateComponent.of(activeBan.getTemplate(), profile));
-                }
-            } catch (ApiException e) {
-                LOGGER.error("Failed to fetch profile for cross-proxy kick of {}: {}", player.getUsername(), e.getMessage());
+                listener.accept(value);
+            } catch (RuntimeException e) {
+                LOGGER.error("A Redis listener failed: {}", e.getMessage());
             }
-            return;
-        }
-    }
-
-    private Optional<PunishmentSyncMessage> parse(@Nullable String json) {
-        if (json == null) {
-            return Optional.empty();
-        }
-        try {
-            return Optional.of(this.objectMapper.readValue(json, PunishmentSyncMessage.class));
-        } catch (JsonProcessingException e) {
-            LOGGER.warn("Failed to parse cached punishment sync value: {}", e.getMessage());
-            return Optional.empty();
-        }
-    }
-
-    private void requireConnected() {
-        if (this.connection == null) {
-            throw new IllegalStateException("Redis is not connected");
         }
     }
 }

@@ -4,29 +4,31 @@ import io.micronaut.serde.annotation.Serdeable;
 
 /**
  * Wire format published on {@link RedisTopology#PUNISHMENT_SYNC_CHANNEL} and stored as the value
- * of the per-profile Redis key so a proxy's login-time {@code GET} carries the same data a
+ * of the per-section Redis key so a proxy's login-time {@code GET} carries the same data a
  * pub/sub delta would. Hand-shared with Velocity's mirror record - deliberately not part of the
  * OpenAPI client, since this is an internal side channel between the backend and proxies, not a
  * public API contract.
  *
- * @param slot                  {@code BAN} or {@code CHAT_BAN} - which of
- *                              {@code PunishmentProfileEntity}'s two active-punishment fields
- *                              this message concerns
- * @param state                 {@code SET} (a punishment is now active in this slot) or
- *                              {@code CLEARED} (expired/revoked/appeal-lifted)
- * @param type                  the {@code PunishType} the active punishment was applied as
- *                              (SERVER/NETWORK/CHAT), null when {@code state == CLEARED} and the
- *                              type isn't known
- * @param expiresAt             epoch millis the punishment expires at, or null for a permanent
- *                              punishment / a CLEARED message
+ * @param owner                the hashed owner
+ * @param section              the key of the section the punishment belongs to
+ * @param enforcement          how the section is enforced ({@code MUTE}, {@code BAN} or {@code SERVER}),
+ *                             null when the section no longer exists
+ * @param state                {@code SET} (a punishment is now active in this section) or
+ *                             {@code CLEARED} (expired/revoked/appeal-lifted)
+ * @param punishmentIdentifier the punishment this message concerns
+ * @param templateIdentifier   the template it came from, null for system punishments and CLEARED messages
+ * @param reason               the reason shown to the player, null for CLEARED messages
+ * @param expiresAt            epoch millis the punishment expires at, or null for a permanent
+ *                             punishment / a CLEARED message
  */
 @Serdeable
 public record PunishmentSyncMessage(
         String owner,
-        String slot,
+        String section,
+        String enforcement,
         String state,
-        String type,
         String punishmentIdentifier,
         String templateIdentifier,
+        String reason,
         Long expiresAt
 ) {}

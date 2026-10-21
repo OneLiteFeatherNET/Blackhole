@@ -70,34 +70,28 @@ blackhole:
   punishment:
     expiry:
       sweep-interval: ${BLACKHOLE_PUNISHMENT_EXPIRY_SWEEP_INTERVAL:1m}
-  # Dual-ELO system (Phase 5): baseline is the network-wide starting/neutral score for both
-  # tracks, and perma-ban-threshold the network-wide permanent-ban trigger. Crossing below
-  # soft-threshold triggers an automatic temporary punishment; below perma-ban-threshold, a
-  # permanent ban via the perma-ban-template configured below (skipped, not auto-generated, if
-  # none is configured). decay.interval-ms controls the "day" length pending decay is measured
-  # in - shortened via env var for testing, 1 real day (86400000ms) in production.
+    # Escalating staff templates: the step of a template is chosen by how many of the player's earlier,
+    # not-lifted punishments in the template's escalation group were created within this window
+    # (ISO-8601). A template can carry its own window; this is the fallback for templates without one.
+    escalation:
+      default-window: ${BLACKHOLE_PUNISHMENT_ESCALATION_DEFAULT_WINDOW:P365D}
+  # ELO scoring is per punishment section (chat and network ship by default; operators add more via
+  # /section). A section owns its base score, soft and permanent thresholds, soft duration, pardon
+  # score and decay rate - they are data managed through the API, not config. Crossing below a
+  # section's soft threshold applies an automatic temporary punishment, falling below its permanent
+  # threshold an automatic permanent one; no template or operator configuration is involved.
+  # decay.interval-ms controls the "day" length pending decay is measured in - shortened via env var
+  # for testing, 1 real day (86400000ms) in production.
   elo:
-    baseline: ${BLACKHOLE_ELO_BASELINE:1000}
-    soft-threshold: ${BLACKHOLE_ELO_SOFT_THRESHOLD:700}
-    perma-ban-threshold: ${BLACKHOLE_ELO_PERMA_BAN_THRESHOLD:300}
-    # Perma-ban template per track, applied when a player's score crosses below
-    # perma-ban-threshold. Left unset by default - enforcement is skipped (logged) until a real
-    # template UUID is configured for each track, rather than auto-generating one for the most
-    # severe consequence.
-    perma-ban-template:
-      chat-id: ${BLACKHOLE_ELO_PERMA_BAN_TEMPLATE_CHAT_ID:}
-      gameplay-id: ${BLACKHOLE_ELO_PERMA_BAN_TEMPLATE_GAMEPLAY_ID:}
     decay:
-      recovery-per-day: ${BLACKHOLE_ELO_DECAY_RECOVERY_PER_DAY:10}
       interval-ms: ${BLACKHOLE_ELO_DECAY_INTERVAL_MS:86400000}
       sweep-cron: ${BLACKHOLE_ELO_DECAY_SWEEP_CRON:`0 0 3 * * *`}
-    auto-ban:
-      chat-soft-duration: ${BLACKHOLE_ELO_CHAT_SOFT_DURATION:PT24H}
-      gameplay-soft-duration: ${BLACKHOLE_ELO_GAMEPLAY_SOFT_DURATION:P3D}
     # Rule-based ToxicityScorer default: an obviously-placeholder keyword list, not a real
     # moderation wordlist - swap the ToxicityScorer bean entirely for production use (an ML
     # classifier is an explicit later replacement per the roadmap, not part of this phase).
     chat:
+      # The section a flagged chat message is scored in.
+      section: ${BLACKHOLE_ELO_CHAT_SECTION:chat}
       toxic-patterns: ${BLACKHOLE_ELO_CHAT_TOXIC_PATTERNS:stupid,idiot,shut up,hate you}
       severity-per-match: ${BLACKHOLE_ELO_CHAT_SEVERITY_PER_MATCH:0.4}
       flag-threshold: ${BLACKHOLE_ELO_CHAT_FLAG_THRESHOLD:0.3}
@@ -108,6 +102,13 @@ blackhole:
       # Awarded to the reporter when their report is resolved ACTIONED with an actual
       # punishment applied to the reported player.
       reward-delta: ${BLACKHOLE_ELO_REPORT_REWARD_DELTA:50}
+      # The section each report category scores in when a report is resolved ACTIONED. A blank
+      # value means that category has no ELO effect.
+      category-sections:
+        CHAT_ABUSE: ${BLACKHOLE_ELO_REPORT_SECTION_CHAT_ABUSE:chat}
+        CHEATING: ${BLACKHOLE_ELO_REPORT_SECTION_CHEATING:network}
+        GRIEFING: ${BLACKHOLE_ELO_REPORT_SECTION_GRIEFING:network}
+        OTHER: ${BLACKHOLE_ELO_REPORT_SECTION_OTHER:}
   # Appeal workflow (Phase 6): min-days-auto is deliberately shorter than min-days-manual - the
   # whole point of ELO auto-bans is saving moderator time, so reversing one shouldn't cost MORE
   # of it via a longer wait. repeat-appeal-cooldown-days blocks a new appeal on the same
@@ -137,6 +138,8 @@ blackhole:
       ttl: ${BLACKHOLE_CACHE_ELO_TTL:PT30S}
     template:
       ttl: ${BLACKHOLE_CACHE_TEMPLATE_TTL:PT5M}
+    section:
+      ttl: ${BLACKHOLE_CACHE_SECTION_TTL:PT5M}
   # Player-name resolution, so moderators can tab-complete and target an OFFLINE player by name
   # (punishment enforcement is already fully UUID-driven at login - see PlayerLoginListener on
   # the Velocity side - so resolving a name to a UUID is the only missing piece). Resolvers are

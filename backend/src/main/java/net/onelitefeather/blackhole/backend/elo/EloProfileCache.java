@@ -5,7 +5,7 @@ import io.micronaut.core.type.Argument;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.cache.CacheKeys;
 import net.onelitefeather.blackhole.backend.cache.SharedCache;
-import net.onelitefeather.blackhole.backend.elo.dto.EloProfileDTO;
+import net.onelitefeather.blackhole.backend.elo.dto.EloDTO;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -25,12 +25,12 @@ public class EloProfileCache {
         this.ttl = ttl;
     }
 
-    public Optional<EloProfileDTO> get(String owner) {
-        return this.sharedCache.get(CacheKeys.elo(owner), Argument.of(EloProfileDTO.class));
+    public Optional<EloDTO.ProfileResponse> get(String owner) {
+        return this.sharedCache.get(CacheKeys.elo(owner), Argument.of(EloDTO.ProfileResponse.class));
     }
 
-    public void put(String owner, EloProfileDTO profile) {
-        this.sharedCache.put(CacheKeys.elo(owner), Argument.of(EloProfileDTO.class), profile, this.ttl);
+    public void put(String owner, EloDTO.ProfileResponse profile) {
+        this.sharedCache.put(CacheKeys.elo(owner), Argument.of(EloDTO.ProfileResponse.class), profile, this.ttl);
     }
 
     public void evict(String owner) {

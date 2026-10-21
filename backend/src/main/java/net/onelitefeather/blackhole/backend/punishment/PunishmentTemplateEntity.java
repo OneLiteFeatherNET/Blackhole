@@ -1,25 +1,33 @@
 package net.onelitefeather.blackhole.backend.punishment;
 
-import net.onelitefeather.blackhole.backend.punishment.dto.PunishTemplateDTO;
-import net.onelitefeather.blackhole.backend.punishment.dto.PunishTemplateRequestDTO;
-import net.onelitefeather.blackhole.backend.punishment.service.PunishmentApplicationService;
-import io.micronaut.serde.annotation.Serdeable;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
+import net.onelitefeather.blackhole.backend.punishment.dto.PunishTemplateDTO;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-@Serdeable
+/**
+ * A staff punishment template: always temporary, tied to a section, with an ordered ladder of
+ * escalation steps. The legacy {@code type} and {@code elo_delta} columns are no longer mapped.
+ */
 @Entity
 @Table(name = "punishment_templates", indexes = {@Index(columnList = "identifier")})
 public class PunishmentTemplateEntity {
@@ -28,123 +36,106 @@ public class PunishmentTemplateEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID identifier;
 
+    @Column(name = "template_key")
+    private String templateKey;
+
     private String reason;
 
-    private PunishType type;
+    @Column(name = "section_key")
+    private String sectionKey;
 
-    /**
-     * The Elo delta applied to the offender when this template is applied via
-     * {@code PunishmentApplicationService.apply(...)} - {@code 0} means this template has no
-     * Elo effect (the default for pre-existing templates, and the recommended value for
-     * permanent-ban templates, since dropping Elo further after a permanent ban is moot).
-     */
-    private int eloDelta;
+    private String escalationGroup;
+
+    private String escalationWindow;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "punishment_template_steps", joinColumns = @JoinColumn(name = "template_identifier"))
+    @OrderColumn(name = "step_index")
+    private List<TemplateStep> steps = new ArrayList<>();
 
     @Convert(converter = MapStringObjectConverter.class)
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> metaData = new HashMap<>();
 
     /**
-     * Convert a PunishTemplate to a PunishmentTemplateEntity
-     *
-     * @param template the PunishTemplate to convert
-     * @return the converted PunishmentTemplateEntity
+     * Rebuilds the entity from its response form, for callers that submit whole profiles.
      */
-    public static PunishmentTemplateEntity toEntity(PunishTemplateDTO template) {
-        return new PunishmentTemplateEntity(template.identifier(), template.reason(), template.type(), template.eloDelta(), template.metaData());
+    public static PunishmentTemplateEntity toEntity(PunishTemplateDTO.Response template) {
+        return new PunishmentTemplateEntity(
+                template.identifier(), template.key(), template.reason(), template.section(), template.escalationGroup(),
+                template.escalationWindow(),
+                template.steps().stream().map(step -> new TemplateStep(step.duration(), step.eloCost())).toList(),
+                template.metaData()
+        );
     }
 
-    /**
-     * Convert a PunishTemplateRequestDTO to a PunishmentTemplateEntity.
-     *
-     * @param template the PunishTemplateRequestDTO to convert
-     * @return the converted PunishmentTemplateEntity
-     */
-    public static PunishmentTemplateEntity toEntity(PunishTemplateRequestDTO template) {
-        return new PunishmentTemplateEntity(template.identifier(), template.reason(), template.type(), template.eloDelta(), template.metaData());
-    }
-
-    /**
-     * Create a new PunishmentTemplateEntity
-     */
     public PunishmentTemplateEntity() {
         // Empty constructor for JPA
     }
 
-    /**
-     * Create a new PunishmentTemplateEntity
-     *
-     * @param identifier the identifier of the template
-     * @param reason     the reason of the template
-     * @param type       the type of the template
-     * @param eloDelta   the Elo delta applied when this template is applied ({@code 0} = no effect)
-     * @param metaData   the metadata of the template
-     */
-    public PunishmentTemplateEntity(UUID identifier, String reason, PunishType type, int eloDelta, Map<String, Object> metaData) {
+    public PunishmentTemplateEntity(
+            UUID identifier,
+            String templateKey,
+            String reason,
+            String sectionKey,
+            String escalationGroup,
+            String escalationWindow,
+            List<TemplateStep> steps,
+            Map<String, Object> metaData
+    ) {
         this.identifier = identifier;
+        this.templateKey = templateKey;
         this.reason = reason;
-        this.type = type;
-        this.eloDelta = eloDelta;
+        this.sectionKey = sectionKey;
+        this.escalationGroup = escalationGroup;
+        this.escalationWindow = escalationWindow;
+        this.steps = new ArrayList<>(steps);
         this.metaData = metaData;
     }
 
-    /**
-     * Get the identifier of the punishment template.
-     *
-     * @return the identifier of the template
-     */
     public UUID getIdentifier() {
         return identifier;
     }
 
-    /**
-     * Get the reason of the punishment template.
-     *
-     * @return the reason of the template
-     */
+    public String getTemplateKey() {
+        return templateKey;
+    }
+
     public String getReason() {
         return reason;
     }
 
-    /**
-     * Get the type of the punishment template.
-     *
-     * @return the type of the template
-     */
-    public PunishType getType() {
-        return type;
+    public String getSectionKey() {
+        return sectionKey;
     }
 
-    /**
-     * Get the Elo delta applied when this template is applied.
-     *
-     * @return the Elo delta ({@code 0} = no effect)
-     */
-    public int getEloDelta() {
-        return eloDelta;
+    public String getEscalationGroup() {
+        return escalationGroup;
     }
 
-    /**
-     * Get the metadata of the punishment template .
-     *
-     * @return the metadata of the template
-     */
+    /** The ISO-8601 escalation window, or {@code null} for the configured default. */
+    public String getEscalationWindow() {
+        return escalationWindow;
+    }
+
+    public List<TemplateStep> getSteps() {
+        return steps;
+    }
+
     public Map<String, Object> getMetaData() {
         return metaData;
     }
 
-    /**
-     * Convert a PunishmentTemplateEntity to a PunishTemplate
-     *
-     * @return the converted PunishTemplate
-     */
-    public PunishTemplateDTO toDTO() {
-        return new PunishTemplateDTO(
-                this.metaData,
+    public PunishTemplateDTO.Response toDTO() {
+        return new PunishTemplateDTO.Response(
+                this.identifier,
+                this.templateKey,
                 this.reason,
-                this.type,
-                this.eloDelta,
-                this.identifier
+                this.sectionKey,
+                this.escalationGroup,
+                this.escalationWindow,
+                this.steps.stream().map(step -> new PunishTemplateDTO.Step(step.getDuration(), step.getEloCost())).toList(),
+                this.metaData
         );
     }
 }

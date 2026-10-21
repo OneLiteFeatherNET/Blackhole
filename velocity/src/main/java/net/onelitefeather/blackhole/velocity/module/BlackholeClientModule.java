@@ -3,45 +3,67 @@ package net.onelitefeather.blackhole.velocity.module;
 import com.google.inject.AbstractModule;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
+import net.onelitefeather.blackhole.velocity.enforcement.EnforcementActions;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
+import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
+import net.onelitefeather.blackhole.velocity.punish.PunishService;
 import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
+import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import org.jetbrains.annotations.NotNull;
 
+import java.time.Clock;
+
 /**
- * The class represents a module for Guice that binds the {@link ApiClient}, {@link BlackholeConfig}
- * and {@link RedisSyncService} to the instances provided in the constructor.
+ * Binds the plugin's long-lived services, created by {@code BlackholeVelocity} at startup, so the
+ * commands and listeners can have them injected.
  *
- * @author theEvilReaper
- * @version 1.0.0
- * @since 1.0.0
+ * @param apiClient   the backend API client
+ * @param config      the plugin configuration
+ * @param redis       the Redis connection
+ * @param sections    the known punishment sections
+ * @param mirror      the local copy of online players' punishments
+ * @param state       the enforcement questions (login, chat, server connect)
+ * @param syncHandler applies sync messages and newly applied punishments
+ * @param actions     removes punished players from the network or a server
+ * @param backend     the backend calls of the staff commands
+ * @param service     the decisions behind the staff commands
+ * @param clock       the time source
  */
-public final class BlackholeClientModule extends AbstractModule {
-
-    private final ApiClient apiClient;
-    private final BlackholeConfig config;
-    private final RedisSyncService redisSyncService;
-
-    /**
-     * Create a new instance of the module.
-     *
-     * @param apiClient        the client to bind
-     * @param config           the configuration to bind
-     * @param redisSyncService the Redis sync service to bind
-     */
-    public BlackholeClientModule(@NotNull ApiClient apiClient, @NotNull BlackholeConfig config, @NotNull RedisSyncService redisSyncService) {
-        this.apiClient = apiClient;
-        this.config = config;
-        this.redisSyncService = redisSyncService;
-    }
+public record BlackholeClientModule(
+        @NotNull ApiClient apiClient,
+        @NotNull BlackholeConfig config,
+        @NotNull RedisSyncService redis,
+        @NotNull SectionRegistry sections,
+        @NotNull PunishmentMirror mirror,
+        @NotNull PunishmentState state,
+        @NotNull PunishmentSyncHandler syncHandler,
+        @NotNull EnforcementActions actions,
+        @NotNull BackendGateway backend,
+        @NotNull PunishService service,
+        @NotNull Clock clock
+) {
 
     /**
-     * Configures the module and binds the {@link ApiClient}, {@link BlackholeConfig} and
-     * {@link RedisSyncService} to the instances provided in the constructor. All instances are
-     * bound as singletons.
+     * @return the Guice module binding every service to its instance
      */
-    @Override
-    protected void configure() {
-        bind(ApiClient.class).toInstance(this.apiClient);
-        bind(BlackholeConfig.class).toInstance(this.config);
-        bind(RedisSyncService.class).toInstance(this.redisSyncService);
+    public AbstractModule asModule() {
+        return new AbstractModule() {
+            @Override
+            protected void configure() {
+                bind(ApiClient.class).toInstance(apiClient);
+                bind(BlackholeConfig.class).toInstance(config);
+                bind(RedisSyncService.class).toInstance(redis);
+                bind(SectionRegistry.class).toInstance(sections);
+                bind(PunishmentMirror.class).toInstance(mirror);
+                bind(PunishmentState.class).toInstance(state);
+                bind(PunishmentSyncHandler.class).toInstance(syncHandler);
+                bind(EnforcementActions.class).toInstance(actions);
+                bind(BackendGateway.class).toInstance(backend);
+                bind(PunishService.class).toInstance(service);
+                bind(Clock.class).toInstance(clock);
+            }
+        };
     }
 }

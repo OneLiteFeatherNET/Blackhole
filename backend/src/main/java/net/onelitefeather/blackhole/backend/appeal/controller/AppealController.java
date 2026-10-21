@@ -84,20 +84,11 @@ public class AppealController implements AppealApi {
         return switch (result.kind()) {
             case NOT_FOUND -> HttpResponse.notFound();
             case NOT_AWAITING_REVIEW, PUNISHMENT_NOT_ACTIVE -> HttpResponse.status(HttpStatus.CONFLICT, result.message());
-            case INVALID_DECISION, SEVERE_FULL_LIFT_DISALLOWED, DURATION_REDUCTION_MISSING_EXPIRY, DURATION_REDUCTION_EXPIRY_NOT_FUTURE ->
+            case INVALID_DECISION, SEVERE_FULL_LIFT_DISALLOWED, DURATION_REDUCTION_MISSING_EXPIRY, DURATION_REDUCTION_EXPIRY_NOT_FUTURE,
+                    DURATION_REDUCTION_NOT_SHORTER ->
                     HttpResponse.badRequest(result.message());
             case SELF_REVIEW -> HttpResponse.status(HttpStatus.FORBIDDEN, result.message());
-            case DECIDED -> {
-                AppealEntity appeal = result.appeal();
-                this.eventPublisher.publish("appeal.resolved", Map.of(
-                        "appealIdentifier", identifier.toString(),
-                        "owner", appeal.getAppellantHash(),
-                        "punishmentIdentifier", appeal.getPunishment().getIdentifier(),
-                        "decision", review.decision().toString(),
-                        "type", appeal.getPunishment().getType().toString()
-                ));
-                yield HttpResponse.ok(appeal.toDTO());
-            }
+            case DECIDED -> HttpResponse.ok(result.appeal().toDTO());
         };
     }
 }

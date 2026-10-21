@@ -1,22 +1,21 @@
 package net.onelitefeather.blackhole.backend.punishment.controller;
 
-import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
-import net.onelitefeather.blackhole.backend.punishment.dto.PunishEntryDTO;
-import net.onelitefeather.blackhole.backend.punishment.service.PunishmentApplicationService;
+import io.micronaut.core.version.annotation.Version;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Controller;
-import io.micronaut.core.version.annotation.Version;
+import io.micronaut.validation.Validated;
 import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
-import net.onelitefeather.blackhole.backend.profile.dto.PunishProfileResponse;
-
-import java.util.UUID;
+import net.onelitefeather.blackhole.backend.punishment.dto.PunishEntryDTO;
+import net.onelitefeather.blackhole.backend.punishment.dto.PunishmentDTO;
+import net.onelitefeather.blackhole.backend.punishment.service.PunishmentApplicationService;
 
 /**
  * Routing and OpenAPI annotations live on {@link PunishmentApi}, which this class implements.
  */
+@Validated
 @Version(ApiVersion.V1)
 @Controller("/punishment")
 public class PunishmentEntityController implements PunishmentApi {
@@ -24,47 +23,32 @@ public class PunishmentEntityController implements PunishmentApi {
     private final PunishmentApplicationService punishmentApplicationService;
 
     /**
-     * Create a new PunishmentEntityController with the given values.
-     *
-     * @param punishmentApplicationService applies a punishment template to a profile, and lists punishments
+     * @param punishmentApplicationService applies and revokes punishments, and lists them
      */
     @Inject
-    public PunishmentEntityController(
-            PunishmentApplicationService punishmentApplicationService
-    ) {
+    public PunishmentEntityController(PunishmentApplicationService punishmentApplicationService) {
         this.punishmentApplicationService = punishmentApplicationService;
     }
 
     @Override
-    public HttpResponse<PunishProfileResponse> add(String owner, UUID templateId, UUID source) {
-        var profile = this.punishmentApplicationService.apply(owner, templateId, source);
-        if (profile.isEmpty()) {
-            return HttpResponse.notFound();
-        }
-        return HttpResponse.ok(profile.get().toDTO());
+    public HttpResponse<PunishmentDTO> apply(PunishmentDTO.ApplyRequest request) {
+        return toResponse(this.punishmentApplicationService.apply(request));
     }
 
     @Override
-    public HttpResponse<PunishProfileResponse> revokeBan(String owner, UUID source) {
-        var profile = this.punishmentApplicationService.revokeBan(owner, source);
-        if (profile.isEmpty()) {
-            return HttpResponse.notFound();
-        }
-        return HttpResponse.ok(profile.get().toDTO());
-    }
-
-    @Override
-    public HttpResponse<PunishProfileResponse> revokeMute(String owner, UUID source) {
-        var profile = this.punishmentApplicationService.revokeMute(owner, source);
-        if (profile.isEmpty()) {
-            return HttpResponse.notFound();
-        }
-        return HttpResponse.ok(profile.get().toDTO());
+    public HttpResponse<PunishmentDTO> revoke(PunishmentDTO.RevokeRequest request) {
+        return toResponse(this.punishmentApplicationService.revoke(request));
     }
 
     @Override
     public HttpResponse<Page<PunishEntryDTO>> getAll(Pageable pageable) {
-        Page<PunishmentEntity> entries = this.punishmentApplicationService.findAll(pageable);
-        return HttpResponse.ok(entries.map(PunishmentEntity::toDTO));
+        return HttpResponse.ok(this.punishmentApplicationService.findAll(pageable));
+    }
+
+    private static HttpResponse<PunishmentDTO> toResponse(PunishmentDTO result) {
+        if (result instanceof PunishmentDTO.Error error) {
+            return HttpResponse.<PunishmentDTO>status(error.kind().status()).body(error);
+        }
+        return HttpResponse.ok(result);
     }
 }

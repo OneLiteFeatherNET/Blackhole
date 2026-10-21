@@ -9,5 +9,5 @@ import java.util.UUID;
 @Repository
 public interface PunishmentTemplateRepository extends PageableRepository<PunishmentTemplateEntity, UUID> {
 
-    Optional<PunishmentTemplateEntity> findByReasonAndType(String reason, PunishType type);
+    Optional<PunishmentTemplateEntity> findByTemplateKey(String templateKey);
 }

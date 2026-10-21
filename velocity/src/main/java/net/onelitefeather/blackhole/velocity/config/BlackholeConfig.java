@@ -24,11 +24,19 @@ public class BlackholeConfig {
     private String redisUri;
 
     /**
+     * The backend server a player is sent to when a SERVER-section punishment arrives while they
+     * stand on a server it covers. If this server does not exist, is itself covered by the
+     * punishment or cannot be reached, the player is disconnected instead.
+     */
+    private String fallbackServer;
+
+    /**
      * Creates a new configuration with default values.
      */
     public BlackholeConfig() {
         this.baseUrl = "http://localhost:8080";
         this.redisUri = "redis://localhost:6379";
+        this.fallbackServer = "lobby";
     }
 
     /**
@@ -65,6 +73,25 @@ public class BlackholeConfig {
      */
     public void setRedisUri(@NotNull String redisUri) {
         this.redisUri = redisUri;
+    }
+
+    /**
+     * Gets the name of the server players are moved to when a server ban arrives while they play on
+     * a covered server.
+     *
+     * @return the fallback server name; {@code lobby} for configs written before this setting existed
+     */
+    public @NotNull String getFallbackServer() {
+        return fallbackServer == null || fallbackServer.isBlank() ? "lobby" : fallbackServer;
+    }
+
+    /**
+     * Sets the fallback server.
+     *
+     * @param fallbackServer the server name
+     */
+    public void setFallbackServer(@NotNull String fallbackServer) {
+        this.fallbackServer = fallbackServer;
     }
 
     /**

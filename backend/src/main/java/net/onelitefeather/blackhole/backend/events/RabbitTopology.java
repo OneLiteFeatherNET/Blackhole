@@ -10,7 +10,7 @@ public final class RabbitTopology {
 
     /**
      * Durable queue bound to {@link #EVENTS_EXCHANGE} with routing keys {@code punishment.created},
-     * {@code punishment.expired}, {@code punishment.revoked} and {@code appeal.resolved} - feeds
+     * {@code punishment.updated}, {@code punishment.expired}, {@code punishment.revoked} and {@code appeal.resolved} - feeds
      * {@code RedisSyncConsumer}, which mirrors active-punishment state into Redis so every
      * Velocity proxy in a multi-proxy network sees consistent ban/mute state without querying
      * this API on every login/chat message. A single shared queue: Redis is the one cross-proxy
