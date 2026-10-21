@@ -65,7 +65,7 @@ For `REPLAY` and `LINK` the system SHALL accept only absolute `http` or `https` 
 - **THEN** the response is HTTP 400 and nothing is stored
 
 ### Requirement: File upload
-The system SHALL accept a file upload as a streamed multipart request and store it through a `BlobStore` (local filesystem by default, S3-compatible when configured). It MUST enforce `blackhole.evidence.files.max-image-bytes` (default 10 MiB) and `max-video-bytes` (default 100 MiB) without buffering the whole body in memory.
+The system SHALL accept a file upload as a streamed multipart request and store it through a `BlobStore` (S3-compatible object storage by default, local filesystem when configured). It MUST enforce `blackhole.evidence.files.max-image-bytes` (default 10 MiB) and `max-video-bytes` (default 100 MiB) without buffering the whole body in memory.
 
 #### Scenario: Streaming limit
 - **WHEN** a 90 MiB video is uploaded
@@ -93,12 +93,16 @@ The system SHALL re-encode accepted PNG and JPEG images so EXIF and other embedd
 - **WHEN** a JPEG with GPS EXIF data is uploaded
 - **THEN** the stored file contains no EXIF segment
 
-### Requirement: Optional malware scan hook
-The system SHALL pass uploads through an `EvidenceScanner` before storing. The default scanner accepts everything; when a scanner is enabled, a positive result MUST reject the upload with HTTP 422 and an unavailable scanner MUST reject it with HTTP 503 (fail closed).
+### Requirement: Malware scan of uploads
+The system SHALL pass uploads through an `EvidenceScanner` (ClamAV `clamd` adapter) before storing. When scanning is enabled, a positive result MUST reject the upload with HTTP 422 and an unavailable scanner MUST reject it with HTTP 503 (fail closed); a deployment may explicitly disable scanning.
 
 #### Scenario: Infected upload
-- **WHEN** the enabled scanner flags a file
+- **WHEN** the enabled scanner flags a file (for example the EICAR test string)
 - **THEN** the upload is rejected with HTTP 422 and nothing is stored
+
+#### Scenario: Scanner down
+- **WHEN** scanning is enabled and the scanner is unreachable
+- **THEN** the upload is rejected with HTTP 503 and nothing is stored
 
 ### Requirement: Staff-only content, backend-proxied download
 Evidence content and metadata SHALL be served only by the content endpoints, which are intended for staff tooling behind the network boundary. File content MUST be streamed through the backend (never via presigned URLs), MUST support HTTP `Range` requests, and MUST be sent with the stored sniffed content type, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: sandbox`, `Cache-Control: private, no-store`, and `Content-Disposition: inline` for allow-listed image/video types.
@@ -115,11 +119,15 @@ Punishment entries SHALL expose `evidenceCount`, and `GET /punishment/{ref}/evid
 - **THEN** the response contains `{"count": 3}` and nothing else
 
 ### Requirement: Retention and deletion
-The system SHALL keep evidence while its punishment is active or has an undecided appeal, and delete it (rows and stored files) `blackhole.evidence.retention.after-end` (default P30D) after the punishment expired or was revoked. A sweep MUST run every `blackhole.evidence.retention.sweep-interval` (default PT1H) and a missed hook MUST be corrected by the next sweep. Staff MUST be able to delete any item, and an owner-scoped erasure MUST delete all evidence of an owner hash.
+The system SHALL keep evidence while its punishment is active or has an undecided appeal, and delete it (rows and stored files) `blackhole.evidence.retention.after-end` (default P90D, uniform for all kinds) after the punishment expired or was revoked. A staff revoke MUST NOT delete evidence earlier than that. Staff MUST be able to delete any item, and an owner-scoped erasure MUST delete all evidence of an owner hash.
 
 #### Scenario: Expired punishment
 - **WHEN** a punishment expired more than the retention period ago and has no open appeal
 - **THEN** its evidence and files are deleted and `evidence.deleted` events with reason `RETENTION` are published
+
+#### Scenario: Revoke keeps evidence
+- **WHEN** staff revoke an active punishment
+- **THEN** its evidence is kept until the retention period after the revocation has elapsed
 
 #### Scenario: Owner erasure
 - **WHEN** erasure is requested for an owner hash
@@ -128,6 +136,13 @@ The system SHALL keep evidence while its punishment is active or has an undecide
 #### Scenario: Orphan blob
 - **WHEN** a blob exists in the store without a matching row for more than one day
 - **THEN** the reconcile sweep deletes it
+
+### Requirement: Retention sweep
+A sweep MUST run every `blackhole.evidence.retention.sweep-interval` (default PT1H), and a missed lifecycle hook MUST be corrected by the next sweep.
+
+#### Scenario: Missed hook
+- **WHEN** a punishment ended and its retention was never set because a hook was missed
+- **THEN** the next sweep derives the state and applies the retention period
 
 ### Requirement: Audit trail
 The system SHALL append an audit entry (action `ATTACHED`, `VIEWED`, `DOWNLOADED`, `DELETED`, evidence id, punishment id, owner hash, client-supplied actor UUID, timestamp) for each such action. Audit entries MUST NOT contain evidence content, MUST survive deletion of the evidence, and MUST be purged after `blackhole.evidence.audit-retention` (default P365D).

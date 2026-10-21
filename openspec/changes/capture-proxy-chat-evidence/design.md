@@ -24,12 +24,16 @@ to the punished player.
    operation the operator must consciously enable (documented in the plugin config comments).
 2. **What is captured.** The target's lines plus up to `context-lines` (default 5) preceding
    lines from other players on the same backend server within the time window, so the
-   transcript is intelligible. Speakers are owner hashes; no names. Client-side text only, as
+   transcript is intelligible. Owner decision: context lines from other players are approved. Other speakers are replaced by a
+   stable per-evidence alias ("Spieler A", "Spieler B", ... assigned in order of first
+   appearance within that one snapshot; the target is aliased too, with the real owner hash only on
+   the evidence's `owner`), never names or UUIDs, so the alias cannot be correlated across
+   evidence items. Client-side text only, as
    seen by the proxy (already after chat-filter plugins that ran earlier).
 3. **Pseudonymisation / redaction.** The backend rejects UUIDs/IPs in structured fields and
-   redacts IPs in chat text; the proxy still sends hashes only and also passes text through the
-   same IP regex before sending to keep raw IPs off the wire where the proxy is on a separate
-   network segment.
+   redacts IPs in chat text; the proxy also redacts IPv4/IPv6 addresses and URLs (`[ip]`, `[url]`) from the chat text
+   before sending, so neither travels over the wire. (The backend's CHAT_LOG schema accepts the
+   alias in `speaker`; see the change `add-punishment-evidence` task 2.1.)
 4. **Order of operations.** The punish call is the source of truth. The proxy generates a
    `correlationId` (random UUID), posts the `CHAT_LOG` evidence first with `owner` +
    `correlationId`, then performs the punish call with `evidenceCorrelationId`. If evidence
@@ -51,8 +55,11 @@ to the punished player.
 
 ## Risks / Trade-offs
 
-- **Transient processing of all public chat**: mitigated by opt-in, bounded size/age, memory
-  only, no logging; operator documents lawful basis (see `add-punishment-evidence` design).
+- **Transient processing of all public chat, including third parties' lines as context**:
+  mitigated by opt-in (off by default), bounded size and time window, RAM only, no logging,
+  pseudonymous aliases, URL/IP redaction. GDPR implications are documented in the README:
+  third-party data, legitimate interest (Art. 6(1)(f)) with a balancing test as an operator
+  note, privacy-notice wording, and `context-lines: 0` as the off switch for context.
 - **Memory use**: bounded by online players x lines x text cap (256 chars).
 - **Rejected evidence** (e.g. backend validation): punishment unaffected; staff warned.
 - **Count requires a backend call on the denial path**: async with fallback, so a slow backend
@@ -64,5 +71,4 @@ Plugin-only, off by default; upgrade the backend first. Rollback: disable the se
 
 ## Open Questions
 
-Whether context lines from other speakers are acceptable under the operator's privacy review
-(`context-lines: 0` disables them).
+None; owner approved context lines (see decision 2).

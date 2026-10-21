@@ -97,8 +97,9 @@ rejected so a caller cannot smuggle identifiers through unknown fields.
 - `ANTICHEAT`: `check` (string <= 64, required), `values` (flat map, <= 32 entries,
   scalar values), `violationLevel` (number), `server` (<= 64), `detail` (<= 500).
 - `CHAT_LOG`: 1..`max-chat-lines` (50) lines `{timestamp, speaker, text <= 256}`; `speaker` is an
-  owner hash or null (unknown/other) - names are never stored, the UI resolves them via the
-  existing lookup.
+  owner hash, or a per-evidence alias (e.g. "Spieler A", max 32 chars, no UUID/IP shape) as sent
+  by the proxy, or null - names are never stored, the UI resolves hashes via the existing lookup
+  and shows aliases as-is.
 - `REPLAY` / `LINK`: `external_ref` + optional `description` (<= 500).
 Total payload limit 32 KiB, enforced on the raw request body before parsing (413).
 
@@ -113,15 +114,15 @@ UUID-looking strings in chat text are left alone (a typed UUID is not an identif
 player the system knows). Access logs of the backend must not log request bodies (already the
 case; asserted by a test on the logging config is out of scope but noted in the README).
 
-### 6. File storage: `BlobStore` port with two adapters
+### 6. File storage: `BlobStore` port with two adapters (S3 default)
 `BlobStore { put(key, InputStream, length, contentType); open(key, rangeStart, rangeEnd);
 delete(key); listOlderThan(...) }`.
-- `FilesystemBlobStore` (default): base dir `blackhole.evidence.files.local.path`; keys are
+- `FilesystemBlobStore` (alternative for tiny single-replica setups): base dir `blackhole.evidence.files.local.path`; keys are
   server-generated (`yyyy/MM/<uuid>`); the resolved path is normalised and must stay under the
   base directory; files written to a temp name then atomically moved. Suitable for one backend
   replica or a shared volume.
-- `S3BlobStore`: S3-compatible, path-style endpoint override, enabled by
-  `blackhole.evidence.files.storage=s3`. Built on **Micronaut Object Storage (AWS module)**
+- `S3BlobStore` (**default**, `blackhole.evidence.files.storage=s3`): S3-compatible,
+  path-style endpoint override. Built on **Micronaut Object Storage (AWS module)**
   over AWS SDK for Java v2 - both Apache-2.0. Fall back to using SDK v2 `S3Client` directly if the
   Micronaut module's API gets in the way of ranged reads; the port isolates the choice.
 
@@ -137,9 +138,10 @@ recommend (the owner moved off Liquibase over FSL, so restrictive licences are a
 | Ceph RGW | LGPL-2.1 | Production grade, far too heavy for this project. Operators who already run Ceph can use it. |
 | Cloud S3 (AWS, R2, B2, Hetzner...) | n/a | Operator's choice; works through the same adapter. |
 
-Recommendation: **filesystem by default (zero extra infrastructure, covers small
-networks); SeaweedFS (Apache-2.0) as the optional `object-storage` compose profile and the
-documented self-hosted S3 choice; any S3 service in production.** The S3 adapter is verified
+Decision (owner): **S3-compatible object storage is the default; SeaweedFS (Apache-2.0) runs
+in `docker-compose.yml` for development and is the documented self-hosted choice; any S3
+service works in production. The filesystem backend remains available behind the same
+`BlobStore` interface (`files.storage=local`) for tiny single-replica setups.** The S3 adapter is verified
 against SeaweedFS in an integration test (Testcontainers), keeping unit tests fast and
 independent. Licence facts above come from the sources listed under "Sources"; re-verify the
 two project licence files before the README states them.
@@ -162,9 +164,14 @@ two project licence files before the README states them.
 4. **Video**: stored as uploaded (MP4/WebM) after sniffing and the size cap. Container metadata
    is **not** stripped (needs ffmpeg; out of scope) - documented limitation; staff are told
    in the UI/README to prefer screen recordings of the game.
-5. `EvidenceScanner` hook (interface, default no-op). Optional adapter: ClamAV `clamd`
-   `INSTREAM` over TCP to a separate container (the daemon is GPL-2.0 but we only speak a
-   socket protocol, no linking). Enabled -> positive = 422, scanner down = 503 (fail closed).
+5. `EvidenceScanner` interface with a ClamAV `clamd` adapter shipped in the first release:
+   `INSTREAM` over TCP to a `clamav` compose service (the daemon is GPL-2.0 but we only speak a
+   socket protocol, no linking). Scanning is configured via `scan.enabled`; when enabled,
+   positive = 422 and scanner down = 503 (fail closed). A no-op scanner remains for unit
+   tests and deployments that explicitly disable scanning. ClamAV needs about 1 GB RAM
+   (signature database loaded in memory), documented in compose and README; the first start
+   downloads signatures and is slow. Tests use a stub clamd socket server (protocol-level, fast)
+   plus a Testcontainers ClamAV integration test with the EICAR test string where CI allows.
 6. `BlobStore.put`, then insert the row; on insert failure delete the blob.
 No archives (zip/tar/gz) are in the allow-list, so zip-bomb handling is not needed; the pixel
 cap covers image decompression bombs.
@@ -190,11 +197,16 @@ beyond the count. Per-actor access control stays deferred with the identity gap.
 
 ### 10. Retention, erasure, GDPR
 Defaults (`blackhole.evidence.retention.*`, ISO-8601 durations, documented in `application.yml`):
-`after-end` P30D (all kinds; per-kind overrides are a follow-up), `pending-ttl` P1D,
+`after-end` P90D (owner decision; uniform for all kinds, env var
+`BLACKHOLE_EVIDENCE_RETENTION_AFTER_END`), `pending-ttl` P1D,
 `audit-retention` P365D, `sweep-interval` PT1H.
 - Active punishment (incl. permanent) or undecided appeal: `retain_until = null` (held).
-- Expiry sweep / revoke hook sets `retain_until = now + after-end`; granted full-lift appeal
-  deletes immediately (`APPEAL_LIFTED`). The retention sweep deletes items with
+- Expiry sweep / revoke hook sets `retain_until = now + after-end`. A staff revoke **never**
+  deletes evidence early (owner decision; no erase flag). A granted full-lift appeal
+  deletes immediately (`APPEAL_LIFTED`) - **flagged for owner confirmation**: the owner said
+  "nie loeschen" for revoke; whether this also covers appeal full lift is not yet decided, and
+  the design keeps immediate erase until told otherwise (switching it to the revoke behaviour
+  is a one-line change in the lifecycle hook). The retention sweep deletes items with
   `retain_until < now` that have no undecided appeal, and also re-derives state from the
   punishment so a missed hook cannot leak evidence forever.
 - `DELETE /evidence/{id}` (staff) and `DELETE /evidence/owner/{owner}` (erasure request).
@@ -244,7 +256,7 @@ from the database.
 ### 13. Config
 `blackhole.evidence.*` in `application.yml` with `${ENV:default}` and a comment per tunable:
 `max-payload-bytes`, `max-chat-lines`, `pending-ttl`, `retention.after-end`,
-`retention.sweep-interval`, `audit-retention`, `files.storage` (`local`|`s3`),
+`retention.sweep-interval`, `audit-retention`, `files.storage` (`s3` default | `local`),
 `files.local.path`, `files.max-image-bytes`, `files.max-video-bytes`, `files.max-image-pixels`,
 `files.allowed-types`, `files.s3.{endpoint,bucket,region,access-key,secret-key,path-style}`,
 `scan.enabled`, `scan.clamd.{host,port}`.
@@ -259,7 +271,9 @@ from the database.
 - **Unverified `sourceSystem`/`createdBy`**: audit entries are not tamper-proof attributions.
 - **Raw-text chat storage** is a deliberate departure from the toxicity flow's hash-only rule,
   bounded by line caps, redaction, retention and staff-only access.
-- **Filesystem backend with several replicas** needs a shared volume; documented, S3 recommended.
+- **Filesystem backend with several replicas** needs a shared volume; documented, S3 is the default.
+- **ClamAV memory (~1 GB) and slow first start**; scanning fails closed, so an unhealthy
+  scanner blocks uploads (not other evidence kinds).
 - **Short-id ambiguity** pushes a retry to callers; acceptable, rare.
 
 ## Migration Plan
@@ -270,9 +284,8 @@ versions. Orphaned blobs removed by the reconcile sweep or by deleting the bucke
 
 ## Open Questions
 
-See the PR description (retention default and per-kind overrides, whether revoke should
-accept an "erase evidence" flag, filesystem vs S3 default, merging the legacy table, ClamAV
-adapter in or out of the first release).
+Open: does the owner's "never delete" for revoke also apply to appeal full lift (currently
+immediate erase); merging the legacy `punishment_evidence` table later.
 
 ## Sources
 

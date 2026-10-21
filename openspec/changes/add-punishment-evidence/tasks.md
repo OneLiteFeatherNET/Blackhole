@@ -17,11 +17,11 @@ no sleeps, no shared static state; integration tests (PostgreSQL, S3 container) 
 
 ## 3. Blob storage and uploads
 
-- [ ] 3.1 `BlobStore` port plus `FilesystemBlobStore` (generated keys, normalised-path guard, atomic move, ranged read, delete, list-older-than); verify `@TempDir` unit tests incl. traversal attempt and range reads
-- [ ] 3.2 `S3BlobStore` over Micronaut Object Storage AWS (endpoint/path-style/credentials config); verify an integration test against a SeaweedFS Testcontainer (put, ranged get, delete)
+- [ ] 3.1 `BlobStore` port plus `FilesystemBlobStore` (alternative backend) (generated keys, normalised-path guard, atomic move, ranged read, delete, list-older-than); verify `@TempDir` unit tests incl. traversal attempt and range reads
+- [ ] 3.2 `S3BlobStore` (default) over Micronaut Object Storage AWS (endpoint/path-style/credentials config); verify an integration test against a SeaweedFS Testcontainer (put, ranged get, delete)
 - [ ] 3.3 Upload pipeline: bounded spooling, magic-byte sniffing (PNG/JPEG/MP4/WebM), allow-list, size caps per type, pixel cap, image re-encode; verify unit tests with fixtures: spoofed MIME -> 415, oversize -> 413 with no blob left, EXIF-bearing JPEG stored without EXIF, pixel bomb rejected before decode
-- [ ] 3.4 `EvidenceScanner` hook (no-op default, fail-closed contract); verify unit tests with a fake scanner (positive -> 422, unavailable -> 503)
-- [ ] 3.5 (optional, may move to a follow-up) ClamAV `clamd` INSTREAM adapter; verify an integration test against a ClamAV container using the EICAR string
+- [ ] 3.4 `EvidenceScanner` interface (no-op only for tests/explicit opt-out, fail-closed contract when enabled); verify unit tests with a fake scanner (positive -> 422, unavailable -> 503)
+- [ ] 3.5 ClamAV `clamd` INSTREAM adapter (first release); verify unit tests against a stub clamd socket server (clean, infected, connection refused) and a Testcontainers ClamAV integration test with the EICAR string where CI allows
 
 ## 4. Service and API
 
@@ -34,15 +34,15 @@ no sleeps, no shared static state; integration tests (PostgreSQL, S3 container) 
 
 ## 5. Retention and lifecycle
 
-- [ ] 5.1 Lifecycle hooks: revoke/expiry set `retain_until`, full-lift appeal erases (`APPEAL_LIFTED`), open appeal holds; verify unit tests with a fixed `Clock` for each transition, incl. denial and reduction keep evidence
+- [ ] 5.1 Lifecycle hooks: revoke/expiry set `retain_until` (revoke never deletes early), full-lift appeal erases (`APPEAL_LIFTED`), open appeal holds; verify unit tests with a fixed `Clock` for each transition, incl. denial and reduction keep evidence
 - [ ] 5.2 `EvidenceRetentionSweeper` (scheduled, interval from config): delete due items, expired pending items, old audit rows, and orphan blobs; verify unit tests driving the sweep method directly with a fake store and fixed `Clock` (missed hook is corrected, orphan older than 1 day removed, younger kept)
 
 ## 6. Client, deployment, docs
 
 - [ ] 6.1 Export the OpenAPI spec into `client/specs` with the next version number and bump the pin in `client/build.gradle.kts`; verify `./gradlew :client:build`
-- [ ] 6.2 Add an optional SeaweedFS service (compose profile `object-storage`) to `docker/docker-compose.yml`; verify `docker compose --profile object-storage config` and a manual upload round trip
+- [ ] 6.2 Add SeaweedFS (S3, with a bucket-init step) and ClamAV services to `docker/docker-compose.yml`, documenting ClamAV's ~1 GB RAM and slow first start; verify `docker compose config` and a manual upload round trip incl. an EICAR rejection
 - [ ] 6.3 README section: storage options with the licence table, retention defaults, "no auth: anyone on the network can read evidence", video metadata limitation, operator GDPR notes (lawful basis, privacy notice, access/erasure endpoints); add `.claude/rules/evidence.md`; verify documented env vars match `application.yml`
-- [ ] 6.4 End-to-end check against local PostgreSQL + RabbitMQ + Dragonfly with filesystem and SeaweedFS storage: anticheat-style evidence then ban, screenshot upload and ranged download, appeal full lift erases; record results in the PR description
+- [ ] 6.4 End-to-end check against local PostgreSQL + RabbitMQ + Dragonfly with SeaweedFS (and once with filesystem) storage and ClamAV: anticheat-style evidence then ban, screenshot upload and ranged download, appeal full lift erases; record results in the PR description
 
 ## 7. Pull request
 

@@ -25,21 +25,23 @@ be solved up front because evidence is personal data (chat text, video, other pl
   (network boundary, as everywhere else).
 - Per-kind payload schemas with a size limit; owner identifiers must be hashes, raw UUIDs/IPs
   in structured payloads are rejected (chat text has IP addresses redacted).
-- File storage behind a `BlobStore` port: local filesystem (default, small deployments) or
-  S3-compatible object storage (Apache-2.0 client). Streaming multipart upload, size/type
-  limits from config, magic-byte content sniffing, image re-encoding to strip EXIF, optional
-  antivirus hook. Staff download is **backend-proxied** (range requests for video), never
+- File storage behind a `BlobStore` port: S3-compatible object storage is the **default**
+  (Apache-2.0 client; SeaweedFS in docker-compose for dev), a local filesystem backend stays
+  available as an alternative. Streaming multipart upload, size/type limits from config,
+  magic-byte content sniffing, image re-encoding to strip EXIF, and **ClamAV antivirus
+  scanning in the first release** (compose service, fail-closed when configured). Staff download is **backend-proxied** (range requests for video), never
   presigned.
 - Retention: evidence is kept while the punishment is active or an appeal is open, deleted
-  `blackhole.evidence.retention.after-end` (default P30D) after it ends, immediately when an
-  appeal fully lifts it, and after P1D when never claimed by a punishment. Manual delete and
+  `blackhole.evidence.retention.after-end` (default P90D, uniform for all kinds, env var
+  `BLACKHOLE_EVIDENCE_RETENTION_AFTER_END`) after it ends, immediately when an appeal fully
+  lifts it (flagged for owner confirmation, see design), never early on a staff revoke, and after P1D when never claimed by a punishment. Manual delete and
   owner-scoped erasure endpoints. Append-only audit log (attached/viewed/downloaded/deleted)
   without content.
 - Domain events `evidence.attached` and `evidence.deleted` (ids, hashed owner, kind - no content).
 - Staff-only visibility: content endpoints are for staff tools only; players learn solely the
   **count** (`evidenceCount` on the punishment entry and on the appeal DTO, plus a count
   endpoint for the proxy).
-- Docker: optional SeaweedFS (Apache-2.0) service in `docker-compose.yml` under a profile.
+- Docker: SeaweedFS (Apache-2.0, S3 API) and ClamAV services in `docker-compose.yml`.
 - OpenAPI client spec bump.
 
 Out of scope: admin UI (`add-evidence-admin-ui`), proxy chat capture and punishment-screen
@@ -67,6 +69,7 @@ legal-basis determination (operator concern, see design).
 - Backend: new `evidence/` package, Flyway `V8__evidence_items.sql`, `application.yml`
   `blackhole.evidence.*`, hooks in the revoke / appeal-resolution / punishment-creation services,
   dependencies (`micronaut-object-storage-aws`, AWS SDK v2 `s3`), `client/specs` bump.
-- `docker/docker-compose.yml`, README (storage options, retention, operator GDPR notes).
+- `docker/docker-compose.yml` (SeaweedFS and ClamAV services; ClamAV needs about 1 GB RAM),
+  README (storage options, retention, operator GDPR notes).
 - Depends on V7 (`feat/punishment-short-id`, open PR) being merged first: short-id lookup and
   migration numbering. The legacy `punishment_evidence` table and `EvidenceType` stay untouched.

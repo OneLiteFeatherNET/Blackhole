@@ -46,7 +46,7 @@ beyond the existing responsive shell.
    allowed, 422 rejected (scan or personal data), 503 scanner unavailable.
 6. **Chat transcript**: speakers arrive as owner hashes; the component resolves them through
    the existing player lookup store for display only, caching in memory for the open dialog.
-   Unknown speakers render as "Player N". Nothing is written to local storage.
+   Aliases such as "Spieler A" (sent by the proxy) are shown as-is; unknown speakers render as "Player N". Nothing is written to local storage.
 7. **Privacy in the UI**: the actor sent as `source` is the existing configured operator UUID;
    a banner on the panel states that opening content is audited (`VIEWED`/`DOWNLOADED`).
 8. **Delete**: `MdDialog` confirm naming the item; on success the list refetches and a

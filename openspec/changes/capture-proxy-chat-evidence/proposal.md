@@ -15,10 +15,12 @@ any of them.
 
 - **Optional** (`evidence.chat-capture.enabled`, default `false`) in-memory chat ring buffer in
   the Velocity plugin: the last `N` (default 20, max 50) public chat lines per player, each
-  line kept for at most `max-age` (default PT10M), lost on restart, **never persisted or
-  logged**, cleared on disconnect. Commands are not buffered.
-- On a staff `/ban`, `/mute` or `/punish`, the proxy snapshots the buffer of the target (and the
-  surrounding lines of other speakers within the window, speakers as owner hashes) and sends
+  line kept for at most `max-age` (default PT10M), RAM only, lost on restart, **never
+  persisted or logged**, cleared on disconnect. Commands are not buffered.
+- On a staff `/ban`, `/mute` or `/punish`, the proxy snapshots the buffer of the target together with the
+  surrounding lines of other players (owner decision: context lines are approved; other
+  speakers are pseudonymised as a stable per-evidence alias such as "Spieler A", never names
+  or UUIDs; URLs and IP addresses in the text are redacted) and sends
   it with the punish call (`evidenceCorrelationId`) as `CHAT_LOG` evidence, `sourceSystem`
   `velocity`. Failure to attach never blocks or undoes the punishment; it is logged without
   content.
@@ -27,6 +29,10 @@ any of them.
   `GET /punishment/{ref}/evidence/count`, fetched off the event loop with a short timeout; if the
   call fails the line is omitted.
 - Localised messages (de/en) and config documented in the plugin config with comments.
+
+GDPR: the buffer processes third parties' chat; the README documents this and gives operators
+a legitimate-interest note (Art. 6(1)(f), balancing test, privacy notice) - the lawful basis
+remains an operator concern.
 
 Out of scope: anticheat/replay integrations (third parties call the backend API directly),
 persisting chat on the proxy, private messages and commands, showing any evidence content to
