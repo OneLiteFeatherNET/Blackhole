@@ -92,6 +92,8 @@ consuming context in every session regardless of what you're touching.
   Detail: `.claude/rules/elo.md`.
 - **`appeal/`** — Appeal workflow (auto- vs manual-ban wait periods).
   Detail: `.claude/rules/appeal.md`.
+- **`evidence/`** — Evidence attached to punishments (files, anticheat, chat, links); lives as
+  long as the punishment. Detail: `.claude/rules/evidence.md`.
 - **`evasion/`** — Ban-evasion detection via hashed IP correlation.
   Detail: `.claude/rules/evasion.md`.
 - **`database/`** — Hibernate/JPA + Flyway schema ownership.
