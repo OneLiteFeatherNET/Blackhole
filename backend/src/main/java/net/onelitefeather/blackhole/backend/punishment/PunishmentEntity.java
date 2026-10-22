@@ -238,6 +238,7 @@ public class PunishmentEntity {
                 this.stepCount,
                 this.eloCost,
                 this.template == null ? null : this.template.toDTO(),
+                null,
                 this.metaData
         );
     }

@@ -245,7 +245,7 @@ public class PunishmentApplicationService implements SectionPunisher {
                 escalation = applied.automatic()
                         .filter(automatic -> automatic.tier() == EloChange.Tier.PERMANENT)
                         .flatMap(automatic -> this.punishmentRepository.findById(automatic.punishmentIdentifier()))
-                        .map(permanent -> new PunishmentDTO.Escalation(permanent.toDTO(), applied.scoreAfter()))
+                        .map(permanent -> new PunishmentDTO.Escalation(withEvidenceCount(permanent), applied.scoreAfter()))
                         .orElse(null);
             } else {
                 LOGGER.warn("Could not deduct the ELO cost of {} in section {}: {}", saved.getIdentifier(), section.key(),
@@ -259,7 +259,7 @@ public class PunishmentApplicationService implements SectionPunisher {
         }
 
         return new PunishmentDTO.ApplyResponse(
-                saved.toDTO(), section.key(), section.enforcement(),
+                withEvidenceCount(saved), section.key(), section.enforcement(),
                 selection.index() + 1, selection.stepCount(), scoreBefore, scoreAfter, escalation
         );
     }
@@ -409,14 +409,14 @@ public class PunishmentApplicationService implements SectionPunisher {
         SectionDTO.Response section = this.sectionService.find(request.section()).orElse(null);
         this.eventPublisher.publish("punishment.revoked", PunishmentEvents.revoked(active, section, request.source().toString()));
 
-        return new PunishmentDTO.RevokeResponse(active.toDTO(), request.section(), scoreReset);
+        return new PunishmentDTO.RevokeResponse(withEvidenceCount(active), request.section(), scoreReset);
     }
 
     /**
      * Returns a paginated list of all punishment entries in the system.
      */
     public Page<PunishEntryDTO> findAll(Pageable pageable) {
-        return this.punishmentRepository.findAll(pageable).map(PunishmentEntity::toDTO);
+        return this.punishmentRepository.findAll(pageable).map(this::withEvidenceCount);
     }
 
     /**
@@ -429,8 +429,13 @@ public class PunishmentApplicationService implements SectionPunisher {
     public PunishmentDTO findByShortId(String shortId) {
         return PunishmentShortId.parse(shortId)
                 .<PunishmentDTO>map(key -> new PunishmentDTO.ShortIdMatches(
-                        this.punishmentRepository.findByShortId(key).stream().map(PunishmentEntity::toDTO).toList()))
+                        this.punishmentRepository.findByShortId(key).stream().map(this::withEvidenceCount).toList()))
                 .orElseGet(() -> error(ErrorKind.VALIDATION, "a short id is # followed by exactly eight hex characters"));
+    }
+
+    /** The punishment as a DTO that tells how many valid evidence items it has, and nothing more about them. */
+    private PunishEntryDTO withEvidenceCount(PunishmentEntity punishment) {
+        return punishment.toDTO().withEvidenceCount(this.evidence.countValid(punishment.getIdentifier()));
     }
 
     private static PunishmentDTO.Error error(ErrorKind kind, String message) {

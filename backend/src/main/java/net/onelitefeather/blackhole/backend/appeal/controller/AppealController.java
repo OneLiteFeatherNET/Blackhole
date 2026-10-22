@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.appeal.controller;
 
 import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.evidence.service.PunishmentEvidenceGateway;
 import net.onelitefeather.blackhole.backend.appeal.AppealReviewResult;
 import net.onelitefeather.blackhole.backend.appeal.AppealStatus;
 import net.onelitefeather.blackhole.backend.appeal.dto.AppealDTO;
@@ -39,16 +40,19 @@ public class AppealController implements AppealApi {
     private final AppealEligibilityService eligibilityService;
     private final AppealDecisionService decisionService;
     private final DomainEventPublisher eventPublisher;
+    private final PunishmentEvidenceGateway evidence;
 
     @Inject
     public AppealController(
             AppealEligibilityService eligibilityService,
             AppealDecisionService decisionService,
-            DomainEventPublisher eventPublisher
+            DomainEventPublisher eventPublisher,
+            PunishmentEvidenceGateway evidence
     ) {
         this.eligibilityService = eligibilityService;
         this.decisionService = decisionService;
         this.eventPublisher = eventPublisher;
+        this.evidence = evidence;
     }
 
     @Override
@@ -69,13 +73,13 @@ public class AppealController implements AppealApi {
                 "eligible", eligible
         ));
 
-        return HttpResponse.ok(appeal.toDTO());
+        return HttpResponse.ok(withEvidenceCount(appeal));
     }
 
     @Override
     public HttpResponse<Page<AppealDTO>> getAll(Pageable pageable) {
         Page<AppealEntity> entities = this.eligibilityService.findAll(pageable);
-        return HttpResponse.ok(entities.map(AppealEntity::toDTO));
+        return HttpResponse.ok(entities.map(this::withEvidenceCount));
     }
 
     @Override
@@ -88,7 +92,12 @@ public class AppealController implements AppealApi {
                     DURATION_REDUCTION_NOT_SHORTER ->
                     HttpResponse.badRequest(result.message());
             case SELF_REVIEW -> HttpResponse.status(HttpStatus.FORBIDDEN, result.message());
-            case DECIDED -> HttpResponse.ok(result.appeal().toDTO());
+            case DECIDED -> HttpResponse.ok(withEvidenceCount(result.appeal()));
         };
+    }
+
+    /** The appeal with the number of valid evidence items of its punishment; never the evidence itself. */
+    private AppealDTO withEvidenceCount(AppealEntity appeal) {
+        return appeal.toDTO().withEvidenceCount(this.evidence.countValid(appeal.getPunishment().getIdentifier()));
     }
 }

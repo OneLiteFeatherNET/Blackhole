@@ -9,6 +9,12 @@ import io.micronaut.serde.annotation.Serdeable;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * An appeal as it appears in responses.
+ *
+ * @param evidenceCount how many valid evidence items the appealed punishment has: the only thing about
+ *                      evidence an appeal response carries, never its content, references or files
+ */
 @Serdeable
 @ReflectiveAccess
 public record AppealDTO(
@@ -22,6 +28,13 @@ public record AppealDTO(
         @Nullable String decisionNote,
         long createdAt,
         long updatedAt,
+        long evidenceCount,
         @NonNull Map<String, Object> metaData
 ) {
+
+    /** This appeal with the number of valid evidence items of its punishment filled in. */
+    public AppealDTO withEvidenceCount(long count) {
+        return new AppealDTO(this.identifier, this.punishmentIdentifier, this.appellantHash, this.statement, this.status,
+                this.eligibilityCheckResult, this.decidedBy, this.decisionNote, this.createdAt, this.updatedAt, count, this.metaData);
+    }
 }

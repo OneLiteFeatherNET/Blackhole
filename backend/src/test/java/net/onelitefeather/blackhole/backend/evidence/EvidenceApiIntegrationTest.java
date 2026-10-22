@@ -257,6 +257,34 @@ class EvidenceApiIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void anAppealCarriesOnlyTheEvidenceCount() {
+        String owner = "f2".repeat(64);
+        String punishment = givenPunishment(owner, "ev-appeal");
+        attachLink(punishment);
+        attachLink(punishment);
+
+        Reply appeal = post("/appeal", Map.of("punishmentIdentifier", punishment, "appellantHash", owner, "statement", "please"));
+
+        assertEquals(200, appeal.status(), appeal.body());
+        assertEquals(2, appeal.json().get("evidenceCount"));
+        assertTrue(appeal.json().keySet().stream().filter(key -> key.toLowerCase().contains("evidence")).allMatch("evidenceCount"::equals),
+                "no other evidence field: " + appeal.body());
+    }
+
+    @Test
+    void thePunishmentListingCarriesOnlyTheEvidenceCount() {
+        String owner = "f3".repeat(64);
+        String punishment = givenPunishment(owner, "ev-listing");
+        attachLink(punishment);
+
+        Reply listed = get("/punishment/short/" + net.onelitefeather.blackhole.backend.punishment.PunishmentShortId.keyOf(punishment).orElseThrow());
+
+        assertEquals(200, listed.status(), listed.body());
+        Map<String, Object> entry = listed.jsonList().stream().filter(e -> punishment.equals(e.get("identifier"))).findFirst().orElseThrow();
+        assertEquals(1, entry.get("evidenceCount"));
+    }
+
+    @Test
     void aDownloadIsAuditedWithTheSuppliedActor() throws IOException {
         String punishment = givenPunishment("f4".repeat(64), "ev-audit");
         String id = (String) upload(punishment, EvidenceFixtures.png(8, 8)).json().get("identifier");

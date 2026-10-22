@@ -156,7 +156,7 @@ public class AppealEntity {
         return new AppealDTO(
                 this.identifier, this.punishment.getIdentifier(), this.appellantHash, this.statement,
                 this.status, this.eligibilityCheckResult, this.decidedBy, this.decisionNote,
-                this.createdAt, this.updatedAt, this.metaData
+                this.createdAt, this.updatedAt, 0L, this.metaData
         );
     }
 }

@@ -42,7 +42,7 @@ class EvidenceClaimIntegrationTest extends ApiIntegrationTest {
 
     private long listed(String punishment) {
         EvidenceDTO.PageResponse page = assertInstanceOf(EvidenceDTO.PageResponse.class,
-                this.context.getBean(EvidenceService.class).list(punishment, false, Pageable.from(0, 20)));
+                this.context.getBean(EvidenceService.class).list(punishment, false, Pageable.from(0, 20), null));
         return page.totalSize();
     }
 
