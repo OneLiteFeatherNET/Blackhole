@@ -5,15 +5,15 @@ no sleeps, no shared static state; integration tests (PostgreSQL, S3 container) 
 
 ## 1. Schema and core model
 
-- [ ] 1.1 Append `V8__evidence_items.sql` (`evidence_items`, `evidence_audit`, `status` columns, FK `ON DELETE CASCADE`, indexes on owner, (owner, correlation_id), punishment_identifier, status); verify with the `migration-checker` agent and a migration integration test on a fresh PostgreSQL (both tables exist, deleting a punishment row deletes its evidence rows)
-- [ ] 1.2 Add `evidence/` package: `EvidenceKind` enum, entity, repository (paged by punishment/owner), `EvidenceAuditEntity`; verify a repository integration test for insert/list/paging and `hbm2ddl=validate` startup
-- [ ] 1.3 Add `blackhole.evidence.*` to `application.yml` with comments and a `@ConfigurationProperties` bean; verify a unit test that defaults bind and invalid durations fail fast
+- [x] 1.1 Append `V8__evidence_items.sql` (`evidence_items`, `evidence_audit`, `status` columns, FK `ON DELETE CASCADE`, indexes on owner, (owner, correlation_id), punishment_identifier, status); verify with the `migration-checker` agent and a migration integration test on a fresh PostgreSQL (both tables exist, deleting a punishment row deletes its evidence rows)
+- [x] 1.2 Add `evidence/` package: `EvidenceKind` enum, entity, repository (paged by punishment/owner), `EvidenceAuditEntity`; verify a repository integration test for insert/list/paging and `hbm2ddl=validate` startup
+- [x] 1.3 Add `blackhole.evidence.*` to `application.yml` with comments and a `@ConfigurationProperties` bean; verify a unit test that defaults bind and invalid durations fail fast
 
 ## 2. Validation and pseudonymisation
 
-- [ ] 2.1 Per-kind payload validators (ANTICHEAT, CHAT_LOG, REPLAY/LINK) with undeclared-property rejection and size limit; verify one unit test per rule (undeclared property, oversize -> 413, too many chat lines)
-- [ ] 2.2 URL validator (http/https only, <= 2048, no userinfo) with no network access; verify unit tests for `javascript:`, `file:`, userinfo, relative URL, and that no HTTP client exists in the class
-- [ ] 2.3 PII guard: reject UUID/IP-looking strings in structured payloads (422 with JSON pointer), redact IPs in chat text, require 128-hex owner hashes; verify unit tests for each case including IPv6
+- [x] 2.1 Per-kind payload validators (ANTICHEAT, CHAT_LOG, REPLAY/LINK) with undeclared-property rejection and size limit; verify one unit test per rule (undeclared property, oversize -> 413, too many chat lines)
+- [x] 2.2 URL validator (http/https only, <= 2048, no userinfo) with no network access; verify unit tests for `javascript:`, `file:`, userinfo, relative URL, and that no HTTP client exists in the class
+- [x] 2.3 PII guard: reject UUID/IP-looking strings in structured payloads (422 with JSON pointer), redact IPs in chat text, require 128-hex owner hashes; verify unit tests for each case including IPv6
 
 ## 3. Blob storage and uploads
 
