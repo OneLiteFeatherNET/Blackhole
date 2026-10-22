@@ -1,12 +1,14 @@
 package net.onelitefeather.blackhole.velocity.punish;
 
 import net.onelitefeather.blackhole.client.api.EloApi;
+import net.onelitefeather.blackhole.client.api.EvidenceApi;
 import net.onelitefeather.blackhole.client.api.PunishProfileApi;
 import net.onelitefeather.blackhole.client.api.PunishmentApi;
 import net.onelitefeather.blackhole.client.api.PunishmentTemplatesApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.EloProfileResponse;
+import net.onelitefeather.blackhole.client.model.EvidenceCreateRequest;
 import net.onelitefeather.blackhole.client.model.Pageable;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
@@ -14,11 +16,16 @@ import net.onelitefeather.blackhole.client.model.PunishmentApplyRequest;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentRevokeRequest;
 import net.onelitefeather.blackhole.client.model.PunishmentRevokeResponse;
+import net.onelitefeather.blackhole.velocity.evidence.ChatEvidenceRequests;
+import net.onelitefeather.blackhole.velocity.evidence.ChatSnapshot;
 import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
 
+import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /**
  * {@link BackendGateway} over the generated API client; templates come from the shared cache when
@@ -30,14 +37,18 @@ public final class HttpBackendGateway implements BackendGateway {
     private final PunishmentTemplatesApi templatesApi;
     private final PunishProfileApi profileApi;
     private final EloApi eloApi;
+    private final EvidenceApi evidenceApi;
     private final RedisSyncService redis;
+    private final Clock clock;
 
-    public HttpBackendGateway(ApiClient client, RedisSyncService redis) {
+    public HttpBackendGateway(ApiClient client, RedisSyncService redis, Clock clock) {
         this.punishmentApi = new PunishmentApi(client);
         this.templatesApi = new PunishmentTemplatesApi(client);
         this.profileApi = new PunishProfileApi(client);
         this.eloApi = new EloApi(client);
+        this.evidenceApi = new EvidenceApi(client);
         this.redis = redis;
+        this.clock = clock;
     }
 
     @Override
@@ -50,8 +61,23 @@ public final class HttpBackendGateway implements BackendGateway {
     }
 
     @Override
-    public PunishmentApplyResponse apply(String owner, String templateKey, UUID source) throws ApiException {
-        return this.punishmentApi.applyPunishment(new PunishmentApplyRequest().owner(owner).templateKey(templateKey).source(source));
+    public PunishmentApplyResponse apply(String owner, String templateKey, UUID source, String evidenceCorrelationId) throws ApiException {
+        return this.punishmentApi.applyPunishment(new PunishmentApplyRequest()
+                .owner(owner).templateKey(templateKey).source(source).evidenceCorrelationId(evidenceCorrelationId));
+    }
+
+    @Override
+    public CompletableFuture<Void> postChatEvidence(
+            String owner, String correlationId, ChatSnapshot snapshot, String sourceSystem, UUID source
+    ) {
+        EvidenceCreateRequest request = ChatEvidenceRequests.create(owner, correlationId, snapshot, sourceSystem, source, this.clock.millis());
+        return CompletableFuture.runAsync(() -> {
+            try {
+                this.evidenceApi.attachEvidence(request);
+            } catch (ApiException e) {
+                throw new CompletionException(e);
+            }
+        });
     }
 
     @Override

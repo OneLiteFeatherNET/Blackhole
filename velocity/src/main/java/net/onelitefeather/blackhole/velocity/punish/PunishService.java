@@ -6,6 +6,7 @@ import net.onelitefeather.blackhole.client.model.PunishEntryDTO;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentRevokeResponse;
+import net.onelitefeather.blackhole.velocity.evidence.ChatEvidence;
 import net.onelitefeather.blackhole.velocity.section.SectionInfo;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import org.slf4j.Logger;
@@ -35,7 +36,7 @@ public final class PunishService {
     /** How an apply ended. */
     public sealed interface ApplyOutcome {
         /** The template was applied. */
-        record Applied(PunishmentApplyResponse response, SectionInfo section) implements ApplyOutcome {
+        record Applied(PunishmentApplyResponse response, SectionInfo section, ChatEvidence.Result evidence) implements ApplyOutcome {
         }
 
         /** No template has this key. */
@@ -80,15 +81,18 @@ public final class PunishService {
 
     private final BackendGateway backend;
     private final SectionRegistry sections;
+    private final ChatEvidence chatEvidence;
 
-    public PunishService(BackendGateway backend, SectionRegistry sections) {
+    public PunishService(BackendGateway backend, SectionRegistry sections, ChatEvidence chatEvidence) {
         this.backend = backend;
         this.sections = sections;
+        this.chatEvidence = chatEvidence;
     }
 
     /**
      * Applies the template with exactly this key, if its section is enforced in one of the allowed
-     * ways. Never throws for an expected failure.
+     * ways. If chat capture is on, the target's buffered chat is posted as evidence first and claimed
+     * by the punishment; a failing upload never stops the punishment. Never throws for an expected failure.
      */
     public ApplyOutcome apply(String owner, String templateKey, UUID source, Set<EnforcementKind> allowed) {
         List<PunishTemplateResponse> templates;
@@ -106,8 +110,9 @@ public final class PunishService {
         if (section == null || !allowed.contains(section.enforcement())) {
             return new ApplyOutcome.WrongSection(templateKey, section == null ? null : section.enforcement());
         }
+        ChatEvidence.Result evidence = this.chatEvidence.attach(owner, source);
         try {
-            return new ApplyOutcome.Applied(this.backend.apply(owner, templateKey, source), section);
+            return new ApplyOutcome.Applied(this.backend.apply(owner, templateKey, source, evidence.correlationId()), section, evidence);
         } catch (ApiException e) {
             LOGGER.error("Applying template {} to {} failed with status {}: {}", templateKey, owner, e.getCode(), e.getMessage());
             return new ApplyOutcome.Failed(e.getCode());

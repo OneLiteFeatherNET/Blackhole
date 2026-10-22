@@ -4,8 +4,13 @@ import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
 import net.onelitefeather.blackhole.client.model.PunishEntryDTO;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
+import net.onelitefeather.blackhole.velocity.config.ChatCaptureConfig;
+import net.onelitefeather.blackhole.velocity.evidence.ChatBuffer;
+import net.onelitefeather.blackhole.velocity.evidence.ChatEvidence;
+import net.onelitefeather.blackhole.velocity.evidence.ChatSnapshotBuilder;
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,7 +28,8 @@ class PunishServiceTest {
     private static final UUID STAFF = UUID.randomUUID();
 
     private final StubGateway backend = new StubGateway();
-    private final PunishService service = new PunishService(backend, standardRegistry());
+    private final PunishService service = new PunishService(backend, standardRegistry(), ChatEvidence.create(
+            new ChatSnapshotBuilder(new ChatBuffer(Clock.systemUTC(), new ChatCaptureConfig()), new ChatCaptureConfig()), backend, new ChatCaptureConfig()));
 
     private PunishService.ApplyOutcome apply(String key, java.util.Set<EnforcementKind> allowed) {
         return service.apply(OWNER, key, STAFF, allowed);
