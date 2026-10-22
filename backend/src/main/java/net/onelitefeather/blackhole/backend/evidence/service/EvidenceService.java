@@ -8,10 +8,13 @@ import net.onelitefeather.blackhole.backend.evidence.EvidenceAuditAction;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceAuditEntity;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceAuditRepository;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceDeleteReason;
+import net.onelitefeather.blackhole.backend.evidence.EvidenceDeletionReason;
+import net.onelitefeather.blackhole.backend.evidence.EvidenceEvents;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceItemEntity;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceItemRepository;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceKind;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceStatus;
+import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.evidence.dto.EvidenceDTO;
 import net.onelitefeather.blackhole.backend.evidence.dto.EvidenceErrorKind;
 import net.onelitefeather.blackhole.backend.evidence.storage.BlobKeys;
@@ -68,6 +71,7 @@ public class EvidenceService {
     private final PayloadValidator validator;
     private final UploadPipeline uploads;
     private final BlobStore blobs;
+    private final DomainEventPublisher events;
     private final Clock clock;
     private final Path spoolDirectory;
 
@@ -81,6 +85,7 @@ public class EvidenceService {
             PayloadValidator validator,
             UploadPipeline uploads,
             BlobStore blobs,
+            DomainEventPublisher events,
             Clock clock,
             @Value("${java.io.tmpdir}") Path spoolDirectory
     ) {
@@ -90,6 +95,7 @@ public class EvidenceService {
         this.validator = validator;
         this.uploads = uploads;
         this.blobs = blobs;
+        this.events = events;
         this.clock = clock;
         this.spoolDirectory = spoolDirectory;
     }
@@ -320,7 +326,7 @@ public class EvidenceService {
         if (item == null) {
             return notFound(identifier);
         }
-        EvidenceDTO.Error failure = remove(item, deletion.reason(), note, source);
+        EvidenceDTO.Error failure = remove(item, deletion.reason(), EvidenceDeletionReason.MANUAL, note, source);
         return failure != null ? failure : new EvidenceDTO.DeleteResponse(1);
     }
 
@@ -338,7 +344,7 @@ public class EvidenceService {
         }
         int deleted = 0;
         for (EvidenceItemEntity item : this.items.findByOwner(owner)) {
-            EvidenceDTO.Error failure = remove(item, deletion.reason(), note, source);
+            EvidenceDTO.Error failure = remove(item, deletion.reason(), EvidenceDeletionReason.ERASURE, note, source);
             if (failure != null) {
                 return failure;
             }
@@ -365,7 +371,7 @@ public class EvidenceService {
         return pending.size();
     }
 
-    private EvidenceDTO.Error remove(EvidenceItemEntity item, EvidenceDeleteReason reason, String note, UUID source) {
+    private EvidenceDTO.Error remove(EvidenceItemEntity item, EvidenceDeleteReason reason, EvidenceDeletionReason published, String note, UUID source) {
         if (item.getFileKey() != null) {
             try {
                 this.blobs.delete(item.getFileKey());
@@ -376,12 +382,26 @@ public class EvidenceService {
         }
         this.items.delete(item);
         record(item, EvidenceAuditAction.DELETED, source, reason.name(), note);
+        publish(EvidenceEvents.DELETED, EvidenceEvents.deleted(item, published));
         return null;
     }
 
     private EvidenceDTO attached(EvidenceItemEntity saved, UUID source) {
         record(saved, EvidenceAuditAction.ATTACHED, source, null, null);
+        publish(EvidenceEvents.ATTACHED, EvidenceEvents.attached(saved));
         return toResponse(saved);
+    }
+
+    /**
+     * Announces a change. The event bus is a side channel: a broker problem is logged and never
+     * fails the request that already changed the evidence.
+     */
+    private void publish(String eventType, Map<String, Object> payload) {
+        try {
+            this.events.publish(eventType, payload);
+        } catch (RuntimeException e) {
+            LOGGER.error("Could not publish {}: {}", eventType, e.getMessage());
+        }
     }
 
     /** Lifted and revoked items in a returned page were revealed to the caller: each reveal is audited. */

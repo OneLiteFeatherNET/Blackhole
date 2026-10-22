@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.backend.evidence;
 
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
+import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.evidence.scan.EvidenceScanner;
 import net.onelitefeather.blackhole.backend.evidence.service.EvidenceService;
 import net.onelitefeather.blackhole.backend.evidence.upload.UploadPipeline;
@@ -9,6 +10,7 @@ import net.onelitefeather.blackhole.backend.evidence.validation.PayloadValidator
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
+import net.onelitefeather.blackhole.backend.support.RecordingEventPublisher;
 import net.onelitefeather.blackhole.backend.support.TestClock;
 
 import java.nio.file.Path;
@@ -55,6 +57,7 @@ public final class EvidenceTestBed {
                     .build();
     public final InMemoryRepository<EvidenceAuditRepository, EvidenceAuditEntity, UUID> audit =
             InMemoryRepository.<EvidenceAuditRepository, EvidenceAuditEntity, UUID>of(EvidenceAuditRepository.class, EvidenceAuditEntity::getIdentifier).build();
+    public final RecordingEventPublisher events = new RecordingEventPublisher();
     public final EvidenceConfig config = new EvidenceConfig();
     public final FakeScanner scanner = new FakeScanner();
     public final EvidenceService service;
@@ -71,9 +74,14 @@ public final class EvidenceTestBed {
     }
 
     public EvidenceTestBed(Path spoolDirectory) {
+        this(spoolDirectory, null);
+    }
+
+    /** @param publisher the publisher the service uses instead of the recording one, or {@code null} */
+    public EvidenceTestBed(Path spoolDirectory, DomainEventPublisher publisher) {
         this.service = new EvidenceService(
                 items.repository(), audit.repository(), punishments.repository(), new PayloadValidator(config),
-                new UploadPipeline(config, scanner), blobs, clock, spoolDirectory);
+                new UploadPipeline(config, scanner), blobs, publisher == null ? events : publisher, clock, spoolDirectory);
     }
 
     private Page<EvidenceItemEntity> page(Predicate<EvidenceItemEntity> filter, Pageable pageable) {
