@@ -373,6 +373,109 @@
       "confirm": "Entscheidung speichern"
     }
   },
+  "evidence": {
+    "title": "Beweise",
+    "count": "{count} gültig",
+    "audited": "Das Öffnen und Herunterladen von Beweisen wird im Audit-Protokoll festgehalten.",
+    "empty": "Keine Beweise zu dieser Strafe.",
+    "showLifted": "Aufgehobene Beweise anzeigen",
+    "showLiftedHint": "Beweise einer aufgehobenen oder widerrufenen Strafe bleiben erhalten, stützen aber keine Strafe mehr. Der Schalter ändert nur die Anzeige und ist keine Zugriffsbeschränkung. Das Anzeigen wird im Audit-Protokoll festgehalten.",
+    "kind": {
+      "ANTICHEAT": "Anticheat-Eintrag",
+      "REPLAY": "Replay",
+      "CHAT_LOG": "Chat-Auszug",
+      "LINK": "Link",
+      "FILE": "Datei"
+    },
+    "status": {
+      "LIFTED": "Strafe per Appeal aufgehoben",
+      "REVOKED": "Strafe widerrufen"
+    },
+    "item": {
+      "expand": "Details anzeigen",
+      "collapse": "Details ausblenden",
+      "delete": "Löschen",
+      "lines": "{n} Chatzeile | {n} Chatzeilen"
+    },
+    "paging": {
+      "label": "Seiten der Beweise",
+      "previous": "Zurück",
+      "next": "Weiter",
+      "position": "Seite {page} von {total}"
+    },
+    "anticheat": {
+      "check": "Prüfung",
+      "violationLevel": "Verstoßstufe",
+      "server": "Server",
+      "detail": "Detail",
+      "values": "Erfasste Werte",
+      "name": "Name",
+      "value": "Wert"
+    },
+    "chat": {
+      "label": "Chatverlauf",
+      "player": "Spieler {n}",
+      "system": "System"
+    },
+    "link": {
+      "newTab": "(öffnet in einem neuen Tab)"
+    },
+    "file": {
+      "noPreview": "Keine Vorschau für {name}.",
+      "noCaptions": "Diese Aufnahme hat keine Untertitel."
+    },
+    "upload": {
+      "zone": "Beweisdateien hochladen",
+      "prompt": "Screenshots oder Videos hierher ziehen oder mit der Eingabetaste Dateien auswählen",
+      "hint": "Bilder bis {image} MB, Videos bis {video} MB",
+      "queued": "Wartet",
+      "progress": "{name} wird hochgeladen",
+      "dismiss": "Schließen",
+      "done": "Beweis hochgeladen.",
+      "startedAnnounce": "{name} wird hochgeladen",
+      "doneAnnounce": "{name} hochgeladen",
+      "failedAnnounce": "{name} konnte nicht hochgeladen werden",
+      "cancelledAnnounce": "Upload von {name} abgebrochen",
+      "error": {
+        "CLIENT_TYPE": "Dieser Dateityp ist nicht erlaubt.",
+        "CLIENT_SIZE": "Die Datei ist größer als {max} MB.",
+        "TOO_LARGE": "Die Datei ist zu groß.",
+        "UNSUPPORTED_TYPE": "Dieser Dateityp ist nicht erlaubt.",
+        "REJECTED": "Die Datei wurde abgelehnt (Virenscan oder personenbezogene Daten).",
+        "UNAVAILABLE": "Der Virenscanner ist nicht erreichbar. Bitte später erneut versuchen.",
+        "NETWORK": "Das Backend ist nicht erreichbar.",
+        "CANCELLED": "Upload abgebrochen.",
+        "FAILED": "Der Upload ist fehlgeschlagen."
+      }
+    },
+    "addLink": {
+      "open": "Link hinzufügen",
+      "title": "Link oder Replay hinzufügen",
+      "kind": "Art",
+      "url": "Adresse",
+      "urlHint": "Eine Webadresse, die mit http:// oder https:// beginnt",
+      "invalidUrl": "Gib eine Webadresse ein, die mit http:// oder https:// beginnt.",
+      "description": "Beschreibung",
+      "descriptionHint": "Optional",
+      "confirm": "Hinzufügen",
+      "done": "Link hinzugefügt."
+    },
+    "delete": {
+      "title": "Beweis löschen",
+      "body": "{kind} und die zugehörige Datei werden endgültig gelöscht. Das Löschen wird im Audit-Protokoll festgehalten.",
+      "reasonLabel": "Grund",
+      "choose": "Grund wählen",
+      "reason": {
+        "ERASURE_REQUEST": "Löschanfrage",
+        "WRONG_EVIDENCE": "Falscher Beweis",
+        "OTHER": "Sonstiges"
+      },
+      "note": "Notiz",
+      "noteHint": "Optional; wird mit der Löschung festgehalten",
+      "confirm": "Löschen",
+      "done": "Beweis gelöscht."
+    }
+  },
   "duration": {
     "hint": "z. B. 30m, 12h, 3d oder 1w 2d",
     "preview": "= {text}",

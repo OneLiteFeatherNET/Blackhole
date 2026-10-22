@@ -1,6 +1,8 @@
 import { API_VERSION, API_VERSION_HEADER } from './http'
-import { EVIDENCE_SOURCE_SYSTEM } from './blackhole'
 import type { Evidence } from './types'
+
+/** Evidence the UI attaches is attributed to this system name (the backend requires one). */
+export const EVIDENCE_SOURCE_SYSTEM = 'admin-ui'
 
 /** Why an upload failed; the first four are the backend's answers (413, 415, 422, 503). */
 export type UploadErrorKind = 'TOO_LARGE' | 'UNSUPPORTED_TYPE' | 'REJECTED' | 'UNAVAILABLE' | 'CANCELLED' | 'NETWORK' | 'FAILED'
