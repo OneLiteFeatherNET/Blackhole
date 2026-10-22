@@ -20,6 +20,8 @@ import net.onelitefeather.blackhole.velocity.command.TargetParser;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.config.BlackholeApiClients;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
+import net.onelitefeather.blackhole.velocity.evidence.ChatBuffer;
+import net.onelitefeather.blackhole.velocity.listener.ChatCaptureListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerChatListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerClientBrandListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerDisconnectListener;
@@ -47,6 +49,7 @@ import org.slf4j.Logger;
 
 import java.nio.file.Path;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.Locale;
 import java.util.ResourceBundle;
@@ -99,6 +102,7 @@ public class BlackholeVelocity {
         EnforcementActions actions = new EnforcementActions(this.server, sections, state, this.config, clock, screens);
         PunishmentSyncHandler syncHandler = new PunishmentSyncHandler(mirror, actions);
         PunishService punishService = new PunishService(backend, sections);
+        ChatBuffer chatBuffer = new ChatBuffer(clock, this.config.getEvidence().getChatCapture());
 
         this.redisSyncService.onPunishmentSync(syncHandler::accept);
         // The reload calls the backend, so it must not run on the Redis callback thread.
@@ -108,7 +112,7 @@ public class BlackholeVelocity {
 
         Injector childInjector = this.injector.createChildInjector(
                 new BlackholeClientModule(this.client, this.config, this.redisSyncService, sections, mirror, state,
-                        syncHandler, actions, backend, punishService, clock, screens).asModule(),
+                        syncHandler, actions, backend, punishService, clock, screens, chatBuffer).asModule(),
                 new CloudInjectionModule<>(
                         CommandSource.class,
                         ExecutionCoordinator.simpleCoordinator(),
@@ -126,6 +130,12 @@ public class BlackholeVelocity {
         annotationParser.parse(childInjector.getInstance(EloCommand.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerLoginListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerChatListener.class));
+        if (chatBuffer.enabled()) {
+            this.logger.info("Chat capture is enabled: recent public chat is kept in memory for punishment evidence");
+            server.getEventManager().register(this, childInjector.getInstance(ChatCaptureListener.class));
+            // Lines are also dropped on insert; this frees the buffers of players who stopped chatting.
+            server.getScheduler().buildTask(this, chatBuffer::evictExpired).repeat(Duration.ofMinutes(1)).schedule();
+        }
         server.getEventManager().register(this, childInjector.getInstance(PlayerClientBrandListener.class));
         server.getEventManager().register(this, childInjector.getInstance(ServerConnectListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerDisconnectListener.class));
