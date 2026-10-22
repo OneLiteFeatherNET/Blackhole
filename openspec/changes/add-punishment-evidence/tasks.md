@@ -25,7 +25,7 @@ no sleeps, no shared static state; integration tests (PostgreSQL, S3 container) 
 
 ## 4. Service and API
 
-- [ ] 4.1 `EvidenceDTO` sealed interface (CreateRequest, Response, PageResponse, CountResponse, Error) and `EvidenceService` (attach by id/short id/correlation, list, get, count, admin delete and erase-by-owner with mandatory reason, `includeInactive`) returning `Error` for expected failures; verify service unit tests: short-id 0/1/many matches, exactly-one target rule, many items per punishment, missing reason -> 400, lifted items hidden by default and not counted
+- [x] 4.1 `EvidenceDTO` sealed interface (CreateRequest, Response, PageResponse, CountResponse, Error) and `EvidenceService` (attach by id/short id/correlation, list, get, count, admin delete and erase-by-owner with mandatory reason, `includeInactive`) returning `Error` for expected failures; verify service unit tests: short-id 0/1/many matches, exactly-one target rule, many items per punishment, missing reason -> 400, lifted items hidden by default and not counted
 - [ ] 4.2 Claim pending evidence in punishment creation (`evidenceCorrelationId` on the apply/punish requests); verify an integration test: evidence first, ban second -> listed; wrong owner or id -> not claimed
 - [ ] 4.3 `EvidenceApi` (OpenAPI annotations) + thin `EvidenceController` (`@Version(ApiVersion.V1)`), multipart via `StreamingFileUpload`, `Range` support and download headers; verify controller integration tests incl. 206 response and header assertions, and review by the `backend-reviewer` agent
 - [ ] 4.4 Add `evidenceCount` to `PunishEntryDTO` and `AppealDTO`; verify tests that those DTOs expose no other evidence field
