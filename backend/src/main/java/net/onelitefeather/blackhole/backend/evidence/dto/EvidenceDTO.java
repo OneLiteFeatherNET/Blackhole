@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.evidence.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.annotation.ReflectiveAccess;
@@ -138,7 +139,8 @@ public sealed interface EvidenceDTO {
     @Serdeable
     @ReflectiveAccess
     record PageResponse(
-            @NonNull List<Response> items,
+            // Serde omits empty collections by default; an empty page must still say items: [].
+            @NonNull @JsonInclude(JsonInclude.Include.ALWAYS) List<Response> items,
             int page,
             int size,
             long totalSize,
@@ -158,6 +160,41 @@ public sealed interface EvidenceDTO {
     @Serdeable
     @ReflectiveAccess
     record DeleteResponse(int deleted) implements EvidenceDTO {
+    }
+
+    /**
+     * A stored file ready to stream. Never serialised: the controller turns it into the file
+     * response, so it is not {@code @Serdeable} and hidden from the API schema.
+     *
+     * @param stream      the requested bytes; the caller closes it
+     * @param length      how many bytes the stream yields
+     * @param start       the first byte served
+     * @param end         the last byte served (inclusive)
+     * @param total       the size of the whole file
+     * @param partial     whether this is a part of the file (status 206)
+     * @param contentType the sniffed content type
+     * @param fileName    the sanitised display name
+     */
+    @Schema(hidden = true)
+    record Download(
+            @NonNull java.io.InputStream stream,
+            long length,
+            long start,
+            long end,
+            long total,
+            boolean partial,
+            @NonNull String contentType,
+            @NonNull String fileName
+    ) implements EvidenceDTO {
+    }
+
+    /**
+     * The requested byte range starts behind the end of the file (416).
+     *
+     * @param size the size of the file, for the {@code Content-Range: bytes *}{@code /size} header
+     */
+    @Schema(hidden = true)
+    record OutOfRange(long size) implements EvidenceDTO {
     }
 
     @Schema(name = "EvidenceError")

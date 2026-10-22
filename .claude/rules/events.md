@@ -23,3 +23,15 @@ URL a new design introduces (see CLAUDE.md's cross-cutting conventions).
 Publishing must stay non-blocking: `DomainEventRabbitPublisher.publish` returns a `Publisher<Void>`
 and `DomainEventPublisher` subscribes fire-and-forget. A `void` `@RabbitClient` method blocks on a
 Mono, which Reactor refuses on Netty event-loop threads (where controllers and services run).
+
+## Evidence events
+
+`evidence.attached` and `evidence.deleted` are published by `EvidenceService` (payloads built in
+`EvidenceEvents`). The payload is `{evidenceId, punishmentId (null while the item is pending),
+owner, kind, sourceSystem}`; `evidence.deleted` adds `reason` (`MANUAL` for one admin delete,
+`ERASURE` for an erase-by-owner, `CASCADE` when the punishment record is deleted,
+`UNCLAIMED_EXPIRED` when pending evidence expires). Never put the payload, reference, file name or
+any other content in an event: the broker is a second at-rest copy. Claiming pending evidence for a
+new punishment publishes no event (the item was announced when it was attached). Nothing binds to
+these keys yet; the service wraps `publish` in a try/catch so a broker problem never fails the
+request that already changed the evidence.
