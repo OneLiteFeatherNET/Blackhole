@@ -1,0 +1,294 @@
+# Design
+
+## Context
+
+See proposal.md for motivation. Current state (observed): no auth layer; controllers are
+`@Version(ApiVersion.V1)` with `*Api` interfaces; actor fields are client-supplied UUIDs:
+`punishment.source`, `report.resolved_by`, `appeal.decided_by`, `evidence_items.created_by`,
+`evidence_audit.actor` (columns, all `uuid`), `revokedBy` and the ELO `source` (JSON metadata).
+The UI sends `source`/`reviewer` from `/config.json`; the Velocity plugin builds an
+unauthenticated generated `ApiClient` in `BlackholeApiClients`. System rows use fixed
+name-based UUIDs (`SYSTEM_ELO_SOURCE`, the vanilla import identity). Stack per the repo:
+Micronaut 5.0.2 (Gradle catalog), PostgreSQL, Flyway (V1-V8 applied), Vue 3, Java 25.
+
+Docs consulted (current): Micronaut Security 5.x (JWKS signature, claims validators for
+`iss`/`aud`/`exp`, `RolesFinder`, `intercept-url-map`), Microsoft Entra access-token claims
+and client-credentials flow, `oidc-client-ts` (`UserManager`, `userStore`/`stateStore`,
+`automaticSilentRenew`, refresh-token renewal).
+
+## Goals / Non-Goals
+
+Goals: backend verifies every caller; stable verified actor on every write; least-privilege
+roles; no Entra dependency in tests or local dev; one code path for prod and dev (only the
+issuer URL differs).
+
+Non-goals: see "Out of scope" in proposal.md.
+
+## Decisions
+
+### 1. Roles: Entra app roles, not group claims
+
+The API app registration defines app roles; Entra security groups are assigned to those roles on
+the enterprise application. The token's `roles` claim then carries the role values.
+
+Why: the `groups` claim is capped (200 object ids in JWTs); above that Entra drops it and sends
+an overage pointer, which would force Graph calls and a credential for them. App roles are
+bounded, show up identically for users and for client-credentials tokens (the Velocity plugin
+needs the same mechanism), and role names belong to the API rather than to the group naming
+scheme.
+
+Fallback, kept configurable: `blackhole.security.roles.claim` (default `roles`) may be `groups`
+with group object ids as values; an overage token (no claim, `_claim_names` present) gets no
+roles and is rejected with 403 and a log line. Group-to-application assignment may need an
+Entra licence tier beyond free; if unavailable the fallback or direct user assignment is used
+(open question for the Entra admin).
+
+OLF naming scheme: it knows roles `admin`, `edit`, `view`, `ops`, `audit` and `dienst` values
+`k8s`, `vpn`, `cf` only, and excludes app-internal roles. App roles therefore map onto scheme
+roles; nothing in code names a group:
+
+| App role value (default) | Internal role | Scheme role | Suggested group (needs `dienst` `blackhole`) |
+|---|---|---|---|
+| `Blackhole.Admin` | `ADMIN` | `admin` | `sg-blackhole-prod-admin` |
+| `Blackhole.Moderator` | `MODERATOR` | `edit` | `sg-blackhole-prod-edit` |
+| `Blackhole.Viewer` | `VIEWER` | `view` | `sg-blackhole-prod-view` |
+| `Blackhole.Metrics` | `METRICS` | `ops` | machine principal, no group |
+| `Blackhole.Proxy` | `PROXY` | (machine) | machine principal, no group |
+
+`audit` is not used: no endpoint exposes the evidence audit trail. Extending the scheme with
+dienst `blackhole` is a prerequisite for the Entra admin, listed as an open question; until
+then the group names are placeholders. Configuration (comma separated values per internal role,
+each tunable `${ENV:default}` with an explanatory comment): `BLACKHOLE_AUTH_ROLES_CLAIM`,
+`BLACKHOLE_AUTH_ROLE_ADMIN`, `_MODERATOR`, `_VIEWER`, `_METRICS`, `_PROXY`.
+
+Role semantics: a custom `RolesFinder` maps claim values to internal roles. Hierarchy is
+expanded there: `ADMIN` implies `MODERATOR` implies `VIEWER`. `PROXY` and `METRICS` are separate
+and implied by nothing. Human roles are honoured only on tokens that carry `scp` (delegated
+tokens); `PROXY`/`METRICS` only on app-only tokens (no `scp`). A user token cannot act as the
+proxy and a machine token cannot act as a moderator even if mis-assigned.
+
+### 2. Token validation
+
+`micronaut-security-jwt` as resource server, `micronaut.security.authentication: bearer`.
+Signature: remote JWKS `https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys`
+(cached by the library, rotates with Entra). Claims validators: `iss`
+`https://login.microsoftonline.com/{tenant}/v2.0`, `aud` the API's application (client) id,
+`exp` (default). The API registration must set `accessTokenAcceptedVersion: 2` in its manifest,
+otherwise Entra issues v1 tokens with another issuer and `aud`. Tenant id
+(`BLACKHOLE_AUTH_TENANT_ID`), API client id (`BLACKHOLE_AUTH_AUDIENCE`) and, for dev,
+`BLACKHOLE_AUTH_ISSUER` / `BLACKHOLE_AUTH_JWKS_URL` are env-driven. Stateless: no session, no
+cookies, no CSRF surface. No server-side request is made to a caller-supplied URL (issuer and
+JWKS are operator config), so principle 5 is unaffected.
+
+Startup guard: if the issuer is plain `http` or on `localhost` and the active environment is
+neither `dev` nor `test`, the backend refuses to start unless
+`blackhole.security.allow-insecure-issuer=true`. The local-dev defaults in `application.yml`
+point at the mock server, and this stops them from ever being used in production.
+
+There is no switch that turns authentication off.
+
+### 3. Permission matrix
+
+Enforced with `@Secured` constants from a small `Roles` class on controllers (deny by default:
+a route with no rule is rejected). Required role per endpoint group (the lowest role that may
+call; `ADMIN` > `MODERATOR` > `VIEWER`; `PROXY` listed separately):
+
+| Endpoint group | Routes | Minimum human role | Also `PROXY` |
+|---|---|---|---|
+| Read-only | `GET /punishment`, `/punishment/short/{id}`, `/profile`, `/profile/{owner}`, `/elo/{owner}`, `/elo/{owner}/history`, `GET /report`, `GET /appeal`, `GET /section`, `/section/{key}`, `GET /template`, `/template/{id}`, `/dashboard/summary`, `/player/resolve/{name}`, evidence `GET` (list, count, one, content) | `VIEWER` | yes (profile, punishment, section, template, player, evidence list) |
+| Moderation | `POST /punishment/apply`, `/preview`, `/revoke`; `POST /report/{id}/resolve`; `POST /appeal/{id}/review`; `POST /elo/{owner}/adjust`; `POST /evidence`, `/evidence/file`; `POST /profile`, `/profile/update/{owner}` | `MODERATOR` | apply, revoke, evidence upload only |
+| Intake (today called by the proxy) | `POST /report`, `POST /appeal`, `POST /elo/chat`, `POST /evasion/record`, `POST /profile/{owner}/session` | `MODERATOR` | yes (these are the proxy's routes) |
+| Admin configuration | `POST /section`, `/section/update`, `/section/{key}/disable`; `POST /template`, `/template/update`, `DELETE /template/delete/{id}`; `POST /admin/import/vanilla` | `ADMIN` | no |
+| Erasure / destructive | `DELETE /evidence/{id}`, `DELETE /evidence/owner/{owner}`, `DELETE /profile/delete/{owner}`, `POST /admin/staff-actor/{oid}/anonymize` | `ADMIN` | no |
+| Identity | `GET /auth/me` | any authenticated human or machine | yes |
+| Operations | `GET /prometheus` | `METRICS` | no |
+| Public | `GET /health` (status only, no details) | none | n/a |
+
+Evidence reads stay `VIEWER`; showing lifted evidence remains audited server-side, now with a
+real actor. Rate limiting is untouched (infra-owned, plus the existing report limiter).
+
+A JUnit test enumerates every route of the running application (from the router) and
+asserts: every route has a rule; the allowed-role set equals the matrix table in the test;
+`/public/**` is empty. Adding an endpoint without a rule fails the build.
+
+### 4. Public, operational and reserved routes
+
+- `GET /health`: public so orchestrators can probe; details hidden
+  (`endpoints.health.details-visible: NEVER`).
+- `/prometheus`: `endpoints.prometheus.sensitive` becomes true and requires `METRICS`. A
+  scraper uses client credentials with that app role. Operators who prefer may move
+  management endpoints to an internal port; both are supported by config only.
+- Swagger / OpenAPI views: not public. The static-resource mappings are only registered when
+  `blackhole.docs.enabled=true` (default false; true in the dev profile) and then need
+  `VIEWER`. The bypass for anonymous static resources stays off.
+- `/public/**`: reserved for `add-appeal-portal`. No controller may map under it in this
+  change (test). Rule for the future: routes there must declare their own explicit rule
+  (player auth is an in-game one-time code, not Entra) and must not reuse staff roles.
+
+### 5. Verified actor on writes
+
+Source of truth: the validated token. A request-scoped `ActorResolver` (service in a new
+`security` package) turns the `Authentication` into an `Actor(oid, displayName, kind)`; `kind`
+is `HUMAN` (token has `scp`) or `SERVICE`. It upserts `staff_actor` on the first write per
+principal and when the `name` claim differs. Only the claims `oid` and `name` are read;
+`email`, `preferred_username` and `upn` are neither read nor stored (the UI requests the scopes
+`openid profile offline_access` plus the API scope). Logs carry the `oid`, never tokens or
+names at INFO.
+
+Request fields: `source`, `resolvedBy`, `reviewerId`, `punishmentSource`, evidence
+`source`/`createdBy` and the ELO adjustment `source` are removed from the request DTOs and the
+OpenAPI spec. Micronaut Serde ignores unknown properties, so an old client that still sends
+them keeps working functionally but the values are never read; a test asserts a spoofed value
+is ignored. Rejecting would be stricter, but silent ignore keeps the staged rollout (proxy
+updated after backend) simple; the required token is what breaks old clients anyway.
+
+Attribution columns keep their type and meaning ("who is responsible") and are now set by the
+server:
+- Human caller: `oid` (UUID, fits the existing `uuid` columns).
+- `PROXY` caller: optional request field `onBehalfOf` (the in-game staff member's Minecraft
+  UUID); when present it is the attributed UUID, when absent the proxy's own `oid`. The field
+  is rejected (400) for any other role. It is trusted only because the verified machine
+  principal vouches for it.
+- System rows (ELO automation, vanilla import): the existing fixed system UUIDs, unchanged.
+  The import is invoked by an admin, so its `recorded_by_oid` is that admin.
+
+New column `recorded_by_oid uuid NULL` on the punishment, report, appeal, `evidence_items` and
+`evidence_audit` tables always stores the token's `oid` (also for delegated proxy calls); for
+JSON metadata (`revokedBy`, ELO history) the key `recordedByOid`. NULL means "written before
+SSO, unverified" and is shown as such. No backfill: legacy values cannot be verified and are
+not rewritten.
+
+Migration (append-only, rule from config.yaml): `V9__staff_actor_and_recorded_by.sql` (use the
+next free number at apply time; `staff-temp-bans-elo-escalation` may add one first):
+
+```
+staff_actor(oid uuid PK, kind varchar(16) NOT NULL, display_name varchar(256),
+            first_seen_at bigint NOT NULL, last_seen_at bigint NOT NULL)
+ALTER TABLE <each of the five tables> ADD COLUMN recorded_by_oid uuid;
+```
+
+Exact table names are confirmed against `V1`/`V8` at apply time. Existing rows keep their
+actor column and get NULL in the new one. No foreign key from the new columns, so anonymizing
+or pruning `staff_actor` never blocks history.
+
+Self-review: `AppealDecisionService` rejects (403) when the reviewer's `oid` equals the
+punishment's attributed `source` or its `recorded_by_oid`. This is tamper-proof between web
+staff. Known limit: a ban issued in game is attributed to the in-game UUID with the proxy as
+`recorded_by_oid`; the same person reviewing in the web UI is not detected because nothing
+links a Minecraft UUID to an `oid`. Linking is deferred (open question).
+
+Transactions: no `@Transactional` (principle 6); the `staff_actor` upsert is one idempotent
+repository save done before the main write, using the same mechanisms the services already use.
+
+GDPR: staff data is personal data (name, a stable id). Purpose: accountability of moderation
+decisions. Stored: `oid`, `display_name`, timestamps only. Retention: as long as records
+referencing the person exist (punishment history is itself retained). On a leaving or erasure
+request an admin calls `POST /admin/staff-actor/{oid}/anonymize`, which nulls `display_name`
+(the `oid` stays; once the Entra account is deleted it no longer resolves to a person). The
+retention statement is documented in the README; legal review is an open item of the ADR and
+not decided here.
+
+### 6. Velocity machine identity
+
+Separate app registration "Blackhole Velocity" with application permission (app role)
+`Blackhole.Proxy` on the API, admin consented. Plugin `config.json` gains
+`auth: { tenantId, clientId, clientSecret, scope }` with `scope` defaulting to
+`api://<api-client-id>/.default` and a dev-only `tokenUrl` override (pointing at the mock
+server). Environment variables (`BLACKHOLE_TENANT_ID`, `BLACKHOLE_CLIENT_ID`,
+`BLACKHOLE_CLIENT_SECRET`, `BLACKHOLE_AUTH_SCOPE`, `BLACKHOLE_TOKEN_URL`) override file values so
+the secret need not live in the file.
+
+`ClientCredentialsTokenProvider` POSTs `grant_type=client_credentials` to
+`https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token` with the JDK `HttpClient` (no
+MSAL: avoids a heavy shaded dependency in a plugin; only one flow is needed). It caches the
+token until `expires_in` minus a 60 s skew (injected `Clock`), refreshes single-flight, and
+`BlackholeApiClients` installs a request interceptor on the generated `ApiClient`. A 401 forces
+one refresh and one retry. Secret rotation: Entra allows two valid secrets; rotate by adding
+the new secret, changing the plugin config, removing the old one. Certificates are possible
+later without API change. If auth config is incomplete the plugin logs an error at startup and
+backend-bound commands fail with a localized message; Redis-mirror enforcement keeps working.
+
+### 7. Admin UI sign-in
+
+`oidc-client-ts` (current 3.x, version pinned at apply time) `UserManager` with Authorization
+Code + PKCE against `authority = https://login.microsoftonline.com/{tenant}/v2.0`, scopes
+`openid profile offline_access api://<api-client-id>/access_as_user`. The SPA registration
+uses the "Single-page application" platform (PKCE, CORS on the token endpoint).
+
+Token storage: `userStore` is the library's `InMemoryWebStorage`, so access and refresh tokens
+are never in localStorage or sessionStorage. The `stateStore` stays `sessionStorage`: it holds
+only the short-lived `state` and PKCE verifier across the redirect and is cleared by the
+callback. A page reload therefore loses the token; the app immediately redirects to Entra,
+which signs the user in without a prompt while the Entra session lives (top-level redirect
+rather than a hidden iframe, so browsers that block third-party cookies still work). Renewal
+while the page is open: `automaticSilentRenew` uses the in-memory refresh token (SPA refresh
+tokens are rotated and limited to 24 h by Entra; after that the user is redirected again).
+
+HTTP layer (`web/src/api/http.ts`): adds `Authorization: Bearer`, on 401 renews once and
+retries, then signs in again; 403 shows a "not permitted" state, never a retry loop. Logout
+clears the in-memory user and ends the Entra session (`end_session_endpoint`).
+
+Roles in the UI: the UI does not decode tokens. After sign-in it calls `GET /auth/me`
+(`{ oid, displayName, roles }`), keeps it in a store, shows "signed in as", and hides or
+disables actions the role cannot perform (sections/templates/import for non-admins, delete
+evidence, moderation actions for viewers). The backend remains authoritative.
+
+`/config.json` is rewritten at container start: `BLACKHOLE_UI_OIDC_AUTHORITY`,
+`BLACKHOLE_UI_OIDC_CLIENT_ID`, `BLACKHOLE_UI_API_SCOPE` replace `BLACKHOLE_UI_SOURCE` and
+`BLACKHOLE_UI_REVIEWER` (validated by the same strict patterns in `40-config-json.sh`). The
+"Acting as" label is removed (the verified name replaces it). The nginx CSP / `connect-src`
+must allow the authority origin.
+
+### 8. Local development and tests
+
+One code path: only issuer and JWKS URL differ.
+
+- Dev: `docker/docker-compose.yml` gains `ghcr.io/navikt/mock-oauth2-server` (pinned tag) with
+  `docker/mock-oauth/config.json`: interactive login for three users (admin, moderator,
+  viewer) with `oid`, `name`, `roles`, `scp`, and a client-credentials token callback giving
+  `Blackhole.Proxy` / `Blackhole.Metrics` without `scp`. Dev defaults in `application.yml` and
+  the UI/plugin examples point at it.
+- Tests: `TestJwtIssuer` (test source set) generates an RSA key pair per test class, signs JWTs
+  with Nimbus (already on the classpath through Micronaut Security), and a `test`-environment
+  bean provides the matching signature configuration instead of a JWKS URL, so no HTTP server
+  and no network. Time is the injected `Clock`. Tests cover: valid, expired, wrong issuer,
+  wrong audience, bad signature, `alg=none`, missing token; role mapping and the app-only vs
+  delegated rule; the route matrix; spoofed actor fields. Velocity token provider tests use a
+  fake HTTP transport and a fixed `Clock`; web tests use a fake `UserManager`.
+- Manual check against a real tenant is a documented how-to (task 6.1).
+
+### 9. Rollout and compatibility
+
+This is one breaking release delivered as a stack of PRs. Merge the stack back-to-back with no
+release in between; release-please only cuts a release from the later release PR, so `main` is
+briefly inconsistent but never released that way. Operators migrate in this order: register
+Entra apps and roles; deploy backend with the new env vars; deploy plugin with credentials;
+deploy UI with OIDC settings. Between backend and plugin/UI the system is unavailable to those
+clients, so do it in one window. The OpenAPI client spec moves to the next version file; the
+generated client and the `web/` `generate:api` follow it. `X-API-VERSION` stays `1`: the
+contract is not versioned side by side because every caller must be updated anyway.
+
+## Risks / Trade-offs
+
+- Entra outage blocks new sign-ins; running sessions and cached machine tokens work until they
+  expire. No break-glass path (open question).
+- Role removal in Entra takes effect only when the access token expires (typically 60-90 min).
+  Acceptable; a shorter lifetime is an Entra policy choice.
+- Dropping `source` from requests loses attribution of system-to-system calls by UUID;
+  replaced by `onBehalfOf` for the proxy only.
+- In-game staff and Entra identities are not linked, so self-review is enforced within one
+  identity domain (see Decision 5).
+- Ignoring (not rejecting) legacy fields can hide a misconfigured old client; mitigated by the
+  token requirement making such a client fail first.
+
+## Open Questions
+
+1. Extend the OLF Entra naming scheme with dienst `blackhole`; confirm group names and that
+   `moderator` maps to `edit`.
+2. Entra licence tier: can security groups be assigned to the enterprise application's app
+   roles, or is direct user assignment / the `groups` fallback needed?
+3. Break-glass access when Entra is unavailable: wanted or not?
+4. Link in-game staff UUIDs to Entra `oid` (for complete self-review)? Separate change.
+5. Should `DELETE /profile/delete/{owner}` and the vanilla import be `ADMIN` only (assumed) or
+   open to `MODERATOR`?
+6. Legal confirmation of the staff-data retention statement (ADR-BLKH-0002 consequence).
