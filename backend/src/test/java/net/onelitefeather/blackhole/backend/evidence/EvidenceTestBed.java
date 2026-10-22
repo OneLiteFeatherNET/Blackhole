@@ -54,13 +54,19 @@ public final class EvidenceTestBed {
                     .finder("findByOwnerAndCorrelationIdAndPunishmentIdentifierIsNull", args -> this.items.all().stream()
                             .filter(item -> args[0].equals(item.getOwner()) && args[1].equals(item.getCorrelationId()) && item.isPending())
                             .toList())
+                    .finder("findByPunishmentIdentifierIsNullAndCreatedAtLessThan", args -> this.items.all().stream()
+                            .filter(item -> item.isPending() && item.getCreatedAt() < (long) args[0]).toList())
+                    .finder("existsByFileKey", args -> this.items.all().stream().anyMatch(item -> args[0].equals(item.getFileKey())))
                     .build();
     public final InMemoryRepository<EvidenceAuditRepository, EvidenceAuditEntity, UUID> audit =
-            InMemoryRepository.<EvidenceAuditRepository, EvidenceAuditEntity, UUID>of(EvidenceAuditRepository.class, EvidenceAuditEntity::getIdentifier).build();
+            InMemoryRepository.<EvidenceAuditRepository, EvidenceAuditEntity, UUID>of(EvidenceAuditRepository.class, EvidenceAuditEntity::getIdentifier)
+                    .finder("findByOccurredAtLessThan", args -> this.audit.all().stream().filter(entry -> entry.getOccurredAt() < (long) args[0]).toList())
+                    .build();
     public final RecordingEventPublisher events = new RecordingEventPublisher();
     public final EvidenceConfig config = new EvidenceConfig();
     public final FakeScanner scanner = new FakeScanner();
     public final EvidenceService service;
+    public final EvidenceHousekeepingSweeper sweeper;
 
     /** A scanner a test controls. */
     public static final class FakeScanner implements EvidenceScanner {
@@ -82,6 +88,7 @@ public final class EvidenceTestBed {
         this.service = new EvidenceService(
                 items.repository(), audit.repository(), punishments.repository(), new PayloadValidator(config),
                 new UploadPipeline(config, scanner), blobs, publisher == null ? events : publisher, clock, spoolDirectory);
+        this.sweeper = new EvidenceHousekeepingSweeper(service, items.repository(), audit.repository(), blobs, config, clock);
     }
 
     private Page<EvidenceItemEntity> page(Predicate<EvidenceItemEntity> filter, Pageable pageable) {

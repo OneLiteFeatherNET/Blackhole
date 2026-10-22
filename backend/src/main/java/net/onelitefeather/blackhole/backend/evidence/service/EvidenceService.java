@@ -411,6 +411,35 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         return found.size();
     }
 
+    /**
+     * Deletes the pending items created before the cutoff that no punishment claimed, with their
+     * files (reason {@code UNCLAIMED_EXPIRED}). Evidence that belongs to a punishment is never
+     * deleted here, however old. An item whose file cannot be deleted stays for the next sweep.
+     *
+     * @return how many items were deleted
+     */
+    public int deleteUnclaimedCreatedBefore(long cutoff) {
+        int deleted = 0;
+        for (EvidenceItemEntity item : this.items.findByPunishmentIdentifierIsNullAndCreatedAtLessThan(cutoff)) {
+            if (!item.isPending()) {
+                continue;
+            }
+            if (item.getFileKey() != null) {
+                try {
+                    this.blobs.delete(item.getFileKey());
+                } catch (IOException e) {
+                    LOGGER.warn("Deleting the file of expired evidence {} failed, retrying at the next sweep", item.getIdentifier(), e);
+                    continue;
+                }
+            }
+            this.items.delete(item);
+            record(item, EvidenceAuditAction.DELETED, null, EvidenceDeletionReason.UNCLAIMED_EXPIRED.name(), null);
+            publish(EvidenceEvents.DELETED, EvidenceEvents.deleted(item, EvidenceDeletionReason.UNCLAIMED_EXPIRED));
+            deleted++;
+        }
+        return deleted;
+    }
+
     private int changeStatus(String punishmentIdentifier, EvidenceStatus status, UUID liftedByAppeal) {
         int changed = 0;
         for (EvidenceItemEntity item : this.items.findByPunishmentIdentifier(punishmentIdentifier)) {
