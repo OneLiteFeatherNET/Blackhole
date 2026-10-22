@@ -7,6 +7,7 @@ import net.onelitefeather.blackhole.client.model.EnforcementKind;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.velocity.component.PunishmentMessages;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
+import net.onelitefeather.blackhole.velocity.evidence.ChatEvidence;
 import net.onelitefeather.blackhole.velocity.enforcement.ProfileAdapter;
 import net.onelitefeather.blackhole.velocity.punish.PunishService;
 import net.onelitefeather.blackhole.velocity.punish.TargetResolver.ResolvedTarget;
@@ -113,6 +114,17 @@ public final class PunishCommand {
         }
     }
 
+    private void evidenceFeedback(Player sender, ChatEvidence.Result evidence) {
+        switch (evidence.status()) {
+            case ATTACHED -> sender.sendMessage(Component.translatable("punishment.evidence.attached")
+                    .arguments(Component.text(evidence.lines())));
+            case FAILED -> sender.sendMessage(Component.translatable("punishment.evidence.failed"));
+            case NONE -> {
+                // capture is off or there was nothing buffered: staff need no extra line
+            }
+        }
+    }
+
     private void applied(Player sender, ResolvedTarget target, PunishService.ApplyOutcome.Applied applied) {
         PunishmentApplyResponse response = applied.response();
         String section = applied.section().key();
@@ -128,5 +140,6 @@ public final class PunishCommand {
             target.onlinePlayer().sendMessage(Component.translatable("punishment.info.muted"));
         }
         sender.sendMessage(PunishmentMessages.applied(target.name(), applied.section(), response, punished, this.clock.millis()));
+        evidenceFeedback(sender, applied.evidence());
     }
 }

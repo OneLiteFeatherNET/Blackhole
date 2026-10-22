@@ -6,10 +6,12 @@ import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentRevokeResponse;
+import net.onelitefeather.blackhole.velocity.evidence.ChatSnapshot;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The backend calls the staff commands need, in the proxy's terms. The commands and
@@ -24,8 +26,16 @@ public interface BackendGateway {
 
     /**
      * Applies the template with the given key to the owner.
+     *
+     * @param evidenceCorrelationId the key chat evidence was posted under ahead of the punishment, or null
      */
-    PunishmentApplyResponse apply(String owner, String templateKey, UUID source) throws ApiException;
+    PunishmentApplyResponse apply(String owner, String templateKey, UUID source, String evidenceCorrelationId) throws ApiException;
+
+    /**
+     * Posts the chat snapshot as {@code CHAT_LOG} evidence that precedes its punishment, to be claimed
+     * by the punishment that carries the same correlation id. Asynchronous: the caller bounds the wait.
+     */
+    CompletableFuture<Void> postChatEvidence(String owner, String correlationId, ChatSnapshot snapshot, String sourceSystem, UUID source);
 
     /**
      * Revokes the owner's active punishment in the section.

@@ -20,7 +20,10 @@ import net.onelitefeather.blackhole.velocity.command.TargetParser;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.config.BlackholeApiClients;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
+import net.onelitefeather.blackhole.velocity.config.ChatCaptureConfig;
 import net.onelitefeather.blackhole.velocity.evidence.ChatBuffer;
+import net.onelitefeather.blackhole.velocity.evidence.ChatEvidence;
+import net.onelitefeather.blackhole.velocity.evidence.ChatSnapshotBuilder;
 import net.onelitefeather.blackhole.velocity.listener.ChatCaptureListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerChatListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerClientBrandListener;
@@ -96,13 +99,15 @@ public class BlackholeVelocity {
         this.redisSyncService = new RedisSyncService(this.config);
         SectionRegistry sections = new SectionRegistry(new BackendSectionSource(this.redisSyncService, this.client));
         PunishmentMirror mirror = new PunishmentMirror();
-        BackendGateway backend = new HttpBackendGateway(this.client, this.redisSyncService);
+        BackendGateway backend = new HttpBackendGateway(this.client, this.redisSyncService, clock);
         PunishmentState state = new PunishmentState(sections, mirror, this.redisSyncService, owner -> backend.profile(owner), clock);
         PunishmentScreens screens = new PunishmentScreens(clock, this.config, sections, GlobalTranslator.renderer());
         EnforcementActions actions = new EnforcementActions(this.server, sections, state, this.config, clock, screens);
         PunishmentSyncHandler syncHandler = new PunishmentSyncHandler(mirror, actions);
-        PunishService punishService = new PunishService(backend, sections);
-        ChatBuffer chatBuffer = new ChatBuffer(clock, this.config.getEvidence().getChatCapture());
+        ChatCaptureConfig chatCapture = this.config.getEvidence().getChatCapture();
+        ChatBuffer chatBuffer = new ChatBuffer(clock, chatCapture);
+        ChatEvidence chatEvidence = ChatEvidence.create(new ChatSnapshotBuilder(chatBuffer, chatCapture), backend, chatCapture);
+        PunishService punishService = new PunishService(backend, sections, chatEvidence);
 
         this.redisSyncService.onPunishmentSync(syncHandler::accept);
         // The reload calls the backend, so it must not run on the Redis callback thread.
