@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createBlackholeApi } from './blackhole'
-import { loadConfig, NIL_UUID } from './config'
+import { DEFAULT_EVIDENCE_LIMITS, loadConfig, NIL_UUID } from './config'
 import { fakeFetch } from '../test/fakeFetch'
 
 const SOURCE = '11111111-2222-3333-4444-555555555555'
@@ -62,37 +62,51 @@ describe('loadConfig', () => {
   it('reads the operator UUID from config.json', async () => {
     const { impl } = fakeFetch([{ body: { source: SOURCE } }])
 
-    expect(await loadConfig(impl)).toEqual({ source: SOURCE, reviewer: SOURCE })
+    expect(await loadConfig(impl)).toEqual({ source: SOURCE, reviewer: SOURCE, evidence: DEFAULT_EVIDENCE_LIMITS })
   })
 
   it('reads a separate reviewer UUID when one is configured', async () => {
     const reviewer = '99999999-8888-7777-6666-555555555555'
     const { impl } = fakeFetch([{ body: { source: SOURCE, reviewer } }])
 
-    expect(await loadConfig(impl)).toEqual({ source: SOURCE, reviewer })
+    expect(await loadConfig(impl)).toEqual({ source: SOURCE, reviewer, evidence: DEFAULT_EVIDENCE_LIMITS })
   })
 
   it('ignores an invalid reviewer and keeps the source', async () => {
     const { impl } = fakeFetch([{ body: { source: SOURCE, reviewer: 'nope' } }])
 
-    expect(await loadConfig(impl)).toEqual({ source: SOURCE, reviewer: SOURCE })
+    expect(await loadConfig(impl)).toEqual({ source: SOURCE, reviewer: SOURCE, evidence: DEFAULT_EVIDENCE_LIMITS })
   })
 
   it('falls back to the nil UUID when config.json is missing', async () => {
     const { impl } = fakeFetch([{ status: 404 }])
 
-    expect(await loadConfig(impl)).toEqual({ source: NIL_UUID, reviewer: NIL_UUID })
+    expect(await loadConfig(impl)).toEqual({ source: NIL_UUID, reviewer: NIL_UUID, evidence: DEFAULT_EVIDENCE_LIMITS })
   })
 
   it('falls back when config.json holds an invalid UUID', async () => {
     const { impl } = fakeFetch([{ body: { source: 'not-a-uuid' } }])
 
-    expect(await loadConfig(impl)).toEqual({ source: NIL_UUID, reviewer: NIL_UUID })
+    expect(await loadConfig(impl)).toEqual({ source: NIL_UUID, reviewer: NIL_UUID, evidence: DEFAULT_EVIDENCE_LIMITS })
   })
 
   it('falls back when the request fails', async () => {
     const { impl } = fakeFetch([new TypeError('offline')])
 
-    expect(await loadConfig(impl)).toEqual({ source: NIL_UUID, reviewer: NIL_UUID })
+    expect(await loadConfig(impl)).toEqual({ source: NIL_UUID, reviewer: NIL_UUID, evidence: DEFAULT_EVIDENCE_LIMITS })
+  })
+
+  it('reads the evidence upload limits from config.json', async () => {
+    const evidence = { maxImageBytes: 1000, maxVideoBytes: 2000, allowedTypes: ['image/png'] }
+    const { impl } = fakeFetch([{ body: { source: SOURCE, evidence } }])
+
+    expect((await loadConfig(impl)).evidence).toEqual(evidence)
+  })
+
+  it('falls back to the backend default for each invalid evidence limit', async () => {
+    const evidence = { maxImageBytes: -5, maxVideoBytes: 2000, allowedTypes: [] }
+    const { impl } = fakeFetch([{ body: { source: SOURCE, evidence } }])
+
+    expect((await loadConfig(impl)).evidence).toEqual({ ...DEFAULT_EVIDENCE_LIMITS, maxVideoBytes: 2000 })
   })
 })

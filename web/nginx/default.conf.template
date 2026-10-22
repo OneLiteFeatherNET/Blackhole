@@ -41,6 +41,22 @@ server {
         return 200 "ok\n";
     }
 
+    # Evidence uploads (videos up to blackhole.evidence.files.max-video-bytes, 100 MiB by default) are
+    # larger than nginx's 1 MB default body limit. The backend enforces the real limits.
+    location = /api/evidence/file {
+        client_max_body_size 128m;
+        proxy_request_buffering off;
+        proxy_pass ${BLACKHOLE_BACKEND_URL}/evidence/file;
+        proxy_http_version 1.1;
+        proxy_set_header Host $proxy_host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+        proxy_send_timeout 120s;
+        add_header Cache-Control "no-store" always;
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
     # The trailing slash on proxy_pass strips the /api prefix: /api/player/resolve/Steve reaches
     # the backend as /player/resolve/Steve.
     location /api/ {

@@ -58,4 +58,34 @@ describe.skipIf(process.platform === 'win32')('40-config-json.sh', () => {
     expect(result.status).not.toBe(0)
     expect(result.stderr).toContain('BLACKHOLE_UI_REVIEWER must be a UUID')
   })
+
+  it('writes the evidence upload limits when they are set', () => {
+    const result = run({
+      BLACKHOLE_UI_SOURCE: SOURCE,
+      BLACKHOLE_UI_EVIDENCE_MAX_IMAGE_BYTES: '2048',
+      BLACKHOLE_UI_EVIDENCE_MAX_VIDEO_BYTES: '4096',
+      BLACKHOLE_UI_EVIDENCE_ALLOWED_TYPES: 'image/png,video/mp4',
+    })
+
+    expect(result.status, result.stderr).toBe(0)
+    expect(JSON.parse(readFileSync(result.file, 'utf8')).evidence).toEqual({
+      maxImageBytes: 2048,
+      maxVideoBytes: 4096,
+      allowedTypes: ['image/png', 'video/mp4'],
+    })
+  })
+
+  it('refuses an evidence limit that is not a number, so nothing can be injected into the JSON', () => {
+    const result = run({ BLACKHOLE_UI_SOURCE: SOURCE, BLACKHOLE_UI_EVIDENCE_MAX_IMAGE_BYTES: '1,"x":"y' })
+
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain('BLACKHOLE_UI_EVIDENCE_MAX_IMAGE_BYTES must be a positive number')
+  })
+
+  it('refuses allowed types that are not MIME types', () => {
+    const result = run({ BLACKHOLE_UI_SOURCE: SOURCE, BLACKHOLE_UI_EVIDENCE_ALLOWED_TYPES: 'image/png","x":"y' })
+
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain('BLACKHOLE_UI_EVIDENCE_ALLOWED_TYPES must be comma separated MIME types')
+  })
 })

@@ -8,6 +8,8 @@ export type ReportStatus = Schemas['ReportStatus']
 export type ReportCategory = Schemas['ReportCategory']
 export type AppealStatus = Schemas['AppealStatus']
 export type EloReasonCode = Schemas['EloReasonCode']
+export type EvidenceKind = Schemas['EvidenceKind']
+export type EvidenceStatus = Schemas['EvidenceStatus']
 
 export type DashboardSummary = Schemas['DashboardSummaryResponse']
 export type ResolvedPlayer = Schemas['PlayerResolveResponse']
@@ -23,6 +25,11 @@ export type TemplateStep = Schemas['PunishTemplateStep']
 export type Section = Schemas['SectionResponse']
 export type Report = Schemas['ReportDTO']
 export type Appeal = Schemas['AppealDTO']
+export type Evidence = Schemas['EvidenceResponse']
+export type EvidencePage = Schemas['EvidencePage']
+
+/** Why staff delete an evidence item; the backend records it in the audit trail. */
+export type EvidenceDeleteReason = 'ERASURE_REQUEST' | 'WRONG_EVIDENCE' | 'OTHER'
 
 /** The player's punishments as the profile endpoint returns them (empty collections are omitted). */
 export interface PunishmentProfile {
