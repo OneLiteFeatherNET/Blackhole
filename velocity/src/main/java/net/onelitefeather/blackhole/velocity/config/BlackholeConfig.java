@@ -51,6 +51,12 @@ public class BlackholeConfig {
     private String timeZone;
 
     /**
+     * Evidence the proxy can attach to punishments. Absent in configs written before this setting
+     * existed, which {@link #getEvidence()} treats as everything off.
+     */
+    private EvidenceConfig evidence;
+
+    /**
      * Creates a new configuration with default values.
      */
     public BlackholeConfig() {
@@ -60,6 +66,14 @@ public class BlackholeConfig {
         this.appealUrl = "";
         this.appealText = "";
         this.timeZone = ZoneId.systemDefault().getId();
+        this.evidence = new EvidenceConfig();
+    }
+
+    /**
+     * @return the evidence settings; everything off for configs written before they existed
+     */
+    public @NotNull EvidenceConfig getEvidence() {
+        return evidence == null ? new EvidenceConfig() : evidence;
     }
 
     /**

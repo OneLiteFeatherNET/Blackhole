@@ -5,9 +5,9 @@ F.I.R.S.T.: inject `java.time.Clock` into the buffer, no sleeps, no real network
 
 ## 1. Chat buffer
 
-- [ ] 1.1 Add plugin config `evidence.chat-capture.*` (default disabled) with inline comments; verify a unit test that defaults leave capture off and invalid values fall back or fail clearly
-- [ ] 1.2 `ChatBuffer` (per owner hash, bounded by lines and age, `Clock`-driven, clear on disconnect); verify unit tests for bound, age eviction with a fixed clock, disconnect clear and that disabled mode stores nothing
-- [ ] 1.3 Chat listener feeds the buffer (public chat only, never commands, O(1) on the event thread); verify unit tests with fake events that commands are skipped
+- [x] 1.1 Add plugin config `evidence.chat-capture.*` (default disabled) with inline comments; verify a unit test that defaults leave capture off and invalid values fall back or fail clearly
+- [x] 1.2 `ChatBuffer` (per owner hash, bounded by lines and age, `Clock`-driven, clear on disconnect); verify unit tests for bound, age eviction with a fixed clock, disconnect clear and that disabled mode stores nothing
+- [x] 1.3 Chat listener feeds the buffer (public chat only, never commands, O(1) on the event thread); verify unit tests with fake events that commands are skipped
 
 ## 2. Attaching evidence
 
