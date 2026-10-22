@@ -9,6 +9,7 @@ import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
 import net.onelitefeather.blackhole.velocity.evidence.ChatBuffer;
+import net.onelitefeather.blackhole.velocity.evidence.EvidenceCounts;
 import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
 import net.onelitefeather.blackhole.velocity.punish.PunishService;
 import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
@@ -34,6 +35,7 @@ import java.time.Clock;
  * @param clock       the time source
  * @param screens     builds the texts punished players see
  * @param chatBuffer  the optional buffer of recent public chat
+ * @param evidenceCounts the evidence count shown on denial screens
  */
 public record BlackholeClientModule(
         @NotNull ApiClient apiClient,
@@ -48,7 +50,8 @@ public record BlackholeClientModule(
         @NotNull PunishService service,
         @NotNull Clock clock,
         @NotNull PunishmentScreens screens,
-        @NotNull ChatBuffer chatBuffer
+        @NotNull ChatBuffer chatBuffer,
+        @NotNull EvidenceCounts evidenceCounts
 ) {
 
     /**
@@ -71,6 +74,7 @@ public record BlackholeClientModule(
                 bind(Clock.class).toInstance(clock);
                 bind(PunishmentScreens.class).toInstance(screens);
                 bind(ChatBuffer.class).toInstance(chatBuffer);
+                bind(EvidenceCounts.class).toInstance(evidenceCounts);
             }
         };
     }

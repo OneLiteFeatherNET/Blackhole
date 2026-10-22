@@ -81,6 +81,17 @@ public final class HttpBackendGateway implements BackendGateway {
     }
 
     @Override
+    public CompletableFuture<Long> countEvidence(String punishment) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return this.evidenceApi.countPunishmentEvidence(punishment).getCount();
+            } catch (ApiException e) {
+                throw new CompletionException(e);
+            }
+        });
+    }
+
+    @Override
     public PunishmentRevokeResponse revoke(String owner, String section, UUID source) throws ApiException {
         return this.punishmentApi.revokePunishment(new PunishmentRevokeRequest().owner(owner).section(section).source(source));
     }

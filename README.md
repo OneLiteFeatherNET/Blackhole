@@ -200,6 +200,64 @@ should:
 Evidence refers to players only by hash or per-evidence alias; raw UUIDs and IP addresses in payloads
 are rejected, and IP addresses in chat text are redacted.
 
+### Chat capture on the proxy (optional)
+
+The Velocity plugin can attach the punished player's recent chat as `CHAT_LOG` evidence, so staff do
+not have to screenshot. **It is off by default.** Enable it in the plugin's `config.json`:
+
+```json
+{
+  "evidence": {
+    "chatCapture": {
+      "enabled": true,
+      "lines": 20,
+      "contextLines": 5,
+      "maxAge": "PT10M",
+      "sourceSystem": "velocity",
+      "timeout": "PT2S"
+    }
+  }
+}
+```
+
+| Key            | Default    | Meaning                                                                                              |
+|----------------|------------|-------------------------------------------------------------------------------------------------------|
+| `enabled`      | `false`    | Buffer public chat at all. Off: nothing is stored, the listener is not even registered.               |
+| `lines`        | `20`       | Public chat lines kept per player, 1 to 50.                                                           |
+| `contextLines` | `5`        | Lines of other players that preceded the punished player's lines, 0 to 50; `0` switches the third-party context off. |
+| `maxAge`       | `PT10M`    | How long a line stays buffered (ISO-8601 duration).                                                   |
+| `sourceSystem` | `velocity` | The `sourceSystem` of the evidence.                                                                   |
+| `timeout`      | `PT2S`     | How long the proxy waits for the backend (uploading evidence, reading the evidence count).            |
+
+A missing or invalid value falls back to its default. How it works:
+
+- The buffer lives in the proxy's memory only: it is never written to disk or logged, is lost on
+  restart and is dropped when the player disconnects. Commands and messages that were not delivered
+  (a muted player's) are never buffered.
+- On `/ban`, `/mute` or `/punish` the proxy takes the target's lines and up to `contextLines`
+  preceding lines of other players on the same server. Every speaker, the target included, is
+  replaced by an alias (`Spieler A`, `Spieler B`, ...) assigned in order of first appearance within
+  that one evidence item, so aliases cannot be matched across items; names, UUIDs and hashes never
+  leave the proxy in the lines. URLs, IP addresses and UUIDs in the text are replaced by `[url]`,
+  `[ip]` and `[uuid]`, and a line is cut at 256 characters. Names that players type into their text
+  cannot be recognised and are kept.
+- The evidence is uploaded first, under a fresh `correlationId`, and the punishment then claims it
+  with `evidenceCorrelationId`. If the upload fails or exceeds `timeout`, the punishment is applied
+  anyway and the staff member is warned; evidence of a punishment that then failed expires on the
+  backend (`pending-ttl`).
+- A punished player sees how many pieces of evidence exist on the login and chat denial screens
+  ("Beweise: 3" / "Evidence: 3"), never their content. The count is read from
+  `GET /punishment/{reference}/evidence/count`, cached for 30 seconds (also when it failed) and left
+  out if the call fails or times out. This works for evidence from any source, whether or not chat
+  capture is enabled.
+
+**GDPR.** Enabling capture means the proxy temporarily processes everyone's public chat, including
+third parties' lines used as context. Before enabling it you should: rely on a lawful basis (typically
+legitimate interest, Art. 6(1)(f), with a documented balancing test; the plugin does not make that
+decision for you), mention chat capture for moderation and its short RAM-only buffering in your
+privacy notice and records of processing (Art. 30), and decide whether the third-party context is
+needed (`contextLines: 0` switches it off). Evidence created from it follows the retention rules above.
+
 ## Local development
 
 A `docker-compose.yml` under `docker/` provides PostgreSQL, RabbitMQ and Dragonfly (Redis protocol,

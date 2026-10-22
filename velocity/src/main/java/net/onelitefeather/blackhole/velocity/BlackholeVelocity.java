@@ -21,9 +21,11 @@ import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.config.BlackholeApiClients;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.config.ChatCaptureConfig;
+import net.onelitefeather.blackhole.velocity.evidence.CachedEvidenceCounts;
 import net.onelitefeather.blackhole.velocity.evidence.ChatBuffer;
 import net.onelitefeather.blackhole.velocity.evidence.ChatEvidence;
 import net.onelitefeather.blackhole.velocity.evidence.ChatSnapshotBuilder;
+import net.onelitefeather.blackhole.velocity.evidence.EvidenceCounts;
 import net.onelitefeather.blackhole.velocity.listener.ChatCaptureListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerChatListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerClientBrandListener;
@@ -107,6 +109,7 @@ public class BlackholeVelocity {
         ChatCaptureConfig chatCapture = this.config.getEvidence().getChatCapture();
         ChatBuffer chatBuffer = new ChatBuffer(clock, chatCapture);
         ChatEvidence chatEvidence = ChatEvidence.create(new ChatSnapshotBuilder(chatBuffer, chatCapture), backend, chatCapture);
+        EvidenceCounts evidenceCounts = new CachedEvidenceCounts(backend, clock, chatCapture.getTimeout());
         PunishService punishService = new PunishService(backend, sections, chatEvidence);
 
         this.redisSyncService.onPunishmentSync(syncHandler::accept);
@@ -117,7 +120,7 @@ public class BlackholeVelocity {
 
         Injector childInjector = this.injector.createChildInjector(
                 new BlackholeClientModule(this.client, this.config, this.redisSyncService, sections, mirror, state,
-                        syncHandler, actions, backend, punishService, clock, screens, chatBuffer).asModule(),
+                        syncHandler, actions, backend, punishService, clock, screens, chatBuffer, evidenceCounts).asModule(),
                 new CloudInjectionModule<>(
                         CommandSource.class,
                         ExecutionCoordinator.simpleCoordinator(),
