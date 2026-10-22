@@ -57,7 +57,7 @@ dependencyResolutionManagement {
             version("logstash-logback-encoder", "9.0")
             version("opentelemetry-instrumentation-alpha", "2.20.1-alpha")
             version("janino", "3.1.12")
-            version("awssdk", "2.57.0")
+            version("awssdk", "2.57.1")
 
             library("jetbrains.annotations", "org.jetbrains", "annotations").versionRef("jetbrains.annotations")
 
