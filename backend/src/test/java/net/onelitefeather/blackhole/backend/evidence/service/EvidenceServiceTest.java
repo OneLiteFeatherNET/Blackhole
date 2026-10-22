@@ -178,7 +178,7 @@ class EvidenceServiceTest {
         }
 
         EvidenceDTO.PageResponse page = assertInstanceOf(EvidenceDTO.PageResponse.class,
-                this.bed.service.list(punishment.getIdentifier(), false, Pageable.from(0, 20)));
+                this.bed.service.list(punishment.getIdentifier(), false, Pageable.from(0, 20), STAFF));
 
         assertEquals(3, page.items().size());
         assertEquals(3, page.totalSize());
@@ -193,7 +193,7 @@ class EvidenceServiceTest {
         }
 
         EvidenceDTO.PageResponse page = assertInstanceOf(EvidenceDTO.PageResponse.class,
-                this.bed.service.list(punishment.getIdentifier(), false, Pageable.from(1, 2)));
+                this.bed.service.list(punishment.getIdentifier(), false, Pageable.from(1, 2), STAFF));
 
         assertEquals(1, page.items().size(), "the second page of two holds the third item");
         assertEquals(2, page.totalPages());
@@ -214,7 +214,7 @@ class EvidenceServiceTest {
         givenInactive(punishment, EvidenceStatus.REVOKED);
 
         EvidenceDTO.PageResponse page = assertInstanceOf(EvidenceDTO.PageResponse.class,
-                this.bed.service.list(punishment.getIdentifier(), false, Pageable.from(0, 20)));
+                this.bed.service.list(punishment.getIdentifier(), false, Pageable.from(0, 20), STAFF));
 
         assertEquals(1, page.items().size());
         assertEquals(EvidenceStatus.VALID, page.items().getFirst().status());
@@ -226,7 +226,7 @@ class EvidenceServiceTest {
         givenInactive(punishment, EvidenceStatus.LIFTED);
 
         EvidenceDTO.PageResponse page = assertInstanceOf(EvidenceDTO.PageResponse.class,
-                this.bed.service.list(punishment.getIdentifier(), true, Pageable.from(0, 20)));
+                this.bed.service.list(punishment.getIdentifier(), true, Pageable.from(0, 20), STAFF));
 
         assertEquals(1, page.items().size());
         assertEquals(EvidenceStatus.LIFTED, page.items().getFirst().status());
@@ -253,7 +253,7 @@ class EvidenceServiceTest {
 
     @Test
     void listingByOwnerRequiresAHash() {
-        assertError(this.bed.service.listByOwner("name", false, Pageable.from(0, 20)), EvidenceErrorKind.VALIDATION);
+        assertError(this.bed.service.listByOwner("name", false, Pageable.from(0, 20), STAFF), EvidenceErrorKind.VALIDATION);
     }
 
     @Test
@@ -262,7 +262,7 @@ class EvidenceServiceTest {
         attached(this.bed.service.attach(link(null, OTHER_OWNER, "c1")));
 
         EvidenceDTO.PageResponse page = assertInstanceOf(EvidenceDTO.PageResponse.class,
-                this.bed.service.listByOwner(OWNER, false, Pageable.from(0, 20)));
+                this.bed.service.listByOwner(OWNER, false, Pageable.from(0, 20), STAFF));
 
         assertEquals(1, page.items().size());
         assertEquals(OWNER, page.items().getFirst().owner());
@@ -270,7 +270,7 @@ class EvidenceServiceTest {
 
     @Test
     void anUnknownEvidenceIdIsNotFound() {
-        assertError(this.bed.service.get(UUID.randomUUID()), EvidenceErrorKind.NOT_FOUND);
+        assertError(this.bed.service.get(UUID.randomUUID(), STAFF), EvidenceErrorKind.NOT_FOUND);
     }
 
     @Test
@@ -449,7 +449,7 @@ class EvidenceServiceTest {
     void contentIsServedWhole() throws IOException {
         EvidenceDTO.Response response = attached(upload(OWNER, "c1", EvidenceFixtures.png(8, 8)));
 
-        EvidenceDTO.Download download = assertInstanceOf(EvidenceDTO.Download.class, this.bed.service.content(response.identifier(), null));
+        EvidenceDTO.Download download = assertInstanceOf(EvidenceDTO.Download.class, this.bed.service.content(response.identifier(), null, STAFF));
 
         assertEquals(response.file().size(), download.length());
         assertEquals(false, download.partial());
@@ -463,7 +463,7 @@ class EvidenceServiceTest {
         String key = this.bed.blobs.keys().iterator().next();
         byte[] stored = this.bed.blobs.bytes(key);
 
-        EvidenceDTO.Download download = assertInstanceOf(EvidenceDTO.Download.class, this.bed.service.content(response.identifier(), "bytes=2-5"));
+        EvidenceDTO.Download download = assertInstanceOf(EvidenceDTO.Download.class, this.bed.service.content(response.identifier(), "bytes=2-5", STAFF));
 
         assertEquals(true, download.partial());
         assertEquals(4, download.length());
@@ -478,7 +478,7 @@ class EvidenceServiceTest {
         EvidenceDTO.Response response = attached(upload(OWNER, "c1", EvidenceFixtures.png(8, 8)));
 
         EvidenceDTO.OutOfRange outOfRange = assertInstanceOf(EvidenceDTO.OutOfRange.class,
-                this.bed.service.content(response.identifier(), "bytes=999999-"));
+                this.bed.service.content(response.identifier(), "bytes=999999-", STAFF));
 
         assertEquals(response.file().size(), outOfRange.size());
     }
@@ -487,7 +487,7 @@ class EvidenceServiceTest {
     void contentOfAnItemWithoutAFileIsNotFound() {
         EvidenceDTO.Response response = attached(this.bed.service.attach(link(null, OWNER, "c1")));
 
-        assertError(this.bed.service.content(response.identifier(), null), EvidenceErrorKind.NOT_FOUND);
+        assertError(this.bed.service.content(response.identifier(), null, STAFF), EvidenceErrorKind.NOT_FOUND);
     }
 
     @Test
@@ -495,7 +495,7 @@ class EvidenceServiceTest {
         EvidenceDTO.Response response = attached(upload(OWNER, "c1", EvidenceFixtures.png(8, 8)));
         this.bed.blobs.keys().clear();
 
-        assertError(this.bed.service.content(response.identifier(), null), EvidenceErrorKind.NOT_FOUND);
+        assertError(this.bed.service.content(response.identifier(), null, STAFF), EvidenceErrorKind.NOT_FOUND);
     }
 
     @Test
@@ -503,6 +503,6 @@ class EvidenceServiceTest {
         EvidenceDTO.Response response = attached(upload(OWNER, "c1", EvidenceFixtures.png(8, 8)));
         this.bed.blobs.fail();
 
-        assertError(this.bed.service.content(response.identifier(), null), EvidenceErrorKind.UNAVAILABLE);
+        assertError(this.bed.service.content(response.identifier(), null, STAFF), EvidenceErrorKind.UNAVAILABLE);
     }
 }

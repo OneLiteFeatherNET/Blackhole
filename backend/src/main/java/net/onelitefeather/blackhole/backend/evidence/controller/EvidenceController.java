@@ -64,7 +64,7 @@ public class EvidenceController implements EvidenceApi {
 
     @Override
     public HttpResponse<EvidenceDTO> listByPunishment(String reference, boolean includeInactive, @Nullable UUID source, Pageable pageable) {
-        return toResponse(this.evidenceService.list(reference, includeInactive, pageable));
+        return toResponse(this.evidenceService.list(reference, includeInactive, pageable, source));
     }
 
     @Override
@@ -74,17 +74,17 @@ public class EvidenceController implements EvidenceApi {
 
     @Override
     public HttpResponse<EvidenceDTO> listByOwner(String owner, boolean includeInactive, @Nullable UUID source, Pageable pageable) {
-        return toResponse(this.evidenceService.listByOwner(owner, includeInactive, pageable));
+        return toResponse(this.evidenceService.listByOwner(owner, includeInactive, pageable, source));
     }
 
     @Override
     public HttpResponse<EvidenceDTO> get(UUID identifier, @Nullable UUID source) {
-        return toResponse(this.evidenceService.get(identifier));
+        return toResponse(this.evidenceService.get(identifier, source));
     }
 
     @Override
     public HttpResponse<?> content(UUID identifier, @Nullable String range, @Nullable UUID source) {
-        return switch (this.evidenceService.content(identifier, range)) {
+        return switch (this.evidenceService.content(identifier, range, source)) {
             case EvidenceDTO.Download download -> file(download);
             case EvidenceDTO.OutOfRange outOfRange -> HttpResponse.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
                     .header("Content-Range", "bytes */" + outOfRange.size());

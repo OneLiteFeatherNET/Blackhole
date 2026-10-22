@@ -255,4 +255,16 @@ class EvidenceApiIntegrationTest extends ApiIntegrationTest {
         assertTrue(text(erased).contains("\"deleted\":2"), text(erased));
         assertEquals(0, ((List<?>) get("/evidence?owner=" + owner).json().get("items")).size());
     }
+
+    @Test
+    void aDownloadIsAuditedWithTheSuppliedActor() throws IOException {
+        String punishment = givenPunishment("f4".repeat(64), "ev-audit");
+        String id = (String) upload(punishment, EvidenceFixtures.png(8, 8)).json().get("identifier");
+
+        assertEquals(200, exchange(HttpRequest.GET("/evidence/" + id + "/content?source=" + STAFF)).code());
+
+        List<EvidenceAuditEntity> trail = this.context.getBean(EvidenceAuditRepository.class).findByEvidenceIdentifierOrderByOccurredAt(UUID.fromString(id));
+        assertTrue(trail.stream().anyMatch(entry -> entry.getAction() == EvidenceAuditAction.DOWNLOADED && UUID.fromString(STAFF).equals(entry.getActor())),
+                "a DOWNLOADED entry with the actor exists: " + trail.stream().map(EvidenceAuditEntity::getAction).toList());
+    }
 }

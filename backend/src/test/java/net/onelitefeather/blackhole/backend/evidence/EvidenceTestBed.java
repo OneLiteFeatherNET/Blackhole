@@ -53,6 +53,8 @@ public final class EvidenceTestBed {
                             .filter(item -> args[0].equals(item.getOwner()) && args[1].equals(item.getCorrelationId()) && item.isPending())
                             .toList())
                     .build();
+    public final InMemoryRepository<EvidenceAuditRepository, EvidenceAuditEntity, UUID> audit =
+            InMemoryRepository.<EvidenceAuditRepository, EvidenceAuditEntity, UUID>of(EvidenceAuditRepository.class, EvidenceAuditEntity::getIdentifier).build();
     public final EvidenceConfig config = new EvidenceConfig();
     public final FakeScanner scanner = new FakeScanner();
     public final EvidenceService service;
@@ -70,7 +72,7 @@ public final class EvidenceTestBed {
 
     public EvidenceTestBed(Path spoolDirectory) {
         this.service = new EvidenceService(
-                items.repository(), punishments.repository(), new PayloadValidator(config),
+                items.repository(), audit.repository(), punishments.repository(), new PayloadValidator(config),
                 new UploadPipeline(config, scanner), blobs, clock, spoolDirectory);
     }
 
