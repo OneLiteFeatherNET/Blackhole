@@ -10,6 +10,7 @@ import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.EloScoring;
 import net.onelitefeather.blackhole.backend.elo.service.EloService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.evidence.service.PunishmentEvidenceGateway;
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
 import net.onelitefeather.blackhole.backend.profile.ProfileSlots;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
@@ -76,6 +77,7 @@ public class PunishmentApplicationService implements SectionPunisher {
     private final SectionService sectionService;
     private final DomainEventPublisher eventPublisher;
     private final ProfileCache profileCache;
+    private final PunishmentEvidenceGateway evidence;
     private final Provider<EloScoring> eloScoring;
     private final Clock clock;
     private final Duration defaultEscalationWindow;
@@ -93,6 +95,7 @@ public class PunishmentApplicationService implements SectionPunisher {
             SectionService sectionService,
             DomainEventPublisher eventPublisher,
             ProfileCache profileCache,
+            PunishmentEvidenceGateway evidence,
             Provider<EloScoring> eloScoring,
             Clock clock,
             @Value("${blackhole.punishment.escalation.default-window:P365D}") Duration defaultEscalationWindow
@@ -104,6 +107,7 @@ public class PunishmentApplicationService implements SectionPunisher {
         this.sectionService = sectionService;
         this.eventPublisher = eventPublisher;
         this.profileCache = profileCache;
+        this.evidence = evidence;
         this.eloScoring = eloScoring;
         this.clock = clock;
         this.defaultEscalationWindow = defaultEscalationWindow;
@@ -224,6 +228,7 @@ public class PunishmentApplicationService implements SectionPunisher {
         if (!place(owner, section, saved)) {
             return error(ErrorKind.CONFLICT, "the player is already permanently punished in section '" + section.key() + "'");
         }
+        claimEvidence(request.evidenceCorrelationId(), owner, saved);
 
         int scoreBefore;
         int scoreAfter;
@@ -257,6 +262,21 @@ public class PunishmentApplicationService implements SectionPunisher {
                 saved.toDTO(), section.key(), section.enforcement(),
                 selection.index() + 1, selection.stepCount(), scoreBefore, scoreAfter, escalation
         );
+    }
+
+    /**
+     * Attaches the evidence sent before the punishment existed. The punishment already stands, so a
+     * failure here is logged and the evidence stays pending (and expires) rather than failing the apply.
+     */
+    private void claimEvidence(String correlationId, String owner, PunishmentEntity punishment) {
+        if (correlationId == null || correlationId.isBlank()) {
+            return;
+        }
+        try {
+            this.evidence.claimPending(owner, correlationId, punishment.getIdentifier());
+        } catch (RuntimeException e) {
+            LOGGER.warn("Could not claim the pending evidence {} for punishment {}", correlationId, punishment.getIdentifier(), e);
+        }
     }
 
     @Override
