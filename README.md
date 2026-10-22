@@ -106,10 +106,105 @@ the permanent escalation. Upgrading from earlier releases: templates are selecte
 by reason, and the proxy reads the Redis keys `blackhole:punish:<section>:<owner>`; deploy backend and
 proxies together.
 
+## Punishment evidence
+
+Staff and tools can attach evidence to a punishment: anticheat records, chat excerpts, replay links
+and uploaded screenshots or videos. Evidence can be sent before the punishment exists (with an owner
+hash and a `correlationId`) and is claimed when the punishment is applied with the same
+`evidenceCorrelationId`. Punishments and appeals only expose an `evidenceCount`; the content is read
+through `/punishment/{reference}/evidence` and `/evidence/{id}` (see the Swagger UI).
+
+### Storage options
+
+Uploaded files go through a `BlobStore`. S3-compatible object storage is the default
+(`BLACKHOLE_EVIDENCE_FILES_STORAGE=s3`); a directory on disk is available for tiny single-replica
+setups (`local`). The docker compose stack runs SeaweedFS for development.
+
+| Server                          | Licence    | Notes                                                                              |
+|---------------------------------|------------|------------------------------------------------------------------------------------|
+| SeaweedFS                       | Apache-2.0 | Used in `docker/docker-compose.yml`; the documented self-hosted choice.            |
+| RustFS                          | Apache-2.0 | Upstream does not recommend it for production yet.                                 |
+| Ceph RGW                        | LGPL-2.1   | Production grade but heavy; fine if you already run Ceph.                          |
+| Garage                          | AGPL-3.0   | Works through the same adapter; not recommended here because of the licence.       |
+| MinIO                           | AGPL-3.0   | Community edition is archived upstream (2026); not recommended.                    |
+| AWS S3, Cloudflare R2, Backblaze B2, ... | n/a | Operator's choice; set `BLACKHOLE_EVIDENCE_S3_ENDPOINT` (empty for AWS S3).        |
+
+Every upload is scanned by ClamAV (`clamd`) before it is stored. The scan fails closed: while it is
+enabled, an infected file is rejected (422) and an unreachable scanner rejects the upload (503).
+ClamAV needs about 1 GB of RAM and downloads its signature database on first start, which takes a few
+minutes. Only set `BLACKHOLE_EVIDENCE_SCAN_ENABLED=false` if uploads are scanned elsewhere.
+
+| Variable                                    | Purpose |
+|---------------------------------------------|---------|
+| `BLACKHOLE_EVIDENCE_FILES_STORAGE`          | `s3` (default) or `local`. |
+| `BLACKHOLE_EVIDENCE_S3_ENDPOINT`            | S3 endpoint; empty for AWS S3. |
+| `BLACKHOLE_EVIDENCE_S3_BUCKET`              | Bucket name (default `blackhole-evidence`). |
+| `BLACKHOLE_EVIDENCE_S3_REGION`              | S3 region. |
+| `BLACKHOLE_EVIDENCE_S3_ACCESS_KEY`          | S3 access key. |
+| `BLACKHOLE_EVIDENCE_S3_SECRET_KEY`          | S3 secret key. |
+| `BLACKHOLE_EVIDENCE_S3_PATH_STYLE`          | Path-style addressing (needed by most self-hosted servers). |
+| `BLACKHOLE_EVIDENCE_FILES_LOCAL_PATH`       | Directory for the `local` backend. |
+| `BLACKHOLE_EVIDENCE_FILES_MAX_IMAGE_BYTES`  | Largest image upload in bytes. |
+| `BLACKHOLE_EVIDENCE_FILES_MAX_VIDEO_BYTES`  | Largest video upload in bytes; raise `BLACKHOLE_MAX_REQUEST_SIZE` with it. |
+| `BLACKHOLE_EVIDENCE_FILES_MAX_IMAGE_PIXELS` | Images with more pixels are rejected before decoding. |
+| `BLACKHOLE_EVIDENCE_FILES_ALLOWED_TYPES`    | Allowed types (PNG, JPEG, MP4, WebM); remove `video/*` to disable video. |
+| `BLACKHOLE_EVIDENCE_SCAN_ENABLED`           | Virus scan of uploads (default on). |
+| `BLACKHOLE_EVIDENCE_SCAN_CLAMD_HOST`        | Host of the ClamAV `clamd`. |
+| `BLACKHOLE_EVIDENCE_SCAN_CLAMD_PORT`        | Port of `clamd` (default 3310). |
+| `BLACKHOLE_EVIDENCE_SCAN_CLAMD_TIMEOUT`     | How long one scan may take (default `PT30S`). |
+| `BLACKHOLE_EVIDENCE_MAX_PAYLOAD_BYTES`      | Largest structured payload in bytes. |
+| `BLACKHOLE_EVIDENCE_MAX_CHAT_LINES`         | Most lines of one chat log item. |
+| `BLACKHOLE_EVIDENCE_PENDING_TTL`            | How long unclaimed evidence is kept (default `P1D`). |
+| `BLACKHOLE_EVIDENCE_HOUSEKEEPING_INTERVAL`  | How often the housekeeping sweep runs (default `PT1H`). |
+| `BLACKHOLE_EVIDENCE_AUDIT_RETENTION`        | Purge audit rows older than this; empty keeps them (default). |
+
+### Lifetime and access
+
+- **Evidence lives as long as its punishment record.** There is no time-based expiry. It is deleted
+  when the punishment record is deleted, or by an admin through `DELETE /evidence/{id}` or
+  `DELETE /evidence/owner/{owner}`, which require a `reason`, are audited and publish
+  `evidence.deleted`. The housekeeping sweep only removes evidence nobody claimed within
+  `BLACKHOLE_EVIDENCE_PENDING_TTL` and stored files without a database row.
+- When staff revoke a punishment, its evidence is marked `REVOKED`; when an appeal fully lifts it,
+  the evidence is marked `LIFTED`. Nothing is deleted. Such evidence is not counted and is hidden
+  unless a request passes `includeInactive=true`; revealing it is audited.
+- **There is no authentication.** Anyone who can reach the API can read all evidence, including lifted
+  and revoked evidence through `includeInactive=true`. The default hiding and the audit entries are
+  not access control; keep the API on a trusted network (see the trust model above). The `source`
+  recorded in the audit trail is client-supplied and unverified.
+- **Video metadata is not stripped.** Images are re-encoded, which drops EXIF/GPS data; MP4 and WebM
+  files are stored as uploaded. Ask staff to prefer screen recordings of the game, or disable video.
+
+### Capacity planning
+
+Because evidence is never expired, storage grows with the punishment history. Size the bucket or
+volume for the expected history (for example the 100 MiB video limit times the videos you expect per
+month times how long you keep punishment history), watch its usage, and lower
+`BLACKHOLE_EVIDENCE_FILES_MAX_VIDEO_BYTES` or disable video if needed. **Do not use S3 lifecycle
+expiry rules on the bucket**: deleting objects behind the application's back leaves rows that point at
+missing files and breaks the audit trail. Delete through the admin path instead.
+
+### Notes for operators (GDPR)
+
+The software ties evidence to the punishment record; you decide how long the record is kept. You
+should:
+
+- document the retention period of your punishment history and its justification, and the lawful
+  basis for storing evidence (typically legitimate interest, Art. 6(1)(f), with a balancing test);
+- name the evidence categories (chat excerpts, recordings, anticheat data, links) in your privacy
+  notice and your records of processing (Art. 30);
+- answer access requests (Art. 15) with `GET /evidence?owner=<hash>&includeInactive=true`, and
+  erasure or objection requests (Art. 17, 21) through the admin delete path, deciding each case
+  individually (for example when the evidence is needed for legal claims).
+
+Evidence refers to players only by hash or per-evidence alias; raw UUIDs and IP addresses in payloads
+are rejected, and IP addresses in chat text are redacted.
+
 ## Local development
 
 A `docker-compose.yml` under `docker/` provides PostgreSQL, RabbitMQ and Dragonfly (Redis protocol,
-used for proxy sync and the shared cache):
+used for proxy sync and the shared cache), plus SeaweedFS and ClamAV for evidence uploads (ClamAV needs
+about 1 GB of RAM and a few minutes on its first start):
 
 ```shell
 cd docker

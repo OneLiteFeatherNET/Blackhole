@@ -1,0 +1,32 @@
+---
+paths:
+  - "backend/src/main/java/**/evidence/**/*.java"
+  - "backend/src/main/resources/db/**/V8__evidence_items.sql"
+---
+
+# Punishment evidence
+
+`evidence/` holds anticheat records, chat excerpts, links and uploaded files attached to
+punishments. Detail of the decisions: `openspec/changes/add-punishment-evidence/design.md`.
+
+- **Lifetime = punishment record.** There is deliberately no time-based expiry and no retention
+  sweep for evidence. It is deleted only with its punishment (`deleteForPunishment`, reason
+  `CASCADE`) or by an admin (`DELETE /evidence`, reason mandatory, audited). Do not add expiry, and
+  never use S3 lifecycle rules. `EvidenceHousekeepingSweeper` removes only unclaimed pending items
+  (`pending-ttl`), files without a row (older than one day) and, if configured, old audit rows.
+- **Status, not deletion.** A staff revoke marks items `REVOKED`, a granted full-lift appeal marks them
+  `LIFTED` (via `PunishmentEvidenceGateway`, failures logged, never failing the punishment change).
+  Inactive items are hidden and not counted unless `includeInactive=true`, which is audited. That
+  hiding is advisory: there is no auth layer, so anyone reaching the API can read everything.
+- **`PunishmentEvidenceGateway` is the only door** the punishment and appeal packages use; they must
+  not depend on `EvidenceService` or the blob store directly. Punishment/appeal DTOs expose only
+  `evidenceCount`, which is null in cached profile listings.
+- **GDPR.** Owners are 128-hex hashes; payloads reject UUID/IP-looking strings (`PiiGuard`), chat IPs
+  are redacted, audit entries and events carry no content. Never log or publish payloads or file names.
+- **Uploads fail closed.** `UploadPipeline` scans first (flagged -> 422, scanner down -> 503), then
+  sniffs magic bytes (the client MIME type is ignored), enforces caps and re-encodes images. Video
+  metadata is not stripped. Keys are server generated; the filesystem store guards against traversal.
+- **Storage** sits behind `BlobStore` (`S3BlobStore` default, `FilesystemBlobStore`). Tests use
+  `InMemoryBlobStore`, a fixed `TestClock` and `EvidenceTestBed`; no sleeps, no real network in unit tests.
+- Config is `blackhole.evidence.*` (`EvidenceConfig`, created eagerly so a bad value fails startup);
+  document every new tunable next to its default in `application.yml`.
