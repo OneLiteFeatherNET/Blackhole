@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.evidence.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.annotation.ReflectiveAccess;
@@ -138,7 +139,8 @@ public sealed interface EvidenceDTO {
     @Serdeable
     @ReflectiveAccess
     record PageResponse(
-            @NonNull List<Response> items,
+            // Serde omits empty collections by default; an empty page must still say items: [].
+            @NonNull @JsonInclude(JsonInclude.Include.ALWAYS) List<Response> items,
             int page,
             int size,
             long totalSize,

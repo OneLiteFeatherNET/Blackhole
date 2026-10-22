@@ -29,9 +29,6 @@ public enum EvidenceErrorKind {
     /** The content is understood but must not be stored: personal data in a payload, malware (422). */
     UNPROCESSABLE(HttpStatus.UNPROCESSABLE_ENTITY),
 
-    /** A requested byte range does not fit the file (416). */
-    RANGE_NOT_SATISFIABLE(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE),
-
     /** A dependency evidence needs (the virus scanner, the file store) is not available (503). */
     UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE);
 
