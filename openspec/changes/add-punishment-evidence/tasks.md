@@ -34,7 +34,7 @@ no sleeps, no shared static state; integration tests (PostgreSQL, S3 container) 
 
 ## 5. Lifetime and lifecycle
 
-- [ ] 5.1 Lifecycle hooks: granted full-lift appeal marks evidence `LIFTED` (liftedAt, appeal id), staff revoke marks `REVOKED` (evidence never deleted), denial and reduction change nothing; verify unit tests with a fixed `Clock` for each transition
+- [x] 5.1 Lifecycle hooks: granted full-lift appeal marks evidence `LIFTED` (liftedAt, appeal id), staff revoke marks `REVOKED` (evidence never deleted), denial and reduction change nothing; verify unit tests with a fixed `Clock` for each transition
 - [ ] 5.2 Cascade on punishment-record deletion: service hook deletes blobs and rows (reason `CASCADE`); verify a unit test with a fake store and an integration test that deleting the punishment removes rows and blobs
 - [ ] 5.3 `EvidenceHousekeepingSweeper` (scheduled): unclaimed pending evidence after `pending-ttl`, blobs without a row older than 1 day, optional audit purge when configured; verify unit tests driving the sweep method with a fake store and fixed `Clock` (claimed evidence of any age is never deleted, orphan older than 1 day removed, younger kept)
 

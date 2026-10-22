@@ -372,6 +372,38 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         return pending.size();
     }
 
+    /**
+     * Marks the punishment's valid items {@code REVOKED}: staff revoked the punishment, so the
+     * evidence no longer supports a current one. Nothing is deleted; items that are already
+     * {@code LIFTED} or {@code REVOKED} keep their first status.
+     */
+    @Override
+    public int markRevoked(String punishmentIdentifier) {
+        return changeStatus(punishmentIdentifier, EvidenceStatus.REVOKED, null);
+    }
+
+    /**
+     * Marks the punishment's valid items {@code LIFTED} by the appeal that fully lifted the
+     * punishment. Nothing is deleted. Appeals that deny or only reduce a punishment must not call this.
+     */
+    @Override
+    public int markLifted(String punishmentIdentifier, UUID appealIdentifier) {
+        return changeStatus(punishmentIdentifier, EvidenceStatus.LIFTED, appealIdentifier);
+    }
+
+    private int changeStatus(String punishmentIdentifier, EvidenceStatus status, UUID liftedByAppeal) {
+        int changed = 0;
+        for (EvidenceItemEntity item : this.items.findByPunishmentIdentifier(punishmentIdentifier)) {
+            if (item.getStatus() != EvidenceStatus.VALID) {
+                continue;
+            }
+            item.markStatus(status, this.clock.millis(), liftedByAppeal);
+            this.items.update(item);
+            changed++;
+        }
+        return changed;
+    }
+
     private EvidenceDTO.Error remove(EvidenceItemEntity item, EvidenceDeleteReason reason, EvidenceDeletionReason published, String note, UUID source) {
         if (item.getFileKey() != null) {
             try {
