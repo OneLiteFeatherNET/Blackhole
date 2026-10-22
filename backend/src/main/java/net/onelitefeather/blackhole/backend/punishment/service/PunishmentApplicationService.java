@@ -10,6 +10,7 @@ import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.EloScoring;
 import net.onelitefeather.blackhole.backend.elo.service.EloService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.evidence.service.PunishmentEvidenceGateway;
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
 import net.onelitefeather.blackhole.backend.profile.ProfileSlots;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
@@ -76,6 +77,7 @@ public class PunishmentApplicationService implements SectionPunisher {
     private final SectionService sectionService;
     private final DomainEventPublisher eventPublisher;
     private final ProfileCache profileCache;
+    private final PunishmentEvidenceGateway evidence;
     private final Provider<EloScoring> eloScoring;
     private final Clock clock;
     private final Duration defaultEscalationWindow;
@@ -93,6 +95,7 @@ public class PunishmentApplicationService implements SectionPunisher {
             SectionService sectionService,
             DomainEventPublisher eventPublisher,
             ProfileCache profileCache,
+            PunishmentEvidenceGateway evidence,
             Provider<EloScoring> eloScoring,
             Clock clock,
             @Value("${blackhole.punishment.escalation.default-window:P365D}") Duration defaultEscalationWindow
@@ -104,6 +107,7 @@ public class PunishmentApplicationService implements SectionPunisher {
         this.sectionService = sectionService;
         this.eventPublisher = eventPublisher;
         this.profileCache = profileCache;
+        this.evidence = evidence;
         this.eloScoring = eloScoring;
         this.clock = clock;
         this.defaultEscalationWindow = defaultEscalationWindow;
@@ -224,6 +228,7 @@ public class PunishmentApplicationService implements SectionPunisher {
         if (!place(owner, section, saved)) {
             return error(ErrorKind.CONFLICT, "the player is already permanently punished in section '" + section.key() + "'");
         }
+        claimEvidence(request.evidenceCorrelationId(), owner, saved);
 
         int scoreBefore;
         int scoreAfter;
@@ -240,7 +245,7 @@ public class PunishmentApplicationService implements SectionPunisher {
                 escalation = applied.automatic()
                         .filter(automatic -> automatic.tier() == EloChange.Tier.PERMANENT)
                         .flatMap(automatic -> this.punishmentRepository.findById(automatic.punishmentIdentifier()))
-                        .map(permanent -> new PunishmentDTO.Escalation(permanent.toDTO(), applied.scoreAfter()))
+                        .map(permanent -> new PunishmentDTO.Escalation(withEvidenceCount(permanent), applied.scoreAfter()))
                         .orElse(null);
             } else {
                 LOGGER.warn("Could not deduct the ELO cost of {} in section {}: {}", saved.getIdentifier(), section.key(),
@@ -254,9 +259,24 @@ public class PunishmentApplicationService implements SectionPunisher {
         }
 
         return new PunishmentDTO.ApplyResponse(
-                saved.toDTO(), section.key(), section.enforcement(),
+                withEvidenceCount(saved), section.key(), section.enforcement(),
                 selection.index() + 1, selection.stepCount(), scoreBefore, scoreAfter, escalation
         );
+    }
+
+    /**
+     * Attaches the evidence sent before the punishment existed. The punishment already stands, so a
+     * failure here is logged and the evidence stays pending (and expires) rather than failing the apply.
+     */
+    private void claimEvidence(String correlationId, String owner, PunishmentEntity punishment) {
+        if (correlationId == null || correlationId.isBlank()) {
+            return;
+        }
+        try {
+            this.evidence.claimPending(owner, correlationId, punishment.getIdentifier());
+        } catch (RuntimeException e) {
+            LOGGER.warn("Could not claim the pending evidence {} for punishment {}", correlationId, punishment.getIdentifier(), e);
+        }
     }
 
     @Override
@@ -389,14 +409,14 @@ public class PunishmentApplicationService implements SectionPunisher {
         SectionDTO.Response section = this.sectionService.find(request.section()).orElse(null);
         this.eventPublisher.publish("punishment.revoked", PunishmentEvents.revoked(active, section, request.source().toString()));
 
-        return new PunishmentDTO.RevokeResponse(active.toDTO(), request.section(), scoreReset);
+        return new PunishmentDTO.RevokeResponse(withEvidenceCount(active), request.section(), scoreReset);
     }
 
     /**
      * Returns a paginated list of all punishment entries in the system.
      */
     public Page<PunishEntryDTO> findAll(Pageable pageable) {
-        return this.punishmentRepository.findAll(pageable).map(PunishmentEntity::toDTO);
+        return this.punishmentRepository.findAll(pageable).map(this::withEvidenceCount);
     }
 
     /**
@@ -409,8 +429,13 @@ public class PunishmentApplicationService implements SectionPunisher {
     public PunishmentDTO findByShortId(String shortId) {
         return PunishmentShortId.parse(shortId)
                 .<PunishmentDTO>map(key -> new PunishmentDTO.ShortIdMatches(
-                        this.punishmentRepository.findByShortId(key).stream().map(PunishmentEntity::toDTO).toList()))
+                        this.punishmentRepository.findByShortId(key).stream().map(this::withEvidenceCount).toList()))
                 .orElseGet(() -> error(ErrorKind.VALIDATION, "a short id is # followed by exactly eight hex characters"));
+    }
+
+    /** The punishment as a DTO that tells how many valid evidence items it has, and nothing more about them. */
+    private PunishEntryDTO withEvidenceCount(PunishmentEntity punishment) {
+        return punishment.toDTO().withEvidenceCount(this.evidence.countValid(punishment.getIdentifier()));
     }
 
     private static PunishmentDTO.Error error(ErrorKind kind, String message) {

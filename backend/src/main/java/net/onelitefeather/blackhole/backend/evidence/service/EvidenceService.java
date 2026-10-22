@@ -56,7 +56,7 @@ import java.util.UUID;
  * removes, never a row pointing at nothing.</p>
  */
 @Singleton
-public class EvidenceService {
+public class EvidenceService implements PunishmentEvidenceGateway {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EvidenceService.class);
 
@@ -258,7 +258,7 @@ public class EvidenceService {
         return new EvidenceDTO.CountResponse(countValid(found.punishment().getIdentifier()));
     }
 
-    /** The number of valid items of the punishment; lifted and revoked evidence is not counted. */
+    @Override
     public long countValid(String punishmentIdentifier) {
         return this.items.countByPunishmentIdentifierAndStatus(punishmentIdentifier, EvidenceStatus.VALID);
     }
@@ -359,6 +359,7 @@ public class EvidenceService {
      *
      * @return how many items were claimed
      */
+    @Override
     public int claimPending(String owner, String correlationId, String punishmentIdentifier) {
         if (correlationId == null || correlationId.isBlank()) {
             return 0;

@@ -26,6 +26,9 @@ import java.util.UUID;
  * @param stepCount       how many steps the template had when it was applied, else {@code null}
  * @param eloCost         the ELO deducted when it was applied, else {@code null}
  * @param template        the template it came from, or {@code null} for system punishments
+ * @param evidenceCount   how many valid evidence items the punishment has - the only thing about evidence a
+ *                        player may learn; {@code null} where it was not computed (profile listings), use
+ *                        {@code GET /punishment/{reference}/evidence/count} there
  * @param metaData        the metadata of the punishment
  * @author theEvilReaper
  * @version 2.0.0
@@ -47,8 +50,16 @@ public record PunishEntryDTO(
         @Nullable Integer stepCount,
         @Nullable Integer eloCost,
         @Nullable PunishTemplateDTO.Response template,
+        @Nullable Long evidenceCount,
         Map<String, Object> metaData
 ) implements Metadata, Expirable {
+
+    /** This entry with the number of valid evidence items filled in. */
+    public PunishEntryDTO withEvidenceCount(long count) {
+        return new PunishEntryDTO(this.identifier, this.shortId, this.source, this.section, this.scope, this.permanent,
+                this.lifted, this.createdAt, this.escalationGroup, this.stepIndex, this.stepCount, this.eloCost,
+                this.template, count, this.metaData);
+    }
 
     @Override
     public void addMetaData(String key, Object value) {

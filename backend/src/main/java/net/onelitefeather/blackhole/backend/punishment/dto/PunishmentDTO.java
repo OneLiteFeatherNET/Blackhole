@@ -7,6 +7,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.response.ErrorResponse;
 import net.onelitefeather.blackhole.backend.section.EnforcementKind;
@@ -23,6 +24,9 @@ public sealed interface PunishmentDTO {
 
     /**
      * Apply a template to a player. Exactly one of {@code templateKey} and {@code templateId} is required.
+     *
+     * @param evidenceCorrelationId the key evidence was sent under before this punishment existed;
+     *                              the pending evidence of this owner with that key is attached to the new punishment
      */
     @Schema(name = "PunishmentApplyRequest")
     @Serdeable
@@ -31,8 +35,14 @@ public sealed interface PunishmentDTO {
             @NonNull @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
             @Nullable String templateKey,
             @Nullable UUID templateId,
-            @NonNull UUID source
+            @NonNull UUID source,
+            @Nullable @Size(max = 64) String evidenceCorrelationId
     ) implements PunishmentDTO {
+
+        /** An apply request that claims no pending evidence. */
+        public ApplyRequest(String owner, String templateKey, UUID templateId, UUID source) {
+            this(owner, templateKey, templateId, source, null);
+        }
     }
 
     /**
