@@ -17,8 +17,8 @@ no sleeps, no shared static state; integration tests (PostgreSQL, S3 container) 
 
 ## 3. Blob storage and uploads
 
-- [ ] 3.1 `BlobStore` port plus `FilesystemBlobStore` (alternative backend) (generated keys, normalised-path guard, atomic move, ranged read, delete, list-older-than); verify `@TempDir` unit tests incl. traversal attempt and range reads
-- [ ] 3.2 `S3BlobStore` (default) over Micronaut Object Storage AWS (endpoint/path-style/credentials config); verify an integration test against a SeaweedFS Testcontainer (put, ranged get, delete)
+- [x] 3.1 `BlobStore` port plus `FilesystemBlobStore` (alternative backend) (generated keys, normalised-path guard, atomic move, ranged read, delete, list-older-than); verify `@TempDir` unit tests incl. traversal attempt and range reads
+- [x] 3.2 `S3BlobStore` (default) over Micronaut Object Storage AWS (endpoint/path-style/credentials config); verify an integration test against a SeaweedFS Testcontainer (put, ranged get, delete)
 - [ ] 3.3 Upload pipeline: bounded spooling, magic-byte sniffing (PNG/JPEG/MP4/WebM), allow-list, size caps per type, pixel cap, image re-encode; verify unit tests with fixtures: spoofed MIME -> 415, oversize -> 413 with no blob left, EXIF-bearing JPEG stored without EXIF, pixel bomb rejected before decode
 - [ ] 3.4 `EvidenceScanner` interface (no-op only for tests/explicit opt-out, fail-closed contract when enabled); verify unit tests with a fake scanner (positive -> 422, unavailable -> 503)
 - [ ] 3.5 ClamAV `clamd` INSTREAM adapter (first release); verify unit tests against a stub clamd socket server (clean, infected, connection refused) and a Testcontainers ClamAV integration test with the EICAR string where CI allows
