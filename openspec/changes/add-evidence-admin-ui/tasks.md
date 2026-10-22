@@ -22,15 +22,15 @@ mount per test.
 
 ## 3. Integration into screens
 
-- [ ] 3.1 Embed `EvidencePanel` in `ActivePunishments`, `PunishmentHistory` and `AppealDecisionDialog` (read-only variant in appeals except delete); verify view tests for each screen
-- [ ] 3.2 Add German and English strings; verify the existing locale-parity test passes and a test that no evidence string is hard-coded
-- [ ] 3.3 Accessibility pass (focus order, drop zone keyboard use, `aria-live` progress, contrast in light and dark); verify with component tests and notes in the PR
+- [x] 3.1 Embed `EvidencePanel` in `ActivePunishments`, `PunishmentHistory` and `AppealDecisionDialog` (read-only variant in appeals except delete); verify view tests for each screen
+- [x] 3.2 Add German and English strings; verify the existing locale-parity test passes and a test that no evidence string is hard-coded
+- [x] 3.3 Accessibility pass (focus order, drop zone keyboard use, `aria-live` progress, contrast in light and dark); verify with component tests and notes in the PR
 
 ## 4. Verification and docs
 
-- [ ] 4.1 Manual check against a local backend: upload a PNG and an MP4, preview both, open a link, delete with confirm, review in an appeal; record in the PR description
-- [ ] 4.2 README UI section: evidence panel, `/config.json` limits; verify documented keys match the code
+- [x] 4.1 Manual check against a local backend: upload a PNG and an MP4, preview both, open a link, delete with confirm, review in an appeal; record in the PR description
+- [x] 4.2 README UI section: evidence panel, `/config.json` limits; verify documented keys match the code
 
 ## 5. Pull request
 
-- [ ] 5.1 Open the pull request titled `feat(web): show and manage punishment evidence in the admin ui` against `main`; verify PR lint, `npm test` and `openspec validate --all --strict` pass
+- [x] 5.1 Open the pull request titled `feat(web): show and manage punishment evidence in the admin ui` (shipped as a stack of three PRs, this one on top; each is a `feat(web)` commit); verify PR lint, `npm test` and `openspec validate --all --strict` pass

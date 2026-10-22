@@ -117,7 +117,8 @@
       "cost": "ELO-Kosten",
       "status": "Status",
       "delta": "Änderung",
-      "score": "Punktestand danach"
+      "score": "Punktestand danach",
+      "evidence": "Beweise"
     }
   },
   "actions": {
@@ -375,6 +376,9 @@
   },
   "evidence": {
     "title": "Beweise",
+    "open": "Beweise",
+    "dialogTitle": "Beweise zur Strafe",
+    "close": "Schließen",
     "count": "{count} gültig",
     "audited": "Das Öffnen und Herunterladen von Beweisen wird im Audit-Protokoll festgehalten.",
     "empty": "Keine Beweise zu dieser Strafe.",

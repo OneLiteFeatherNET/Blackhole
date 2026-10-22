@@ -183,3 +183,35 @@ describe('EvidencePanel', () => {
     wrapper.unmount()
   })
 })
+
+describe('EvidencePanel accessibility', () => {
+  it('reaches add link, the drop zone, the lifted toggle and the item actions in reading order', async () => {
+    const { api } = backend()
+    const { wrapper } = await mountWithApp(EvidencePanel, { api, props: { punishment: PUNISHMENT } })
+
+    const order = Array.from((wrapper.element as HTMLElement).querySelectorAll<HTMLElement>('button:not([disabled]), input:not([tabindex="-1"]), [tabindex="0"]')).map(
+      (element) => element.dataset.testid ?? element.getAttribute('type') ?? element.tagName.toLowerCase(),
+    )
+
+    expect(order).toEqual(['open-add-link', 'dropzone', 'checkbox', 'expand', 'delete'])
+
+    wrapper.unmount()
+  })
+
+  it('moves focus into the delete dialog and back to the button that opened it', async () => {
+    const { api } = backend()
+    const { wrapper } = await mountWithApp(EvidencePanel, { api, props: { punishment: PUNISHMENT } })
+    const button = wrapper.get<HTMLButtonElement>('[data-testid="delete"]')
+
+    button.element.focus()
+    await button.trigger('click')
+    await flushPromises()
+    expect(document.activeElement, 'focus inside the dialog').toBe(wrapper.get('[role="dialog"]').element)
+
+    await wrapper.get('[data-testid="cancel"]').trigger('click')
+    await flushPromises()
+    expect(document.activeElement, 'focus back on the opener').toBe(button.element)
+
+    wrapper.unmount()
+  })
+})

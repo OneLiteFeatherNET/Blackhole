@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../../api/inject'
 import type { Appeal, AppealDecision } from '../../api/types'
+import EvidencePanel from '../evidence/EvidencePanel.vue'
 import MdButton from '../md/MdButton.vue'
 import MdDialog from '../md/MdDialog.vue'
 import MdSelect from '../md/MdSelect.vue'
@@ -76,9 +77,11 @@ async function confirm(): Promise<void> {
 </script>
 
 <template>
-  <MdDialog :open="open" :headline="t('appeals.decide.title')" @close="emit('close')">
+  <MdDialog :open="open" wide :headline="t('appeals.decide.title')" @close="emit('close')">
     <div class="flex flex-col gap-5 pt-2">
       <p v-if="appeal" class="text-body-medium text-on-surface-variant">{{ appeal.statement }}</p>
+      <!-- Read-only: the reviewer sees the evidence and can remove wrong items, but adds none. -->
+      <EvidencePanel v-if="appeal" :key="appeal.identifier" :punishment="appeal.punishmentIdentifier" readonly />
       <MdSelect v-model="decision" required :placeholder="t('appeals.decide.choose')" :label="t('appeals.decide.decisionLabel')" :options="options" />
       <MdTextField
         v-if="decision === 'GRANTED_DURATION_REDUCTION'"
