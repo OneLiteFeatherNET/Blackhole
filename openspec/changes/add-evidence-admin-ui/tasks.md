@@ -6,9 +6,9 @@ mount per test.
 
 ## 1. API layer
 
-- [ ] 1.1 Regenerate `src/api/schema.d.ts` from the new client spec and add typed wrappers (list, count, get, delete, add JSON evidence); verify `vue-tsc --noEmit` and wrapper tests for paths, `X-API-VERSION` and `source`
-- [ ] 1.2 Add `uploadEvidence.ts` (XHR with progress and abort); verify unit tests with a fake `XMLHttpRequest` for progress events, cancel and mapping of 413/415/422/503 to typed errors
-- [ ] 1.3 Add evidence limits to `/config.json` handling with backend-default fallbacks; verify a unit test for defaults and overrides
+- [x] 1.1 Regenerate `src/api/schema.d.ts` from the new client spec and add typed wrappers (list, count, get, delete, add JSON evidence); verify `vue-tsc --noEmit` and wrapper tests for paths, `X-API-VERSION` and `source`
+- [x] 1.2 Add `uploadEvidence.ts` (XHR with progress and abort); verify unit tests with a fake `XMLHttpRequest` for progress events, cancel and mapping of 413/415/422/503 to typed errors
+- [x] 1.3 Add evidence limits to `/config.json` handling with backend-default fallbacks; verify a unit test for defaults and overrides
 
 ## 2. Components
 

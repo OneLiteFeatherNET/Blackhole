@@ -10,6 +10,9 @@ import type {
   EloAdjustResult,
   EloEvent,
   EloProfile,
+  Evidence,
+  EvidenceDeleteReason,
+  EvidencePage,
   PunishmentProfile,
   Report,
   ReportResolution,
@@ -79,7 +82,26 @@ export interface BlackholeApi {
   applyTemplate(owner: string, templateKey: string): Promise<ApiResult<ApplyResult>>
   revoke(owner: string, section: string): Promise<ApiResult<RevokeResult>>
   adjustElo(owner: string, change: { section: string; delta: number; note: string }): Promise<ApiResult<EloAdjustResult>>
+  /**
+   * One page of a punishment's evidence (identifier or short id), oldest first. Lifted and revoked
+   * items are only returned with `includeInactive`, which the backend audits.
+   */
+  evidence(punishment: string, query?: { includeInactive?: boolean; page?: number; size?: number }): Promise<ApiResult<EvidencePage>>
+  /** How many valid evidence items the punishment has; lifted and revoked ones are not counted. */
+  evidenceCount(punishment: string): Promise<ApiResult<number>>
+  evidenceItem(identifier: string): Promise<ApiResult<Evidence>>
+  /** Attaches a LINK or REPLAY, `url` must be http(s). */
+  addLinkEvidence(punishment: string, link: { kind: 'LINK' | 'REPLAY'; url: string; description?: string }): Promise<ApiResult<Evidence>>
+  /** Deletes the item and its file; the reason is mandatory and audited by the backend. */
+  deleteEvidence(identifier: string, reason: { reason: EvidenceDeleteReason; note?: string }): Promise<ApiResult<number>>
+  /** Where the browser loads the stored file of an item from; a plain URL because `<img>` and `<video>` cannot send headers. */
+  evidenceContentUrl(identifier: string): string
 }
+
+/** Evidence the UI attaches is attributed to this system name (the backend requires one). */
+export const EVIDENCE_SOURCE_SYSTEM = 'admin-ui'
+
+const EVIDENCE_PAGE_SIZE = 20
 
 const PAGE_SIZE = 200
 const MAX_PAGES = 25
@@ -102,6 +124,18 @@ export function pageContent<T>(body: unknown): { items: T[]; totalPages: number 
 /** Query string for one page; sent through openapi-fetch's serializer because the spec cannot express it. */
 function pageQuery(page: number, extra: Record<string, string> = {}): () => string {
   return () => new URLSearchParams({ ...extra, page: String(page), size: String(PAGE_SIZE) }).toString()
+}
+
+/**
+ * Query string of the evidence list. `includeInactive` is only sent when true so the default request
+ * is the plain one; `source` attributes the (audited) read to the operator.
+ */
+function evidenceQuery(query: { includeInactive?: boolean; page?: number; size?: number }, source: string): () => string {
+  return () => {
+    const params = new URLSearchParams({ page: String(query.page ?? 0), size: String(query.size ?? EVIDENCE_PAGE_SIZE), source })
+    if (query.includeInactive) params.set('includeInactive', 'true')
+    return params.toString()
+  }
 }
 
 const NO_PAGEABLE = {} as components['schemas']['Pageable']
@@ -281,5 +315,51 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
           },
         }),
       ),
+
+    evidence: (punishment, query = {}) =>
+      toResult(
+        http.GET('/punishment/{reference}/evidence', {
+          params: { path: { reference: punishment }, query: { includeInactive: false, pageable: NO_PAGEABLE } },
+          querySerializer: evidenceQuery(query, options.source),
+        }),
+      ),
+
+    async evidenceCount(punishment) {
+      const result = await toResult(http.GET('/punishment/{reference}/evidence/count', { params: { path: { reference: punishment } } }))
+      return map(result, (body) => body.count)
+    },
+
+    evidenceItem: (identifier) =>
+      toResult(http.GET('/evidence/{identifier}', { params: { path: { identifier }, query: { source: options.source } } })),
+
+    addLinkEvidence: (punishment, link) =>
+      toResult(
+        http.POST('/evidence', {
+          body: {
+            punishment,
+            kind: link.kind,
+            sourceSystem: EVIDENCE_SOURCE_SYSTEM,
+            reference: link.url.trim(),
+            // The spec types payload values as objects; a link's description is a plain string.
+            payload: (link.description?.trim() ? { description: link.description.trim() } : null) as components['schemas']['EvidenceCreateRequest']['payload'],
+            source: options.source,
+          },
+        }),
+      ),
+
+    async deleteEvidence(identifier, change) {
+      const result = await toResult(
+        http.DELETE('/evidence/{identifier}', {
+          params: {
+            path: { identifier },
+            query: { reason: change.reason, note: change.note?.trim() || null, source: options.source },
+          },
+        }),
+      )
+      return map(result, (body) => body.deleted)
+    },
+
+    evidenceContentUrl: (identifier) =>
+      `${options.baseUrl}/evidence/${encodeURIComponent(identifier)}/content?${new URLSearchParams({ source: options.source })}`,
   }
 }
