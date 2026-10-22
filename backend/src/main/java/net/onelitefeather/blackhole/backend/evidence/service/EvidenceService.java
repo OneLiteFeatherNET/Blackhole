@@ -391,6 +391,26 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         return changeStatus(punishmentIdentifier, EvidenceStatus.LIFTED, appealIdentifier);
     }
 
+    /**
+     * Deletes every item of a punishment together with its file (reason {@code CASCADE}); the
+     * punishment record is about to be deleted. The rows would go with the foreign key anyway, but the
+     * files would not. Unlike an admin delete this does not stop at a file that cannot be deleted: the
+     * row goes, and the housekeeping sweep removes the orphaned file later.
+     */
+    @Override
+    public int deleteForPunishment(String punishmentIdentifier) {
+        List<EvidenceItemEntity> found = this.items.findByPunishmentIdentifier(punishmentIdentifier);
+        for (EvidenceItemEntity item : found) {
+            if (item.getFileKey() != null) {
+                deleteQuietly(item.getFileKey());
+            }
+            this.items.delete(item);
+            record(item, EvidenceAuditAction.DELETED, null, EvidenceDeletionReason.CASCADE.name(), null);
+            publish(EvidenceEvents.DELETED, EvidenceEvents.deleted(item, EvidenceDeletionReason.CASCADE));
+        }
+        return found.size();
+    }
+
     private int changeStatus(String punishmentIdentifier, EvidenceStatus status, UUID liftedByAppeal) {
         int changed = 0;
         for (EvidenceItemEntity item : this.items.findByPunishmentIdentifier(punishmentIdentifier)) {

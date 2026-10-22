@@ -19,6 +19,7 @@ public final class RecordingEvidenceGateway implements PunishmentEvidenceGateway
     public record Lift(String punishmentIdentifier, UUID appealIdentifier) {
     }
 
+    private final List<String> deleted = new ArrayList<>();
     private final List<String> revoked = new ArrayList<>();
     private final List<Lift> lifted = new ArrayList<>();
     private final List<Claim> claims = new ArrayList<>();
@@ -27,6 +28,10 @@ public final class RecordingEvidenceGateway implements PunishmentEvidenceGateway
 
     public List<Claim> claims() {
         return this.claims;
+    }
+
+    public List<String> deleted() {
+        return this.deleted;
     }
 
     public List<String> revoked() {
@@ -76,6 +81,12 @@ public final class RecordingEvidenceGateway implements PunishmentEvidenceGateway
             throw this.failure;
         }
         this.lifted.add(new Lift(punishmentIdentifier, appealIdentifier));
+        return 1;
+    }
+
+    @Override
+    public int deleteForPunishment(String punishmentIdentifier) {
+        this.deleted.add(punishmentIdentifier);
         return 1;
     }
 }

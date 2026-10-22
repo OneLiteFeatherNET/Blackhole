@@ -34,4 +34,12 @@ public interface PunishmentEvidenceGateway {
      * @return how many items changed
      */
     int markLifted(String punishmentIdentifier, UUID appealIdentifier);
+
+    /**
+     * Deletes the punishment's evidence rows and files; to be called before the punishment record is
+     * deleted. A file that cannot be deleted is left for the housekeeping sweep.
+     *
+     * @return how many items were deleted
+     */
+    int deleteForPunishment(String punishmentIdentifier);
 }
