@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Punishment } from '../../api/types'
 import { formatDateTime } from '../../format'
+import EvidenceDialog from '../evidence/EvidenceDialog.vue'
+import MdButton from '../md/MdButton.vue'
 import MdCard from '../md/MdCard.vue'
 import StatusPill from '../StatusPill.vue'
 import { expiresAt, isAutomatic, reasonOf, stepLabel } from './punishmentInfo'
@@ -11,6 +13,7 @@ const props = defineProps<{ active: Record<string, Punishment> }>()
 
 const { t, locale } = useI18n()
 const entries = computed(() => Object.entries(props.active))
+const evidenceFor = ref<string | null>(null)
 </script>
 
 <template>
@@ -41,8 +44,14 @@ const entries = computed(() => Object.entries(props.active))
             <dd>{{ formatDateTime(punishment.createdAt, locale) }}</dd>
           </template>
         </dl>
+        <div class="mt-3">
+          <MdButton variant="text" :data-testid="`open-evidence-${section}`" @click="evidenceFor = punishment.identifier">
+            {{ t('evidence.open') }}
+          </MdButton>
+        </div>
         <slot name="actions" :section="section" :punishment="punishment" />
       </MdCard>
     </li>
   </ul>
+  <EvidenceDialog v-if="evidenceFor" open :punishment="evidenceFor" @close="evidenceFor = null" />
 </template>

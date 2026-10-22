@@ -88,4 +88,16 @@ describe.skipIf(process.platform === 'win32')('40-config-json.sh', () => {
     expect(result.status).not.toBe(0)
     expect(result.stderr).toContain('BLACKHOLE_UI_EVIDENCE_ALLOWED_TYPES must be comma separated MIME types')
   })
+
+  it('documents every evidence variable and config key it can write in the web README', () => {
+    const readme = readFileSync(join(import.meta.dirname, '../README.md'), 'utf8')
+    const script = readFileSync(SCRIPT, 'utf8')
+    const variables = [...new Set(script.match(/BLACKHOLE_UI_EVIDENCE_[A-Z_]+/g))]
+    const keys = [...new Set(script.match(/max(?:Image|Video)Bytes|allowedTypes/g))].map((key) => `evidence.${key}`)
+
+    expect(variables.length, 'variables found in the script').toBe(3)
+    expect(keys.length, 'keys found in the script').toBe(3)
+    for (const name of variables) expect(readme, name).toContain(`\`${name}\``)
+    for (const key of keys) expect(readme, key).toContain(`\`${key}\``)
+  })
 })

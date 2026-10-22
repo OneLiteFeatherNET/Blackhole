@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Punishment } from '../../api/types'
 import { formatDateTime } from '../../format'
+import EvidenceDialog from '../evidence/EvidenceDialog.vue'
+import MdButton from '../md/MdButton.vue'
 import MdDataTable from '../md/MdDataTable.vue'
 import StatusPill from '../StatusPill.vue'
 import { reasonOf, stepLabel } from './punishmentInfo'
@@ -10,6 +12,7 @@ import { reasonOf, stepLabel } from './punishmentInfo'
 defineProps<{ history: Punishment[] }>()
 
 const { t, locale } = useI18n()
+const evidenceFor = ref<string | null>(null)
 
 const columns = computed(() => [
   { key: 'createdAt' as const, label: t('player.columns.when') },
@@ -18,6 +21,7 @@ const columns = computed(() => [
   { key: 'stepIndex' as const, label: t('player.columns.step') },
   { key: 'eloCost' as const, label: t('player.columns.cost') },
   { key: 'lifted' as const, label: t('player.columns.status') },
+  { key: 'identifier' as const, label: t('player.columns.evidence') },
 ])
 </script>
 
@@ -34,7 +38,13 @@ const columns = computed(() => [
         <StatusPill v-else-if="row.permanent" :label="t('player.permanent')" tone="error" />
         <StatusPill v-else :label="t('player.ended')" />
       </template>
+      <template v-else-if="column.key === 'identifier'">
+        <MdButton variant="text" :data-testid="`open-evidence-${row.identifier}`" @click="evidenceFor = row.identifier">
+          {{ t('evidence.open') }}
+        </MdButton>
+      </template>
       <template v-else>{{ row[column.key] }}</template>
     </template>
   </MdDataTable>
+  <EvidenceDialog v-if="evidenceFor" open :punishment="evidenceFor" @close="evidenceFor = null" />
 </template>

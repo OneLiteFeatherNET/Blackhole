@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it } from 'vitest'
+import { defineComponent } from 'vue'
 import MdDialog from './MdDialog.vue'
 
 describe('MdDialog', () => {
@@ -49,6 +50,21 @@ describe('MdDialog', () => {
     await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' })
 
     expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+
+  it('closes only the dialog the Escape key was pressed in when dialogs are nested', async () => {
+    const Outer = defineComponent({
+      components: { MdDialog },
+      emits: ['outer', 'inner'],
+      template: `<MdDialog open headline="outer" @close="$emit('outer')"><MdDialog open headline="inner" @close="$emit('inner')" /></MdDialog>`,
+    })
+    const wrapper = mount(Outer, { attachTo: document.body })
+    mounted.push(wrapper)
+
+    await wrapper.findAll('[role="dialog"]')[1]!.trigger('keydown', { key: 'Escape' })
+
+    expect(wrapper.emitted('inner')).toHaveLength(1)
+    expect(wrapper.emitted('outer'), 'the outer dialog stays open').toBeUndefined()
   })
 
   it('hands its own surface color to outlined fields so their label notch matches the dialog', async () => {

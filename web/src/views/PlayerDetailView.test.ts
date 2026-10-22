@@ -3,6 +3,7 @@ import { chooseOption } from '../test/select'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EloEvent, EloProfile, Punishment, PunishmentProfile } from '../api/types'
 import { useLookupStore } from '../stores/lookup'
+import { evidenceItem, evidencePage } from '../test/evidence'
 import { fail, mockApi, mountWithApp, ok } from '../test/mount'
 import PlayerDetailView from './PlayerDetailView.vue'
 
@@ -265,6 +266,62 @@ describe('PlayerDetailView', () => {
     const stored = JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage })
     expect(stored).not.toContain(OWNER)
     expect(stored).not.toContain('Steve')
+
+    wrapper.unmount()
+  })
+})
+
+describe('PlayerDetailView: evidence', () => {
+  const evidenceApi = () => {
+    const evidence = vi.fn(async () => ok(evidencePage([evidenceItem({ kind: 'ANTICHEAT', payload: { check: 'Speed' } }), evidenceItem({ kind: 'FILE', file: { name: 'shot.png', contentType: 'image/png', size: 1, sha256: 'x' } })])))
+    return { evidence, overrides: { evidence, evidenceCount: vi.fn(async () => ok(2)), evidenceContentUrl: (id: string) => `/api/evidence/${id}/content` } }
+  }
+
+  it('loads no evidence until a punishment is opened', async () => {
+    const { evidence, overrides } = evidenceApi()
+    const { wrapper } = await open(OWNER, overrides)
+
+    expect(evidence).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="evidence-panel"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('shows the evidence of an active punishment with the kind icons', async () => {
+    const { evidence, overrides } = evidenceApi()
+    const { wrapper } = await open(OWNER, overrides)
+
+    await wrapper.get('[data-testid="open-evidence-network"]').trigger('click')
+    await flushPromises()
+
+    expect(evidence).toHaveBeenCalledWith('p-1', { includeInactive: false, page: 0 })
+    expect(wrapper.findAll('[data-testid="kind-icon"]').map((icon) => icon.attributes('data-kind'))).toEqual(['ANTICHEAT', 'FILE'])
+
+    wrapper.unmount()
+  })
+
+  it('shows the evidence of a punishment from the history', async () => {
+    const { evidence, overrides } = evidenceApi()
+    const { wrapper } = await open(OWNER, overrides)
+
+    await wrapper.get('[data-testid="open-evidence-p-0"]').trigger('click')
+    await flushPromises()
+
+    expect(evidence).toHaveBeenCalledWith('p-0', { includeInactive: false, page: 0 })
+    expect(wrapper.findAll('[data-testid="evidence-item"]')).toHaveLength(2)
+
+    wrapper.unmount()
+  })
+
+  it('closes the evidence dialog again', async () => {
+    const { overrides } = evidenceApi()
+    const { wrapper } = await open(OWNER, overrides)
+
+    await wrapper.get('[data-testid="open-evidence-network"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="close-evidence"]').trigger('click')
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
 
     wrapper.unmount()
   })

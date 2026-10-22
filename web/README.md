@@ -37,6 +37,40 @@ The UI keeps only **theme**, **language** and the optional **acting as** label i
 local storage. Player names live in memory for the current lookup; owner hashes are only in the
 URL of the player page. Fonts are bundled (no requests to third parties).
 
+## Evidence
+
+Player detail and the appeal decision dialog show the evidence attached to a punishment (anticheat
+records, chat excerpts, replay and other links, uploaded screenshots and videos):
+
+- **Where**: the "Evidence" button of an active punishment or a history row opens the panel; the
+  appeal decision dialog shows it read-only (no upload, no link form, deleting stays possible).
+- **Preview**: images and videos play inline from `GET /api/evidence/{id}/content`, videos load their
+  metadata only. Links open in a new tab with `rel="noopener noreferrer"`; only `http` and `https`
+  values are links, and the UI never fetches a link target. Chat speakers are shown by the name this
+  browser session looked up, otherwise as "Player N" (nothing is stored).
+- **Upload**: drag and drop or the keyboard-operable drop zone, one file after the other, with
+  progress and cancel. The checks in the UI (type and size) are advisory, the backend decides and its
+  answer (too large, type not allowed, rejected, scanner unavailable) is shown on the file.
+- **Delete**: asks for a reason (erasure request, wrong evidence, other) and an optional note; the
+  backend records both in its audit trail.
+- **Lifted evidence**: evidence of a punishment lifted by appeal or revoked is hidden by default and
+  not counted. The "Show lifted evidence" switch reveals it (labelled), is not remembered and is
+  audited by the backend. It is a display default, not an access restriction: like the rest of the UI
+  it relies on the deployment boundary (see above).
+
+The upload limits come from `/config.json` and fall back to the backend defaults. The container writes
+them from optional variables (set them to the values of the backend's `blackhole.evidence.files.*`):
+
+| Variable                                | `/config.json` key         | Default                                  |
+|-----------------------------------------|----------------------------|------------------------------------------|
+| `BLACKHOLE_UI_EVIDENCE_MAX_IMAGE_BYTES` | `evidence.maxImageBytes`   | `10485760` (10 MiB)                      |
+| `BLACKHOLE_UI_EVIDENCE_MAX_VIDEO_BYTES` | `evidence.maxVideoBytes`   | `104857600` (100 MiB)                    |
+| `BLACKHOLE_UI_EVIDENCE_ALLOWED_TYPES`   | `evidence.allowedTypes`    | `image/png,image/jpeg,video/mp4,video/webm` |
+
+The container's nginx accepts request bodies up to 128 MB on `/api/evidence/file` (the rest of the API
+keeps nginx's 1 MB default); raise `client_max_body_size` in `nginx/default.conf.template` if the backend
+allows larger videos.
+
 ## Development
 
 Node 22 or newer.

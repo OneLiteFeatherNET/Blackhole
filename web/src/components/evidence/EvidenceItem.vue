@@ -43,7 +43,7 @@ const summary = computed(() => {
 </script>
 
 <template>
-  <li class="rounded-md-md border border-outline-variant p-4" :class="inactive ? 'bg-surface-container-low opacity-80' : 'bg-surface'" data-testid="evidence-item">
+  <li class="rounded-md-md border border-outline-variant p-4" :class="inactive ? 'border-dashed bg-surface-container-low' : 'bg-surface'" data-testid="evidence-item">
     <div class="flex flex-wrap items-start gap-3">
       <svg viewBox="0 0 24 24" class="mt-0.5 h-6 w-6 shrink-0 text-on-surface-variant" aria-hidden="true" data-testid="kind-icon" :data-kind="item.kind">
         <path :d="info.icon" fill="currentColor" />

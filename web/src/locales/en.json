@@ -117,7 +117,8 @@
       "cost": "ELO cost",
       "status": "Status",
       "delta": "Change",
-      "score": "Score after"
+      "score": "Score after",
+      "evidence": "Evidence"
     }
   },
   "actions": {
@@ -375,6 +376,9 @@
   },
   "evidence": {
     "title": "Evidence",
+    "open": "Evidence",
+    "dialogTitle": "Evidence of the punishment",
+    "close": "Close",
     "count": "{count} valid",
     "audited": "Opening or downloading evidence is recorded in the audit trail.",
     "empty": "No evidence for this punishment.",

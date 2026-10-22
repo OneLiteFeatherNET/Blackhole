@@ -31,10 +31,13 @@ watch(
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     event.preventDefault()
+    // A dialog opened from inside another dialog sits in its DOM; its Escape must not close the outer one too.
+    event.stopPropagation()
     emit('close')
     return
   }
   if (event.key !== 'Tab' || !panel.value) return
+  event.stopPropagation()
 
   // Keep Tab within the dialog.
   const items = Array.from(panel.value.querySelectorAll<HTMLElement>(FOCUSABLE))

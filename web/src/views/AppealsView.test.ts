@@ -2,6 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { chooseOption } from '../test/select'
 import { describe, expect, it, vi } from 'vitest'
 import type { Appeal } from '../api/types'
+import { evidenceItem, evidencePage } from '../test/evidence'
 import { fail, mockApi, mountWithApp, ok } from '../test/mount'
 import AppealsView from './AppealsView.vue'
 
@@ -26,6 +27,9 @@ function setup(overrides: Record<string, unknown> = {}) {
   const api = {
     appeals: vi.fn(async () => ok([appeal(), appeal({ identifier: 'a-2', status: 'DENIED', statement: 'Old' })])),
     reviewAppeal: vi.fn(async () => ok(appeal({ status: 'GRANTED_FULL_LIFT' }))),
+    evidence: vi.fn(async () => ok(evidencePage([evidenceItem({ kind: 'ANTICHEAT', payload: { check: 'Speed' } })]))),
+    evidenceCount: vi.fn(async () => ok(1)),
+    evidenceContentUrl: (id: string) => `/api/evidence/${id}/content`,
     ...overrides,
   }
   return { api, mount: () => mountWithApp(AppealsView, { api: mockApi(api), path: '/appeals' }) }
@@ -203,6 +207,52 @@ describe('AppealsView: deciding', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="error"]').text()).toContain('no longer awaiting a decision')
+
+    wrapper.unmount()
+  })
+})
+
+describe('AppealsView: evidence of the appealed punishment', () => {
+  it('lists the evidence of the appealed punishment in the decision dialog', async () => {
+    const { api, mount } = setup()
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="decide-a-1"]').trigger('click')
+    await flushPromises()
+
+    expect(api.evidence).toHaveBeenCalledWith('punishment-0001', { includeInactive: false, page: 0 })
+    expect(wrapper.get('[role="dialog"] [data-testid="evidence-item"]').text()).toContain('Speed')
+
+    wrapper.unmount()
+  })
+
+  it('offers no upload or link adding to a reviewer, but deleting and the lifted toggle', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="decide-a-1"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="dropzone"]').exists(), 'drop zone').toBe(false)
+    expect(wrapper.find('[data-testid="open-add-link"]').exists(), 'add link').toBe(false)
+    expect(wrapper.find('[data-testid="delete"]').exists(), 'delete').toBe(true)
+    expect(wrapper.find('[data-testid="show-lifted"]').exists(), 'lifted toggle').toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('keeps the decision dialog open when Escape closes the delete dialog above it', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="decide-a-1"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="delete"]').trigger('click')
+    const dialogs = wrapper.findAll('[role="dialog"]')
+    await dialogs[dialogs.length - 1]!.trigger('keydown', { key: 'Escape' })
+
+    expect(wrapper.findAll('[role="dialog"]')).toHaveLength(1)
+    expect(wrapper.text()).toContain('Decide appeal')
 
     wrapper.unmount()
   })

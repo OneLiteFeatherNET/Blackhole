@@ -65,6 +65,10 @@ const PAIRS: Array<[string, string, number, string]> = [
   ['on-surface', 'surface-container-low', TEXT, 'elevated cards'],
   ['on-surface-variant', 'surface-container-low', TEXT, 'elevated card hints'],
   ['primary', 'surface', UI, 'focus ring'],
+  // The evidence panel: upload entries sit on surface-container, lifted items on surface-container-low.
+  ['error', 'surface-container', TEXT, 'upload error text'],
+  ['primary', 'surface-container-low', TEXT, 'links in lifted evidence items'],
+  ['primary', 'surface-container', UI, 'upload progress bar'],
 ]
 
 describe.each(Object.entries(schemes))('%s scheme contrast', (_name, colors) => {
