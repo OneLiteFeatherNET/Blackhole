@@ -3,7 +3,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import { createBlackholeApi } from './api/blackhole'
 import { loadConfig } from './api/config'
-import { API_KEY } from './api/inject'
+import { API_KEY, EVIDENCE_LIMITS_KEY } from './api/inject'
 import { i18n } from './i18n'
 import router from './router'
 import { useUiStore } from './stores/ui'
@@ -30,6 +30,7 @@ createApp(App)
       actingAs: () => useUiStore(pinia).actingAs,
     }),
   )
+  .provide(EVIDENCE_LIMITS_KEY, config.evidence)
   .use(pinia)
   .use(i18n)
   .use(router)

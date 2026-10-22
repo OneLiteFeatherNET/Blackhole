@@ -373,6 +373,109 @@
       "confirm": "Save decision"
     }
   },
+  "evidence": {
+    "title": "Evidence",
+    "count": "{count} valid",
+    "audited": "Opening or downloading evidence is recorded in the audit trail.",
+    "empty": "No evidence for this punishment.",
+    "showLifted": "Show lifted evidence",
+    "showLiftedHint": "Evidence of a lifted or revoked punishment is kept but no longer supports a punishment. This switch only changes what is shown, it is not an access restriction. Showing it is recorded in the audit trail.",
+    "kind": {
+      "ANTICHEAT": "Anticheat record",
+      "REPLAY": "Replay",
+      "CHAT_LOG": "Chat excerpt",
+      "LINK": "Link",
+      "FILE": "File"
+    },
+    "status": {
+      "LIFTED": "Punishment lifted by appeal",
+      "REVOKED": "Punishment revoked"
+    },
+    "item": {
+      "expand": "Show details",
+      "collapse": "Hide details",
+      "delete": "Delete",
+      "lines": "{n} chat line | {n} chat lines"
+    },
+    "paging": {
+      "label": "Evidence pages",
+      "previous": "Previous",
+      "next": "Next",
+      "position": "Page {page} of {total}"
+    },
+    "anticheat": {
+      "check": "Check",
+      "violationLevel": "Violation level",
+      "server": "Server",
+      "detail": "Detail",
+      "values": "Recorded values",
+      "name": "Name",
+      "value": "Value"
+    },
+    "chat": {
+      "label": "Chat transcript",
+      "player": "Player {n}",
+      "system": "System"
+    },
+    "link": {
+      "newTab": "(opens in a new tab)"
+    },
+    "file": {
+      "noPreview": "No preview for {name}.",
+      "noCaptions": "This recording has no captions."
+    },
+    "upload": {
+      "zone": "Upload evidence files",
+      "prompt": "Drop screenshots or videos here, or press Enter to choose files",
+      "hint": "Images up to {image} MB, videos up to {video} MB",
+      "queued": "Waiting",
+      "progress": "Uploading {name}",
+      "dismiss": "Dismiss",
+      "done": "Evidence uploaded.",
+      "startedAnnounce": "Uploading {name}",
+      "doneAnnounce": "{name} uploaded",
+      "failedAnnounce": "{name} could not be uploaded",
+      "cancelledAnnounce": "Upload of {name} cancelled",
+      "error": {
+        "CLIENT_TYPE": "This file type is not allowed.",
+        "CLIENT_SIZE": "The file is larger than {max} MB.",
+        "TOO_LARGE": "The file is too large.",
+        "UNSUPPORTED_TYPE": "This file type is not allowed.",
+        "REJECTED": "The file was rejected (virus scan or personal data).",
+        "UNAVAILABLE": "The virus scanner is not available. Try again later.",
+        "NETWORK": "The backend could not be reached.",
+        "CANCELLED": "Upload cancelled.",
+        "FAILED": "The upload failed."
+      }
+    },
+    "addLink": {
+      "open": "Add link",
+      "title": "Add link or replay",
+      "kind": "Kind",
+      "url": "Address",
+      "urlHint": "A web address starting with http:// or https://",
+      "invalidUrl": "Enter a web address starting with http:// or https://.",
+      "description": "Description",
+      "descriptionHint": "Optional",
+      "confirm": "Add",
+      "done": "Link added."
+    },
+    "delete": {
+      "title": "Delete evidence",
+      "body": "The {kind} and its file are deleted permanently. The deletion is recorded in the audit trail.",
+      "reasonLabel": "Reason",
+      "choose": "Choose a reason",
+      "reason": {
+        "ERASURE_REQUEST": "Erasure request",
+        "WRONG_EVIDENCE": "Wrong evidence",
+        "OTHER": "Other"
+      },
+      "note": "Note",
+      "noteHint": "Optional; recorded with the deletion",
+      "confirm": "Delete",
+      "done": "Evidence deleted."
+    }
+  },
   "duration": {
     "hint": "e.g. 30m, 12h, 3d or 1w 2d",
     "preview": "= {text}",

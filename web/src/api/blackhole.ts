@@ -1,5 +1,6 @@
 import { createHttp, map, toResult } from './http'
 import type { components } from './schema'
+import { EVIDENCE_SOURCE_SYSTEM, uploadEvidence, type Upload } from './uploadEvidence'
 import type {
   ApiResult,
   ApplyPreview,
@@ -96,10 +97,9 @@ export interface BlackholeApi {
   deleteEvidence(identifier: string, reason: { reason: EvidenceDeleteReason; note?: string }): Promise<ApiResult<number>>
   /** Where the browser loads the stored file of an item from; a plain URL because `<img>` and `<video>` cannot send headers. */
   evidenceContentUrl(identifier: string): string
+  /** Uploads one file to the punishment; resolves through {@link Upload.result}, can be cancelled. */
+  startEvidenceUpload(punishment: string, file: File, onProgress?: (fraction: number) => void): Upload
 }
-
-/** Evidence the UI attaches is attributed to this system name (the backend requires one). */
-export const EVIDENCE_SOURCE_SYSTEM = 'admin-ui'
 
 const EVIDENCE_PAGE_SIZE = 20
 
@@ -316,13 +316,16 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
         }),
       ),
 
-    evidence: (punishment, query = {}) =>
-      toResult(
+    async evidence(punishment, query = {}) {
+      const result = await toResult(
         http.GET('/punishment/{reference}/evidence', {
           params: { path: { reference: punishment }, query: { includeInactive: false, pageable: NO_PAGEABLE } },
           querySerializer: evidenceQuery(query, options.source),
         }),
-      ),
+      )
+      // Like other lists, an empty one may come without its array.
+      return map(result, (page) => ({ ...page, items: page.items ?? [] }))
+    },
 
     async evidenceCount(punishment) {
       const result = await toResult(http.GET('/punishment/{reference}/evidence/count', { params: { path: { reference: punishment } } }))
@@ -358,6 +361,9 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       )
       return map(result, (body) => body.deleted)
     },
+
+    startEvidenceUpload: (punishment, file, onProgress) =>
+      uploadEvidence({ baseUrl: options.baseUrl, source: options.source, punishment, file, onProgress }),
 
     evidenceContentUrl: (identifier) =>
       `${options.baseUrl}/evidence/${encodeURIComponent(identifier)}/content?${new URLSearchParams({ source: options.source })}`,

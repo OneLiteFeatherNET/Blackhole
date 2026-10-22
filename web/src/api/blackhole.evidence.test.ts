@@ -28,6 +28,14 @@ describe('evidence calls', () => {
     expect(url.searchParams.get('size')).toBe('20')
   })
 
+  it('turns a page without an items array into an empty list', async () => {
+    const { api } = apiWith([{ body: { page: 0, size: 20, totalSize: 0, totalPages: 0 } }])
+
+    const result = await api.evidence(PUNISHMENT)
+
+    expect(result.ok && result.data.items).toEqual([])
+  })
+
   it('asks for lifted evidence only when told to', async () => {
     const { api, calls } = apiWith([{ body: { items: [] } }])
 
