@@ -16,6 +16,7 @@ import java.util.Set;
 public final class InMemoryBlobStore implements BlobStore {
 
     private final Map<String, byte[]> objects = new LinkedHashMap<>();
+    private final Map<String, Instant> modified = new LinkedHashMap<>();
     private boolean failing;
 
     /** Makes every following call throw, as an unreachable store would. */
@@ -34,6 +35,12 @@ public final class InMemoryBlobStore implements BlobStore {
     /** Puts bytes in the store as if an earlier upload had stored them. */
     public void given(String key, byte[] content) {
         this.objects.put(key, content);
+    }
+
+    /** Puts bytes in the store as if an earlier upload had stored them at the given time. */
+    public void given(String key, byte[] content, Instant lastModified) {
+        this.objects.put(key, content);
+        this.modified.put(key, lastModified);
     }
 
     @Override
@@ -57,13 +64,17 @@ public final class InMemoryBlobStore implements BlobStore {
     @Override
     public boolean delete(String key) throws IOException {
         check();
+        this.modified.remove(key);
         return this.objects.remove(key) != null;
     }
 
     @Override
     public List<StoredBlob> listOlderThan(Instant cutoff) throws IOException {
         check();
-        return this.objects.keySet().stream().map(key -> new StoredBlob(key, Instant.EPOCH)).toList();
+        return this.objects.keySet().stream()
+                .map(key -> new StoredBlob(key, this.modified.getOrDefault(key, Instant.EPOCH)))
+                .filter(blob -> blob.lastModified().isBefore(cutoff))
+                .toList();
     }
 
     private void check() throws IOException {

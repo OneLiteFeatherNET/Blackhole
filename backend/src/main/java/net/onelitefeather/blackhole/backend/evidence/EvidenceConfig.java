@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.evidence;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
+import io.micronaut.context.annotation.Context;
 import io.micronaut.core.annotation.Nullable;
 import jakarta.annotation.PostConstruct;
 
@@ -9,8 +10,10 @@ import java.util.List;
 
 /**
  * The {@code blackhole.evidence.*} tunables. The intent of every property is documented next to
- * its default in {@code application.yml}. Invalid values fail the application at startup.
+ * its default in {@code application.yml}. Invalid values fail the application at startup (the bean is
+ * created eagerly, so a bad value is reported before the housekeeping schedule is built from it).
  */
+@Context
 @ConfigurationProperties("blackhole.evidence")
 public class EvidenceConfig {
 

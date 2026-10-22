@@ -11,6 +11,7 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishmentDTO;
 import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.PunishmentTestBed;
+import net.onelitefeather.blackhole.backend.support.RecordingEvidenceGateway;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -34,7 +35,7 @@ class AppealDecisionServiceTest {
             InMemoryRepository.<AppealRepository, AppealEntity, UUID>of(AppealRepository.class, AppealEntity::getIdentifier).build();
     private final AppealDecisionService service = new AppealDecisionService(
             appeals.repository(), bed.punishments.repository(), bed.profiles.repository(), bed.slots, bed.profileCache,
-            bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.eloBed.clock);
+            bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.evidence, bed.eloBed.clock);
 
     /** A staff mute that cost 80 ELO; the chat score is 920 afterwards. */
     private PunishmentEntity givenStaffMute() {
@@ -231,5 +232,46 @@ class AppealDecisionServiceTest {
 
         assertEquals(AppealReviewResult.Kind.DECIDED, result.kind(), result.message());
         assertEquals(earlier, ((Number) mute.getMetaData().get("expiration_date")).longValue());
+    }
+
+    @Test
+    void aGrantedFullLiftMarksTheEvidenceLiftedByTheAppeal() {
+        PunishmentEntity mute = givenStaffMute();
+        UUID appealId = givenAppeal(mute);
+
+        service.reviewAppeal(appealId, new AppealReviewDTO(AppealStatus.GRANTED_FULL_LIFT, "ok", REVIEWER, null));
+
+        assertEquals(java.util.List.of(new RecordingEvidenceGateway.Lift(mute.getIdentifier(), appealId)), bed.evidence.lifted());
+    }
+
+    @Test
+    void aDeniedAppealLeavesTheEvidenceAlone() {
+        PunishmentEntity mute = givenStaffMute();
+
+        service.reviewAppeal(givenAppeal(mute), new AppealReviewDTO(AppealStatus.DENIED, "no", REVIEWER, null));
+
+        assertTrue(bed.evidence.lifted().isEmpty(), "a denial lifts nothing");
+        assertTrue(bed.evidence.revoked().isEmpty(), "a denial revokes nothing");
+    }
+
+    @Test
+    void aDurationReductionLeavesTheEvidenceAlone() {
+        PunishmentEntity mute = givenStaffMute();
+
+        service.reviewAppeal(givenAppeal(mute),
+                new AppealReviewDTO(AppealStatus.GRANTED_DURATION_REDUCTION, "shorter", REVIEWER, bed.eloBed.clock.millis() + 1000));
+
+        assertTrue(bed.evidence.lifted().isEmpty(), "the punishment still stands, so its evidence stays valid");
+    }
+
+    @Test
+    void aFailingEvidenceMarkDoesNotFailTheDecision() {
+        PunishmentEntity mute = givenStaffMute();
+        bed.evidence.failClaims(new IllegalStateException("database down"));
+
+        AppealReviewResult result = service.reviewAppeal(givenAppeal(mute),
+                new AppealReviewDTO(AppealStatus.GRANTED_FULL_LIFT, "ok", REVIEWER, null));
+
+        assertEquals(AppealReviewResult.Kind.DECIDED, result.kind(), "the appeal is decided regardless");
     }
 }

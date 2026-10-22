@@ -110,4 +110,22 @@ class PunishmentRevokeTest {
         var profile = bed.profiles.repository().findById(OWNER).orElseThrow();
         assertTrue(profile.getActive().containsKey("network"), "the ban stays active");
     }
+
+    @Test
+    void revokingMarksTheEvidenceOfThePunishmentRevoked() {
+        givenActiveMute();
+        String identifier = bed.profiles.repository().findById(OWNER).orElseThrow().getActive().get("chat").getIdentifier();
+
+        revoke("chat");
+
+        assertEquals(List.of(identifier), bed.evidence.revoked(), "the revoked punishment's evidence is marked");
+    }
+
+    @Test
+    void aFailingEvidenceMarkDoesNotFailTheRevoke() {
+        givenActiveMute();
+        bed.evidence.failClaims(new IllegalStateException("database down"));
+
+        assertInstanceOf(PunishmentDTO.RevokeResponse.class, revoke("chat"), "the punishment is revoked regardless");
+    }
 }

@@ -79,19 +79,17 @@ class EvidenceConfigTest {
 
     @Test
     void anUnparsableDurationFailsFast() {
-        try (ApplicationContext context = context(Map.of("blackhole.evidence.pending-ttl", "tomorrow"))) {
-            RuntimeException failure = assertThrows(RuntimeException.class, () -> context.getBean(EvidenceConfig.class),
-                    "a duration that is not ISO-8601 must not be silently replaced by a default");
-            assertTrue(messages(failure).contains("pending-ttl"), "the message names the property: " + messages(failure));
-        }
+        RuntimeException failure = assertThrows(RuntimeException.class,
+                () -> context(Map.of("blackhole.evidence.pending-ttl", "tomorrow")).close(),
+                "a duration that is not ISO-8601 must not be silently replaced by a default");
+        assertTrue(messages(failure).contains("pending-ttl"), "the message names the property: " + messages(failure));
     }
 
     @Test
     void aNonPositiveDurationFailsFast() {
-        try (ApplicationContext context = context(Map.of("blackhole.evidence.housekeeping.interval", "PT0S"))) {
-            RuntimeException failure = assertThrows(RuntimeException.class, () -> context.getBean(EvidenceConfig.class),
-                    "a zero sweep interval must be rejected");
-            assertTrue(messages(failure).contains("housekeeping.interval"), "the message names the property: " + messages(failure));
-        }
+        RuntimeException failure = assertThrows(RuntimeException.class,
+                () -> context(Map.of("blackhole.evidence.housekeeping.interval", "PT0S")).close(),
+                "a zero sweep interval must be rejected when the application starts");
+        assertTrue(messages(failure).contains("housekeeping.interval"), "the message names the property: " + messages(failure));
     }
 }

@@ -372,6 +372,87 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         return pending.size();
     }
 
+    /**
+     * Marks the punishment's valid items {@code REVOKED}: staff revoked the punishment, so the
+     * evidence no longer supports a current one. Nothing is deleted; items that are already
+     * {@code LIFTED} or {@code REVOKED} keep their first status.
+     */
+    @Override
+    public int markRevoked(String punishmentIdentifier) {
+        return changeStatus(punishmentIdentifier, EvidenceStatus.REVOKED, null);
+    }
+
+    /**
+     * Marks the punishment's valid items {@code LIFTED} by the appeal that fully lifted the
+     * punishment. Nothing is deleted. Appeals that deny or only reduce a punishment must not call this.
+     */
+    @Override
+    public int markLifted(String punishmentIdentifier, UUID appealIdentifier) {
+        return changeStatus(punishmentIdentifier, EvidenceStatus.LIFTED, appealIdentifier);
+    }
+
+    /**
+     * Deletes every item of a punishment together with its file (reason {@code CASCADE}); the
+     * punishment record is about to be deleted. The rows would go with the foreign key anyway, but the
+     * files would not. Unlike an admin delete this does not stop at a file that cannot be deleted: the
+     * row goes, and the housekeeping sweep removes the orphaned file later.
+     */
+    @Override
+    public int deleteForPunishment(String punishmentIdentifier) {
+        List<EvidenceItemEntity> found = this.items.findByPunishmentIdentifier(punishmentIdentifier);
+        for (EvidenceItemEntity item : found) {
+            if (item.getFileKey() != null) {
+                deleteQuietly(item.getFileKey());
+            }
+            this.items.delete(item);
+            record(item, EvidenceAuditAction.DELETED, null, EvidenceDeletionReason.CASCADE.name(), null);
+            publish(EvidenceEvents.DELETED, EvidenceEvents.deleted(item, EvidenceDeletionReason.CASCADE));
+        }
+        return found.size();
+    }
+
+    /**
+     * Deletes the pending items created before the cutoff that no punishment claimed, with their
+     * files (reason {@code UNCLAIMED_EXPIRED}). Evidence that belongs to a punishment is never
+     * deleted here, however old. An item whose file cannot be deleted stays for the next sweep.
+     *
+     * @return how many items were deleted
+     */
+    public int deleteUnclaimedCreatedBefore(long cutoff) {
+        int deleted = 0;
+        for (EvidenceItemEntity item : this.items.findByPunishmentIdentifierIsNullAndCreatedAtLessThan(cutoff)) {
+            if (!item.isPending()) {
+                continue;
+            }
+            if (item.getFileKey() != null) {
+                try {
+                    this.blobs.delete(item.getFileKey());
+                } catch (IOException e) {
+                    LOGGER.warn("Deleting the file of expired evidence {} failed, retrying at the next sweep", item.getIdentifier(), e);
+                    continue;
+                }
+            }
+            this.items.delete(item);
+            record(item, EvidenceAuditAction.DELETED, null, EvidenceDeletionReason.UNCLAIMED_EXPIRED.name(), null);
+            publish(EvidenceEvents.DELETED, EvidenceEvents.deleted(item, EvidenceDeletionReason.UNCLAIMED_EXPIRED));
+            deleted++;
+        }
+        return deleted;
+    }
+
+    private int changeStatus(String punishmentIdentifier, EvidenceStatus status, UUID liftedByAppeal) {
+        int changed = 0;
+        for (EvidenceItemEntity item : this.items.findByPunishmentIdentifier(punishmentIdentifier)) {
+            if (item.getStatus() != EvidenceStatus.VALID) {
+                continue;
+            }
+            item.markStatus(status, this.clock.millis(), liftedByAppeal);
+            this.items.update(item);
+            changed++;
+        }
+        return changed;
+    }
+
     private EvidenceDTO.Error remove(EvidenceItemEntity item, EvidenceDeleteReason reason, EvidenceDeletionReason published, String note, UUID source) {
         if (item.getFileKey() != null) {
             try {

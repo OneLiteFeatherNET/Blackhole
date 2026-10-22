@@ -12,6 +12,7 @@ import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.EloScoring;
 import net.onelitefeather.blackhole.backend.elo.service.EloService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.evidence.service.PunishmentEvidenceGateway;
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
 import net.onelitefeather.blackhole.backend.profile.ProfileSlots;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
@@ -65,6 +66,7 @@ public class AppealDecisionService {
     private final EloScoring eloScoring;
     private final SectionService sectionService;
     private final DomainEventPublisher eventPublisher;
+    private final PunishmentEvidenceGateway evidence;
     private final Clock clock;
 
     public AppealDecisionService(
@@ -76,6 +78,7 @@ public class AppealDecisionService {
             EloScoring eloScoring,
             SectionService sectionService,
             DomainEventPublisher eventPublisher,
+            PunishmentEvidenceGateway evidence,
             Clock clock
     ) {
         this.appealRepository = appealRepository;
@@ -86,6 +89,7 @@ public class AppealDecisionService {
         this.eloScoring = eloScoring;
         this.sectionService = sectionService;
         this.eventPublisher = eventPublisher;
+        this.evidence = evidence;
         this.clock = clock;
     }
 
@@ -136,6 +140,9 @@ public class AppealDecisionService {
         );
         if (outcome == DecisionOutcome.PUNISHMENT_NOT_ACTIVE) {
             return AppealReviewResult.punishmentNotActive();
+        }
+        if (review.decision() == AppealStatus.GRANTED_FULL_LIFT) {
+            markEvidenceLifted(punishment, appealIdentifier);
         }
 
         appeal.setStatus(review.decision());
@@ -200,6 +207,18 @@ public class AppealDecisionService {
 
         this.profileCache.evict(owner);
         return DecisionOutcome.APPLIED;
+    }
+
+    /**
+     * Marks the evidence of a fully lifted punishment {@code LIFTED}. The punishment is already
+     * lifted, so a failure here is logged and never fails the decision.
+     */
+    private void markEvidenceLifted(PunishmentEntity punishment, UUID appealIdentifier) {
+        try {
+            this.evidence.markLifted(punishment.getIdentifier(), appealIdentifier);
+        } catch (RuntimeException e) {
+            LOGGER.warn("Could not mark the evidence of lifted punishment {}", punishment.getIdentifier(), e);
+        }
     }
 
     /**

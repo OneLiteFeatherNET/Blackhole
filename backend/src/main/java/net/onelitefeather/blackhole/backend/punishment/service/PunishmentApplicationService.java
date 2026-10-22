@@ -279,6 +279,18 @@ public class PunishmentApplicationService implements SectionPunisher {
         }
     }
 
+    /**
+     * Marks the revoked punishment's evidence {@code REVOKED}. The revoke already happened, so a
+     * failure here is logged and never fails it.
+     */
+    private void markEvidenceRevoked(PunishmentEntity punishment) {
+        try {
+            this.evidence.markRevoked(punishment.getIdentifier());
+        } catch (RuntimeException e) {
+            LOGGER.warn("Could not mark the evidence of revoked punishment {}", punishment.getIdentifier(), e);
+        }
+    }
+
     @Override
     public boolean hasActivePermanent(String owner, String sectionKey) {
         return this.profileRepository.findById(owner)
@@ -397,6 +409,7 @@ public class PunishmentApplicationService implements SectionPunisher {
         active.setLifted(true);
         this.punishmentRepository.update(active);
         this.profileCache.evict(owner);
+        markEvidenceRevoked(active);
 
         Integer scoreReset = null;
         if (active.isPermanent()) {
