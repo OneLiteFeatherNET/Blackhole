@@ -57,6 +57,7 @@ dependencyResolutionManagement {
             version("logstash-logback-encoder", "9.0")
             version("opentelemetry-instrumentation-alpha", "2.20.1-alpha")
             version("janino", "3.1.12")
+            version("awssdk", "2.55.16")
 
             library("jetbrains.annotations", "org.jetbrains", "annotations").versionRef("jetbrains.annotations")
 
@@ -84,6 +85,9 @@ dependencyResolutionManagement {
             library("logstash-logback-encoder", "net.logstash.logback", "logstash-logback-encoder").versionRef("logstash-logback-encoder")
             library("opentelemetry-logback-mdc", "io.opentelemetry.instrumentation", "opentelemetry-logback-mdc-1.0").versionRef("opentelemetry-instrumentation-alpha")
             library("janino", "org.codehaus.janino", "janino").versionRef("janino")
+
+            // S3-compatible object storage for punishment evidence files (Apache-2.0).
+            library("awssdk-s3", "software.amazon.awssdk", "s3").versionRef("awssdk")
 
             plugin("micronaut.application", "io.micronaut.application").versionRef("micronaut")
             plugin("micronaut.aot", "io.micronaut.aot").versionRef("micronaut")

@@ -5,15 +5,15 @@ no sleeps, no shared static state; integration tests (PostgreSQL, S3 container) 
 
 ## 1. Schema and core model
 
-- [ ] 1.1 Append `V8__evidence_items.sql` (`evidence_items`, `evidence_audit`, `status` columns, FK `ON DELETE CASCADE`, indexes on owner, (owner, correlation_id), punishment_identifier, status); verify with the `migration-checker` agent and a migration integration test on a fresh PostgreSQL (both tables exist, deleting a punishment row deletes its evidence rows)
-- [ ] 1.2 Add `evidence/` package: `EvidenceKind` enum, entity, repository (paged by punishment/owner), `EvidenceAuditEntity`; verify a repository integration test for insert/list/paging and `hbm2ddl=validate` startup
-- [ ] 1.3 Add `blackhole.evidence.*` to `application.yml` with comments and a `@ConfigurationProperties` bean; verify a unit test that defaults bind and invalid durations fail fast
+- [x] 1.1 Append `V8__evidence_items.sql` (`evidence_items`, `evidence_audit`, `status` columns, FK `ON DELETE CASCADE`, indexes on owner, (owner, correlation_id), punishment_identifier, status); verify with the `migration-checker` agent and a migration integration test on a fresh PostgreSQL (both tables exist, deleting a punishment row deletes its evidence rows)
+- [x] 1.2 Add `evidence/` package: `EvidenceKind` enum, entity, repository (paged by punishment/owner), `EvidenceAuditEntity`; verify a repository integration test for insert/list/paging and `hbm2ddl=validate` startup
+- [x] 1.3 Add `blackhole.evidence.*` to `application.yml` with comments and a `@ConfigurationProperties` bean; verify a unit test that defaults bind and invalid durations fail fast
 
 ## 2. Validation and pseudonymisation
 
-- [ ] 2.1 Per-kind payload validators (ANTICHEAT, CHAT_LOG, REPLAY/LINK) with undeclared-property rejection and size limit; verify one unit test per rule (undeclared property, oversize -> 413, too many chat lines)
-- [ ] 2.2 URL validator (http/https only, <= 2048, no userinfo) with no network access; verify unit tests for `javascript:`, `file:`, userinfo, relative URL, and that no HTTP client exists in the class
-- [ ] 2.3 PII guard: reject UUID/IP-looking strings in structured payloads (422 with JSON pointer), redact IPs in chat text, require 128-hex owner hashes; verify unit tests for each case including IPv6
+- [x] 2.1 Per-kind payload validators (ANTICHEAT, CHAT_LOG, REPLAY/LINK) with undeclared-property rejection and size limit; verify one unit test per rule (undeclared property, oversize -> 413, too many chat lines)
+- [x] 2.2 URL validator (http/https only, <= 2048, no userinfo) with no network access; verify unit tests for `javascript:`, `file:`, userinfo, relative URL, and that no HTTP client exists in the class
+- [x] 2.3 PII guard: reject UUID/IP-looking strings in structured payloads (422 with JSON pointer), redact IPs in chat text, require 128-hex owner hashes; verify unit tests for each case including IPv6
 
 ## 3. Blob storage and uploads
 
@@ -34,7 +34,7 @@ no sleeps, no shared static state; integration tests (PostgreSQL, S3 container) 
 
 ## 5. Lifetime and lifecycle
 
-- [ ] 5.1 Lifecycle hooks: granted full-lift appeal marks evidence `LIFTED` (liftedAt, appeal id), staff revoke marks `REVOKED` (proposal; evidence never deleted), denial and reduction change nothing; verify unit tests with a fixed `Clock` for each transition
+- [ ] 5.1 Lifecycle hooks: granted full-lift appeal marks evidence `LIFTED` (liftedAt, appeal id), staff revoke marks `REVOKED` (evidence never deleted), denial and reduction change nothing; verify unit tests with a fixed `Clock` for each transition
 - [ ] 5.2 Cascade on punishment-record deletion: service hook deletes blobs and rows (reason `CASCADE`); verify a unit test with a fake store and an integration test that deleting the punishment removes rows and blobs
 - [ ] 5.3 `EvidenceHousekeepingSweeper` (scheduled): unclaimed pending evidence after `pending-ttl`, blobs without a row older than 1 day, optional audit purge when configured; verify unit tests driving the sweep method with a fake store and fixed `Clock` (claimed evidence of any age is never deleted, orphan older than 1 day removed, younger kept)
 
@@ -43,7 +43,7 @@ no sleeps, no shared static state; integration tests (PostgreSQL, S3 container) 
 - [ ] 6.1 Export the OpenAPI spec into `client/specs` with the next version number and bump the pin in `client/build.gradle.kts`; verify `./gradlew :client:build`
 - [ ] 6.2 Add SeaweedFS (S3, with a bucket-init step) and ClamAV services to `docker/docker-compose.yml`, documenting ClamAV's ~1 GB RAM and slow first start; verify `docker compose config` and a manual upload round trip incl. an EICAR rejection
 - [ ] 6.3 README section: storage options with the licence table, evidence lifetime (tied to the punishment record), "no auth: anyone on the network can read evidence, including lifted evidence via `includeInactive`", video metadata limitation, capacity planning and the warning not to use S3 lifecycle deletion, operator GDPR notes (punishment-history retention and lawful basis to document, privacy notice, access and erasure via the admin delete path decided case by case); add `.claude/rules/evidence.md`; verify documented env vars match `application.yml`
-- [ ] 6.4 End-to-end check against local PostgreSQL + RabbitMQ + Dragonfly with SeaweedFS (and once with filesystem) storage and ClamAV: anticheat-style evidence then ban, screenshot upload and ranged download, appeal full lift erases; record results in the PR description
+- [ ] 6.4 End-to-end check against local PostgreSQL + RabbitMQ + Dragonfly with SeaweedFS (and once with filesystem) storage and ClamAV: anticheat-style evidence then ban, screenshot upload and ranged download, appeal full lift marks the evidence `LIFTED` and hides it by default; record results in the PR description
 
 ## 7. Pull request
 

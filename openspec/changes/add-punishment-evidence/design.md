@@ -5,8 +5,8 @@
 Punishments are identified by a string identifier (and, with V7, a derived short id such as
 `#A1B2C3D4`); players are identified by a SHA-512 owner hash; the API has no auth and every
 `source`/actor is client-supplied; domain events go to RabbitMQ through the non-blocking
-`DomainEventPublisher`; Flyway owns the schema (latest applied V6, V7 in the open PR
-`feat/punishment-short-id`).
+`DomainEventPublisher`; Flyway owns the schema (latest applied migration is V7, the
+punishment short id).
 
 An unrelated table already exists: `punishment_evidence` (V1) with `EvidenceType`
 (`CHAT_MESSAGE`, `ANTICHEAT_FLAG`, `REPORT`, `MANUAL_NOTE`) holds hash-only records created by
@@ -30,12 +30,11 @@ video transcoding; evidence on reports; the admin UI and proxy capture (separate
 Extending `punishment_evidence` would mean widening an ordinal enum, adding five-plus
 columns, and reconciling the "no raw text" rule that governs the toxicity flow. A new table in
 a new `evidence/` package keeps both lifecycles independent. The `elo-scoring` requirement is
-reworded (MODIFIED) to say it governs the automatic flow only. A later cleanup may merge the
-two; that is an open question, not part of this change.
+reworded (MODIFIED) to say it governs the automatic flow only. Merging the two is
+deferred to a follow-up change (owner decision); this change does not touch the legacy table.
 
 ### 2. Data model - `V8__evidence_items.sql`
-(V7 is taken by `feat/punishment-short-id`; V8 assumes it merges first. If the order flips, the
-number is adjusted at implementation. Append-only; no existing rows to migrate - new tables only.)
+(V7 is the merged punishment short id. Append-only; no existing rows to migrate - new tables only.)
 
 `evidence_items`:
 
@@ -222,10 +221,10 @@ punishment record exists in the history.** There is no time-based expiry, no
 *Lifted and revoked evidence - kept, marked, hidden by default:*
 - A granted full-lift appeal sets the punishment's items to `LIFTED` (`status_changed_at`,
   `lifted_by_appeal`) instead of deleting them. Reductions and denials change nothing.
-- A staff revoke never deletes. **Proposal:** it marks the items `REVOKED` (same mechanics,
-  label "Strafe widerrufen" / "Punishment revoked"), because a revoked punishment's evidence
-  also no longer supports a current punishment. This is a proposal; if the owner prefers,
-  revoked evidence simply stays `VALID`.
+- A staff revoke never deletes. **Decision (owner):** it marks the items `REVOKED` (same
+  mechanics as `LIFTED`, label "Strafe widerrufen" / "Punishment revoked"), because a revoked
+  punishment's evidence also no longer supports a current punishment. REVOKED evidence is kept,
+  not counted, hidden by default, and revealing it via `includeInactive` is audited.
 - Marked items are labelled ("Strafe per Appeal aufgehoben"), are **not** counted by
   `evidenceCount`/the count endpoint, must not be presented as supporting a current
   punishment, and are excluded from lists unless `includeInactive=true`; each such list is
@@ -327,8 +326,9 @@ versions. Orphaned blobs removed by the reconcile sweep or by deleting the bucke
 
 ## Open Questions
 
-Whether evidence of revoked punishments should be marked `REVOKED` and hidden like `LIFTED`
-(proposed here, decision 10); merging the legacy `punishment_evidence` table later.
+None blocking. Follow-up (deferred by the owner): merge the legacy hash-only
+`punishment_evidence` table into the new evidence model in a separate change. Audit rows are kept
+indefinitely unless the operator configures `audit-retention` (decided).
 
 ## Sources
 
