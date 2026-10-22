@@ -77,6 +77,42 @@ class PunishmentScreensTest {
         return plain(screen(screens(config("", "")), p, locale, surface, false));
     }
 
+    private static String textWithEvidence(Locale locale, Surface surface, long evidenceCount) {
+        return plain(screens(config("", "")).screen(
+                punishment("network", EnforcementKind.BAN, IN_59_MIN, "Cheating"), locale, surface, false, evidenceCount));
+    }
+
+    @Test
+    void theEvidenceCountIsShownInGerman() {
+        String text = textWithEvidence(Locale.GERMAN, Surface.DISCONNECT, 3);
+
+        assertTrue(text.contains("Beweise: 3"), "the denial screen must tell the player how many pieces of evidence exist, got:\n" + text);
+    }
+
+    @Test
+    void theEvidenceCountIsShownInEnglishInChat() {
+        String text = textWithEvidence(Locale.ENGLISH, Surface.CHAT, 1);
+
+        assertTrue(text.contains("Evidence: 1"), "the chat denial must show the count too, got:\n" + text);
+    }
+
+    @Test
+    void aZeroEvidenceCountAddsNoLine() {
+        String text = textWithEvidence(Locale.ENGLISH, Surface.DISCONNECT, 0);
+
+        assertFalse(text.contains("Evidence"), "no evidence means no line, got:\n" + text);
+    }
+
+    @Test
+    void aScreenBuiltWithoutACountMatchesOneWithZero() {
+        PunishmentSyncMessage ban = punishment("network", EnforcementKind.BAN, IN_59_MIN, "Cheating");
+
+        assertEquals(
+                plain(screens(config("", "")).screen(ban, Locale.ENGLISH, Surface.DISCONNECT, false)),
+                plain(screens(config("", "")).screen(ban, Locale.ENGLISH, Surface.DISCONNECT, false, 0)),
+                "callers that know no count must see the unchanged screen");
+    }
+
     @Test
     void temporaryBanInGerman() {
         assertEquals("""

@@ -10,6 +10,7 @@ import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.EloChatSignalRequest;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
+import net.onelitefeather.blackhole.velocity.evidence.EvidenceCounts;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.jetbrains.annotations.NotNull;
@@ -29,12 +30,17 @@ public final class PlayerChatListener {
     private final EloApi eloApi;
     private final PunishmentState state;
     private final PunishmentScreens screens;
+    private final EvidenceCounts evidenceCounts;
 
     @Inject
-    public PlayerChatListener(@NotNull ApiClient blackholeClient, @NotNull PunishmentState state, @NotNull PunishmentScreens screens) {
+    public PlayerChatListener(
+            @NotNull ApiClient blackholeClient, @NotNull PunishmentState state, @NotNull PunishmentScreens screens,
+            @NotNull EvidenceCounts evidenceCounts
+    ) {
         this.eloApi = new EloApi(blackholeClient);
         this.state = state;
         this.screens = screens;
+        this.evidenceCounts = evidenceCounts;
     }
 
     @Subscribe
@@ -53,8 +59,9 @@ public final class PlayerChatListener {
         }
         if (mute.isPresent()) {
             event.setResult(PlayerChatEvent.ChatResult.denied());
+            long evidence = this.evidenceCounts.of(mute.get().punishmentIdentifier()).orElse(0);
             player.sendMessage(this.screens.screen(
-                    mute.get(), PunishmentScreens.localeOf(player), PunishmentScreens.Surface.CHAT, false));
+                    mute.get(), PunishmentScreens.localeOf(player), PunishmentScreens.Surface.CHAT, false, evidence));
             return;
         }
         submitChatSignal(player, uuidHash, event.getMessage());

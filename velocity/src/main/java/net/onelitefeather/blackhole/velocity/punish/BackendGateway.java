@@ -38,6 +38,13 @@ public interface BackendGateway {
     CompletableFuture<Void> postChatEvidence(String owner, String correlationId, ChatSnapshot snapshot, String sourceSystem, UUID source);
 
     /**
+     * Counts the valid evidence items of a punishment. Asynchronous: the caller bounds the wait.
+     *
+     * @param punishment the punishment's identifier or short id
+     */
+    CompletableFuture<Long> countEvidence(String punishment);
+
+    /**
      * Revokes the owner's active punishment in the section.
      */
     PunishmentRevokeResponse revoke(String owner, String section, UUID source) throws ApiException;

@@ -17,8 +17,8 @@ F.I.R.S.T.: inject `java.time.Clock` into the buffer, no sleeps, no real network
 
 ## 3. Denial screen count
 
-- [ ] 3.1 Async count lookup with 30 s proxy-side cache and timeout, appended to login/chat denial screens when > 0; verify unit tests for count shown, zero omitted, timeout omitted, and that no evidence content type is referenced
-- [ ] 3.2 README/plugin config docs including the GDPR note (third-party data in context lines, legitimate-interest note for operators, off by default, RAM only); verify keys match the config class
+- [x] 3.1 Async count lookup with 30 s proxy-side cache and timeout, appended to login/chat denial screens when > 0; verify unit tests for count shown, zero omitted, timeout omitted, and that no evidence content type is referenced
+- [x] 3.2 README/plugin config docs including the GDPR note (third-party data in context lines, legitimate-interest note for operators, off by default, RAM only); verify keys match the config class
 
 ## 4. Verification
 
@@ -26,4 +26,4 @@ F.I.R.S.T.: inject `java.time.Clock` into the buffer, no sleeps, no real network
 
 ## 5. Pull request
 
-- [ ] 5.1 Open the pull request titled `feat(velocity): attach chat evidence to staff punishments` against `main`; verify PR lint and `openspec validate --all --strict` pass
+- [x] 5.1 Open the pull request titled `feat(velocity): attach chat evidence to staff punishments` against `main`; verify PR lint and `openspec validate --all --strict` pass (shipped as three stacked pull requests: buffer, attach, count)

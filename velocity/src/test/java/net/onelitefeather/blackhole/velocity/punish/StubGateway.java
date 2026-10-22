@@ -36,6 +36,10 @@ final class StubGateway implements BackendGateway {
     /** The owner and correlation id of each evidence post, in the order the calls were made. */
     final List<String> postedEvidence = new ArrayList<>();
     final List<ChatSnapshot> postedSnapshots = new ArrayList<>();
+    /** The punishments whose evidence was counted. */
+    final List<String> countedPunishments = new ArrayList<>();
+    /** What the count call answers. */
+    CompletableFuture<Long> countResult = CompletableFuture.completedFuture(0L);
     /** The order of apply and evidence calls. */
     final List<String> calls = new ArrayList<>();
     /** What the evidence post answers; completes successfully unless the test replaces it. */
@@ -71,6 +75,13 @@ final class StubGateway implements BackendGateway {
             throw this.evidenceFailure;
         }
         return this.evidenceResult;
+    }
+
+    @Override
+    public CompletableFuture<Long> countEvidence(String punishment) {
+        this.calls.add("count");
+        this.countedPunishments.add(punishment);
+        return this.countResult;
     }
 
     @Override

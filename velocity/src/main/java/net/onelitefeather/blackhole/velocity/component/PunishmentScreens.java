@@ -82,6 +82,19 @@ public final class PunishmentScreens {
     public @NotNull Component screen(
             @NotNull PunishmentSyncMessage punishment, @NotNull Locale locale, @NotNull Surface surface, boolean movedToFallback
     ) {
+        return screen(punishment, locale, surface, movedToFallback, 0);
+    }
+
+    /**
+     * Like {@link #screen(PunishmentSyncMessage, Locale, Surface, boolean)}, and tells the player how
+     * many pieces of evidence exist - the number only, never their content.
+     *
+     * @param evidenceCount how many valid evidence items the punishment has; nothing is shown for zero or less
+     */
+    public @NotNull Component screen(
+            @NotNull PunishmentSyncMessage punishment, @NotNull Locale locale, @NotNull Surface surface,
+            boolean movedToFallback, long evidenceCount
+    ) {
         SectionInfo section = this.sections.find(punishment.section()).orElse(null);
         EnforcementKind kind = parseKind(punishment.enforcement(), section);
 
@@ -110,6 +123,9 @@ public final class PunishmentScreens {
             if (movedToFallback) {
                 where.add(Component.translatable("punishment.screen.moved"));
             }
+        }
+        if (evidenceCount > 0) {
+            where.add(Component.translatable("punishment.screen.evidence", Component.text(evidenceCount)));
         }
         if (!where.isEmpty()) {
             paragraphs.add(Component.join(JoinConfiguration.newlines(), where));
