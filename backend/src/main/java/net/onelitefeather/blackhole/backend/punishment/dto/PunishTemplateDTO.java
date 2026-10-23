@@ -29,6 +29,36 @@ public sealed interface PunishTemplateDTO {
      * @param duration ISO-8601 duration, greater than zero
      * @param eloCost  ELO deducted from the section when this step is applied, zero or more
      */
+    /**
+     * Documents the body of {@code GET /template}: the JSON Micronaut Data's {@code Page} serialises
+     * to, with the templates under {@code content}. Never instantiated - the controller returns the
+     * {@code Page} itself, so this exists only to give the published spec the real shape instead of
+     * a bare array.
+     *
+     * @param content          the templates of this page
+     * @param totalSize        the number of templates across all pages
+     * @param totalPages       the number of pages
+     * @param pageNumber       the zero-based number of this page
+     * @param size             the requested page size
+     * @param offset           the index of the first template of this page
+     * @param numberOfElements the number of templates on this page
+     * @param empty            whether this page has no templates
+     */
+    @Schema(name = "PunishTemplatePage")
+    @Serdeable
+    @ReflectiveAccess
+    record PageResponse(
+            @NonNull List<Response> content,
+            long totalSize,
+            int totalPages,
+            int pageNumber,
+            int size,
+            long offset,
+            int numberOfElements,
+            boolean empty
+    ) implements PunishTemplateDTO {
+    }
+
     @Schema(name = "PunishTemplateStep")
     @Serdeable
     @ReflectiveAccess

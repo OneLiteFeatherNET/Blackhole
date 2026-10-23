@@ -9,7 +9,6 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -74,9 +73,7 @@ public interface PunishmentTemplateApi {
             tags = {"Punishment Templates"}
     )
     @ApiResponse(responseCode = "200", description = "Successfully retrieved punishment templates",
-            content = @Content(mediaType = "application/json",
-                    array = @ArraySchema(schema = @Schema(implementation = PunishTemplateDTO.Response.class),
-                            arraySchema = @Schema(implementation = Page.class))))
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishTemplateDTO.PageResponse.class)))
     @Get("/")
     HttpResponse<Page<PunishTemplateDTO.Response>> getAll(Pageable pageable);
 
