@@ -4,7 +4,9 @@ type Listener = () => void
 export function fakeMatchMedia(width: { value: number }) {
   const listeners = new Set<Listener>()
   const matchMedia = (query: string) => {
-    const min = Number(/min-width:\s*(\d+)px/.exec(query)![1])
+    const found = /min-width:\s*(\d+)px/.exec(query)
+    // Other queries (e.g. prefers-reduced-motion) are not a width and never match here.
+    const min = found ? Number(found[1]) : Infinity
     return {
       get matches() {
         return width.value >= min

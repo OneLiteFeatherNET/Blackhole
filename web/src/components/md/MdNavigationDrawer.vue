@@ -5,6 +5,7 @@
 //  - modal:  modal drawer over a scrim, only rendered while open (Escape and the scrim close it)
 import { nextTick, ref, useId, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import MdTransition from '../../motion/MdTransition.vue'
 
 export interface DrawerItem {
   to: string
@@ -92,59 +93,66 @@ function onKeydown(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <div v-if="visible()" :class="props.mode === 'modal' ? 'fixed inset-0 z-50' : 'contents'">
-    <div v-if="props.mode === 'modal'" data-testid="nav-scrim" class="absolute inset-0 bg-scrim/[0.32]" @click="emit('close')" />
-    <nav
-      ref="root"
-      :aria-label="props.label"
-      :aria-modal="props.mode === 'modal' ? 'true' : undefined"
-      class="flex shrink-0 flex-col overflow-y-auto bg-surface-container-low text-on-surface"
-      :class="{
-        'sticky top-16 h-[calc(100dvh-4rem)] w-72 gap-1 px-3 py-3': props.mode === 'drawer',
-        'sticky top-16 h-[calc(100dvh-4rem)] w-20 items-center gap-1 py-3': props.mode === 'rail',
-        'relative h-full w-80 max-w-[85vw] gap-1 rounded-r-md-xl px-3 py-3 shadow-md-3': props.mode === 'modal',
-      }"
-      @keydown="onKeydown"
-    >
-      <template v-for="(group, index) in props.groups" :key="group.key">
-        <hr v-if="index > 0 && props.mode === 'rail'" class="my-1 w-8 border-outline-variant" />
-        <div :role="group.heading ? 'group' : undefined" :aria-labelledby="group.heading ? `${uid}-${group.key}` : undefined" class="flex flex-col gap-1" :class="{ 'w-full': props.mode === 'rail', 'mt-2': index > 0 && props.mode !== 'rail' }">
-          <p
-            v-if="group.heading"
-            :id="`${uid}-${group.key}`"
-            class="px-4 pt-3 pb-1 text-label-large text-on-surface-variant"
-            :class="{ 'sr-only': props.mode === 'rail' }"
-          >
-            {{ group.heading }}
-          </p>
-          <RouterLink v-for="item in group.items" :key="item.to" v-slot="{ href, navigate }" :to="item.to" custom>
-            <a
-              :href="href"
-              :aria-current="isCurrent(item.to) ? 'page' : undefined"
-              class="group text-label-large text-on-surface outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              :class="
-                props.mode === 'rail'
-                  ? 'flex w-full flex-col items-center gap-1 rounded-md-md py-1 text-label-medium'
-                  : [
-                      'md-state flex h-14 items-center gap-3 rounded-md-full px-4',
-                      isCurrent(item.to) ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant',
-                    ]
-              "
-              @click="navigate"
+  <MdTransition name="modal">
+    <div v-if="visible()" :class="props.mode === 'modal' ? 'fixed inset-0 z-50' : 'contents'">
+      <div v-if="props.mode === 'modal'" data-testid="nav-scrim" class="absolute inset-0 bg-scrim/[0.32]" @click="emit('close')" />
+      <nav
+        ref="root"
+        :key="props.mode"
+        :aria-label="props.label"
+        :aria-modal="props.mode === 'modal' ? 'true' : undefined"
+        class="flex shrink-0 flex-col overflow-y-auto bg-surface-container-low text-on-surface"
+        :class="{
+          'md-fade-in': props.mode !== 'modal',
+          'sticky top-16 h-[calc(100dvh-4rem)] w-72 gap-1 px-3 py-3': props.mode === 'drawer',
+          'sticky top-16 h-[calc(100dvh-4rem)] w-20 items-center gap-1 py-3': props.mode === 'rail',
+          'relative h-full w-80 max-w-[85vw] gap-1 rounded-r-md-xl px-3 py-3 shadow-md-3': props.mode === 'modal',
+        }"
+        @keydown="onKeydown"
+      >
+        <template v-for="(group, index) in props.groups" :key="group.key">
+          <hr v-if="index > 0 && props.mode === 'rail'" class="my-1 w-8 border-outline-variant" />
+          <div :role="group.heading ? 'group' : undefined" :aria-labelledby="group.heading ? `${uid}-${group.key}` : undefined" class="flex flex-col gap-1" :class="{ 'w-full': props.mode === 'rail', 'mt-2': index > 0 && props.mode !== 'rail' }">
+            <p
+              v-if="group.heading"
+              :id="`${uid}-${group.key}`"
+              class="px-4 pt-3 pb-1 text-label-large text-on-surface-variant"
+              :class="{ 'sr-only': props.mode === 'rail' }"
             >
-              <span
-                v-if="props.mode === 'rail'"
-                class="md-state grid h-8 w-14 place-items-center rounded-md-full transition-colors group-hover:before:opacity-[0.08] group-focus-visible:before:opacity-[0.12]"
-                :class="isCurrent(item.to) ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'"
+              {{ group.heading }}
+            </p>
+            <RouterLink v-for="item in group.items" :key="item.to" v-slot="{ href, navigate }" :to="item.to" custom>
+              <a
+                :href="href"
+                :aria-current="isCurrent(item.to) ? 'page' : undefined"
+                class="group text-label-large text-on-surface outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                :class="
+                  props.mode === 'rail'
+                    ? 'flex w-full flex-col items-center gap-1 rounded-md-md py-1 text-label-medium'
+                    : [
+                        'md-state md-colors flex h-14 items-center gap-3 rounded-md-full px-4',
+                        isCurrent(item.to) ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant',
+                      ]
+                "
+                @click="navigate"
               >
-                <svg viewBox="0 0 24 24" class="h-6 w-6" aria-hidden="true"><path :d="item.icon" fill="currentColor" /></svg>
-                <span v-if="item.badge" data-testid="nav-badge" aria-hidden="true" class="absolute -top-1 right-0 grid h-4 min-w-4 place-items-center rounded-md-full bg-error px-1 text-label-small text-on-error">{{ item.badge.text }}</span>
+                <span
+                  v-if="props.mode === 'rail'"
+                  class="md-state md-colors grid h-8 w-14 place-items-center rounded-md-full group-hover:before:opacity-[0.08] group-focus-visible:before:opacity-[0.12]"
+                  :class="isCurrent(item.to) ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'"
+                >
+                  <svg viewBox="0 0 24 24" class="h-6 w-6" aria-hidden="true"><path :d="item.icon" fill="currentColor" /></svg>
+                  <MdTransition name="badge" mode="out-in">
+                    <span v-if="item.badge" :key="item.badge.text" data-testid="nav-badge" aria-hidden="true" class="absolute -top-1 right-0 grid h-4 min-w-4 place-items-center rounded-md-full bg-error px-1 text-label-small text-on-error">{{ item.badge.text }}</span>
+                </MdTransition>
               </span>
               <template v-else>
                 <svg viewBox="0 0 24 24" class="h-6 w-6 shrink-0" aria-hidden="true"><path :d="item.icon" fill="currentColor" /></svg>
               </template>
               <span :class="props.mode === 'rail' ? 'text-center' : 'min-w-0 flex-1 truncate'">{{ item.label }}</span>
-              <span v-if="item.badge && props.mode !== 'rail'" data-testid="nav-badge" aria-hidden="true" class="grid h-6 min-w-6 place-items-center rounded-md-full bg-error px-2 text-label-medium text-on-error">{{ item.badge.text }}</span>
+              <MdTransition name="badge" mode="out-in">
+                <span v-if="item.badge && props.mode !== 'rail'" :key="item.badge.text" data-testid="nav-badge" aria-hidden="true" class="grid h-6 min-w-6 place-items-center rounded-md-full bg-error px-2 text-label-medium text-on-error">{{ item.badge.text }}</span>
+              </MdTransition>
               <span v-if="item.badge" class="sr-only">{{ item.badge.label }}</span>
             </a>
           </RouterLink>
@@ -152,4 +160,5 @@ function onKeydown(event: KeyboardEvent): void {
       </template>
     </nav>
   </div>
+  </MdTransition>
 </template>

@@ -20,7 +20,7 @@ const evidenceFor = ref<string | null>(null)
 <template>
   <p v-if="entries.length === 0" class="text-body-large text-on-surface-variant">{{ t('player.noActive') }}</p>
   <ul v-else class="grid gap-4 md:grid-cols-2">
-    <li v-for="[section, punishment] in entries" :key="section">
+    <li v-for="([section, punishment], index) in entries" :key="section" class="md-enter" :style="{ '--md-i': index }">
       <MdCard variant="filled" class="h-full" :data-testid="`active-${section}`">
         <div class="mb-2 flex flex-wrap items-center gap-2">
           <h3 class="text-title-medium">{{ section }}</h3>

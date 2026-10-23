@@ -16,7 +16,7 @@ const label = (prefix: string, value: string) => (te(`${prefix}.${value}`) ? t(`
     <h3 class="text-title-medium">{{ t('case.related.title') }}</h3>
     <p v-if="related.length === 0" class="text-body-medium text-on-surface-variant">{{ t('case.related.none') }}</p>
     <ul v-else class="flex flex-col gap-2">
-      <li v-for="other in related" :key="other.identifier" class="flex flex-wrap items-center gap-2">
+      <li v-for="(other, index) in related" :key="other.identifier" class="md-enter flex flex-wrap items-center gap-2" :style="{ '--md-i': index }">
         <RouterLink
           :to="{ name: 'case', params: { reference: other.identifier } }"
           class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"

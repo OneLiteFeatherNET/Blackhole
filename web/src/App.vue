@@ -11,6 +11,7 @@ import MdIconButton from './components/md/MdIconButton.vue'
 import MdNavigationDrawer from './components/md/MdNavigationDrawer.vue'
 import MdSnackbar from './components/md/MdSnackbar.vue'
 import MdTopAppBar from './components/md/MdTopAppBar.vue'
+import MdTransition from './motion/MdTransition.vue'
 import { badgeText, useNavCountsStore, type CountKey } from './nav/navCounts'
 import { visibleGroups } from './nav/navigation'
 import { useTicker } from './nav/ticker'
@@ -136,7 +137,9 @@ onBeforeUnmount(() => stopTicker?.())
           <template v-if="auth.redirecting.value">{{ t('auth.redirecting') }}</template>
           <template v-else-if="!resolved">{{ t('auth.signingIn') }}</template>
         </p>
-        <RouterView v-if="resolved" />
+        <RouterView v-if="resolved" v-slot="{ Component }">
+          <MdTransition name="fade-through" mode="out-in"><component :is="Component" /></MdTransition>
+        </RouterView>
       </main>
     </div>
   </div>

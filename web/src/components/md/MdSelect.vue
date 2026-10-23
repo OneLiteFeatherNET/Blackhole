@@ -5,6 +5,7 @@
 // no dialog or scroll container can clip it.
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue'
 import { placeMenu, type MenuPlacement } from './menuPlacement'
+import MdTransition from '../../motion/MdTransition.vue'
 
 export interface SelectOption {
   value: string
@@ -243,7 +244,7 @@ function toggle(): void {
       </span>
       <svg
         viewBox="0 0 24 24"
-        class="pointer-events-none absolute top-1/2 right-3 h-6 w-6 -translate-y-1/2 text-on-surface-variant transition-transform duration-150"
+        class="pointer-events-none absolute top-1/2 right-3 h-6 w-6 -translate-y-1/2 text-on-surface-variant md-transform"
         :class="{ 'rotate-180': open }"
         data-testid="arrow"
         aria-hidden="true"
@@ -261,52 +262,55 @@ function toggle(): void {
     </p>
 
     <Teleport to="body">
-      <ul
-        v-if="open"
-        :id="listId"
-        ref="list"
-        role="listbox"
-        tabindex="-1"
-        :aria-labelledby="labelId"
-        class="fixed z-[60] overflow-y-auto rounded-md-xs bg-surface-container py-2 text-on-surface shadow-md-2"
-        :style="{
-          left: `${placement.left}px`,
-          width: `${placement.width}px`,
-          top: placement.top === undefined ? undefined : `${placement.top}px`,
-          bottom: placement.bottom === undefined ? undefined : `${placement.bottom}px`,
-          maxHeight: `${placement.maxHeight}px`,
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'var(--color-outline) transparent',
-        }"
-      >
-        <li
-          v-for="(option, index) in props.options"
-          :id="optionId(index)"
-          :key="option.value"
-          role="option"
-          :aria-selected="index === selectedIndex ? 'true' : 'false'"
-          :aria-disabled="option.disabled ? 'true' : undefined"
-          :data-value="option.value"
-          class="relative flex min-h-12 items-center gap-3 px-4 py-2 text-body-large"
-          :class="[
-            index === selectedIndex ? 'bg-secondary-container text-on-secondary-container' : '',
-            option.disabled ? 'cursor-default opacity-[0.38]' : 'cursor-pointer',
-            !option.disabled && index === active ? 'bg-on-surface/12' : '',
-            !option.disabled && index !== active ? 'hover:bg-on-surface/8' : '',
-          ]"
-          @pointerdown.prevent
-          @mousemove="!option.disabled && (active = index)"
-          @click="choose(index)"
+      <MdTransition name="menu">
+        <ul
+          v-if="open"
+          :id="listId"
+          ref="list"
+          role="listbox"
+          tabindex="-1"
+          :aria-labelledby="labelId"
+          class="fixed z-[60] overflow-y-auto rounded-md-xs bg-surface-container py-2 text-on-surface shadow-md-2"
+          :style="{
+            left: `${placement.left}px`,
+            width: `${placement.width}px`,
+            top: placement.top === undefined ? undefined : `${placement.top}px`,
+            bottom: placement.bottom === undefined ? undefined : `${placement.bottom}px`,
+            maxHeight: `${placement.maxHeight}px`,
+            '--md-menu-origin': placement.top === undefined ? 'bottom' : 'top',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'var(--color-outline) transparent',
+          }"
         >
-          <span class="flex min-w-0 flex-1 flex-col">
-            <span class="truncate">{{ option.label }}</span>
-            <span v-if="option.description" class="truncate text-body-small text-on-surface-variant">{{ option.description }}</span>
-          </span>
-          <svg v-if="index === selectedIndex" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" aria-hidden="true">
-            <path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" fill="currentColor" />
-          </svg>
-        </li>
-      </ul>
+          <li
+            v-for="(option, index) in props.options"
+            :id="optionId(index)"
+            :key="option.value"
+            role="option"
+            :aria-selected="index === selectedIndex ? 'true' : 'false'"
+            :aria-disabled="option.disabled ? 'true' : undefined"
+            :data-value="option.value"
+            class="md-colors relative flex min-h-12 items-center gap-3 px-4 py-2 text-body-large"
+            :class="[
+              index === selectedIndex ? 'bg-secondary-container text-on-secondary-container' : '',
+              option.disabled ? 'cursor-default opacity-[0.38]' : 'cursor-pointer',
+              !option.disabled && index === active ? 'bg-on-surface/12' : '',
+              !option.disabled && index !== active ? 'hover:bg-on-surface/8' : '',
+            ]"
+            @pointerdown.prevent
+            @mousemove="!option.disabled && (active = index)"
+            @click="choose(index)"
+          >
+            <span class="flex min-w-0 flex-1 flex-col">
+              <span class="truncate">{{ option.label }}</span>
+              <span v-if="option.description" class="truncate text-body-small text-on-surface-variant">{{ option.description }}</span>
+            </span>
+            <svg v-if="index === selectedIndex" viewBox="0 0 24 24" class="h-5 w-5 shrink-0" aria-hidden="true">
+              <path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" fill="currentColor" />
+            </svg>
+          </li>
+        </ul>
+      </MdTransition>
     </Teleport>
   </div>
 </template>

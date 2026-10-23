@@ -43,6 +43,11 @@ the backend verifies it; the UI only decides what to offer.
   or a case by `#A1B2C3D4` (`GET /punishment/short/{shortId}`; when short ids collide the matches are listed
   to pick from) or by a full punishment id. Arrow keys select, Enter opens, Escape closes. A Ban ID lookup
   does not exist yet (see `openspec/changes/add-appeal-portal`).
+- **Motion.** State changes use the MD3 motion tokens (`--md-sys-motion-easing-*`, `--md-sys-motion-duration-*`
+  in `src/styles/main.css`) and only animate `opacity` and `transform`: a fade-through between pages, scale and
+  fade for dialogs, menus growing from their anchor, a sliding modal drawer and snackbar, staggered list items
+  (capped at 8 steps), state layers on controls. With `prefers-reduced-motion: reduce` nothing moves or scales,
+  only short fades remain (`MdTransition` switches every pattern to a fade, the CSS zeroes the distances).
 - **Account.** The "Konto" (*Account*) entry in the account menu of the top bar opens a dialog that shows whether the signed-in
   person's Minecraft account is linked. "Minecraft-Konto verknüpfen" issues a code with a countdown and a
   copy button for the code and for the command `/blackhole link <code>`; "Verknüpfung entfernen" unlinks

@@ -10,6 +10,7 @@ import type { Punishment } from '../../api/types'
 import { formatDateTime } from '../../format'
 import { useLookupStore } from '../../stores/lookup'
 import { parseSearch } from './parseSearch'
+import MdTransition from '../../motion/MdTransition.vue'
 
 interface Choice {
   id: string
@@ -201,33 +202,35 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
       />
       <kbd class="hidden rounded-md-xs border border-outline px-1.5 text-label-small text-on-surface-variant sm:inline" aria-hidden="true">/</kbd>
     </div>
-    <div v-if="showList || showMessage" class="absolute top-full right-0 left-0 z-40 mt-1 overflow-hidden rounded-md-md bg-surface-container text-on-surface shadow-md-2">
-      <ul v-show="showList" :id="listId" role="listbox" :aria-label="t('search.results')" class="py-2">
-        <li
-          v-for="(choice, index) in choices"
-          :id="optionId(index)"
-          :key="choice.id"
-          role="option"
-          :aria-selected="index === active"
-          class="flex cursor-pointer flex-col px-4 py-2 text-body-large"
-          :class="index === active ? 'bg-secondary-container text-on-secondary-container' : ''"
-          @mousedown.prevent
-          @mousemove="active = index"
-          @click="choose(index)"
+    <MdTransition name="menu">
+      <div v-if="showList || showMessage" style="--md-menu-origin: top" class="absolute top-full right-0 left-0 z-40 mt-1 overflow-hidden rounded-md-md bg-surface-container text-on-surface shadow-md-2">
+        <ul v-show="showList" :id="listId" role="listbox" :aria-label="t('search.results')" class="py-2">
+          <li
+            v-for="(choice, index) in choices"
+            :id="optionId(index)"
+            :key="choice.id"
+            role="option"
+            :aria-selected="index === active"
+            class="md-colors flex cursor-pointer flex-col px-4 py-2 text-body-large"
+            :class="index === active ? 'bg-secondary-container text-on-secondary-container' : ''"
+            @mousedown.prevent
+            @mousemove="active = index"
+            @click="choose(index)"
+          >
+            {{ choice.label }}
+            <span v-if="choice.detail" class="text-body-small">{{ choice.detail }}</span>
+          </li>
+        </ul>
+        <p
+          v-if="showMessage"
+          data-testid="search-message"
+          :role="failure ? 'alert' : 'status'"
+          class="px-4 py-3 text-body-medium"
+          :class="failure ? 'bg-error-container text-on-error-container' : 'text-on-surface-variant'"
         >
-          {{ choice.label }}
-          <span v-if="choice.detail" class="text-body-small">{{ choice.detail }}</span>
-        </li>
-      </ul>
-      <p
-        v-if="showMessage"
-        data-testid="search-message"
-        :role="failure ? 'alert' : 'status'"
-        class="px-4 py-3 text-body-medium"
-        :class="failure ? 'bg-error-container text-on-error-container' : 'text-on-surface-variant'"
-      >
-        {{ message }}
-      </p>
-    </div>
+          {{ message }}
+        </p>
+      </div>
+    </MdTransition>
   </div>
 </template>

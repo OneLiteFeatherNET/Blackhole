@@ -8,6 +8,7 @@ import type { Locale } from '../../i18n'
 import { useUiStore, type ThemeChoice } from '../../stores/ui'
 import MdButton from '../md/MdButton.vue'
 import MdSelect from '../md/MdSelect.vue'
+import MdTransition from '../../motion/MdTransition.vue'
 
 const props = defineProps<{ displayName: string | null }>()
 const emit = defineEmits<{ account: []; signOut: [] }>()
@@ -85,20 +86,23 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerOutsi
         <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor" />
       </svg>
     </button>
-    <div
-      v-if="open"
-      :id="`${uid}-panel`"
-      role="group"
-      :aria-label="t('account.menu')"
-      class="absolute right-0 top-12 z-40 flex w-72 flex-col gap-3 rounded-md-md bg-surface-container p-4 text-on-surface shadow-md-2"
-    >
-      <template v-if="props.displayName">
-        <p data-testid="signed-in-as" class="text-body-medium text-on-surface-variant">{{ t('auth.signedInAs', { name: props.displayName }) }}</p>
-        <MdButton variant="tonal" data-testid="account" @click="choose('account')">{{ t('account.open') }}</MdButton>
-      </template>
-      <MdSelect v-model="theme" :label="t('settings.theme.label')" :options="themeOptions" />
-      <MdSelect v-model="locale" :label="t('settings.locale.label')" :options="localeOptions" />
-      <MdButton v-if="props.displayName" variant="outlined" data-testid="sign-out" @click="choose('signOut')">{{ t('auth.signOut') }}</MdButton>
-    </div>
+    <MdTransition name="menu">
+      <div
+        v-if="open"
+        :id="`${uid}-panel`"
+        role="group"
+        :aria-label="t('account.menu')"
+        style="--md-menu-origin: top right"
+        class="absolute right-0 top-12 z-40 flex w-72 flex-col gap-3 rounded-md-md bg-surface-container p-4 text-on-surface shadow-md-2"
+      >
+        <template v-if="props.displayName">
+          <p data-testid="signed-in-as" class="text-body-medium text-on-surface-variant">{{ t('auth.signedInAs', { name: props.displayName }) }}</p>
+          <MdButton variant="tonal" data-testid="account" @click="choose('account')">{{ t('account.open') }}</MdButton>
+        </template>
+        <MdSelect v-model="theme" :label="t('settings.theme.label')" :options="themeOptions" />
+        <MdSelect v-model="locale" :label="t('settings.locale.label')" :options="localeOptions" />
+        <MdButton v-if="props.displayName" variant="outlined" data-testid="sign-out" @click="choose('signOut')">{{ t('auth.signOut') }}</MdButton>
+      </div>
+    </MdTransition>
   </div>
 </template>

@@ -20,7 +20,7 @@ const current = computed(() =>
   >
     <div
       v-if="current !== undefined"
-      class="h-full rounded-md-full bg-primary transition-[width] duration-300"
+      class="h-full rounded-md-full bg-primary md-width"
       :style="{ width: `${current}%` }"
     />
     <div v-else class="md-indeterminate absolute inset-y-0 w-1/3 rounded-md-full bg-primary" />
@@ -28,22 +28,32 @@ const current = computed(() =>
 </template>
 
 <style scoped>
+/* Slides the bar across with a transform; reduced motion pulses its opacity instead. */
 .md-indeterminate {
-  animation: md-indeterminate 1.6s ease-in-out infinite;
+  left: 0;
+  animation: md-indeterminate calc(var(--md-sys-motion-duration-long2) * 3) var(--md-sys-motion-easing-standard) infinite;
 }
 
 @keyframes md-indeterminate {
   from {
-    left: -35%;
+    transform: translateX(-100%);
   }
   to {
-    left: 100%;
+    transform: translateX(300%);
+  }
+}
+
+@keyframes md-indeterminate-reduced {
+  50% {
+    opacity: 0.4;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .md-indeterminate {
-    animation-duration: 4s;
+    transform: none;
+    animation-name: md-indeterminate-reduced;
+    animation-duration: calc(var(--md-sys-motion-duration-long2) * 4);
   }
 }
 </style>

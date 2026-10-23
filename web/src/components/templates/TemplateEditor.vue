@@ -260,7 +260,7 @@ const ICON = {
             <span class="flex-1">{{ t('templates.editor.advanced') }}</span>
             <svg
               viewBox="0 0 24 24"
-              class="h-6 w-6 text-on-surface-variant transition-transform duration-150"
+              class="h-6 w-6 text-on-surface-variant md-transform"
               :class="{ 'rotate-180': advancedOpen }"
               aria-hidden="true"
             >

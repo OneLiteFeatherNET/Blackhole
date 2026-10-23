@@ -50,14 +50,16 @@ describe('MdSelect', () => {
   })
 
   it('renders no menu while closed and a listbox of options in the body once opened', async () => {
-    const { combobox, list, items } = setup('light')
+    const { wrapper, combobox, list, items } = setup('light')
     expect(list()).toBeNull()
 
     await combobox.trigger('click')
 
     expect(combobox.attributes('aria-expanded')).toBe('true')
     expect(list()?.getAttribute('role')).toBe('listbox')
-    expect(list()?.parentElement).toBe(document.body)
+    // Teleported out of the component (the stubbed transition is its only wrapper), so no dialog can clip it.
+    expect(wrapper.element.contains(list())).toBe(false)
+    expect(document.body.contains(list())).toBe(true)
     expect(items().map((item) => item.textContent?.trim())).toEqual(['System', 'Hell', 'Dunkel', 'AltDeaktiviert', 'Hoher Kontrast'])
   })
 

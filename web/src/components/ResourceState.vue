@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import type { ApiError } from '../api/types'
 import MdProgress from './md/MdProgress.vue'
+import MdTransition from '../motion/MdTransition.vue'
 
 // Wraps the content of a screen: a progress bar while the first load runs, an alert with a retry
 // button when it failed, the slot otherwise. A reload keeps the content and only shows the bar.
@@ -13,7 +14,9 @@ const { t } = useI18n()
 
 <template>
   <div>
-    <MdProgress v-if="loading" :label="t('state.loading')" class="mb-4" />
+    <MdTransition name="fade">
+      <MdProgress v-if="loading" :label="t('state.loading')" class="mb-4" />
+    </MdTransition>
     <div
       v-if="error"
       role="alert"
@@ -32,6 +35,8 @@ const { t } = useI18n()
         {{ t('state.retry') }}
       </button>
     </div>
-    <slot v-if="hasData" />
+    <MdTransition name="fade" appear>
+      <div v-if="hasData"><slot /></div>
+    </MdTransition>
   </div>
 </template>
