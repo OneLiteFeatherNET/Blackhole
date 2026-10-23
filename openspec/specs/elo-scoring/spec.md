@@ -113,12 +113,17 @@ The default scorer SHALL count case-insensitive substring matches against the co
 - **THEN** the score is 0.8
 
 ### Requirement: Chat evidence stores only a hash
-When a chat message is flagged, the system SHALL persist a CHAT_MESSAGE evidence record containing only a hash of the message, with an expiry `evidence-retention-days` (default 60) in the future, and reference it from the ELO history event. The raw message text MUST NOT be persisted anywhere.
+When the automatic toxicity flow flags a chat message, the system SHALL persist a CHAT_MESSAGE evidence record containing only a hash of the message, with an expiry `evidence-retention-days` (default 60) in the future, and reference it from the ELO history event. The automatic flow MUST NOT persist the raw message text.
 
 #### Scenario: Flagged message evidence
 - **WHEN** a chat message is flagged
 - **THEN** the stored evidence contains the message hash and no raw text
 - **AND** the resulting TOXICITY_FLAG history event references that evidence
+
+#### Scenario: Attached chat log is separate
+- **WHEN** a proxy attaches a chat excerpt to a punishment as CHAT_LOG evidence
+- **THEN** it is stored as a punishment evidence item under the `punishment-evidence` capability, with its own retention and access rules
+- **AND** the toxicity flow's hash-only records are unchanged
 
 ### Requirement: Report outcome deltas
 When a report is resolved as ACTIONED, the system SHALL apply `blackhole.elo.report.actioned-delta` (default -100) to the reported player's track derived from the report category (CHAT_ABUSE to CHAT; CHEATING and GRIEFING to GAMEPLAY; OTHER to none). If the resolution also applied a punishment, the reporter MUST receive `report.reward-delta` (default 50) on the same track.
