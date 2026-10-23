@@ -93,3 +93,15 @@ describe('case writes', () => {
     if (!result.ok) expect(result.error.message).toBe('a note must not contain a UUID or an IP address')
   })
 })
+
+describe('active punishments', () => {
+  it('asks /punishment/active with only the filters that are set', async () => {
+    const { calls, api: client } = api([{ body: { items: [] } }])
+
+    await client.activePunishments({ kind: 'BAN', permanent: false, expiresBefore: 1700, sort: 'EXPIRES', direction: 'ASC', page: 1 })
+
+    const url = new URL(calls[0]!.url)
+    expect(url.pathname).toBe('/api/punishment/active')
+    expect(Object.fromEntries(url.searchParams)).toEqual({ kind: 'BAN', permanent: 'false', expiresBefore: '1700', sort: 'EXPIRES', direction: 'ASC', page: '1' })
+  })
+})

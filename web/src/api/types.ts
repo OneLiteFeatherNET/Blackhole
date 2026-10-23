@@ -59,6 +59,8 @@ export interface VanillaImportRequest {
 /** A known staff principal (a person or an application) with the name kept for it. */
 export type StaffActor = Schemas['StaffActorItem']
 
+export type ActivePunishment = Schemas['ActivePunishmentItem']
+export type ActivePunishmentPage = Schemas['ActivePunishmentPage']
 export type Case = Schemas['CaseResponse']
 export type CaseListItem = Schemas['CaseListItem']
 export type CaseListPage = Schemas['CaseListPage']
@@ -166,6 +168,23 @@ export interface CaseListQuery {
   assignee?: string
   tag?: string
   priority?: CasePriority
+  page?: number
+  size?: number
+}
+
+/** The filters of the overview of punished players; only the ones that are set are sent. */
+export interface ActivePunishmentQuery {
+  kind?: EnforcementKind
+  section?: string
+  targetKind?: ServerTargetKind
+  permanent?: boolean
+  /** Temporary punishments ending before this time (epoch millis). */
+  expiresBefore?: number
+  automatic?: boolean
+  /** The staff member's oid. */
+  actor?: string
+  sort?: Schemas['ActivePunishmentSort']
+  direction?: Schemas['SortDirection']
   page?: number
   size?: number
 }
