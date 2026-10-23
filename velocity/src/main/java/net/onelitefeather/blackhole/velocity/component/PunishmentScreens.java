@@ -217,19 +217,10 @@ public final class PunishmentScreens {
         return section != null && section.enforcement() != null ? section.enforcement() : EnforcementKind.BAN;
     }
 
-    /**
-     * The built-in text for a punishment the ELO system applied: its stored reason is English, so the
-     * player gets the translation instead. A template's free text never goes through here.
-     *
-     * @param permanent whether it is the permanent escalation rather than the temporary punishment
-     */
-    static Component automaticReason(boolean permanent) {
-        return Component.translatable(permanent ? "punishment.reason.escalated" : "punishment.reason.automatic");
-    }
-
     private Component reason(PunishmentSyncMessage punishment) {
-        if (punishment.automatic()) {
-            return automaticReason(punishment.expiresAt() == null);
+        Component translated = DefaultReasons.translated(punishment.automatic(), punishment.expiresAt() == null, punishment.reason());
+        if (translated != null) {
+            return translated;
         }
         if (punishment.reason() == null || punishment.reason().isBlank()) {
             return Component.translatable("punishment.reason.default");

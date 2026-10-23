@@ -181,7 +181,10 @@ class PunishmentScreensTest {
 
     @Test
     void automaticTemporaryPunishmentShowsItsTranslatedReason() {
-        assertTrue(text(automatic(IN_59_MIN), Locale.GERMAN, Surface.DISCONNECT).contains("Automatische befristete Bestrafung (ELO-System)"));
+        PunishmentSyncMessage temporary = new PunishmentSyncMessage(TestData.OWNER, "network", EnforcementKind.BAN.name(),
+                PunishmentSyncMessage.STATE_SET, ID, null, "Automatic temporary punishment (ELO system)", IN_59_MIN, true);
+
+        assertTrue(text(temporary, Locale.GERMAN, Surface.DISCONNECT).contains("Automatische befristete Bestrafung (ELO-System)"));
     }
 
     @Test
@@ -193,6 +196,17 @@ class PunishmentScreensTest {
 
         assertTrue(text.contains("Nach wiederholten Verstößen automatisch dauerhaft bestraft"), text);
         assertFalse(text.contains("Permanently muted"), text);
+    }
+
+    @Test
+    void anAutomaticPunishmentWithACustomReasonShowsThatReason() {
+        PunishmentSyncMessage custom = new PunishmentSyncMessage(TestData.OWNER, "network", EnforcementKind.BAN.name(),
+                PunishmentSyncMessage.STATE_SET, ID, null, "Gesperrt wegen Betrugs", null, true);
+
+        String text = text(custom, Locale.GERMAN, Surface.DISCONNECT);
+
+        assertTrue(text.contains("Grund\nGesperrt wegen Betrugs\n"), text);
+        assertFalse(text.contains("automatisch"), text);
     }
 
     @Test

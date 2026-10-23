@@ -117,7 +117,8 @@ public final class ProfileMessages {
         boolean permanent = Boolean.TRUE.equals(entry.getPermanent());
 
         boolean automatic = entry.getMetaData() != null && Boolean.TRUE.equals(entry.getMetaData().get("automatic"));
-        Component reason = automatic ? PunishmentScreens.automaticReason(permanent)
+        Component translated = DefaultReasons.translated(automatic, permanent, rawReason);
+        Component reason = translated != null ? translated
                 : rawReason == null ? Component.text(NONE) : MINI.deserialize(rawReason, expiryTag(expiresAt, clock));
         Component shortId = PunishmentScreens.shortId(entry.getIdentifier()) == null
                 ? Component.text(NONE) : Fmt.shortId(entry.getIdentifier(), mode);
@@ -129,7 +130,7 @@ public final class ProfileMessages {
         Component status = Component.translatable(Boolean.TRUE.equals(entry.getLifted()) ? "staff.profile.status.lifted"
                 : permanent ? "staff.profile.status.permanent" : "staff.profile.status.temporary");
         if (mode == Mode.RICH) {
-            Component plainReason = automatic ? reason : Component.text(rawReason == null ? NONE : MINI.stripTags(rawReason));
+            Component plainReason = translated != null ? translated : Component.text(rawReason == null ? NONE : MINI.stripTags(rawReason));
             status = status.hoverEvent(HoverEvent.showText(
                     Component.translatable("staff.hover.punishment", plainReason, Component.text(templateKey), shortId, end)));
             return Component.translatable("staff.profile.entry", shortId, section, status, created, reason);
