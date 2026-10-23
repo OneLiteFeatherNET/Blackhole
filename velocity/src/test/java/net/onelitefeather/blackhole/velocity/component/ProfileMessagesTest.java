@@ -140,7 +140,7 @@ class ProfileMessagesTest {
     void aSectionWithoutSoftThresholdShowsNoneInline() {
         var rendered = Rendered.english(ProfileMessages.elo("TheMeinerDev", List.of(row("Chat", 600, null, 500, false)), Mode.PLAIN));
 
-        assertTrue(rendered.text().contains("(soft none, permanent below 500)"), "was: " + rendered.text());
+        assertTrue(rendered.text().contains("(no soft threshold, permanent below 500)"), "was: " + rendered.text());
     }
 
     // ---- info ----------------------------------------------------------------------------------
@@ -257,5 +257,30 @@ class ProfileMessagesTest {
         var rendered = Rendered.english(history(profile().history(List.of(withTag)), Mode.PLAIN));
 
         assertTrue(rendered.text().contains("Spam, ends in 5 hours 59 minutes"), "was: " + rendered.text());
+    }
+
+    @Test
+    void aSectionWithoutSoftThresholdReadsNaturallyInGerman() {
+        var inline = Rendered.german(ProfileMessages.elo("TheMeinerDev", List.of(row("Chat", 600, null, 300, false)), Mode.PLAIN));
+        var hover = Rendered.german(ProfileMessages.elo("TheMeinerDev", List.of(row("Chat", 600, null, 300, false)), Mode.RICH));
+
+        assertTrue(inline.text().contains("(keine Warnschwelle, permanent unter 300)"), "inline, was: " + inline.text());
+        assertTrue(hover.hoverTexts().contains("Keine Warnschwelle\nPermanent unter: 300"), "hover: " + hover.hoverTexts());
+    }
+
+    @Test
+    void aSectionWithSoftThresholdReadsNaturallyInGerman() {
+        var inline = Rendered.german(ProfileMessages.elo("TheMeinerDev", List.of(row("Chat", 600, 700, 300, false)), Mode.PLAIN));
+        var hover = Rendered.german(ProfileMessages.elo("TheMeinerDev", List.of(row("Chat", 600, 700, 300, false)), Mode.RICH));
+
+        assertTrue(inline.text().contains("(Warnschwelle 700, permanent unter 300)"), "inline, was: " + inline.text());
+        assertTrue(hover.hoverTexts().contains("Warnschwelle: 700\nPermanent unter: 300"), "hover: " + hover.hoverTexts());
+    }
+
+    @Test
+    void theEnglishHoverWithoutSoftThresholdSaysSo() {
+        var hover = Rendered.english(ProfileMessages.elo("TheMeinerDev", List.of(row("Chat", 600, null, 300, false)), Mode.RICH));
+
+        assertTrue(hover.hoverTexts().contains("No soft threshold\nPermanent below: 300"), "hover: " + hover.hoverTexts());
     }
 }

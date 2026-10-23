@@ -5,6 +5,7 @@ import net.onelitefeather.blackhole.velocity.component.Mode;
 import net.onelitefeather.blackhole.velocity.component.StaffMessages;
 import org.incendo.cloud.CommandManager;
 import org.incendo.cloud.exception.ArgumentParseException;
+import org.incendo.cloud.exception.InvalidCommandSenderException;
 import org.incendo.cloud.exception.InvalidSyntaxException;
 import org.jetbrains.annotations.NotNull;
 
@@ -24,6 +25,8 @@ public final class CommandErrorHandlers {
             CommandSource sender = context.context().sender();
             sender.sendMessage(StaffMessages.usage(context.exception().correctSyntax(), Mode.of(sender)));
         });
+        manager.exceptionController().registerHandler(InvalidCommandSenderException.class, context ->
+                context.context().sender().sendMessage(StaffMessages.playerOnly()));
         manager.exceptionController().registerHandler(ArgumentParseException.class, context -> {
             CommandSource sender = context.context().sender();
             sender.sendMessage(StaffMessages.argumentError(context.exception().getCause()));

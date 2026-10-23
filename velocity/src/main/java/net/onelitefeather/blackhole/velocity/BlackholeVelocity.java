@@ -50,6 +50,7 @@ import net.kyori.adventure.translation.GlobalTranslator;
 import org.incendo.cloud.SenderMapper;
 import org.incendo.cloud.annotations.AnnotationParser;
 import org.incendo.cloud.execution.ExecutionCoordinator;
+import org.incendo.cloud.brigadier.BrigadierSetting;
 import org.incendo.cloud.velocity.CloudInjectionModule;
 import org.incendo.cloud.velocity.VelocityCommandManager;
 import org.slf4j.Logger;
@@ -132,6 +133,8 @@ public class BlackholeVelocity {
                 Key.get(new TypeLiteral<VelocityCommandManager<CommandSource>>() {
                 })
         );
+        // Without this Brigadier rejects incomplete input ("elo") as an unknown command before Cloud can answer with the usage line.
+        commandManager.brigadierManager().settings().set(BrigadierSetting.FORCE_EXECUTABLE, true);
         CommandErrorHandlers.register(commandManager);
         AnnotationParser<CommandSource> annotationParser = new AnnotationParser<>(commandManager, CommandSource.class);
         annotationParser.parse(childInjector.getInstance(TargetParser.class));

@@ -49,17 +49,20 @@ public final class ProfileMessages {
             lines.add(Component.translatable("staff.elo.none"));
         }
         for (EloReport.Row row : rows) {
-            Component soft = row.softThreshold() == null
-                    ? Component.translatable("elo.threshold.none") : Component.text(row.softThreshold());
             Component permanent = Component.text(row.permanentThreshold());
             Component section = Component.text(row.displayName());
             Component score = Component.text(row.score(), scoreColor(row));
             Component marker = row.permanentActive() ? Component.translatable("staff.elo.permanent") : Component.empty();
+            boolean hasSoft = row.softThreshold() != null;
             if (mode == Mode.RICH) {
-                section = section.hoverEvent(HoverEvent.showText(Component.translatable("staff.hover.elo", soft, permanent)));
-                lines.add(Component.translatable("staff.elo.row", section, score, marker));
+                Component hover = hasSoft
+                        ? Component.translatable("staff.hover.elo", Component.text(row.softThreshold()), permanent)
+                        : Component.translatable("staff.hover.elo.no_soft", permanent);
+                lines.add(Component.translatable("staff.elo.row", section.hoverEvent(HoverEvent.showText(hover)), score, marker));
+            } else if (hasSoft) {
+                lines.add(Component.translatable("staff.elo.row.plain", section, score, marker, Component.text(row.softThreshold()), permanent));
             } else {
-                lines.add(Component.translatable("staff.elo.row.plain", section, score, marker, soft, permanent));
+                lines.add(Component.translatable("staff.elo.row.plain.no_soft", section, score, marker, permanent));
             }
         }
         return Component.join(JoinConfiguration.newlines(), lines);
