@@ -13,8 +13,8 @@ Stacked PRs: `feat(discord): add the discord account link api` (V14, client spec
 - [x] 0.1 `Roles.DISCORD`, `Blackhole.Discord` mapping (`BLACKHOLE_AUTH_MACHINE_ROLE_DISCORD`), matrix and route-coverage rows
 - [x] 0.2 `discord_link` and `discord_link_code` (V14), `DiscordLinkService`, `/staff-discord-link`, `/player-discord-link`, `/discord/link`, `/admin/discord-link`; unit, integration and permission tests
 - [x] 0.3 `docs/entra-setup.sh` and `.md`: app role, `Blackhole Discord (<env>)` registration, secret, consent
-- [ ] 0.4 `/blackhole discord` in the Velocity plugin
-- [ ] 0.5 The `discord` module: config, token provider, `/link`, `/unlink`, `/whoami`, Dockerfile, CI
+- [x] 0.4 `/blackhole discord` in the Velocity plugin
+- [x] 0.5 The `discord` module: config, token provider, `/link`, `/unlink`, `/whoami`, Dockerfile, CI
 - [ ] 0.6 Notifications for reports and appeals (queue consumer, read facade, embeds, edit on resolve)
 - [ ] 0.7 Panel: account dialog section and admin list
 

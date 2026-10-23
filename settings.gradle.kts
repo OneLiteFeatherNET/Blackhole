@@ -58,6 +58,8 @@ dependencyResolutionManagement {
             version("opentelemetry-instrumentation-alpha", "2.20.1-alpha")
             version("janino", "3.1.12")
             version("awssdk", "2.57.3")
+            // Discord gateway client for the bot (discord module). Pinned on purpose: bump after checking Maven Central and the 2 week age rule.
+            version("jda", "6.7.0")
 
             library("jetbrains.annotations", "org.jetbrains", "annotations").versionRef("jetbrains.annotations")
 
@@ -94,6 +96,9 @@ dependencyResolutionManagement {
             // S3-compatible object storage for punishment evidence files (Apache-2.0).
             library("awssdk-s3", "software.amazon.awssdk", "s3").versionRef("awssdk")
 
+            // Discord bot (discord module). JDA is hidden behind small interfaces, voice (opus-java) is excluded.
+            library("jda", "net.dv8tion", "JDA").versionRef("jda")
+
             plugin("micronaut.application", "io.micronaut.application").versionRef("micronaut")
             plugin("micronaut.aot", "io.micronaut.aot").versionRef("micronaut")
             plugin("shadow", "com.gradleup.shadow").versionRef("shadow")
@@ -104,6 +109,7 @@ dependencyResolutionManagement {
 include("backend")
 include("client")
 include("velocity")
+include("discord")
 
 include("phoca")
 include("web")

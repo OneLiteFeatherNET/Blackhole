@@ -144,6 +144,30 @@ services:
     networks:
       - blackhole_go_net
 
+  # The Discord bot (discord module), commented out on purpose: it needs a real Discord bot and the Entra
+  # client of docs/entra-setup.sh (role Blackhole.Discord). Uncomment, fill the values (see
+  # discord/README.md) and run `docker compose up -d discord`. The bot is stateless.
+  # discord:
+  #   build:
+  #     context: ..
+  #     dockerfile: discord/Dockerfile
+  #   container_name: 'discord_blackhole'
+  #   environment:
+  #     DISCORD_TOKEN: ${DISCORD_TOKEN:?bot token}
+  #     DISCORD_GUILD_ID: ${DISCORD_GUILD_ID:?guild id}
+  #     DISCORD_TEAM_CHANNEL_ID: ${DISCORD_TEAM_CHANNEL_ID:?team channel id}
+  #     DISCORD_STAFF_ROLE_ID: ${DISCORD_STAFF_ROLE_ID:?staff role id}
+  #     BLACKHOLE_BACKEND_URL: ${BLACKHOLE_BACKEND_URL:-http://host.docker.internal:8080}
+  #     BLACKHOLE_PANEL_URL: ${BLACKHOLE_PANEL_URL:-http://localhost:8081}
+  #     BLACKHOLE_DISCORD_TENANT_ID: ${BLACKHOLE_DISCORD_TENANT_ID:?tenant id}
+  #     BLACKHOLE_DISCORD_CLIENT_ID: ${BLACKHOLE_DISCORD_CLIENT_ID:?bot client id}
+  #     BLACKHOLE_DISCORD_CLIENT_SECRET: ${BLACKHOLE_DISCORD_CLIENT_SECRET:?bot client secret}
+  #     BLACKHOLE_DISCORD_AUTH_SCOPE: ${BLACKHOLE_DISCORD_AUTH_SCOPE:?api://<api client id>/.default}
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+  #   networks:
+  #     - blackhole_go_net
+
 networks:
   blackhole_go_net:
     driver: bridge
