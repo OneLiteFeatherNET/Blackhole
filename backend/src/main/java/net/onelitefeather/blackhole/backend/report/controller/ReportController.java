@@ -28,11 +28,11 @@ import java.util.UUID;
  * only parses/validates the request, delegates, and maps the result to an {@code HttpResponse}.
  * Routing and OpenAPI annotations live on {@link ReportApi}, which this class implements.
  *
- * <p><b>Security note:</b> {@code reporterHash} is client-supplied - there is no authentication in
- * this system at all, so nothing here can verify it actually belongs to the caller. A
- * per-reporterHash limit alone is therefore bypassable by simply varying that field on every
- * request; the service's network-wide rate limit is an aggregate backstop that caps the blast
- * radius regardless of what {@code reporterHash} value is claimed.</p>
+ * <p><b>Security note:</b> every route needs an Entra ID bearer token and an explicit
+ * {@code @Secured} role (submit: MODERATOR or PROXY; list: VIEWER; resolve: MODERATOR). The actor
+ * comes from the token. {@code reporterHash} is still client-supplied and does not identify the
+ * reporter, so a per-reporterHash limit can be bypassed by varying it; the network-wide limit in
+ * {@link ReportService} is the backstop.</p>
  */
 @Version(ApiVersion.V1)
 @Controller("/report")
