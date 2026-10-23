@@ -47,12 +47,16 @@ The system SHALL refuse to delete a template that is referenced by any punishmen
 - **THEN** the template is removed and returned
 
 ### Requirement: Applying a template creates a punishment
-`POST /punishment/active/{owner}/{templateId}/{source}` SHALL create a new punishment from the template for the hashed owner, recording the source identity and creation/update timestamps, creating the punishment profile if none exists, and returning the updated profile. An unknown template MUST respond 404 without any change.
+`POST /punishment/active/{owner}/{templateId}` SHALL, for a caller with at least `MODERATOR` or the `PROXY` role, create a punishment from the template for the hashed owner, recording the source from the verified token (or the proxy's `onBehalfOf`), creating the profile if none exists, and returning the updated profile. The request MUST NOT carry a client-supplied source. An unknown template MUST respond 404 without any change.
 
 #### Scenario: Apply to a first-time offender
 - **WHEN** a template is applied to an owner that has no punishment profile
 - **THEN** a profile is created holding the new punishment in its matching active slot
 - **AND** a `profile.created` event and a `punishment.created` event are published
+
+#### Scenario: Source is the verified caller
+- **WHEN** a moderator applies a template
+- **THEN** the punishment's source and `recorded_by_oid` equal the moderator's `oid`
 
 #### Scenario: Unknown template
 - **WHEN** a punishment is applied with a template identifier that does not exist
@@ -99,11 +103,11 @@ When a profile is read via `GET /profile/{owner}`, any active punishment whose e
 - **THEN** the returned profile has an empty chat slot and the punishment appears in history
 
 ### Requirement: Manual revocation
-The system SHALL let callers revoke an owner's active ban via `POST /punishment/active/{owner}/ban/revoke/{source}` and active chat punishment via `POST /punishment/active/{owner}/mute/revoke/{source}`, recording the revoking source in the punishment metadata, moving it to history and publishing `punishment.revoked`. If the profile or the targeted active slot is empty, the response MUST be 404.
+The system SHALL let callers with at least `MODERATOR` or the `PROXY` role revoke an owner's active ban via `POST /punishment/active/{owner}/ban/revoke` and active chat punishment via `POST /punishment/active/{owner}/mute/revoke`, recording the verified identity (or the proxy's `onBehalfOf`) in the metadata as `revokedBy` with `recordedByOid`, moving it to history and publishing `punishment.revoked`. An empty profile or active slot MUST respond 404.
 
 #### Scenario: Revoke an active mute
 - **WHEN** the mute revoke endpoint is called for an owner with an active chat punishment
-- **THEN** the punishment moves to history with `revokedBy` recorded and the chat slot is cleared
+- **THEN** the punishment moves to history with `revokedBy` recorded from the token and the chat slot is cleared
 - **AND** `punishment.revoked` is published with owner, punishment identifier, type and revokedBy
 
 #### Scenario: Nothing to revoke
