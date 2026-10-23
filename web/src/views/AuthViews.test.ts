@@ -18,6 +18,16 @@ describe('NoAccessView', () => {
     wrapper.unmount()
   })
 
+  it('says the page is for administrators when reached through an admin-only page, and links back', async () => {
+    const { wrapper } = await mountWithApp(NoAccessView, { roles: ['VIEWER'], path: '/no-access?reason=admin' })
+
+    expect(wrapper.get('h2').text(), 'heading').toBe('Administrators only')
+    expect(wrapper.text(), 'body').toContain('only available to administrators')
+    expect(wrapper.find('[data-testid="back-to-dashboard"]').exists(), 'link back').toBe(true)
+
+    wrapper.unmount()
+  })
+
   it('moves the focus to its heading, so a screen reader starts at the explanation', async () => {
     const { wrapper } = await mountWithApp(NoAccessView, { roles: [] })
 

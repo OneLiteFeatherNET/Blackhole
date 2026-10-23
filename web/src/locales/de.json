@@ -7,7 +7,8 @@
     "templates": "Vorlagen",
     "sections": "Bereiche",
     "reports": "Meldungen",
-    "appeals": "Einsprüche"
+    "appeals": "Einsprüche",
+    "admin": "Verwaltung"
   },
   "settings": {
     "theme": {
@@ -30,7 +31,10 @@
     "noAccess": {
       "title": "Kein Zugriff",
       "heading": "Du hast noch keinen Zugriff",
-      "body": "Du bist angemeldet, aber dein Konto hat keine Rolle für Blackhole. Bitte einen Administrator, dich zur passenden Gruppe hinzuzufügen, und melde dich danach neu an."
+      "body": "Du bist angemeldet, aber dein Konto hat keine Rolle für Blackhole. Bitte einen Administrator, dich zur passenden Gruppe hinzuzufügen, und melde dich danach neu an.",
+      "adminHeading": "Nur für Administratoren",
+      "adminBody": "Diese Seite ist nur für Administratoren verfügbar. Deine Rolle schließt sie nicht ein.",
+      "back": "Zurück zum Dashboard"
     },
     "error": {
       "heading": "Anmeldung fehlgeschlagen",
@@ -590,5 +594,36 @@
     "unlinkBody": "Die Person kann sich mit einem neuen Code erneut verknüpfen. Frühere Einträge behalten ihre Zuordnung.",
     "unlinkConfirm": "Verknüpfung entfernen",
     "removed": "Verknüpfung entfernt."
+  },
+  "admin": {
+    "title": "Verwaltung",
+    "intro": "Werkzeuge für Administratoren."
+  },
+  "staffActors": {
+    "title": "Team",
+    "intro": "Alle, die das Backend beim Anmelden oder beim Aufruf der API gesehen hat. Beim Anonymisieren werden die Daten einer Person endgültig entfernt.",
+    "empty": "Noch kein Teammitglied bekannt.",
+    "unnamed": "(kein Name)",
+    "columns": {
+      "name": "Name",
+      "oid": "Objekt-ID",
+      "kind": "Art",
+      "lastSeen": "Zuletzt gesehen",
+      "actions": "Aktionen"
+    },
+    "kind": {
+      "HUMAN": "Person",
+      "SERVICE": "Anwendung"
+    },
+    "anonymize": "Anonymisieren",
+    "anonymizeFor": "{name} anonymisieren",
+    "dialogTitle": "{name} anonymisieren?",
+    "consequencesIntro": "Das hat folgende Folgen:",
+    "consequenceName": "Der Name wird überall entfernt, wo er angezeigt wird.",
+    "consequenceHistory": "Der Verlauf behält die Objekt-ID, frühere Einträge zeigen also weiterhin auf dasselbe Konto.",
+    "consequenceLink": "Die Verknüpfung mit dem Minecraft-Konto wird entfernt.",
+    "consequenceIrreversible": "Das lässt sich nicht rückgängig machen.",
+    "confirm": "Endgültig anonymisieren",
+    "done": "{name} wurde anonymisiert."
   }
 }

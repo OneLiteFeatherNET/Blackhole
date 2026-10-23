@@ -66,3 +66,38 @@ describe('staff link calls', () => {
     expect(!result.ok && result.error.kind, 'a moderator is refused').toBe('FORBIDDEN')
   })
 })
+
+describe('staff actor calls', () => {
+  it('lists the principals as plain items from GET /admin/staff-actor', async () => {
+    const item = { oid: OID, kind: 'HUMAN', displayName: 'Ada', firstSeenAt: 1, lastSeenAt: 5 }
+    const { api, calls } = apiWith([{ body: { items: [item] } }])
+
+    const result = await api.staffActors()
+
+    expect(result).toEqual({ ok: true, data: [item] })
+    expect([calls[0]!.method, path(calls[0]!)]).toEqual(['GET', '/api/admin/staff-actor'])
+  })
+
+  it('treats an answer without items as an empty list', async () => {
+    const { api } = apiWith([{ body: {} }])
+
+    expect(await api.staffActors()).toEqual({ ok: true, data: [] })
+  })
+
+  it('anonymizes with POST /admin/staff-actor/{oid}/anonymize', async () => {
+    const { api, calls } = apiWith([{ body: { oid: OID } }])
+
+    const result = await api.anonymizeStaffActor(OID)
+
+    expect(result.ok, 'the call succeeded').toBe(true)
+    expect([calls[0]!.method, path(calls[0]!)]).toEqual(['POST', `/api/admin/staff-actor/${OID}/anonymize`])
+  })
+
+  it('reports a 404 for an unknown principal', async () => {
+    const { api } = apiWith([{ status: 404, body: { errorMessage: 'there is no staff actor', kind: 'NOT_FOUND' } }])
+
+    const result = await api.anonymizeStaffActor(OID)
+
+    expect(result.ok ? null : result.error.kind).toBe('NOT_FOUND')
+  })
+})
