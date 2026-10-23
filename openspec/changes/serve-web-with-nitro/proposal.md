@@ -18,8 +18,8 @@ typed, fail-fast configuration.
 
 ## What Changes
 
-- `web/` gains a Nitro server (`nitro/vite` plugin, pinned exactly, Node preset) that serves the
-  built SPA, falls back to `index.html`, proxies `/api/**` to `BLACKHOLE_BACKEND_URL` read at
+- `web/` gains a Nitro v2 server (`nitropack@2.13.4`, pinned exactly, `node-server` preset) next to
+  the unchanged Vite build. It serves `web/dist` as public assets, falls back to `index.html`, proxies `/api/**` to `BLACKHOLE_BACKEND_URL` read at
   **runtime**, sets the security headers, serves `/healthz` and a typed `/config.json`.
 - Runtime settings keep their names (`BLACKHOLE_BACKEND_URL`, `BLACKHOLE_UI_SOURCE`,
   `BLACKHOLE_UI_REVIEWER`, `BLACKHOLE_UI_EVIDENCE_*`); they are validated once at startup and the
@@ -56,11 +56,11 @@ None.
 
 ## Impact
 
-- `web/`: `package.json` (+`nitro` exact, scripts), `vite.config.ts`, `nitro.config.ts`,
+- `web/`: `package.json` (+`nitropack` exact, scripts), `vite.config.ts` (test include), `nitro.config.ts`,
   `server/**` (new), `Dockerfile`, `Dockerfile.dockerignore`, `README.md`; `web/nginx/**`
   removed; `web/public/config.json` stays for the Vite dev server only.
 - `docker/docker-compose.yml` (web service comments/healthcheck), `.github/workflows/build-pr.yml`
   (smoke check, Node version follows #185).
 - `openspec/changes/add-team-sso/{tasks.md,design.md,proposal.md,specs/admin-ui-authentication/spec.md}`.
-- Risk: Nitro v3 is published only as a beta (`3.0.x-beta`, no stable v3 yet). Pinned exactly,
-  upgrades are explicit PRs; fallback is `nitropack` 2.13.4 (design decision 1).
+- Nitro v2 (`nitropack`) is the stable line; a later move to Nitro v3 is a small follow-up once v3
+  is stable (design decision 1).

@@ -2,18 +2,18 @@
 
 Prerequisites: ADR-BLKH-0003 accepted (done). This change lands before `add-team-sso` PR 4.
 It ships as a stack of small PRs, each branching from the previous one and merged back-to-back.
-Tests follow F.I.R.S.T. (see design.md, "Tests"): Vitest in `web/server/**`, no container, no
+Tests follow F.I.R.S.T. (see design.md, "Tests"): Vitest in `web/server/lib/` and `web/server/__tests__/` (never inside `routes/`, `api/`, `middleware/` or `plugins/`, which Nitro scans), no container, no
 network, no sleeps; the only container check is task 2.4.
 
 ## 1. Nitro server (PR 1: `build(web): add a nitro server for the admin ui`)
 
-- [ ] 1.1 Add `nitro@3.0.260903-beta` (exact) and the `nitro/vite` plugin to `web/package.json` and `vite.config.ts`, plus `nitro.config.ts` with `serverDir: 'server'`; verify `npm run build` produces `.output/server/index.mjs` and `.output/public/assets/*`, `node .output/server/index.mjs` serves `/` and an unknown path as `index.html`, and `npm run dev` still proxies `/api`; if v3 is unusable, record the fallback to `nitropack@2.13.4` in design.md
+- [ ] 1.1 Add `nitropack@2.13.4` (exact, devDependency) and `web/nitro.config.ts` (`srcDir: 'server'`, `publicAssets`, `serverAssets`, preset `node-server`); the `build` script becomes `vue-tsc --noEmit && vite build && nitro build`, while the Vite config and `npm run dev` stay as they are; verify `npm run build` produces `.output/server/index.mjs` and `.output/public/assets/*`, `node .output/server/index.mjs` serves `/`, and `npm run dev` still proxies `/api`; record whether the `dist/assets` duplication matters
 - [ ] 1.2 `server/lib/config.ts` `parseUiConfig`, tests first: port every case of `nginx/40-config-json.test.ts` and add backend-URL scheme, trailing slash and aggregated-error cases; verify `npm test`
 - [ ] 1.3 `server/plugins/config.ts` fails fast; verify a unit test of the plugin function with a fake exit and stderr, and a manual run that a bad env exits non-zero before listening
 - [ ] 1.4 `server/routes/config.json.ts` and `server/routes/healthz.ts`; verify handler unit tests (body, `application/json`, `no-store`, `ok`)
 - [ ] 1.5 `server/lib/headers.ts` and `server/middleware/security-headers.ts`; verify unit tests for each header, the exact CSP string, absence of `Server` and `X-Powered-By`, and `no-cache` for the index document
-- [ ] 1.6 `server/lib/proxy.ts` and `server/routes/api/[...path].ts`; verify unit tests with a fake `fetch`: `/api/x` reaches `<backend>/x`, query and method kept, forwarded headers, `no-store`, evidence route uses the 120 s signal and does not read the body, backend failure gives 502, aborted signal gives 504, and a table of hostile paths (`..`, `//host`, encoded slash, backslash, scheme) answers 400 without calling fetch
-- [ ] 1.7 `publicAssets` for `/assets/` (one year, immutable, 404 on miss); verify with a local run and note the observed headers in the PR
+- [ ] 1.6 `server/lib/proxy.ts` and `server/api/[...path].ts`; verify unit tests with a fake `fetch`: `/api/x` reaches `<backend>/x`, query and method kept, forwarded headers, `no-store`, evidence route uses the 120 s signal and does not read the body, backend failure gives 502, aborted signal gives 504, and a table of hostile paths (`..`, `//host`, encoded slash, backslash, scheme) answers 400 without calling fetch
+- [ ] 1.7 `server/routes/[...].ts` SPA fallback (index.html from `serverAssets`, `GET`/`HEAD` only, `no-cache`) and the `/assets` `publicAssets` entry (one year, immutable, 404 on miss); verify handler unit tests (deep link gives 200 html, `POST` gives 404) and a local run, noting the observed headers in the PR
 - [ ] 1.8 Change the `vite.config.ts` test `include` to `server/**/*.test.ts` (replacing `nginx/**`); verify `npm run typecheck`, `npm test` and `./gradlew :web:build`
 
 ## 2. Container (PR 2: `build(web): serve the admin ui from a nitro node image`)

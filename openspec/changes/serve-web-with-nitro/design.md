@@ -10,47 +10,57 @@ for development only.
 
 No Flyway migrations are appended and no backend API or client spec changes.
 
-## Research findings (checked 2026-10-23)
+## Research findings (checked 2026-10-23, nitropack 2.13.4 docs and package source)
 
-- `npm view nitro`: dist-tag `latest` is `3.0.260903-beta` (published 2026-09-03); v3 has only
-  alpha/beta releases. `nitropack` (v2) latest is 2.13.5 (2026-10-19, too new), previous 2.13.4
-  (2026-04-29). `nitro@3.0.260903-beta` needs Node `^20.19 || >=22.12`, peers `vite ^7 || ^8`
-  (repo has Vite 8.3.x), depends on h3 2 rc and srvx.
-- Vite plugin: `import { nitro } from 'nitro/vite'` in `plugins`; Nitro options go in
-  `nitro.config.ts` or under a `nitro` key. `serverDir` is off by default and must be set for
-  `server/` scanning.
-- Renderer: a root `index.html` is the template for every unmatched route (lowest priority
-  catch-all); with Vite, serving `index.html` for unmatched routes is the default, i.e. SPA fallback.
-- Public assets: `public/` is served at `/` with ETag/Last-Modified/304. `publicAssets` entries
-  accept `maxAge` (emits `public, max-age=N, immutable`, effective only with `fallthrough: false`).
-- `routeRules`: patterns support `headers`, `proxy` (wildcard keeps the path) and `cache`. They are
-  build configuration; `'**'` headers are the documented way for global headers, but the docs warn
-  that static hosting may skip them for static files.
-- `runtimeConfig`: overridden by `NITRO_*` env vars **only for keys declared at build time**;
-  `.env` is not read by the built server.
-- Node preset: `node .output/server/index.mjs`, `NITRO_PORT`/`PORT`, `NITRO_HOST`/`HOST`,
-  graceful shutdown on SIGINT/SIGTERM (`NITRO_SHUTDOWN_TIMEOUT`, default 30 s).
+- `npm view nitropack`: stable line 2.13.x; 2.13.5 is from 2026-10-19 (too new), 2.13.4 from
+  2026-04-29 is pinned. It needs Node `^20.19 || >=22.12` and uses h3 1.x. Nitro v3 exists only as
+  `3.0.x-beta`.
+- Nitro v2 has no Vite plugin: it is a separate build (`nitro build`) that bundles the server and
+  copies public asset directories into `.output/public`. Vite keeps building the SPA to `dist/`
+  as today; Nitro runs after it.
+- `srcDir` (default: root) holds `routes/`, `api/` (prefix `/api` is added automatically),
+  `middleware/`, `plugins/` and `utils/`. Only these folders are scanned, so `server/lib/` and
+  `server/__tests__/` are safe places for pure code and tests; a test file inside `routes/`,
+  `api/`, `middleware/` or `plugins/` would be registered as a handler and must never be put there.
+- Public assets: `publicAssets: [{ dir, baseURL, maxAge, fallthrough }]`. `fallthrough` defaults to
+  true for `baseURL: '/'` and false for any other base. `maxAge` only takes effect when
+  `fallthrough` is false and is implemented as a `cache-control: public, max-age=N, immutable`
+  route rule on `<baseURL>/**`. A miss inside a non-fallthrough directory throws 404 and removes
+  `Cache-Control`. Served with ETag, Last-Modified and 304; `/` resolves to the `index.html` of a
+  public directory. There is no `ignore` option.
+- There is **no built-in SPA fallback** in v2 (the `index.html` renderer is a v3 feature). A
+  catch-all route `routes/[...].ts` matches every path no other route or public asset handled; it
+  must return `index.html` itself (read from `serverAssets`, bundled into the server, no runtime
+  file access).
+- Server routes and middleware are h3 1.x event handlers; middleware runs on every request.
+  `defineNitroConfig` comes from `nitropack/config`. `routeRules` (experimental in v2) supports
+  `headers`, `proxy` and `cache`, but is fixed at build time.
+- `runtimeConfig`: `NITRO_*` env overrides apply only to keys declared in the config.
+- `node-server` preset (default for production): `node .output/server/index.mjs`, `NITRO_PORT` or
+  `PORT` (default 3000), `NITRO_HOST` or `HOST`, graceful shutdown on SIGTERM/SIGINT. Plugins run
+  when the app is created, before `listen`, so a throwing plugin prevents listening.
 
 Consequences: a build-time `routeRules.proxy` cannot take the backend URL from the runtime
-environment, so the proxy is a handler (decision 4). Security headers on static files must be
-verified, so they are set in middleware and asserted in the smoke test (decision 5).
+environment, so the proxy is a handler (decision 4). The SPA fallback is our own catch-all route
+(decision 6). Security headers on static files must be verified, so they are set in middleware and
+asserted in the smoke test (decision 5).
 
 ## Decisions
 
-### 1. Nitro v3 beta, pinned `nitro@3.0.260903-beta`
+### 1. Nitro v2 stable, pinned `nitropack@2.13.4`
 
-The SPA is built by Vite 8; only v3 has the first-class `nitro/vite` integration (v2 is a separate
-`nitropack` build pipeline). Chosen version: the newest release older than two weeks (7 weeks old,
-the newest beta before it is from June). Pinned without `^`; the lockfile pins transitive
-h3/srvx. Risk: beta API churn. Mitigation: exact pin, each upgrade is its own `build(deps)` PR,
-our logic lives in plain functions that survive upgrades, and the container smoke test covers
-the wiring. Fallback if v3 proves unusable during PR 1: `nitropack@2.13.4` with the same handler
-modules (h3 1.x `proxyRequest`); the equivalence table does not change.
+The user chose the stable v2 line over the v3 beta. Pinned without `^` (the lockfile pins
+transitive h3 1.x); 2.13.4 is the newest release older than two weeks. Each upgrade is its own
+`build(deps)` PR. Vite stays untouched as the SPA build and dev server (`npm run dev` and its `/api`
+proxy are unchanged); Nitro only adds the production server. Our logic lives in plain functions
+under `server/lib/`, with thin h3 handlers around them, so moving to Nitro v3 once it is stable is
+a small follow-up (swap the dependency, `defineHandler` instead of `eventHandler`, optionally use
+its Vite plugin and renderer) and the equivalence table does not change.
 
 ### 2. Layout
 
 ```
-web/nitro.config.ts            serverDir: 'server', renderer from index.html, publicAssets
+web/nitro.config.ts            srcDir 'server', publicAssets, serverAssets, preset node-server
 web/server/plugins/config.ts   reads env once at startup, fails fast
 web/server/lib/config.ts       parseUiConfig(env): pure, typed, unit tested
 web/server/lib/headers.ts      securityHeaders(): pure
@@ -58,8 +68,9 @@ web/server/lib/proxy.ts        buildBackendRequest(...): pure URL/header buildin
 web/server/middleware/security-headers.ts
 web/server/routes/config.json.ts
 web/server/routes/healthz.ts
-web/server/routes/api/[...path].ts
-web/server/**/*.test.ts        Vitest, `@vitest-environment node`
+web/server/routes/[...].ts     SPA fallback: index.html from serverAssets
+web/server/api/[...path].ts    /api/** proxy
+web/server/lib/*.test.ts, web/server/__tests__/*.test.ts   Vitest, `@vitest-environment node`
 ```
 
 Handlers are thin: pure functions hold the logic and are tested without Nitro, a container or a
@@ -84,7 +95,7 @@ dev-server fixture; a test asserts the server route wins over a static file of t
 
 ### 4. API proxy as a handler
 
-`server/routes/api/[...path].ts` forwards `/api/<rest>` to `<backendUrl>/<rest>` with method, query
+`server/api/[...path].ts` forwards `/api/<rest>` to `<backendUrl>/<rest>` with method, query
 and body (streamed, no buffering, no size limit in the proxy; the backend enforces the evidence
 limits), and sets `X-Forwarded-For` (client address), `X-Forwarded-Proto` and the backend `Host`.
 Timeouts via `AbortSignal.timeout`: 30 s default, 120 s for `POST /api/evidence/file` (as nginx).
@@ -106,16 +117,21 @@ not used because of the static-file caveat above.
 
 ### 6. Static files, caching and SPA fallback
 
-Built files under `/assets/` are public assets with `maxAge` one year and `fallthrough: false`
-(`public, max-age=31536000, immutable`; a missing `/assets/x` is a real 404, like `try_files =404`).
-`index.html` (renderer) gets `Cache-Control: no-cache`. Any other unmatched `GET`/`HEAD` path
-serves `index.html` with 200. Whether the Vite client build lands in `.output/public` unchanged
-(hashed names under `assets/`) is verified in PR 1; if not, the `publicAssets` entry is adjusted.
+`nitro.config.ts` declares `publicAssets: [{ dir: 'dist/assets', baseURL: '/assets',
+maxAge: 31536000 }, { dir: 'dist', baseURL: '/' }]` (the root entry is top-level and falls through;
+`/assets` has `fallthrough: false`): hashed files get `public, max-age=31536000, immutable` and a
+missing `/assets/x` is a real 404, like `try_files =404`. The root entry also copies `dist/assets`
+once more into `.output/public`; this is harmless duplication because Nitro has no `ignore` option
+(task 1.1 verifies it and, if needed, lets Vite emit assets elsewhere). `serverAssets:
+[{ baseName: 'ui', dir: 'dist' }]` bundles `index.html` into the server; `routes/[...].ts` answers
+`GET`/`HEAD` for every path nothing else handled with that document, status 200,
+`Cache-Control: no-cache`. Other methods get 404. The build order is `vite build`, then
+`nitro build`.
 
 ### 7. Image
 
 ```
-FROM node:24-alpine AS build   (npm ci, npm run build -> web/.output)
+FROM node:24-alpine AS build   (npm ci, npm run build = vite build + nitro build -> web/.output)
 FROM node:24-alpine            (copy .output only; USER node; EXPOSE 8080)
 ENV NITRO_PORT=8080 NITRO_HOST=0.0.0.0 NODE_ENV=production
 HEALTHCHECK wget -q --spider http://127.0.0.1:8080/healthz
@@ -125,7 +141,7 @@ CMD ["node", ".output/server/index.mjs"]
 Runs as the non-root `node` user; a read-only root filesystem works (config is in memory, which
 removes nginx's `/tmp/config`). Alpine's busybox `wget` serves the healthcheck; distroless was
 rejected because it has no `wget`, so the healthcheck would need a Node one-liner, for little gain.
-Node 24 follows PR #185; until that merges the image may use `node:22-alpine` (Nitro needs
+Node 24 follows PR #185; until that merges the image may use `node:22-alpine` (nitropack needs
 >= 22.12), the PR 2 author picks whichever `main` uses. Base image pinned like other images
 (Renovate).
 
@@ -145,19 +161,19 @@ web server serves ... refuses to start"; behaviour is unchanged. Its proposal Im
 
 | # | nginx today | Nitro counterpart | Verified by |
 |---|-------------|-------------------|-------------|
-| 1 | Static files from `/usr/share/nginx/html` | Vite build + Nitro public assets (`.output/public`) | smoke: `GET /` 200 |
-| 2 | SPA fallback `try_files $uri /index.html` | Nitro renderer with root `index.html` | smoke: `GET /players/abc` 200 html |
-| 3 | `/assets/` 1 y `public, immutable`, miss = 404 | `publicAssets` `maxAge`, `fallthrough: false` | smoke: header and 404 |
+| 1 | Static files from `/usr/share/nginx/html` | `web/dist` copied by Nitro `publicAssets` to `.output/public` | smoke: `GET /` 200 |
+| 2 | SPA fallback `try_files $uri /index.html` | own catch-all `routes/[...].ts` returning the bundled `index.html` (v2 has no renderer fallback) | unit: handler; smoke: `GET /players/abc` 200 html |
+| 3 | `/assets/` 1 y `public, immutable`, miss = 404 | `publicAssets` entry `/assets` with `maxAge`, `fallthrough: false` | smoke: header and 404 |
 | 4 | `index.html` `Cache-Control: no-cache` | header set in middleware for the index document | unit: headers |
-| 5 | `/api/` proxy, prefix stripped, to `BLACKHOLE_BACKEND_URL` (envsubst at start) | `server/routes/api/[...path].ts`, URL from validated env at startup | unit: URL builder, fake fetch |
+| 5 | `/api/` proxy, prefix stripped, to `BLACKHOLE_BACKEND_URL` (envsubst at start) | `server/api/[...path].ts`, URL from validated env at startup | unit: URL builder, fake fetch |
 | 6 | `/api/evidence/file`: body 128 MB, no request buffering, 120 s | same handler, streamed body, no proxy-side limit, 120 s timeout for that route | unit: timeout selection, body not read |
 | 7 | `/api/` read timeout 30 s | `AbortSignal.timeout(30_000)` gives 504 | unit with an aborted signal |
 | 8 | `X-Forwarded-For/Proto`, `Host` = backend | set explicitly in the proxy | unit |
 | 9 | `Cache-Control: no-store` on API | set on the proxy response | unit |
 | 10 | Security headers (nosniff, DENY, no-referrer, CSP) on all responses | global middleware + `securityHeaders()` | unit + smoke |
-| 11 | `server_tokens off` | no `Server` header from Nitro/srvx; middleware removes `X-Powered-By` | unit + smoke |
+| 11 | `server_tokens off` | Nitro's Node server sets no `Server` header (smoke asserts it); middleware removes any `X-Powered-By` | unit + smoke |
 | 12 | `/config.json` from shell script, `no-store`, exit 1 on bad env | typed route + `parseUiConfig`, exit 1 at startup naming every bad variable | unit |
-| 13 | `/healthz` 200 `ok`, no access log | `routes/healthz.ts` 200 `ok` text/plain; Nitro logs no access lines by default | unit + smoke |
+| 13 | `/healthz` 200 `ok`, no access log | `routes/healthz.ts` 200 `ok` text/plain; the node-server preset logs no access lines | unit + smoke |
 | 14 | Healthcheck `wget /healthz` | same `wget` against the Node server | CI smoke |
 | 15 | Unprivileged user, port 8080 | `USER node`, `NITRO_PORT=8080` | smoke: uid != 0 |
 | 16 | Backend host must resolve at nginx start | resolved per request: no start-time failure, 502 until reachable | unit |
@@ -190,7 +206,10 @@ web server serves ... refuses to start"; behaviour is unchanged. Its proposal Im
 
 ## Risks
 
-- Beta churn (decision 1). Headers on static files (decision 5, smoke-tested). `vite.config.ts`
-  test `include` lists `nginx/**` and must change to `server/**`.
-- Startup failure semantics inside a Nitro plugin: verified in PR 1; if a throwing plugin does not
-  exit non-zero, the plugin logs and calls `process.exit(1)`.
+- The `/assets` plus root `publicAssets` duplication and the headers on static files are verified
+  in PR 1 and by the smoke test (decision 5). `vite.config.ts` test `include` lists `nginx/**` and
+  must change to `server/**`. `routeRules` is experimental in v2; only the built-in `maxAge`
+  mechanism uses it.
+- Startup failure semantics inside a Nitro plugin: plugins run before `listen`, so a throw prevents
+  listening; PR 1 verifies a non-zero exit and otherwise the plugin logs and calls `process.exit(1)`.
+- v2 is the stable line; the v3 follow-up (decision 1) is intentionally cheap.
