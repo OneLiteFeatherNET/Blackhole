@@ -14,10 +14,10 @@
 
 ## 3. Catalogue (PR 3, `feat(cloudnet)`)
 
-- [ ] 3.1 Backend `cloudnet/` package: `CatalogueApi`, thin `CatalogueController` (`PUT` `Roles.PROXY`, `GET` `Roles.VIEWER`), `CatalogueService`, sealed `CatalogueDTO`, shared-cache storage with TTL 15 min (`CacheKeys`), merge, bounds, 503/`available:false` on cache outage; verify JUnit tests with a fake cache and injected `Clock`
-- [ ] 3.2 Add the two routes to `RouteCoverageIntegrationTest`/`PermissionMatrixIntegrationTest` and amend the matrix in the test; verify the tests pass and fail without the rule
-- [ ] 3.3 Publish `client/specs/blackhole-api-0.0.18.yml`, bump `inputSpec`, regenerate; verify `./gradlew :client:openApiGenerate`
-- [ ] 3.4 Velocity `CatalogueReporter` (full snapshot at start, debounced on events, heartbeat, failure never affects enforcement; config `cloudnet.report-debounce`, `cloudnet.heartbeat`, optional `cloudnet.proxy-id`); verify tests with injected `Clock` and a hand-driven scheduler (no sleeps)
+- [x] 3.1 Backend `cloudnet/` package: `CatalogueApi`, thin `CatalogueController` (`PUT` `Roles.PROXY`, `GET` `Roles.VIEWER`), `CatalogueService`, sealed `CatalogueDTO`, shared-cache storage with TTL 15 min (`CacheKeys`), merge, bounds, 503/`available:false` on cache outage; verify JUnit tests with a fake cache and injected `Clock`
+- [x] 3.2 Add the two routes to `RouteCoverageIntegrationTest`/`PermissionMatrixIntegrationTest` and amend the matrix in the test; verify the tests pass and fail without the rule
+- [x] 3.3 Publish `client/specs/blackhole-api-0.0.18.yml`, bump `inputSpec`, regenerate; verify `./gradlew :client:openApiGenerate`
+- [x] 3.4 Velocity `CatalogueReporter` (full snapshot at start, debounced on events, heartbeat, failure never affects enforcement; config `cloudnet.report-debounce`, `cloudnet.heartbeat`, optional `cloudnet.proxy-id`); verify tests with injected `Clock` and a hand-driven scheduler (no sleeps)
 
 ## 4. Web (PR 4, `feat(web)`)
 

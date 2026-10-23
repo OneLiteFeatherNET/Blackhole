@@ -25,13 +25,16 @@ import net.onelitefeather.blackhole.velocity.command.PunishCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishInfoCommand;
 import net.onelitefeather.blackhole.velocity.command.EloCommand;
 import net.onelitefeather.blackhole.velocity.command.TargetParser;
+import net.onelitefeather.blackhole.velocity.cloudnet.CatalogueReporter;
 import net.onelitefeather.blackhole.velocity.cloudnet.CloudNetView;
+import net.onelitefeather.blackhole.velocity.cloudnet.HttpCatalogueSink;
 import net.onelitefeather.blackhole.velocity.cloudnet.CloudNets;
 import net.onelitefeather.blackhole.velocity.cloudnet.ServerResolver;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.config.BlackholeApiClients;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.config.ChatCaptureConfig;
+import net.onelitefeather.blackhole.velocity.config.CloudNetConfig;
 import net.onelitefeather.blackhole.velocity.evidence.CachedEvidenceCounts;
 import net.onelitefeather.blackhole.velocity.evidence.ChatBuffer;
 import net.onelitefeather.blackhole.velocity.evidence.ChatEvidence;
@@ -128,8 +131,8 @@ public class BlackholeVelocity {
         BackendGateway backend = new HttpBackendGateway(this.client, new CachedTemplates(this.redisSyncService), clock);
         PunishmentState state = new PunishmentState(sections, mirror, this.redisSyncService, owner -> backend.profile(owner), clock);
         PunishmentScreens screens = new PunishmentScreens(clock, this.config, sections, GlobalTranslator.renderer());
-        CloudNetView cloudNet = CloudNets.detect(this.config.getCloudnet().withEnvironment(System::getenv).getIntegration(),
-                BlackholeVelocity.class.getClassLoader(), this.logger);
+        CloudNetConfig cloudNetConfig = this.config.getCloudnet().withEnvironment(System::getenv);
+        CloudNetView cloudNet = CloudNets.detect(cloudNetConfig.getIntegration(), BlackholeVelocity.class.getClassLoader(), this.logger);
         ServerResolver servers = new ServerResolver(cloudNet, sections, this.logger::warn);
         EnforcementActions actions = new EnforcementActions(this.server, sections, state, this.config, clock, screens, servers);
         PunishmentSyncHandler syncHandler = new PunishmentSyncHandler(mirror, actions);
@@ -154,6 +157,8 @@ public class BlackholeVelocity {
         if (!cloudNet.available() && cloudNetSections > 0) {
             this.logger.warn("{} CloudNet section(s) exist but CloudNet is not available: they cover no server and are not enforced", cloudNetSections);
         }
+
+        startCatalogueReporter(cloudNet, cloudNetConfig);
 
         Injector childInjector = this.injector.createChildInjector(
                 new BlackholeClientModule(this.client, this.config, this.redisSyncService, sections, mirror, state,
@@ -190,6 +195,31 @@ public class BlackholeVelocity {
         server.getEventManager().register(this, childInjector.getInstance(PlayerClientBrandListener.class));
         server.getEventManager().register(this, childInjector.getInstance(ServerConnectListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerDisconnectListener.class));
+    }
+
+    /** Reports CloudNet's tasks, groups and services to the backend for the section editor; skipped without CloudNet. */
+    private void startCatalogueReporter(CloudNetView cloudNet, CloudNetConfig cloudNetConfig) {
+        if (!cloudNet.available()) {
+            return;
+        }
+        String proxyId = cloudNetConfig.getProxyId().or(cloudNet::ownName).orElse(null);
+        if (proxyId == null) {
+            this.logger.warn("The CloudNet catalogue is not reported: the proxy has no CloudNet service name, set cloudnet.proxyId");
+            return;
+        }
+        CatalogueReporter.Timer timer = new CatalogueReporter.Timer() {
+            @Override
+            public void after(Duration delay, Runnable task) {
+                server.getScheduler().buildTask(BlackholeVelocity.this, task).delay(delay).schedule();
+            }
+
+            @Override
+            public void every(Duration period, Runnable task) {
+                server.getScheduler().buildTask(BlackholeVelocity.this, task).delay(period).repeat(period).schedule();
+            }
+        };
+        new CatalogueReporter(cloudNet, new HttpCatalogueSink(this.client), timer, this.logger, proxyId,
+                cloudNetConfig.getReportDebounce(), cloudNetConfig.getHeartbeat()).start();
     }
 
     @Subscribe

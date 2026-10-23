@@ -21,6 +21,14 @@ public final class CacheKeys {
     /** The full section list, as read by proxies. */
     public static final String SECTIONS_ALL = PREFIX + "sections:all";
 
+    /** Glob matching every proxy's CloudNet catalogue snapshot. */
+    public static final String CLOUDNET_CATALOGUE_PATTERN = PREFIX + "cloudnet:catalogue:*";
+
+    /** One proxy's CloudNet catalogue snapshot; {@code proxyId} must not contain glob characters. */
+    public static String cloudnetCatalogue(String proxyId) {
+        return PREFIX + "cloudnet:catalogue:" + proxyId;
+    }
+
     public static String section(String key) {
         return PREFIX + "section:" + key;
     }

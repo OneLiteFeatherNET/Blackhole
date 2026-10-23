@@ -81,6 +81,31 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void theProxyMayReportTheCloudNetCatalogue() {
+        assertAuthorized(put("/cloudnet/catalogue", Map.of("proxyId", "Proxy-1"), this.jwt.proxy()), "proxy on PUT /cloudnet/catalogue");
+    }
+
+    @Test
+    void aViewerCannotReportTheCloudNetCatalogue() {
+        assertEquals(403, put("/cloudnet/catalogue", Map.of("proxyId", "Proxy-1"), this.jwt.viewer()).status(), "viewer on a proxy-only route");
+    }
+
+    @Test
+    void anAdminCannotReportTheCloudNetCatalogue() {
+        assertEquals(403, put("/cloudnet/catalogue", Map.of("proxyId", "Proxy-1"), this.jwt.admin()).status(), "humans may not forge the catalogue");
+    }
+
+    @Test
+    void aViewerCanReadTheCloudNetCatalogue() {
+        assertEquals(200, get("/cloudnet/catalogue", this.jwt.viewer()).status(), "viewer on a read route");
+    }
+
+    @Test
+    void theProxyCannotReadTheCloudNetCatalogue() {
+        assertEquals(403, get("/cloudnet/catalogue", this.jwt.proxy()).status(), "the catalogue is for the editor");
+    }
+
+    @Test
     void aMachineTokenWithAHumanRoleValueHasNoRole() {
         String token = this.jwt.appOnly().roles(TestJwtIssuer.MODERATOR_GROUP, TestJwtIssuer.ADMIN_GROUP).sign();
 

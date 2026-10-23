@@ -53,6 +53,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /evidence", VP),
             Map.entry("GET /evidence/{identifier}", V),
             Map.entry("GET /evidence/{identifier}/content", V),
+            Map.entry("GET /cloudnet/catalogue", V),
             // moderation
             Map.entry("POST /punishment/apply", MP),
             Map.entry("POST /punishment/preview", M),
@@ -87,6 +88,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /staff-link/code", V),
             Map.entry("GET /staff-link/me", V),
             Map.entry("DELETE /staff-link/me", V),
+            Map.entry("PUT /cloudnet/catalogue", P),
             Map.entry("POST /staff-link/confirm", P),
             Map.entry("GET /staff-link/by-minecraft/{uuid}", P),
             Map.entry("GET /admin/staff-link", A),

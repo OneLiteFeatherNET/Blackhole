@@ -101,6 +101,10 @@ public abstract class ApiIntegrationTest extends PostgresIntegrationTest {
         return call(body == null ? HttpRequest.POST(path, "") : HttpRequest.POST(path, body), token);
     }
 
+    protected Reply put(String path, Object body, String token) {
+        return call(HttpRequest.PUT(path, body), token);
+    }
+
     protected Reply delete(String path, String token) {
         return call(HttpRequest.DELETE(path), token);
     }

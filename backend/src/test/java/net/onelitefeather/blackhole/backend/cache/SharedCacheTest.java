@@ -61,4 +61,16 @@ class SharedCacheTest {
 
         assertDoesNotThrow(() -> cache.evict("blackhole:cache:v1:profile:x", "blackhole:cache:v1:elo:x"));
     }
+
+    @Test
+    void tryPutReportsFailureWhenTheCacheIsDown() {
+        boolean stored = cacheOnDownServer().tryPut("blackhole:cache:v1:profile:x", Argument.of(String.class), "value", Duration.ofSeconds(30));
+
+        assertEquals(false, stored);
+    }
+
+    @Test
+    void keysIsEmptyWhenTheCacheIsDown() {
+        assertEquals(Optional.empty(), cacheOnDownServer().keys("blackhole:cache:v1:*"));
+    }
 }
