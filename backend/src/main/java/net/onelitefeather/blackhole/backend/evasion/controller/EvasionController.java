@@ -3,6 +3,8 @@ package net.onelitefeather.blackhole.backend.evasion.controller;
 import io.micronaut.security.annotation.Secured;
 import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.evasion.dto.EvasionRecordDTO;
+import net.onelitefeather.blackhole.backend.evasion.dto.EvasionSightingDTO;
+import net.onelitefeather.blackhole.backend.evasion.service.EvasionSightingService;
 import net.onelitefeather.blackhole.backend.evasion.service.IpCorrelationService;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
@@ -24,13 +26,26 @@ import net.onelitefeather.blackhole.backend.controller.ApiVersion;
  */
 @Version(ApiVersion.V1)
 @Controller("/evasion")
-public class EvasionController {
+public class EvasionController implements EvasionApi {
 
     private final IpCorrelationService ipCorrelationService;
+    private final EvasionSightingService sightingService;
 
     @Inject
-    public EvasionController(IpCorrelationService ipCorrelationService) {
+    public EvasionController(IpCorrelationService ipCorrelationService, EvasionSightingService sightingService) {
         this.ipCorrelationService = ipCorrelationService;
+        this.sightingService = sightingService;
+    }
+
+    /** VIEWER: a read like the profile and ELO reads; the proxy only writes sightings. */
+    @Override
+    @Secured(Roles.VIEWER)
+    public HttpResponse<EvasionSightingDTO> sightings(String owner) {
+        EvasionSightingDTO result = this.sightingService.forOwner(owner);
+        if (result instanceof EvasionSightingDTO.Error error) {
+            return HttpResponse.<EvasionSightingDTO>status(error.kind().status()).body(error);
+        }
+        return HttpResponse.ok(result);
     }
 
     @Operation(

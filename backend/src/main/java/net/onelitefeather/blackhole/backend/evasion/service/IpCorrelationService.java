@@ -50,6 +50,11 @@ public class IpCorrelationService {
         this.detectionWindowMillis = Duration.ofDays(detectionWindowDays).toMillis();
     }
 
+    /** The rolling window inside which sightings of different owners count as correlated. */
+    public Duration detectionWindow() {
+        return Duration.ofMillis(this.detectionWindowMillis);
+    }
+
     public boolean isConfigured() {
         return !this.salt.isBlank();
     }

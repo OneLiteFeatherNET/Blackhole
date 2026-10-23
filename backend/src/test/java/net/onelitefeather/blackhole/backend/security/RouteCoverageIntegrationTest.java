@@ -57,6 +57,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /case", V),
             Map.entry("GET /case/{reference}", V),
             Map.entry("GET /case/{reference}/timeline", V),
+            Map.entry("GET /evasion/{owner}/sightings", V),
             // moderation
             Map.entry("PATCH /case/{reference}", M),
             Map.entry("POST /case/{reference}/notes", M),
