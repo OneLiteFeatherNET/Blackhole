@@ -19,7 +19,7 @@
 
 ## 4. Proxy
 
-- [ ] 4.1 Make Velocity template suggestions read `blackhole:cache:v1:templates:all` with API fallback on miss; verify `./gradlew :velocity:build` and manually via `:velocity:runVelocity` that suggestions work with the backend stopped after the cache is warm
+- [x] 4.1 Make Velocity template suggestions read `blackhole:cache:v1:templates:all` with API fallback on miss; verify `./gradlew :velocity:build` and manually via `:velocity:runVelocity` that suggestions work with the backend stopped after the cache is warm
 
 ## 5. Documentation
 

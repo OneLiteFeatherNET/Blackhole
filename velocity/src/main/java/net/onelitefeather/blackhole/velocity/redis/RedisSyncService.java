@@ -4,7 +4,6 @@ import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.pubsub.RedisPubSubAdapter;
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
-import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.section.SectionInfo;
@@ -28,7 +27,7 @@ import java.util.function.Consumer;
  * {@link #read}, an empty {@link Optional} from the cache reads), so callers can fall back to the
  * backend over HTTP - Redis being unreachable must never make a login or chat check fail outright.</p>
  */
-public final class RedisSyncService implements PunishmentState.KeyReader {
+public final class RedisSyncService implements PunishmentState.KeyReader, SharedCacheReader {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RedisSyncService.class);
     /** Bounds one shared-cache read, so a slow Redis can't stall tab completion. */
@@ -109,22 +108,18 @@ public final class RedisSyncService implements PunishmentState.KeyReader {
     }
 
     /**
-     * The backend's cached punishment template list, for tab completion and template lookup. Empty
-     * on a miss, when Redis isn't connected, or on an error or timeout, so the caller falls back to
-     * the HTTP API (which repopulates the cache).
-     */
-    public Optional<List<PunishTemplateResponse>> readCachedTemplates() {
-        return readSharedCache(RedisTopology.TEMPLATES_ALL_KEY).flatMap(this.codec::templates);
-    }
-
-    /**
      * The backend's cached section list; empty if unavailable, so the registry uses the HTTP API.
      */
     public Optional<List<SectionInfo>> readCachedSections() {
-        return readSharedCache(RedisTopology.SECTIONS_ALL_KEY).flatMap(this.codec::sections);
+        return readShared(RedisTopology.SECTIONS_ALL_KEY).flatMap(this.codec::sections);
     }
 
-    private Optional<String> readSharedCache(@NotNull String key) {
+    /**
+     * Reads one shared-cache key. Empty on a miss, when Redis isn't connected, and on an error or
+     * timeout, so the caller falls back to the HTTP API.
+     */
+    @Override
+    public Optional<String> readShared(@NotNull String key) {
         StatefulRedisConnection<String, String> conn = this.connection;
         if (conn == null) {
             return Optional.empty();

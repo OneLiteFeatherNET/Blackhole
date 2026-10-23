@@ -68,7 +68,7 @@ The NameMC resolver SHALL be disabled by default and active only when `blackhole
 - **THEN** NameMC returns no match and the lookup does not fail
 
 ### Requirement: Resolution cache
-Successful resolutions SHALL be cached in memory keyed by the case-insensitive name, bounded by `blackhole.player-resolver.cache.ttl` (default PT5M, expire after write) and `blackhole.player-resolver.cache.max-size` (default 5000). A cached entry MUST be returned without querying resolvers; misses MUST NOT be cached.
+Successful resolutions SHALL be cached in the shared cache keyed by the case-insensitive name, with a TTL of `blackhole.player-resolver.cache.ttl` (default PT5M). A cached entry MUST be returned without querying resolvers on any replica; misses MUST NOT be cached.
 
 #### Scenario: Repeated lookup within TTL
 - **WHEN** `Notch` was resolved less than the TTL ago and `notch` is requested

@@ -52,6 +52,7 @@ import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
 import net.onelitefeather.blackhole.velocity.component.theme.BlackholeTheme;
 import net.onelitefeather.blackhole.velocity.punish.HttpBackendGateway;
 import net.onelitefeather.blackhole.velocity.punish.PunishService;
+import net.onelitefeather.blackhole.velocity.redis.CachedTemplates;
 import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
 import net.onelitefeather.blackhole.velocity.section.BackendSectionSource;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
@@ -120,7 +121,7 @@ public class BlackholeVelocity {
         this.redisSyncService = new RedisSyncService(this.config);
         SectionRegistry sections = new SectionRegistry(new BackendSectionSource(this.redisSyncService, this.client));
         PunishmentMirror mirror = new PunishmentMirror();
-        BackendGateway backend = new HttpBackendGateway(this.client, this.redisSyncService, clock);
+        BackendGateway backend = new HttpBackendGateway(this.client, new CachedTemplates(this.redisSyncService), clock);
         PunishmentState state = new PunishmentState(sections, mirror, this.redisSyncService, owner -> backend.profile(owner), clock);
         PunishmentScreens screens = new PunishmentScreens(clock, this.config, sections, GlobalTranslator.renderer());
         EnforcementActions actions = new EnforcementActions(this.server, sections, state, this.config, clock, screens);

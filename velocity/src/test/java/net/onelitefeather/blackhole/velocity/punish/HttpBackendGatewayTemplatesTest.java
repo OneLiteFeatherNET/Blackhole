@@ -6,20 +6,21 @@ import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.velocity.auth.FakeHttpClient;
 import net.onelitefeather.blackhole.velocity.auth.TokenSource;
 import net.onelitefeather.blackhole.velocity.config.BlackholeApiClients;
-import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
-import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
+import net.onelitefeather.blackhole.velocity.redis.CachedTemplates;
+import net.onelitefeather.blackhole.velocity.redis.SharedCacheReader;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Without the shared cache the gateway lists templates through the API, which answers with a page
- * object (the templates under {@code content}), not a bare array.
+ * Templates come from the shared cache when it holds a list; otherwise the gateway lists them through
+ * the API, which answers with a page object (the templates under {@code content}), not a bare array.
  */
 class HttpBackendGatewayTemplatesTest {
 
@@ -39,21 +40,57 @@ class HttpBackendGatewayTemplatesTest {
             + "\"pageable\":{\"number\":0,\"sort\":{\"orderBy\":[]},\"size\":100,\"mode\":\"OFFSET\"},"
             + "\"totalSize\":1,\"totalPages\":1,\"empty\":false,\"size\":100,\"offset\":0,\"pageNumber\":0,\"numberOfElements\":1}";
 
-    /** A gateway whose Redis was never connected, so every cache read is a miss. */
-    private static HttpBackendGateway gateway(FakeHttpClient transport) {
+    private static final String CACHED = "[{\"identifier\":\"0a1b2c3d-1a39-4b0e-8e7c-0d2f1a9b3c22\",\"key\":\"cached-spam\","
+            + "\"reason\":\"Spam\",\"section\":\"chat\",\"steps\":[{\"duration\":\"PT1H\",\"eloCost\":10}]}]";
+
+    private static HttpBackendGateway gateway(FakeHttpClient transport, SharedCacheReader cache) {
         ApiClient client = BlackholeApiClients.create("http://backend.test", TOKEN, transport);
-        return new HttpBackendGateway(client, new RedisSyncService(new BlackholeConfig()), Clock.systemUTC());
+        return new HttpBackendGateway(client, new CachedTemplates(cache), Clock.systemUTC());
+    }
+
+    private static SharedCacheReader miss() {
+        return key -> Optional.empty();
     }
 
     @Test
-    void aPagedTemplateListIsParsedIntoTheTemplates() throws Exception {
+    void aCachedListIsUsedWithoutCallingTheApi() throws Exception {
+        FakeHttpClient transport = new FakeHttpClient().answer(500, "{}");
+
+        List<PunishTemplateResponse> templates = gateway(transport, key -> Optional.of(CACHED)).templates();
+
+        assertEquals("cached-spam", templates.getFirst().getKey());
+        assertTrue(transport.requests().isEmpty(), "a cache hit needs no request: " + transport.requests());
+    }
+
+    @Test
+    void aMissFallsBackToTheApiAndParsesItsPage() throws Exception {
         FakeHttpClient transport = new FakeHttpClient().answer(200, PAGE);
 
-        List<PunishTemplateResponse> templates = gateway(transport).templates();
+        List<PunishTemplateResponse> templates = gateway(transport, miss()).templates();
 
         assertEquals(1, templates.size(), "the one template on the page");
         assertEquals("hacking", templates.getFirst().getKey());
         assertEquals(100, templates.getFirst().getSteps().getFirst().getEloCost());
+        assertEquals(1, transport.requests().size(), "one API call");
+    }
+
+    @Test
+    void aCorruptCachedListFallsBackToTheApi() throws Exception {
+        FakeHttpClient transport = new FakeHttpClient().answer(200, PAGE);
+
+        List<PunishTemplateResponse> templates = gateway(transport, key -> Optional.of("{broken")).templates();
+
+        assertEquals("hacking", templates.getFirst().getKey());
+    }
+
+    @Test
+    void aFailingCacheFallsBackToTheApi() throws Exception {
+        FakeHttpClient transport = new FakeHttpClient().answer(200, PAGE);
+        SharedCacheReader failing = key -> {
+            throw new IllegalStateException("connection reset");
+        };
+
+        assertEquals("hacking", gateway(transport, failing).templates().getFirst().getKey());
     }
 
     @Test
@@ -61,13 +98,13 @@ class HttpBackendGatewayTemplatesTest {
         FakeHttpClient transport = new FakeHttpClient().answer(200,
                 "{\"content\":[],\"totalSize\":0,\"totalPages\":0,\"empty\":true,\"size\":100,\"offset\":0,\"pageNumber\":0,\"numberOfElements\":0}");
 
-        assertTrue(gateway(transport).templates().isEmpty(), "no templates yet");
+        assertTrue(gateway(transport, miss()).templates().isEmpty(), "no templates yet");
     }
 
     @Test
     void aFailingApiSurfacesAsAnApiException() {
         FakeHttpClient transport = new FakeHttpClient().answer(500, "{}");
 
-        assertThrows(ApiException.class, () -> gateway(transport).templates(), "the caller decides how to report it");
+        assertThrows(ApiException.class, () -> gateway(transport, miss()).templates(), "the caller decides how to report it");
     }
 }

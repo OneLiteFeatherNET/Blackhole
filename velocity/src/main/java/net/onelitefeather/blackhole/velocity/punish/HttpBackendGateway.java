@@ -23,7 +23,7 @@ import net.onelitefeather.blackhole.client.model.StaffLinkConfirmResponse;
 import net.onelitefeather.blackhole.client.model.StaffLinkLookupResponse;
 import net.onelitefeather.blackhole.velocity.evidence.ChatEvidenceRequests;
 import net.onelitefeather.blackhole.velocity.evidence.ChatSnapshot;
-import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
+import net.onelitefeather.blackhole.velocity.redis.CachedTemplates;
 
 import java.time.Clock;
 import java.util.List;
@@ -44,23 +44,23 @@ public final class HttpBackendGateway implements BackendGateway {
     private final EloApi eloApi;
     private final EvidenceApi evidenceApi;
     private final StaffLinkApi staffLinkApi;
-    private final RedisSyncService redis;
+    private final CachedTemplates cachedTemplates;
     private final Clock clock;
 
-    public HttpBackendGateway(ApiClient client, RedisSyncService redis, Clock clock) {
+    public HttpBackendGateway(ApiClient client, CachedTemplates cachedTemplates, Clock clock) {
         this.punishmentApi = new PunishmentApi(client);
         this.templatesApi = new PunishmentTemplatesApi(client);
         this.profileApi = new PunishProfileApi(client);
         this.eloApi = new EloApi(client);
         this.evidenceApi = new EvidenceApi(client);
         this.staffLinkApi = new StaffLinkApi(client);
-        this.redis = redis;
+        this.cachedTemplates = cachedTemplates;
         this.clock = clock;
     }
 
     @Override
     public List<PunishTemplateResponse> templates() throws ApiException {
-        Optional<List<PunishTemplateResponse>> cached = this.redis.readCachedTemplates();
+        Optional<List<PunishTemplateResponse>> cached = this.cachedTemplates.read();
         if (cached.isPresent()) {
             return cached.get();
         }
