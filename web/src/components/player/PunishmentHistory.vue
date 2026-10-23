@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
 import type { Punishment } from '../../api/types'
 import { formatDateTime } from '../../format'
 import EvidenceDialog from '../evidence/EvidenceDialog.vue'
@@ -23,6 +24,7 @@ const columns = computed(() => [
   { key: 'eloCost' as const, label: t('player.columns.cost') },
   { key: 'lifted' as const, label: t('player.columns.status') },
   { key: 'identifier' as const, label: t('player.columns.evidence') },
+  { key: 'shortId' as const, label: t('case.title') },
 ])
 </script>
 
@@ -45,6 +47,14 @@ const columns = computed(() => [
           {{ t('evidence.open') }}
         </MdButton>
       </template>
+      <RouterLink
+        v-else-if="column.key === 'shortId'"
+        :to="{ name: 'case', params: { reference: row.identifier } }"
+        class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+        :data-testid="`open-case-${row.identifier}`"
+      >
+        {{ t('case.open') }}
+      </RouterLink>
       <template v-else>{{ row[column.key] }}</template>
     </template>
   </MdDataTable>

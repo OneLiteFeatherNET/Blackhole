@@ -25,12 +25,12 @@ Testcontainers for the migration), every UI group its own Vitest tests with a fa
 
 ## 3. Web case page (PR 3, `feat(web)`)
 
-- [ ] 3.1 API types and client methods for the case routes; tests with a fake client
-- [ ] 3.2 Router entries `/cases` and `/cases/:reference`, link from the player detail's punishments
-- [ ] 3.3 Case header (status, assignee picker, tags, priority, role gating, 409 handling) with component tests
-- [ ] 3.4 Timeline component: icon per type, unknown type, trust and origin badges, filters, cursor paging, edited / redacted notes; keyboard and focus tests
-- [ ] 3.5 Notes editor (counter, Ctrl+Enter, edit own, admin redact dialog), inline evidence via existing components, related cases, case list view
-- [ ] 3.6 German and English strings; `i18n.keys.test.ts` parity; live region and semantic markup checks; verify `npm test` and the type check
+- [x] 3.1 API types and client methods for the case routes; tests with a fake client
+- [x] 3.2 Router entries `/cases` and `/cases/:reference`, link from the player detail's punishments
+- [x] 3.3 Case header (status, assignee picker, tags, priority, role gating, 409 handling) with component tests
+- [x] 3.4 Timeline component: icon per type, unknown type, trust and origin badges, filters, cursor paging, edited / redacted notes; keyboard and focus tests
+- [x] 3.5 Notes editor (counter, Ctrl+Enter, edit own, admin redact dialog), inline evidence via existing components, related cases, case list view
+- [x] 3.6 German and English strings; `i18n.keys.test.ts` parity; live region and semantic markup checks; verify `npm test` and the type check
 
 ## 4. Documentation (PR 4, `docs(case)`)
 
