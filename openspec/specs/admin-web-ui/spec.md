@@ -182,3 +182,14 @@ The server SHALL answer `GET /healthz` with status 200 and body `ok`, and the co
 #### Scenario: Read-only root filesystem
 - **WHEN** the container runs with a read-only root filesystem
 - **THEN** it starts and serves requests, because it writes no files
+
+### Requirement: Evasion hints on the player page
+The player page SHALL show a "Possible alt accounts" panel, for every role that may open the page, built from `GET /evasion/{owner}/sightings`. Each linked account SHALL link to its player page and show the reason, the number of shared addresses and the first and last sighting. The panel MUST NOT show an IP, a token or a full owner hash as text, SHALL say when detection is switched off instead of claiming there are no alts, and SHALL announce its state in a polite live region.
+
+#### Scenario: Linked account
+- **WHEN** the backend lists one linked owner
+- **THEN** the panel shows a link to that player with the reason in words
+
+#### Scenario: Nothing linked
+- **WHEN** the backend lists no linked owners and detection is enabled
+- **THEN** the panel says no other account shared an address in the detection window

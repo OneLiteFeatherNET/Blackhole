@@ -144,6 +144,23 @@
       "delta": "Änderung",
       "score": "Punktestand danach",
       "evidence": "Beweise"
+    },
+    "evasion": {
+      "title": "Mögliche Zweitkonten",
+      "hint": "Konten, die von derselben Netzwerkadresse aus gesehen wurden wie dieser Spieler. Das ist ein Hinweis, kein Beweis: Gemeinsame Anschlüsse wie Haushalte oder Schulen verbinden unbeteiligte Spieler. Adressen werden nie angezeigt.",
+      "empty": "In den letzten {days} Tagen hat kein anderes Konto eine Adresse mit diesem Spieler geteilt.",
+      "disabled": "Die Umgehungserkennung ist auf dem Server ausgeschaltet, daher werden keine Sichtungen erfasst.",
+      "truncated": "Es werden nur die {count} zuletzt gesehenen Konten angezeigt.",
+      "reason": {
+        "SHARED_IP": "Gemeinsame Netzwerkadresse"
+      },
+      "columns": {
+        "owner": "Konto",
+        "reason": "Grund",
+        "shared": "Gemeinsame Adressen",
+        "firstSeen": "Zuerst gesehen",
+        "lastSeen": "Zuletzt gesehen"
+      }
     }
   },
   "actions": {

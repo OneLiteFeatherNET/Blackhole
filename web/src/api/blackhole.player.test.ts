@@ -122,3 +122,23 @@ describe('pageContent', () => {
     expect(pageContent(null)).toEqual({ items: [], totalPages: 1 })
   })
 })
+
+describe('evasionSightings', () => {
+  it('reads the linked owners of a player with a plain GET', async () => {
+    const body = { detectionEnabled: true, windowDays: 7, truncated: false, linkedOwners: [{ owner: 'cd'.repeat(64), reason: 'SHARED_IP', sharedAddresses: 1, firstSeen: 1, lastSeen: 2 }] }
+    const { api, calls } = apiWith([{ body }])
+
+    const result = await api.evasionSightings(OWNER)
+
+    expect(result).toEqual({ ok: true, data: body })
+    expect(calls[0]!.url).toBe(`http://ui.test/api/evasion/${OWNER}/sightings`)
+  })
+
+  it('treats a missing list as no linked owners', async () => {
+    const { api } = apiWith([{ body: { detectionEnabled: true } }])
+
+    const result = await api.evasionSightings(OWNER)
+
+    expect(result.ok && result.data.linkedOwners).toEqual([])
+  })
+})

@@ -28,6 +28,7 @@ async function mountApp(path = '/', options: { roles?: string[]; auth?: ReturnTy
           profile: async () => ok({ active: {}, history: [] }),
           eloProfile: async () => ok({ owner: '', sections: [] }),
           eloHistory: async () => ok([]),
+          evasionSightings: async () => ok({ detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false }),
           staffLinkStatus: async () => ok({ linked: false }),
         }),
       },

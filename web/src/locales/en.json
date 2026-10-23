@@ -144,6 +144,23 @@
       "delta": "Change",
       "score": "Score after",
       "evidence": "Evidence"
+    },
+    "evasion": {
+      "title": "Possible alt accounts",
+      "hint": "Accounts that were seen on the same network address as this player. This is a hint, not proof: shared connections such as households or schools link unrelated players. Addresses are never shown.",
+      "empty": "No other accounts shared an address with this player in the last {days} days.",
+      "disabled": "Evasion detection is switched off on the server, so no sightings are recorded.",
+      "truncated": "Only the {count} most recent accounts are shown.",
+      "reason": {
+        "SHARED_IP": "Shared network address"
+      },
+      "columns": {
+        "owner": "Account",
+        "reason": "Reason",
+        "shared": "Shared addresses",
+        "firstSeen": "First seen",
+        "lastSeen": "Last seen"
+      }
     }
   },
   "actions": {
