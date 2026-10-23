@@ -2,6 +2,8 @@ import { createRouter, createWebHistory, type RouteRecordRaw, type RouterHistory
 import AdminView from '../views/AdminView.vue'
 import AuthCallbackView from '../views/AuthCallbackView.vue'
 import AuthErrorView from '../views/AuthErrorView.vue'
+import CasesView from '../views/CasesView.vue'
+import CaseView from '../views/CaseView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import NoAccessView from '../views/NoAccessView.vue'
 import PlayerDetailView from '../views/PlayerDetailView.vue'
@@ -20,6 +22,8 @@ export const routes: RouteRecordRaw[] = [
   { path: '/reports', name: 'reports', component: ReportsView, meta: { titleKey: 'nav.reports' } },
   { path: '/appeals', name: 'appeals', component: AppealsView, meta: { titleKey: 'nav.appeals' } },
   { path: '/admin', name: 'admin', component: AdminView, meta: { titleKey: 'nav.admin', admin: true } },
+  { path: '/cases', name: 'cases', component: CasesView, meta: { titleKey: 'nav.cases' } },
+  { path: '/cases/:reference', name: 'case', component: CaseView, props: true, meta: { titleKey: 'case.title' } },
   { path: '/no-access', name: 'no-access', component: NoAccessView, meta: { titleKey: 'auth.noAccess.title' } },
   { path: '/auth/callback', name: 'auth-callback', component: AuthCallbackView, meta: { public: true, titleKey: 'auth.signingIn' } },
   { path: '/auth/error', name: 'auth-error', component: AuthErrorView, meta: { public: true, titleKey: 'auth.error.heading' } },
