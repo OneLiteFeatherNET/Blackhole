@@ -20,7 +20,12 @@
     "open": "Navigation öffnen",
     "close": "Navigation schließen",
     "collapse": "Navigation einklappen",
-    "expand": "Navigation ausklappen"
+    "expand": "Navigation ausklappen",
+    "badge": {
+      "cases": "{n} offener Fall | {n} offene Fälle",
+      "appeals": "{n} Einspruch wartet auf Prüfung | {n} Einsprüche warten auf Prüfung",
+      "reports": "{n} ungelöste Meldung | {n} ungelöste Meldungen"
+    }
   },
   "settings": {
     "theme": {

@@ -10,6 +10,8 @@ export interface DrawerItem {
   to: string
   label: string
   icon: string
+  /** Open-work count: `text` is shown, `label` is what a screen reader hears (it carries the real number). */
+  badge?: { text: string; label: string }
 }
 export interface DrawerGroup {
   key: string
@@ -136,11 +138,14 @@ function onKeydown(event: KeyboardEvent): void {
                 :class="isCurrent(item.to) ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'"
               >
                 <svg viewBox="0 0 24 24" class="h-6 w-6" aria-hidden="true"><path :d="item.icon" fill="currentColor" /></svg>
+                <span v-if="item.badge" data-testid="nav-badge" aria-hidden="true" class="absolute -top-1 right-0 grid h-4 min-w-4 place-items-center rounded-md-full bg-error px-1 text-label-small text-on-error">{{ item.badge.text }}</span>
               </span>
               <template v-else>
                 <svg viewBox="0 0 24 24" class="h-6 w-6 shrink-0" aria-hidden="true"><path :d="item.icon" fill="currentColor" /></svg>
               </template>
               <span :class="props.mode === 'rail' ? 'text-center' : 'min-w-0 flex-1 truncate'">{{ item.label }}</span>
+              <span v-if="item.badge && props.mode !== 'rail'" data-testid="nav-badge" aria-hidden="true" class="grid h-6 min-w-6 place-items-center rounded-md-full bg-error px-2 text-label-medium text-on-error">{{ item.badge.text }}</span>
+              <span v-if="item.badge" class="sr-only">{{ item.badge.label }}</span>
             </a>
           </RouterLink>
         </div>
