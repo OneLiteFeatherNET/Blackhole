@@ -101,3 +101,47 @@ describe('staff actor calls', () => {
     expect(result.ok ? null : result.error.kind).toBe('NOT_FOUND')
   })
 })
+
+describe('vanilla import call', () => {
+  const players = new Blob(['[]'], { type: 'application/json' })
+  const result = { dryRun: true, playersTotal: 0, playersImported: 0, playersSkippedExisting: 0, playersInvalid: 0, ipsTotal: 0, ipsSkipped: 0 }
+
+  it('posts multipart to /admin/import/vanilla with the dry run flag and the players part', async () => {
+    const { api, calls } = apiWith([{ body: result }])
+
+    const outcome = await api.importVanillaBans({ players, dryRun: true })
+
+    expect(outcome.ok, 'succeeded').toBe(true)
+    expect([calls[0]!.method, path(calls[0]!), new URL(calls[0]!.url).search]).toEqual(['POST', '/api/admin/import/vanilla', '?dryRun=true'])
+    expect(calls[0]!.headers.get('content-type'), 'multipart').toContain('multipart/form-data')
+    expect(calls[0]!.body, 'players part').toContain('name="bannedPlayers"')
+    expect(calls[0]!.body, 'no ips part').not.toContain('bannedIps')
+    expect(calls[0]!.headers.get('authorization'), 'bearer token').toBe('Bearer access-token')
+  })
+
+  it('adds the optional ips part and defaults a missing invalid list to empty', async () => {
+    const { api, calls } = apiWith([{ body: result }])
+
+    const outcome = await api.importVanillaBans({ players, ips: new Blob(['[]']), dryRun: false })
+
+    expect(calls[0]!.body, 'ips part').toContain('name="bannedIps"')
+    expect(new URL(calls[0]!.url).search).toBe('?dryRun=false')
+    expect(outcome.ok && outcome.data.invalidEntries, 'invalid entries').toEqual([])
+  })
+
+  it('reports a text error body as the message', async () => {
+    const { api } = apiWith([{ status: 400, body: 'Failed to read uploaded file(s): x' }])
+
+    const outcome = await api.importVanillaBans({ players, dryRun: true })
+
+    expect(outcome.ok ? null : outcome.error).toMatchObject({ status: 400, message: 'Failed to read uploaded file(s): x' })
+  })
+
+  it('reports a network failure without throwing', async () => {
+    const { api } = apiWith([new Error('offline')])
+
+    const outcome = await api.importVanillaBans({ players, dryRun: true })
+
+    expect(outcome.ok ? null : outcome.error.kind).toBe('NETWORK')
+  })
+})

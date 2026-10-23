@@ -34,6 +34,26 @@ export type EvidencePage = Schemas['EvidencePage']
 export type StaffLinkCode = Schemas['StaffLinkCodeResponse']
 export type StaffLinkStatus = Schemas['StaffLinkStatusResponse']
 export type StaffLink = Schemas['StaffLinkItem']
+/** The summary of a vanilla ban-list import or preview. The endpoint is hidden from the published spec, so this is typed by hand. */
+export interface VanillaImportResult {
+  dryRun: boolean
+  playersTotal: number
+  playersImported: number
+  playersSkippedExisting: number
+  playersInvalid: number
+  invalidEntries: string[]
+  ipsTotal: number
+  ipsSkipped: number
+}
+
+/** What the import form submits; the players list is the file's text, pasted or read. */
+export interface VanillaImportRequest {
+  players: Blob
+  ips?: Blob | null
+  /** Only report what would happen. */
+  dryRun: boolean
+}
+
 /** A known staff principal (a person or an application) with the name kept for it. */
 export type StaffActor = Schemas['StaffActorItem']
 
