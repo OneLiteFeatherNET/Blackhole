@@ -64,6 +64,10 @@ public class EvidenceItemEntity {
     @Column(name = "recorded_by_oid")
     private UUID recordedByOid;
 
+    /** The staff member the in-game {@code createdBy} was linked to when the item was attached; {@code null} if unlinked. */
+    @Column(name = "actor_oid")
+    private UUID actorOid;
+
     @Column(name = "file_key")
     private String fileKey;
 
@@ -149,6 +153,14 @@ public class EvidenceItemEntity {
 
     public void setCreatedBy(UUID createdBy) {
         this.createdBy = createdBy;
+    }
+
+    public UUID getActorOid() {
+        return actorOid;
+    }
+
+    public void setActorOid(UUID actorOid) {
+        this.actorOid = actorOid;
     }
 
     public void setRecordedByOid(UUID recordedByOid) {

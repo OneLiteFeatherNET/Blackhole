@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.appeal.service;
 
 import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.security.StaffLinkService;
 import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
 import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
 import net.onelitefeather.blackhole.backend.appeal.AppealReviewResult;
@@ -68,6 +69,7 @@ public class AppealDecisionService {
     private final SectionService sectionService;
     private final DomainEventPublisher eventPublisher;
     private final PunishmentEvidenceGateway evidence;
+    private final StaffLinkService staffLinks;
     private final Clock clock;
 
     public AppealDecisionService(
@@ -80,6 +82,7 @@ public class AppealDecisionService {
             SectionService sectionService,
             DomainEventPublisher eventPublisher,
             PunishmentEvidenceGateway evidence,
+            StaffLinkService staffLinks,
             Clock clock
     ) {
         this.appealRepository = appealRepository;
@@ -91,6 +94,7 @@ public class AppealDecisionService {
         this.sectionService = sectionService;
         this.eventPublisher = eventPublisher;
         this.evidence = evidence;
+        this.staffLinks = staffLinks;
         this.clock = clock;
     }
 
@@ -115,7 +119,10 @@ public class AppealDecisionService {
 
         PunishmentEntity punishment = appeal.getPunishment();
         // Compared by the reviewer's verified oid: the punishment's attributed source, or the principal that recorded it.
-        if (reviewer.oid().equals(punishment.getSource()) || reviewer.oid().equals(punishment.getRecordedByOid())) {
+        // ... or the staff member behind an in-game ban: the stored actor, or whoever the source is linked to now.
+        if (reviewer.oid().equals(punishment.getSource()) || reviewer.oid().equals(punishment.getRecordedByOid())
+                || reviewer.oid().equals(punishment.getActorOid())
+                || this.staffLinks.linkedOid(punishment.getSource()).filter(reviewer.oid()::equals).isPresent()) {
             return AppealReviewResult.selfReview();
         }
 

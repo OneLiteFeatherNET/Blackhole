@@ -35,6 +35,10 @@ public class EvidenceAuditEntity {
     @Column(name = "recorded_by_oid")
     private UUID recordedByOid;
 
+    /** The staff member the in-game {@code actor} was linked to at the time; {@code null} if unlinked or a web action. */
+    @Column(name = "actor_oid")
+    private UUID actorOid;
+
     @Column(length = 32)
     private String reason;
 
@@ -90,6 +94,14 @@ public class EvidenceAuditEntity {
 
     public UUID getRecordedByOid() {
         return recordedByOid;
+    }
+
+    public UUID getActorOid() {
+        return actorOid;
+    }
+
+    public void setActorOid(UUID actorOid) {
+        this.actorOid = actorOid;
     }
 
     public String getReason() {

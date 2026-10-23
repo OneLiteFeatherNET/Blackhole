@@ -20,7 +20,13 @@ public enum ErrorKind {
     CONFLICT(HttpStatus.CONFLICT),
 
     /** The caller's credentials do not identify them well enough for this request (401). */
-    UNAUTHORIZED(HttpStatus.UNAUTHORIZED);
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED),
+
+    /** The caller is identified but may not do this (403). */
+    FORBIDDEN(HttpStatus.FORBIDDEN),
+
+    /** A staff link code is wrong, expired or already used; deliberately one answer for all three (400). */
+    INVALID_CODE(HttpStatus.BAD_REQUEST);
 
     private final HttpStatus status;
 

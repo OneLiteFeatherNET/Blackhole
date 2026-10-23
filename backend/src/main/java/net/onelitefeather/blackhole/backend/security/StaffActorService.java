@@ -12,7 +12,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Erasure of staff identity data. Anonymizing clears the display name and keeps the {@code oid}, so
+ * Erasure of staff identity data. Anonymizing clears the display name, removes the person's Minecraft link (a leaving person must not stay attributable by UUID) and keeps the {@code oid}, so
  * history still points at the same principal; once the Entra account is deleted the oid no longer
  * resolves to a person. The action is audited with the admin's own verified {@code oid}.
  */
@@ -25,10 +25,12 @@ public class StaffActorService {
 
     private final StaffActorRepository actors;
     private final DomainEventPublisher events;
+    private final StaffLinkService links;
 
-    public StaffActorService(StaffActorRepository actors, DomainEventPublisher events) {
+    public StaffActorService(StaffActorRepository actors, DomainEventPublisher events, StaffLinkService links) {
         this.actors = actors;
         this.events = events;
+        this.links = links;
     }
 
     /**
@@ -45,6 +47,7 @@ public class StaffActorService {
         StaffActorEntity actor = found.get();
         actor.setDisplayName(null);
         this.actors.update(actor);
+        this.links.removeOnAnonymize(oid, admin);
         LOG.info("Staff actor {} anonymized by {}", oid, admin.oid());
         this.events.publish(ANONYMIZED_EVENT, Map.of("oid", oid.toString(), "anonymizedBy", admin.oid().toString()));
         return new StaffActorDTO.Response(oid);

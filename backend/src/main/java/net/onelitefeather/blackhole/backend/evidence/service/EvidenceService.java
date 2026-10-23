@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.backend.evidence.service;
 
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.Attribution;
+import net.onelitefeather.blackhole.backend.security.StaffLinkService;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -77,6 +78,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
     private final UploadPipeline uploads;
     private final BlobStore blobs;
     private final DomainEventPublisher events;
+    private final StaffLinkService staffLinks;
     private final Clock clock;
     private final Path spoolDirectory;
 
@@ -91,6 +93,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
             UploadPipeline uploads,
             BlobStore blobs,
             DomainEventPublisher events,
+            StaffLinkService staffLinks,
             Clock clock,
             @Value("${java.io.tmpdir}") Path spoolDirectory
     ) {
@@ -101,6 +104,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         this.uploads = uploads;
         this.blobs = blobs;
         this.events = events;
+        this.staffLinks = staffLinks;
         this.clock = clock;
         this.spoolDirectory = spoolDirectory;
     }
@@ -128,7 +132,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         if (invalid != null) {
             return invalid;
         }
-        Attribution attribution = actor.attribution(request.onBehalfOf()).orElse(null);
+        Attribution attribution = actor.attribution(request.onBehalfOf()).map(this.staffLinks::withLinkedActor).orElse(null);
         if (attribution == null) {
             return error(EvidenceErrorKind.VALIDATION, ON_BEHALF_OF_PROXY_ONLY);
         }
@@ -159,7 +163,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         if (invalid != null) {
             return invalid;
         }
-        Attribution attribution = actor.attribution(request.onBehalfOf()).orElse(null);
+        Attribution attribution = actor.attribution(request.onBehalfOf()).map(this.staffLinks::withLinkedActor).orElse(null);
         if (attribution == null) {
             return error(EvidenceErrorKind.VALIDATION, ON_BEHALF_OF_PROXY_ONLY);
         }
@@ -514,9 +518,11 @@ public class EvidenceService implements PunishmentEvidenceGateway {
      * note of an admin delete - never any evidence content.
      */
     private void record(EvidenceItemEntity item, EvidenceAuditAction action, Attribution by, String reason, String note) {
-        this.audit.save(new EvidenceAuditEntity(UUID.randomUUID(), item.getIdentifier(), item.getPunishmentIdentifier(),
+        EvidenceAuditEntity line = new EvidenceAuditEntity(UUID.randomUUID(), item.getIdentifier(), item.getPunishmentIdentifier(),
                 item.getOwner(), action, by == null ? null : by.source(), by == null ? null : by.recordedByOid(),
-                reason, note, this.clock.millis()));
+                reason, note, this.clock.millis());
+        line.setActorOid(by == null ? null : by.actorOid());
+        this.audit.save(line);
     }
 
     private EvidenceItemEntity newItem(Target target, EvidenceKind kind, String sourceSystem, Long capturedAt, Attribution by) {
@@ -525,6 +531,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         item.setCapturedAt(capturedAt);
         item.setCreatedBy(by.source());
         item.setRecordedByOid(by.recordedByOid());
+        item.setActorOid(by.actorOid());
         return item;
     }
 
@@ -612,7 +619,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
                 item.getFileName(), item.getFileContentType(), item.getFileSize(), item.getFileSha256());
         return new EvidenceDTO.Response(item.getIdentifier(), item.getPunishmentIdentifier(), item.getOwner(), item.getCorrelationId(),
                 item.getKind(), item.getSourceSystem(), item.getCapturedAt(), item.getCreatedAt(), item.getCreatedBy(),
-                item.getRecordedByOid(), item.getRecordedByOid() != null,
+                item.getRecordedByOid(), item.getRecordedByOid() != null, item.getActorOid(),
                 item.getExternalRef(), item.getPayload() == null ? null : new HashMap<>(item.getPayload()), file,
                 item.getStatus(), item.getStatusChangedAt(), item.getLiftedByAppeal());
     }

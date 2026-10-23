@@ -193,7 +193,7 @@ class EvidenceAuditTest {
     void anAuditEntryHasNoFieldThatCouldHoldEvidenceContent() {
         Set<String> fields = Set.copyOf(Arrays.stream(EvidenceAuditEntity.class.getDeclaredFields()).map(Field::getName).toList());
 
-        assertEquals(Set.of("identifier", "evidenceIdentifier", "punishmentIdentifier", "owner", "action", "actor", "recordedByOid", "reason", "note", "occurredAt"),
+        assertEquals(Set.of("identifier", "evidenceIdentifier", "punishmentIdentifier", "owner", "action", "actor", "recordedByOid", "actorOid", "reason", "note", "occurredAt"),
                 fields, "content fields (payload, reference, file) must never be added to the audit entity");
     }
 

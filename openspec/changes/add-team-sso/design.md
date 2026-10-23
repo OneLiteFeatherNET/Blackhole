@@ -130,6 +130,9 @@ call; `ADMIN` > `MODERATOR` > `VIEWER`; `PROXY` listed separately):
 | Admin configuration | `POST /section`, `/section/update`, `/section/{key}/disable`; `POST /template`, `/template/update`, `DELETE /template/delete/{id}`; `POST /admin/import/vanilla` | `ADMIN` | no |
 | Erasure / destructive | `DELETE /evidence/{id}`, `DELETE /evidence/owner/{owner}`, `DELETE /profile/delete/{owner}`, `POST /admin/staff-actor/{oid}/anonymize` | `ADMIN` | no |
 | Identity | `GET /auth/me` | any authenticated caller, also one with no role | yes |
+| Staff link (own) | `POST /staff-link/code`, `GET /staff-link/me`, `DELETE /staff-link/me` | `VIEWER` (human token for the code) | no |
+| Staff link (proxy) | `POST /staff-link/confirm`, `GET /staff-link/by-minecraft/{uuid}` | `PROXY` only | n/a |
+| Staff link (admin) | `GET /admin/staff-link`, `DELETE /admin/staff-link/{oid}` | `ADMIN` | no |
 | Operations | `GET /prometheus` | `METRICS` | no |
 | Public | `GET /health` (status only, no details) | none | n/a |
 

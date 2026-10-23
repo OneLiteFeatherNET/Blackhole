@@ -69,6 +69,8 @@ public final class EvidenceTestBed {
                     .finder("findByOccurredAtLessThan", args -> this.audit.all().stream().filter(entry -> entry.getOccurredAt() < (long) args[0]).toList())
                     .build();
     public final RecordingEventPublisher events = new RecordingEventPublisher();
+    public final net.onelitefeather.blackhole.backend.support.StaffLinkTestBed staffLinks =
+            new net.onelitefeather.blackhole.backend.support.StaffLinkTestBed(events, clock);
     public final EvidenceConfig config = new EvidenceConfig();
     public final FakeScanner scanner = new FakeScanner();
     public final EvidenceService service;
@@ -93,7 +95,7 @@ public final class EvidenceTestBed {
     public EvidenceTestBed(Path spoolDirectory, DomainEventPublisher publisher) {
         this.service = new EvidenceService(
                 items.repository(), audit.repository(), punishments.repository(), new PayloadValidator(config),
-                new UploadPipeline(config, scanner), blobs, publisher == null ? events : publisher, clock, spoolDirectory);
+                new UploadPipeline(config, scanner), blobs, publisher == null ? events : publisher, this.staffLinks.service, clock, spoolDirectory);
         this.sweeper = new EvidenceHousekeepingSweeper(service, items.repository(), audit.repository(), blobs, config, clock);
     }
 

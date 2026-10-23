@@ -39,7 +39,7 @@ class AppealDecisionServiceTest {
             InMemoryRepository.<AppealRepository, AppealEntity, UUID>of(AppealRepository.class, AppealEntity::getIdentifier).build();
     private final AppealDecisionService service = new AppealDecisionService(
             appeals.repository(), bed.punishments.repository(), bed.profiles.repository(), bed.slots, bed.profileCache,
-            bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.evidence, bed.eloBed.clock);
+            bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.evidence, bed.staffLinks.service, bed.eloBed.clock);
 
     /** A staff mute that cost 80 ELO; the chat score is 920 afterwards. */
     private PunishmentEntity givenStaffMute() {
@@ -333,5 +333,53 @@ class AppealDecisionServiceTest {
         UUID appealId = givenAppeal(givenStaffMute());
 
         assertFalse(appeals.repository().findById(appealId).orElseThrow().toDTO().verified());
+    }
+
+    private static final UUID INGAME = UUID.nameUUIDFromBytes("ingame-staff".getBytes());
+    private static final Actor PROXY_ACTOR = new Actor(UUID.nameUUIDFromBytes("proxy".getBytes()), null, ActorKind.SERVICE, true);
+
+    /** A mute the proxy applied on behalf of {@link #INGAME}; linked to {@link #REVIEWER} when {@code linkedBefore}. */
+    private PunishmentEntity givenInGameMute(boolean linkedBefore) {
+        if (linkedBefore) {
+            bed.staffLinks.givenLink(REVIEWER, INGAME);
+        }
+        bed.givenTemplate("spam", "chat", null, step("PT1H", 80));
+        PunishmentDTO.ApplyResponse applied = (PunishmentDTO.ApplyResponse) bed.punishmentService.apply(
+                new PunishmentDTO.ApplyRequest(OWNER, "spam", null, INGAME), PROXY_ACTOR);
+        return bed.punishments.all().stream().filter(p -> p.getIdentifier().equals(applied.punishment().identifier())).findFirst().orElseThrow();
+    }
+
+    @Test
+    void aStaffMemberCannotDecideTheAppealOfTheirOwnLinkedInGameBan() {
+        PunishmentEntity mute = givenInGameMute(true);
+        UUID appealId = givenAppeal(mute);
+
+        AppealReviewResult result = service.reviewAppeal(appealId, new AppealReviewDTO(AppealStatus.DENIED, "no", null), REVIEWER_ACTOR);
+
+        assertEquals(AppealReviewResult.Kind.SELF_REVIEW, result.kind(), "the stored actor_oid is the reviewer");
+    }
+
+    @Test
+    void aStaffMemberWhoLinkedAfterBanningInGameStillCannotDecideThatAppeal() {
+        PunishmentEntity mute = givenInGameMute(false);
+        assertEquals(null, mute.getActorOid(), "precondition: no link existed when the ban was written");
+        bed.staffLinks.givenLink(REVIEWER, INGAME);
+        UUID appealId = givenAppeal(mute);
+
+        AppealReviewResult result = service.reviewAppeal(appealId, new AppealReviewDTO(AppealStatus.DENIED, "no", null), REVIEWER_ACTOR);
+
+        assertEquals(AppealReviewResult.Kind.SELF_REVIEW, result.kind(), "the source is currently linked to the reviewer");
+    }
+
+    @Test
+    void anotherModeratorCanDecideTheAppealOfAnInGameBan() {
+        PunishmentEntity mute = givenInGameMute(true);
+        UUID appealId = givenAppeal(mute);
+        Actor other = new Actor(UUID.nameUUIDFromBytes("other".getBytes()), "Other", ActorKind.HUMAN, false);
+
+        AppealReviewResult result = service.reviewAppeal(appealId, new AppealReviewDTO(AppealStatus.DENIED, "no", null), other);
+
+        assertEquals(AppealReviewResult.Kind.DECIDED, result.kind(), result.message());
+        assertEquals(other.oid(), result.appeal().getDecidedBy(), "the decision is recorded for that moderator");
     }
 }

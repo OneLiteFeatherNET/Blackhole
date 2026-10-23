@@ -116,4 +116,23 @@ class EvidenceVerifiedActorTest {
                 .filter(entry -> entry.getAction() == EvidenceAuditAction.DELETED).findFirst().orElseThrow();
         assertEquals(null, swept.getRecordedByOid(), "nobody signed in for the housekeeping sweep: " + response.identifier());
     }
+
+    @Test
+    void evidenceAttachedOnBehalfOfALinkedUuidCarriesTheStaffMembersActorOidInItemAndAudit() {
+        UUID staff = UUID.nameUUIDFromBytes("linked-staff".getBytes());
+        this.bed.staffLinks.givenLink(staff, INGAME_STAFF);
+
+        EvidenceDTO.Response response = assertInstanceOf(EvidenceDTO.Response.class, attach(INGAME_STAFF, PROXY));
+
+        assertEquals(staff, response.actorOid(), "the item names the linked staff member");
+        assertEquals(INGAME_STAFF, response.createdBy(), "the source is never rewritten");
+        assertEquals(staff, this.bed.audit.all().getFirst().getActorOid(), "so does the audit line");
+    }
+
+    @Test
+    void evidenceAttachedOnBehalfOfAnUnlinkedUuidHasNoActorOid() {
+        EvidenceDTO.Response response = assertInstanceOf(EvidenceDTO.Response.class, attach(INGAME_STAFF, PROXY));
+
+        org.junit.jupiter.api.Assertions.assertNull(response.actorOid(), "unlinked stays NULL");
+    }
 }

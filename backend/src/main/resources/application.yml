@@ -71,6 +71,12 @@ blackhole:
     # environments (so the mock-server defaults never reach production). Only set this to true for a
     # deliberate exception, e.g. an internal http identity provider on a private network.
     allow-insecure-issuer: ${BLACKHOLE_AUTH_ALLOW_INSECURE_ISSUER:false}
+    # Linking a staff member's Minecraft account to their sign-in (/blackhole link <code> in game).
+    # A code is single use and valid for this long (ISO-8601 duration). There is deliberately no
+    # failed-attempt cap: guessing is bounded by the code's 40 bits, this lifetime, and by granting
+    # the proxy permission blackhole.link to staff groups only. Rate limiting belongs to the infra.
+    staff-link:
+      ttl: ${BLACKHOLE_STAFF_LINK_TTL:PT5M}
     # How token claims become roles. The token kind selects the claim: delegated tokens (a signed-in
     # user, they carry "scp") are read from claim-human; app-only tokens (client credentials) from
     # claim-machine. ADMIN implies MODERATOR implies VIEWER. Values are comma separated.
