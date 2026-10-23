@@ -158,8 +158,9 @@ The system SHALL mirror active punishment state into Redis from domain events: `
 - **THEN** the chat ban key is deleted and a CLEARED message is published on the sync channel
 
 ### Requirement: Cache invalidation on punishment writes
-Every write that changes a profile's punishment state (apply, revoke, expiry sweep, direct profile create/update/delete) SHALL invalidate the cached profile for that owner locally and across replicas.
+Every write that changes a profile's punishment state (apply, revoke, expiry sweep, direct profile create/update/delete) SHALL evict the shared cache entry for that owner's profile, so that every replica observes the change on its next read without a separate invalidation broadcast.
 
 #### Scenario: Revocation invalidates cache
 - **WHEN** an active ban is revoked
-- **THEN** the cached profile for that owner is invalidated on all replicas
+- **THEN** the cached profile for that owner is evicted from the shared cache
+- **AND** the next profile read on any replica reflects the revocation

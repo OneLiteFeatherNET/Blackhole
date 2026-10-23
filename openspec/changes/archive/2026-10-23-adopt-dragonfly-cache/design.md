@@ -33,8 +33,9 @@ Redis command subset so plain Redis keeps working for local dev/tests).
    cost. Stale data is bounded by per-resource TTLs.
 5. **Remove the fanout exchange** declaration, publisher and consumer. Existing brokers keep
    the orphan exchange harmlessly; documented in the migration notes.
-6. **Proxy template suggestions** read `blackhole:cache:templates:all`; on a miss they call the
-   API once (which repopulates). Same JSON shape as the API response.
+6. **Proxy template suggestions** read `blackhole:cache:v1:templates:all`; on a miss, error or unreadable payload they call the
+   API once (which repopulates). The cached value is the plain JSON array of template responses;
+   the API wraps the same objects in a page (`content`).
 
 ## Risks / Trade-offs
 
