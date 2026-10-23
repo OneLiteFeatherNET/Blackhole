@@ -20,7 +20,12 @@
     "open": "Open navigation",
     "close": "Close navigation",
     "collapse": "Collapse navigation",
-    "expand": "Expand navigation"
+    "expand": "Expand navigation",
+    "badge": {
+      "cases": "{n} open case | {n} open cases",
+      "appeals": "{n} appeal awaiting review | {n} appeals awaiting review",
+      "reports": "{n} unresolved report | {n} unresolved reports"
+    }
   },
   "settings": {
     "theme": {

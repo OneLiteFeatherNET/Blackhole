@@ -35,7 +35,10 @@ the backend verifies it; the UI only decides what to offer.
   entry is left out). From 1200 px it is a drawer that can be folded into a rail (the choice is kept in
   `localStorage`); from 768 px it is a rail; below that a menu button opens a modal drawer. The top bar
   carries the product mark and the account menu (account, theme, language, sign-out). An unknown path shows
-  a "Seite nicht gefunden" page after sign-in.
+  a "Seite nicht gefunden" page after sign-in. Fälle, Einsprüche and Meldungen carry a badge with the open
+  work (open cases, appeals awaiting review, unresolved reports; hidden at 0, "99+" above 99). Appeals and
+  reports come from `GET /dashboard/summary`, cases from the `totalSize` of `GET /case?status=OPEN&size=1`;
+  refreshed on every navigation and every 60 s.
 - **Account.** The "Konto" (*Account*) entry in the account menu of the top bar opens a dialog that shows whether the signed-in
   person's Minecraft account is linked. "Minecraft-Konto verknüpfen" issues a code with a countdown and a
   copy button for the code and for the command `/blackhole link <code>`; "Verknüpfung entfernen" unlinks

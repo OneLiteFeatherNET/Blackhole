@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
+import { useApi } from './api/inject'
 import { useAuth, useSignOut } from './auth/inject'
 import AccountLinkDialog from './components/account/AccountLinkDialog.vue'
 import AccountMenu from './components/account/AccountMenu.vue'
@@ -9,7 +10,9 @@ import MdIconButton from './components/md/MdIconButton.vue'
 import MdNavigationDrawer from './components/md/MdNavigationDrawer.vue'
 import MdSnackbar from './components/md/MdSnackbar.vue'
 import MdTopAppBar from './components/md/MdTopAppBar.vue'
+import { badgeText, useNavCountsStore, type CountKey } from './nav/navCounts'
 import { visibleGroups } from './nav/navigation'
+import { useTicker } from './nav/ticker'
 import { useBreakpoint } from './nav/useBreakpoint'
 import { useSessionStore } from './stores/session'
 import { useUiStore } from './stores/ui'
@@ -22,6 +25,9 @@ const ui = useUiStore()
 const session = useSessionStore()
 const auth = useAuth()
 const signOut = useSignOut()
+const api = useApi()
+const counts = useNavCountsStore()
+const ticker = useTicker()
 const accountOpen = ref(false)
 const navOpen = ref(false)
 const size = useBreakpoint()
@@ -30,12 +36,19 @@ const size = useBreakpoint()
 // first visit means after sign-in, and never while the browser is on its way to the authority.
 const resolved = computed(() => route.matched.length > 0 && !auth.redirecting.value)
 
+/** The badge of a destination with open work; none at 0 or while the count is unknown. */
+function badgeFor(key: CountKey | undefined) {
+  const count = key ? counts[key] : null
+  const text = badgeText(count)
+  return key && text ? { text, label: t(`nav.badge.${key}`, { n: count }, count ?? 0) } : undefined
+}
+
 // Only an admin is offered the admin page; the backend stays authoritative.
 const groups = computed(() =>
   visibleGroups({ hasAccess: session.hasAccess, administrator: session.administrator }).map((group) => ({
     key: group.key,
     heading: group.heading ? t(`nav.groups.${group.key}`) : undefined,
-    items: group.items.map((item) => ({ to: item.to, icon: item.icon, label: t(`nav.${item.key}`) })),
+    items: group.items.map((item) => ({ to: item.to, icon: item.icon, label: t(`nav.${item.key}`), badge: badgeFor(item.count) })),
   })),
 )
 const showNav = computed(() => resolved.value && groups.value.length > 0)
@@ -58,6 +71,26 @@ watch(
   () => (navOpen.value = false),
 )
 watch(navMode, () => (navOpen.value = false))
+
+// Open counts for the badges: when the navigation appears, on every navigation and once a minute.
+const COUNT_REFRESH_MS = 60_000
+let stopTicker: (() => void) | null = null
+watch(
+  showNav,
+  (shown) => {
+    stopTicker?.()
+    stopTicker = null
+    if (!shown) return
+    void counts.refresh(api)
+    stopTicker = ticker.every(COUNT_REFRESH_MS, () => void counts.refresh(api))
+  },
+  { immediate: true },
+)
+watch(
+  () => route.fullPath,
+  () => showNav.value && void counts.refresh(api),
+)
+onBeforeUnmount(() => stopTicker?.())
 </script>
 
 <template>
