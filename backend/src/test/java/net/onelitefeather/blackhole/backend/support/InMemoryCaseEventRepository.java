@@ -49,7 +49,18 @@ public final class InMemoryCaseEventRepository implements CaseEventRepository, C
 
     @Override
     public int redact(String punishmentIdentifier, String subjectId, long redactedAt, UUID redactedByOid) {
-        throw new UnsupportedOperationException("not needed by the unit tests");
+        int redacted = 0;
+        for (int i = 0; i < this.rows.size(); i++) {
+            CaseEventRecord row = this.rows.get(i);
+            boolean note = row.type().equals("note.added") || row.type().equals("note.edited");
+            if (note && row.punishmentIdentifier().equals(punishmentIdentifier) && subjectId.equals(row.subjectId()) && row.redactedAt() == null) {
+                this.rows.set(i, new CaseEventRecord(row.identifier(), row.seq(), row.punishmentIdentifier(), row.type(), row.payloadVersion(),
+                        row.occurredAt(), row.origin(), row.actorTrust(), row.actorOid(), row.recordedByOid(), row.actorSource(),
+                        row.subjectId(), row.visibility(), java.util.Map.of(), redactedAt, row.dedupeKey()));
+                redacted++;
+            }
+        }
+        return redacted;
     }
 
     @Override

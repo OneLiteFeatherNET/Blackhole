@@ -106,6 +106,37 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void aViewerMayReadACase() {
+        assertAuthorized(get("/case/unknown-punishment", this.jwt.viewer()), "viewer on GET /case/{reference}");
+    }
+
+    @Test
+    void aViewerCannotAddANote() {
+        assertEquals(403, post("/case/unknown-punishment/notes", Map.of("text", "x"), this.jwt.viewer()).status(), "viewer on a case write");
+    }
+
+    @Test
+    void aModeratorMayAddANote() {
+        assertAuthorized(post("/case/unknown-punishment/notes", Map.of("text", "x"), this.jwt.moderator()), "moderator on a case write");
+    }
+
+    @Test
+    void aModeratorCannotRedactANote() {
+        assertEquals(403, post("/case/unknown-punishment/notes/" + EVIDENCE + "/redact", Map.of("reason", "OTHER"), this.jwt.moderator()).status(),
+                "moderator on redaction");
+    }
+
+    @Test
+    void anAdminMayRedactANote() {
+        assertAuthorized(post("/case/unknown-punishment/notes/" + EVIDENCE + "/redact", Map.of("reason", "OTHER"), this.jwt.admin()), "admin on redaction");
+    }
+
+    @Test
+    void theProxyCannotReadACase() {
+        assertEquals(403, get("/case/unknown-punishment", this.jwt.proxy()).status(), "proxy has no case rule");
+    }
+
+    @Test
     void aMachineTokenWithAHumanRoleValueHasNoRole() {
         String token = this.jwt.appOnly().roles(TestJwtIssuer.MODERATOR_GROUP, TestJwtIssuer.ADMIN_GROUP).sign();
 

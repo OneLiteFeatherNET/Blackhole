@@ -12,8 +12,13 @@ import java.util.UUID;
  * @param displayName the {@code name} claim, if present
  * @param kind        {@link ActorKind#HUMAN} for a delegated token, {@link ActorKind#SERVICE} for an app-only one
  * @param proxy       whether the principal holds the {@code PROXY} role and may therefore vouch for {@code onBehalfOf}
+ * @param admin       whether the principal holds the {@code ADMIN} role, for rules such as "the author or an admin"
  */
-public record Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy) {
+public record Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy, boolean admin) {
+
+    public Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy) {
+        this(oid, displayName, kind, proxy, false);
+    }
 
     /** The attribution of a write the caller makes in its own name. */
     public Attribution attribution() {

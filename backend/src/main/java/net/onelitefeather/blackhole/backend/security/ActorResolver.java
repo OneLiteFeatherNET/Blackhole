@@ -55,7 +55,7 @@ public class ActorResolver {
         String name = claims.get(NAME_CLAIM) instanceof String text && !text.isBlank() ? text : null;
         ActorKind kind = BlackholeRolesFinder.isDelegated(claims) ? ActorKind.HUMAN : ActorKind.SERVICE;
         record(oid, kind, name);
-        return new Actor(oid, name, kind, authentication.getRoles().contains(Roles.PROXY));
+        return new Actor(oid, name, kind, authentication.getRoles().contains(Roles.PROXY), authentication.getRoles().contains(Roles.ADMIN));
     }
 
     private void record(UUID oid, ActorKind kind, String name) {

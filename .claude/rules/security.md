@@ -33,3 +33,6 @@ paths:
 - Local dev signs in against the real Entra dev registration: `set -a; . ~/.config/blackhole/entra-dev.env;
   set +a` before `./gradlew :backend:run`; create it with `docs/entra-setup.sh dev`. Tests use self-signed
   JWTs (`TestJwtIssuer`) and never reach Entra.
+- Case routes (`/case`): `GET` list, case and timeline need `VIEWER`; `PATCH /case/{reference}`, `POST
+  /case/{reference}/notes` and `PUT .../notes/{noteId}` need `MODERATOR`; `POST .../notes/{noteId}/redact`
+  needs `ADMIN`; `PROXY` is denied. `Actor.admin` carries the ADMIN role for the author-or-admin note edit.

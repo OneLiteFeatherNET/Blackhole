@@ -35,6 +35,17 @@ public class JdbcCaseEventReader implements CaseEventReader {
         this.dataSource = plainDataSource;
     }
 
+    /** The event at the cursor of a result set that starts with the 16 columns of {@link #TIMELINE}. */
+    static CaseEventRecord map(ResultSet rows) throws SQLException {
+        Long redactedAt = rows.getObject(15, Long.class);
+        return new CaseEventRecord(
+                rows.getObject(1, UUID.class), rows.getLong(2), rows.getString(3), rows.getString(4), rows.getInt(5),
+                rows.getLong(6), CaseEventOrigin.valueOf(rows.getString(7)), ActorTrust.valueOf(rows.getString(8)),
+                rows.getObject(9, UUID.class), rows.getObject(10, UUID.class), rows.getObject(11, UUID.class),
+                rows.getString(12), rows.getString(13), CaseEventPayloads.parse(rows.getString(14)),
+                redactedAt, rows.getString(16));
+    }
+
     @Override
     public List<CaseEventRecord> timeline(String punishmentIdentifier) {
         try (Connection connection = this.dataSource.getConnection();
@@ -43,13 +54,7 @@ public class JdbcCaseEventReader implements CaseEventReader {
             try (ResultSet rows = statement.executeQuery()) {
                 List<CaseEventRecord> events = new ArrayList<>();
                 while (rows.next()) {
-                    Long redactedAt = rows.getObject(15, Long.class);
-                    events.add(new CaseEventRecord(
-                            rows.getObject(1, UUID.class), rows.getLong(2), rows.getString(3), rows.getString(4), rows.getInt(5),
-                            rows.getLong(6), CaseEventOrigin.valueOf(rows.getString(7)), ActorTrust.valueOf(rows.getString(8)),
-                            rows.getObject(9, UUID.class), rows.getObject(10, UUID.class), rows.getObject(11, UUID.class),
-                            rows.getString(12), rows.getString(13), CaseEventPayloads.parse(rows.getString(14)),
-                            redactedAt, rows.getString(16)));
+                    events.add(map(rows));
                 }
                 return events;
             }

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.core.annotation.Nullable;
 
+import java.util.List;
 import java.util.Map;
 
 /** Reads a stored payload into its record and (de)serialises payloads to JSON. */
@@ -67,6 +68,14 @@ public final class CaseEventPayloads {
                         required(text(body, "appealId")), required(text(body, "decision")), number(body, "newExpirationAt"));
                 case CaseEventPayload.STATUS_CHANGED -> new CaseEventPayload.StatusChanged(
                         required(text(body, "from")), required(text(body, "to")));
+                case CaseEventPayload.ASSIGNEE_CHANGED -> new CaseEventPayload.AssigneeChanged(text(body, "from"), text(body, "to"));
+                case CaseEventPayload.PRIORITY_CHANGED -> new CaseEventPayload.PriorityChanged(
+                        required(text(body, "from")), required(text(body, "to")));
+                case CaseEventPayload.TAGS_CHANGED -> new CaseEventPayload.TagsChanged(texts(body, "added"), texts(body, "removed"));
+                case CaseEventPayload.NOTE_ADDED -> new CaseEventPayload.NoteAdded(required(text(body, "noteId")), required(text(body, "text")));
+                case CaseEventPayload.NOTE_EDITED -> new CaseEventPayload.NoteEdited(required(text(body, "noteId")), required(text(body, "text")));
+                case CaseEventPayload.NOTE_REDACTED -> new CaseEventPayload.NoteRedacted(
+                        required(text(body, "noteId")), required(text(body, "reason")));
                 default -> null;
             };
             return typed != null ? typed : new CaseEventPayload.Unknown(type, version, body);
@@ -95,6 +104,10 @@ public final class CaseEventPayloads {
     private static @Nullable Integer integer(Map<String, Object> body, String key) {
         Object value = body.get(key);
         return value == null ? null : ((Number) value).intValue();
+    }
+
+    private static List<String> texts(Map<String, Object> body, String key) {
+        return body.get(key) instanceof List<?> list ? list.stream().map(String::valueOf).toList() : List.of();
     }
 
     private static boolean flag(Map<String, Object> body, String key) {

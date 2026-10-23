@@ -28,7 +28,14 @@ class CaseEventPayloadsTest {
                 new CaseEventPayload.AppealFiled("appeal-1", true),
                 new CaseEventPayload.AppealDecided("appeal-1", "GRANTED_DURATION_REDUCTION", 3_000L),
                 new CaseEventPayload.AppealDecided("appeal-1", "DENIED", null),
-                new CaseEventPayload.StatusChanged("CLOSED", "OPEN"));
+                new CaseEventPayload.StatusChanged("CLOSED", "OPEN"),
+                new CaseEventPayload.AssigneeChanged(null, "6a1d3a52-0000-4000-8000-000000000001"),
+                new CaseEventPayload.AssigneeChanged("6a1d3a52-0000-4000-8000-000000000001", null),
+                new CaseEventPayload.PriorityChanged("NORMAL", "HIGH"),
+                new CaseEventPayload.TagsChanged(java.util.List.of("a", "b"), java.util.List.of()),
+                new CaseEventPayload.NoteAdded("n-1", "text"),
+                new CaseEventPayload.NoteEdited("n-1", "new text"),
+                new CaseEventPayload.NoteRedacted("n-1", "PERSONAL_DATA"));
     }
 
     @ParameterizedTest

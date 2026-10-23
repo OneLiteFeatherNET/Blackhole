@@ -4,6 +4,7 @@ package net.onelitefeather.blackhole.backend.casetimeline;
  * How far an event's actor can be trusted. A reader must never present {@link #UNVERIFIED} like
  * {@link #VERIFIED}.
  */
+@io.micronaut.serde.annotation.Serdeable
 public enum ActorTrust {
     /** The actor's {@code oid} came from a human token or a live staff link. */
     VERIFIED,
