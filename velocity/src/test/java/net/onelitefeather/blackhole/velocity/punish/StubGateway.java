@@ -6,6 +6,8 @@ import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentRevokeResponse;
+import net.onelitefeather.blackhole.client.model.StaffLinkConfirmResponse;
+import net.onelitefeather.blackhole.client.model.StaffLinkLookupResponse;
 import net.onelitefeather.blackhole.velocity.evidence.ChatSnapshot;
 
 import java.util.ArrayList;
@@ -28,6 +30,12 @@ final class StubGateway implements BackendGateway {
     Optional<PunishProfileDTO> profile = Optional.empty();
     ApiException profileFailure;
     EloProfileResponse elo = new EloProfileResponse();
+    StaffLinkConfirmResponse confirmResponse = new StaffLinkConfirmResponse();
+    ApiException confirmFailure;
+    StaffLinkLookupResponse lookupResponse = new StaffLinkLookupResponse().linked(false);
+    ApiException lookupFailure;
+    /** The player and code of each confirm call. */
+    final List<String> confirmed = new ArrayList<>();
 
     final List<String> applied = new ArrayList<>();
     final List<String> revoked = new ArrayList<>();
@@ -104,6 +112,23 @@ final class StubGateway implements BackendGateway {
     @Override
     public EloProfileResponse elo(String owner) {
         return this.elo;
+    }
+
+    @Override
+    public StaffLinkConfirmResponse confirmStaffLink(String code, UUID player) throws ApiException {
+        this.confirmed.add(player + "/" + code);
+        if (this.confirmFailure != null) {
+            throw this.confirmFailure;
+        }
+        return this.confirmResponse;
+    }
+
+    @Override
+    public StaffLinkLookupResponse lookupStaffLink(UUID player) throws ApiException {
+        if (this.lookupFailure != null) {
+            throw this.lookupFailure;
+        }
+        return this.lookupResponse;
     }
 
     static PunishTemplateResponse template(String key, String section) {

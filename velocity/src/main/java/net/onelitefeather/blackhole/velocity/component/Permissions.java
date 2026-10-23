@@ -15,6 +15,7 @@ public final class Permissions {
     public static final String UNBAN = "blackhole.unban";
     public static final String UNMUTE = "blackhole.unmute";
     public static final String PARDON_PERMANENT = "blackhole.pardon.permanent";
+    public static final String LINK = "blackhole.link";
 
     private final Predicate<String> granted;
 

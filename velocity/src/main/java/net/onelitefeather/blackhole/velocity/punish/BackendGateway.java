@@ -3,6 +3,8 @@ package net.onelitefeather.blackhole.velocity.punish;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.EloProfileResponse;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
+import net.onelitefeather.blackhole.client.model.StaffLinkConfirmResponse;
+import net.onelitefeather.blackhole.client.model.StaffLinkLookupResponse;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentRevokeResponse;
@@ -58,4 +60,15 @@ public interface BackendGateway {
      * @return the owner's score in every section
      */
     EloProfileResponse elo(String owner) throws ApiException;
+
+    /**
+     * Binds the player to the staff member the code was issued to. The backend normalises the code, so it
+     * is passed on as typed.
+     */
+    StaffLinkConfirmResponse confirmStaffLink(String code, UUID player) throws ApiException;
+
+    /**
+     * @return whether the Minecraft account is linked, and to whom
+     */
+    StaffLinkLookupResponse lookupStaffLink(UUID player) throws ApiException;
 }

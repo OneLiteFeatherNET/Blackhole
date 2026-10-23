@@ -12,9 +12,9 @@
 
 ## 2. Velocity: /blackhole link (PR 2, based on PR 1)
 
-- [ ] 2.1 Write failing tests for the command with a fake backend client and a fixed `Clock`: success, invalid or expired code, already linked, console sender refused, missing permission
-- [ ] 2.2 Add `LinkCommand` (`/blackhole link <code>`) and `WhoamiCommand` (`/blackhole whoami`) registered through the existing Cloud setup, permissions `blackhole.link`, player-only; verify the code is never logged
-- [ ] 2.3 Add the `staff.link.*` and `staff.whoami.*` message keys in `blackhole_en.properties` and `blackhole_de.properties` in the `bh:` style; verify the key-parity test and the console rendering
+- [x] 2.1 Write failing tests for the command with a fake backend client and a fixed `Clock`: success, invalid or expired code, already linked, console sender refused, missing permission
+- [x] 2.2 Add `LinkCommand` (`/blackhole link <code>`) and `WhoamiCommand` (`/blackhole whoami`) registered through the existing Cloud setup, permissions `blackhole.link`, player-only; verify the code is never logged
+- [x] 2.3 Add the `staff.link.*` and `staff.whoami.*` message keys in `blackhole_en.properties` and `blackhole_de.properties` in the `bh:` style; verify the key-parity test and the console rendering
 - [ ] 2.4 Verify against the real stack (compose backend, mock OIDC): issue a code via the API, confirm in game, see the attribution of a following `/ban`
 
 ## 3. Web: account dialog (PR 3, based on PR 2)

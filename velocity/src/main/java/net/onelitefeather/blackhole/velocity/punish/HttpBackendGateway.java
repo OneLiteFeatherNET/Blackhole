@@ -5,6 +5,7 @@ import net.onelitefeather.blackhole.client.api.EvidenceApi;
 import net.onelitefeather.blackhole.client.api.PunishProfileApi;
 import net.onelitefeather.blackhole.client.api.PunishmentApi;
 import net.onelitefeather.blackhole.client.api.PunishmentTemplatesApi;
+import net.onelitefeather.blackhole.client.api.StaffLinkApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.EloProfileResponse;
@@ -16,6 +17,9 @@ import net.onelitefeather.blackhole.client.model.PunishmentApplyRequest;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentRevokeRequest;
 import net.onelitefeather.blackhole.client.model.PunishmentRevokeResponse;
+import net.onelitefeather.blackhole.client.model.StaffLinkConfirmRequest;
+import net.onelitefeather.blackhole.client.model.StaffLinkConfirmResponse;
+import net.onelitefeather.blackhole.client.model.StaffLinkLookupResponse;
 import net.onelitefeather.blackhole.velocity.evidence.ChatEvidenceRequests;
 import net.onelitefeather.blackhole.velocity.evidence.ChatSnapshot;
 import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
@@ -38,6 +42,7 @@ public final class HttpBackendGateway implements BackendGateway {
     private final PunishProfileApi profileApi;
     private final EloApi eloApi;
     private final EvidenceApi evidenceApi;
+    private final StaffLinkApi staffLinkApi;
     private final RedisSyncService redis;
     private final Clock clock;
 
@@ -47,6 +52,7 @@ public final class HttpBackendGateway implements BackendGateway {
         this.profileApi = new PunishProfileApi(client);
         this.eloApi = new EloApi(client);
         this.evidenceApi = new EvidenceApi(client);
+        this.staffLinkApi = new StaffLinkApi(client);
         this.redis = redis;
         this.clock = clock;
     }
@@ -111,5 +117,15 @@ public final class HttpBackendGateway implements BackendGateway {
     @Override
     public EloProfileResponse elo(String owner) throws ApiException {
         return this.eloApi.getEloProfile(owner);
+    }
+
+    @Override
+    public StaffLinkConfirmResponse confirmStaffLink(String code, UUID player) throws ApiException {
+        return this.staffLinkApi.confirmStaffLink(new StaffLinkConfirmRequest().code(code).onBehalfOf(player));
+    }
+
+    @Override
+    public StaffLinkLookupResponse lookupStaffLink(UUID player) throws ApiException {
+        return this.staffLinkApi.lookupStaffLinkByMinecraft(player);
     }
 }
