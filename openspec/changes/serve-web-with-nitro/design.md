@@ -65,7 +65,8 @@ web/server/plugins/config.ts   reads env once at startup, fails fast
 web/server/lib/config.ts       parseUiConfig(env): pure, typed, unit tested
 web/server/lib/headers.ts      securityHeaders(): pure
 web/server/lib/proxy.ts        buildBackendRequest(...): pure URL/header building
-web/server/middleware/security-headers.ts
+web/server/plugins/security-headers.ts   `request` hook: headers on every response, static files included
+web/server/error.ts            error handler: same headers on error responses
 web/server/routes/config.json.ts
 web/server/routes/healthz.ts
 web/server/routes/[...].ts     SPA fallback: index.html from serverAssets
@@ -96,8 +97,8 @@ dev-server fixture; a test asserts the server route wins over a static file of t
 ### 4. API proxy as a handler
 
 `server/api/[...path].ts` forwards `/api/<rest>` to `<backendUrl>/<rest>` with method, query
-and body (streamed, no buffering, no size limit in the proxy; the backend enforces the evidence
-limits), and sets `X-Forwarded-For` (client address), `X-Forwarded-Proto` and the backend `Host`.
+and body (streamed, no buffering; body caps as nginx: 128 MiB on `/api/evidence/file`, 1 MiB elsewhere,
+413 by `Content-Length` or by a streamed byte count; the backend enforces the real evidence limits), and sets `X-Forwarded-For` (client address), `X-Forwarded-Proto` and the backend `Host`.
 Timeouts via `AbortSignal.timeout`: 30 s default, 120 s for `POST /api/evidence/file` (as nginx).
 Responses get `Cache-Control: no-store`. Backend unreachable gives 502, timeout 504, plain text.
 Hardening (the rest-path is caller-controlled, the origin is not): the path is normalised and
@@ -107,9 +108,12 @@ table of hostile paths. `BLACKHOLE_BACKEND_URL` is operator configuration, not c
 scheme check is the only URL validation needed (CLAUDE.md SSRF rule applies to caller-supplied
 URLs).
 
-### 5. Security headers via middleware
+### 5. Security headers via a `request` hook
 
-A global middleware sets on every response, including static files and the SPA fallback:
+Implementation finding (PR 1): Nitro answers public assets before any middleware runs, so a
+middleware never saw static files. The headers are set in a plugin's `request` hook instead, and a
+custom `errorHandler` (`server/error.ts`) keeps them on error responses (Nitro's default one
+replaces them). Sets on every response, including static files and the SPA fallback:
 `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer` and
 `Content-Security-Policy` (the string used today, produced by `securityHeaders()` so the SSO change
 adds `connect-src` in one place). No `Server` or `X-Powered-By` header (asserted). `routeRules` is
@@ -117,16 +121,17 @@ not used because of the static-file caveat above.
 
 ### 6. Static files, caching and SPA fallback
 
-`nitro.config.ts` declares `publicAssets: [{ dir: 'dist/assets', baseURL: '/assets',
+`nitro.config.ts` declares (dirs resolve against `srcDir`, so they are written `../dist`) `publicAssets: [{ dir: 'dist/assets', baseURL: '/assets',
 maxAge: 31536000 }, { dir: 'dist', baseURL: '/' }]` (the root entry is top-level and falls through;
 `/assets` has `fallthrough: false`): hashed files get `public, max-age=31536000, immutable` and a
 missing `/assets/x` is a real 404, like `try_files =404`. The root entry also copies `dist/assets`
 once more into `.output/public`; this is harmless duplication because Nitro has no `ignore` option
 (task 1.1 verifies it and, if needed, lets Vite emit assets elsewhere). `serverAssets:
-[{ baseName: 'ui', dir: 'dist' }]` bundles `index.html` into the server; `routes/[...].ts` answers
+[{ baseName: 'ui', dir: 'dist', pattern: 'index.html' }]` bundles `index.html` into the server; `routes/[...].ts` answers
 `GET`/`HEAD` for every path nothing else handled with that document, status 200,
 `Cache-Control: no-cache`. Other methods get 404. The build order is `vite build`, then
-`nitro build`.
+`nitro build`. Vite runs with `copyPublicDir: false`: otherwise the dev fixture `public/config.json`
+is copied to `dist/` and Nitro serves that static file instead of the typed route.
 
 ### 7. Image
 
@@ -166,7 +171,7 @@ web server serves ... refuses to start"; behaviour is unchanged. Its proposal Im
 | 3 | `/assets/` 1 y `public, immutable`, miss = 404 | `publicAssets` entry `/assets` with `maxAge`, `fallthrough: false` | smoke: header and 404 |
 | 4 | `index.html` `Cache-Control: no-cache` | header set in middleware for the index document | unit: headers |
 | 5 | `/api/` proxy, prefix stripped, to `BLACKHOLE_BACKEND_URL` (envsubst at start) | `server/api/[...path].ts`, URL from validated env at startup | unit: URL builder, fake fetch |
-| 6 | `/api/evidence/file`: body 128 MB, no request buffering, 120 s | same handler, streamed body, no proxy-side limit, 120 s timeout for that route | unit: timeout selection, body not read |
+| 6 | `/api/evidence/file`: body 128 MB, no request buffering, 120 s | same handler, streamed body, 128 MiB cap reproduced in `server/lib/proxy.ts` (413 by `Content-Length` or by streamed count; 1 MiB elsewhere, as nginx's default), 120 s timeout for that route | unit: limits, timeout selection, body not read |
 | 7 | `/api/` read timeout 30 s | `AbortSignal.timeout(30_000)` gives 504 | unit with an aborted signal |
 | 8 | `X-Forwarded-For/Proto`, `Host` = backend | set explicitly in the proxy | unit |
 | 9 | `Cache-Control: no-store` on API | set on the proxy response | unit |

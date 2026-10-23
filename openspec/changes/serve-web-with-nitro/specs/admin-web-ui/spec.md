@@ -23,7 +23,7 @@ The UI SHALL be served by a Nitro server that also forwards requests under `/api
 
 #### Scenario: Evidence upload
 - **WHEN** the UI uploads a video of 100 MiB to `/api/evidence/file`
-- **THEN** the body is streamed to the backend without a size limit in the UI server and with a 120 second timeout
+- **THEN** the body is streamed to the backend (the UI server caps request bodies at 128 MiB on this route, 413 above, and 1 MiB on other API routes) with a 120 second timeout
 
 ## ADDED Requirements
 

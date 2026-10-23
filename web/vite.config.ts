@@ -13,9 +13,10 @@ export default defineConfig({
       '/api': { target: backend, changeOrigin: true, rewrite: (path) => path.replace(/^\/api/, '') },
     },
   },
-  build: { target: 'es2022' },
+  // public/config.json is the dev-server fixture only; the production server serves its own /config.json.
+  build: { target: 'es2022', copyPublicDir: false },
   test: {
     environment: 'jsdom',
-    include: ['src/**/*.test.ts', 'nginx/**/*.test.ts', 'tests/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'server/**/*.test.ts', 'tests/**/*.test.ts'],
   },
 })
