@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../../api/inject'
-import type { EnforcementKind, Section } from '../../api/types'
+import type { CloudNetCatalogue, EnforcementKind, Section, ServerTargetKind } from '../../api/types'
 import { parseDuration } from '../../duration'
 import MdButton from '../md/MdButton.vue'
 import MdCheckbox from '../md/MdCheckbox.vue'
@@ -11,6 +11,7 @@ import MdDurationField from '../md/MdDurationField.vue'
 import MdSelect from '../md/MdSelect.vue'
 import MdTextField from '../md/MdTextField.vue'
 import { sectionFieldErrors, type FieldErrors } from '../templates/fieldErrors'
+import CloudNetTargetPicker from './CloudNetTargetPicker.vue'
 
 const props = defineProps<{ open: boolean; section: Section | null }>()
 const emit = defineEmits<{ close: []; saved: [message: string] }>()
@@ -23,6 +24,7 @@ const form = ref({
   key: '',
   displayName: '',
   enforcement: 'BAN' as EnforcementKind,
+  targetKind: 'PATTERN' as ServerTargetKind,
   servers: '',
   baseScore: '1000',
   softThreshold: '',
@@ -33,13 +35,51 @@ const form = ref({
   decayPerDay: '10',
   enabled: true,
 })
+// Names of a CloudNet kind live apart from the pattern text, so switching back and forth loses neither.
+const names = ref<string[]>([])
+const picker = ref<InstanceType<typeof CloudNetTargetPicker> | null>(null)
 const errors = ref<FieldErrors>({ fields: {}, general: [] })
 const saving = ref(false)
+
+// The catalogue is only asked for when a CloudNet kind is chosen, once per opened editor. A failed
+// request and an empty catalogue both leave `catalogue` null / unavailable: the picker is then free text.
+const catalogue = ref<CloudNetCatalogue | null>(null)
+const catalogueLoading = ref(false)
+let catalogueRequested = false
 
 const SOFT_CHIPS = ['1d', '3d', '7d']
 
 const editing = computed(() => props.section !== null)
 const isServer = computed(() => form.value.enforcement === 'SERVER')
+const cloudnetKind = computed(() => {
+  const kind = form.value.targetKind
+  return isServer.value && kind !== 'PATTERN' ? kind : null
+})
+const targetKindOptions = computed(() =>
+  (['PATTERN', 'CLOUDNET_TASK', 'CLOUDNET_GROUP', 'CLOUDNET_SERVICE'] as const).map((value) => ({
+    value,
+    label: t(`sections.targetKind.${value}`),
+  })),
+)
+
+async function loadCatalogue(): Promise<void> {
+  if (catalogueRequested) return
+  catalogueRequested = true
+  catalogueLoading.value = true
+  const result = await api.cloudnetCatalogue()
+  catalogue.value = result.ok ? result.data : null
+  catalogueLoading.value = false
+}
+
+watch(cloudnetKind, (kind) => {
+  if (kind) void loadCatalogue()
+})
+
+// A task name means nothing as a group or service name, so a change between CloudNet kinds starts empty.
+function chooseTargetKind(kind: string): void {
+  if (kind !== form.value.targetKind && kind !== 'PATTERN' && form.value.targetKind !== 'PATTERN') names.value = []
+  form.value.targetKind = kind as ServerTargetKind
+}
 const enforcementOptions = computed(() =>
   (['MUTE', 'BAN', 'SERVER'] as const).map((value) => ({ value, label: t(`enforcement.${value}`) })),
 )
@@ -49,11 +89,17 @@ watch(
   (open) => {
     if (!open) return
     const source = props.section
+    const kind = source?.targetKind ?? 'PATTERN'
+    names.value = kind === 'PATTERN' ? [] : [...(source?.servers ?? [])]
+    catalogue.value = null
+    catalogueLoading.value = false
+    catalogueRequested = false
     form.value = {
       key: source?.key ?? '',
       displayName: source?.displayName ?? '',
       enforcement: source?.enforcement ?? 'BAN',
-      servers: source?.servers.join(', ') ?? '',
+      targetKind: kind,
+      servers: kind === 'PATTERN' ? (source?.servers.join(', ') ?? '') : '',
       baseScore: String(source?.baseScore ?? 1000),
       softThreshold: source?.softThreshold === null || source?.softThreshold === undefined ? '' : String(source.softThreshold),
       softDuration: source?.softDuration ?? '',
@@ -64,6 +110,7 @@ watch(
       enabled: source?.enabled ?? true,
     }
     errors.value = { fields: {}, general: [] }
+    if (source?.enforcement === 'SERVER' && kind !== 'PATTERN') void loadCatalogue()
   },
   { immediate: true },
 )
@@ -96,12 +143,17 @@ async function save(): Promise<void> {
     return
   }
 
+  picker.value?.commit()
   saving.value = true
   const draft = {
     key: form.value.key,
     displayName: form.value.displayName,
     enforcement: form.value.enforcement,
-    servers: form.value.servers.split(',').map((pattern) => pattern.trim()).filter(Boolean),
+    targetKind: form.value.targetKind,
+    servers:
+      form.value.targetKind === 'PATTERN'
+        ? form.value.servers.split(',').map((pattern) => pattern.trim()).filter(Boolean)
+        : names.value.map((name) => name.trim()).filter(Boolean),
     baseScore: Number(form.value.baseScore),
     softThreshold: hasSoft ? Number(form.value.softThreshold) : null,
     softDuration: hasSoft && soft.ok ? soft.iso : null,
@@ -148,14 +200,34 @@ async function save(): Promise<void> {
 
       <MdSelect v-model="form.enforcement" :label="t('sections.editor.enforcement')" :options="enforcementOptions" />
       <p v-if="fieldError('enforcement')" role="alert" class="-mt-3 px-4 text-body-small text-error">{{ fieldError('enforcement') }}</p>
-      <MdTextField
+      <MdSelect
         v-if="isServer"
+        :model-value="form.targetKind"
+        :label="t('sections.editor.targetKind')"
+        :options="targetKindOptions"
+        @update:model-value="chooseTargetKind"
+        :supporting-text="t('sections.editor.targetKindHint')"
+      />
+      <MdTextField
+        v-if="isServer && !cloudnetKind"
         v-model="form.servers"
         required
         :label="t('sections.editor.servers')"
         :error="fieldError('servers')"
         :supporting-text="t('sections.editor.serversHint')"
       />
+      <CloudNetTargetPicker
+        v-if="cloudnetKind"
+        ref="picker"
+        v-model="names"
+        :kind="cloudnetKind"
+        :catalogue="catalogue"
+        :loading="catalogueLoading"
+        :error="fieldError('servers')"
+      />
+      <p v-if="cloudnetKind === 'CLOUDNET_SERVICE'" role="note" data-testid="service-warning" class="rounded-md-md bg-tertiary-container p-3 text-body-medium text-on-tertiary-container">
+        <strong>{{ t('sections.editor.serviceWarningTitle') }}</strong> {{ t('sections.editor.serviceWarning') }}
+      </p>
 
       <fieldset class="grid gap-5 rounded-md-md border border-outline-variant p-4 sm:grid-cols-2">
         <legend class="px-2 text-title-small">{{ t('sections.editor.thresholds') }}</legend>

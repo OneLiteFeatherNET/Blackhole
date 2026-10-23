@@ -6,6 +6,7 @@ import type {
   ApplyPreview,
   Appeal,
   AppealDecision,
+  CloudNetCatalogue,
   CurrentCaller,
   ApplyResult,
   DashboardSummary,
@@ -64,6 +65,8 @@ export interface BlackholeApi {
   /** Replaces the section's definition; `draft.enabled` can re-enable a disabled section. */
   updateSection(draft: SectionDraft): Promise<ApiResult<Section>>
   disableSection(key: string): Promise<ApiResult<Section>>
+  /** What the proxies report from CloudNet; any signed-in role may read it. Never required to save a section. */
+  cloudnetCatalogue(): Promise<ApiResult<CloudNetCatalogue>>
   /** All reports, newest first. */
   reports(): Promise<ApiResult<Report[]>>
   resolveReport(identifier: string, resolution: ReportResolution): Promise<ApiResult<Report>>
@@ -163,13 +166,14 @@ function templateBody(draft: TemplateDraft) {
   }
 }
 
-/** Server patterns only exist for SERVER sections; a blank soft threshold means the section has none. */
+/** Server targets only exist for SERVER sections (other sections save as PATTERN with none); a blank soft threshold means the section has none. */
 function sectionBody(draft: SectionDraft) {
   const hasSoft = draft.softThreshold !== null
   return {
     key: draft.key.trim(),
     displayName: draft.displayName.trim(),
     enforcement: draft.enforcement,
+    targetKind: draft.enforcement === 'SERVER' ? draft.targetKind : ('PATTERN' as const),
     servers: draft.enforcement === 'SERVER' ? draft.servers.map((pattern) => pattern.trim()).filter(Boolean) : [],
     baseScore: draft.baseScore,
     softThreshold: hasSoft ? draft.softThreshold : null,
@@ -252,6 +256,18 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       toResult(http.POST('/section/update', { body: { ...sectionBody(draft), decayPerDay: draft.decayPerDay, enabled: draft.enabled } })),
 
     disableSection: (key) => toResult(http.POST('/section/{key}/disable', { params: { path: { key } } })),
+
+    async cloudnetCatalogue() {
+      const result = await toResult(http.GET('/cloudnet/catalogue'))
+      // The backend leaves empty lists out of its JSON.
+      return map(result, (catalogue) => ({
+        ...catalogue,
+        tasks: catalogue.tasks ?? [],
+        groups: catalogue.groups ?? [],
+        services: catalogue.services ?? [],
+        proxies: catalogue.proxies ?? [],
+      }))
+    },
 
     async reports() {
       const reports = await collectPages<Report>((page) =>
