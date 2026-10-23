@@ -177,12 +177,19 @@ The system SHALL let an `ADMIN` read `GET /admin/import/punishments`, answering 
 - **THEN** the response is HTTP 403
 
 ### Requirement: Link imported punishments to a template
-The system SHALL let an `ADMIN` link imported punishments that have no template to a template via `POST /admin/import/punishments/retemplate`, selecting either every one with an original reason (`reason`) or an explicit list (`identifiers`, at most 500); exactly one of the two is required. The template MUST exist, MUST NOT be in a `MUTE` section and MUST be in an enabled section. Only the template changes: the system MUST NOT change any score, write an ELO event, or set an escalation group, step or cost, and MUST keep the original reason in the metadata as `importedReason`. A punishment that already has a template MUST NOT be overwritten, one that already has the target template is counted as unchanged, and a punishment that is not an import, does not exist or lies in another section than the template is counted as skipped, so repeating a request changes nothing. Each change SHALL evict the cached profile and, for an active punishment, publish `punishment.updated` so the proxy mirror carries the template's reason.
+The system SHALL let an `ADMIN` link imported punishments that have no template to a template via `POST /admin/import/punishments/retemplate`, selecting those with an original reason (`reason`) or a list (`identifiers`, at most 500), exactly one of the two. The template MUST exist, be in an enabled section and not in a `MUTE` section. Only the template changes: no score, ELO event, escalation field or duration; the original reason is kept as `importedReason`.
 
 #### Scenario: Link by reason
 - **WHEN** an admin links the reason `Hacking` to a ban template
 - **THEN** every imported punishment without a template and with that reason has the template and keeps `importedReason`
 - **AND** no score changed
+
+#### Scenario: Mute template
+- **WHEN** the template is in a mute section
+- **THEN** the response is HTTP 400 and nothing changes
+
+### Requirement: Re-templating is idempotent and announced
+A punishment that already has a template MUST NOT be overwritten, one that already has the target template is counted as unchanged, and a punishment that is not an import, does not exist or lies in another section than the template is counted as skipped, so repeating a request changes nothing. Each change SHALL evict the cached profile and, for an active punishment, publish `punishment.updated` so the proxy mirror carries the template's reason.
 
 #### Scenario: Repeat is a no-op
 - **WHEN** the same request is sent a second time
@@ -191,10 +198,6 @@ The system SHALL let an `ADMIN` link imported punishments that have no template 
 #### Scenario: Never overwrite
 - **WHEN** a selected punishment already has another template
 - **THEN** it is counted as skipped and keeps that template
-
-#### Scenario: Mute template
-- **WHEN** the template is in a mute section
-- **THEN** the response is HTTP 400 and nothing changes
 
 ### Requirement: Re-templating is recorded on the case
 Linking an imported punishment to a template SHALL record `punishment.retemplated` on its case after the write, with the template id, the verified actor of the token and the dedupe key `retemplated:<punishment>:<template>`. A recording failure MUST NOT fail the link.

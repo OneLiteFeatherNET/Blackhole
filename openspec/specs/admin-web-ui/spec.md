@@ -210,12 +210,15 @@ The vanilla import panel on the admin page SHALL require a template before it of
 - **THEN** a table lists each original reason with its template and count
 
 ### Requirement: Imported punishments section
-The admin page SHALL have an "Importierte Strafen" (Imported punishments) section listing the imported punishments that have no template, grouped by original reason, with a template picker per group (mute templates not offered) and a link action that is disabled until a template is picked. Applying SHALL ask for confirmation naming the count, the reason and the template, send nothing before it is given, show the backend message in the dialog when refused and otherwise reload the list. The section SHALL say so when every imported punishment has a template.
-
-#### Scenario: Link a group
-- **WHEN** an admin picks a template for the group `Hacking` and confirms
-- **THEN** the reason and template are sent once and the list is reloaded
+The admin page SHALL have an "Importierte Strafen" (Imported punishments) section listing the imported punishments that have no template, grouped by original reason, with a template picker per group (mute templates not offered) and a link action that is disabled until a template is picked. The section SHALL say so when every imported punishment has a template.
 
 #### Scenario: Nothing to link
 - **WHEN** no imported punishment is without a template
 - **THEN** the section says every imported punishment is linked
+
+### Requirement: Linking a group asks for confirmation
+Applying a template to a group SHALL ask for confirmation naming the count, the reason and the template, send nothing before it is given, show the backend message in the dialog when refused and otherwise reload the list.
+
+#### Scenario: Link a group
+- **WHEN** an admin picks a template for the group `Hacking` and confirms
+- **THEN** the reason and template are sent once and the list is reloaded

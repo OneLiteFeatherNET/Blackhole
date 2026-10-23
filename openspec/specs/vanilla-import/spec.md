@@ -53,11 +53,14 @@ The system SHALL skip an entry whose UUID is missing or malformed, or whose `exp
 - **THEN** that entry is reported invalid and all other valid entries are imported
 
 ### Requirement: Imported punishment shape
-Each imported entry SHALL become a ban issued by a fixed, deterministic system import identity, in the section of its template, preserving the entry's `created` time (falling back to the current time if missing or unparseable) and its expiration, and recording the verified caller as the principal that wrote it. An `expires` of `forever` or empty MUST produce a permanent ban. An import is a record of an earlier ban, not a new offence: it MUST NOT deduct ELO, MUST NOT record an escalation group, step or cost, and MUST NOT count towards the template's escalation.
+Each imported entry SHALL become a ban issued by a fixed, deterministic system import identity, in the section of its template, preserving the entry's `created` time (falling back to the current time if missing or unparseable) and its expiration, and recording the verified caller as the principal that wrote it. An `expires` of `forever` or empty MUST produce a permanent ban.
 
 #### Scenario: Permanent vanilla ban
 - **WHEN** an entry with `expires` set to `forever` is imported
 - **THEN** a ban without an expiration date is created in the template's section with the system import identity as its source
+
+### Requirement: Imports are records, not offences
+An import is a record of an earlier ban, not a new offence: it MUST NOT deduct ELO, MUST NOT record an escalation group, step or cost, and MUST NOT count towards the template's escalation.
 
 #### Scenario: No score change
 - **WHEN** a ban is imported with a template whose first step costs ELO
@@ -68,7 +71,7 @@ Each imported entry SHALL become a ban issued by a fixed, deterministic system i
 - **THEN** its case has a `punishment.applied` event without a step or scores
 
 ### Requirement: Reason templates
-The system SHALL link each imported ban to the template named by `templateKey`, or, for an entry whose trimmed original reason is a key of the optional `reasonTemplates` JSON object, to the template that key maps to. The reason shown to the player MUST be the template's reason; the original vanilla reason (`Imported vanilla ban` when blank) SHALL be kept in the punishment metadata as `importedReason`. Every referenced template MUST exist, MUST be in an enabled section and MUST NOT be in a `MUTE` section, and is checked before anything is written.
+The system SHALL link each imported ban to the template named by `templateKey`, or, for an entry whose trimmed original reason is a key of the optional `reasonTemplates` JSON object, to the template that key maps to. The reason shown to the player MUST be the template's reason; the original vanilla reason (`Imported vanilla ban` when blank) SHALL be kept in the punishment metadata as `importedReason`.
 
 #### Scenario: Shared reason reuses a template
 - **WHEN** two entries are imported with the same `templateKey`
@@ -77,6 +80,9 @@ The system SHALL link each imported ban to the template named by `templateKey`, 
 #### Scenario: Mapped reason
 - **WHEN** `reasonTemplates` maps `Griefing` to another template and an entry has the reason `Griefing`
 - **THEN** that entry is linked to the mapped template and the others to `templateKey`
+
+### Requirement: Referenced templates are checked first
+Every referenced template MUST exist, MUST be in an enabled section and MUST NOT be in a `MUTE` section, and is checked before anything is written.
 
 #### Scenario: Mute template refused
 - **WHEN** `templateKey`, or a template in `reasonTemplates`, is in a `MUTE` section
