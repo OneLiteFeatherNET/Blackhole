@@ -27,9 +27,9 @@ title is a Conventional Commit `feat(velocity): ...`. Run `./gradlew :velocity:t
 
 ## 4. ELO, info and history blocks (PR 4: `feat(velocity): restyle elo, info and history output`)
 
-- [ ] 4.1 `/elo` block with score colours by threshold, section hover with thresholds, permanent marker; verify unit tests for the three colour states and hover content
-- [ ] 4.2 `info` and `history` blocks moved into the bundles (no hard-coded English, no possessive header), short-id copy, entry hover, lifted/permanent/temporary tags; verify unit tests including empty profile and empty history
-- [ ] 4.3 Widen `/elo`, `info`, `history` to `CommandSource` so console gets the PLAIN rendering; verify unit tests that a non-player receiver yields no events and that the other commands remain player-only
+- [x] 4.1 `/elo` block with score colours by threshold, section hover with thresholds, permanent marker; verify unit tests for the three colour states and hover content
+- [x] 4.2 `info` and `history` blocks moved into the bundles (no hard-coded English, no possessive header), short-id copy, entry hover, lifted/permanent/temporary tags; verify unit tests including empty profile and empty history
+- [x] 4.3 Widen `/elo`, `info`, `history` to `CommandSource` so console gets the PLAIN rendering; verify unit tests that a non-player receiver yields no events and that the other commands remain player-only
 
 ## 5. Verification
 

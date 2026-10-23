@@ -2,7 +2,9 @@ package net.onelitefeather.blackhole.velocity.component;
 
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.minimessage.translation.MiniMessageTranslationStore;
 import net.kyori.adventure.text.renderer.TranslatableComponentRenderer;
@@ -73,6 +75,25 @@ final class Rendered {
             }
         });
         return hovers;
+    }
+
+    /** The colour the first text node with exactly this content ends up with, inherited colours included. */
+    TextColor colorOf(String content) {
+        return colorOf(this.component, null, content);
+    }
+
+    private static TextColor colorOf(Component node, TextColor inherited, String content) {
+        TextColor own = node.color() != null ? node.color() : inherited;
+        if (node instanceof TextComponent text && text.content().equals(content)) {
+            return own;
+        }
+        for (Component child : node.children()) {
+            TextColor found = colorOf(child, own, content);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
     }
 
     /** Whether any part of the message carries a hover or a click. */
