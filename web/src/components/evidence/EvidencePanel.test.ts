@@ -18,7 +18,7 @@ function backend(count = 1) {
   )
   const evidenceCount = vi.fn(async () => ok(count))
   const deleteEvidence = vi.fn(async () => ok(1))
-  const api = mockApi({ evidence, evidenceCount, deleteEvidence, evidenceContentUrl: (id: string) => `/api/evidence/${id}/content` })
+  const api = mockApi({ evidence, evidenceCount, deleteEvidence, evidenceContent: async () => ok(new Blob(['x'], { type: 'image/png' })) })
   return { api, evidence, evidenceCount, deleteEvidence }
 }
 
@@ -162,7 +162,7 @@ describe('EvidencePanel', () => {
     const evidence = vi.fn(async (_p: string, query?: { page?: number }) =>
       ok(evidencePage([valid], { page: query?.page ?? 0, totalPages: 2 })),
     )
-    const api = mockApi({ evidence, evidenceCount: async () => ok(1), evidenceContentUrl: () => '' })
+    const api = mockApi({ evidence, evidenceCount: async () => ok(1), evidenceContent: async () => ok(new Blob(['x'], { type: 'image/png' })) })
     const { wrapper } = await mountWithApp(EvidencePanel, { api, props: { punishment: PUNISHMENT } })
 
     await wrapper.get('[data-testid="next"]').trigger('click')

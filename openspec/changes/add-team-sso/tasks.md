@@ -43,13 +43,13 @@ use Vitest with a fake `UserManager` and `fakeFetch`.
 
 ## 4. Admin UI sign-in (PR 4: `feat(web): sign in with entra id in the admin ui`)
 
-- [ ] 4.1 Add `oidc-client-ts` (current stable, exact version pinned) and `authService.ts`: `UserManager` with PKCE, in-memory `userStore`, `sessionStorage` state store, `automaticSilentRenew`; verify unit tests with a fake manager that no token reaches any web storage and the state is removed after the callback
-- [ ] 4.2 Router guard, `/auth/callback` route, sign-out with end-session; verify router tests for the redirect, callback and return-to route
-- [ ] 4.3 Bearer header, one renew-and-retry on 401, 403 handling in `src/api/http.ts`; remove `source`/`reviewer` plumbing from `blackhole.ts` and `config.ts`; verify the existing API wrapper tests updated, plus tests for 401 retry once and 403 no retry
-- [ ] 4.4 `/config.json` in `web/server/lib/config.ts` (served by `web/server/routes/config.json.ts`): `BLACKHOLE_UI_OIDC_AUTHORITY`, `_OIDC_CLIENT_ID`, `_API_SCOPE` replace `BLACKHOLE_UI_SOURCE` / `_REVIEWER` with strict validation and fail-fast startup; add the authority origin to the CSP `connect-src` in `web/server/lib/headers.ts`; verify the Vitest tests in `web/server/lib/` for valid, missing and malformed values and the exact CSP string
-- [ ] 4.5 `GET /auth/me` store, "signed in as" in the top bar, removal of the "Acting as" label, role-aware hiding or disabling of actions per the matrix, and a "no access" page for a signed-in user with an empty role list; regenerate `src/api/schema.d.ts` from the new spec; verify component tests per role (none, viewer, moderator, admin) and `vue-tsc --noEmit`
-- [ ] 4.6 German and English strings, a11y check of the sign-in states (focus, `aria-live` for the redirect message); verify the locale-parity test and component tests
-- [ ] 4.7 Verify against the mock OIDC server in a browser: sign-in as each test user, silent renewal (short token lifetime in the mock config), reload, sign-out; note the results in the PR
+- [x] 4.1 Add `oidc-client-ts` (current stable, exact version pinned) and `authService.ts`: `UserManager` with PKCE, in-memory `userStore`, `sessionStorage` state store, `automaticSilentRenew`; verify unit tests with a fake manager that no token reaches any web storage and the state is removed after the callback
+- [x] 4.2 Router guard, `/auth/callback` route, sign-out with end-session; verify router tests for the redirect, callback and return-to route
+- [x] 4.3 Bearer header, one renew-and-retry on 401, 403 handling in `src/api/http.ts`; remove `source`/`reviewer` plumbing from `blackhole.ts` and `config.ts`; verify the existing API wrapper tests updated, plus tests for 401 retry once and 403 no retry
+- [x] 4.4 `/config.json` in `web/server/lib/config.ts` (served by `web/server/routes/config.json.ts`): `BLACKHOLE_UI_OIDC_AUTHORITY`, `_OIDC_CLIENT_ID`, `_API_SCOPE` replace `BLACKHOLE_UI_SOURCE` / `_REVIEWER` with strict validation and fail-fast startup; add the authority origin to the CSP `connect-src` in `web/server/lib/headers.ts`; verify the Vitest tests in `web/server/lib/` for valid, missing and malformed values and the exact CSP string
+- [x] 4.5 `GET /auth/me` store, "signed in as" in the top bar, removal of the "Acting as" label, role-aware hiding or disabling of actions per the matrix, and a "no access" page for a signed-in user with an empty role list; regenerate `src/api/schema.d.ts` from the new spec; verify component tests per role (none, viewer, moderator, admin) and `vue-tsc --noEmit`
+- [x] 4.6 German and English strings, a11y check of the sign-in states (focus, `aria-live` for the redirect message); verify the locale-parity test and component tests
+- [x] 4.7 Verify against the mock OIDC server in a browser: sign-in as each test user, silent renewal (short token lifetime in the mock config), reload, sign-out; note the results in the PR
 
 ## 5. Documentation and principle change (PR 5: `docs(auth): replace the no-auth principle with entra id sign-in`)
 

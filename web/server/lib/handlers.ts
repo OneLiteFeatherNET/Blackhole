@@ -33,7 +33,7 @@ function uiConfigOf(event: H3Event): UiConfig {
  * public assets before any middleware runs, so this is called from the `request` hook instead.
  */
 export function applySecurityHeaders(event: H3Event): void {
-  setResponseHeaders(event, securityHeaders())
+  setResponseHeaders(event, securityHeaders(event.context.uiConfig?.oidc.authority))
   removeResponseHeader(event, 'X-Powered-By')
   removeResponseHeader(event, 'Server')
   if (isIndexDocument(event.path)) setResponseHeader(event, 'Cache-Control', 'no-cache')
@@ -44,7 +44,7 @@ export function sendErrorResponse(error: { statusCode?: number; statusMessage?: 
   const status = error.unhandled ? 500 : error.statusCode || 500
   const message = error.unhandled || status >= 500 ? 'Server Error' : error.statusMessage || 'Error'
   if (error.unhandled) console.error(`[request error] [${event.method}] ${event.path}`, error)
-  setResponseHeaders(event, { ...securityHeaders(), 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' })
+  setResponseHeaders(event, { ...securityHeaders(event.context.uiConfig?.oidc.authority), 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' })
   setResponseStatus(event, status, message)
   return send(event, `${status} ${message}`)
 }

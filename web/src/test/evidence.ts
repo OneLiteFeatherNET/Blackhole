@@ -12,6 +12,7 @@ export function evidenceItem(overrides: Overrides = {}): Evidence {
     sourceSystem: 'anticheat-x',
     createdAt: Date.UTC(2026, 6, 1, 12, 0),
     status: 'VALID',
+    verified: true,
     ...(overrides as Partial<Evidence>),
   }
 }

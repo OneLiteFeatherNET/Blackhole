@@ -18,9 +18,26 @@
     },
     "locale": {
       "label": "Language"
+    }
+  },
+  "auth": {
+    "signedInAs": "Signed in as {name}",
+    "signOut": "Sign out",
+    "redirecting": "Redirecting to the sign-in service...",
+    "signingIn": "Signing you in...",
+    "forbidden": "You are not permitted to do this.",
+    "notConfigured": "Sign-in is not configured. The web server did not provide an \"oidc\" section in /config.json.",
+    "noAccess": {
+      "title": "No access",
+      "heading": "You have no access yet",
+      "body": "You are signed in, but your account has no role for Blackhole. Ask an administrator to add you to the right group, then sign in again."
     },
-    "actingAs": {
-      "label": "Acting as"
+    "error": {
+      "heading": "Sign-in failed",
+      "signin": "The sign-in service could not be reached.",
+      "callback": "The sign-in could not be completed. Please try again.",
+      "me": "Your account could not be checked. Please try again.",
+      "retry": "Try again"
     }
   },
   "state": {
@@ -31,7 +48,9 @@
       "NOT_FOUND": "Not found",
       "CONFLICT": "Conflicts with the current state",
       "NETWORK": "The backend could not be reached",
-      "UNKNOWN": "Something went wrong"
+      "UNKNOWN": "Something went wrong",
+      "UNAUTHORIZED": "Your sign-in is no longer valid",
+      "FORBIDDEN": "You are not permitted to do this"
     }
   },
   "dashboard": {
@@ -426,7 +445,8 @@
     },
     "file": {
       "noPreview": "No preview for {name}.",
-      "noCaptions": "This recording has no captions."
+      "noCaptions": "This recording has no captions.",
+      "loadFailed": "The file could not be loaded."
     },
     "upload": {
       "zone": "Upload evidence files",
@@ -449,7 +469,8 @@
         "UNAVAILABLE": "The virus scanner is not available. Try again later.",
         "NETWORK": "The backend could not be reached.",
         "CANCELLED": "Upload cancelled.",
-        "FAILED": "The upload failed."
+        "FAILED": "The upload failed.",
+        "FORBIDDEN": "You are not permitted to upload evidence."
       }
     },
     "addLink": {

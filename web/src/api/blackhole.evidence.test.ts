@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { fakeFetch } from '../test/fakeFetch'
+import { fakeHttpAuth } from '../test/auth'
 import { createBlackholeApi } from './blackhole'
 
-const SOURCE = '11111111-2222-3333-4444-555555555555'
 const PUNISHMENT = 'ab0e5a9e-1111-4222-8333-444455556666'
 const ITEM = 'cd0e5a9e-1111-4222-8333-444455556666'
 
 function apiWith(responses: Parameters<typeof fakeFetch>[0]) {
   const { calls, impl } = fakeFetch(responses)
-  return { calls, api: createBlackholeApi({ baseUrl: 'http://ui.test/api', source: SOURCE, fetch: impl }) }
+  return { calls, api: createBlackholeApi({ baseUrl: 'http://ui.test/api', auth: fakeHttpAuth().auth, fetch: impl }) }
 }
 
 describe('evidence calls', () => {
@@ -23,7 +23,7 @@ describe('evidence calls', () => {
     expect(calls[0]!.method).toBe('GET')
     expect(url.pathname).toBe(`/api/punishment/${PUNISHMENT}/evidence`)
     expect(url.searchParams.has('includeInactive'), 'includeInactive').toBe(false)
-    expect(url.searchParams.get('source')).toBe(SOURCE)
+    expect(url.searchParams.has('source'), 'source').toBe(false)
     expect(url.searchParams.get('page')).toBe('0')
     expect(url.searchParams.get('size')).toBe('20')
   })
@@ -80,10 +80,10 @@ describe('evidence calls', () => {
     const url = new URL(calls[0]!.url)
     expect(result.ok && result.data.kind).toBe('LINK')
     expect(url.pathname).toBe(`/api/evidence/${ITEM}`)
-    expect(url.searchParams.get('source')).toBe(SOURCE)
+    expect(url.searchParams.has('source'), 'source').toBe(false)
   })
 
-  it('attaches a link with its description and the operator as source', async () => {
+  it('attaches a link with its description and no client-supplied actor', async () => {
     const { api, calls } = apiWith([{ body: { identifier: ITEM } }])
 
     await api.addLinkEvidence(PUNISHMENT, { kind: 'REPLAY', url: ' https://replay.example/r/1 ', description: ' the fight ' })
@@ -96,7 +96,6 @@ describe('evidence calls', () => {
       sourceSystem: 'admin-ui',
       reference: 'https://replay.example/r/1',
       payload: { description: 'the fight' },
-      source: SOURCE,
     })
   })
 
@@ -108,7 +107,7 @@ describe('evidence calls', () => {
     expect(JSON.parse(calls[0]!.body).payload).toBeNull()
   })
 
-  it('deletes with the reason, the note and the operator in the query', async () => {
+  it('deletes with the reason and the note in the query', async () => {
     const { api, calls } = apiWith([{ body: { deleted: 1 } }])
 
     const result = await api.deleteEvidence(ITEM, { reason: 'OTHER', note: ' duplicate ' })
@@ -119,7 +118,7 @@ describe('evidence calls', () => {
     expect(url.pathname).toBe(`/api/evidence/${ITEM}`)
     expect(url.searchParams.get('reason')).toBe('OTHER')
     expect(url.searchParams.get('note')).toBe('duplicate')
-    expect(url.searchParams.get('source')).toBe(SOURCE)
+    expect(url.searchParams.has('source'), 'source').toBe(false)
   })
 
   it('leaves the note out of a delete when there is none', async () => {
@@ -138,9 +137,18 @@ describe('evidence calls', () => {
     expect(result).toEqual({ ok: false, error: { status: 404, message: 'unknown punishment', kind: 'NOT_FOUND' } })
   })
 
-  it('builds the content url under the API base with the operator as source', () => {
-    const { api } = apiWith([])
+  it('fetches the file content with the bearer token as a blob', async () => {
+    const requests: Request[] = []
+    const send = (async (request: Request) => {
+      requests.push(request)
+      return new Response(new Blob(['png-bytes'], { type: 'image/png' }), { headers: { 'Content-Type': 'image/png' } })
+    }) as unknown as typeof fetch
+    const api = createBlackholeApi({ baseUrl: 'http://ui.test/api', auth: fakeHttpAuth().auth, fetch: send })
 
-    expect(api.evidenceContentUrl(ITEM)).toBe(`http://ui.test/api/evidence/${ITEM}/content?source=${SOURCE}`)
+    const result = await api.evidenceContent(ITEM)
+
+    expect(requests[0]!.url).toBe(`http://ui.test/api/evidence/${ITEM}/content`)
+    expect(requests[0]!.headers.get('Authorization'), 'bearer header').toBe('Bearer access-token')
+    expect(result.ok && result.data.type, 'content type of the blob').toBe('image/png')
   })
 })

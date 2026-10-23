@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:config": "node scripts/dev-config-from-env.mjs",
     "predev": "npm run generate",
     "build": "vue-tsc --noEmit && vite build && nitro build",
     "prebuild": "npm run generate",
@@ -12,12 +13,13 @@
     "test": "vitest run",
     "pretest": "npm run generate",
     "test:watch": "vitest",
-    "generate:api": "openapi-typescript ../client/specs/blackhole-api-0.0.13.yml -o src/api/schema.d.ts",
+    "generate:api": "openapi-typescript ../client/specs/blackhole-api-0.0.15.yml -o src/api/schema.d.ts",
     "generate": "node scripts/generate-md3-tokens.mjs && npm run generate:api",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@fontsource/roboto": "^5.3.0",
+    "oidc-client-ts": "3.5.0",
     "openapi-fetch": "^0.17.0",
     "pinia": "^4.1.0",
     "vue": "^3.5.44",

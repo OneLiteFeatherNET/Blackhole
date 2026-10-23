@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fakeFetch } from '../test/fakeFetch'
+import { fakeHttpAuth } from '../test/auth'
 import { createBlackholeApi, pageContent } from './blackhole'
 
 const SOURCE = '11111111-2222-3333-4444-555555555555'
@@ -7,7 +8,7 @@ const OWNER = 'ab'.repeat(64)
 
 function apiWith(responses: Parameters<typeof fakeFetch>[0]) {
   const { calls, impl } = fakeFetch(responses)
-  return { calls, api: createBlackholeApi({ baseUrl: 'http://ui.test/api', source: SOURCE, fetch: impl }) }
+  return { calls, api: createBlackholeApi({ baseUrl: 'http://ui.test/api', auth: fakeHttpAuth().auth, fetch: impl }) }
 }
 
 describe('resolvePlayer', () => {

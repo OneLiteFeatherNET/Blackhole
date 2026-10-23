@@ -2,11 +2,14 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
+import { useAuth, useSignOut } from './auth/inject'
+import MdButton from './components/md/MdButton.vue'
 import MdNavigationRail from './components/md/MdNavigationRail.vue'
 import MdSelect from './components/md/MdSelect.vue'
-import MdTextField from './components/md/MdTextField.vue'
+import MdSnackbar from './components/md/MdSnackbar.vue'
 import MdTopAppBar from './components/md/MdTopAppBar.vue'
 import type { Locale } from './i18n'
+import { useSessionStore } from './stores/session'
 import { useUiStore, type ThemeChoice } from './stores/ui'
 
 // Material Symbols-style paths (24dp), decorative: each item is labelled by its text.
@@ -34,9 +37,16 @@ const NAV = [
 const { t } = useI18n()
 const route = useRoute()
 const ui = useUiStore()
+const session = useSessionStore()
+const auth = useAuth()
+const signOut = useSignOut()
 
-const navItems = computed(() => NAV.map((item) => ({ to: item.to, icon: item.icon, label: t(`nav.${item.key}`) })))
-const title = computed(() => t(String(route.meta.titleKey)))
+// Nothing is shown (not even the navigation) until the router has resolved a route, which for the
+// first visit means after sign-in, and never while the browser is on its way to the authority.
+const resolved = computed(() => route.matched.length > 0 && !auth.redirecting.value)
+
+const navItems = computed(() => (session.hasAccess ? NAV : []).map((item) => ({ to: item.to, icon: item.icon, label: t(`nav.${item.key}`) })))
+const title = computed(() => (route.meta.titleKey ? t(String(route.meta.titleKey)) : ''))
 
 const themeOptions = computed(() =>
   (['system', 'light', 'dark'] as const).map((value) => ({ value, label: t(`settings.theme.${value}`) })),
@@ -49,10 +59,6 @@ const localeOptions: { value: Locale; label: string }[] = [
 const theme = computed({
   get: () => ui.theme,
   set: (value: string) => ui.setTheme(value as ThemeChoice),
-})
-const actingAs = computed({
-  get: () => ui.actingAs,
-  set: (value: string) => ui.setActingAs(value),
 })
 const locale = computed({
   get: () => ui.locale,
@@ -68,11 +74,16 @@ const locale = computed({
     {{ t('nav.skip') }}
   </a>
   <div class="flex min-h-dvh">
-    <MdNavigationRail :label="t('nav.label')" :items="navItems" />
+    <MdNavigationRail v-if="resolved && session.hasAccess" :label="t('nav.label')" :items="navItems" />
     <div class="flex min-w-0 flex-1 flex-col">
       <MdTopAppBar :title="title">
         <template #actions>
-          <MdTextField v-model="actingAs" class="w-44" :label="t('settings.actingAs.label')" />
+          <template v-if="resolved && session.displayName">
+            <span data-testid="signed-in-as" class="text-body-medium text-on-surface-variant">
+              {{ t('auth.signedInAs', { name: session.displayName }) }}
+            </span>
+            <MdButton variant="text" data-testid="sign-out" @click="signOut">{{ t('auth.signOut') }}</MdButton>
+          </template>
           <MdSelect v-model="theme" class="w-36" :label="t('settings.theme.label')" :options="themeOptions" />
           <MdSelect
             v-model="locale"
@@ -83,8 +94,14 @@ const locale = computed({
         </template>
       </MdTopAppBar>
       <main id="main" tabindex="-1" class="flex-1 p-4 md:p-6">
-        <RouterView />
+        <!-- Always mounted so a screen reader announces the text when it appears. -->
+        <p role="status" aria-live="polite" class="text-body-large" data-testid="auth-status">
+          <template v-if="auth.redirecting.value">{{ t('auth.redirecting') }}</template>
+          <template v-else-if="!resolved">{{ t('auth.signingIn') }}</template>
+        </p>
+        <RouterView v-if="resolved" />
       </main>
     </div>
   </div>
+  <MdSnackbar :open="session.forbidden" :message="t('auth.forbidden')" @close="session.forbidden = false" />
 </template>

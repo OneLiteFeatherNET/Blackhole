@@ -1,10 +1,18 @@
 /** Runtime settings of the UI server, read once from the environment at startup. */
 
+export interface OidcConfig {
+  /** The issuer URL without a trailing slash, e.g. `https://login.microsoftonline.com/<tenant>/v2.0`. */
+  authority: string
+  clientId: string
+  /** The API scope the access token is requested for, e.g. `api://<api-client-id>/access_as_user`. */
+  apiScope: string
+}
+
 export interface UiConfig {
   /** Where `/api/**` is forwarded to, without a trailing slash. Never sent to the browser. */
   backendUrl: string
-  source: string
-  reviewer: string
+  /** Where staff sign in; the browser needs all three, none is a secret. */
+  oidc: OidcConfig
   evidence?: { maxImageBytes?: number; maxVideoBytes?: number; allowedTypes?: string[] }
 }
 
@@ -21,7 +29,8 @@ export class ConfigError extends Error {
   }
 }
 
-const UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+const CLIENT_ID = /^[A-Za-z0-9._-]{1,128}$/
+const API_SCOPE = /^[A-Za-z0-9._:/-]{1,256}$/
 const BYTES = /^[1-9][0-9]{0,15}$/
 const MIME_LIST = /^[a-z0-9.+-]+\/[a-z0-9.+-]+(,[a-z0-9.+-]+\/[a-z0-9.+-]+)*$/
 const DEFAULT_BACKEND_URL = 'http://backend:8080'
@@ -40,8 +49,23 @@ function parseBackendUrl(raw: string): string | undefined {
   return raw.replace(/\/+$/, '')
 }
 
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]'])
+
+/** https only; plain http is accepted for a loopback host so a local mock server works. */
+function parseAuthority(raw: string): string | undefined {
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch {
+    return undefined
+  }
+  const secure = url.protocol === 'https:' || (url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname))
+  if (!secure || url.username || url.password || raw.includes('?') || raw.includes('#')) return undefined
+  return raw.replace(/\/+$/, '')
+}
+
 /**
- * Validates the environment with the same strict patterns the former nginx start script used.
+ * Validates the environment with strict patterns.
  * Throws a {@link ConfigError} naming every invalid variable.
  */
 export function parseUiConfig(env: Env): UiConfig {
@@ -56,15 +80,20 @@ export function parseUiConfig(env: Env): UiConfig {
     )
   }
 
-  const source = get('BLACKHOLE_UI_SOURCE')
-  const reviewer = get('BLACKHOLE_UI_REVIEWER') || source
-  for (const [name, value] of [
-    ['BLACKHOLE_UI_SOURCE', source],
-    ['BLACKHOLE_UI_REVIEWER', reviewer],
-  ] as const) {
-    if (!UUID.test(value)) {
-      problems.push(`${name} must be a UUID, e.g. 3f2b8c1e-5d4a-4e7b-9a60-1c2d3e4f5a6b (got: '${value}')`)
-    }
+  const rawAuthority = get('BLACKHOLE_UI_OIDC_AUTHORITY')
+  const authority = parseAuthority(rawAuthority)
+  if (authority === undefined) {
+    problems.push(
+      `BLACKHOLE_UI_OIDC_AUTHORITY must be an https URL (http only for localhost) without credentials, query or fragment, e.g. https://login.microsoftonline.com/<tenant>/v2.0 (got: '${rawAuthority}')`,
+    )
+  }
+  const clientId = get('BLACKHOLE_UI_OIDC_CLIENT_ID')
+  if (!CLIENT_ID.test(clientId)) {
+    problems.push(`BLACKHOLE_UI_OIDC_CLIENT_ID must be the SPA's application (client) id, letters, digits, '.', '_' or '-' (got: '${clientId}')`)
+  }
+  const apiScope = get('BLACKHOLE_UI_API_SCOPE')
+  if (!API_SCOPE.test(apiScope)) {
+    problems.push(`BLACKHOLE_UI_API_SCOPE must be one scope without spaces, e.g. api://<api-client-id>/access_as_user (got: '${apiScope}')`)
   }
 
   const evidence: NonNullable<UiConfig['evidence']> = {}
@@ -83,11 +112,11 @@ export function parseUiConfig(env: Env): UiConfig {
     else problems.push(`BLACKHOLE_UI_EVIDENCE_ALLOWED_TYPES must be comma separated MIME types, e.g. image/png,video/mp4 (got: '${types}')`)
   }
 
-  if (problems.length > 0 || backendUrl === undefined) throw new ConfigError(problems)
-  return { backendUrl, source, reviewer, ...(Object.keys(evidence).length > 0 ? { evidence } : {}) }
+  if (problems.length > 0 || backendUrl === undefined || authority === undefined) throw new ConfigError(problems)
+  return { backendUrl, oidc: { authority, clientId, apiScope }, ...(Object.keys(evidence).length > 0 ? { evidence } : {}) }
 }
 
 export function toPublicConfig(config: UiConfig): PublicUiConfig {
-  const { source, reviewer, evidence } = config
-  return { source, reviewer, ...(evidence ? { evidence } : {}) }
+  const { oidc, evidence } = config
+  return { oidc, ...(evidence ? { evidence } : {}) }
 }

@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { createBlackholeApi } from './blackhole'
-import { DEFAULT_EVIDENCE_LIMITS, loadConfig, NIL_UUID } from './config'
+import { DEFAULT_EVIDENCE_LIMITS, loadConfig } from './config'
 import { fakeFetch } from '../test/fakeFetch'
+import { fakeHttpAuth } from '../test/auth'
 
-const SOURCE = '11111111-2222-3333-4444-555555555555'
 
 describe('createBlackholeApi', () => {
   it('sends the API version header on every request', async () => {
     const { calls, impl } = fakeFetch([{ body: { latestEscalations: [], activePunishmentsBySection: [] } }])
-    const api = createBlackholeApi({ baseUrl: 'http://ui.test/api', source: SOURCE, fetch: impl })
+    const api = createBlackholeApi({ baseUrl: 'http://ui.test/api', auth: fakeHttpAuth().auth, fetch: impl })
 
     await api.dashboard()
 
@@ -20,7 +20,7 @@ describe('createBlackholeApi', () => {
   it('returns the data of a successful call', async () => {
     const summary = { activePunishmentsBySection: [{ section: 'chat', active: 2 }], latestEscalations: [], openReports: 4 }
     const { impl } = fakeFetch([{ body: summary }])
-    const api = createBlackholeApi({ baseUrl: 'http://ui.test/api', source: SOURCE, fetch: impl })
+    const api = createBlackholeApi({ baseUrl: 'http://ui.test/api', auth: fakeHttpAuth().auth, fetch: impl })
 
     const result = await api.dashboard()
 
@@ -29,7 +29,7 @@ describe('createBlackholeApi', () => {
 
   it('maps the backend error DTO to an ApiError with its kind', async () => {
     const { impl } = fakeFetch([{ status: 409, body: { errorMessage: 'section is disabled', kind: 'CONFLICT' } }])
-    const api = createBlackholeApi({ baseUrl: 'http://ui.test/api', source: SOURCE, fetch: impl })
+    const api = createBlackholeApi({ baseUrl: 'http://ui.test/api', auth: fakeHttpAuth().auth, fetch: impl })
 
     const result = await api.dashboard()
 
@@ -40,7 +40,7 @@ describe('createBlackholeApi', () => {
     const { impl } = fakeFetch([
       { status: 400, body: { message: 'Bad Request', _embedded: { errors: [{ message: 'template.key: must not be blank' }] } } },
     ])
-    const api = createBlackholeApi({ baseUrl: 'http://ui.test/api', source: SOURCE, fetch: impl })
+    const api = createBlackholeApi({ baseUrl: 'http://ui.test/api', auth: fakeHttpAuth().auth, fetch: impl })
 
     const result = await api.dashboard()
 
@@ -50,7 +50,7 @@ describe('createBlackholeApi', () => {
 
   it('reports an unreachable backend as a NETWORK error instead of throwing', async () => {
     const { impl } = fakeFetch([new TypeError('Failed to fetch')])
-    const api = createBlackholeApi({ baseUrl: 'http://ui.test/api', source: SOURCE, fetch: impl })
+    const api = createBlackholeApi({ baseUrl: 'http://ui.test/api', auth: fakeHttpAuth().auth, fetch: impl })
 
     const result = await api.dashboard()
 
@@ -59,53 +59,45 @@ describe('createBlackholeApi', () => {
 })
 
 describe('loadConfig', () => {
-  it('reads the operator UUID from config.json', async () => {
-    const { impl } = fakeFetch([{ body: { source: SOURCE } }])
+  const OIDC = { authority: 'https://login.example.org/tenant/v2.0', clientId: 'spa-client', apiScope: 'api://x/access_as_user' }
 
-    expect(await loadConfig(impl)).toEqual({ source: SOURCE, reviewer: SOURCE, evidence: DEFAULT_EVIDENCE_LIMITS })
+  it('reads the sign-in settings from config.json', async () => {
+    const { impl } = fakeFetch([{ body: { oidc: OIDC } }])
+
+    expect(await loadConfig(impl)).toEqual({ oidc: OIDC, evidence: DEFAULT_EVIDENCE_LIMITS })
   })
 
-  it('reads a separate reviewer UUID when one is configured', async () => {
-    const reviewer = '99999999-8888-7777-6666-555555555555'
-    const { impl } = fakeFetch([{ body: { source: SOURCE, reviewer } }])
-
-    expect(await loadConfig(impl)).toEqual({ source: SOURCE, reviewer, evidence: DEFAULT_EVIDENCE_LIMITS })
-  })
-
-  it('ignores an invalid reviewer and keeps the source', async () => {
-    const { impl } = fakeFetch([{ body: { source: SOURCE, reviewer: 'nope' } }])
-
-    expect(await loadConfig(impl)).toEqual({ source: SOURCE, reviewer: SOURCE, evidence: DEFAULT_EVIDENCE_LIMITS })
-  })
-
-  it('falls back to the nil UUID when config.json is missing', async () => {
+  it('has no sign-in settings when config.json is missing', async () => {
     const { impl } = fakeFetch([{ status: 404 }])
 
-    expect(await loadConfig(impl)).toEqual({ source: NIL_UUID, reviewer: NIL_UUID, evidence: DEFAULT_EVIDENCE_LIMITS })
+    expect(await loadConfig(impl)).toEqual({ oidc: null, evidence: DEFAULT_EVIDENCE_LIMITS })
   })
 
-  it('falls back when config.json holds an invalid UUID', async () => {
-    const { impl } = fakeFetch([{ body: { source: 'not-a-uuid' } }])
+  it.each([{}, { authority: 'https://x' }, { ...OIDC, clientId: ' ' }, { ...OIDC, apiScope: 3 }, 'oidc'])(
+    'has no sign-in settings when the oidc section is %j',
+    async (oidc) => {
+      const { impl } = fakeFetch([{ body: { oidc } }])
 
-    expect(await loadConfig(impl)).toEqual({ source: NIL_UUID, reviewer: NIL_UUID, evidence: DEFAULT_EVIDENCE_LIMITS })
-  })
+      expect((await loadConfig(impl)).oidc).toBeNull()
+    },
+  )
 
-  it('falls back when the request fails', async () => {
+  it('has no sign-in settings when the request fails', async () => {
     const { impl } = fakeFetch([new TypeError('offline')])
 
-    expect(await loadConfig(impl)).toEqual({ source: NIL_UUID, reviewer: NIL_UUID, evidence: DEFAULT_EVIDENCE_LIMITS })
+    expect(await loadConfig(impl)).toEqual({ oidc: null, evidence: DEFAULT_EVIDENCE_LIMITS })
   })
 
   it('reads the evidence upload limits from config.json', async () => {
     const evidence = { maxImageBytes: 1000, maxVideoBytes: 2000, allowedTypes: ['image/png'] }
-    const { impl } = fakeFetch([{ body: { source: SOURCE, evidence } }])
+    const { impl } = fakeFetch([{ body: { oidc: OIDC, evidence } }])
 
     expect((await loadConfig(impl)).evidence).toEqual(evidence)
   })
 
   it('falls back to the backend default for each invalid evidence limit', async () => {
     const evidence = { maxImageBytes: -5, maxVideoBytes: 2000, allowedTypes: [] }
-    const { impl } = fakeFetch([{ body: { source: SOURCE, evidence } }])
+    const { impl } = fakeFetch([{ body: { oidc: OIDC, evidence } }])
 
     expect((await loadConfig(impl)).evidence).toEqual({ ...DEFAULT_EVIDENCE_LIMITS, maxVideoBytes: 2000 })
   })

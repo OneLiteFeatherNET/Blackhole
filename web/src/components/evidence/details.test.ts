@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { mockApi, mountWithApp } from '../../test/mount'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fail, mockApi, mountWithApp, ok } from '../../test/mount'
 import { evidenceItem } from '../../test/evidence'
 import { useLookupStore } from '../../stores/lookup'
 import AnticheatDetail from './AnticheatDetail.vue'
@@ -114,37 +114,73 @@ describe('ChatLogDetail', () => {
 
 describe('FilePreview', () => {
   const file = (contentType: string) => evidenceItem({ kind: 'FILE', file: { name: 'proof', contentType, size: 10, sha256: 'x' } })
-  const api = mockApi({ evidenceContentUrl: (id: string) => `/api/evidence/${id}/content` })
+  const blob = new Blob(['bytes'], { type: 'image/png' })
+  let created: Blob[]
+  let revoked: string[]
 
-  it('renders an image from the backend content endpoint', async () => {
+  // jsdom has no object URLs; each test gets fresh stand-ins that record what the component did.
+  beforeEach(() => {
+    created = []
+    revoked = []
+    URL.createObjectURL = (object: Blob | MediaSource) => {
+      created.push(object as Blob)
+      return `blob:preview-${created.length}`
+    }
+    URL.revokeObjectURL = (url: string) => {
+      revoked.push(url)
+    }
+  })
+
+  it('renders an image from the fetched content, not from a plain URL', async () => {
     const item = file('image/png')
-    const { wrapper } = await mountWithApp(FilePreview, { api, props: { item } })
+    const evidenceContent = vi.fn(async () => ok(blob))
+    const { wrapper } = await mountWithApp(FilePreview, { api: mockApi({ evidenceContent }), props: { item } })
 
     const image = wrapper.get('img')
-    expect(image.attributes('src')).toBe(`/api/evidence/${item.identifier}/content`)
+    expect(evidenceContent).toHaveBeenCalledWith(item.identifier)
+    expect(created, 'object URLs created').toEqual([blob])
+    expect(image.attributes('src')).toBe('blob:preview-1')
     expect(image.attributes('alt')).toBe('proof')
 
     wrapper.unmount()
   })
 
   it('renders a video that only preloads its metadata', async () => {
-    const item = file('video/mp4')
-    const { wrapper } = await mountWithApp(FilePreview, { api, props: { item } })
+    const { wrapper } = await mountWithApp(FilePreview, { api: mockApi({ evidenceContent: async () => ok(blob) }), props: { item: file('video/mp4') } })
 
     const video = wrapper.get('video')
-    expect(video.attributes('src')).toBe(`/api/evidence/${item.identifier}/content`)
+    expect(video.attributes('src')).toBe('blob:preview-1')
     expect(video.attributes('preload')).toBe('metadata')
     expect(video.attributes('controls')).toBeDefined()
 
     wrapper.unmount()
   })
 
-  it.each(['application/pdf', 'text/html', 'application/octet-stream', ''])('renders no media for content type "%s"', async (contentType) => {
-    const { wrapper } = await mountWithApp(FilePreview, { api, props: { item: file(contentType) } })
+  it('revokes the object URL when it goes away', async () => {
+    const { wrapper } = await mountWithApp(FilePreview, { api: mockApi({ evidenceContent: async () => ok(blob) }), props: { item: file('image/png') } })
+
+    wrapper.unmount()
+
+    expect(revoked).toEqual(['blob:preview-1'])
+  })
+
+  it('says so when the file cannot be loaded', async () => {
+    const { wrapper } = await mountWithApp(FilePreview, { api: mockApi({ evidenceContent: async () => fail('nope', 403) }), props: { item: file('image/png') } })
+
+    expect(wrapper.get('[role="alert"]').text()).toBe('The file could not be loaded.')
+    expect(wrapper.find('img').exists(), 'img').toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it.each(['application/pdf', 'text/html', 'application/octet-stream', ''])('renders no media and requests nothing for content type "%s"', async (contentType) => {
+    const evidenceContent = vi.fn(async () => ok(blob))
+    const { wrapper } = await mountWithApp(FilePreview, { api: mockApi({ evidenceContent }), props: { item: file(contentType) } })
 
     expect(wrapper.find('img').exists(), 'img').toBe(false)
     expect(wrapper.find('video').exists(), 'video').toBe(false)
     expect(wrapper.text()).toContain('No preview for proof.')
+    expect(evidenceContent).not.toHaveBeenCalled()
 
     wrapper.unmount()
   })

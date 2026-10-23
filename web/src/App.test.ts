@@ -1,23 +1,28 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { chooseOption } from './test/select'
-import { createPinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryHistory } from 'vue-router'
 import App from './App.vue'
 import { i18n } from './i18n'
 import { createAppRouter } from './router'
-import { ACTING_AS_STORAGE_KEY, THEME_STORAGE_KEY } from './stores/ui'
+import { useSessionStore } from './stores/session'
+import { THEME_STORAGE_KEY } from './stores/ui'
 import { API_KEY } from './api/inject'
-import { mockApi, ok } from './test/mount'
+import { AUTH_KEY } from './auth/inject'
+import { fakeAuthService } from './test/auth'
+import { mockApi, ok, piniaWithRoles } from './test/mount'
 
-async function mountApp(path = '/') {
+async function mountApp(path = '/', options: { roles?: string[]; auth?: ReturnType<typeof fakeAuthService> } = {}) {
+  const auth = options.auth ?? fakeAuthService()
   const router = createAppRouter(createMemoryHistory())
   await router.push(path)
   await router.isReady()
-  return mount(App, {
+  const pinia = piniaWithRoles(options.roles)
+  const wrapper = mount(App, {
     global: {
-      plugins: [createPinia(), i18n, router],
+      plugins: [pinia, i18n, router],
       provide: {
+        [AUTH_KEY as symbol]: auth.service,
         [API_KEY as symbol]: mockApi({
           dashboard: async () => ok({ activePunishmentsBySection: [], latestEscalations: [] }),
           profile: async () => ok({ active: {}, history: [] }),
@@ -28,6 +33,7 @@ async function mountApp(path = '/') {
     },
     attachTo: document.body,
   })
+  return Object.assign(wrapper, { auth, session: useSessionStore(pinia) })
 }
 
 describe('App shell', () => {
@@ -55,12 +61,56 @@ describe('App shell', () => {
     wrapper.unmount()
   })
 
-  it('remembers the acting-as label from the top bar', async () => {
+  it('shows who is signed in instead of a free-text acting-as field', async () => {
     const wrapper = await mountApp('/')
 
-    await wrapper.get('input').setValue('Alex')
+    expect(wrapper.get('[data-testid="signed-in-as"]').text()).toBe('Angemeldet als Dev Admin')
+    expect(wrapper.find('input').exists(), 'text input').toBe(false)
 
-    expect(localStorage.getItem(ACTING_AS_STORAGE_KEY)).toBe('Alex')
+    wrapper.unmount()
+  })
+
+  it('signs out from the top bar', async () => {
+    const wrapper = await mountApp('/')
+
+    await wrapper.get('[data-testid="sign-out"]').trigger('click')
+
+    expect(wrapper.auth.calls.signOut, 'sign-outs').toBe(1)
+
+    wrapper.unmount()
+  })
+
+  it('offers no navigation to a user without a role', async () => {
+    const wrapper = await mountApp('/no-access', { roles: [] })
+
+    expect(wrapper.find('nav').exists(), 'navigation').toBe(false)
+    expect(wrapper.get('h1').text()).toBe('Kein Zugriff')
+
+    wrapper.unmount()
+  })
+
+  it('announces the redirect to the sign-in service in a live region', async () => {
+    const auth = fakeAuthService()
+    const wrapper = await mountApp('/', { auth })
+
+    auth.service.redirecting.value = true
+    await flushPromises()
+
+    const status = wrapper.get('[data-testid="auth-status"]')
+    expect(status.attributes('aria-live'), 'live region').toBe('polite')
+    expect(status.text()).toBe('Weiterleitung zum Anmeldedienst ...')
+    expect(wrapper.find('nav').exists(), 'navigation while redirecting').toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('tells the user about a refused action', async () => {
+    const wrapper = await mountApp('/')
+
+    wrapper.session.forbidden = true
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Dafür fehlt dir die Berechtigung.')
 
     wrapper.unmount()
   })

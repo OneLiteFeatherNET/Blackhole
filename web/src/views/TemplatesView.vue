@@ -12,9 +12,11 @@ import StatusPill from '../components/StatusPill.vue'
 import TemplateEditor from '../components/templates/TemplateEditor.vue'
 import { useResource } from '../composables/useResource'
 import { formatDuration } from '../format'
+import { useSessionStore } from '../stores/session'
 
 const { t, locale } = useI18n()
 const api = useApi()
+const session = useSessionStore()
 
 const templates = useResource(() => api.templates())
 const sections = useResource(() => api.sections())
@@ -77,7 +79,7 @@ async function confirmDelete(): Promise<void> {
     <div class="flex flex-col gap-4">
       <div class="flex flex-wrap items-center gap-3">
         <p class="min-w-0 flex-1 text-body-large text-on-surface-variant">{{ t('templates.intro') }}</p>
-        <MdButton data-testid="new-template" @click="openEditor(null)">{{ t('templates.new') }}</MdButton>
+        <MdButton v-if="session.administrator" data-testid="new-template" @click="openEditor(null)">{{ t('templates.new') }}</MdButton>
       </div>
 
       <p v-if="templates.data.value?.length === 0" class="text-body-large text-on-surface-variant">{{ t('templates.empty') }}</p>
@@ -95,7 +97,7 @@ async function confirmDelete(): Promise<void> {
               </li>
             </ol>
           </template>
-          <div v-else-if="column.key === 'identifier'" class="flex gap-1">
+          <div v-else-if="column.key === 'identifier' && session.administrator" class="flex gap-1">
             <MdButton variant="text" :data-testid="`edit-${row.key}`" @click="openEditor(row)">{{ t('templates.edit') }}</MdButton>
             <MdButton variant="text" :data-testid="`delete-${row.key}`" @click="askDelete(row)">{{ t('templates.delete.open') }}</MdButton>
           </div>

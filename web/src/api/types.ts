@@ -25,6 +25,7 @@ export type TemplateStep = Schemas['PunishTemplateStep']
 export type Section = Schemas['SectionResponse']
 export type Report = Schemas['ReportDTO']
 export type Appeal = Schemas['AppealDTO']
+export type CurrentCaller = Schemas['AuthMeResponse']
 export type Evidence = Schemas['EvidenceResponse']
 export type EvidencePage = Schemas['EvidencePage']
 
@@ -81,7 +82,7 @@ export interface ApiError {
   /** HTTP status, or 0 when the request never reached the server. */
   status: number
   message: string
-  kind: ErrorKind | 'NETWORK' | 'UNKNOWN'
+  kind: ErrorKind | 'FORBIDDEN' | 'NETWORK' | 'UNKNOWN'
 }
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError }

@@ -15,10 +15,22 @@ describe('securityHeaders', () => {
     expect(securityHeaders()['Referrer-Policy']).toBe('no-referrer')
   })
 
-  it('sends exactly the content security policy nginx used', () => {
-    expect(securityHeaders()['Content-Security-Policy']).toBe(
-      "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+  it('sends the content security policy, connecting to the sign-in authority only', () => {
+    expect(securityHeaders('https://login.microsoftonline.com/tenant/v2.0')['Content-Security-Policy']).toBe(
+      "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://login.microsoftonline.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
     )
+  })
+
+  it('allows the port of a local authority and nothing else of its URL', () => {
+    expect(securityHeaders('http://localhost:18090/blackhole')['Content-Security-Policy']).toContain("connect-src 'self' http://localhost:18090;")
+  })
+
+  it('never uses a wildcard source', () => {
+    expect(securityHeaders('https://login.microsoftonline.com/t/v2.0')['Content-Security-Policy']).not.toContain('*')
+  })
+
+  it('connects to its own origin only when no authority is known', () => {
+    expect(securityHeaders()['Content-Security-Policy']).toContain("connect-src 'self';")
   })
 
   it('sets nothing that discloses the server software', () => {

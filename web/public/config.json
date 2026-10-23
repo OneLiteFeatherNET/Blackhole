@@ -1,1 +1,7 @@
-{ "source": "00000000-0000-4000-8000-000000000001" }
+{
+  "oidc": {
+    "authority": "https://login.microsoftonline.com/TENANT-ID/v2.0",
+    "clientId": "SPA-CLIENT-ID",
+    "apiScope": "api://API-CLIENT-ID/access_as_user"
+  }
+}

@@ -1,3 +1,5 @@
+import type { OidcConfig } from '../auth/authService'
+
 /** What the evidence upload zone checks before sending a file; advisory, the backend is authoritative. */
 export interface EvidenceLimits {
   /** Largest image in bytes. */
@@ -15,26 +17,24 @@ export const DEFAULT_EVIDENCE_LIMITS: EvidenceLimits = {
   allowedTypes: ['image/png', 'image/jpeg', 'video/mp4', 'video/webm'],
 }
 
-/** Per-deployment settings, written by the container at start into /config.json. */
+/** Per-deployment settings, served by the web server as /config.json. */
 export interface RuntimeConfig {
-  /** The operator UUID sent as `source`/`resolvedBy`/`punishmentSource`. Unverified, see the identity gap. */
-  source: string
-  /**
-   * The UUID sent as `reviewerId` when deciding an appeal. Defaults to `source`; the backend refuses a
-   * review whose reviewer issued the punishment, so deployments that decide appeals against
-   * punishments applied through this UI need a different value (see the web README).
-   */
-  reviewer: string
+  /** How staff sign in; null when /config.json is missing or has no valid `oidc` section. */
+  oidc: OidcConfig | null
   /** Upload pre-check limits; each missing or invalid value falls back to the backend default. */
   evidence: EvidenceLimits
 }
 
-export const NIL_UUID = '00000000-0000-0000-0000-000000000000'
+function text(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null
+}
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-function uuidOrNull(value: unknown): string | null {
-  return typeof value === 'string' && UUID_PATTERN.test(value) ? value : null
+function oidcConfig(value: unknown): OidcConfig | null {
+  const body = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>
+  const authority = text(body.authority)
+  const clientId = text(body.clientId)
+  const apiScope = text(body.apiScope)
+  return authority && clientId && apiScope ? { authority, clientId, apiScope } : null
 }
 
 function positiveInteger(value: unknown, fallback: number): number {
@@ -53,17 +53,16 @@ function evidenceLimits(value: unknown): EvidenceLimits {
   }
 }
 
-/** Never throws: a missing or broken config.json only means calls are attributed to the nil UUID. */
+/** Never throws: a missing or broken config.json only means sign-in is not configured. */
 export async function loadConfig(fetchImpl: typeof fetch = (input, init) => globalThis.fetch(input, init)): Promise<RuntimeConfig> {
   try {
     const response = await fetchImpl('/config.json', { cache: 'no-store' })
     if (response.ok) {
-      const body = (await response.json()) as { source?: unknown; reviewer?: unknown; evidence?: unknown } | null
-      const source = uuidOrNull(body?.source)
-      if (source) return { source, reviewer: uuidOrNull(body?.reviewer) ?? source, evidence: evidenceLimits(body?.evidence) }
+      const body = (await response.json()) as { oidc?: unknown; evidence?: unknown } | null
+      return { oidc: oidcConfig(body?.oidc), evidence: evidenceLimits(body?.evidence) }
     }
   } catch {
     // Fall through to the default.
   }
-  return { source: NIL_UUID, reviewer: NIL_UUID, evidence: evidenceLimits(null) }
+  return { oidc: null, evidence: evidenceLimits(null) }
 }

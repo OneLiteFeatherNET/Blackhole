@@ -3,6 +3,7 @@ import { computed, ref, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Evidence } from '../../api/types'
 import { formatDateTime } from '../../format'
+import { useSessionStore } from '../../stores/session'
 import MdButton from '../md/MdButton.vue'
 import StatusPill from '../StatusPill.vue'
 import AnticheatDetail from './AnticheatDetail.vue'
@@ -16,6 +17,7 @@ const props = defineProps<{ item: Evidence }>()
 const emit = defineEmits<{ delete: [item: Evidence] }>()
 
 const { t, locale } = useI18n()
+const session = useSessionStore()
 
 const detailId = useId()
 const expanded = ref(false)
@@ -70,7 +72,7 @@ const summary = computed(() => {
         >
           {{ expanded ? t('evidence.item.collapse') : t('evidence.item.expand') }}
         </MdButton>
-        <MdButton variant="text" data-testid="delete" @click="emit('delete', item)">{{ t('evidence.item.delete') }}</MdButton>
+        <MdButton v-if="session.administrator" variant="text" data-testid="delete" @click="emit('delete', item)">{{ t('evidence.item.delete') }}</MdButton>
       </div>
     </div>
     <div v-if="expanded && !isLink" :id="detailId" class="mt-3 border-t border-outline-variant pt-3" data-testid="detail">

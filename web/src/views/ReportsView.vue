@@ -13,11 +13,13 @@ import ResourceState from '../components/ResourceState.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { useResource } from '../composables/useResource'
 import { formatDateTime, shortHash } from '../format'
+import { useSessionStore } from '../stores/session'
 
 const OPEN: ReportStatus[] = ['OPEN', 'UNDER_REVIEW']
 
 const { t, locale } = useI18n()
 const api = useApi()
+const session = useSessionStore()
 
 const reports = useResource(() => api.reports())
 const showAll = ref(false)
@@ -80,7 +82,7 @@ async function done(text: string): Promise<void> {
             :tone="isOpen(row) ? 'tertiary' : 'neutral'"
           />
           <template v-else-if="column.key === 'identifier'">
-            <MdButton v-if="isOpen(row) && row.identifier" variant="outlined" :data-testid="`resolve-${row.identifier}`" @click="resolving = row">
+            <MdButton v-if="session.moderator && isOpen(row) && row.identifier" variant="outlined" :data-testid="`resolve-${row.identifier}`" @click="resolving = row">
               {{ t('reports.resolve.open') }}
             </MdButton>
           </template>

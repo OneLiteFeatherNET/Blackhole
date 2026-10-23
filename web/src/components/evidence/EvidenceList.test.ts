@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { evidenceItem } from '../../test/evidence'
-import { mockApi, mountWithApp } from '../../test/mount'
+import { mockApi, mountWithApp, ok } from '../../test/mount'
 import EvidenceList from './EvidenceList.vue'
 
-const api = mockApi({ evidenceContentUrl: (id: string) => `/api/evidence/${id}/content` })
+const api = mockApi({ evidenceContent: async () => ok(new Blob(['x'], { type: 'image/png' })) })
 
 function mountList(items: ReturnType<typeof evidenceItem>[], extra: Record<string, unknown> = {}) {
   return mountWithApp(EvidenceList, { api, props: { items, page: 0, totalPages: 1, ...extra } })
