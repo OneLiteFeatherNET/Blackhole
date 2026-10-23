@@ -38,6 +38,7 @@ import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
 import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
+import net.onelitefeather.blackhole.velocity.component.theme.BlackholeTheme;
 import net.onelitefeather.blackhole.velocity.punish.HttpBackendGateway;
 import net.onelitefeather.blackhole.velocity.punish.PunishService;
 import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
@@ -157,7 +158,7 @@ public class BlackholeVelocity {
     }
 
     private void registerTranslations() {
-        var store = MiniMessageTranslationStore.create(net.kyori.adventure.key.Key.key("blackhole", "translations"));
+        var store = MiniMessageTranslationStore.create(net.kyori.adventure.key.Key.key("blackhole", "translations"), BlackholeTheme.miniMessage());
         store.defaultLocale(Locale.ENGLISH);
         var classLoader = BlackholeVelocity.class.getClassLoader();
         store.registerAll(Locale.ENGLISH, ResourceBundle.getBundle("blackhole", Locale.ENGLISH, classLoader), false);

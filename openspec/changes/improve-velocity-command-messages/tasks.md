@@ -8,10 +8,10 @@ title is a Conventional Commit `feat(velocity): ...`. Run `./gradlew :velocity:t
 
 ## 1. Style foundation (PR 1: `feat(velocity): add a central style for staff messages`)
 
-- [ ] 1.1 `BlackholeTheme` tag resolver (`bh:prefix|ok|err|warn|success|error|warning|info|player|section|duration|id|key|up|down|muted|sep`) registered on the `MiniMessageTranslationStore`; verify unit tests that each tag yields the intended colour/decoration/glyph and that only allowed glyphs (`✔ ✖ ⚠ » · → ▸ −`) occur
-- [ ] 1.2 `Mode` (RICH/PLAIN), `Fmt` argument builders (player, short id, section, score delta with sign and direction, absolute time in a given `ZoneId`), and `Permissions` view for button decisions; verify unit tests for events present in RICH and absent in PLAIN, and for time rendering with a fixed zone
-- [ ] 1.3 Bundle test additions: tags in the texts are known `bh:` tags, no unused keys, placeholders still equal in en/de; verify `I18nBundlesTest` stays green and fails on a deliberately unknown tag in a scratch test
-- [ ] 1.4 Render every existing key through the new store; verify a test that `punishment.screen.*` output is unchanged
+- [x] 1.1 `BlackholeTheme` tag resolver (`bh:prefix|ok|err|warn|success|error|warning|info|player|section|duration|id|key|up|down|muted|sep`) registered on the `MiniMessageTranslationStore`; verify unit tests that each tag yields the intended colour/decoration/glyph and that only allowed glyphs (`✔ ✖ ⚠ » · → ▸ −`) occur
+- [x] 1.2 `Mode` (RICH/PLAIN), `Fmt` argument builders (player, short id, section, score delta with sign and direction, absolute time in a given `ZoneId`), and `Permissions` view for button decisions; verify unit tests for events present in RICH and absent in PLAIN, and for time rendering with a fixed zone
+- [x] 1.3 Bundle test additions: tags in the texts are known `bh:` tags, no unused keys, placeholders still equal in en/de; verify `I18nBundlesTest` stays green and fails on a deliberately unknown tag in a scratch test
+- [x] 1.4 Render every existing key through the new store; verify a test that `punishment.screen.*` output is unchanged
 
 ## 2. Punish result, errors and usage (PR 2: `feat(velocity): restyle ban, mute and punish feedback`)
 
