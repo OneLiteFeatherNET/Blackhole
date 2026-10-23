@@ -3,13 +3,20 @@ package net.onelitefeather.blackhole.velocity.evidence;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.player.PlayerChatEvent;
 import com.velocitypowered.api.proxy.Player;
+import net.kyori.adventure.translation.GlobalTranslator;
+import net.onelitefeather.blackhole.velocity.TestData;
+import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
+import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.config.ChatCaptureConfig;
+import net.onelitefeather.blackhole.velocity.enforcement.MuteNoticeCooldown;
+import net.onelitefeather.blackhole.velocity.enforcement.MuteNotices;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
 import net.onelitefeather.blackhole.velocity.listener.ChatCaptureListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerDisconnectListener;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
@@ -99,7 +106,10 @@ class ChatListenersTest {
         ChatBuffer buffer = buffer(true);
         new ChatCaptureListener(buffer).onChat(new PlayerChatEvent(alice, "hello"));
 
-        new PlayerDisconnectListener(new PunishmentMirror(), buffer)
+        MuteNotices notices = new MuteNotices(
+                new PunishmentScreens(clock, new BlackholeConfig(), TestData.standardRegistry(), GlobalTranslator.renderer()),
+                new MuteNoticeCooldown(clock, Duration.ofSeconds(30)));
+        new PlayerDisconnectListener(new PunishmentMirror(), buffer, notices)
                 .onDisconnect(new DisconnectEvent(alice, DisconnectEvent.LoginStatus.SUCCESSFUL_LOGIN));
 
         assertTrue(texts(buffer).isEmpty(), "the buffer must not outlive the session");

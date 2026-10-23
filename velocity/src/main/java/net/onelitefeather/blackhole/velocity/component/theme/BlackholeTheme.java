@@ -1,6 +1,8 @@
 package net.onelitefeather.blackhole.velocity.component.theme;
 
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.Context;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -11,6 +13,7 @@ import net.kyori.adventure.text.minimessage.tag.standard.StandardTags;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -38,8 +41,17 @@ public final class BlackholeTheme implements TagResolver {
 
     private static final String NAMESPACE = "bh";
 
+    /**
+     * The OneLiteFeather brand gradient: orange, pink, purple. The fourth brand stop, deep blue
+     * (#2A388F), is left out because it has too little contrast on the dark chat background.
+     */
+    private static final List<TextColor> BRAND_GRADIENT = List.of(
+            TextColor.color(0xF7931D), TextColor.color(0xEC008B), TextColor.color(0x91268F));
+
+    private static final Component PREFIX = gradient("Blackhole").append(text(" » ", MUTED));
+
     private static final Map<String, Tag> TAGS = Map.ofEntries(
-            Map.entry("prefix", Tag.selfClosingInserting(text("Blackhole", NamedTextColor.DARK_PURPLE).append(text(" » ", MUTED)))),
+            Map.entry("prefix", Tag.selfClosingInserting(PREFIX)),
             Map.entry("ok", Tag.selfClosingInserting(text("✔ ", SUCCESS))),
             Map.entry("err", Tag.selfClosingInserting(text("✖ ", ERROR))),
             Map.entry("warn", Tag.selfClosingInserting(text("⚠ ", WARNING))),
@@ -64,6 +76,20 @@ public final class BlackholeTheme implements TagResolver {
             .build();
 
     private BlackholeTheme() {
+    }
+
+    /** The word with one colour per character, spread evenly over the brand gradient stops. */
+    private static Component gradient(String word) {
+        Component result = Component.empty();
+        int last = word.length() - 1;
+        int segments = BRAND_GRADIENT.size() - 1;
+        for (int i = 0; i <= last; i++) {
+            double position = last == 0 ? 0 : (double) i / last * segments;
+            int segment = Math.min((int) position, segments - 1);
+            TextColor colour = TextColor.lerp((float) (position - segment), BRAND_GRADIENT.get(segment), BRAND_GRADIENT.get(segment + 1));
+            result = result.append(text(word.charAt(i), colour));
+        }
+        return result;
     }
 
     /** @return the resolver that knows every {@code bh:} tag */

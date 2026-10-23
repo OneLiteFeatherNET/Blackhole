@@ -9,6 +9,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
 import net.onelitefeather.blackhole.velocity.TestData;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens.Surface;
+import net.onelitefeather.blackhole.velocity.component.theme.BlackholeTheme;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import org.junit.jupiter.api.Test;
@@ -40,7 +41,7 @@ class PunishmentScreensTest {
     private static final long IN_59_MIN = NOW.plusSeconds(59 * 60).toEpochMilli();
 
     private static TranslatableComponentRenderer<Locale> renderer() {
-        var store = MiniMessageTranslationStore.create(net.kyori.adventure.key.Key.key("blackhole", "test"));
+        var store = MiniMessageTranslationStore.create(net.kyori.adventure.key.Key.key("blackhole", "test"), BlackholeTheme.miniMessage());
         store.defaultLocale(Locale.ENGLISH);
         ClassLoader loader = PunishmentScreensTest.class.getClassLoader();
         store.registerAll(Locale.ENGLISH, ResourceBundle.getBundle("blackhole", Locale.ENGLISH, loader), false);
@@ -271,7 +272,7 @@ class PunishmentScreensTest {
     @Test
     void muteInChatIsCompact() {
         assertEquals("""
-                Du wurdest stummgeschaltet
+                Blackhole » Du wurdest stummgeschaltet
                 Grund
                 Beleidigung
                 Verbleibend: 59 Minuten
@@ -286,7 +287,7 @@ class PunishmentScreensTest {
                 punishment("chat", EnforcementKind.MUTE, IN_59_MIN, "Insults"), Locale.ENGLISH, Surface.CHAT, false));
 
         assertEquals("""
-                You have been muted
+                Blackhole » You have been muted
                 Reason
                 Insults
                 Remaining: 59 minutes
@@ -301,7 +302,7 @@ class PunishmentScreensTest {
                 punishment("chat", EnforcementKind.MUTE, IN_59_MIN, "Beleidigung"), Locale.GERMAN, Surface.CHAT, false));
 
         assertEquals("""
-                Du wurdest stummgeschaltet
+                Blackhole » Du wurdest stummgeschaltet
                 Grund
                 Beleidigung
                 Verbleibend: 59 Minuten
@@ -315,7 +316,7 @@ class PunishmentScreensTest {
         String text = text(punishment("chat", EnforcementKind.MUTE, null, "Spam"), Locale.GERMAN, Surface.CHAT);
 
         assertEquals("""
-                Du wurdest stummgeschaltet
+                Blackhole » Du wurdest stummgeschaltet
                 Grund
                 Spam
                 Dauer: dauerhaft
@@ -337,10 +338,17 @@ class PunishmentScreensTest {
     }
 
     @Test
-    void muteNoticeCarriesNoStaffPrefix() {
+    void muteNoticeStartsWithTheBlackholePrefix() {
         String text = text(punishment("chat", EnforcementKind.MUTE, null, "Spam"), Locale.ENGLISH, Surface.CHAT);
 
-        assertTrue(text.startsWith("You have been muted"), "player-facing: the title comes first, got:\n" + text);
+        assertTrue(text.startsWith("Blackhole » You have been muted"), "the header line carries the prefix, got:\n" + text);
+    }
+
+    @Test
+    void banScreenStaysWithoutThePrefix() {
+        String text = text(punishment("network", EnforcementKind.BAN, null, "Cheating"), Locale.ENGLISH, Surface.DISCONNECT);
+
+        assertFalse(text.contains("Blackhole"), "a disconnect screen has no chat prefix, got:\n" + text);
     }
 
     @Test
@@ -348,7 +356,7 @@ class PunishmentScreensTest {
         Component reminder = screens(config("https://example.org/appeal", "")).muteReminder(
                 punishment("chat", EnforcementKind.MUTE, IN_59_MIN, "Insults"), Locale.GERMAN);
 
-        assertEquals("Du wurdest stummgeschaltet · Verbleibend: 59 Minuten · Strafen-ID: #A1B2C3D4", plain(reminder));
+        assertEquals("Blackhole » Du wurdest stummgeschaltet · Verbleibend: 59 Minuten · Strafen-ID: #A1B2C3D4", plain(reminder));
     }
 
     @Test
@@ -356,7 +364,7 @@ class PunishmentScreensTest {
         Component reminder = screens(config("", "")).muteReminder(
                 punishment("chat", EnforcementKind.MUTE, null, "Insults"), Locale.ENGLISH);
 
-        assertEquals("You have been muted · Duration: permanent · Punishment ID: #A1B2C3D4", plain(reminder));
+        assertEquals("Blackhole » You have been muted · Duration: permanent · Punishment ID: #A1B2C3D4", plain(reminder));
     }
 
     @Test

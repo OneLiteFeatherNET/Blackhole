@@ -10,6 +10,7 @@ import net.onelitefeather.blackhole.velocity.component.Permissions;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.component.StaffMessages;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
+import net.onelitefeather.blackhole.velocity.enforcement.MuteNotices;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
 import net.onelitefeather.blackhole.velocity.evidence.ChatEvidence;
 import net.onelitefeather.blackhole.velocity.enforcement.ProfileAdapter;
@@ -42,20 +43,20 @@ public final class PunishCommand {
     private final PunishmentSyncHandler syncHandler;
     private final Clock clock;
     private final BlackholeConfig config;
-    private final PunishmentScreens screens;
+    private final MuteNotices notices;
 
     @Inject
     public PunishCommand(
             @NotNull PunishService service, @NotNull SectionRegistry sections,
             @NotNull PunishmentSyncHandler syncHandler, @NotNull Clock clock, @NotNull BlackholeConfig config,
-            @NotNull PunishmentScreens screens
+            @NotNull MuteNotices notices
     ) {
         this.service = service;
         this.sections = sections;
         this.syncHandler = syncHandler;
         this.clock = clock;
         this.config = config;
-        this.screens = screens;
+        this.notices = notices;
     }
 
     @Command(value = "blackhole <user> ban <template>", requiredSender = Player.class)
@@ -147,8 +148,9 @@ public final class PunishCommand {
 
         if (applied.section().enforcement() == EnforcementKind.MUTE && target.onlinePlayer() != null) {
             Player muted = target.onlinePlayer();
-            muted.sendMessage(this.screens.screen(
-                    inForce, PunishmentScreens.localeOf(muted), PunishmentScreens.Surface.CHAT, false));
+            // Same cooldown as chat, so the first chat attempt after this shows only the reminder.
+            muted.sendMessage(this.notices.notice(
+                    target.ownerHash(), inForce, PunishmentScreens.localeOf(muted), 0));
         }
         sender.sendMessage(StaffMessages.applied(target.name(), applied.section(), response, punished, this.clock,
                 this.config.getZone(), Permissions.of(sender), Mode.of(sender)));
