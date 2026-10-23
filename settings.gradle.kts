@@ -81,7 +81,7 @@ dependencyResolutionManagement {
             library("cloud-annotations", "org.incendo", "cloud-annotations").versionRef("cloud.commands")
             // CloudNet 4.x has no stable release yet; pinned on purpose, bump with the RC notes at hand.
             // compileOnly in velocity: the CloudNet wrapper provides the driver at runtime.
-            library("cloudnet-driver-api", "eu.cloudnetservice.cloudnet", "driver-api").version("4.0.0-RC18-SNAPSHOT")
+            library("cloudnet-driver-api", "eu.cloudnetservice.cloudnet", "driver-api").version("4.0.0-RC17")
             library("cloudExtras", "org.incendo", "cloud-minecraft-extras").version("2.0.1")
 
             // Observability — JSON logging + OpenTelemetry (see backend/build.gradle.kts).
