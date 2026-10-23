@@ -103,6 +103,24 @@ services:
     volumes:
       - ./clamav/data/:/var/lib/clamav
 
+  # Stand-in for Microsoft Entra ID in local development (never use it anywhere else). Issuer:
+  # http://localhost:18090/blackhole, which matches the BLACKHOLE_AUTH_* defaults of application.yml.
+  # Interactive sign-in at /blackhole/authorize: log in as admin, moderator, viewer or nogroup (the
+  # user name picks the claims, see mock-oauth/config.json). Client-credentials tokens for the proxy
+  # and the metrics scraper come from client_id blackhole-proxy / blackhole-metrics. The issuer in a
+  # token follows the host the caller used, so always reach it as localhost:18090.
+  mock-oauth:
+    image: ghcr.io/navikt/mock-oauth2-server:6.0.5
+    container_name: 'mock_oauth_blackhole'
+    environment:
+      JSON_CONFIG_PATH: /config/config.json
+    ports:
+      - "127.0.0.1:18090:8080"
+    volumes:
+      - ./mock-oauth/config.json:/config/config.json:ro
+    networks:
+      - blackhole_go_net
+
   # The admin web UI at http://localhost:8081. It has no login of its own and neither has the API it
   # proxies, so it only listens on localhost here; anywhere else put it on a private network or
   # behind a proxy that authenticates (see web/README.md). The backend is expected on the host

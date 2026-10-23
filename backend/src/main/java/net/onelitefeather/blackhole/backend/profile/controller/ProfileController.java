@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.profile.controller;
 
+import io.micronaut.security.annotation.Secured;
+import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
 import net.onelitefeather.blackhole.backend.profile.ProfileSlots;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
@@ -97,6 +99,7 @@ public class ProfileController {
     )
     @Validated
     @Post("/")
+    @Secured(Roles.MODERATOR)
     public HttpResponse<PunishProfileResponse> add(@Body @Valid PunishProfileRequestDTO profileEntity) {
         PunishmentProfileEntity entity = PunishmentProfileEntity.toEntity(profileEntity);
         PunishmentProfileEntity savedEntity = this.repository.save(entity);
@@ -141,6 +144,7 @@ public class ProfileController {
     )
     @Validated
     @Post(value = "/update/{owner}")
+    @Secured(Roles.MODERATOR)
     public HttpResponse<PunishProfileResponse> update(
             @Valid @Body PunishProfileRequestDTO profileEntity,
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner
@@ -190,6 +194,7 @@ public class ProfileController {
     )
     @Validated
     @Delete(value = "/delete/{owner}")
+    @Secured(Roles.ADMIN)
     public HttpResponse<PunishProfileResponse> delete(
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner
     ) {
@@ -228,6 +233,7 @@ public class ProfileController {
 
     )
     @Get("/")
+    @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<Page<PunishProfileResponse>> getAll(Pageable pageable) {
         Page<PunishmentProfileEntity> entities = this.repository.findAll(pageable);
         return HttpResponse.ok(entities.map(PunishmentProfileEntity::toDTO));
@@ -264,6 +270,7 @@ public class ProfileController {
             )
     )
     @Get("/{owner}")
+    @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<PunishProfileResponse> getById(
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner
     ) {
@@ -308,6 +315,7 @@ public class ProfileController {
     @ApiResponse(responseCode = "200", description = "Session info recorded")
     @Validated
     @Post("/{owner}/session")
+    @Secured({Roles.MODERATOR, Roles.PROXY})
     public HttpResponse<PunishProfileResponse> updateSessionInfo(
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
             @Body @Valid SessionInfoDTO info

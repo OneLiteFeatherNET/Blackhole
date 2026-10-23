@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.section.controller;
 
+import io.micronaut.security.annotation.Secured;
+import net.onelitefeather.blackhole.backend.security.Roles;
 import io.micronaut.core.version.annotation.Version;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Controller;
@@ -27,26 +29,31 @@ public class SectionController implements SectionApi {
     }
 
     @Override
+    @Secured(Roles.ADMIN)
     public HttpResponse<SectionDTO> create(SectionDTO.CreateRequest request) {
         return toResponse(this.sectionService.create(request));
     }
 
     @Override
+    @Secured(Roles.ADMIN)
     public HttpResponse<SectionDTO> update(SectionDTO.UpdateRequest request) {
         return toResponse(this.sectionService.update(request));
     }
 
     @Override
+    @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<List<SectionDTO.Response>> list() {
         return HttpResponse.ok(this.sectionService.list());
     }
 
     @Override
+    @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<SectionDTO> get(String key) {
         return toResponse(this.sectionService.get(key));
     }
 
     @Override
+    @Secured(Roles.ADMIN)
     public HttpResponse<SectionDTO> disable(String key) {
         return toResponse(this.sectionService.disable(key));
     }

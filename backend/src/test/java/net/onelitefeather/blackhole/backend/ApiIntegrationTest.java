@@ -4,10 +4,13 @@ import io.micronaut.context.ApplicationContext;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.json.JsonMapper;
 import io.micronaut.runtime.server.EmbeddedServer;
+import net.onelitefeather.blackhole.backend.security.TestJwtIssuer;
+import net.onelitefeather.blackhole.backend.support.TestClock;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
@@ -19,6 +22,10 @@ import java.util.Map;
  * Base for tests that call the REST API of an application started against the real containers.
  * Every test starts its own application context; the containers (and so the database) live for the
  * whole test class, so tests must use their own keys and owners to stay independent.
+ *
+ * <p>Every route needs a token. The plain {@code get}/{@code post}/{@code delete} calls send an
+ * ADMIN token signed by this test's own {@link TestJwtIssuer}; the overloads with a token argument
+ * send that token instead, or none at all when it is {@code null}.
  */
 public abstract class ApiIntegrationTest extends PostgresIntegrationTest {
 
@@ -42,6 +49,9 @@ public abstract class ApiIntegrationTest extends PostgresIntegrationTest {
         }
     }
 
+    /** This test's own signing key: the application trusts it and nothing else. */
+    protected final TestJwtIssuer jwt = new TestJwtIssuer(new TestClock());
+
     protected ApplicationContext context;
     protected EmbeddedServer server;
     private HttpClient client;
@@ -64,6 +74,7 @@ public abstract class ApiIntegrationTest extends PostgresIntegrationTest {
         Map<String, Object> properties = new java.util.HashMap<>(contextProperties());
         // A random free port, so the tests do not depend on 8080 being free on the machine.
         properties.put("micronaut.server.port", -1);
+        properties.putAll(this.jwt.contextProperties());
         properties.putAll(extraProperties());
         return properties;
     }
@@ -75,15 +86,30 @@ public abstract class ApiIntegrationTest extends PostgresIntegrationTest {
     }
 
     protected Reply get(String path) {
-        return call(HttpRequest.GET(path));
+        return get(path, this.jwt.admin());
+    }
+
+    protected Reply get(String path, String token) {
+        return call(HttpRequest.GET(path), token);
     }
 
     protected Reply post(String path, Object body) {
-        return call(body == null ? HttpRequest.POST(path, "") : HttpRequest.POST(path, body));
+        return post(path, body, this.jwt.admin());
     }
 
-    private Reply call(HttpRequest<?> request) {
+    protected Reply post(String path, Object body, String token) {
+        return call(body == null ? HttpRequest.POST(path, "") : HttpRequest.POST(path, body), token);
+    }
+
+    protected Reply delete(String path, String token) {
+        return call(HttpRequest.DELETE(path), token);
+    }
+
+    private Reply call(MutableHttpRequest<?> request, String token) {
         try {
+            if (token != null) {
+                request.bearerAuth(token);
+            }
             HttpResponse<String> response = this.client.toBlocking().exchange(request, String.class);
             return new Reply(response.code(), response.body(), this.mapper);
         } catch (HttpClientResponseException e) {

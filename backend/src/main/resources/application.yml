@@ -41,19 +41,58 @@ flyway:
       enabled: true
       locations: classpath:db/migration
 
-# Metrics scraping is expected to be protected at the network level, like every other endpoint
-# (see the no-auth note below) - a scrape target shouldn't need a bearer token either way.
+# Operational endpoints. /health is public (orchestrator probes) and shows the status only, no
+# component details. /prometheus is protected: it needs the METRICS role (see the intercept-url-map
+# under micronaut.security below), so a scraper authenticates with a client-credentials token.
+# Every other management endpoint (beans, routes, threaddump, flyway, info, metrics, refresh) is off:
+# a sensitive endpoint is open to any signed-in caller, even one without a role.
 endpoints:
+  all:
+    enabled: false
+  health:
+    enabled: true
+    details-visible: NEVER
   prometheus:
+    enabled: true
     sensitive: false
 
-# There is deliberately no auth system (no JWT, no @Secured) right now: every endpoint is open.
-# The trust model is that only trusted callers can reach this API at all - admins/tools calling
-# the REST API directly, or the Velocity plugin acting on behalf of admins/moderators - and that
-# boundary is enforced at the network/deployment level (firewalling, private networking), not by
-# the application. Revisit once real per-actor identity exists (see the historical "no per-actor
-# identity" gap noted for source/resolvedBy/reviewerId fields).
 blackhole:
+  # Authentication: every route needs an Entra ID (OIDC) access token as "Authorization: Bearer",
+  # except GET /health. Tokens are verified against the issuer's published keys (JWKS); the
+  # backend keeps no session and sets no cookie. There is no setting that turns authentication off.
+  # The defaults below point at the local mock OIDC server (docker/docker-compose.yml, dev only);
+  # for a real tenant set the BLACKHOLE_AUTH_* variables, nothing else.
+  security:
+    # Optional. The Entra tenant (directory) id; when set, a token whose "tid" claim differs is refused.
+    tenant-id: ${BLACKHOLE_AUTH_TENANT_ID:}
+    # Where the issuer publishes its signing keys. Entra: https://login.microsoftonline.com/<tenant>/discovery/v2.0/keys
+    jwks-url: ${BLACKHOLE_AUTH_JWKS_URL:`http://localhost:18090/blackhole/jwks`}
+    # The backend refuses to start with a plain http or localhost issuer outside the dev and test
+    # environments (so the mock-server defaults never reach production). Only set this to true for a
+    # deliberate exception, e.g. an internal http identity provider on a private network.
+    allow-insecure-issuer: ${BLACKHOLE_AUTH_ALLOW_INSECURE_ISSUER:false}
+    # How token claims become roles. The token kind selects the claim: delegated tokens (a signed-in
+    # user, they carry "scp") are read from claim-human; app-only tokens (client credentials) from
+    # claim-machine. ADMIN implies MODERATOR implies VIEWER. Values are comma separated.
+    roles:
+      claim-human: ${BLACKHOLE_AUTH_ROLES_CLAIM_HUMAN:groups}
+      claim-machine: ${BLACKHOLE_AUTH_ROLES_CLAIM_MACHINE:roles}
+      # Entra GROUP OBJECT IDS (not group names) of the security groups that grant each role on
+      # delegated tokens. The defaults are fake ids that match docker/mock-oauth/config.json. With
+      # Entra ID P1 you can switch to app-role assignment: set claim-human to "roles" and these to
+      # the app role values, no code change.
+      admin: ${BLACKHOLE_AUTH_ROLE_ADMIN:5d0c0a00-0000-4000-8000-000000000001}
+      moderator: ${BLACKHOLE_AUTH_ROLE_MODERATOR:5d0c0a00-0000-4000-8000-000000000002}
+      viewer: ${BLACKHOLE_AUTH_ROLE_VIEWER:5d0c0a00-0000-4000-8000-000000000003}
+      metrics: ${BLACKHOLE_AUTH_ROLE_METRICS:5d0c0a00-0000-4000-8000-000000000004}
+      # App role values (not group ids) that grant PROXY (the Velocity plugin) and METRICS (the
+      # Prometheus scraper) on app-only tokens.
+      machine-proxy: ${BLACKHOLE_AUTH_MACHINE_ROLE_PROXY:Blackhole.Proxy}
+      machine-metrics: ${BLACKHOLE_AUTH_MACHINE_ROLE_METRICS:Blackhole.Metrics}
+  # Swagger / OpenAPI views are only served when enabled (default off; on in the dev profile) and
+  # then need the VIEWER role.
+  docs:
+    enabled: ${BLACKHOLE_DOCS_ENABLED:false}
   # Report submission is rate-limited per reporterHash within this rolling window, so reporting
   # itself can't become a griefing vector. reporterHash is client-supplied (no per-player identity
   # exists yet), so max-reports-network-wide is an additional aggregate backstop that still caps
@@ -221,6 +260,36 @@ blackhole:
 micronaut:
   application:
     name: Blackhole API
+  # Resource server only: bearer tokens, no login flow, no session. A route with no @Secured rule is
+  # rejected. The token must be signed by the issuer's JWKS (blackhole.security.jwks-url), come from
+  # the issuer and be meant for this API (audience); expiry is always checked.
+  security:
+    authentication: bearer
+    endpoints:
+      # The library's /token_info route is not needed (GET /auth/me describes the caller).
+      introspection:
+        enabled: false
+    token:
+      jwt:
+        claims-validators:
+          # Entra v2 tokens: https://login.microsoftonline.com/<tenant>/v2.0
+          issuer: ${BLACKHOLE_AUTH_ISSUER:`http://localhost:18090/blackhole`}
+          # The API app registration's application (client) id, as it appears in the token's "aud"
+          # claim (a plain GUID for v2 tokens).
+          audience: ${BLACKHOLE_AUTH_AUDIENCE:blackhole-api}
+    intercept-url-map:
+      - pattern: /health/**
+        access:
+          - isAnonymous()
+      - pattern: /prometheus
+        access:
+          - METRICS
+      - pattern: /swagger/**
+        access:
+          - VIEWER
+      - pattern: /swagger-ui/**
+        access:
+          - VIEWER
   serde:
     jackson:
       parser-features:
@@ -241,9 +310,11 @@ micronaut:
   router:
     static-resources:
       swagger:
+        enabled: ${blackhole.docs.enabled}
         paths: classpath:META-INF/swagger
         mapping: /swagger/**
       swagger-ui:
+        enabled: ${blackhole.docs.enabled}
         paths: classpath:META-INF/swagger/views/swagger-ui
         mapping: /swagger-ui/**
     # API versioning (see docs.micronaut.io/latest/guide/#apiVersioning): resolved from the

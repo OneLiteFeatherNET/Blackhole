@@ -1,0 +1,80 @@
+{
+  "interactiveLogin": true,
+  "httpServer": "NettyWrapper",
+  "tokenCallbacks": [
+    {
+      "issuerId": "blackhole",
+      "tokenExpiry": 3600,
+      "requestMappings": [
+        {
+          "requestParam": "subject",
+          "match": "admin",
+          "claims": {
+            "sub": "${subject}",
+            "oid": "00000000-0000-4000-8000-0000000000a1",
+            "name": "Dev Admin",
+            "scp": "access_as_user",
+            "aud": ["blackhole-api"],
+            "groups": ["5d0c0a00-0000-4000-8000-000000000001"]
+          }
+        },
+        {
+          "requestParam": "subject",
+          "match": "moderator",
+          "claims": {
+            "sub": "${subject}",
+            "oid": "00000000-0000-4000-8000-0000000000a2",
+            "name": "Dev Moderator",
+            "scp": "access_as_user",
+            "aud": ["blackhole-api"],
+            "groups": ["5d0c0a00-0000-4000-8000-000000000002"]
+          }
+        },
+        {
+          "requestParam": "subject",
+          "match": "viewer",
+          "claims": {
+            "sub": "${subject}",
+            "oid": "00000000-0000-4000-8000-0000000000a3",
+            "name": "Dev Viewer",
+            "scp": "access_as_user",
+            "aud": ["blackhole-api"],
+            "groups": ["5d0c0a00-0000-4000-8000-000000000003"]
+          }
+        },
+        {
+          "requestParam": "subject",
+          "match": "nogroup",
+          "claims": {
+            "sub": "${subject}",
+            "oid": "00000000-0000-4000-8000-0000000000a4",
+            "name": "Dev No Group",
+            "scp": "access_as_user",
+            "aud": ["blackhole-api"],
+            "groups": []
+          }
+        },
+        {
+          "requestParam": "client_id",
+          "match": "blackhole-proxy",
+          "claims": {
+            "sub": "00000000-0000-4000-8000-0000000000b1",
+            "oid": "00000000-0000-4000-8000-0000000000b1",
+            "aud": ["blackhole-api"],
+            "roles": ["Blackhole.Proxy"]
+          }
+        },
+        {
+          "requestParam": "client_id",
+          "match": "blackhole-metrics",
+          "claims": {
+            "sub": "00000000-0000-4000-8000-0000000000b2",
+            "oid": "00000000-0000-4000-8000-0000000000b2",
+            "aud": ["blackhole-api"],
+            "roles": ["Blackhole.Metrics"]
+          }
+        }
+      ]
+    }
+  ]
+}

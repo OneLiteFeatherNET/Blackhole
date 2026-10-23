@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.elo.controller;
 
+import io.micronaut.security.annotation.Secured;
+import net.onelitefeather.blackhole.backend.security.Roles;
 import io.micronaut.core.version.annotation.Version;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -33,22 +35,26 @@ public class EloController implements EloApi {
     }
 
     @Override
+    @Secured({Roles.MODERATOR, Roles.PROXY})
     public HttpResponse<EloDTO.ChatSignalResponse> chat(EloDTO.ChatSignalRequest signal) {
         return HttpResponse.ok(this.chatToxicityService.evaluate(signal.owner(), signal.message()));
     }
 
     @Override
+    @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<EloDTO.ProfileResponse> getProfile(String owner) {
         return HttpResponse.ok(this.eloService.getProfile(owner));
     }
 
     @Override
+    @Secured(Roles.VIEWER)
     public HttpResponse<Page<EloDTO.EventResponse>> getHistory(String owner, String section, Pageable pageable) {
         Page<EloEventEntity> entries = this.eloService.getHistory(owner, section, pageable);
         return HttpResponse.ok(entries.map(EloEventEntity::toDTO));
     }
 
     @Override
+    @Secured(Roles.MODERATOR)
     public HttpResponse<EloDTO> adjust(String owner, EloDTO.AdjustRequest request) {
         EloDTO result = this.eloService.adjust(owner, request);
         if (result instanceof EloDTO.Error error) {
