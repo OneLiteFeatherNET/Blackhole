@@ -17,16 +17,11 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEvents;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
-import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
-import net.onelitefeather.blackhole.backend.section.EnforcementKind;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
-import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
-import net.onelitefeather.blackhole.backend.section.EnforcementKind;
 import net.onelitefeather.blackhole.backend.security.Actor;
-import net.onelitefeather.blackhole.backend.section.SectionService;
 import net.onelitefeather.blackhole.backend.section.dto.SectionDTO;
 import net.onelitefeather.blackhole.backend.utils.IdGenerator;
 import net.onelitefeather.phoca.metadata.Expirable;
@@ -81,8 +76,7 @@ public class VanillaImportService {
     private final PunishmentProfileRepository profileRepository;
     private final DomainEventPublisher eventPublisher;
     private final ProfileCache profileCache;
-    private final SectionService sectionService;
-    private final PunishmentTemplateRepository templateRepository;
+    private final ImportTemplateResolver templateResolver;
     private final CaseTimeline caseTimeline;
     private final Clock clock;
 
@@ -92,8 +86,7 @@ public class VanillaImportService {
             PunishmentProfileRepository profileRepository,
             DomainEventPublisher eventPublisher,
             ProfileCache profileCache,
-            SectionService sectionService,
-            PunishmentTemplateRepository templateRepository,
+            ImportTemplateResolver templateResolver,
             CaseTimeline caseTimeline,
             Clock clock
     ) {
@@ -102,8 +95,7 @@ public class VanillaImportService {
         this.profileRepository = profileRepository;
         this.eventPublisher = eventPublisher;
         this.profileCache = profileCache;
-        this.sectionService = sectionService;
-        this.templateRepository = templateRepository;
+        this.templateResolver = templateResolver;
         this.caseTimeline = caseTimeline;
         this.clock = clock;
     }
@@ -134,13 +126,14 @@ public class VanillaImportService {
             return error(ErrorKind.VALIDATION, "templateKey is required: imported bans must be linked to a template");
         }
 
-        Map<String, ResolvedTemplate> templates = new HashMap<>();
+        Map<String, ImportTemplateResolver.Resolved> templates = new HashMap<>();
         for (String key : distinctKeys(templateKey, mapping)) {
-            Object resolved = resolve(key);
-            if (resolved instanceof VanillaImportDTO.Error refused) {
-                return refused;
+            switch (this.templateResolver.resolve(key)) {
+                case ImportTemplateResolver.Refused refused -> {
+                    return error(refused.kind(), refused.message());
+                }
+                case ImportTemplateResolver.Resolved resolved -> templates.put(key, resolved);
             }
-            templates.put(key, (ResolvedTemplate) resolved);
         }
 
         List<VanillaBanEntry> entries = this.jsonMapper.readValue(bannedPlayersJson, Argument.listOf(VanillaBanEntry.class));
@@ -172,7 +165,7 @@ public class VanillaImportService {
 
             String reason = normalizedReason(entry.reason());
             String entryTemplateKey = mapping.getOrDefault(reason, templateKey);
-            ResolvedTemplate resolved = templates.get(entryTemplateKey);
+            ImportTemplateResolver.Resolved resolved = templates.get(entryTemplateKey);
             PunishmentTemplateEntity template = resolved.template();
             SectionDTO.Response section = resolved.section();
             String sectionKey = section.key();
@@ -255,35 +248,11 @@ public class VanillaImportService {
         return new VanillaImportDTO.Result(dryRun, entries.size(), imported, skippedExisting, invalid, invalidEntries, ipsTotal, ipsTotal, reasonGroups);
     }
 
-    /** A template and the section it punishes in, validated for use by an import. */
-    private record ResolvedTemplate(PunishmentTemplateEntity template, SectionDTO.Response section) {
-    }
-
     private static Set<String> distinctKeys(String templateKey, Map<String, String> mapping) {
         Set<String> keys = new LinkedHashSet<>();
         keys.add(templateKey);
         keys.addAll(mapping.values());
         return keys;
-    }
-
-    /** The {@link ResolvedTemplate}, or the {@link VanillaImportDTO.Error} that refuses the import. */
-    private Object resolve(String key) {
-        PunishmentTemplateEntity template = this.templateRepository.findByTemplateKey(key).orElse(null);
-        if (template == null) {
-            return error(ErrorKind.NOT_FOUND, "there is no punishment template with the key '" + key + "'");
-        }
-        SectionDTO.Response section = this.sectionService.find(template.getSectionKey()).orElse(null);
-        if (section == null) {
-            return error(ErrorKind.NOT_FOUND, "the section '" + template.getSectionKey() + "' of template '" + key + "' does not exist");
-        }
-        if (section.enforcement() == EnforcementKind.MUTE) {
-            return error(ErrorKind.VALIDATION, "template '" + key + "' punishes in the mute section '" + section.key()
-                    + "'; vanilla bans are bans and cannot be linked to a mute template");
-        }
-        if (!section.enabled()) {
-            return error(ErrorKind.CONFLICT, "section '" + section.key() + "' of template '" + key + "' is disabled");
-        }
-        return new ResolvedTemplate(template, section);
     }
 
     private Map<String, String> parseMapping(String reasonTemplates) throws IOException {
