@@ -131,6 +131,7 @@
     "columns": {
       "when": "When",
       "section": "Section",
+      "issuedBy": "Issued by",
       "reason": "Reason",
       "step": "Step",
       "cost": "ELO cost",
@@ -514,5 +515,45 @@
       "zero": "The duration must be longer than zero.",
       "tooLarge": "Too long. The maximum is 10 years (3650d); use a permanent punishment instead."
     }
+  },
+  "account": {
+    "open": "Account",
+    "link": {
+      "title": "Your account",
+      "linked": "Linked to Minecraft account {uuid}",
+      "unlinkedStatus": "Not linked",
+      "issue": "Link Minecraft account",
+      "reissue": "Generate a new code",
+      "copyCode": "Copy code",
+      "copyCommand": "Copy command",
+      "copied": "Copied to the clipboard.",
+      "copyFailed": "Copying failed. Select the text and copy it by hand.",
+      "validFor": "Valid for {time}",
+      "expired": "The code has expired.",
+      "instructions": "Type this in the game:",
+      "unlink": "Remove link",
+      "unlinkTitle": "Remove the link?",
+      "unlinkBody": "Your Minecraft account is no longer attributed to you. Earlier entries keep their attribution.",
+      "unlinkConfirm": "Remove link",
+      "unlinked": "Link removed.",
+      "close": "Close"
+    }
+  },
+  "staffLinks": {
+    "title": "Linked Minecraft accounts",
+    "intro": "Which staff member plays with which Minecraft account.",
+    "empty": "No accounts are linked.",
+    "unnamed": "(no name)",
+    "columns": {
+      "person": "Person",
+      "minecraft": "Minecraft account",
+      "linkedAt": "Linked",
+      "actions": "Actions"
+    },
+    "unlink": "Remove link",
+    "unlinkTitle": "Remove the link of {name}?",
+    "unlinkBody": "The person can link again with a new code. Earlier entries keep their attribution.",
+    "unlinkConfirm": "Remove link",
+    "removed": "Link removed."
   }
 }

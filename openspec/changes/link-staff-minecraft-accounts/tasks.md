@@ -19,10 +19,10 @@
 
 ## 3. Web: account dialog (PR 3, based on PR 2)
 
-- [ ] 3.1 Regenerate the web API client from spec 0.0.16 (`generate:api`); verify the build
-- [ ] 3.2 Write failing component tests (fake clock, fake API) then add `AccountLinkDialog.vue` opened from the top bar: status, issue button, code with countdown (`aria-live` off while ticking, announced at expiry), copy button with confirmation, unlink with confirmation dialog; verify keyboard operation and focus return
-- [ ] 3.3 Add the admin list of links (ADMIN only) with unlink; show `actorName` on the punishment timeline; verify the role-aware visibility
-- [ ] 3.4 Add de and en strings and verify `i18n.keys.test.ts` parity and the no-native-select test
+- [x] 3.1 Regenerate the web API client from spec 0.0.16 (`generate:api`); verify the build
+- [x] 3.2 Write failing component tests (fake clock, fake API) then add `AccountLinkDialog.vue` opened from the top bar: status, issue button, code with countdown (`aria-live` off while ticking, announced at expiry), copy button with confirmation, unlink with confirmation dialog; verify keyboard operation and focus return
+- [x] 3.3 Add the admin list of links (ADMIN only) with unlink; show `actorName` on the punishment timeline; verify the role-aware visibility
+- [x] 3.4 Add de and en strings and verify `i18n.keys.test.ts` parity and the no-native-select test
 
 ## 4. Documentation (PR 4, based on PR 3)
 

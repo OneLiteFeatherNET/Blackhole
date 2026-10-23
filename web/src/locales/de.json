@@ -131,6 +131,7 @@
     "columns": {
       "when": "Zeitpunkt",
       "section": "Bereich",
+      "issuedBy": "Ausgestellt von",
       "reason": "Grund",
       "step": "Stufe",
       "cost": "ELO-Kosten",
@@ -514,5 +515,45 @@
       "zero": "Die Dauer muss größer als null sein.",
       "tooLarge": "Zu lang. Maximal 10 Jahre (3650d); nimm stattdessen eine dauerhafte Strafe."
     }
+  },
+  "account": {
+    "open": "Konto",
+    "link": {
+      "title": "Dein Konto",
+      "linked": "Verknüpft mit dem Minecraft-Konto {uuid}",
+      "unlinkedStatus": "Nicht verknüpft",
+      "issue": "Minecraft-Konto verknüpfen",
+      "reissue": "Neuen Code erzeugen",
+      "copyCode": "Code kopieren",
+      "copyCommand": "Befehl kopieren",
+      "copied": "In die Zwischenablage kopiert.",
+      "copyFailed": "Kopieren fehlgeschlagen. Markiere den Text und kopiere ihn von Hand.",
+      "validFor": "Noch gültig: {time}",
+      "expired": "Der Code ist abgelaufen.",
+      "instructions": "Gib im Spiel ein:",
+      "unlink": "Verknüpfung entfernen",
+      "unlinkTitle": "Verknüpfung entfernen?",
+      "unlinkBody": "Dein Minecraft-Konto wird dir nicht mehr zugeordnet. Frühere Einträge behalten ihre Zuordnung.",
+      "unlinkConfirm": "Verknüpfung entfernen",
+      "unlinked": "Verknüpfung entfernt.",
+      "close": "Schließen"
+    }
+  },
+  "staffLinks": {
+    "title": "Verknüpfte Minecraft-Konten",
+    "intro": "Welches Teammitglied mit welchem Minecraft-Konto spielt.",
+    "empty": "Es ist kein Konto verknüpft.",
+    "unnamed": "(ohne Namen)",
+    "columns": {
+      "person": "Person",
+      "minecraft": "Minecraft-Konto",
+      "linkedAt": "Verknüpft",
+      "actions": "Aktionen"
+    },
+    "unlink": "Verknüpfung entfernen",
+    "unlinkTitle": "Verknüpfung von {name} entfernen?",
+    "unlinkBody": "Die Person kann sich mit einem neuen Code erneut verknüpfen. Frühere Einträge behalten ihre Zuordnung.",
+    "unlinkConfirm": "Verknüpfung entfernen",
+    "removed": "Verknüpfung entfernt."
   }
 }

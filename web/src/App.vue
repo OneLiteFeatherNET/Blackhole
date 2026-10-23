@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
 import { useAuth, useSignOut } from './auth/inject'
+import AccountLinkDialog from './components/account/AccountLinkDialog.vue'
 import MdButton from './components/md/MdButton.vue'
 import MdNavigationRail from './components/md/MdNavigationRail.vue'
 import MdSelect from './components/md/MdSelect.vue'
@@ -40,6 +41,7 @@ const ui = useUiStore()
 const session = useSessionStore()
 const auth = useAuth()
 const signOut = useSignOut()
+const accountOpen = ref(false)
 
 // Nothing is shown (not even the navigation) until the router has resolved a route, which for the
 // first visit means after sign-in, and never while the browser is on its way to the authority.
@@ -82,6 +84,7 @@ const locale = computed({
             <span data-testid="signed-in-as" class="text-body-medium text-on-surface-variant">
               {{ t('auth.signedInAs', { name: session.displayName }) }}
             </span>
+            <MdButton variant="text" data-testid="account" @click="accountOpen = true">{{ t('account.open') }}</MdButton>
             <MdButton variant="text" data-testid="sign-out" @click="signOut">{{ t('auth.signOut') }}</MdButton>
           </template>
           <MdSelect v-model="theme" class="w-36" :label="t('settings.theme.label')" :options="themeOptions" />
@@ -103,5 +106,6 @@ const locale = computed({
       </main>
     </div>
   </div>
+  <AccountLinkDialog v-if="resolved && session.displayName" :open="accountOpen" @close="accountOpen = false" />
   <MdSnackbar :open="session.forbidden" :message="t('auth.forbidden')" @close="session.forbidden = false" />
 </template>

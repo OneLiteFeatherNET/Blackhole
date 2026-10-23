@@ -28,6 +28,9 @@ export type Appeal = Schemas['AppealDTO']
 export type CurrentCaller = Schemas['AuthMeResponse']
 export type Evidence = Schemas['EvidenceResponse']
 export type EvidencePage = Schemas['EvidencePage']
+export type StaffLinkCode = Schemas['StaffLinkCodeResponse']
+export type StaffLinkStatus = Schemas['StaffLinkStatusResponse']
+export type StaffLink = Schemas['StaffLinkItem']
 
 /** Why staff delete an evidence item; the backend records it in the audit trail. */
 export type EvidenceDeleteReason = 'ERASURE_REQUEST' | 'WRONG_EVIDENCE' | 'OTHER'
