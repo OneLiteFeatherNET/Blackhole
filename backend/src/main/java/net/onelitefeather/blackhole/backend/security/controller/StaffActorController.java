@@ -29,6 +29,12 @@ public class StaffActorController implements StaffActorApi {
 
     @Override
     @Secured(Roles.ADMIN)
+    public HttpResponse<StaffActorDTO> list() {
+        return HttpResponse.ok(this.staffActorService.list());
+    }
+
+    @Override
+    @Secured(Roles.ADMIN)
     public HttpResponse<StaffActorDTO> anonymize(UUID oid, Actor actor) {
         StaffActorDTO result = this.staffActorService.anonymize(oid, actor);
         if (result instanceof StaffActorDTO.Error error) {

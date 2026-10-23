@@ -137,6 +137,21 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void anAdminCanListTheStaffActors() {
+        assertEquals(200, get("/admin/staff-actor", this.jwt.admin()).status(), "admin on the staff actor list");
+    }
+
+    @Test
+    void aModeratorCannotListTheStaffActors() {
+        assertEquals(403, get("/admin/staff-actor", this.jwt.moderator()).status(), "moderator on an admin route");
+    }
+
+    @Test
+    void aViewerCannotListTheStaffActors() {
+        assertEquals(403, get("/admin/staff-actor", this.jwt.viewer()).status(), "viewer on an admin route");
+    }
+
+    @Test
     void aMachineTokenWithAHumanRoleValueHasNoRole() {
         String token = this.jwt.appOnly().roles(TestJwtIssuer.MODERATOR_GROUP, TestJwtIssuer.ADMIN_GROUP).sign();
 

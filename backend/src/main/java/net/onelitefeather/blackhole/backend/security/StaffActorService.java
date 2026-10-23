@@ -7,6 +7,7 @@ import net.onelitefeather.blackhole.backend.security.dto.StaffActorDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,6 +32,15 @@ public class StaffActorService {
         this.actors = actors;
         this.events = events;
         this.links = links;
+    }
+
+    /** Every known principal, most recently seen first. */
+    public StaffActorDTO list() {
+        return new StaffActorDTO.ListResponse(this.actors.findAll().stream()
+                .sorted(Comparator.comparingLong(StaffActorEntity::getLastSeenAt).reversed())
+                .map(actor -> new StaffActorDTO.Item(
+                        actor.getOid(), actor.getKind(), actor.getDisplayName(), actor.getFirstSeenAt(), actor.getLastSeenAt()))
+                .toList());
     }
 
     /**

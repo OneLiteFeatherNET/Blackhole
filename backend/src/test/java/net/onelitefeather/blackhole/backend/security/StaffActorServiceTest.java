@@ -80,4 +80,26 @@ class StaffActorServiceTest {
 
         assertTrue(this.events.eventsOfType(StaffLinkService.REMOVED_EVENT).isEmpty(), "nothing to remove");
     }
+
+    @Test
+    void listingShowsEveryPrincipalMostRecentlySeenFirst() {
+        UUID other = UUID.fromString("66666666-6666-4666-8666-666666666666");
+        StaffActorEntity older = new StaffActorEntity(LEAVER, ActorKind.HUMAN, "Lea Leaver", 1L);
+        StaffActorEntity newer = new StaffActorEntity(other, ActorKind.SERVICE, null, 2L);
+        newer.setLastSeenAt(9L);
+        this.store.given(older, LEAVER);
+        this.store.given(newer, other);
+
+        var items = assertInstanceOf(StaffActorDTO.ListResponse.class, this.service.list()).items();
+
+        assertEquals(java.util.List.of(other, LEAVER), items.stream().map(StaffActorDTO.Item::oid).toList(), "newest first");
+        assertEquals(ActorKind.SERVICE, items.getFirst().kind(), "the kind is reported");
+        assertNull(items.getFirst().displayName(), "an anonymized or unnamed principal has no name");
+        assertEquals("Lea Leaver", items.get(1).displayName(), "a named principal keeps its name");
+    }
+
+    @Test
+    void listingWithoutAnyPrincipalIsEmpty() {
+        assertTrue(assertInstanceOf(StaffActorDTO.ListResponse.class, this.service.list()).items().isEmpty(), "nothing known yet");
+    }
 }

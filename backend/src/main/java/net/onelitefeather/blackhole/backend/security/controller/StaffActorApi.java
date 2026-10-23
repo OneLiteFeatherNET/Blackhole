@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.security.controller;
 
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,6 +15,18 @@ import net.onelitefeather.blackhole.backend.security.dto.StaffActorDTO;
 import java.util.UUID;
 
 public interface StaffActorApi {
+
+    @Operation(
+            summary = "List staff actors",
+            description = "Every verified staff principal the backend has seen, with the display name kept for it "
+                    + "(absent once anonymized), its kind and when it was first and last seen. Most recently seen first.",
+            operationId = "listStaffActors",
+            tags = {"Auth"}
+    )
+    @ApiResponse(responseCode = "200", description = "The known staff principals",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = StaffActorDTO.ListResponse.class)))
+    @Get
+    HttpResponse<StaffActorDTO> list();
 
     @Operation(
             summary = "Anonymize a staff actor",
