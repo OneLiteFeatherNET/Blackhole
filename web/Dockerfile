@@ -18,7 +18,7 @@ RUN cd web && npm ci
 COPY web ./web
 RUN cd web && npm run build
 
-FROM nginxinc/nginx-unprivileged:1.30.6-alpine
+FROM nginxinc/nginx-unprivileged:1.31.7-alpine
 # Only these variables are substituted into the nginx template; nginx's own $variables stay untouched.
 ENV NGINX_ENVSUBST_FILTER=^BLACKHOLE_ \
     BLACKHOLE_BACKEND_URL=http://backend:8080
