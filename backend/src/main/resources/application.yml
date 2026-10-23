@@ -95,6 +95,8 @@ blackhole:
       # Prometheus scraper) on app-only tokens.
       machine-proxy: ${BLACKHOLE_AUTH_MACHINE_ROLE_PROXY:Blackhole.Proxy}
       machine-metrics: ${BLACKHOLE_AUTH_MACHINE_ROLE_METRICS:Blackhole.Metrics}
+      # The Discord bot (discord module) acts with this app role; it only reaches /discord/**.
+      machine-discord: ${BLACKHOLE_AUTH_MACHINE_ROLE_DISCORD:Blackhole.Discord}
   # Ban ID: the 8 character credential a player opens the appeal portal with. It is stored only as an
   # HMAC (login lookup) and an AES-GCM ciphertext (staff reveal), both derived from this one secret:
   # 32 random bytes, base64 (openssl rand -base64 32). Unset is allowed
@@ -104,6 +106,13 @@ blackhole:
   # issues Ban IDs to punishments that have none (right after start, then periodically).
   banid:
     key: ${BLACKHOLE_BANID_KEY:}
+  # Discord bot integration. Linking a staff member or player to their Discord account: the person gets
+  # a one-time code (panel, or /blackhole discord in game) and types /link <code> in Discord. A code is
+  # single use and valid for this long (ISO-8601 duration). No failed-attempt cap in the app (infra
+  # owns rate limiting). The Discord user id is personal data, stored only in the erasable link row.
+  discord:
+    link:
+      ttl: ${BLACKHOLE_DISCORD_LINK_TTL:PT10M}
   # Swagger / OpenAPI views are only served when enabled (default off; on in the dev profile) and
   # then need the VIEWER role.
   docs:

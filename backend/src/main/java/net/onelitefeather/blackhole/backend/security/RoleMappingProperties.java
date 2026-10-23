@@ -19,6 +19,7 @@ import java.util.List;
  * @param metrics        values granting METRICS on delegated tokens
  * @param machineProxy   values granting PROXY on app-only tokens
  * @param machineMetrics values granting METRICS on app-only tokens
+ * @param machineDiscord values granting DISCORD on app-only tokens
  */
 @ConfigurationProperties("blackhole.security.roles")
 public record RoleMappingProperties(
@@ -29,7 +30,8 @@ public record RoleMappingProperties(
         @NonNull List<String> viewer,
         @NonNull List<String> metrics,
         @NonNull List<String> machineProxy,
-        @NonNull List<String> machineMetrics
+        @NonNull List<String> machineMetrics,
+        @NonNull List<String> machineDiscord
 ) {
 
     @ConfigurationInject
