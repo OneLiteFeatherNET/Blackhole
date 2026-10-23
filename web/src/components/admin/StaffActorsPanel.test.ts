@@ -124,10 +124,16 @@ describe('StaffActorsPanel', () => {
 })
 
 describe('AdminView', () => {
-  it('shows the staff list', async () => {
-    const { wrapper } = await mountWithApp(AdminView, { api: mockApi({ staffActors: vi.fn(async () => ok([ada])) }), roles: ['ADMIN'], path: '/admin' })
+  it('shows the staff list, the import and the CloudNet catalogue', async () => {
+    const api = mockApi({
+      staffActors: vi.fn(async () => ok([ada])),
+      cloudnetCatalogue: vi.fn(async () => ok({ available: false, tasks: [], groups: [], services: [], proxies: [] })),
+    })
+    const { wrapper } = await mountWithApp(AdminView, { api, roles: ['ADMIN'], path: '/admin' })
 
-    expect(wrapper.find('[data-testid="staff-actors"]').exists(), 'panel').toBe(true)
+    expect(wrapper.find('[data-testid="staff-actors"]').exists(), 'staff panel').toBe(true)
+    expect(wrapper.find('[data-testid="vanilla-import"]').exists(), 'import panel').toBe(true)
+    expect(wrapper.find('[data-testid="cloudnet-catalogue"]').exists(), 'catalogue panel').toBe(true)
 
     wrapper.unmount()
   })

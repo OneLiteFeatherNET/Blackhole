@@ -654,5 +654,30 @@
     "confirmTitle": "Bans importieren?",
     "confirmBody": "Die Bans werden angelegt und gelten sofort. Ein Import lässt sich nicht als Ganzes rückgängig machen; einzelne Bans kannst du auf der Spielerseite aufheben. Führe zuerst die Vorschau aus, falls noch nicht geschehen.",
     "confirm": "Jetzt importieren"
+  },
+  "cloudnetCatalogue": {
+    "title": "CloudNet-Katalog",
+    "intro": "Was die Proxys aus CloudNet melden. Nur lesbar; der Bereichs-Editor nutzt ihn für Vorschläge.",
+    "reload": "Neu laden",
+    "empty": "Es wurden noch keine CloudNet-Daten gemeldet. Ein Proxy meldet sie nach dem Start und danach regelmäßig; Meldungen verfallen nach einer Weile, die Daten verschwinden also, wenn kein Proxy mehr meldet.",
+    "reportedAt": "Zuletzt gemeldet: {time}",
+    "reportedUnknown": "Zeitpunkt der letzten Meldung unbekannt.",
+    "proxies": "Meldende Proxys",
+    "noProxies": "Kein Proxy meldet.",
+    "tasks": "Tasks",
+    "groups": "Gruppen",
+    "services": "Services",
+    "noneTasks": "Keine Tasks gemeldet.",
+    "noneGroups": "Keine Gruppen gemeldet.",
+    "noneServices": "Keine Services gemeldet.",
+    "none": "keine",
+    "running": "Läuft",
+    "stopped": "Gestoppt",
+    "columns": {
+      "task": "Task",
+      "groups": "Gruppen",
+      "service": "Service",
+      "state": "Zustand"
+    }
   }
 }
