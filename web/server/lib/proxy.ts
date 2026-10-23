@@ -43,6 +43,14 @@ export function selectTimeoutMs(method: string, backendPathname: string): number
   return isUpload ? EVIDENCE_UPLOAD_TIMEOUT_MS : DEFAULT_TIMEOUT_MS
 }
 
+/** nginx: `client_max_body_size 128m` on /api/evidence/file, its default 1m everywhere else. */
+export const EVIDENCE_UPLOAD_MAX_BYTES = 128 * 1024 * 1024
+export const DEFAULT_MAX_BODY_BYTES = 1024 * 1024
+
+export function selectMaxBodyBytes(backendPathname: string): number {
+  return backendPathname === '/evidence/file' ? EVIDENCE_UPLOAD_MAX_BYTES : DEFAULT_MAX_BODY_BYTES
+}
+
 const HOP_BY_HOP = new Set([
   'connection',
   'keep-alive',
@@ -54,8 +62,8 @@ const HOP_BY_HOP = new Set([
   'transfer-encoding',
   'upgrade',
 ])
-// The incoming values of these are replaced or recomputed, never trusted.
-const NOT_FORWARDED = new Set(['host', 'accept-encoding', 'x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host', 'forwarded'])
+// The incoming values of these are replaced, recomputed or unsupported by fetch (expect), never trusted.
+const NOT_FORWARDED = new Set(['host', 'expect', 'accept-encoding', 'x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host', 'forwarded'])
 
 export function buildForwardHeaders(incoming: Headers, clientAddress: string | undefined, proto: string): Headers {
   const headers = new Headers()
@@ -118,7 +126,14 @@ export async function forwardToBackend(request: ProxyRequest): Promise<Response>
     if (error instanceof HostilePathError) return text(400, 'Bad request path')
     throw error
   }
+  const maxBytes = selectMaxBodyBytes(target.pathname)
+  const declared = Number(request.headers.get('content-length'))
+  if (request.headers.get('content-length') !== null && Number.isFinite(declared) && declared > maxBytes) {
+    return text(413, 'Request body too large')
+  }
   const signal = request.signal ?? AbortSignal.timeout(selectTimeoutMs(request.method, target.pathname))
+  let received = 0
+  let tooLarge = false
   const init: RequestInit & { duplex?: 'half' } = {
     method: request.method,
     headers: buildForwardHeaders(request.headers, request.clientAddress, request.proto),
@@ -126,17 +141,31 @@ export async function forwardToBackend(request: ProxyRequest): Promise<Response>
     signal,
   }
   if (request.body && request.method !== 'GET' && request.method !== 'HEAD') {
-    init.body = request.body
+    init.body = request.body.pipeThrough(
+      new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, controller) {
+          received += chunk.byteLength
+          if (received > maxBytes) {
+            tooLarge = true
+            controller.error(new Error('request body too large'))
+          } else {
+            controller.enqueue(chunk)
+          }
+        },
+      }),
+    )
     init.duplex = 'half'
   }
   try {
     const upstream = await request.fetch(target, init)
+    if (tooLarge) return text(413, 'Request body too large')
     return new Response(upstream.body, {
       status: upstream.status,
       statusText: upstream.statusText,
       headers: buildResponseHeaders(upstream.headers),
     })
   } catch (error) {
+    if (tooLarge) return text(413, 'Request body too large')
     const name = (error as { name?: string } | null)?.name
     if (name === 'TimeoutError' || name === 'AbortError') return text(504, 'Backend timed out')
     return text(502, 'Backend unreachable')

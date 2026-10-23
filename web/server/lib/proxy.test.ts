@@ -3,9 +3,12 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_TIMEOUT_MS,
   EVIDENCE_UPLOAD_TIMEOUT_MS,
+  DEFAULT_MAX_BODY_BYTES,
+  EVIDENCE_UPLOAD_MAX_BYTES,
   HostilePathError,
   buildBackendUrl,
   forwardToBackend,
+  selectMaxBodyBytes,
   selectTimeoutMs,
   type ProxyRequest,
 } from './proxy'
@@ -87,6 +90,106 @@ describe('selectTimeoutMs', () => {
   })
 })
 
+function streamOf(...chunks: number[]): ReadableStream<Uint8Array> {
+  const queue = chunks.map((size) => new Uint8Array(size))
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      const next = queue.shift()
+      if (next) controller.enqueue(next)
+      else controller.close()
+    },
+  })
+}
+
+/** Like the real fetch, drains a streamed request body and rejects when the stream errors. */
+function drainingFetch() {
+  const calls: Call[] = []
+  const fetchImpl = (async (input: URL, init: RequestInit) => {
+    calls.push({ url: input, init })
+    const reader = (init.body as ReadableStream<Uint8Array>).getReader()
+    while (!(await reader.read()).done);
+    return new Response('{}')
+  }) as unknown as typeof fetch
+  return { calls, fetchImpl }
+}
+
+describe('selectMaxBodyBytes', () => {
+  it('allows 128 MiB for the evidence upload', () => {
+    expect(selectMaxBodyBytes('/evidence/file')).toBe(134217728)
+    expect(EVIDENCE_UPLOAD_MAX_BYTES).toBe(134217728)
+  })
+
+  it('keeps the nginx default of 1 MiB elsewhere', () => {
+    expect(selectMaxBodyBytes('/punishments')).toBe(1048576)
+    expect(DEFAULT_MAX_BODY_BYTES).toBe(1048576)
+  })
+})
+
+describe('forwardToBackend body limit', () => {
+  const upload = (extra: Partial<ProxyRequest> & { fetch: typeof fetch }) =>
+    request({ method: 'POST', path: '/api/evidence/file', ...extra })
+
+  it('answers 413 for a Content-Length above the evidence cap without calling the backend', async () => {
+    const { calls, fetchImpl } = fakeFetch()
+    const headers = new Headers({ 'content-length': String(EVIDENCE_UPLOAD_MAX_BYTES + 1) })
+
+    const response = await forwardToBackend(upload({ fetch: fetchImpl, headers, body: streamOf(1) }))
+
+    expect(response.status).toBe(413)
+    expect(calls, 'fetch was not called').toHaveLength(0)
+  })
+
+  it('lets a Content-Length exactly at the evidence cap pass', async () => {
+    const { calls, fetchImpl } = fakeFetch()
+    const headers = new Headers({ 'content-length': String(EVIDENCE_UPLOAD_MAX_BYTES) })
+
+    const response = await forwardToBackend(upload({ fetch: fetchImpl, headers, body: streamOf(1) }))
+
+    expect(response.status).toBe(200)
+    expect(calls).toHaveLength(1)
+  })
+
+  it('answers 413 for a Content-Length above 1 MiB on other routes without calling the backend', async () => {
+    const { calls, fetchImpl } = fakeFetch()
+    const headers = new Headers({ 'content-length': String(DEFAULT_MAX_BODY_BYTES + 1) })
+
+    const response = await forwardToBackend(request({ fetch: fetchImpl, method: 'POST', path: '/api/punishments', headers, body: streamOf(1) }))
+
+    expect(response.status).toBe(413)
+    expect(calls, 'fetch was not called').toHaveLength(0)
+  })
+
+  it('answers 413 once a streamed body without Content-Length passes the cap', async () => {
+    const { calls, fetchImpl } = drainingFetch()
+
+    const response = await forwardToBackend(
+      request({ fetch: fetchImpl, method: 'POST', path: '/api/punishments', body: streamOf(DEFAULT_MAX_BODY_BYTES, 1) }),
+    )
+
+    expect(response.status).toBe(413)
+    expect(calls, 'the upstream request was started and then aborted').toHaveLength(1)
+  })
+
+  it('lets a streamed body exactly at the cap pass', async () => {
+    const { fetchImpl } = drainingFetch()
+
+    const response = await forwardToBackend(
+      request({ fetch: fetchImpl, method: 'POST', path: '/api/punishments', body: streamOf(DEFAULT_MAX_BODY_BYTES) }),
+    )
+
+    expect(response.status).toBe(200)
+  })
+
+  it('applies the evidence cap to a streamed upload past 128 MiB', async () => {
+    const { fetchImpl } = drainingFetch()
+    const chunk = 16 * 1024 * 1024
+
+    const response = await forwardToBackend(upload({ fetch: fetchImpl, body: streamOf(...Array(8).fill(chunk), 1) }))
+
+    expect(response.status).toBe(413)
+  })
+})
+
 describe('forwardToBackend', () => {
   it('sends /api/x to <backend>/x with method and query', async () => {
     const { calls, fetchImpl } = fakeFetch()
@@ -121,6 +224,14 @@ describe('forwardToBackend', () => {
     expect(sent.get('authorization')).toBe('Bearer t')
     expect(sent.has('connection'), 'connection').toBe(false)
     expect(sent.has('transfer-encoding'), 'transfer-encoding').toBe(false)
+  })
+
+  it('does not forward Expect, which fetch rejects', async () => {
+    const { calls, fetchImpl } = fakeFetch()
+
+    await forwardToBackend(request({ fetch: fetchImpl, headers: new Headers({ expect: '100-continue' }) }))
+
+    expect((calls[0].init.headers as Headers).has('expect')).toBe(false)
   })
 
   it('relays status and body and marks the response no-store', async () => {
@@ -160,24 +271,14 @@ describe('forwardToBackend', () => {
     expect(response.headers.getSetCookie()).toEqual(['a=1', 'b=2'])
   })
 
-  it('passes the request body stream to the backend without reading it', async () => {
+  it('streams the request body to the backend instead of buffering it', async () => {
     const { calls, fetchImpl } = fakeFetch()
-    let pulled = false
-    const body = new ReadableStream<Uint8Array>(
-      {
-        pull() {
-          pulled = true
-        },
-      },
-      { highWaterMark: 0 },
-    )
+    const body = new ReadableStream<Uint8Array>({ start: (c) => c.close() })
 
     await forwardToBackend(request({ fetch: fetchImpl, method: 'POST', path: '/api/evidence/file', body }))
 
-    expect(calls[0].init.body, 'the same stream object').toBe(body)
+    expect(calls[0].init.body, 'a stream, not a buffer').toBeInstanceOf(ReadableStream)
     expect((calls[0].init as { duplex?: string }).duplex).toBe('half')
-    expect(body.locked, 'the proxy did not lock the stream').toBe(false)
-    expect(pulled, 'the proxy did not read the stream').toBe(false)
   })
 
   it('does not send a body with a GET request', async () => {

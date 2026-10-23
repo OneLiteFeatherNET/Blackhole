@@ -97,8 +97,8 @@ dev-server fixture; a test asserts the server route wins over a static file of t
 ### 4. API proxy as a handler
 
 `server/api/[...path].ts` forwards `/api/<rest>` to `<backendUrl>/<rest>` with method, query
-and body (streamed, no buffering, no size limit in the proxy; the backend enforces the evidence
-limits), and sets `X-Forwarded-For` (client address), `X-Forwarded-Proto` and the backend `Host`.
+and body (streamed, no buffering; body caps as nginx: 128 MiB on `/api/evidence/file`, 1 MiB elsewhere,
+413 by `Content-Length` or by a streamed byte count; the backend enforces the real evidence limits), and sets `X-Forwarded-For` (client address), `X-Forwarded-Proto` and the backend `Host`.
 Timeouts via `AbortSignal.timeout`: 30 s default, 120 s for `POST /api/evidence/file` (as nginx).
 Responses get `Cache-Control: no-store`. Backend unreachable gives 502, timeout 504, plain text.
 Hardening (the rest-path is caller-controlled, the origin is not): the path is normalised and
@@ -171,7 +171,7 @@ web server serves ... refuses to start"; behaviour is unchanged. Its proposal Im
 | 3 | `/assets/` 1 y `public, immutable`, miss = 404 | `publicAssets` entry `/assets` with `maxAge`, `fallthrough: false` | smoke: header and 404 |
 | 4 | `index.html` `Cache-Control: no-cache` | header set in middleware for the index document | unit: headers |
 | 5 | `/api/` proxy, prefix stripped, to `BLACKHOLE_BACKEND_URL` (envsubst at start) | `server/api/[...path].ts`, URL from validated env at startup | unit: URL builder, fake fetch |
-| 6 | `/api/evidence/file`: body 128 MB, no request buffering, 120 s | same handler, streamed body, no proxy-side limit, 120 s timeout for that route | unit: timeout selection, body not read |
+| 6 | `/api/evidence/file`: body 128 MB, no request buffering, 120 s | same handler, streamed body, 128 MiB cap reproduced in `server/lib/proxy.ts` (413 by `Content-Length` or by streamed count; 1 MiB elsewhere, as nginx's default), 120 s timeout for that route | unit: limits, timeout selection, body not read |
 | 7 | `/api/` read timeout 30 s | `AbortSignal.timeout(30_000)` gives 504 | unit with an aborted signal |
 | 8 | `X-Forwarded-For/Proto`, `Host` = backend | set explicitly in the proxy | unit |
 | 9 | `Cache-Control: no-store` on API | set on the proxy response | unit |
