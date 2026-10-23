@@ -52,7 +52,7 @@ public final class TargetResolver {
     /**
      * @param input what the staff member typed
      * @return the target
-     * @throws IllegalArgumentException if the input names no known player
+     * @throws TargetNotFoundException if the input names no known player
      */
     public ResolvedTarget resolve(String input) {
         Optional<Player> connected = this.online.find(input);
@@ -74,6 +74,6 @@ public final class TargetResolver {
         } catch (ApiException e) {
             // handled as unknown below
         }
-        throw new IllegalArgumentException("Player(%s) not found".formatted(input));
+        throw new TargetNotFoundException(input);
     }
 }

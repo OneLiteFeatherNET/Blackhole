@@ -59,6 +59,13 @@ class TargetResolverTest {
     }
 
     @Test
+    void anUnknownNameFailsWithTheTargetNotFoundErrorCarryingTheInput() {
+        TargetNotFoundException error = assertThrows(TargetNotFoundException.class, () -> resolver.resolve("nobody"));
+
+        assertEquals("nobody", error.input(), "the error message repeats what was typed");
+    }
+
+    @Test
     void aBackendFailureWhileResolvingIsAnArgumentErrorToo() {
         backendFails = true;
 

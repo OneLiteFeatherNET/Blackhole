@@ -15,10 +15,10 @@ title is a Conventional Commit `feat(velocity): ...`. Run `./gradlew :velocity:t
 
 ## 2. Punish result, errors and usage (PR 2: `feat(velocity): restyle ban, mute and punish feedback`)
 
-- [ ] 2.1 `StaffMessages.applied` block (header, step/duration, score delta, id, escalation warning line) replacing `PunishmentMessages.applied`, with hover/click per design D5 and the undo button gated by permission; verify unit tests for temporary, escalation, PLAIN inlining, button hidden without permission, German text
-- [ ] 2.2 Unknown-template suggestions (`closest`), wrong-kind hint naming the fitting command, conflict/backend-failure lines, evidence lines restyled; verify unit tests for ranking, limit of five, no-match text and that no status code is shown
-- [ ] 2.3 Cloud exception handlers for invalid syntax and argument errors (usage line, target-not-found text); verify unit tests on the formatter with a fake exception, and the `TargetParser` message
-- [ ] 2.4 New en/de keys, old `punishment.result.*` removed; verify key-parity test
+- [x] 2.1 `StaffMessages.applied` block (header, step/duration, score delta, id, escalation warning line) replacing `PunishmentMessages.applied`, with hover/click per design D5 and the undo button gated by permission; verify unit tests for temporary, escalation, PLAIN inlining, button hidden without permission, German text
+- [x] 2.2 Unknown-template suggestions (`closest`), wrong-kind hint naming the fitting command, conflict/backend-failure lines, evidence lines restyled; verify unit tests for ranking, limit of five, no-match text and that no status code is shown
+- [x] 2.3 Cloud exception handlers for invalid syntax and argument errors (usage line, target-not-found text); verify unit tests on the formatter with a fake exception, and the `TargetParser` message
+- [x] 2.4 New en/de keys, old `punishment.result.*` removed; verify key-parity test
 
 ## 3. Unban and unmute (PR 3: `feat(velocity): restyle unban and unmute feedback`)
 

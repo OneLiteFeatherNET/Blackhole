@@ -12,6 +12,7 @@ import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
+import net.onelitefeather.blackhole.velocity.command.CommandErrorHandlers;
 import net.onelitefeather.blackhole.velocity.command.PardonCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishInfoCommand;
@@ -131,6 +132,7 @@ public class BlackholeVelocity {
                 Key.get(new TypeLiteral<VelocityCommandManager<CommandSource>>() {
                 })
         );
+        CommandErrorHandlers.register(commandManager);
         AnnotationParser<CommandSource> annotationParser = new AnnotationParser<>(commandManager, CommandSource.class);
         annotationParser.parse(childInjector.getInstance(TargetParser.class));
         annotationParser.parse(childInjector.getInstance(PunishCommand.class));
