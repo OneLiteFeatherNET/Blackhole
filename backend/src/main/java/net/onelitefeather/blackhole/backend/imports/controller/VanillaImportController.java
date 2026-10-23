@@ -2,7 +2,8 @@ package net.onelitefeather.blackhole.backend.imports.controller;
 
 import io.micronaut.security.annotation.Secured;
 import net.onelitefeather.blackhole.backend.security.Roles;
-import net.onelitefeather.blackhole.backend.imports.dto.VanillaImportResultDTO;
+import net.onelitefeather.blackhole.backend.imports.dto.VanillaImportDTO;
+import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.imports.service.VanillaImportService;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpResponse;
@@ -35,19 +36,28 @@ public class VanillaImportController {
         this.importService = importService;
     }
 
+    /**
+     * @param templateKey     the template every imported ban is linked to
+     * @param reasonTemplates optional JSON object mapping an original reason to another template key
+     */
     @Operation(hidden = true)
     @Post(value = "/vanilla", consumes = MediaType.MULTIPART_FORM_DATA)
     @Secured(Roles.ADMIN)
     public HttpResponse<?> importVanilla(
             @Part("bannedPlayers") CompletedFileUpload bannedPlayers,
             @Part("bannedIps") @Nullable CompletedFileUpload bannedIps,
-            @QueryValue(defaultValue = "false") boolean dryRun
+            @Part("reasonTemplates") @Nullable String reasonTemplates,
+            @QueryValue String templateKey,
+            @QueryValue(defaultValue = "false") boolean dryRun,
+            Actor actor
     ) {
         try {
             byte[] playersBytes = bannedPlayers.getBytes();
             byte[] ipsBytes = bannedIps != null ? bannedIps.getBytes() : null;
-            VanillaImportResultDTO result = this.importService.importVanillaBans(playersBytes, ipsBytes, dryRun);
-            return HttpResponse.ok(result);
+            return switch (this.importService.importVanillaBans(playersBytes, ipsBytes, templateKey, reasonTemplates, dryRun, actor)) {
+                case VanillaImportDTO.Result result -> HttpResponse.ok(result);
+                case VanillaImportDTO.Error error -> HttpResponse.status(error.kind().status()).body(error);
+            };
         } catch (IOException e) {
             return HttpResponse.badRequest("Failed to read uploaded file(s): " + e.getMessage());
         }
