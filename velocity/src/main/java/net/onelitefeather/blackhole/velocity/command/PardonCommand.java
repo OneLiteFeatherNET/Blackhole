@@ -70,7 +70,7 @@ public final class PardonCommand {
             // Keeps this proxy's mirror right even if the Redis announcement is not delivered.
             this.syncHandler.accept(new PunishmentSyncMessage(
                     user.ownerHash(), section, null, PunishmentSyncMessage.STATE_CLEARED,
-                    revoked.response().getPunishment().getIdentifier(), null, null, null));
+                    revoked.response().getPunishment().getIdentifier(), null, null, null, false));
         }
         sender.sendMessage(StaffMessages.revoked(outcome, user.name(), action, section,
                 this.sections.ofKind(kinds.toArray(EnforcementKind[]::new)), Mode.of(sender)));

@@ -33,11 +33,11 @@ public class PunishmentRedisWriter implements PunishmentMirror {
     }
 
     @Override
-    public void set(String section, String enforcement, String owner, String punishmentIdentifier, String templateIdentifier, String reason, Long expiresAt) {
+    public void set(String section, String enforcement, String owner, String punishmentIdentifier, String templateIdentifier, String reason, Long expiresAt, boolean automatic) {
         String key = RedisTopology.punishKey(section, owner);
         try {
             String json = this.jsonMapper.writeValueAsString(new PunishmentSyncMessage(
-                    owner, section, enforcement, "SET", punishmentIdentifier, templateIdentifier, reason, expiresAt
+                    owner, section, enforcement, "SET", punishmentIdentifier, templateIdentifier, reason, expiresAt, automatic
             ));
             if (expiresAt != null) {
                 long ttlMillis = expiresAt - this.clock.millis();
@@ -62,7 +62,7 @@ public class PunishmentRedisWriter implements PunishmentMirror {
         try {
             this.connection.sync().del(key);
             String json = this.jsonMapper.writeValueAsString(new PunishmentSyncMessage(
-                    owner, section, enforcement, "CLEARED", punishmentIdentifier, null, null, null
+                    owner, section, enforcement, "CLEARED", punishmentIdentifier, null, null, null, false
             ));
             this.connection.sync().publish(RedisTopology.PUNISHMENT_SYNC_CHANNEL, json);
         } catch (Exception e) {

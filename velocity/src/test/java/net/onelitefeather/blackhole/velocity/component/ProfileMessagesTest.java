@@ -211,6 +211,28 @@ class ProfileMessagesTest {
                 Rendered.german(history(profile(), Mode.RICH)).text(), "German");
     }
 
+    private static PunishEntryDTO automaticEntry() {
+        return new PunishEntryDTO().identifier(ID).section("network").permanent(true).lifted(false).createdAt(CREATED)
+                .metaData(Map.of("reason", "Permanently banned after repeated violations", "automatic", true));
+    }
+
+    @Test
+    void anAutomaticEscalationEntryShowsTheTranslatedReason() {
+        var profile = profile().history(List.of(automaticEntry()));
+
+        assertTrue(Rendered.german(history(profile, Mode.RICH)).text()
+                .endsWith("Nach wiederholten Verstößen automatisch dauerhaft bestraft"), "German");
+        assertTrue(Rendered.english(history(profile, Mode.RICH)).text()
+                .endsWith("Permanently punished by the automatic system after repeated violations"), "English");
+    }
+
+    @Test
+    void aTemplateEntryKeepsItsOwnReasonInGerman() {
+        var rendered = Rendered.german(history(profile().history(List.of(entry(true, false))), Mode.RICH));
+
+        assertTrue(rendered.text().endsWith("Spam"), "was: " + rendered.text());
+    }
+
     @Test
     void aMissingHistoryIsTreatedLikeAnEmptyOne() {
         var rendered = Rendered.english(history(profile().history(null), Mode.RICH));

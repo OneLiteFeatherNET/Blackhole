@@ -14,6 +14,8 @@ package net.onelitefeather.blackhole.velocity.redis;
  * @param templateIdentifier   the template, null for system punishments
  * @param reason               the MiniMessage reason shown to the player
  * @param expiresAt            epoch millis the punishment ends at, null if permanent
+ * @param automatic            whether the ELO system applied it; its reason is stored in English, so
+ *                             the screens show a translated one instead (absent in old messages: false)
  */
 public record PunishmentSyncMessage(
         String owner,
@@ -23,7 +25,8 @@ public record PunishmentSyncMessage(
         String punishmentIdentifier,
         String templateIdentifier,
         String reason,
-        Long expiresAt
+        Long expiresAt,
+        boolean automatic
 ) {
     public static final String STATE_SET = "SET";
     public static final String STATE_CLEARED = "CLEARED";

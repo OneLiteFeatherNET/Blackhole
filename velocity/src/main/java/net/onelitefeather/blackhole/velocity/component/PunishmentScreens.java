@@ -218,6 +218,10 @@ public final class PunishmentScreens {
     }
 
     private Component reason(PunishmentSyncMessage punishment) {
+        Component translated = DefaultReasons.translated(punishment.automatic(), punishment.expiresAt() == null, punishment.reason());
+        if (translated != null) {
+            return translated;
+        }
         if (punishment.reason() == null || punishment.reason().isBlank()) {
             return Component.translatable("punishment.reason.default");
         }

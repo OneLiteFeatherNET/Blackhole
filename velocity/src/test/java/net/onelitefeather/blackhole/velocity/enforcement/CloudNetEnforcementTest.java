@@ -56,7 +56,7 @@ class CloudNetEnforcementTest {
     private PunishmentSyncMessage ban(RecordingProxy fixture, String section) {
         String owner = UUIDConverter.convertToSHA(fixture.uuid);
         PunishmentSyncMessage message = new PunishmentSyncMessage(owner, section, "SERVER", PunishmentSyncMessage.STATE_SET,
-                "a1b2c3d4-0000-4000-8000-000000000001", null, "Griefing", null);
+                "a1b2c3d4-0000-4000-8000-000000000001", null, "Griefing", null, false);
         this.redis.put(section + ":" + owner, message);
         return message;
     }

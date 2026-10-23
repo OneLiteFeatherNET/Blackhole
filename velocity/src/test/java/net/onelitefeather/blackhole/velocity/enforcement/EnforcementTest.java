@@ -82,7 +82,7 @@ class EnforcementTest {
 
     @Test
     void theSectionAsTheProxyKnowsItDecidesTheEnforcement() {
-        var message = new PunishmentSyncMessage("o", "chat", "BAN", PunishmentSyncMessage.STATE_SET, "p1", null, "r", null);
+        var message = new PunishmentSyncMessage("o", "chat", "BAN", PunishmentSyncMessage.STATE_SET, "p1", null, "r", null, false);
 
         assertEquals(EnforcementKind.MUTE, Enforcement.kindOf(message, sections).orElseThrow(),
                 "chat is a MUTE section here, whatever the message claims");
@@ -90,14 +90,14 @@ class EnforcementTest {
 
     @Test
     void theMessagesEnforcementIsUsedForASectionTheProxyDoesNotKnowYet() {
-        var message = new PunishmentSyncMessage("o", "newsection", "BAN", PunishmentSyncMessage.STATE_SET, "p1", null, "r", null);
+        var message = new PunishmentSyncMessage("o", "newsection", "BAN", PunishmentSyncMessage.STATE_SET, "p1", null, "r", null, false);
 
         assertEquals(EnforcementKind.BAN, Enforcement.kindOf(message, sections).orElseThrow());
     }
 
     @Test
     void anUnknownSectionWithoutEnforcementIsNotEnforced() {
-        var message = new PunishmentSyncMessage("o", "newsection", null, PunishmentSyncMessage.STATE_SET, "p1", null, "r", null);
+        var message = new PunishmentSyncMessage("o", "newsection", null, PunishmentSyncMessage.STATE_SET, "p1", null, "r", null, false);
 
         assertTrue(Enforcement.kindOf(message, sections).isEmpty());
         assertFalse(Enforcement.loginBan(List.of(message), sections, NOW).isPresent());

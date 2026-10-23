@@ -20,6 +20,8 @@ import io.micronaut.serde.annotation.Serdeable;
  * @param reason               the reason shown to the player, null for CLEARED messages
  * @param expiresAt            epoch millis the punishment expires at, or null for a permanent
  *                             punishment / a CLEARED message
+ * @param automatic            whether the ELO system applied the punishment; its {@code reason} is then an
+ *                             English placeholder that a proxy shows translated
  */
 @Serdeable
 public record PunishmentSyncMessage(
@@ -30,5 +32,6 @@ public record PunishmentSyncMessage(
         String punishmentIdentifier,
         String templateIdentifier,
         String reason,
-        Long expiresAt
+        Long expiresAt,
+        boolean automatic
 ) {}

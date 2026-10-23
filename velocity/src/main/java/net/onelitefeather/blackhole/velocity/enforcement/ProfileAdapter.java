@@ -19,6 +19,7 @@ import java.util.Map;
 public final class ProfileAdapter {
 
     private static final String REASON_KEY = "reason";
+    private static final String AUTOMATIC_KEY = "automatic";
 
     private ProfileAdapter() {
         throw new UnsupportedOperationException("This class cannot be instantiated");
@@ -62,7 +63,8 @@ public final class ProfileAdapter {
                 entry.getIdentifier(),
                 entry.getTemplate() == null || entry.getTemplate().getIdentifier() == null ? null : entry.getTemplate().getIdentifier().toString(),
                 reason,
-                expiresAt
+                expiresAt,
+                metaData != null && Boolean.TRUE.equals(metaData.get(AUTOMATIC_KEY))
         );
     }
 }
