@@ -81,3 +81,14 @@ The detection window, retention period and retention sweep schedule SHALL each b
 #### Scenario: Shortened detection window
 - **WHEN** the detection window is configured to 1 day
 - **THEN** only sightings last seen within the past day are considered for correlation
+
+### Requirement: Read sightings for a player
+The system SHALL answer `GET /evasion/{owner}/sightings` for VIEWER and above (not PROXY) with the other owners that shared a hashed address with `owner` inside the detection window, each with its owner hash, the reason `SHARED_IP`, the number of shared addresses and its first and last sighting, at most 50 and newest first. The response MUST NOT contain an IP, a token or a raw UUID. A malformed owner SHALL be answered with 400. When `blackhole.evasion.ip-salt` is unset the response SHALL be 200 with `detectionEnabled` false and no owners.
+
+#### Scenario: Two owners on one address
+- **WHEN** owners A and B were recorded from the same IP and a viewer requests the sightings of A
+- **THEN** the response lists B with reason `SHARED_IP` and no IP or token
+
+#### Scenario: No shared address
+- **WHEN** a viewer requests the sightings of an owner nobody shares an address with
+- **THEN** the response is 200 with an empty `linkedOwners`
