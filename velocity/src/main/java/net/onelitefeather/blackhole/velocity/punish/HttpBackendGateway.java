@@ -12,6 +12,7 @@ import net.onelitefeather.blackhole.client.model.EloProfileResponse;
 import net.onelitefeather.blackhole.client.model.EvidenceCreateRequest;
 import net.onelitefeather.blackhole.client.model.Pageable;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
+import net.onelitefeather.blackhole.client.model.PunishTemplatePage;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyRequest;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
@@ -63,7 +64,8 @@ public final class HttpBackendGateway implements BackendGateway {
         if (cached.isPresent()) {
             return cached.get();
         }
-        return this.templatesApi.getAllTemplates(Pageable.builder().build());
+        PunishTemplatePage page = this.templatesApi.getAllTemplates(Pageable.builder().build());
+        return page.getContent();
     }
 
     @Override
