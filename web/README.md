@@ -39,6 +39,10 @@ the backend verifies it; the UI only decides what to offer.
   work (open cases, appeals awaiting review, unresolved reports; hidden at 0, "99+" above 99). Appeals and
   reports come from `GET /dashboard/summary`, cases from the `totalSize` of `GET /case?status=OPEN&size=1`;
   refreshed on every navigation and every 60 s.
+- **Search.** The search field in the top bar (shortcut `/`) opens a player by name (`GET /player/resolve/{name}`)
+  or a case by `#A1B2C3D4` (`GET /punishment/short/{shortId}`; when short ids collide the matches are listed
+  to pick from) or by a full punishment id. Arrow keys select, Enter opens, Escape closes. A Ban ID lookup
+  does not exist yet (see `openspec/changes/add-appeal-portal`).
 - **Account.** The "Konto" (*Account*) entry in the account menu of the top bar opens a dialog that shows whether the signed-in
   person's Minecraft account is linked. "Minecraft-Konto verknüpfen" issues a code with a countdown and a
   copy button for the code and for the command `/blackhole link <code>`; "Verknüpfung entfernen" unlinks

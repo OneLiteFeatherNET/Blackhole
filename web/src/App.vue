@@ -6,6 +6,7 @@ import { useApi } from './api/inject'
 import { useAuth, useSignOut } from './auth/inject'
 import AccountLinkDialog from './components/account/AccountLinkDialog.vue'
 import AccountMenu from './components/account/AccountMenu.vue'
+import GlobalSearch from './components/search/GlobalSearch.vue'
 import MdIconButton from './components/md/MdIconButton.vue'
 import MdNavigationDrawer from './components/md/MdNavigationDrawer.vue'
 import MdSnackbar from './components/md/MdSnackbar.vue'
@@ -113,7 +114,7 @@ onBeforeUnmount(() => stopTicker?.())
         />
       </template>
       <template #search>
-        <div data-testid="search-slot" class="w-full max-w-xl" />
+        <GlobalSearch v-if="showNav" />
       </template>
       <template #actions>
         <AccountMenu v-if="resolved" :display-name="session.displayName" @account="accountOpen = true" @sign-out="signOut" />

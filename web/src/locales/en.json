@@ -889,5 +889,15 @@
     "heading": "Page not found",
     "body": "This address does not belong to any page of the admin interface. It may have been moved or mistyped.",
     "back": "Back to the overview"
+  },
+  "search": {
+    "label": "Search",
+    "placeholder": "Player or #case id",
+    "results": "Search results",
+    "player": "Open player \"{name}\"",
+    "case": "Open case {id}",
+    "hint": "Enter a player name (3 to 16 characters) or a case id such as #A1B2C3D4.",
+    "caseNotFound": "Nothing matches the case id {id}.",
+    "ambiguous": "The id {id} matches {n} cases. Pick one."
   }
 }

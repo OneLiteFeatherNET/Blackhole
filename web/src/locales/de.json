@@ -889,5 +889,15 @@
     "heading": "Seite nicht gefunden",
     "body": "Diese Adresse gehört zu keiner Seite der Moderationsoberfläche. Vielleicht wurde sie verschoben oder falsch eingegeben.",
     "back": "Zurück zur Übersicht"
+  },
+  "search": {
+    "label": "Suche",
+    "placeholder": "Spieler oder #Fall-ID",
+    "results": "Suchergebnisse",
+    "player": "Spieler „{name}“ öffnen",
+    "case": "Fall {id} öffnen",
+    "hint": "Gib einen Spielernamen (3 bis 16 Zeichen) oder eine Fall-ID wie #A1B2C3D4 ein.",
+    "caseNotFound": "Zur Fall-ID {id} wurde nichts gefunden.",
+    "ambiguous": "Die ID {id} passt zu {n} Fällen. Wähle einen aus."
   }
 }
