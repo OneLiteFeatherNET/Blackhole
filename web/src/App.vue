@@ -33,6 +33,7 @@ const NAV = [
   },
   { to: '/reports', key: 'reports', icon: 'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z' },
   { to: '/appeals', key: 'appeals', icon: 'M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z' },
+  { to: '/cases', key: 'cases', icon: 'M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z' },
 ]
 
 const { t } = useI18n()

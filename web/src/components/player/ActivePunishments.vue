@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
 import type { Punishment } from '../../api/types'
 import { formatDateTime } from '../../format'
 import EvidenceDialog from '../evidence/EvidenceDialog.vue'
@@ -48,6 +49,13 @@ const evidenceFor = ref<string | null>(null)
           <MdButton variant="text" :data-testid="`open-evidence-${section}`" @click="evidenceFor = punishment.identifier">
             {{ t('evidence.open') }}
           </MdButton>
+          <RouterLink
+            :to="{ name: 'case', params: { reference: punishment.identifier } }"
+            class="md-state inline-flex h-10 items-center rounded-md-full px-6 text-label-large text-primary"
+            :data-testid="`open-case-${section}`"
+          >
+            {{ t('case.open') }}
+          </RouterLink>
         </div>
         <slot name="actions" :section="section" :punishment="punishment" />
       </MdCard>

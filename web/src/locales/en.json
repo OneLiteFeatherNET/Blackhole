@@ -8,7 +8,8 @@
     "sections": "Sections",
     "reports": "Reports",
     "appeals": "Appeals",
-    "admin": "Admin"
+    "admin": "Admin",
+    "cases": "Cases"
   },
   "settings": {
     "theme": {
@@ -678,6 +679,176 @@
       "groups": "Groups",
       "service": "Service",
       "state": "State"
+    }
+  },
+  "case": {
+    "title": "Case",
+    "open": "Open case",
+    "back": "Back to all cases",
+    "header": {
+      "title": "Case details",
+      "heading": "Case {id}",
+      "player": "Player",
+      "section": "Section",
+      "issued": "Issued",
+      "readOnly": "You can read this case but not change it. Changing a case needs the moderator role.",
+      "status": "Status",
+      "assignee": "Assignee",
+      "priority": "Priority",
+      "tags": "Tags",
+      "noTags": "No tags.",
+      "unassigned": "Unassigned",
+      "assignMe": "Me ({name})",
+      "newTag": "New tag",
+      "addTag": "Add tag",
+      "tagHint": "Lower case letters, digits and dashes, up to 32 characters",
+      "tagInvalid": "A tag has 1 to 32 lower case letters, digits or dashes.",
+      "tagDuplicate": "This tag is already set.",
+      "tagLimit": "A case has at most {max} tags.",
+      "removeTag": "Remove tag {tag}",
+      "saved": "Case saved.",
+      "conflict": "Someone else changed this case in the meantime. Your change was not saved. Reload to see the current values.",
+      "reload": "Reload"
+    },
+    "state": {
+      "ACTIVE": "Active",
+      "EXPIRED": "Expired",
+      "LIFTED": "Lifted"
+    },
+    "status": {
+      "OPEN": "Open",
+      "IN_REVIEW": "In review",
+      "WAITING": "Waiting",
+      "CLOSED": "Closed"
+    },
+    "priority": {
+      "LOW": "Low",
+      "NORMAL": "Normal",
+      "HIGH": "High",
+      "URGENT": "Urgent"
+    },
+    "trust": {
+      "VERIFIED": "Verified",
+      "UNVERIFIED": "Unverified",
+      "SYSTEM": "System"
+    },
+    "origin": {
+      "BACKFILLED": "Reconstructed from earlier data",
+      "RECONSTRUCTED": "Rebuilt afterwards"
+    },
+    "actor": {
+      "unknown": "Unknown"
+    },
+    "events": {
+      "punishmentApplied": "Punishment applied",
+      "punishmentRevoked": "Punishment revoked",
+      "punishmentLifted": "Punishment lifted by appeal",
+      "punishmentExpired": "Punishment expired",
+      "evidenceAttached": "Evidence attached",
+      "evidenceLifted": "Evidence lifted",
+      "evidenceRevoked": "Evidence revoked",
+      "appealFiled": "Appeal filed",
+      "appealDecided": "Appeal decided",
+      "statusChanged": "Status changed",
+      "assigneeChanged": "Assignee changed",
+      "tagsChanged": "Tags changed",
+      "priorityChanged": "Priority changed",
+      "noteAdded": "Note added",
+      "noteEdited": "Note edited",
+      "noteRedacted": "Note removed",
+      "unknown": "Other event"
+    },
+    "detail": {
+      "step": "Step {step} of {count}",
+      "cost": "{cost} ELO",
+      "escalated": "automatic escalation",
+      "fromTo": "{from} to {to}",
+      "assignedTo": "assigned to {who}",
+      "unassigned": "no longer assigned",
+      "tagsAdded": "added: {tags}",
+      "tagsRemoved": "removed: {tags}",
+      "approximate": "time is approximate"
+    },
+    "notes": {
+      "title": "Notes",
+      "newLabel": "New note",
+      "editLabel": "Edit note",
+      "add": "Add note",
+      "save": "Save note",
+      "saved": "Note saved.",
+      "edit": "Edit",
+      "redact": "Remove text",
+      "edited": "edited",
+      "removed": "Removed (data protection)",
+      "superseded": "Earlier version of a note, see the latest entry.",
+      "history": "Earlier versions ({count})",
+      "hint": "Ctrl+Enter saves. Refer to players by their short id; no UUIDs or IP addresses.",
+      "empty": "Write a note first.",
+      "tooLong": "A note has at most {max} characters.",
+      "readOnly": "Adding notes needs the moderator role."
+    },
+    "redact": {
+      "title": "Remove note text?",
+      "body": "The text of every version of this note is removed for good. The entry, its time and its author stay in the timeline.",
+      "choose": "Choose a reason",
+      "reasonLabel": "Reason",
+      "confirm": "Remove text",
+      "done": "Note text removed.",
+      "reason": {
+        "PERSONAL_DATA": "Personal data",
+        "ERASURE_REQUEST": "Erasure request",
+        "INAPPROPRIATE": "Inappropriate content",
+        "OTHER": "Other"
+      }
+    },
+    "evidence": {
+      "show": "Show evidence",
+      "hide": "Hide evidence",
+      "gone": "This evidence is no longer available."
+    },
+    "timeline": {
+      "title": "Timeline",
+      "filters": "Timeline filters",
+      "type": "Event type",
+      "actor": "Actor",
+      "from": "From",
+      "to": "To",
+      "allTypes": "All events",
+      "allActors": "All actors",
+      "group": {
+        "punishment": "Punishment",
+        "appeal": "Appeal",
+        "evidence": "Evidence",
+        "case": "Case changes",
+        "note": "Notes"
+      },
+      "count": "{count} events shown",
+      "empty": "No events match.",
+      "loadMore": "Load more"
+    },
+    "related": {
+      "title": "Other cases of this player",
+      "none": "This player has no other cases."
+    },
+    "list": {
+      "title": "Cases",
+      "filter": "Case filters",
+      "allStatuses": "All statuses",
+      "mine": "Assigned to me",
+      "tag": "Tag",
+      "applyTag": "Filter",
+      "empty": "No cases match.",
+      "paging": "Pages of cases",
+      "columns": {
+        "case": "Case",
+        "section": "Section",
+        "punishment": "Punishment",
+        "status": "Status",
+        "assignee": "Assignee",
+        "priority": "Priority",
+        "tags": "Tags",
+        "activity": "Last activity"
+      }
     }
   }
 }

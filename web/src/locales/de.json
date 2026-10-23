@@ -8,7 +8,8 @@
     "sections": "Bereiche",
     "reports": "Meldungen",
     "appeals": "Einsprüche",
-    "admin": "Verwaltung"
+    "admin": "Verwaltung",
+    "cases": "Fälle"
   },
   "settings": {
     "theme": {
@@ -678,6 +679,176 @@
       "groups": "Gruppen",
       "service": "Service",
       "state": "Zustand"
+    }
+  },
+  "case": {
+    "title": "Fall",
+    "open": "Fall öffnen",
+    "back": "Zurück zu allen Fällen",
+    "header": {
+      "title": "Falldetails",
+      "heading": "Fall {id}",
+      "player": "Spieler",
+      "section": "Bereich",
+      "issued": "Verhängt",
+      "readOnly": "Du kannst diesen Fall lesen, aber nicht ändern. Dafür brauchst du die Rolle Moderator.",
+      "status": "Status",
+      "assignee": "Bearbeiter",
+      "priority": "Priorität",
+      "tags": "Tags",
+      "noTags": "Keine Tags.",
+      "unassigned": "Nicht zugewiesen",
+      "assignMe": "Ich ({name})",
+      "newTag": "Neuer Tag",
+      "addTag": "Tag hinzufügen",
+      "tagHint": "Kleinbuchstaben, Ziffern und Bindestriche, höchstens 32 Zeichen",
+      "tagInvalid": "Ein Tag besteht aus 1 bis 32 Kleinbuchstaben, Ziffern oder Bindestrichen.",
+      "tagDuplicate": "Dieser Tag ist schon gesetzt.",
+      "tagLimit": "Ein Fall hat höchstens {max} Tags.",
+      "removeTag": "Tag {tag} entfernen",
+      "saved": "Fall gespeichert.",
+      "conflict": "Jemand anderes hat diesen Fall inzwischen geändert. Deine Änderung wurde nicht gespeichert. Lade neu, um die aktuellen Werte zu sehen.",
+      "reload": "Neu laden"
+    },
+    "state": {
+      "ACTIVE": "Aktiv",
+      "EXPIRED": "Abgelaufen",
+      "LIFTED": "Aufgehoben"
+    },
+    "status": {
+      "OPEN": "Offen",
+      "IN_REVIEW": "In Prüfung",
+      "WAITING": "Wartet",
+      "CLOSED": "Geschlossen"
+    },
+    "priority": {
+      "LOW": "Niedrig",
+      "NORMAL": "Normal",
+      "HIGH": "Hoch",
+      "URGENT": "Dringend"
+    },
+    "trust": {
+      "VERIFIED": "Verifiziert",
+      "UNVERIFIED": "Unverifiziert",
+      "SYSTEM": "System"
+    },
+    "origin": {
+      "BACKFILLED": "Aus früheren Daten rekonstruiert",
+      "RECONSTRUCTED": "Nachträglich ergänzt"
+    },
+    "actor": {
+      "unknown": "Unbekannt"
+    },
+    "events": {
+      "punishmentApplied": "Strafe verhängt",
+      "punishmentRevoked": "Strafe widerrufen",
+      "punishmentLifted": "Strafe per Einspruch aufgehoben",
+      "punishmentExpired": "Strafe abgelaufen",
+      "evidenceAttached": "Beweis angehängt",
+      "evidenceLifted": "Beweis aufgehoben",
+      "evidenceRevoked": "Beweis widerrufen",
+      "appealFiled": "Einspruch eingereicht",
+      "appealDecided": "Einspruch entschieden",
+      "statusChanged": "Status geändert",
+      "assigneeChanged": "Bearbeiter geändert",
+      "tagsChanged": "Tags geändert",
+      "priorityChanged": "Priorität geändert",
+      "noteAdded": "Notiz hinzugefügt",
+      "noteEdited": "Notiz bearbeitet",
+      "noteRedacted": "Notiz entfernt",
+      "unknown": "Anderes Ereignis"
+    },
+    "detail": {
+      "step": "Stufe {step} von {count}",
+      "cost": "{cost} ELO",
+      "escalated": "automatische Eskalation",
+      "fromTo": "{from} zu {to}",
+      "assignedTo": "zugewiesen an {who}",
+      "unassigned": "nicht mehr zugewiesen",
+      "tagsAdded": "hinzugefügt: {tags}",
+      "tagsRemoved": "entfernt: {tags}",
+      "approximate": "Zeit ist ungefähr"
+    },
+    "notes": {
+      "title": "Notizen",
+      "newLabel": "Neue Notiz",
+      "editLabel": "Notiz bearbeiten",
+      "add": "Notiz hinzufügen",
+      "save": "Notiz speichern",
+      "saved": "Notiz gespeichert.",
+      "edit": "Bearbeiten",
+      "redact": "Text entfernen",
+      "edited": "bearbeitet",
+      "removed": "Entfernt (Datenschutz)",
+      "superseded": "Frühere Fassung einer Notiz, siehe den neuesten Eintrag.",
+      "history": "Frühere Fassungen ({count})",
+      "hint": "Strg+Eingabe speichert. Nenne Spieler über die Kurz-ID; keine UUIDs oder IP-Adressen.",
+      "empty": "Schreibe zuerst eine Notiz.",
+      "tooLong": "Eine Notiz hat höchstens {max} Zeichen.",
+      "readOnly": "Notizen hinzufügen braucht die Rolle Moderator."
+    },
+    "redact": {
+      "title": "Notiztext entfernen?",
+      "body": "Der Text aller Fassungen dieser Notiz wird endgültig entfernt. Der Eintrag, seine Zeit und sein Autor bleiben in der Zeitleiste.",
+      "choose": "Grund wählen",
+      "reasonLabel": "Grund",
+      "confirm": "Text entfernen",
+      "done": "Notiztext entfernt.",
+      "reason": {
+        "PERSONAL_DATA": "Personenbezogene Daten",
+        "ERASURE_REQUEST": "Löschanfrage",
+        "INAPPROPRIATE": "Unangemessener Inhalt",
+        "OTHER": "Sonstiges"
+      }
+    },
+    "evidence": {
+      "show": "Beweis anzeigen",
+      "hide": "Beweis ausblenden",
+      "gone": "Dieser Beweis ist nicht mehr verfügbar."
+    },
+    "timeline": {
+      "title": "Zeitleiste",
+      "filters": "Filter der Zeitleiste",
+      "type": "Ereignistyp",
+      "actor": "Akteur",
+      "from": "Von",
+      "to": "Bis",
+      "allTypes": "Alle Ereignisse",
+      "allActors": "Alle Akteure",
+      "group": {
+        "punishment": "Strafe",
+        "appeal": "Einspruch",
+        "evidence": "Beweise",
+        "case": "Fall-Änderungen",
+        "note": "Notizen"
+      },
+      "count": "{count} Ereignisse angezeigt",
+      "empty": "Keine passenden Ereignisse.",
+      "loadMore": "Mehr laden"
+    },
+    "related": {
+      "title": "Weitere Fälle dieses Spielers",
+      "none": "Dieser Spieler hat keine weiteren Fälle."
+    },
+    "list": {
+      "title": "Fälle",
+      "filter": "Filter der Fälle",
+      "allStatuses": "Alle Status",
+      "mine": "Mir zugewiesen",
+      "tag": "Tag",
+      "applyTag": "Filtern",
+      "empty": "Keine passenden Fälle.",
+      "paging": "Seiten der Fälle",
+      "columns": {
+        "case": "Fall",
+        "section": "Bereich",
+        "punishment": "Strafe",
+        "status": "Status",
+        "assignee": "Bearbeiter",
+        "priority": "Priorität",
+        "tags": "Tags",
+        "activity": "Letzte Aktivität"
+      }
     }
   }
 }

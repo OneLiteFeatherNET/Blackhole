@@ -3,6 +3,13 @@ import type { components } from './schema'
 import { EVIDENCE_SOURCE_SYSTEM, uploadEvidence, type Upload } from './uploadEvidence'
 import type {
   ApiResult,
+  Case,
+  CaseListPage,
+  CaseListQuery,
+  CaseTimelinePage,
+  CaseTimelineQuery,
+  CaseUpdate,
+  NoteRedactionReason,
   ApplyPreview,
   Appeal,
   AppealDecision,
@@ -116,6 +123,20 @@ export interface BlackholeApi {
    * only reports what would happen (ADMIN only). Invalid entries are reported, not fatal.
    */
   importVanillaBans(request: VanillaImportRequest): Promise<ApiResult<VanillaImportResult>>
+
+  /** One page of cases, newest activity first. */
+  cases(query?: CaseListQuery): Promise<ApiResult<CaseListPage>>
+  /** A case by punishment identifier or short id; its `version` is what {@link updateCase} must send back. */
+  caseDetail(reference: string): Promise<ApiResult<Case>>
+  /** One page of the case timeline; pass the previous page's `nextCursor` to continue. */
+  caseTimeline(reference: string, query?: CaseTimelineQuery): Promise<ApiResult<CaseTimelinePage>>
+  /** Changes staff metadata; a stale `expectedVersion` answers 409 and changes nothing. */
+  updateCase(reference: string, change: CaseUpdate): Promise<ApiResult<Case>>
+  /** Adds a staff note (1 to 4000 characters, no UUID or IP); resolves to the new note id. */
+  addCaseNote(reference: string, text: string): Promise<ApiResult<{ noteId: string; seq: number }>>
+  editCaseNote(reference: string, noteId: string, text: string): Promise<ApiResult<{ noteId: string; seq: number }>>
+  /** Removes the text of every version of a note (ADMIN only). */
+  redactCaseNote(reference: string, noteId: string, reason: NoteRedactionReason): Promise<ApiResult<{ noteId: string; redactedVersions: number }>>
 }
 
 const EVIDENCE_PAGE_SIZE = 20
@@ -148,6 +169,30 @@ function evidenceQuery(query: { includeInactive?: boolean; page?: number; size?:
   return () => {
     const params = new URLSearchParams({ page: String(query.page ?? 0), size: String(query.size ?? EVIDENCE_PAGE_SIZE) })
     if (query.includeInactive) params.set('includeInactive', 'true')
+    return params.toString()
+  }
+}
+
+/** Query string of the timeline; `type` repeats once per type or group. */
+function timelineQuery(query: CaseTimelineQuery): () => string {
+  return () => {
+    const params = new URLSearchParams()
+    if (query.cursor) params.set('cursor', query.cursor)
+    if (query.size) params.set('size', String(query.size))
+    for (const type of query.types ?? []) params.append('type', type)
+    if (query.actorTrust) params.set('actorTrust', query.actorTrust)
+    if (query.from !== undefined) params.set('from', String(query.from))
+    if (query.to !== undefined) params.set('to', String(query.to))
+    if (query.order) params.set('order', query.order)
+    return params.toString()
+  }
+}
+
+/** Only the filters that are set are sent. */
+function caseListQuery(query: CaseListQuery): () => string {
+  return () => {
+    const params = new URLSearchParams()
+    for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
     return params.toString()
   }
 }
@@ -430,5 +475,38 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     staffActors: async () => map(await toResult(http.GET('/admin/staff-actor')), (body) => body.items ?? []),
     anonymizeStaffActor: async (oid) =>
       map(await toResult(http.POST('/admin/staff-actor/{oid}/anonymize', { params: { path: { oid } } })), () => undefined),
+
+    cases: (query = {}) =>
+      toResult(http.GET('/case', { querySerializer: caseListQuery(query) })),
+
+    caseDetail: (reference) => toResult(http.GET('/case/{reference}', { params: { path: { reference } } })),
+
+    caseTimeline: (reference, query = {}) =>
+      toResult(http.GET('/case/{reference}/timeline', { params: { path: { reference } }, querySerializer: timelineQuery(query) })),
+
+    updateCase: (reference, change) =>
+      toResult(
+        http.PATCH('/case/{reference}', {
+          params: { path: { reference } },
+          body: {
+            expectedVersion: change.expectedVersion,
+            status: change.status,
+            priority: change.priority,
+            tags: change.tags,
+            // An absent assigneeOid cannot say "remove", so null becomes the explicit flag.
+            assigneeOid: change.assigneeOid ?? undefined,
+            clearAssignee: change.assigneeOid === null,
+          },
+        }),
+      ),
+
+    addCaseNote: (reference, text) =>
+      toResult(http.POST('/case/{reference}/notes', { params: { path: { reference } }, body: { text } })),
+
+    editCaseNote: (reference, noteId, text) =>
+      toResult(http.PUT('/case/{reference}/notes/{noteId}', { params: { path: { reference, noteId } }, body: { text } })),
+
+    redactCaseNote: (reference, noteId, reason) =>
+      toResult(http.POST('/case/{reference}/notes/{noteId}/redact', { params: { path: { reference, noteId } }, body: { reason } })),
   }
 }

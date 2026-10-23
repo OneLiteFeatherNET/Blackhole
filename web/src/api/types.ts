@@ -57,6 +57,21 @@ export interface VanillaImportRequest {
 /** A known staff principal (a person or an application) with the name kept for it. */
 export type StaffActor = Schemas['StaffActorItem']
 
+export type Case = Schemas['CaseResponse']
+export type CaseListItem = Schemas['CaseListItem']
+export type CaseListPage = Schemas['CaseListPage']
+export type CaseRelated = Schemas['CaseRelated']
+export type CaseStatus = Schemas['CaseStatus']
+export type CasePriority = Schemas['CasePriority']
+export type CaseTimelineItem = Schemas['CaseTimelineItem']
+export type CaseTimelinePage = Schemas['CaseTimelinePage']
+export type CaseUpdate = Omit<Schemas['CaseUpdateRequest'], 'clearAssignee' | 'assigneeOid'> & {
+  /** The staff member to assign, or null to remove the assignee; absent leaves it alone. */
+  assigneeOid?: string | null
+}
+export type NoteRedactionReason = Schemas['NoteRedactionReason']
+export type ActorTrust = Schemas['ActorTrust']
+
 /** Why staff delete an evidence item; the backend records it in the audit trail. */
 export type EvidenceDeleteReason = 'ERASURE_REQUEST' | 'WRONG_EVIDENCE' | 'OTHER'
 
@@ -130,4 +145,25 @@ export interface AppealDecision {
   decision: 'GRANTED_FULL_LIFT' | 'GRANTED_DURATION_REDUCTION' | 'DENIED'
   note?: string
   newExpirationAt?: number
+}
+
+/** What the timeline asks for; `types` are exact types or groups such as `note` and `appeal`. */
+export interface CaseTimelineQuery {
+  cursor?: string
+  size?: number
+  types?: string[]
+  actorTrust?: ActorTrust
+  from?: number
+  to?: number
+  order?: 'asc' | 'desc'
+}
+
+/** The filters of the case list. */
+export interface CaseListQuery {
+  status?: CaseStatus
+  assignee?: string
+  tag?: string
+  priority?: CasePriority
+  page?: number
+  size?: number
 }
