@@ -26,8 +26,8 @@ network, no sleeps; the only container check is task 2.4.
 
 ## 3. Documentation (PR 3: `docs(web): document the nitro runtime`)
 
-- [ ] 3.1 Update `web/README.md` (Container section, unchanged variable table, an access-control note replacing the nginx `allow`/`deny`/basic-auth text, `server/` in the structure table), the comment in `vite.config.ts` and the Dockerfile header; verify no stale nginx statement remains
-- [ ] 3.2 Add the non-equivalences from design.md to the README; verify against design.md
+- [x] 3.1 Update `web/README.md` (Container section, unchanged variable table, an access-control note replacing the nginx `allow`/`deny`/basic-auth text, `server/` in the structure table), the comment in `vite.config.ts` and the Dockerfile header; verify no stale nginx statement remains
+- [x] 3.2 Add the non-equivalences from design.md to the README; verify against design.md
 
 ## 4. Coordinate with add-team-sso (PR 4: `docs(openspec): retarget add-team-sso web config to nitro`)
 
