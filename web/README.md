@@ -30,6 +30,12 @@ the backend verifies it; the UI only decides what to offer.
   | `MODERATOR` | and: apply, revoke and adjust punishments, resolve reports, decide appeals, add and upload evidence |
   | `ADMIN` | and: create, edit and disable sections, create, edit and delete templates, delete evidence |
 
+- **Account.** The "Konto" (*Account*) button in the top bar opens a dialog that shows whether the signed-in
+  person's Minecraft account is linked. "Minecraft-Konto verknüpfen" issues a code with a countdown and a
+  copy button for the code and for the command `/blackhole link <code>`; "Verknüpfung entfernen" unlinks
+  after a confirmation. Admins also get a list of all links with an unlink action. See
+  [Linking a Minecraft account](../README.md#linking-a-minecraft-account). The code is held in
+  memory only and never stored in the browser.
 - **Sign-out** clears the in-memory user and ends the Entra session (`post_logout_redirect_uri` is
   the UI's origin).
 - **Evidence files** (`GET /evidence/{id}/content`) need the bearer token, which `<img>` and
@@ -47,7 +53,7 @@ registration. The scopes requested are `openid profile offline_access` plus the 
 
 The UI keeps only **theme** and **language** in the browser's local storage. Player names live in
 memory for the current lookup; owner hashes are only in the URL of the player page. Staff display
-names come from `GET /auth/me` and are held in memory; the backend's retention of staff data is described in the
+names come from `GET /auth/me` and are held in memory, a freshly issued link code lives in memory only; the backend's retention of staff data is described in the
 [root README](../README.md#authentication). Fonts are bundled (no requests to third
 parties).
 
