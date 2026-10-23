@@ -281,6 +281,85 @@ class PunishmentScreensTest {
     }
 
     @Test
+    void temporaryMuteNoticeInEnglishShowsReasonRemainingEndIdAndAppeal() {
+        String text = plain(screens(config("https://example.org/appeal", "our forum")).screen(
+                punishment("chat", EnforcementKind.MUTE, IN_59_MIN, "Insults"), Locale.ENGLISH, Surface.CHAT, false));
+
+        assertEquals("""
+                You have been muted
+                Reason
+                Insults
+                Remaining: 59 minutes
+                until Oct 21, 2026, 11:05 PM
+                Area: Chat  ·  Punishment ID: #A1B2C3D4
+                Appeal: our forum""", text);
+    }
+
+    @Test
+    void temporaryMuteNoticeInGermanEndsInTheConfiguredTimeZone() {
+        String text = plain(screens(config("https://example.org/appeal", "")).screen(
+                punishment("chat", EnforcementKind.MUTE, IN_59_MIN, "Beleidigung"), Locale.GERMAN, Surface.CHAT, false));
+
+        assertEquals("""
+                Du wurdest stummgeschaltet
+                Grund
+                Beleidigung
+                Verbleibend: 59 Minuten
+                bis 21.10.2026, 23:05 Uhr
+                Bereich: Chat  ·  Strafen-ID: #A1B2C3D4
+                Einspruch: https://example.org/appeal""", text);
+    }
+
+    @Test
+    void permanentMuteNoticeSaysPermanentAndHasNoEndTime() {
+        String text = text(punishment("chat", EnforcementKind.MUTE, null, "Spam"), Locale.GERMAN, Surface.CHAT);
+
+        assertEquals("""
+                Du wurdest stummgeschaltet
+                Grund
+                Spam
+                Dauer: dauerhaft
+                Bereich: Chat  ·  Strafen-ID: #A1B2C3D4""", text);
+    }
+
+    @Test
+    void muteNoticeWithoutReasonUsesTheDefaultReason() {
+        String text = text(punishment("chat", EnforcementKind.MUTE, null, null), Locale.ENGLISH, Surface.CHAT);
+
+        assertTrue(text.contains("Reason\nYou have been punished."), text);
+    }
+
+    @Test
+    void muteNoticeWithoutAppealUrlHasNoAppealLine() {
+        String text = text(punishment("chat", EnforcementKind.MUTE, null, "Spam"), Locale.ENGLISH, Surface.CHAT);
+
+        assertFalse(text.contains("Appeal"), text);
+    }
+
+    @Test
+    void muteNoticeCarriesNoStaffPrefix() {
+        String text = text(punishment("chat", EnforcementKind.MUTE, null, "Spam"), Locale.ENGLISH, Surface.CHAT);
+
+        assertTrue(text.startsWith("You have been muted"), "player-facing: the title comes first, got:\n" + text);
+    }
+
+    @Test
+    void muteReminderIsOneLineWithRemainingTimeAndId() {
+        Component reminder = screens(config("https://example.org/appeal", "")).muteReminder(
+                punishment("chat", EnforcementKind.MUTE, IN_59_MIN, "Insults"), Locale.GERMAN);
+
+        assertEquals("Du wurdest stummgeschaltet · Verbleibend: 59 Minuten · Strafen-ID: #A1B2C3D4", plain(reminder));
+    }
+
+    @Test
+    void permanentMuteReminderSaysPermanent() {
+        Component reminder = screens(config("", "")).muteReminder(
+                punishment("chat", EnforcementKind.MUTE, null, "Insults"), Locale.ENGLISH);
+
+        assertEquals("You have been muted · Duration: permanent · Punishment ID: #A1B2C3D4", plain(reminder));
+    }
+
+    @Test
     void reasonCanUseTheDurationTag() {
         assertTrue(text(punishment("network", EnforcementKind.BAN, IN_59_MIN, "Banned <duration>"), Locale.ENGLISH, Surface.DISCONNECT)
                 .contains("Banned in 59 minutes"));
