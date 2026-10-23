@@ -57,8 +57,17 @@ public class ReportController implements ReportApi {
 
     @Override
     @Secured(Roles.VIEWER)
-    public HttpResponse<Page<ReportDTO>> getAll(Pageable pageable) {
-        return HttpResponse.ok(this.reportService.getAll(pageable));
+    public HttpResponse<Page<ReportDTO>> getAll(Pageable pageable, String reportedHash) {
+        return HttpResponse.ok(reportedHash == null || reportedHash.isBlank()
+                ? this.reportService.getAll(pageable)
+                : this.reportService.getAllAgainst(reportedHash, pageable));
+    }
+
+    @Override
+    @Secured(Roles.VIEWER)
+    public HttpResponse<?> get(UUID identifier) {
+        return this.reportService.get(identifier).<HttpResponse<?>>map(HttpResponse::ok)
+                .orElseGet(() -> error(ErrorKind.NOT_FOUND, "there is no report with this identifier"));
     }
 
     @Override

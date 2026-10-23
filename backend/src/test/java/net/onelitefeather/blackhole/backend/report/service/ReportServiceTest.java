@@ -9,6 +9,9 @@ import net.onelitefeather.blackhole.backend.report.ReportEntity;
 import net.onelitefeather.blackhole.backend.report.ReportRepository;
 import net.onelitefeather.blackhole.backend.report.ReportStatus;
 import net.onelitefeather.blackhole.backend.report.dto.ReportResolutionDTO;
+import net.onelitefeather.blackhole.backend.report.feedback.ReportFeedbackEntity;
+import net.onelitefeather.blackhole.backend.report.feedback.ReportFeedbackRepository;
+import net.onelitefeather.blackhole.backend.report.feedback.ReportFeedbackService;
 import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.RecordingEloScoring;
 import net.onelitefeather.blackhole.backend.support.PunishmentTestBed;
@@ -17,6 +20,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -42,8 +46,15 @@ class ReportServiceTest {
     private final CategorySectionMapping mapping = new CategorySectionMapping(
             Map.of("CHAT_ABUSE", "chat", "CHEATING", "network", "GRIEFING", "network", "OTHER", ""));
     private final PunishmentTestBed bed = new PunishmentTestBed();
+    private final RecordingEventPublisher events = new RecordingEventPublisher();
+    private final InMemoryRepository<ReportFeedbackRepository, ReportFeedbackEntity, UUID> feedbackStore =
+            InMemoryRepository.<ReportFeedbackRepository, ReportFeedbackEntity, UUID>of(ReportFeedbackRepository.class, ReportFeedbackEntity::getIdentifier)
+                    .assigningIds(entity -> entity.withIdentifier(UUID.randomUUID())).build();
+    private final List<String> poked = new ArrayList<>();
+    private final ReportFeedbackService feedback = new ReportFeedbackService(
+            feedbackStore.repository(), poked::add, events, bed.eloBed.clock, Duration.ofDays(14));
     private final ReportService service = new ReportService(
-            reports.repository(), new RecordingEventPublisher(), bed.punishmentService, scoring, mapping, bed.eloBed.clock, 5, 50, Duration.ofMinutes(10), -100, 50);
+            reports.repository(), feedback, bed.evidence, events, bed.punishmentService, scoring, mapping, bed.eloBed.clock, 5, 50, Duration.ofMinutes(10), -100, 50);
 
     private UUID givenReport(ReportCategory category) {
         UUID id = UUID.randomUUID();
@@ -233,5 +244,81 @@ class ReportServiceTest {
 
         assertNull(open.recordedByOid(), "nobody resolved it yet");
         assertEquals(false, open.verified());
+    }
+
+    @Test
+    void aDismissedReportQueuesNoActionFeedbackForTheReporter() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+
+        resolve(id, ReportStatus.DISMISSED);
+
+        assertEquals(1, feedbackStore.all().size());
+        assertEquals(REPORTER, feedbackStore.all().getFirst().getReporterHash());
+        assertEquals(ReportStatus.DISMISSED, feedbackStore.all().getFirst().getOutcome());
+        assertEquals(List.of(REPORTER), poked, "the proxies are told so an online reporter hears at once");
+    }
+
+    @Test
+    void anActionedReportQueuesActionTakenFeedback() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+
+        resolve(id, ReportStatus.ACTIONED);
+
+        assertEquals(ReportStatus.ACTIONED, feedbackStore.all().getFirst().getOutcome());
+    }
+
+    @Test
+    void aReportThatIsOnlyUnderReviewQueuesNoFeedback() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+
+        resolve(id, ReportStatus.UNDER_REVIEW);
+
+        assertTrue(feedbackStore.all().isEmpty());
+        assertTrue(poked.isEmpty());
+    }
+
+    @Test
+    void aFailingFeedbackStoreDoesNotUndoTheResolution() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+        ReportService broken = new ReportService(reports.repository(),
+                new ReportFeedbackService(feedbackStore.repository(), owner -> { throw new IllegalStateException("redis down"); },
+                        events, bed.eloBed.clock, Duration.ofDays(14)),
+                bed.evidence, events, bed.punishmentService, scoring, mapping, bed.eloBed.clock, 5, 50, Duration.ofMinutes(10), -100, 50);
+
+        assertInstanceOf(ReportService.ResolveResult.Success.class,
+                broken.resolve(id, new ReportResolutionDTO(ReportStatus.DISMISSED, "note", null), MODERATOR));
+        assertEquals(ReportStatus.DISMISSED, reports.repository().findById(id).orElseThrow().getStatus());
+    }
+
+    @Test
+    void theEvidenceOfAReportBecomesEvidenceOfTheItsPunishment() {
+        UUID id = UUID.randomUUID();
+        UUID evidenceId = UUID.randomUUID();
+        reports.given(new ReportEntity(REPORTER, REPORTED, ReportCategory.CHAT_ABUSE, "d", new ArrayList<>(List.of(evidenceId)), ReportStatus.OPEN,
+                0L, 0L, null, null, new HashMap<>()), id);
+        var template = bed.givenTemplate("grief", "chat", null, PunishmentTestBed.step("P3D", 0));
+
+        resolveWithTemplate(id, template.getIdentifier());
+
+        assertEquals(1, bed.evidence.idClaims().size());
+        assertEquals(List.of(evidenceId), bed.evidence.idClaims().getFirst().evidenceIds());
+        assertEquals(REPORTED, bed.evidence.idClaims().getFirst().owner());
+    }
+
+    @Test
+    void aDismissalClaimsNoEvidence() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+
+        resolve(id, ReportStatus.DISMISSED);
+
+        assertTrue(bed.evidence.idClaims().isEmpty());
+    }
+
+    @Test
+    void aReportCanBeLookedUpByIdentifier() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+
+        assertEquals(REPORTED, service.get(id).orElseThrow().reportedHash());
+        assertTrue(service.get(UUID.randomUUID()).isEmpty());
     }
 }

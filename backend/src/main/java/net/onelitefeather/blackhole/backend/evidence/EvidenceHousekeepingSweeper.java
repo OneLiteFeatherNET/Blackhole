@@ -54,7 +54,9 @@ public class EvidenceHousekeepingSweeper {
     )
     void sweep() {
         try {
-            int expired = this.service.deleteUnclaimedCreatedBefore(this.clock.millis() - this.config.getPendingTtl().toMillis());
+            long now = this.clock.millis();
+            int expired = this.service.deleteUnclaimedCreatedBefore(
+                    now - this.config.getPendingTtl().toMillis(), now - this.config.getReportPendingTtl().toMillis());
             int orphans = deleteOrphanFiles();
             int purged = purgeAudit();
             if (expired + orphans + purged > 0) {

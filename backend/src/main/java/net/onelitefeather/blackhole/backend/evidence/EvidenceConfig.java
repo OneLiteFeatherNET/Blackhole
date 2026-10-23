@@ -26,6 +26,7 @@ public class EvidenceConfig {
     private int maxPayloadBytes = 32_768;
     private int maxChatLines = 50;
     private Duration pendingTtl = Duration.ofDays(1);
+    private Duration reportPendingTtl = Duration.ofDays(30);
     private Duration auditRetention;
 
     private Housekeeping housekeeping = new Housekeeping();
@@ -37,6 +38,7 @@ public class EvidenceConfig {
         require(this.maxPayloadBytes > 0, "blackhole.evidence.max-payload-bytes must be positive");
         require(this.maxChatLines > 0, "blackhole.evidence.max-chat-lines must be positive");
         requirePositive(this.pendingTtl, "blackhole.evidence.pending-ttl");
+        requirePositive(this.reportPendingTtl, "blackhole.evidence.report-pending-ttl");
         if (this.auditRetention != null) {
             requirePositive(this.auditRetention, "blackhole.evidence.audit-retention");
         }
@@ -82,6 +84,15 @@ public class EvidenceConfig {
 
     public void setPendingTtl(Duration pendingTtl) {
         this.pendingTtl = pendingTtl;
+    }
+
+    /** How long pending evidence attached to a report (correlation id prefix {@code report:}) waits for a punishment. */
+    public Duration getReportPendingTtl() {
+        return reportPendingTtl;
+    }
+
+    public void setReportPendingTtl(Duration reportPendingTtl) {
+        this.reportPendingTtl = reportPendingTtl;
     }
 
     /** How long audit rows are kept, or {@code null} to keep them indefinitely (the default). */

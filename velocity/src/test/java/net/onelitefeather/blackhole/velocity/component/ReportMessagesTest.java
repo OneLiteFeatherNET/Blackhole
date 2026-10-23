@@ -2,6 +2,8 @@ package net.onelitefeather.blackhole.velocity.component;
 
 import net.onelitefeather.blackhole.client.model.ReportCategory;
 import net.onelitefeather.blackhole.client.model.ReportDTO;
+import net.onelitefeather.blackhole.client.model.ReportFeedbackResponse;
+import net.onelitefeather.blackhole.client.model.ReportStatus;
 import net.onelitefeather.blackhole.velocity.report.ReportEvidence;
 import net.onelitefeather.blackhole.velocity.report.ReportNotice;
 import net.onelitefeather.blackhole.velocity.report.ReportService.Outcome;
@@ -95,5 +97,39 @@ class ReportMessagesTest {
         String text = Rendered.german(ReportMessages.notice(NOTICE, "https://panel.example.org")).text();
 
         assertTrue(text.contains("Neue Meldung") && text.contains("Chat-Missbrauch") && text.contains("[Öffnen]"), text);
+    }
+
+    private static ReportFeedbackResponse feedback(ReportStatus outcome) {
+        return new ReportFeedbackResponse().identifier(UUID.randomUUID()).reportIdentifier(UUID.randomUUID())
+                .category(ReportCategory.CHEATING).outcome(outcome).createdAt(java.time.Instant.parse("2026-10-20T23:30:00Z").toEpochMilli()).expiresAt(0L);
+    }
+
+    @Test
+    void anActionedReportIsAnsweredWithActionTakenInEnglish() {
+        String text = Rendered.english(ReportMessages.feedback(feedback(ReportStatus.ACTIONED), java.time.ZoneOffset.UTC)).text();
+
+        assertTrue(text.startsWith("Blackhole") && text.contains("cheating") && text.contains("2026-10-20") && text.contains("action was taken"), text);
+    }
+
+    @Test
+    void aDismissedReportIsAnsweredWithNoActionInGerman() {
+        String text = Rendered.german(ReportMessages.feedback(feedback(ReportStatus.DISMISSED), java.time.ZoneOffset.UTC)).text();
+
+        assertTrue(text.contains("nicht eingegriffen") && text.contains("Cheating"), text);
+    }
+
+    @Test
+    void theDateFollowsTheConfiguredZone() {
+        String text = Rendered.english(ReportMessages.feedback(feedback(ReportStatus.ACTIONED), java.time.ZoneId.of("Europe/Berlin"))).text();
+
+        assertTrue(text.contains("2026-10-21"), "23:30 UTC is already the next day in Berlin: " + text);
+    }
+
+    @Test
+    void feedbackNeverMentionsAPunishment() {
+        String text = Rendered.english(ReportMessages.feedback(feedback(ReportStatus.ACTIONED), java.time.ZoneOffset.UTC)).text().toLowerCase();
+
+        assertFalse(text.contains("ban") || text.contains("mute") || text.contains("punish"), text);
+        assertFalse(Rendered.english(ReportMessages.feedback(feedback(ReportStatus.ACTIONED), java.time.ZoneOffset.UTC)).hasEvents());
     }
 }

@@ -3,6 +3,9 @@ package net.onelitefeather.blackhole.backend.report;
 import io.micronaut.data.annotation.Repository;
 import io.micronaut.data.repository.PageableRepository;
 
+import io.micronaut.data.model.Page;
+import io.micronaut.data.model.Pageable;
+
 import java.util.UUID;
 
 @Repository
@@ -17,4 +20,7 @@ public interface ReportRepository extends PageableRepository<ReportEntity, UUID>
      * limit by simply varying it on every request.
      */
     long countByCreatedAtGreaterThan(long createdAtAfter);
+
+    /** The reports against one player, newest first. */
+    Page<ReportEntity> findByReportedHashOrderByCreatedAtDesc(String reportedHash, Pageable pageable);
 }

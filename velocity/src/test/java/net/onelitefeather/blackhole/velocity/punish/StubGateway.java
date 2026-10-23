@@ -8,6 +8,7 @@ import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentRevokeResponse;
 import net.onelitefeather.blackhole.client.model.ReportCategory;
 import net.onelitefeather.blackhole.client.model.ReportDTO;
+import net.onelitefeather.blackhole.client.model.ReportFeedbackResponse;
 import net.onelitefeather.blackhole.client.model.StaffLinkConfirmResponse;
 import net.onelitefeather.blackhole.client.model.StaffLinkLookupResponse;
 import net.onelitefeather.blackhole.velocity.evidence.ChatSnapshot;
@@ -62,16 +63,42 @@ final class StubGateway implements BackendGateway {
     UUID reportEvidenceId = UUID.fromString("00000000-0000-4000-8000-0000000000e1");
     final List<ChatSnapshot> reportSnapshots = new ArrayList<>();
     final List<String> reportEvidenceOwners = new ArrayList<>();
+    final List<String> reportEvidenceCorrelationIds = new ArrayList<>();
     ReportDTO reportResponse = new ReportDTO().identifier(UUID.fromString("00000000-0000-4000-8000-0000000000a1"));
     ApiException reportFailure;
     /** The reporter, reported, category, description and evidence of each submitted report. */
     final List<String> reports = new ArrayList<>();
+
+    /** What the feedback fetch answers, and the owners it was asked for. */
+    List<ReportFeedbackResponse> feedback = new ArrayList<>();
+    ApiException feedbackFailure;
+    ApiException acknowledgeFailure;
+    final List<String> feedbackOwners = new ArrayList<>();
+    final List<UUID> acknowledged = new ArrayList<>();
+
+    @Override
+    public List<ReportFeedbackResponse> reportFeedback(String owner) throws ApiException {
+        this.feedbackOwners.add(owner);
+        if (this.feedbackFailure != null) {
+            throw this.feedbackFailure;
+        }
+        return this.feedback;
+    }
+
+    @Override
+    public void acknowledgeReportFeedback(UUID identifier) throws ApiException {
+        this.acknowledged.add(identifier);
+        if (this.acknowledgeFailure != null) {
+            throw this.acknowledgeFailure;
+        }
+    }
 
     @Override
     public CompletableFuture<UUID> postReportChatEvidence(String reported, String correlationId, ChatSnapshot snapshot, String sourceSystem) {
         this.calls.add("report-evidence");
         this.reportSnapshots.add(snapshot);
         this.reportEvidenceOwners.add(reported);
+        this.reportEvidenceCorrelationIds.add(correlationId);
         return this.reportEvidenceResult != null ? this.reportEvidenceResult : CompletableFuture.completedFuture(this.reportEvidenceId);
     }
 

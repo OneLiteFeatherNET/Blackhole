@@ -4,7 +4,11 @@ import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.report.ReportEntity;
 import net.onelitefeather.blackhole.backend.report.ReportRepository;
 import net.onelitefeather.blackhole.backend.report.ReportStatus;
+import net.onelitefeather.blackhole.backend.evidence.service.PunishmentEvidenceGateway;
 import net.onelitefeather.blackhole.backend.report.dto.ReportDTO;
+import net.onelitefeather.blackhole.backend.report.feedback.ReportFeedbackService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import net.onelitefeather.blackhole.backend.report.dto.ReportRequestDTO;
 import net.onelitefeather.blackhole.backend.report.dto.ReportResolutionDTO;
 import io.micronaut.context.annotation.Value;
@@ -24,6 +28,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -70,7 +75,11 @@ import java.util.UUID;
 @Singleton
 public class ReportService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReportService.class);
+
     private final ReportRepository reportRepository;
+    private final ReportFeedbackService feedback;
+    private final PunishmentEvidenceGateway evidence;
     private final DomainEventPublisher eventPublisher;
     private final PunishmentApplicationService punishmentApplicationService;
     private final EloScoring eloService;
@@ -84,6 +93,8 @@ public class ReportService {
 
     public ReportService(
             ReportRepository reportRepository,
+            ReportFeedbackService feedback,
+            PunishmentEvidenceGateway evidence,
             DomainEventPublisher eventPublisher,
             PunishmentApplicationService punishmentApplicationService,
             EloScoring eloService,
@@ -96,6 +107,8 @@ public class ReportService {
             @Value("${blackhole.elo.report.reward-delta:50}") int reportRewardDelta
     ) {
         this.reportRepository = reportRepository;
+        this.feedback = feedback;
+        this.evidence = evidence;
         this.eventPublisher = eventPublisher;
         this.punishmentApplicationService = punishmentApplicationService;
         this.eloService = eloService;
@@ -151,6 +164,16 @@ public class ReportService {
 
     public Page<ReportDTO> getAll(Pageable pageable) {
         return this.reportRepository.findAll(pageable).map(ReportEntity::toDTO);
+    }
+
+    /** @return the reports against one player, newest first */
+    public Page<ReportDTO> getAllAgainst(String reportedHash, Pageable pageable) {
+        return this.reportRepository.findByReportedHashOrderByCreatedAtDesc(reportedHash, pageable).map(ReportEntity::toDTO);
+    }
+
+    /** @return the report, empty if there is none with this identifier */
+    public Optional<ReportDTO> get(UUID identifier) {
+        return this.reportRepository.findById(identifier).map(ReportEntity::toDTO);
     }
 
     public SubmitResult submit(ReportRequestDTO submission) {
@@ -217,6 +240,7 @@ public class ReportService {
                 ErrorKind kind = error.kind() == ErrorKind.NOT_FOUND ? ErrorKind.VALIDATION : error.kind();
                 return new ResolveResult.PunishmentRejected(kind, error.errorMessage());
             }
+            claimReportEvidence(report, applied);
         }
 
         report.setStatus(resolution.status());
@@ -250,6 +274,8 @@ public class ReportService {
             }
         }
 
+        queueFeedback(identifier, saved, resolution.status());
+
         this.eventPublisher.publish("report.resolved", Map.of(
                 "reportIdentifier", identifier.toString(),
                 "reportedHash", report.getReportedHash(),
@@ -259,5 +285,29 @@ public class ReportService {
         ));
 
         return new ResolveResult.Success(saved.toDTO());
+    }
+
+    /**
+     * The evidence the report references becomes evidence of the punishment it led to. Additive: a
+     * failure is logged and never undoes the resolution.
+     */
+    private void claimReportEvidence(ReportEntity report, PunishmentDTO applied) {
+        if (!(applied instanceof PunishmentDTO.ApplyResponse response) || report.getEvidenceReferences().isEmpty()) {
+            return;
+        }
+        try {
+            this.evidence.claimPendingByIds(report.getReportedHash(), report.getEvidenceReferences(), response.punishment().identifier());
+        } catch (RuntimeException e) {
+            LOGGER.warn("The evidence of report {} could not be attached to its punishment: {}", report.getIdentifier(), e.getMessage());
+        }
+    }
+
+    /** Tells the reporter what became of the report. Additive: a failure is logged and never undoes the resolution. */
+    private void queueFeedback(UUID identifier, ReportEntity report, ReportStatus outcome) {
+        try {
+            this.feedback.queue(identifier, report, outcome);
+        } catch (RuntimeException e) {
+            LOGGER.warn("The feedback for the reporter of report {} could not be queued: {}", identifier, e.getMessage());
+        }
     }
 }

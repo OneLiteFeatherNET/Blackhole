@@ -63,6 +63,9 @@ import java.util.UUID;
 @Singleton
 public class EvidenceService implements PunishmentEvidenceGateway {
 
+    /** The correlation id prefix of pending evidence that a report references. */
+    public static final String REPORT_CORRELATION_PREFIX = "report:";
+
     private static final Logger LOGGER = LoggerFactory.getLogger(EvidenceService.class);
 
     /** The longest source system, note and description the API accepts. */
@@ -395,6 +398,22 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         return pending.size();
     }
 
+    @Override
+    public int claimPendingByIds(String owner, java.util.Collection<UUID> evidenceIds, String punishmentIdentifier) {
+        int claimed = 0;
+        for (UUID id : evidenceIds) {
+            EvidenceItemEntity item = this.items.findById(id).orElse(null);
+            if (item == null || !item.isPending() || !owner.equals(item.getOwner())) {
+                continue;
+            }
+            item.claim(punishmentIdentifier);
+            this.items.update(item);
+            this.caseTimeline.evidenceAttached(item, CaseActor.ofRow(item.getCreatedBy(), item.getRecordedByOid(), item.getActorOid()));
+            claimed++;
+        }
+        return claimed;
+    }
+
     /**
      * Marks the punishment's valid items {@code REVOKED}: staff revoked the punishment, so the
      * evidence no longer supports a current one. Nothing is deleted; items that are already
@@ -442,9 +461,22 @@ public class EvidenceService implements PunishmentEvidenceGateway {
      * @return how many items were deleted
      */
     public int deleteUnclaimedCreatedBefore(long cutoff) {
+        return deleteUnclaimedCreatedBefore(cutoff, cutoff);
+    }
+
+    /**
+     * Like {@link #deleteUnclaimedCreatedBefore(long)}, but pending items that belong to a report (their
+     * correlation id starts with {@value #REPORT_CORRELATION_PREFIX}) wait until {@code reportCutoff}
+     * instead, because a report can stay open for weeks before staff apply a punishment.
+     */
+    public int deleteUnclaimedCreatedBefore(long cutoff, long reportCutoff) {
         int deleted = 0;
         for (EvidenceItemEntity item : this.items.findByPunishmentIdentifierIsNullAndCreatedAtLessThan(cutoff)) {
             if (!item.isPending()) {
+                continue;
+            }
+            boolean forReport = item.getCorrelationId() != null && item.getCorrelationId().startsWith(REPORT_CORRELATION_PREFIX);
+            if (forReport && item.getCreatedAt() >= reportCutoff) {
                 continue;
             }
             if (item.getFileKey() != null) {

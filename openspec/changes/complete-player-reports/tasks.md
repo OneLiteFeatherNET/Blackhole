@@ -22,12 +22,12 @@ the type-check) and `openspec validate --all --strict` before each PR.
 
 ## 3. Outcome for the reporter (PR 3: `feat(report): tell the reporter about the outcome`)
 
-- [ ] 3.1 Flyway migration for `report_feedback`, entity, repository and `ReportFeedbackService` (create on resolve, list pending per owner, acknowledge, expire); verify service tests with a fixed `Clock`
-- [ ] 3.2 `PROXY` routes `GET /report/feedback/{owner}` and `POST /report/feedback/{identifier}/ack`, sealed DTO, `*Api` interface, matrix row; verify controller tests with self-signed JWTs for allowed and refused roles
-- [ ] 3.3 `report.feedback` event relayed to Redis `blackhole.report.feedback`; verify the payload carries hashes and ids only
-- [ ] 3.4 Velocity delivers pending feedback on login and on the event, acknowledging each delivered row; verify tests with a fake gateway and players
-- [ ] 3.5 Next free client spec version, `inputSpec`, web `generate:api`, docs-test filename and `BlackholeApplication` version bumped together; verify the build
-- [ ] 3.6 Specs: `player-reports`, `proxy-reports`, `staff-authentication` (matrix) deltas
+- [x] 3.1 Flyway migration for `report_feedback`, entity, repository and `ReportFeedbackService` (create on resolve, list pending per owner, acknowledge, expire); verify service tests with a fixed `Clock`
+- [x] 3.2 `PROXY` routes `GET /report/feedback/{owner}` and `POST /report/feedback/{identifier}/ack`, sealed DTO, `*Api` interface, matrix row; verify controller tests with self-signed JWTs for allowed and refused roles
+- [x] 3.3 `report.feedback` event relayed to Redis `blackhole.report.feedback`; verify the payload carries hashes and ids only
+- [x] 3.4 Velocity delivers pending feedback on login and on the event, acknowledging each delivered row; verify tests with a fake gateway and players
+- [x] 3.5 Next free client spec version, `inputSpec`, web `generate:api`, docs-test filename and `BlackholeApplication` version bumped together; verify the build
+- [x] 3.6 Specs: `player-reports`, `proxy-reports`, `staff-authentication` (matrix) deltas
 
 ## 4. Report detail page (PR 4: `feat(web): add a report detail page`)
 

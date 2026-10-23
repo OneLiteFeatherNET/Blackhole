@@ -10,7 +10,9 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.validation.Validated;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,7 +44,8 @@ public interface ReportApi {
 
     @Operation(
             summary = "Get all reports",
-            description = "Retrieves a paginated list of reports",
+            description = "Retrieves a paginated list of reports. With reportedHash only the reports against that "
+                    + "player are listed, newest first.",
             operationId = "getReports",
             tags = {"Report"}
     )
@@ -55,7 +58,24 @@ public interface ReportApi {
             )
     )
     @Get("/")
-    HttpResponse<Page<ReportDTO>> getAll(Pageable pageable);
+    HttpResponse<Page<ReportDTO>> getAll(Pageable pageable, @Parameter(description = "Only the reports against this player (owner hash)", required = false) @Nullable @QueryValue String reportedHash);
+
+    @Operation(
+            summary = "Get a report",
+            description = "Retrieves one report by its identifier.",
+            operationId = "getReport",
+            tags = {"Report"}
+    )
+    @ApiResponse(
+            responseCode = "200", description = "The report",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ReportDTO.class))
+    )
+    @ApiResponse(
+            responseCode = "404", description = "There is no report with this identifier",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ReportErrorDTO.class))
+    )
+    @Get("/{identifier}")
+    HttpResponse<?> get(UUID identifier);
 
     @Operation(
             summary = "Resolve a report",

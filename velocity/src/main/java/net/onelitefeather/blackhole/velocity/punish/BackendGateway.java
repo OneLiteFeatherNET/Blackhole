@@ -5,6 +5,7 @@ import net.onelitefeather.blackhole.client.model.EloProfileResponse;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.ReportCategory;
 import net.onelitefeather.blackhole.client.model.ReportDTO;
+import net.onelitefeather.blackhole.client.model.ReportFeedbackResponse;
 import net.onelitefeather.blackhole.client.model.StaffLinkConfirmResponse;
 import net.onelitefeather.blackhole.client.model.StaffLinkLookupResponse;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
@@ -90,4 +91,13 @@ public interface BackendGateway {
      * @param evidence    the evidence items the report references
      */
     ReportDTO submitReport(String reporter, String reported, ReportCategory category, String description, List<UUID> evidence) throws ApiException;
+
+    /**
+     * @return the messages about the outcome of the owner's resolved reports that have not been shown
+     * yet, oldest first
+     */
+    List<ReportFeedbackResponse> reportFeedback(String owner) throws ApiException;
+
+    /** Tells the backend that a feedback message was shown, so it is not delivered again. */
+    void acknowledgeReportFeedback(UUID identifier) throws ApiException;
 }

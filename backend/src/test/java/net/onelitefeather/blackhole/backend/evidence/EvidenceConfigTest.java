@@ -41,6 +41,7 @@ class EvidenceConfigTest {
             assertEquals(32_768, config.getMaxPayloadBytes(), "default payload limit");
             assertEquals(50, config.getMaxChatLines(), "default chat line limit");
             assertEquals(Duration.ofDays(1), config.getPendingTtl(), "pending evidence expires after P1D");
+            assertEquals(Duration.ofDays(30), config.getReportPendingTtl(), "evidence of a report waits P30D");
             assertNull(config.getAuditRetention(), "audit rows are kept indefinitely unless configured");
             assertEquals(Duration.ofHours(1), config.getHousekeeping().getInterval(), "sweep interval");
             assertEquals(EvidenceConfig.Storage.S3, config.getFiles().getStorage(), "S3 is the default storage");
