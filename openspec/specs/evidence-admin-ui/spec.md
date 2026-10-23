@@ -65,7 +65,7 @@ The UI SHALL let staff add LINK and REPLAY evidence with scheme validation, and 
 - **THEN** the confirm button is disabled
 
 ### Requirement: Lifted evidence hidden by default
-The UI SHALL hide evidence of punishments lifted by appeal or revoked by default, SHALL reveal it only after the user switches on "aufgehobene Beweise anzeigen", MUST label each such item ("Strafe per Appeal aufgehoben" or "Strafe widerrufen"), MUST NOT count it in the evidence badge and MUST NOT present it as supporting a current punishment. The toggle MUST NOT be persisted. The UI does not restrict the toggle to particular users because no auth layer exists.
+The UI SHALL hide evidence of punishments lifted by appeal or revoked by default, SHALL reveal it only after the user switches on "aufgehobene Beweise anzeigen", MUST label each such item ("Strafe per Appeal aufgehoben" or "Strafe widerrufen"), MUST NOT count it in the evidence badge and MUST NOT present it as supporting a current punishment. The toggle MUST NOT be persisted. The UI does not restrict the toggle to particular roles because every reader (`VIEWER` and up) may reveal such evidence.
 
 #### Scenario: Default view
 - **WHEN** a punishment lifted by appeal is opened

@@ -17,7 +17,7 @@ punishments. Detail of the decisions: `openspec/changes/archive/2026-10-23-add-p
 - **Status, not deletion.** A staff revoke marks items `REVOKED`, a granted full-lift appeal marks them
   `LIFTED` (via `PunishmentEvidenceGateway`, failures logged, never failing the punishment change).
   Inactive items are hidden and not counted unless `includeInactive=true`, which is audited. That
-  hiding is advisory: there is no auth layer, so anyone reaching the API can read everything.
+  hiding is advisory: every role that may read evidence (VIEWER and up) can reveal it, and each reveal is audited.
 - **`PunishmentEvidenceGateway` is the only door** the punishment and appeal packages use; they must
   not depend on `EvidenceService` or the blob store directly. Punishment/appeal DTOs expose only
   `evidenceCount`, which is null in cached profile listings.
