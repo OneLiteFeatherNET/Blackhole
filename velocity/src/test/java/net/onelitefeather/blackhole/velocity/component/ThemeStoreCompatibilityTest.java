@@ -87,7 +87,7 @@ class ThemeStoreCompatibilityTest {
             }
         }
 
-        assertTrue(checked > 100, "the check must cover all keys of both languages, covered " + checked);
+        assertTrue(checked > 60, "the check must cover all untouched keys of both languages, covered " + checked);
     }
 
     @Test

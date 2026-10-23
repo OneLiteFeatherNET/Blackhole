@@ -22,8 +22,8 @@ title is a Conventional Commit `feat(velocity): ...`. Run `./gradlew :velocity:t
 
 ## 3. Unban and unmute (PR 3: `feat(velocity): restyle unban and unmute feedback`)
 
-- [ ] 3.1 Success, nothing-active, unknown/wrong section, permanent-needs-permission and failure messages with the shared style and next-step hints (section list, `info` command); verify unit tests per `RevokeOutcome` in RICH and PLAIN
-- [ ] 3.2 Player-name click to `/elo` and German/English texts; verify click event tests and key parity
+- [x] 3.1 Success, nothing-active, unknown/wrong section, permanent-needs-permission and failure messages with the shared style and next-step hints (section list, `info` command); verify unit tests per `RevokeOutcome` in RICH and PLAIN
+- [x] 3.2 Player-name click to `/elo` and German/English texts; verify click event tests and key parity
 
 ## 4. ELO, info and history blocks (PR 4: `feat(velocity): restyle elo, info and history output`)
 
