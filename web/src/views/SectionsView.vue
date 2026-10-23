@@ -90,9 +90,12 @@ async function confirmDisable(): Promise<void> {
           </template>
           <template v-else-if="column.key === 'enforcement'">{{ t(`enforcement.${row.enforcement}`) }}</template>
           <template v-else-if="column.key === 'servers'">
-            <ul v-if="row.servers.length" class="flex flex-wrap gap-1">
-              <li v-for="pattern in row.servers" :key="pattern"><StatusPill :label="pattern" tone="primary" /></li>
-            </ul>
+            <template v-if="row.servers.length">
+              <p class="mb-1 text-body-small text-on-surface-variant" data-testid="target-kind">{{ t(`sections.targetKind.${row.targetKind ?? 'PATTERN'}`) }}</p>
+              <ul class="flex flex-wrap gap-1">
+                <li v-for="pattern in row.servers" :key="pattern"><StatusPill :label="pattern" tone="primary" /></li>
+              </ul>
+            </template>
             <span v-else class="text-on-surface-variant" aria-hidden="true">-</span>
           </template>
           <dl v-else-if="column.key === 'baseScore'" class="grid grid-cols-[auto_1fr] gap-x-3 text-body-small">

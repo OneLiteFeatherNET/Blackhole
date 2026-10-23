@@ -3,6 +3,7 @@ import type { components } from './schema'
 type Schemas = components['schemas']
 
 export type EnforcementKind = Schemas['EnforcementKind']
+export type ServerTargetKind = Schemas['ServerTargetKind']
 export type ErrorKind = Schemas['ErrorKind']
 export type ReportStatus = Schemas['ReportStatus']
 export type ReportCategory = Schemas['ReportCategory']
@@ -23,6 +24,8 @@ export type RevokeResult = Schemas['PunishmentRevokeResponse']
 export type Template = Schemas['PunishTemplateResponse']
 export type TemplateStep = Schemas['PunishTemplateStep']
 export type Section = Schemas['SectionResponse']
+/** The CloudNet tasks, groups and services the proxies report, merged; `available` is false when none is known. */
+export type CloudNetCatalogue = Schemas['CatalogueResponse']
 export type Report = Schemas['ReportDTO']
 export type Appeal = Schemas['AppealDTO']
 export type CurrentCaller = Schemas['AuthMeResponse']
@@ -56,6 +59,8 @@ export interface SectionDraft {
   key: string
   displayName: string
   enforcement: EnforcementKind
+  /** How `servers` is read; only meaningful for SERVER sections, everything else saves as PATTERN. */
+  targetKind: ServerTargetKind
   servers: string[]
   baseScore: number
   softThreshold: number | null

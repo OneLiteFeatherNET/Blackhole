@@ -259,7 +259,7 @@
     "columns": {
       "section": "Bereich",
       "enforcement": "Durchsetzung",
-      "servers": "Server-Muster",
+      "servers": "Ziele",
       "scores": "Punktestände",
       "thresholds": "Schwellen",
       "actions": "Aktionen"
@@ -277,6 +277,10 @@
       "keyHint": "Kebab-Case; später nicht änderbar",
       "name": "Name",
       "enforcement": "Durchsetzung",
+      "targetKind": "Ziel",
+      "targetKindHint": "Was die Servernamen darunter bedeuten",
+      "serviceWarningTitle": "Achtung:",
+      "serviceWarning": "Ein Service-Name kann nach einem Neustart zu einer anderen Instanz gehören; die Sperre folgt dem Namen, nicht der Instanz. Für dauerhafte Sperren besser eine Task oder Gruppe verwenden.",
       "servers": "Server-Muster",
       "serversHint": "Kommagetrennt, * und ? als Platzhalter, z. B. bedwars-*, bw-?",
       "thresholds": "Punktestände und Schwellen",
@@ -298,6 +302,37 @@
       "enabledHint": "Deaktivierte Bereiche nehmen keine neuen Strafen oder Punkteänderungen an",
       "invalidNumber": "Gib eine ganze Zahl ein.",
       "save": "Speichern"
+    },
+    "targetKind": {
+      "PATTERN": "Namensmuster",
+      "CLOUDNET_TASK": "CloudNet-Task",
+      "CLOUDNET_GROUP": "CloudNet-Gruppe",
+      "CLOUDNET_SERVICE": "CloudNet-Service"
+    },
+    "targets": {
+      "legend": {
+        "CLOUDNET_TASK": "CloudNet-Tasks",
+        "CLOUDNET_GROUP": "CloudNet-Gruppen",
+        "CLOUDNET_SERVICE": "CloudNet-Services"
+      },
+      "loading": "CloudNet-Katalog wird geladen…",
+      "unavailable": "Es wurden keine CloudNet-Daten gemeldet. Namen bitte selbst eintragen.",
+      "noneOfKind": "Die CloudNet-Daten enthalten nichts dieser Art. Namen bitte selbst eintragen.",
+      "source": "Gemeldet von: {proxies}. Letzte Aktualisierung: {time}.",
+      "filter": "Namen filtern",
+      "more": "{shown} von {total} angezeigt. Mit dem Filter eingrenzen.",
+      "inGroups": "Gruppen: {groups}",
+      "running": "läuft",
+      "stopped": "gestoppt",
+      "ofTask": "Task {task}",
+      "freeText": "Name hinzufügen",
+      "freeTextHint": "Namen außerhalb des Katalogs sind erlaubt; Eingabetaste oder „Hinzufügen“",
+      "add": "Hinzufügen",
+      "chosen": "Ausgewählt",
+      "noneChosen": "Noch kein Name ausgewählt.",
+      "notInCatalogue": "Nicht im Katalog",
+      "remove": "{name} entfernen",
+      "removeShort": "Entfernen"
     }
   },
   "reports": {
