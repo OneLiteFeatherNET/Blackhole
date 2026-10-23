@@ -2,7 +2,7 @@
 
 A Vue 3 single page app for admins and staff (Microsoft Entra ID sign-in): dashboard, player lookup and detail (scores per
 section, active punishments, history, ELO history) with apply / revoke / adjust actions, template
-and section management, and the report and appeal queues. German (default) and English, light and
+and section management, and the report and appeal queues. English (default) and German, light and
 dark Material Design 3.
 
 ## Sign-in

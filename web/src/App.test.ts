@@ -6,7 +6,7 @@ import App from './App.vue'
 import { i18n } from './i18n'
 import { createAppRouter } from './router'
 import { useSessionStore } from './stores/session'
-import { NAV_COLLAPSED_STORAGE_KEY, THEME_STORAGE_KEY } from './stores/ui'
+import { LOCALE_STORAGE_KEY, NAV_COLLAPSED_STORAGE_KEY, THEME_STORAGE_KEY } from './stores/ui'
 import { fakeMatchMedia } from './test/media'
 import { API_KEY } from './api/inject'
 import { AUTH_KEY } from './auth/inject'
@@ -53,10 +53,10 @@ describe('App shell', () => {
   beforeEach(() => {
     localStorage.clear()
     delete document.documentElement.dataset.theme
-    i18n.global.locale.value = 'de'
+    localStorage.setItem(LOCALE_STORAGE_KEY, 'de')
   })
 
-  it('shows German navigation and the title of the current view by default', async () => {
+  it('shows German navigation and the title of the current view for a German viewer', async () => {
     const wrapper = await mountApp('/players')
 
     expect(wrapper.get('nav').attributes('aria-label')).toBe('Hauptnavigation')

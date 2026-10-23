@@ -76,24 +76,65 @@ describe('ui store: legacy acting-as label', () => {
 describe('ui store: locale', () => {
   beforeEach(() => {
     localStorage.clear()
-    i18n.global.locale.value = 'de'
+    i18n.global.locale.value = 'en'
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
-  it('defaults to German', () => {
+  it('is English when nothing is stored', () => {
+    const store = freshStore()
+
+    expect(store.locale).toBe('en')
+    expect(i18n.global.locale.value).toBe('en')
+    expect(document.documentElement.lang).toBe('en')
+  })
+
+  it('respects a German choice stored by the viewer', () => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, 'de')
+
     const store = freshStore()
 
     expect(store.locale).toBe('de')
     expect(i18n.global.locale.value).toBe('de')
   })
 
-  it('switches the interface language and persists it', () => {
+  it('is English when the stored value is not a supported language', () => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, 'fr')
+
+    expect(freshStore().locale).toBe('en')
+  })
+
+  it('is English when reading storage throws', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError')
+    })
+
     const store = freshStore()
 
-    store.setLocale('en')
-
+    expect(store.locale).toBe('en')
     expect(i18n.global.locale.value).toBe('en')
-    expect(document.documentElement.lang).toBe('en')
-    expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('en')
+  })
+
+  it('switches to German and persists the choice', () => {
+    const store = freshStore()
+
+    store.setLocale('de')
+
+    expect(i18n.global.locale.value).toBe('de')
+    expect(document.documentElement.lang).toBe('de')
+    expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('de')
+  })
+
+  it('still applies the choice for the page when writing storage throws', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError')
+    })
+    const store = freshStore()
+
+    store.setLocale('de')
+
+    expect(i18n.global.locale.value).toBe('de')
   })
 })
 

@@ -7,6 +7,7 @@ import { AUTH_KEY } from './auth/inject'
 import { i18n } from './i18n'
 import { TICKER_KEY } from './nav/ticker'
 import { createAppRouter } from './router'
+import { LOCALE_STORAGE_KEY } from './stores/ui'
 import { fakeAuthService } from './test/auth'
 import { mockApi, ok, piniaWithRoles } from './test/mount'
 import { fakeTicker } from './test/ticker'
@@ -50,7 +51,7 @@ const link = (wrapper: Awaited<ReturnType<typeof mountApp>>['wrapper'], label: s
 describe('navigation badges', () => {
   beforeEach(() => {
     localStorage.clear()
-    i18n.global.locale.value = 'de'
+    localStorage.setItem(LOCALE_STORAGE_KEY, 'de')
   })
 
   it('shows the open cases, appeals awaiting review and unresolved reports', async () => {
