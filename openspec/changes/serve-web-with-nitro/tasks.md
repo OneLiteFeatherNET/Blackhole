@@ -31,9 +31,9 @@ network, no sleeps; the only container check is task 2.4.
 
 ## 4. Coordinate with add-team-sso (PR 4: `docs(openspec): retarget add-team-sso web config to nitro`)
 
-- [ ] 4.1 Rewrite `openspec/changes/add-team-sso/tasks.md` 4.4 to target `web/server/lib/config.ts`, `web/server/lib/headers.ts` (CSP `connect-src`) and Vitest tests instead of `nginx/40-config-json.sh` and shell tests, add "`serve-web-with-nitro` is merged" to its Prerequisites, and update the nginx mentions in its `proposal.md` Impact and `design.md` section 7
-- [ ] 4.2 Reword the `admin-ui-authentication` delta requirement "Sign-in with Authorization Code and PKCE" and its "Misconfigured container" scenario from "the container writes" to "the web server serves ... refuses to start"; verify `openspec validate --all --strict`
+- [x] 4.1 Rewrite `openspec/changes/add-team-sso/tasks.md` 4.4 to target `web/server/lib/config.ts`, `web/server/lib/headers.ts` (CSP `connect-src`) and Vitest tests instead of `nginx/40-config-json.sh` and shell tests, add "`serve-web-with-nitro` is merged" to its Prerequisites, and update the nginx mentions in its `proposal.md` Impact and `design.md` section 7
+- [x] 4.2 Reword the `admin-ui-authentication` delta requirement "Sign-in with Authorization Code and PKCE" and its "Misconfigured container" scenario from "the container writes" to "the web server serves ... refuses to start"; verify `openspec validate --all --strict`
 
 ## 5. Pull requests
 
-- [ ] 5.1 Open the stacked pull requests, each based on the previous branch, with these titles: `build(web): add a nitro server for the admin ui` (section 1), `build(web): serve the admin ui from a nitro node image` (section 2), `docs(web): document the nitro runtime` (section 3), `docs(openspec): retarget add-team-sso web config to nitro` (section 4); after merge archive this change as `docs(openspec): archive serve-web-with-nitro`; verify CI is green on each and that commitlint accepts the titles
+- [x] 5.1 Open the stacked pull requests, each based on the previous branch, with these titles: `build(web): add a nitro server for the admin ui` (section 1), `build(web): serve the admin ui from a nitro node image` (section 2), `docs(web): document the nitro runtime` (section 3), `docs(openspec): retarget add-team-sso web config to nitro` (section 4); after merge archive this change as `docs(openspec): archive serve-web-with-nitro`; verify CI is green on each and that commitlint accepts the titles

@@ -97,7 +97,7 @@ Decisions taken on 2026-10-23 (by the user):
 - `client/specs/`: new API spec version (security scheme, removed actor fields, `GET /auth/me`).
 - `velocity/`: config, token provider, API client wiring, call sites of the removed fields.
 - `web/`: `oidc-client-ts`, auth service, router guards, `src/api/*`, `config.ts`,
-  `nginx/40-config-json.sh`, role-aware components, locales.
+  `server/lib/config.ts`, `server/lib/headers.ts`, role-aware components, locales.
 - `docker/`: mock OIDC server. `openspec/config.yaml`, `CLAUDE.md`, `.claude/rules/*`, READMEs.
 - Entra (done by an Entra admin, see tasks 6.1): API app registration (machine app roles,
   `groupMembershipClaims`), SPA registration, Velocity and metrics client registrations with
