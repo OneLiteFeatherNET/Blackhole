@@ -105,12 +105,64 @@ When a ticket closes the bot SHALL lock the channel and read the entire history,
 - **WHEN** three rescans do not match
 - **THEN** the ticket has no completeness event, the channel is kept and the panel shows a banner
 
+### Requirement: The closed ticket becomes a protocol stored with the case
+When a ticket closes and its transcript has been verified complete, `POST /discord/tickets/{id}/close` SHALL, in the same request that appends `ticket.transcript_complete`, generate the ticket's protocol from the stored case events (never from Discord), store it with the case as evidence of kind `TRANSCRIPT` as defined by `appeal-protocol`, and answer with the protocol version. If storing fails the request MUST answer HTTP 503 and the bot MUST NOT archive the channel.
+
+#### Scenario: Complete ticket
+- **WHEN** a ticket is closed with a matching count and last message id
+- **THEN** `ticket.transcript_complete` and a protocol version are recorded and the answer names the version
+
+#### Scenario: Storage fails
+- **WHEN** the protocol cannot be stored
+- **THEN** the close request answers HTTP 503 and the channel is not archived
+
+#### Scenario: Incomplete transcript
+- **WHEN** the completeness proof is refused
+- **THEN** no protocol is created for the ticket
+
+### Requirement: The Discord protocol equals the record
+The protocol MUST be complete and human-readable with a machine-readable JSON, list every message with its author (players pseudonymised as on the case timeline, staff by display name), time, edits, deletes and attachment metadata, and carry the completeness check (count and last Discord message id). It is the same protocol as for a portal or panel appeal.
+
+#### Scenario: Equals the record
+- **WHEN** the protocol is compared with the case timeline of the ticket
+- **THEN** every message, edit and delete of the timeline is in the protocol and nothing else
+
+#### Scenario: Completeness check
+- **WHEN** the protocol is read
+- **THEN** it states the count and last message id of `ticket.transcript_complete`
+
+### Requirement: Archive and deletion are gated on the protocol
+The backend SHALL refuse to set a ticket to `ARCHIVED` unless a stored protocol exists, and to `DELETED` unless a stored protocol exists whose source digest is current, answering HTTP 409 `PROTOCOL_REQUIRED`. Before deleting a channel the bot SHALL call `POST /discord/tickets/{id}/protocol/ensure`, which regenerates the protocol idempotently and without the settle delay.
+
+#### Scenario: Archive without protocol
+- **WHEN** the bot asks to archive a ticket that has no protocol
+- **THEN** the answer is HTTP 409 and the state is unchanged
+
+#### Scenario: Delete with an outdated protocol
+- **WHEN** a message was recorded after the last protocol version and the bot asks to delete
+- **THEN** the answer is HTTP 409 until `ensure` has stored a new version
+
+#### Scenario: Ensure is idempotent
+- **WHEN** `ensure` is called twice for an unchanged ticket
+- **THEN** one version exists
+
+### Requirement: Late changes before deletion regenerate the protocol
+A message, edit or delete recorded for a ticket after its protocol was stored (for example in the archived channel) SHALL lead to a new protocol version before the channel is deleted, and earlier versions MUST be kept as superseded until a redaction purges them. When Discord data is redacted or a participant is erased, the stored protocols MUST be purged and regenerated as defined by `appeal-protocol`.
+
+#### Scenario: Late edit
+- **WHEN** a staff member edits a message in the archived channel and the delete delay then passes
+- **THEN** the bot's `ensure` call stores version 2 with the edit before the channel is deleted
+
+#### Scenario: Participant erased
+- **WHEN** an admin erases the Discord participant of a ticket with a stored protocol
+- **THEN** the earlier versions become unreadable and the new version shows an anonymous author
+
 ### Requirement: History survives the channel
-After a channel is archived or deleted, the conversation SHALL remain readable in the panel case page and, filtered to player-visible entries, in the portal, with no read from Discord. A channel deleted by a person before completion SHALL be recorded as `ticket.channel_deleted` with `transcriptComplete: false` and the last recorded message time.
+After a channel is archived or deleted, the conversation SHALL remain readable in the panel case page, with the stored protocol available for download, and, filtered to player-visible entries, in the portal, with no read from Discord. A channel deleted by a person before completion SHALL be recorded as `ticket.channel_deleted` with `transcriptComplete: false` and the last recorded message time.
 
 #### Scenario: After deletion
 - **WHEN** the channel has been deleted
-- **THEN** the panel still shows every recorded message and the portal shows the player-visible ones
+- **THEN** the panel still shows every recorded message and the stored protocol, and the portal shows the player-visible ones
 
 #### Scenario: Early manual deletion
 - **WHEN** a person deletes an open ticket channel
@@ -132,7 +184,7 @@ Discord user ids and display names SHALL be stored only on a `case_participant` 
 - **THEN** none contains a Discord user id
 
 ### Requirement: Retention and export
-The Discord transcript SHALL be kept for as long as its case and punishment, pending legal confirmation, and SHALL be included in the admin transcript export with channel, author kind and trust, redaction markers and the ticket markers, without Discord identifiers.
+The Discord transcript and its stored protocol SHALL be kept for as long as their case and punishment, pending legal confirmation, and SHALL be included in the admin transcript export with channel, author kind and trust, redaction markers and the ticket markers, without Discord identifiers.
 
 #### Scenario: Export
 - **WHEN** an admin exports a case with a Discord ticket

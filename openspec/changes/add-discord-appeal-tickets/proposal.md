@@ -22,7 +22,7 @@ as a record after the ticket and the channel are gone.
   when the bot is down.
 - **One private channel per ticket** (appeal), created in a ticket category after the player enters
   the Ban ID in an ephemeral modal (slash command or button). Locked when the ticket is frozen or
-  decided, archived with a verified transcript, deleted after a retention delay.
+  decided, converted into a stored **protocol** and archived with a verified transcript, deleted 30 days later.
 - **Both-way sync, idempotent and loop-free**: portal and panel messages appear in the channel;
   everything written in the channel (players, staff, other bots), with edits and deletes, is
   recorded on the case timeline as `message.added` / `message.edited` / `message.deleted`.
@@ -30,9 +30,17 @@ as a record after the ticket and the channel are gone.
   are backfilled on restart and on close from the Discord history (idempotent by message id); a
   closing ticket gets `ticket.transcript_complete` with the count and last message id. After the
   channel is gone the history stays in the panel and, player-visible only, in the portal.
-- **Attribution of Discord staff**: a staff member links their Discord account with the existing
+- **The ticket becomes a protocol before the channel goes**: when the transcript is verified complete, the
+  backend generates the complete protocol (human-readable text plus JSON) from the stored case events and stores
+  it with the case as evidence of kind `TRANSCRIPT` (defined in `add-appeal-portal`). The channel is archived
+  only after the protocol is stored and deleted (after 30 days) only while a current protocol exists. The same
+  protocol is made for portal and panel appeals.
+- **Attribution and access of Discord staff**: a staff member links their Discord account with the existing
   staff-link code; a message is `VERIFIED` only with a live link **and** the staff role at the time of
-  writing, otherwise it is shown as unverified.
+  writing, otherwise it is shown as unverified. Staff without a link are **not allowed** in ticket channels:
+  the bot adds only role holders with a live link.
+- **Settled with the team (2026-10-23):** bot ingress limited at infra only (no per-user cooldown), archived
+  channels deleted after 30 days, linked staff only.
 - **Leak scanning** of public channels: `#`-prefixed Ban ID candidates are checked against the
   backend; only a real Ban ID is acted on: the message is deleted and the Ban ID marked leaked.
 - Discord users are stored as erasable **participants**; events reference an opaque participant id.
@@ -51,7 +59,7 @@ Not breaking: all additions. The generated client gains the `/discord/**` operat
 - Copying attachment files out of Discord (metadata only in v1, see design).
 - Voice, threads as tickets, forum tickets, multi-guild support (one guild per deployment).
 - Sharding, a bot-side database, a web dashboard for the bot.
-- App-level rate limiting (infra owns it; see the open question on the bot as a guessing path).
+- App-level rate limiting and per-user cooldowns (infra owns it; the required edge rule is an operator task).
 - Retention sweeps of history (the case's lifetime rule applies).
 
 ## Capabilities
@@ -59,20 +67,20 @@ Not breaking: all additions. The generated client gains the `/discord/**` operat
 ### New Capabilities
 
 - `discord-appeal-tickets`: the bot module, ticket lifecycle, channel permissions, both-way sync, failure behaviour, runtime and Entra setup.
-- `discord-transcript`: persistence of the full channel history, catch-up, completeness event, identifiers and erasure of Discord data.
+- `discord-transcript`: persistence of the full channel history, catch-up, completeness event, the protocol gates for archive and deletion, identifiers and erasure of Discord data.
 - `discord-leak-scanning`: detection of Ban IDs in public channels and the reaction.
 
 ### Modified Capabilities
 
 - `staff-authentication`: the `DISCORD` role and its least-privilege `/discord/**` routes.
-- `staff-account-link`: linking a Discord account with the same one-time code.
+- `staff-account-link`: linking a Discord account with the same one-time code; a live link is what grants channel access.
 - `admin-web-ui`: Discord ticket status, link dialog, missing-transcript banner.
 
 ## Impact
 
 - Backend: new `discord/` package (controller family `DiscordApi`, `TicketService`, `DiscordIngestService`,
   `LeakCheckService`), `security/` (`Roles.DISCORD`, finder, matrix), `casetimeline/` (new payloads).
-- Flyway: `V15__discord_tickets.sql` (`case_participant`, `discord_ticket`, `discord_message_link`,
+- Flyway: `V16__discord_tickets.sql` (`case_participant`, `discord_ticket`, `discord_message_link`,
   `staff_discord_link`) (next free version at implementation time).
 - New module `discord/`; `settings.gradle.kts`, version catalog (JDA, amqp-client), Dockerfile, compose
   service, CI image build, docs, Entra script.

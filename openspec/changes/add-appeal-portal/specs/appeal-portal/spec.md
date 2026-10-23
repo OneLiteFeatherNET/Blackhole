@@ -129,6 +129,43 @@ After a Ban ID is marked leaked, the portal SHALL show the appeal right as forfe
 - **WHEN** an admin reissues the Ban ID after a leak that was not the player's fault
 - **THEN** the new ID gives a `FULL` session and a frozen ticket accepts player messages again
 
+### Requirement: Portal host
+The portal SHALL be served at `appeal.onelitefeather.net`, which is also the value of `BLACKHOLE_PORTAL_ORIGIN`, the origin checked for state-changing requests and the host of the `__Host-` cookie; startup MUST fail when the origin is not a valid `https` origin outside development.
+
+#### Scenario: Origin check
+- **WHEN** a state-changing request carries an `Origin` other than the configured portal origin
+- **THEN** the portal answers 403
+
+#### Scenario: Invalid origin configuration
+- **WHEN** the portal starts outside development with a non-https origin
+- **THEN** it refuses to start
+
+### Requirement: Player copy of the protocol
+A player session with scope `FULL` SHALL be able to download the protocol of its decided appeal through `GET /public/appeal/protocol?format=text|json`, rendered on demand from the conversation the portal already shows. The response MUST be `no-store` and an attachment, and a `LIMITED` session MUST be refused.
+
+#### Scenario: Player downloads
+- **WHEN** a player with a decided appeal requests the text copy
+- **THEN** it lists exactly the entries the portal conversation shows
+
+#### Scenario: Not yet decided
+- **WHEN** the appeal is still open
+- **THEN** the route answers HTTP 409
+
+#### Scenario: Leaked Ban ID
+- **WHEN** a `LIMITED` session requests the copy
+- **THEN** the response is HTTP 403
+
+### Requirement: The player copy is player-visible only
+The player copy SHALL use the same visibility filter and type allow-list as the portal conversation, label the player "You" and staff "Moderation team" without names, show attachments as type and size, and show redacted and deleted entries as removed. The stored staff protocol, its versions and `STAFF`-visibility entries MUST NOT be reachable from a player session.
+
+#### Scenario: Staff-only entry
+- **WHEN** the conversation contains a `STAFF`-visibility bot message
+- **THEN** the player copy does not contain it
+
+#### Scenario: No staff names
+- **WHEN** a verified staff member replied
+- **THEN** the player copy shows "Moderation team" and no name
+
 ### Requirement: Separate public portal application
 The portal SHALL be a separate Nitro application `portal/` with its own origin, container and cookie, serving the player UI and a backend-for-frontend with an allow-list of exactly the player routes. It MUST NOT forward any other path to the backend, MUST hold the session token only in a cookie named `__Host-bh_portal` with `HttpOnly`, `Secure`, `SameSite=Lax` and `Path=/`, and MUST NOT log request bodies.
 

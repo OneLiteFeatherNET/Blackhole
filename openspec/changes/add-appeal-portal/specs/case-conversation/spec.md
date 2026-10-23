@@ -111,6 +111,10 @@ An `ADMIN` SHALL be able to redact one message (`POST /case/{reference}/messages
 - **WHEN** a `MODERATOR` calls a redact route
 - **THEN** the response is HTTP 403
 
+#### Scenario: Stored protocol follows
+- **WHEN** a message that is part of a stored protocol is redacted
+- **THEN** the earlier protocol versions become unreadable and a regenerated version shows a marker (see `appeal-protocol`)
+
 ### Requirement: Transcript export
 `GET /case/{reference}/transcript?format=json|text` SHALL, for `ADMIN`, return the conversation in order with messages, edits, deletions, redaction markers, visibility and the lifecycle markers of the case; notes MUST be excluded unless `includeNotes=true`; redacted entries MUST export as markers without text. Each export SHALL append `transcript.exported` with the actor, format and entry count and no content, and the response MUST be `no-store` and an attachment.
 

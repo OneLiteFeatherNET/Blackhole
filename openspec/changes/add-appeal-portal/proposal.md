@@ -36,6 +36,13 @@ Discord or Microsoft account, and the full conversation to be kept as part of th
 - **Panel.** The case page shows the conversation with a composer, leak and reissue actions and a
   transcript export; the appeals queue links to it and shows unanswered player messages.
 - **Velocity** shows the Ban ID on the ban screen.
+- **Appeal protocol.** When an appeal's conversation closes, the backend turns it into a complete,
+  human-readable protocol plus a machine-readable JSON, generated from the stored case events only, and
+  stores it with the case as an evidence item of the new kind `TRANSCRIPT` (idempotent, versioned, kept in
+  step with redactions). Staff open and download it on the case page; the player can download the
+  player-visible view in the portal.
+- **Settled with the team (2026-10-23):** portal host `appeal.onelitefeather.net`; session 30 minutes idle and
+  4 hours absolute; key rotation in v1 is "reissue all" (key ids later).
 - Client spec `blackhole-api-0.0.N.yml` (next free number at implementation time).
 
 **BREAKING (contract, not behaviour):** the player-visible identifier changes from the 8 hex short
@@ -61,6 +68,7 @@ id to the Ban ID. The generated client and the Velocity plugin must move to the 
 - `ban-id`: format, generation, storage, lookup, legacy handling, reissue.
 - `appeal-portal`: public API, player session, the portal app, abuse and safety rules.
 - `case-conversation`: messages on the timeline, visibility, leak and freeze, retention, erasure, export.
+- `appeal-protocol`: the stored protocol of an appeal: content, creation, versions, access, redaction.
 
 ### Modified Capabilities
 
@@ -69,15 +77,18 @@ id to the Ban ID. The generated client and the Velocity plugin must move to the 
 - `appeal-workflow`: one open appeal per Ban ID, portal filing, player-visible decision message.
 - `admin-web-ui`: conversation, leak, reissue and export on the case page; queue badge.
 - `proxy-enforcement`: the ban screen shows the Ban ID.
+- `punishment-evidence`: the system-generated kind `TRANSCRIPT` (storage, count, status, access).
 
 ## Impact
 
 - Backend: `punishment/` (Ban ID generator, store, backfill, lookup), new `publicapi/` package
   (session, `PublicApi` controllers, services), `casetimeline/` (message types, leak, reissue,
-  export), `appeal/` (filing path for the portal), `security/` (public rules in the matrix test).
-- Flyway: `V13__ban_id.sql`, `V14__player_session.sql` (next free versions at implementation time).
+  export, `protocol/`), `appeal/` (filing path for the portal), `evidence/` (kind `TRANSCRIPT`,
+  `GeneratedEvidenceGateway`), `security/` (public rules in the matrix test).
+- Flyway: `V13__ban_id.sql`, `V14__player_session.sql`, `V15__appeal_protocol.sql` (next free versions at implementation time).
 - New module: `portal/` (Nitro + Vue, own Dockerfile and CI image build). Also Velocity, `web/`
   and the client spec.
-- Config: `blackhole.banid.*`, `blackhole.public.*`; env `BLACKHOLE_BANID_KEY`.
+- Config: `blackhole.banid.*`, `blackhole.public.*`, `blackhole.protocol.*` (`settle-delay`,
+  `reconcile-interval`, `max-bytes`); env `BLACKHOLE_BANID_KEY`.
 - Depends on `add-punishment-case-timeline` (case, `case_event`, `visibility`, redaction). The
   message model extends it with new event types only; no `case_event` column changes.
