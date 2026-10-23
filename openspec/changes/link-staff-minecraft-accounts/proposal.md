@@ -57,7 +57,7 @@ Pieces:
 - Using LuckPerms meta, Mojang session auth or any other proof of the Minecraft side.
 - Backfilling `actor_oid` on punishments issued before a link existed (design decision 6).
 - Per-actor identity for system rows (ELO automation, vanilla import) and for players.
-- New app-level rate limiting (infra owns it); the per-code failed-attempt cap is code state.
+- New app-level rate limiting (infra owns it), and no failed-attempt cap or any other limiter on the link code.
 - Linking more than one Minecraft account per person, or one account to several people.
 - Linking service principals (`PROXY`, `METRICS`); only `HUMAN` tokens may link.
 - The appeal portal and any player-facing linking.

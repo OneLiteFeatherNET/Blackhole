@@ -33,7 +33,7 @@ The backend SHALL bind the Minecraft UUID sent as `onBehalfOf` to the `oid` the 
 - **THEN** the response is HTTP 403
 
 ### Requirement: Invalid codes are indistinguishable
-A wrong, expired, already used or burned code SHALL be refused with the same `INVALID_CODE` error. An expired code MUST be refused once the injected clock passes its expiry, and a used code MUST NOT link a second time.
+A wrong, expired, already used code SHALL be refused with the same `INVALID_CODE` error. An expired code MUST be refused once the injected clock passes its expiry, and a used code MUST NOT link a second time.
 
 #### Scenario: Code expired
 - **WHEN** the clock is advanced beyond the lifetime and the proxy confirms the code
@@ -47,16 +47,9 @@ A wrong, expired, already used or burned code SHALL be refused with the same `IN
 - **WHEN** the proxy confirms a code that was never issued
 - **THEN** the response is `INVALID_CODE` and no link is created
 
-### Requirement: Failed attempts burn a code
-Each failed confirmation SHALL increment a failed-attempt counter stored on every live code, and a code that reaches the configured maximum (default 10) MUST be burned: later confirmations with it fail even with the right value. The counter is state on the code, not a rate limiter.
-
-#### Scenario: Code burned after the cap
-- **WHEN** ten wrong codes are confirmed while a code is live and then the correct code is confirmed
-- **THEN** the response is `INVALID_CODE` and the staff member must issue a new code
-
-#### Scenario: Below the cap
-- **WHEN** nine wrong codes are confirmed and then the correct code
-- **THEN** the link is created
+#### Scenario: Failures are not counted
+- **WHEN** many wrong codes are confirmed while a code is live and then the correct code is confirmed
+- **THEN** the link is created, because there is no attempt cap and no other limiter on the code
 
 ### Requirement: One-to-one link
 A Minecraft UUID SHALL belong to at most one `oid` and an `oid` to at most one UUID. Confirming a new pairing MUST replace the old link and publish `staff-link.removed` with reason `REPLACED` for each removed link.
@@ -120,6 +113,17 @@ The plain link code and its hash MUST NOT appear in logs, events, error bodies o
 #### Scenario: Events carry the oid only
 - **WHEN** a link is created
 - **THEN** the `staff-link.created` payload contains the `oid` and no code
+
+### Requirement: Only staff can link
+Only players holding the permission `blackhole.link` SHALL be able to run `/blackhole link`, and the command SHALL be available to players only. The backend accepts a confirmation only from the `PROXY` role. The operator documentation MUST tell operators to grant `blackhole.link` only to staff groups.
+
+#### Scenario: Non-staff player
+- **WHEN** a player without `blackhole.link` runs `/blackhole link <code>`
+- **THEN** no backend call is made
+
+#### Scenario: Documentation names the rule
+- **WHEN** an operator reads the staff linking documentation
+- **THEN** it states that `blackhole.link` is to be granted to staff groups only
 
 ### Requirement: Minecraft link command
 The Velocity plugin SHALL provide `/blackhole link <code>` under the permission `blackhole.link`, for players only, calling the confirmation endpoint with the executing player's UUID as `onBehalfOf`. It SHALL answer in English or German in the shared `bh:` message style for success, invalid or expired code, already linked, wrong usage and console use, and `/blackhole whoami` SHALL show the link status.

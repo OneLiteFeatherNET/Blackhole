@@ -39,22 +39,17 @@ Non-goals: see "Out of scope" in proposal.md.
   exists only in the issue response. It is never logged, never in an event, never in an error.
 - One live code per `oid`: issuing a new code replaces the previous row, so the old one stops
   working.
-- Guessing resistance, without an app-level rate limiter (principle 5): (a) entropy: a guess
-  hits one of the few live codes with probability about `live/2^40`; (b) the 5 minute TTL;
-  (c) the code is bound to the issuing `oid`, so a guessed code can only ever link the guesser's
-  own Minecraft account to *that staff member's* identity, and the guesser needs `blackhole.link`
-  (a staff permission) plus the proxy call carrying their own UUID; (d) a **per-code
-  failed-attempt cap**: every failed confirm increments `failed_attempts` on all live codes, and
-  a code reaching `BLACKHOLE_STAFF_LINK_MAX_FAILED_ATTEMPTS` (default 10) is burned. Total
-  guesses against any code are therefore bounded to 10, i.e. success odds of roughly
-  `10 * live / 2^40` per code lifetime, independent of what infra does.
-- The cap is state on the code rows, not a rate limiter: no time window, no per-caller counting,
-  no throttling of requests. A failed confirm cannot be attributed to a single row (an unknown
-  code identifies none), which is why it counts against all live codes. Trade-off: a staff member
-  with `blackhole.link` can burn others' codes by typing wrong ones; they are trusted staff, the
-  attempt is logged with the `onBehalfOf` UUID and the owner just issues a new code. This is the
-  one point we want the user to confirm (open question 1).
-- Responses for wrong, expired, reused and burned codes are identical (one `INVALID_CODE` error)
+- Guessing resistance, with no limiter of any kind (principle 5; user decision 2026-10-23: only
+  team members can link). It rests on: (a) entropy: 40 bits, a guess hits one of the few live
+  codes with probability about `live/2^40`; (b) the 5 minute TTL; (c) single use; (d) the binding
+  to the issuing `oid`, so a guessed code can only link the guesser's own Minecraft account to
+  *that staff member's* identity, which the guesser would have to want; (e) **staff-only access**:
+  `/blackhole link` is available only to players holding `blackhole.link`, and the operator is
+  told to grant that permission only to staff groups, so the guessing population is the team;
+  (f) the command is player-only and the backend accepts a confirmation only from the `PROXY`
+  role, so there is no other door. There is no failed-attempt counter and no throttling; abuse
+  beyond this is the operator's infra concern.
+- Responses for wrong, expired and reused codes are identical (one `INVALID_CODE` error)
   so a prober learns nothing about which codes exist.
 
 ### 2. Cardinality, re-link, unlink
@@ -77,7 +72,7 @@ Append-only `V10__staff_account_link.sql` (number confirmed at apply time; never
 
 ```
 staff_link_code(oid uuid PK, code_hash varchar(64) NOT NULL UNIQUE,
-                expires_at bigint NOT NULL, failed_attempts int NOT NULL DEFAULT 0)
+                expires_at bigint NOT NULL)
 staff_link(oid uuid PK, minecraft_uuid uuid NOT NULL UNIQUE,
            linked_at bigint NOT NULL, linked_by_oid uuid NOT NULL)
 ALTER TABLE punishments ADD COLUMN actor_oid uuid;      -- same for reports,
@@ -87,7 +82,7 @@ ALTER TABLE evidence_audit ADD COLUMN actor_oid uuid;   -- evidence_audit
 
 No foreign keys (same rule as V9: anonymizing or pruning never blocks history). Appeals get no
 `actor_oid`: reviews are web-only, so `decided_by` already is the `oid`. Existing rows keep NULL.
-Expired and burned code rows are deleted lazily on the next issue or confirm (no scheduler, no
+Expired code rows are deleted lazily on the next issue or confirm (no scheduler, no
 sleeps).
 
 ### 4. Attribution
@@ -178,7 +173,7 @@ this change adds the link to it and the README keeps the "pending" marker.
 
 Unit tests for the generator (alphabet, length, normalisation, hash-only). Service tests with an
 in-memory repository fake and an injected `Clock` for TTL: issue, replace, confirm, expired,
-reused, wrong, burned, one-to-one, unlink, anonymize, attribution, self-review. Controller and
+reused, wrong, one-to-one, unlink, anonymize, attribution, self-review. Controller and
 matrix tests with self-signed JWTs (`TestJwtIssuer`), no Entra, no network. No `Thread.sleep`;
 time moves by advancing the test clock. Velocity tests use a fake client; web tests a fake clock
 and API. Each test builds its own fixture.
@@ -187,13 +182,11 @@ and API. Each test builds its own fixture.
 
 - A linked person who loses their Minecraft account can re-link with a new code; the old link is
   replaced and audited.
-- The all-live-codes failure counter lets a staff member burn colleagues' codes (decision 1).
+- Without an attempt cap, safety against guessing rests on entropy, TTL and `blackhole.link` being granted to staff only; a wrongly granted permission widens the guessing population.
 - Pre-link bans are only covered by the live-link clause, not by a stored `actor_oid`.
 - Raw staff UUID in `staff_link`: consistent with today's storage, covered by the pending
   retention statement.
 
 ## Open Questions
 
-1. Keep the failed-attempt counter on all live codes (bounded guesses, but staff can burn each
-   other's codes), or drop the cap and rely on entropy, TTL and infra alone?
-2. Legal confirmation of the staff-data retention statement (shared with `add-team-sso`).
+1. Legal confirmation of the staff-data retention statement (shared with `add-team-sso`; tracked in ADR-BLKH-0002 as pending).
