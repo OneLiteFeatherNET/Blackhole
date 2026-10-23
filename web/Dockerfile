@@ -26,7 +26,8 @@ ENV NODE_ENV=production \
     NITRO_HOST=0.0.0.0 \
     NITRO_PORT=8080
 # .output is self-contained (the server bundle with its dependencies); nothing else is needed.
-COPY --from=build --chown=node:node /app/web/.output ./.output
+# Owned by root and only readable for the node user, so the server cannot rewrite its own code.
+COPY --from=build /app/web/.output ./.output
 USER node
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
