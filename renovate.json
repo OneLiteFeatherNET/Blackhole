@@ -2,5 +2,12 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "github>OneLiteFeatherNET/renovate:default(OneLiteFeatherNET/blackhole-maintainers)"
+  ],
+  "packageRules": [
+    {
+      "description": "Hold TypeScript below 7: vue-tsc and openapi-typescript need the TS 7 JS API (ERR_PACKAGE_PATH_NOT_EXPORTED ./lib/tsc, no ts.factory). Reopen when both support it.",
+      "matchPackageNames": ["typescript"],
+      "allowedVersions": "<7"
+    }
   ]
 }
