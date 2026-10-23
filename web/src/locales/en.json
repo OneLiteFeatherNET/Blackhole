@@ -7,7 +7,8 @@
     "templates": "Templates",
     "sections": "Sections",
     "reports": "Reports",
-    "appeals": "Appeals"
+    "appeals": "Appeals",
+    "admin": "Admin"
   },
   "settings": {
     "theme": {
@@ -30,7 +31,10 @@
     "noAccess": {
       "title": "No access",
       "heading": "You have no access yet",
-      "body": "You are signed in, but your account has no role for Blackhole. Ask an administrator to add you to the right group, then sign in again."
+      "body": "You are signed in, but your account has no role for Blackhole. Ask an administrator to add you to the right group, then sign in again.",
+      "adminHeading": "Administrators only",
+      "adminBody": "This page is only available to administrators. Your role does not include it.",
+      "back": "Back to the dashboard"
     },
     "error": {
       "heading": "Sign-in failed",
@@ -590,5 +594,36 @@
     "unlinkBody": "The person can link again with a new code. Earlier entries keep their attribution.",
     "unlinkConfirm": "Remove link",
     "removed": "Link removed."
+  },
+  "admin": {
+    "title": "Administration",
+    "intro": "Tools for administrators."
+  },
+  "staffActors": {
+    "title": "Staff",
+    "intro": "Everyone the backend has seen sign in or call the API. Anonymizing removes a person's data for good.",
+    "empty": "No staff known yet.",
+    "unnamed": "(no name)",
+    "columns": {
+      "name": "Name",
+      "oid": "Object ID",
+      "kind": "Kind",
+      "lastSeen": "Last seen",
+      "actions": "Actions"
+    },
+    "kind": {
+      "HUMAN": "Person",
+      "SERVICE": "Application"
+    },
+    "anonymize": "Anonymize",
+    "anonymizeFor": "Anonymize {name}",
+    "dialogTitle": "Anonymize {name}?",
+    "consequencesIntro": "This has the following consequences:",
+    "consequenceName": "The name is removed everywhere it is shown.",
+    "consequenceHistory": "History keeps the object ID, so earlier entries still point to the same account.",
+    "consequenceLink": "The link to the Minecraft account is removed.",
+    "consequenceIrreversible": "This cannot be undone.",
+    "confirm": "Anonymize for good",
+    "done": "{name} was anonymized."
   }
 }

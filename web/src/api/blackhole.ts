@@ -22,6 +22,7 @@ import type {
   ResolvedPlayer,
   RevokeResult,
   Section,
+  StaffActor,
   StaffLink,
   StaffLinkCode,
   StaffLinkStatus,
@@ -104,6 +105,10 @@ export interface BlackholeApi {
   staffLinks(): Promise<ApiResult<StaffLink[]>>
   /** Removes anyone's link (ADMIN only). */
   unlinkStaffLink(oid: string): Promise<ApiResult<void>>
+  /** Every known staff principal, most recently seen first (ADMIN only). */
+  staffActors(): Promise<ApiResult<StaffActor[]>>
+  /** Removes the principal's display name and Minecraft link; the `oid` and all history stay (ADMIN only, irreversible). */
+  anonymizeStaffActor(oid: string): Promise<ApiResult<void>>
 }
 
 const EVIDENCE_PAGE_SIZE = 20
@@ -385,5 +390,9 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     staffLinks: async () => map(await toResult(http.GET('/admin/staff-link')), (body) => body.items),
     unlinkStaffLink: async (oid) =>
       map(await toResult(http.DELETE('/admin/staff-link/{oid}', { params: { path: { oid } } })), () => undefined),
+
+    staffActors: async () => map(await toResult(http.GET('/admin/staff-actor')), (body) => body.items ?? []),
+    anonymizeStaffActor: async (oid) =>
+      map(await toResult(http.POST('/admin/staff-actor/{oid}/anonymize', { params: { path: { oid } } })), () => undefined),
   }
 }

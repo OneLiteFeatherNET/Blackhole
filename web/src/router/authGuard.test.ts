@@ -122,6 +122,31 @@ describe('router guard', () => {
     expect(router.currentRoute.value.name).toBe('dashboard')
   })
 
+  it.each([['VIEWER'], ['MODERATOR']])('sends a %s who opens the admin page to the no-access page with the admin reason', async (role) => {
+    const { router } = setup({ roles: [role] })
+
+    await router.push('/admin')
+
+    expect(router.currentRoute.value.name, 'route').toBe('no-access')
+    expect(router.currentRoute.value.query.reason, 'reason').toBe('admin')
+  })
+
+  it('opens the admin page for an admin', async () => {
+    const { router } = setup({ roles: ['ADMIN'] })
+
+    await router.push('/admin')
+
+    expect(router.currentRoute.value.name).toBe('admin')
+  })
+
+  it('keeps a viewer on the admin no-access page instead of bouncing to the dashboard', async () => {
+    const { router } = setup({ roles: ['VIEWER'] })
+
+    await router.push('/admin')
+
+    expect(router.currentRoute.value.fullPath).toBe('/no-access?reason=admin')
+  })
+
   it('shows the error page when the caller cannot be loaded', async () => {
     const { router } = setup({ me: async () => fail('boom', 500, 'UNKNOWN') })
 

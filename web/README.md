@@ -36,6 +36,11 @@ the backend verifies it; the UI only decides what to offer.
   after a confirmation. Admins also get a list of all links with an unlink action. See
   [Linking a Minecraft account](../README.md#linking-a-minecraft-account). The code is held in
   memory only and never stored in the browser.
+- **Admin page.** `/admin` ("Verwaltung" in the navigation) is offered to `ADMIN` only; anyone else who opens
+  the address lands on a no-access page that says it is for administrators. It lists the known staff
+  (`GET /admin/staff-actor`: name, object id, kind, last seen) and can anonymize one
+  (`POST /admin/staff-actor/{oid}/anonymize`) after a confirmation that names the consequences: the name is
+  removed, history keeps the object id, the Minecraft link is removed, and it cannot be undone.
 - **Sign-out** clears the in-memory user and ends the Entra session (`post_logout_redirect_uri` is
   the UI's origin).
 - **Evidence files** (`GET /evidence/{id}/content`) need the bearer token, which `<img>` and

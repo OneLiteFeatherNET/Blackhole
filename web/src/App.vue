@@ -47,7 +47,14 @@ const accountOpen = ref(false)
 // first visit means after sign-in, and never while the browser is on its way to the authority.
 const resolved = computed(() => route.matched.length > 0 && !auth.redirecting.value)
 
-const navItems = computed(() => (session.hasAccess ? NAV : []).map((item) => ({ to: item.to, icon: item.icon, label: t(`nav.${item.key}`) })))
+// Only an admin is offered the admin page; the backend stays authoritative.
+const ADMIN_NAV = {
+  to: '/admin',
+  key: 'admin',
+  icon: 'M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 4c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.3c-2.5-.8-4.5-2.9-5.4-5.3 1-1.6 3.4-2.5 5.4-2.5s4.4.9 5.4 2.5c-.9 2.4-2.9 4.5-5.4 5.3z',
+}
+
+const navItems = computed(() => (session.hasAccess ? (session.administrator ? [...NAV, ADMIN_NAV] : NAV) : []).map((item) => ({ to: item.to, icon: item.icon, label: t(`nav.${item.key}`) })))
 const title = computed(() => (route.meta.titleKey ? t(String(route.meta.titleKey)) : ''))
 
 const themeOptions = computed(() =>

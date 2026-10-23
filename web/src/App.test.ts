@@ -90,6 +90,22 @@ describe('App shell', () => {
     wrapper.unmount()
   })
 
+  it('offers the admin page in the navigation to an admin', async () => {
+    const wrapper = await mountApp('/')
+
+    expect(wrapper.findAll('nav a').map((a) => a.text()), 'entries').toContain('Verwaltung')
+
+    wrapper.unmount()
+  })
+
+  it.each([['MODERATOR'], ['VIEWER']])('does not offer the admin page in the navigation to a %s', async (role) => {
+    const wrapper = await mountApp('/', { roles: [role] })
+
+    expect(wrapper.findAll('nav a').map((a) => a.text()), 'entries').not.toContain('Verwaltung')
+
+    wrapper.unmount()
+  })
+
   it('announces the redirect to the sign-in service in a live region', async () => {
     const auth = fakeAuthService()
     const wrapper = await mountApp('/', { auth })
