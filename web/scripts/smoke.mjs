@@ -10,7 +10,11 @@ if (!image) {
   console.error('usage: node scripts/smoke.mjs <image>')
   process.exit(2)
 }
-const SOURCE = '3f2b8c1e-5d4a-4e7b-9a60-1c2d3e4f5a6b'
+const OIDC = {
+  authority: 'https://login.example.org/tenant/v2.0',
+  clientId: 'spa-client',
+  apiScope: 'api://backend/access_as_user',
+}
 const name = `blackhole-web-smoke-${process.pid}`
 const docker = (...args) => spawnSync('docker', args, { encoding: 'utf8' })
 
@@ -41,7 +45,9 @@ try {
     'run', '-d', '--rm', '--name', name, '-p', '127.0.0.1::8080',
     '--add-host', 'host.docker.internal:host-gateway',
     '-e', `BLACKHOLE_BACKEND_URL=http://host.docker.internal:${upstreamPort}`,
-    '-e', `BLACKHOLE_UI_SOURCE=${SOURCE}`,
+    '-e', `BLACKHOLE_UI_OIDC_AUTHORITY=${OIDC.authority}`,
+    '-e', `BLACKHOLE_UI_OIDC_CLIENT_ID=${OIDC.clientId}`,
+    '-e', `BLACKHOLE_UI_API_SCOPE=${OIDC.apiScope}`,
     image,
   )
   assert.equal(run.status, 0, run.stderr)
@@ -55,7 +61,7 @@ try {
 
   const config = await fetch(`${base}/config.json`)
   assert.equal(config.headers.get('cache-control'), 'no-store')
-  assert.deepEqual(await config.json(), { source: SOURCE, reviewer: SOURCE })
+  assert.deepEqual(await config.json(), { oidc: OIDC })
 
   const index = await fetch(`${base}/`)
   const html = await index.text()
@@ -78,6 +84,7 @@ try {
     assert.equal(headers.get('x-frame-options'), 'DENY', path)
     assert.equal(headers.get('referrer-policy'), 'no-referrer', path)
     assert.match(headers.get('content-security-policy') ?? '', /default-src 'self'/, path)
+    assert.match(headers.get('content-security-policy') ?? '', /connect-src 'self' https:\/\/login\.example\.org;/, path)
     assert.equal(headers.get('server'), null, path)
     assert.equal(headers.get('x-powered-by'), null, path)
   }
@@ -93,10 +100,12 @@ try {
   const uid = docker('exec', name, 'id', '-u').stdout.trim()
   assert.notEqual(uid, '0', 'runs as non-root')
 
-  // A missing operator UUID stops the container with a message instead of starting it.
+  // Missing sign-in settings stop the container with a message instead of starting it.
   const bad = docker('run', '--rm', '-e', 'BLACKHOLE_BACKEND_URL=http://backend:8080', image)
   assert.notEqual(bad.status, 0)
-  assert.match(bad.stderr, /BLACKHOLE_UI_SOURCE/)
+  for (const variable of ['BLACKHOLE_UI_OIDC_AUTHORITY', 'BLACKHOLE_UI_OIDC_CLIENT_ID', 'BLACKHOLE_UI_API_SCOPE']) {
+    assert.match(bad.stderr, new RegExp(variable))
+  }
 
   console.log('web image smoke check passed')
 } finally {

@@ -12,9 +12,11 @@ import SectionEditor from '../components/sections/SectionEditor.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { useResource } from '../composables/useResource'
 import { formatDuration } from '../format'
+import { useSessionStore } from '../stores/session'
 
 const { t, locale } = useI18n()
 const api = useApi()
+const session = useSessionStore()
 
 const sections = useResource(() => api.sections())
 
@@ -75,7 +77,7 @@ async function confirmDisable(): Promise<void> {
     <div class="flex flex-col gap-4">
       <div class="flex flex-wrap items-center gap-3">
         <p class="min-w-0 flex-1 text-body-large text-on-surface-variant">{{ t('sections.intro') }}</p>
-        <MdButton data-testid="new-section" @click="openEditor(null)">{{ t('sections.new') }}</MdButton>
+        <MdButton v-if="session.administrator" data-testid="new-section" @click="openEditor(null)">{{ t('sections.new') }}</MdButton>
       </div>
 
       <MdDataTable v-if="sections.data.value" :label="t('sections.title')" :columns="columns" :rows="sections.data.value">
@@ -111,7 +113,7 @@ async function confirmDisable(): Promise<void> {
             <dt class="text-on-surface-variant">{{ t('sections.permanent') }}</dt>
             <dd>{{ row.permanentThreshold }}</dd>
           </dl>
-          <div v-else-if="column.key === 'enabled'" class="flex gap-1">
+          <div v-else-if="column.key === 'enabled' && session.administrator" class="flex gap-1">
             <MdButton variant="text" :data-testid="`edit-${row.key}`" @click="openEditor(row)">{{ t('sections.edit') }}</MdButton>
             <MdButton v-if="row.enabled" variant="text" :data-testid="`disable-${row.key}`" @click="askDisable(row)">
               {{ t('sections.disable.open') }}

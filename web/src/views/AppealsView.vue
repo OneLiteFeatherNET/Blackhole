@@ -13,6 +13,7 @@ import ResourceState from '../components/ResourceState.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { useResource } from '../composables/useResource'
 import { formatDateTime, shortHash } from '../format'
+import { useSessionStore } from '../stores/session'
 
 // Same set the dashboard counts as pending; only the last two can be decided.
 const PENDING: AppealStatus[] = ['SUBMITTED', 'ELIGIBLE_PENDING_REVIEW', 'IN_REVIEW']
@@ -20,6 +21,7 @@ const DECIDABLE: AppealStatus[] = ['ELIGIBLE_PENDING_REVIEW', 'IN_REVIEW']
 
 const { t, locale } = useI18n()
 const api = useApi()
+const session = useSessionStore()
 
 const appeals = useResource(() => api.appeals())
 const showAll = ref(false)
@@ -77,7 +79,7 @@ async function done(text: string): Promise<void> {
             :tone="DECIDABLE.includes(row.status) ? 'tertiary' : 'neutral'"
           />
           <template v-else-if="column.key === 'identifier'">
-            <MdButton v-if="DECIDABLE.includes(row.status)" variant="outlined" :data-testid="`decide-${row.identifier}`" @click="deciding = row">
+            <MdButton v-if="session.moderator && DECIDABLE.includes(row.status)" variant="outlined" :data-testid="`decide-${row.identifier}`" @click="deciding = row">
               {{ t('appeals.decide.open') }}
             </MdButton>
           </template>

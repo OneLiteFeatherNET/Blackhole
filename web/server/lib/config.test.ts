@@ -4,8 +4,14 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { ConfigError, parseUiConfig, toPublicConfig } from './config'
 
-const SOURCE = '3f2b8c1e-5d4a-4e7b-9a60-1c2d3e4f5a6b'
-const REVIEWER = '0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d'
+const AUTHORITY = 'https://login.microsoftonline.com/11111111-2222-4333-8444-555555555555/v2.0'
+const CLIENT_ID = '22222222-3333-4444-8555-666666666666'
+const API_SCOPE = 'api://33333333-4444-4555-8666-777777777777/access_as_user'
+const OIDC = {
+  BLACKHOLE_UI_OIDC_AUTHORITY: AUTHORITY,
+  BLACKHOLE_UI_OIDC_CLIENT_ID: CLIENT_ID,
+  BLACKHOLE_UI_API_SCOPE: API_SCOPE,
+}
 
 function problemsOf(env: Record<string, string>): string[] {
   try {
@@ -18,35 +24,49 @@ function problemsOf(env: Record<string, string>): string[] {
 }
 
 describe('parseUiConfig', () => {
-  it('uses the operator UUID as the reviewer by default', () => {
-    const config = parseUiConfig({ BLACKHOLE_UI_SOURCE: SOURCE })
-
-    expect(config, 'source and reviewer').toMatchObject({ source: SOURCE, reviewer: SOURCE })
+  it('reads the sign-in settings', () => {
+    expect(parseUiConfig(OIDC).oidc).toEqual({ authority: AUTHORITY, clientId: CLIENT_ID, apiScope: API_SCOPE })
   })
 
-  it('takes a separate reviewer when one is given', () => {
-    const config = parseUiConfig({ BLACKHOLE_UI_SOURCE: SOURCE, BLACKHOLE_UI_REVIEWER: REVIEWER })
-
-    expect(config, 'source and reviewer').toMatchObject({ source: SOURCE, reviewer: REVIEWER })
+  it('strips trailing slashes from the authority', () => {
+    expect(parseUiConfig({ ...OIDC, BLACKHOLE_UI_OIDC_AUTHORITY: `${AUTHORITY}//` }).oidc.authority).toBe(AUTHORITY)
   })
 
-  it('refuses to start without an operator UUID', () => {
-    expect(problemsOf({}).join('\n')).toContain('BLACKHOLE_UI_SOURCE must be a UUID')
+  it.each(['BLACKHOLE_UI_OIDC_AUTHORITY', 'BLACKHOLE_UI_OIDC_CLIENT_ID', 'BLACKHOLE_UI_API_SCOPE'])('refuses to start without %s', (name) => {
+    const { [name]: _removed, ...rest } = OIDC as Record<string, string>
+
+    expect(problemsOf(rest).join('\n')).toContain(`${name} must be`)
   })
 
-  it('refuses a value that is not a UUID, so nothing can be injected into the JSON', () => {
-    expect(problemsOf({ BLACKHOLE_UI_SOURCE: `${SOURCE}","x":"y` }).join('\n')).toContain('must be a UUID')
+  it.each(['http://login.example.org/v2.0', 'ftp://login.example.org', 'login.example.org', 'https://user:pw@login.example.org', 'https://login.example.org/v2.0?x=1', 'https://login.example.org/v2.0#frag', 'javascript:alert(1)'])(
+    'refuses the authority %j',
+    (value) => {
+      expect(problemsOf({ ...OIDC, BLACKHOLE_UI_OIDC_AUTHORITY: value }).join('\n')).toContain('BLACKHOLE_UI_OIDC_AUTHORITY must be')
+    },
+  )
+
+  it.each(['http://localhost:18090/blackhole', 'http://127.0.0.1:18090/blackhole', 'http://[::1]:18090/blackhole'])('accepts the loopback authority %s over http', (value) => {
+    expect(parseUiConfig({ ...OIDC, BLACKHOLE_UI_OIDC_AUTHORITY: value }).oidc.authority).toBe(value)
   })
 
-  it('refuses an invalid reviewer', () => {
-    expect(problemsOf({ BLACKHOLE_UI_SOURCE: SOURCE, BLACKHOLE_UI_REVIEWER: 'nobody' }).join('\n')).toContain(
-      'BLACKHOLE_UI_REVIEWER must be a UUID',
-    )
+  it.each(['', 'a b', 'x","y":"z', 'x'.repeat(129)])('refuses the client id %j, so nothing can be injected into the JSON', (value) => {
+    expect(problemsOf({ ...OIDC, BLACKHOLE_UI_OIDC_CLIENT_ID: value }).join('\n')).toContain('BLACKHOLE_UI_OIDC_CLIENT_ID must be')
+  })
+
+  it.each(['', 'openid profile', 'api://x/y","z":"1', '"quoted"'])('refuses the API scope %j', (value) => {
+    expect(problemsOf({ ...OIDC, BLACKHOLE_UI_API_SCOPE: value }).join('\n')).toContain('BLACKHOLE_UI_API_SCOPE must be')
+  })
+
+  it('no longer reads the operator and reviewer UUIDs', () => {
+    const config = parseUiConfig({ ...OIDC, BLACKHOLE_UI_SOURCE: 'bad', BLACKHOLE_UI_REVIEWER: 'bad' })
+
+    expect(Object.keys(config), 'config keys').not.toContain('source')
+    expect(Object.keys(config), 'config keys').not.toContain('reviewer')
   })
 
   it('reads the evidence upload limits when they are set', () => {
     const config = parseUiConfig({
-      BLACKHOLE_UI_SOURCE: SOURCE,
+      ...OIDC,
       BLACKHOLE_UI_EVIDENCE_MAX_IMAGE_BYTES: '2048',
       BLACKHOLE_UI_EVIDENCE_MAX_VIDEO_BYTES: '4096',
       BLACKHOLE_UI_EVIDENCE_ALLOWED_TYPES: 'image/png,video/mp4',
@@ -56,31 +76,31 @@ describe('parseUiConfig', () => {
   })
 
   it('leaves evidence out when no limit is set', () => {
-    expect(parseUiConfig({ BLACKHOLE_UI_SOURCE: SOURCE }).evidence, 'evidence').toBeUndefined()
+    expect(parseUiConfig({ ...OIDC }).evidence, 'evidence').toBeUndefined()
   })
 
   it.each(['0', '-1', '1.5', '01', '1,"x":"y', 'abc', '12345678901234567'])('refuses the evidence limit %j', (value) => {
-    expect(problemsOf({ BLACKHOLE_UI_SOURCE: SOURCE, BLACKHOLE_UI_EVIDENCE_MAX_IMAGE_BYTES: value }).join('\n')).toContain(
+    expect(problemsOf({ ...OIDC, BLACKHOLE_UI_EVIDENCE_MAX_IMAGE_BYTES: value }).join('\n')).toContain(
       'BLACKHOLE_UI_EVIDENCE_MAX_IMAGE_BYTES must be a positive number',
     )
   })
 
   it('refuses allowed types that are not MIME types', () => {
-    expect(problemsOf({ BLACKHOLE_UI_SOURCE: SOURCE, BLACKHOLE_UI_EVIDENCE_ALLOWED_TYPES: 'image/png","x":"y' }).join('\n')).toContain(
+    expect(problemsOf({ ...OIDC, BLACKHOLE_UI_EVIDENCE_ALLOWED_TYPES: 'image/png","x":"y' }).join('\n')).toContain(
       'BLACKHOLE_UI_EVIDENCE_ALLOWED_TYPES must be comma separated MIME types',
     )
   })
 
   it('defaults the backend URL to http://backend:8080', () => {
-    expect(parseUiConfig({ BLACKHOLE_UI_SOURCE: SOURCE }).backendUrl).toBe('http://backend:8080')
+    expect(parseUiConfig({ ...OIDC }).backendUrl).toBe('http://backend:8080')
   })
 
   it('strips trailing slashes from the backend URL', () => {
-    expect(parseUiConfig({ BLACKHOLE_UI_SOURCE: SOURCE, BLACKHOLE_BACKEND_URL: 'http://other:9000//' }).backendUrl).toBe('http://other:9000')
+    expect(parseUiConfig({ ...OIDC, BLACKHOLE_BACKEND_URL: 'http://other:9000//' }).backendUrl).toBe('http://other:9000')
   })
 
   it('accepts an https backend URL with a path prefix', () => {
-    expect(parseUiConfig({ BLACKHOLE_UI_SOURCE: SOURCE, BLACKHOLE_BACKEND_URL: 'https://api.example.org/base/' }).backendUrl).toBe(
+    expect(parseUiConfig({ ...OIDC, BLACKHOLE_BACKEND_URL: 'https://api.example.org/base/' }).backendUrl).toBe(
       'https://api.example.org/base',
     )
   })
@@ -88,7 +108,7 @@ describe('parseUiConfig', () => {
   it.each(['ftp://backend', 'backend:8080', 'not a url', 'http://user:pw@backend', 'http://backend?x=1', 'http://backend#frag', 'file:///etc/passwd'])(
     'refuses the backend URL %j',
     (value) => {
-      expect(problemsOf({ BLACKHOLE_UI_SOURCE: SOURCE, BLACKHOLE_BACKEND_URL: value }).join('\n')).toContain('BLACKHOLE_BACKEND_URL must be')
+      expect(problemsOf({ ...OIDC, BLACKHOLE_BACKEND_URL: value }).join('\n')).toContain('BLACKHOLE_BACKEND_URL must be')
     },
   )
 
@@ -103,8 +123,9 @@ describe('parseUiConfig', () => {
 
     for (const name of [
       'BLACKHOLE_BACKEND_URL',
-      'BLACKHOLE_UI_SOURCE',
-      'BLACKHOLE_UI_REVIEWER',
+      'BLACKHOLE_UI_OIDC_AUTHORITY',
+      'BLACKHOLE_UI_OIDC_CLIENT_ID',
+      'BLACKHOLE_UI_API_SCOPE',
       'BLACKHOLE_UI_EVIDENCE_MAX_IMAGE_BYTES',
       'BLACKHOLE_UI_EVIDENCE_MAX_VIDEO_BYTES',
       'BLACKHOLE_UI_EVIDENCE_ALLOWED_TYPES',
@@ -112,17 +133,13 @@ describe('parseUiConfig', () => {
       expect(problems.some((p) => p.startsWith(name)), `${name} is named`).toBe(true)
     }
   })
-
-  it('reports the missing source once for source and reviewer when the reviewer is unset', () => {
-    expect(problemsOf({})).toHaveLength(2)
-  })
 })
 
 describe('toPublicConfig', () => {
   it('does not expose the backend URL', () => {
-    const config = parseUiConfig({ BLACKHOLE_UI_SOURCE: SOURCE, BLACKHOLE_BACKEND_URL: 'http://internal:8080' })
+    const config = parseUiConfig({ ...OIDC, BLACKHOLE_BACKEND_URL: 'http://internal:8080' })
 
-    expect(toPublicConfig(config)).toEqual({ source: SOURCE, reviewer: SOURCE })
+    expect(toPublicConfig(config)).toEqual({ oidc: { authority: AUTHORITY, clientId: CLIENT_ID, apiScope: API_SCOPE } })
   })
 })
 
@@ -137,5 +154,15 @@ describe('web README', () => {
     expect(keys.length, 'keys found in the parser').toBe(3)
     for (const name of variables) expect(readme, name).toContain(`\`${name}\``)
     for (const key of keys) expect(readme, key).toContain(`\`${key}\``)
+  })
+
+  it('documents every sign-in variable the parser reads and none of the removed ones', () => {
+    const readme = readFileSync(join(import.meta.dirname, '../../README.md'), 'utf8')
+    const parser = readFileSync(join(import.meta.dirname, 'config.ts'), 'utf8')
+    const variables = [...new Set(parser.match(/BLACKHOLE_UI_(?:OIDC_[A-Z_]+|API_SCOPE)/g))]
+
+    expect(variables.length, 'sign-in variables found in the parser').toBe(3)
+    for (const name of variables) expect(readme, name).toContain(`\`${name}\``)
+    expect(parser, 'parser').not.toMatch(/BLACKHOLE_UI_(?:SOURCE|REVIEWER)/)
   })
 })

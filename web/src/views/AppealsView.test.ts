@@ -29,7 +29,7 @@ function setup(overrides: Record<string, unknown> = {}) {
     reviewAppeal: vi.fn(async () => ok(appeal({ status: 'GRANTED_FULL_LIFT' }))),
     evidence: vi.fn(async () => ok(evidencePage([evidenceItem({ kind: 'ANTICHEAT', payload: { check: 'Speed' } })]))),
     evidenceCount: vi.fn(async () => ok(1)),
-    evidenceContentUrl: (id: string) => `/api/evidence/${id}/content`,
+    evidenceContent: async () => ok(new Blob(['x'], { type: 'image/png' })),
     ...overrides,
   }
   return { api, mount: () => mountWithApp(AppealsView, { api: mockApi(api), path: '/appeals' }) }

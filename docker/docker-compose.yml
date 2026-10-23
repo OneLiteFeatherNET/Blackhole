@@ -122,9 +122,8 @@ services:
       - blackhole_go_net
 
   # The admin web UI at http://localhost:8081, a Node (Nitro) server that serves the built files and
-  # forwards /api/ to the backend; the image's own healthcheck probes /healthz. It has no login of its
-  # own and neither has the API it proxies, so it only listens on localhost here; anywhere else put it on a private network or
-  # behind a proxy that authenticates (see web/README.md). The backend is expected on the host
+  # forwards /api/ to the backend; the image's own healthcheck probes /healthz. Staff sign in in the
+  # browser (OIDC, see below) and the backend verifies every call. The backend is expected on the host
   # (./gradlew :backend:run); point BLACKHOLE_BACKEND_URL elsewhere to use another one.
   web:
     build:
@@ -133,10 +132,11 @@ services:
     container_name: 'web_blackhole'
     environment:
       BLACKHOLE_BACKEND_URL: ${BLACKHOLE_BACKEND_URL:-http://host.docker.internal:8080}
-      # Attributed to every punishment, note and decision made through the UI (unverified).
-      BLACKHOLE_UI_SOURCE: ${BLACKHOLE_UI_SOURCE:-00000000-0000-4000-8000-000000000001}
-      # Optional; the UUID that decides appeals. Defaults to BLACKHOLE_UI_SOURCE.
-      BLACKHOLE_UI_REVIEWER: ${BLACKHOLE_UI_REVIEWER:-}
+      # Sign-in against the mock OIDC server above; the browser reaches it as localhost:18090. Point these at
+      # Entra ID for a real tenant (see web/README.md).
+      BLACKHOLE_UI_OIDC_AUTHORITY: ${BLACKHOLE_UI_OIDC_AUTHORITY:-http://localhost:18090/blackhole}
+      BLACKHOLE_UI_OIDC_CLIENT_ID: ${BLACKHOLE_UI_OIDC_CLIENT_ID:-blackhole-web}
+      BLACKHOLE_UI_API_SCOPE: ${BLACKHOLE_UI_API_SCOPE:-blackhole-api/access_as_user}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

@@ -14,6 +14,7 @@ function punishment(overrides: Partial<Punishment> = {}): Punishment {
     identifier: 'p-1',
     shortId: 'ABC123',
     source: '11111111-2222-3333-4444-555555555555',
+    verified: true,
     section: 'network',
     permanent: false,
     lifted: false,
@@ -274,7 +275,7 @@ describe('PlayerDetailView', () => {
 describe('PlayerDetailView: evidence', () => {
   const evidenceApi = () => {
     const evidence = vi.fn(async () => ok(evidencePage([evidenceItem({ kind: 'ANTICHEAT', payload: { check: 'Speed' } }), evidenceItem({ kind: 'FILE', file: { name: 'shot.png', contentType: 'image/png', size: 1, sha256: 'x' } })])))
-    return { evidence, overrides: { evidence, evidenceCount: vi.fn(async () => ok(2)), evidenceContentUrl: (id: string) => `/api/evidence/${id}/content` } }
+    return { evidence, overrides: { evidence, evidenceCount: vi.fn(async () => ok(2)), evidenceContent: async () => ok(new Blob(['x'], { type: 'image/png' })) } }
   }
 
   it('loads no evidence until a punishment is opened', async () => {

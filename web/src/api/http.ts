@@ -6,17 +6,60 @@ import type { ApiError, ApiResult, ErrorKind } from './types'
 export const API_VERSION = '1'
 export const API_VERSION_HEADER = 'X-API-VERSION'
 
+/** What the HTTP layer needs from sign-in; the app wires it to the auth service. */
+export interface HttpAuth {
+  /** The current access token, null when there is none or it has expired. */
+  getAccessToken(): Promise<string | null>
+  /** A new access token without user interaction, null when the authority refuses. */
+  renew(): Promise<string | null>
+  /** Renewal failed or the renewed token was refused too: start sign-in from scratch. */
+  signIn(): void
+  /** The backend answered 403: tell the user, do not retry. */
+  forbidden(): void
+}
+
 export interface HttpOptions {
   /** Where the API is mounted; the reverse proxy strips this prefix. */
   baseUrl: string
+  auth: HttpAuth
   fetch?: typeof fetch
 }
 
+/**
+ * Adds the bearer token. On 401 the token is renewed once and the request repeated once; when that
+ * does not help, sign-in starts again. A 403 is reported and never retried.
+ */
+export function authenticatedFetch(auth: HttpAuth, send: typeof fetch): (request: Request) => Promise<Response> {
+  const attempt = (request: Request, token: string) => {
+    request.headers.set('Authorization', `Bearer ${token}`)
+    return send(request)
+  }
+  const settle = (response: Response) => {
+    if (response.status === 403) auth.forbidden()
+    return response
+  }
+  return async (request) => {
+    const retry = request.clone()
+    const token = await auth.getAccessToken()
+    const first = token ? await attempt(request, token) : null
+    if (first && first.status !== 401) return settle(first)
+    const renewed = await auth.renew()
+    if (!renewed) {
+      auth.signIn()
+      return first ?? new Response(null, { status: 401 })
+    }
+    const second = await attempt(retry, renewed)
+    if (second.status === 401) auth.signIn()
+    return settle(second)
+  }
+}
+
 export function createHttp(options: HttpOptions) {
+  // Looked up on every call so tests (and the browser) can swap the global implementation.
+  const send = options.fetch ?? ((request: Request) => globalThis.fetch(request))
   return createClient<paths>({
     baseUrl: options.baseUrl,
-    // Looked up on every call so tests (and the browser) can swap the global implementation.
-    fetch: options.fetch ?? ((request) => globalThis.fetch(request)),
+    fetch: authenticatedFetch(options.auth, send as typeof fetch),
     headers: { [API_VERSION_HEADER]: API_VERSION },
   })
 }
@@ -55,6 +98,8 @@ export function errorFromBody(status: number, body: unknown): ApiError {
     if (status === 404) kind = 'NOT_FOUND'
     else if (status === 409) kind = 'CONFLICT'
     else if (status === 400) kind = 'VALIDATION'
+    else if (status === 401) kind = 'UNAUTHORIZED'
+    else if (status === 403) kind = 'FORBIDDEN'
   }
   return { status, message: message || `HTTP ${status}`, kind }
 }

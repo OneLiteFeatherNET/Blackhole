@@ -11,11 +11,16 @@ import {
   sendErrorResponse,
 } from '../lib/handlers'
 
-const SOURCE = '3f2b8c1e-5d4a-4e7b-9a60-1c2d3e4f5a6b'
+const AUTHORITY = 'https://login.example.org/tenant/v2.0'
+const OIDC = {
+  BLACKHOLE_UI_OIDC_AUTHORITY: AUTHORITY,
+  BLACKHOLE_UI_OIDC_CLIENT_ID: 'spa-client',
+  BLACKHOLE_UI_API_SCOPE: 'api://x/access_as_user',
+}
 const INDEX_HTML = '<!doctype html><title>Blackhole</title>'
 
 function config(env: Record<string, string> = {}): UiConfig {
-  return parseUiConfig({ BLACKHOLE_UI_SOURCE: SOURCE, ...env })
+  return parseUiConfig({ ...OIDC, ...env })
 }
 
 /** A fresh in-process app per test: the hook that the Nitro plugins register, then one handler. */
@@ -49,7 +54,7 @@ describe('GET /config.json', () => {
     const response = await appWith(configJsonHandler, config({ BLACKHOLE_BACKEND_URL: 'http://internal:8080' }))('/config.json')
 
     expect(response.headers.get('content-type')).toContain('application/json')
-    expect(await response.json()).toEqual({ source: SOURCE, reviewer: SOURCE })
+    expect(await response.json()).toEqual({ oidc: { authority: AUTHORITY, clientId: 'spa-client', apiScope: 'api://x/access_as_user' } })
   })
 
   it('is never cached', async () => {
@@ -69,6 +74,22 @@ describe('GET /config.json', () => {
 })
 
 describe('security headers', () => {
+  it('allow connecting to the configured authority origin', async () => {
+    const response = await appWith(healthzHandler)('/healthz')
+
+    expect(response.headers.get('content-security-policy')).toContain("connect-src 'self' https://login.example.org;")
+  })
+
+  it('allow connecting to the authority origin on error responses too', async () => {
+    const response = await appWith(
+      eventHandler(() => {
+        throw new Error('boom')
+      }),
+    )('/x')
+
+    expect(response.headers.get('content-security-policy')).toContain('https://login.example.org')
+  })
+
   it.each([
     ['healthz', healthzHandler, '/healthz'],
     ['config.json', configJsonHandler, '/config.json'],

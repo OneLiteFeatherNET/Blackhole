@@ -9,6 +9,7 @@ import { useResource } from '../../composables/useResource'
 import MdButton from '../md/MdButton.vue'
 import MdCheckbox from '../md/MdCheckbox.vue'
 import MdSnackbar from '../md/MdSnackbar.vue'
+import { useSessionStore } from '../../stores/session'
 import ResourceState from '../ResourceState.vue'
 import StatusPill from '../StatusPill.vue'
 import AddLinkDialog from './AddLinkDialog.vue'
@@ -20,6 +21,7 @@ const props = defineProps<{ punishment: string; readonly?: boolean }>()
 
 const { t } = useI18n()
 const api = useApi()
+const session = useSessionStore()
 
 // Neither choice is stored: a fresh panel always starts on the first page without lifted evidence.
 const page = ref(0)
@@ -65,14 +67,14 @@ async function uploaded(): Promise<void> {
     <header class="flex flex-wrap items-center gap-2">
       <h3 class="text-title-medium">{{ t('evidence.title') }}</h3>
       <StatusPill v-if="count.data.value !== null" :label="t('evidence.count', { count: count.data.value })" tone="primary" data-testid="count" />
-      <MdButton v-if="!readonly" class="ml-auto" variant="tonal" data-testid="open-add-link" @click="addOpen = true">
+      <MdButton v-if="!readonly && session.moderator" class="ml-auto" variant="tonal" data-testid="open-add-link" @click="addOpen = true">
         {{ t('evidence.addLink.open') }}
       </MdButton>
     </header>
 
     <p class="text-body-small text-on-surface-variant">{{ t('evidence.audited') }}</p>
 
-    <EvidenceUpload v-if="!readonly" :punishment="punishment" @uploaded="uploaded" />
+    <EvidenceUpload v-if="!readonly && session.moderator" :punishment="punishment" @uploaded="uploaded" />
 
     <MdCheckbox v-model="showLifted" :label="t('evidence.showLifted')" :supporting-text="t('evidence.showLiftedHint')" data-testid="show-lifted" />
 

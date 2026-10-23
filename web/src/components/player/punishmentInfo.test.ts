@@ -7,6 +7,7 @@ function punishment(overrides: Partial<Punishment> = {}): Punishment {
     identifier: 'p-1',
     shortId: 'ABC123',
     source: '11111111-2222-3333-4444-555555555555',
+    verified: true,
     section: 'network',
     permanent: false,
     lifted: false,

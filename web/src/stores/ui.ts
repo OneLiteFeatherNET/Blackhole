@@ -6,7 +6,8 @@ export type ThemeChoice = 'system' | 'light' | 'dark'
 
 export const THEME_STORAGE_KEY = 'blackhole.theme'
 export const LOCALE_STORAGE_KEY = 'blackhole.locale'
-export const ACTING_AS_STORAGE_KEY = 'blackhole.actingAs'
+/** The free-text "acting as" label of earlier versions; the verified sign-in replaced it and it is dropped on start. */
+const LEGACY_ACTING_AS_KEY = 'blackhole.actingAs'
 
 function isThemeChoice(value: unknown): value is ThemeChoice {
   return value === 'system' || value === 'light' || value === 'dark'
@@ -53,8 +54,7 @@ export const useUiStore = defineStore('ui', () => {
 
   const theme = ref<ThemeChoice>(isThemeChoice(storedTheme) ? storedTheme : 'system')
   const locale = ref<Locale>(isLocale(storedLocale) ? storedLocale : DEFAULT_LOCALE)
-  // The operator's self-declared name; unverified, only written into notes (see the identity gap).
-  const actingAs = ref(readStorage(ACTING_AS_STORAGE_KEY) ?? '')
+  removeStorage(LEGACY_ACTING_AS_KEY)
 
   applyTheme(theme.value)
   i18n.global.locale.value = locale.value
@@ -73,11 +73,5 @@ export const useUiStore = defineStore('ui', () => {
     document.documentElement.lang = next
   }
 
-  function setActingAs(label: string): void {
-    actingAs.value = label.trim()
-    if (actingAs.value) writeStorage(ACTING_AS_STORAGE_KEY, actingAs.value)
-    else removeStorage(ACTING_AS_STORAGE_KEY)
-  }
-
-  return { theme, locale, actingAs, setTheme, setLocale, setActingAs }
+  return { theme, locale, setTheme, setLocale }
 })

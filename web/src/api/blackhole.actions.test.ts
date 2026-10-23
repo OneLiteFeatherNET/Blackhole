@@ -1,24 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import { fakeFetch } from '../test/fakeFetch'
-import { createBlackholeApi, MAX_NOTE_LENGTH, withActor } from './blackhole'
+import { fakeHttpAuth } from '../test/auth'
+import { createBlackholeApi, MAX_NOTE_LENGTH } from './blackhole'
 
-const SOURCE = '11111111-2222-3333-4444-555555555555'
 const OWNER = 'ab'.repeat(64)
 
-function apiWith(responses: Parameters<typeof fakeFetch>[0], actingAs = () => '') {
+function apiWith(responses: Parameters<typeof fakeFetch>[0]) {
   const { calls, impl } = fakeFetch(responses)
-  return { calls, api: createBlackholeApi({ baseUrl: 'http://ui.test/api', source: SOURCE, actingAs, fetch: impl }) }
+  return { calls, api: createBlackholeApi({ baseUrl: 'http://ui.test/api', auth: fakeHttpAuth().auth, fetch: impl }) }
 }
 
 describe('staff actions', () => {
-  it('applies a template as the configured operator', async () => {
+  it('applies a template without naming an actor', async () => {
     const { api, calls } = apiWith([{ body: { step: 1, stepCount: 3 } }])
 
     await api.applyTemplate(OWNER, 'hacking')
 
     expect(calls[0]!.method).toBe('POST')
     expect(new URL(calls[0]!.url).pathname).toBe('/api/punishment/apply')
-    expect(JSON.parse(calls[0]!.body)).toEqual({ owner: OWNER, templateKey: 'hacking', source: SOURCE })
+    expect(JSON.parse(calls[0]!.body)).toEqual({ owner: OWNER, templateKey: 'hacking' })
   })
 
   it('previews through its own endpoint so nothing is applied', async () => {
@@ -37,7 +37,7 @@ describe('staff actions', () => {
     const result = await api.revoke(OWNER, 'network')
 
     expect(result.ok && result.data.scoreReset).toBe(700)
-    expect(JSON.parse(calls[0]!.body)).toEqual({ owner: OWNER, section: 'network', source: SOURCE })
+    expect(JSON.parse(calls[0]!.body)).toEqual({ owner: OWNER, section: 'network' })
   })
 
   it('surfaces the conflict of a permanently punished player', async () => {
@@ -48,27 +48,21 @@ describe('staff actions', () => {
     expect(result).toEqual({ ok: false, error: { status: 409, message: 'already permanently punished', kind: 'CONFLICT' } })
   })
 
-  it('adjusts a score with the note prefixed by the acting-as label', async () => {
-    const { api, calls } = apiWith([{ body: { section: 'chat', scoreBefore: 900, scoreAfter: 850 } }], () => ' Alex ')
+  it('adjusts a score with the note and no actor', async () => {
+    const { api, calls } = apiWith([{ body: { section: 'chat', scoreBefore: 900, scoreAfter: 850 } }])
 
     await api.adjustElo(OWNER, { section: 'chat', delta: -50, note: 'spam wave' })
 
     expect(new URL(calls[0]!.url).pathname).toBe(`/api/elo/${OWNER}/adjust`)
-    expect(JSON.parse(calls[0]!.body)).toEqual({ section: 'chat', delta: -50, note: '[Alex] spam wave', source: SOURCE })
+    expect(JSON.parse(calls[0]!.body)).toEqual({ section: 'chat', delta: -50, note: 'spam wave' })
   })
 
-  it('sends the note unchanged without an acting-as label', async () => {
+  it('truncates the note to the backend limit', async () => {
     const { api, calls } = apiWith([{ body: {} }])
 
-    await api.adjustElo(OWNER, { section: 'chat', delta: 10, note: 'goodwill' })
+    await api.adjustElo(OWNER, { section: 'chat', delta: 10, note: 'x'.repeat(600) })
 
-    expect(JSON.parse(calls[0]!.body).note).toBe('goodwill')
-  })
-})
-
-describe('withActor', () => {
-  it('truncates to the backend limit', () => {
-    expect(withActor('x'.repeat(600), 'Alex')).toHaveLength(MAX_NOTE_LENGTH)
+    expect(JSON.parse(calls[0]!.body).note).toHaveLength(MAX_NOTE_LENGTH)
   })
 })
 
@@ -209,17 +203,7 @@ describe('section management', () => {
 })
 
 describe('reports and appeals', () => {
-  function apiAs(responses: Parameters<typeof fakeFetch>[0]) {
-    const { calls, impl } = fakeFetch(responses)
-    const api = createBlackholeApi({
-      baseUrl: 'http://ui.test/api',
-      source: SOURCE,
-      reviewer: '99999999-8888-7777-6666-555555555555',
-      actingAs: () => 'Alex',
-      fetch: impl,
-    })
-    return { calls, api }
-  }
+  const apiAs = apiWith
 
   it('lists reports newest first', async () => {
     const { api } = apiAs([{ body: { content: [{ identifier: 'a', createdAt: 1 }, { identifier: 'b', createdAt: 2 }], totalPages: 1 } }])
@@ -229,7 +213,7 @@ describe('reports and appeals', () => {
     expect(result.ok && result.data.map((r) => r.identifier)).toEqual(['b', 'a'])
   })
 
-  it('actions a report with a template and attributes it to the operator', async () => {
+  it('actions a report with a template and names no actor', async () => {
     const { api, calls } = apiAs([{ body: {} }])
 
     await api.resolveReport('r-1', { status: 'ACTIONED', note: 'confirmed', templateId: 'tpl-1' })
@@ -237,14 +221,12 @@ describe('reports and appeals', () => {
     expect(new URL(calls[0]!.url).pathname).toBe('/api/report/r-1/resolve')
     expect(JSON.parse(calls[0]!.body)).toEqual({
       status: 'ACTIONED',
-      resolutionNote: '[Alex] confirmed',
-      resolvedBy: SOURCE,
+      resolutionNote: 'confirmed',
       punishmentTemplateId: 'tpl-1',
-      punishmentSource: SOURCE,
     })
   })
 
-  it('dismisses a report without a template or a punishment source', async () => {
+  it('dismisses a report without a template', async () => {
     const { api, calls } = apiAs([{ body: {} }])
 
     await api.resolveReport('r-1', { status: 'DISMISSED' })
@@ -252,13 +234,11 @@ describe('reports and appeals', () => {
     expect(JSON.parse(calls[0]!.body)).toEqual({
       status: 'DISMISSED',
       resolutionNote: null,
-      resolvedBy: SOURCE,
       punishmentTemplateId: null,
-      punishmentSource: null,
     })
   })
 
-  it('reviews an appeal as the reviewer, not the operator', async () => {
+  it('reviews an appeal without a reviewer id', async () => {
     const { api, calls } = apiAs([{ body: {} }])
 
     await api.reviewAppeal('a-1', { decision: 'GRANTED_DURATION_REDUCTION', note: 'first offence', newExpirationAt: 1_900_000_000_000 })
@@ -266,19 +246,9 @@ describe('reports and appeals', () => {
     expect(new URL(calls[0]!.url).pathname).toBe('/api/appeal/a-1/review')
     expect(JSON.parse(calls[0]!.body)).toEqual({
       decision: 'GRANTED_DURATION_REDUCTION',
-      decisionNote: '[Alex] first offence',
-      reviewerId: '99999999-8888-7777-6666-555555555555',
+      decisionNote: 'first offence',
       newExpirationAt: 1_900_000_000_000,
     })
-  })
-
-  it('reviews as the operator when no separate reviewer is configured', async () => {
-    const { calls, impl } = fakeFetch([{ body: {} }])
-    const api = createBlackholeApi({ baseUrl: 'http://ui.test/api', source: SOURCE, fetch: impl })
-
-    await api.reviewAppeal('a-1', { decision: 'DENIED' })
-
-    expect(JSON.parse(calls[0]!.body).reviewerId).toBe(SOURCE)
   })
 
   it('reads a plain text error body, as the appeal review answers', async () => {
@@ -290,11 +260,19 @@ describe('reports and appeals', () => {
   })
 
   it('keeps an empty error body as the bare status', async () => {
+    const { api } = apiAs([{ status: 500 }])
+
+    const result = await api.reviewAppeal('a-1', { decision: 'DENIED' })
+
+    expect(result).toEqual({ ok: false, error: { status: 500, message: 'HTTP 500', kind: 'UNKNOWN' } })
+  })
+
+  it('reports a refused action as FORBIDDEN', async () => {
     const { api } = apiAs([{ status: 403 }])
 
     const result = await api.reviewAppeal('a-1', { decision: 'DENIED' })
 
-    expect(result).toEqual({ ok: false, error: { status: 403, message: 'HTTP 403', kind: 'UNKNOWN' } })
+    expect(result).toEqual({ ok: false, error: { status: 403, message: 'HTTP 403', kind: 'FORBIDDEN' } })
   })
 })
 

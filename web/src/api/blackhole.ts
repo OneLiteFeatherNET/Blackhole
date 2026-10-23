@@ -1,4 +1,4 @@
-import { createHttp, map, toResult } from './http'
+import { createHttp, map, toResult, type HttpAuth } from './http'
 import type { components } from './schema'
 import { EVIDENCE_SOURCE_SYSTEM, uploadEvidence, type Upload } from './uploadEvidence'
 import type {
@@ -6,6 +6,7 @@ import type {
   ApplyPreview,
   Appeal,
   AppealDecision,
+  CurrentCaller,
   ApplyResult,
   DashboardSummary,
   EloAdjustResult,
@@ -27,12 +28,8 @@ import type {
 
 export interface ApiOptions {
   baseUrl: string
-  /** The operator UUID from /config.json, attached to every write as the acting source. */
-  source: string
-  /** The UUID sent as `reviewerId` when deciding an appeal; defaults to `source`. */
-  reviewer?: string
-  /** The free-text "acting as" label; prefixed to the notes the UI writes. Read on every call. */
-  actingAs?: () => string
+  /** Supplies the bearer token and reacts to 401 and 403, see {@link HttpAuth}. */
+  auth: HttpAuth
   fetch?: typeof fetch
 }
 
@@ -40,20 +37,12 @@ export interface ApiOptions {
 export const MAX_NOTE_LENGTH = 500
 
 /**
- * Prefixes a note with the unverified "acting as" label, so the audit trail shows who the operator
- * says they are. Truncates to the backend's limit.
- */
-export function withActor(note: string, actingAs: string): string {
-  const label = actingAs.trim()
-  const text = label ? `[${label}] ${note}` : note
-  return text.slice(0, MAX_NOTE_LENGTH)
-}
-
-/**
  * The calls the UI makes, one method per use case. Every method resolves to an {@link ApiResult}
  * and never throws, so screens branch on `ok` instead of wrapping calls in try/catch.
  */
 export interface BlackholeApi {
+  /** Who the token belongs to and which roles it maps to; an empty role list is a valid answer. */
+  me(): Promise<ApiResult<CurrentCaller>>
   dashboard(): Promise<ApiResult<DashboardSummary>>
   /** Resolves a player name; the result carries the hashed `owner` all other calls use. */
   resolvePlayer(name: string): Promise<ApiResult<ResolvedPlayer & { owner: string }>>
@@ -95,8 +84,8 @@ export interface BlackholeApi {
   addLinkEvidence(punishment: string, link: { kind: 'LINK' | 'REPLAY'; url: string; description?: string }): Promise<ApiResult<Evidence>>
   /** Deletes the item and its file; the reason is mandatory and audited by the backend. */
   deleteEvidence(identifier: string, reason: { reason: EvidenceDeleteReason; note?: string }): Promise<ApiResult<number>>
-  /** Where the browser loads the stored file of an item from; a plain URL because `<img>` and `<video>` cannot send headers. */
-  evidenceContentUrl(identifier: string): string
+  /** The stored file of an item; fetched with the bearer token because `<img>` and `<video>` cannot send headers. */
+  evidenceContent(identifier: string): Promise<ApiResult<Blob>>
   /** Uploads one file to the punishment; resolves through {@link Upload.result}, can be cancelled. */
   startEvidenceUpload(punishment: string, file: File, onProgress?: (fraction: number) => void): Upload
 }
@@ -126,13 +115,10 @@ function pageQuery(page: number, extra: Record<string, string> = {}): () => stri
   return () => new URLSearchParams({ ...extra, page: String(page), size: String(PAGE_SIZE) }).toString()
 }
 
-/**
- * Query string of the evidence list. `includeInactive` is only sent when true so the default request
- * is the plain one; `source` attributes the (audited) read to the operator.
- */
-function evidenceQuery(query: { includeInactive?: boolean; page?: number; size?: number }, source: string): () => string {
+/** Query string of the evidence list. `includeInactive` is only sent when true so the default request is the plain one. */
+function evidenceQuery(query: { includeInactive?: boolean; page?: number; size?: number }): () => string {
   return () => {
-    const params = new URLSearchParams({ page: String(query.page ?? 0), size: String(query.size ?? EVIDENCE_PAGE_SIZE), source })
+    const params = new URLSearchParams({ page: String(query.page ?? 0), size: String(query.size ?? EVIDENCE_PAGE_SIZE) })
     if (query.includeInactive) params.set('includeInactive', 'true')
     return params.toString()
   }
@@ -183,9 +169,11 @@ function sectionBody(draft: SectionDraft) {
 }
 
 export function createBlackholeApi(options: ApiOptions): BlackholeApi {
-  const http = createHttp({ baseUrl: options.baseUrl, fetch: options.fetch })
+  const http = createHttp({ baseUrl: options.baseUrl, auth: options.auth, fetch: options.fetch })
 
   return {
+    me: () => toResult(http.GET('/auth/me')),
+
     dashboard: () => toResult(http.GET('/dashboard/summary')),
 
     async resolvePlayer(name) {
@@ -265,11 +253,8 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
           params: { path: { identifier } },
           body: {
             status: resolution.status,
-            resolutionNote: resolution.note ? withActor(resolution.note, options.actingAs?.() ?? '') : null,
-            resolvedBy: options.source,
+            resolutionNote: resolution.note ?? null,
             punishmentTemplateId: resolution.templateId ?? null,
-            // The backend wants the staff identity next to the template it applies.
-            punishmentSource: resolution.templateId ? options.source : null,
           },
         }),
       ),
@@ -287,21 +272,20 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
           params: { path: { identifier } },
           body: {
             decision: decision.decision,
-            decisionNote: decision.note ? withActor(decision.note, options.actingAs?.() ?? '') : null,
-            reviewerId: options.reviewer ?? options.source,
+            decisionNote: decision.note ?? null,
             newExpirationAt: decision.newExpirationAt ?? null,
           },
         }),
       ),
 
     previewApply: (owner, templateKey) =>
-      toResult(http.POST('/punishment/preview', { body: { owner, templateKey, source: options.source } })),
+      toResult(http.POST('/punishment/preview', { body: { owner, templateKey } })),
 
     applyTemplate: (owner, templateKey) =>
-      toResult(http.POST('/punishment/apply', { body: { owner, templateKey, source: options.source } })),
+      toResult(http.POST('/punishment/apply', { body: { owner, templateKey } })),
 
     revoke: (owner, section) =>
-      toResult(http.POST('/punishment/revoke', { body: { owner, section, source: options.source } })),
+      toResult(http.POST('/punishment/revoke', { body: { owner, section } })),
 
     adjustElo: (owner, change) =>
       toResult(
@@ -310,8 +294,7 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
           body: {
             section: change.section,
             delta: change.delta,
-            note: withActor(change.note, options.actingAs?.() ?? ''),
-            source: options.source,
+            note: change.note.slice(0, MAX_NOTE_LENGTH),
           },
         }),
       ),
@@ -320,7 +303,7 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       const result = await toResult(
         http.GET('/punishment/{reference}/evidence', {
           params: { path: { reference: punishment }, query: { includeInactive: false, pageable: NO_PAGEABLE } },
-          querySerializer: evidenceQuery(query, options.source),
+          querySerializer: evidenceQuery(query),
         }),
       )
       // Like other lists, an empty one may come without its array.
@@ -333,7 +316,7 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     },
 
     evidenceItem: (identifier) =>
-      toResult(http.GET('/evidence/{identifier}', { params: { path: { identifier }, query: { source: options.source } } })),
+      toResult(http.GET('/evidence/{identifier}', { params: { path: { identifier } } })),
 
     addLinkEvidence: (punishment, link) =>
       toResult(
@@ -345,7 +328,6 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
             reference: link.url.trim(),
             // The spec types payload values as objects; a link's description is a plain string.
             payload: (link.description?.trim() ? { description: link.description.trim() } : null) as components['schemas']['EvidenceCreateRequest']['payload'],
-            source: options.source,
           },
         }),
       ),
@@ -355,7 +337,7 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
         http.DELETE('/evidence/{identifier}', {
           params: {
             path: { identifier },
-            query: { reason: change.reason, note: change.note?.trim() || null, source: options.source },
+            query: { reason: change.reason, note: change.note?.trim() || null },
           },
         }),
       )
@@ -363,9 +345,9 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     },
 
     startEvidenceUpload: (punishment, file, onProgress) =>
-      uploadEvidence({ baseUrl: options.baseUrl, source: options.source, punishment, file, onProgress }),
+      uploadEvidence({ baseUrl: options.baseUrl, auth: options.auth, punishment, file, onProgress }),
 
-    evidenceContentUrl: (identifier) =>
-      `${options.baseUrl}/evidence/${encodeURIComponent(identifier)}/content?${new URLSearchParams({ source: options.source })}`,
+    evidenceContent: (identifier) =>
+      toResult(http.GET('/evidence/{identifier}/content', { params: { path: { identifier } }, parseAs: 'blob' })),
   }
 }

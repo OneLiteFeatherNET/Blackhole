@@ -18,9 +18,26 @@
     },
     "locale": {
       "label": "Sprache"
+    }
+  },
+  "auth": {
+    "signedInAs": "Angemeldet als {name}",
+    "signOut": "Abmelden",
+    "redirecting": "Weiterleitung zum Anmeldedienst ...",
+    "signingIn": "Du wirst angemeldet ...",
+    "forbidden": "Dafür fehlt dir die Berechtigung.",
+    "notConfigured": "Die Anmeldung ist nicht eingerichtet. Der Webserver liefert in /config.json keinen Abschnitt \"oidc\".",
+    "noAccess": {
+      "title": "Kein Zugriff",
+      "heading": "Du hast noch keinen Zugriff",
+      "body": "Du bist angemeldet, aber dein Konto hat keine Rolle für Blackhole. Bitte einen Administrator, dich zur passenden Gruppe hinzuzufügen, und melde dich danach neu an."
     },
-    "actingAs": {
-      "label": "Handelnd als"
+    "error": {
+      "heading": "Anmeldung fehlgeschlagen",
+      "signin": "Der Anmeldedienst ist nicht erreichbar.",
+      "callback": "Die Anmeldung konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
+      "me": "Dein Konto konnte nicht geprüft werden. Bitte versuche es erneut.",
+      "retry": "Erneut versuchen"
     }
   },
   "state": {
@@ -31,7 +48,9 @@
       "NOT_FOUND": "Nicht gefunden",
       "CONFLICT": "Widerspricht dem aktuellen Zustand",
       "NETWORK": "Das Backend ist nicht erreichbar",
-      "UNKNOWN": "Etwas ist schiefgelaufen"
+      "UNKNOWN": "Etwas ist schiefgelaufen",
+      "UNAUTHORIZED": "Deine Anmeldung ist nicht mehr gültig",
+      "FORBIDDEN": "Dafür fehlt dir die Berechtigung"
     }
   },
   "dashboard": {
@@ -426,7 +445,8 @@
     },
     "file": {
       "noPreview": "Keine Vorschau für {name}.",
-      "noCaptions": "Diese Aufnahme hat keine Untertitel."
+      "noCaptions": "Diese Aufnahme hat keine Untertitel.",
+      "loadFailed": "Die Datei konnte nicht geladen werden."
     },
     "upload": {
       "zone": "Beweisdateien hochladen",
@@ -449,7 +469,8 @@
         "UNAVAILABLE": "Der Virenscanner ist nicht erreichbar. Bitte später erneut versuchen.",
         "NETWORK": "Das Backend ist nicht erreichbar.",
         "CANCELLED": "Upload abgebrochen.",
-        "FAILED": "Der Upload ist fehlgeschlagen."
+        "FAILED": "Der Upload ist fehlgeschlagen.",
+        "FORBIDDEN": "Du darfst keine Beweise hochladen."
       }
     },
     "addLink": {

@@ -7,6 +7,7 @@ import type { ApiError, EloEvent, EloProfile, EloSectionScore, Punishment, Punis
 import { useResource } from '../../composables/useResource'
 import { shortHash } from '../../format'
 import { useLookupStore } from '../../stores/lookup'
+import { useSessionStore } from '../../stores/session'
 import MdButton from '../md/MdButton.vue'
 import MdSnackbar from '../md/MdSnackbar.vue'
 import ResourceState from '../ResourceState.vue'
@@ -23,6 +24,7 @@ const props = defineProps<{ owner: string }>()
 const { t } = useI18n()
 const api = useApi()
 const lookup = useLookupStore()
+const session = useSessionStore()
 
 const title = computed(() => lookup.nameOf(props.owner) ?? shortHash(props.owner))
 
@@ -100,7 +102,7 @@ async function finished(done: string): Promise<void> {
         <RouterLink to="/players" class="text-label-large text-primary underline underline-offset-2">
           {{ t('player.backToSearch') }}
         </RouterLink>
-        <MdButton class="ml-auto" variant="tonal" data-testid="open-apply" @click="applyOpen = true">
+        <MdButton v-if="session.moderator" class="ml-auto" variant="tonal" data-testid="open-apply" @click="applyOpen = true">
           {{ t('actions.apply.open') }}
         </MdButton>
       </header>
@@ -109,7 +111,7 @@ async function finished(done: string): Promise<void> {
         <h2 id="scores-heading" class="mb-3 text-title-large">{{ t('player.scores') }}</h2>
         <SectionScores :scores="player.data.value.elo.sections">
           <template #actions="{ entry }">
-            <div class="mt-3 flex justify-end">
+            <div v-if="session.moderator" class="mt-3 flex justify-end">
               <MdButton variant="text" :data-testid="`open-adjust-${entry.section}`" @click="adjustTarget = entry">
                 {{ t('actions.adjust.open') }}
               </MdButton>
@@ -122,7 +124,7 @@ async function finished(done: string): Promise<void> {
         <h2 id="active-heading" class="mb-3 text-title-large">{{ t('player.active') }}</h2>
         <ActivePunishments :active="player.data.value.profile.active">
           <template #actions="{ section: key, punishment }">
-            <div class="mt-3 flex justify-end">
+            <div v-if="session.moderator" class="mt-3 flex justify-end">
               <MdButton variant="outlined" :data-testid="`open-revoke-${key}`" @click="revokeTarget = { section: key, punishment }">
                 {{ t('actions.revoke.open') }}
               </MdButton>

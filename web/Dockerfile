@@ -4,11 +4,12 @@
 # Build from the repository root (the API spec lives in client/specs):
 #   docker build -f web/Dockerfile -t blackhole-web .
 #
-# Run (the UI has no login of its own - put it behind a private network or an authenticating proxy):
+# Run (staff sign in with Microsoft Entra ID in the browser; the three BLACKHOLE_UI_* values are required):
 #   docker run -p 8081:8080 \
 #     -e BLACKHOLE_BACKEND_URL=http://backend:8080 \
-#     -e BLACKHOLE_UI_SOURCE=<operator uuid> \
-#     -e BLACKHOLE_UI_REVIEWER=<optional second uuid> blackhole-web
+#     -e BLACKHOLE_UI_OIDC_AUTHORITY=https://login.microsoftonline.com/<tenant-id>/v2.0 \
+#     -e BLACKHOLE_UI_OIDC_CLIENT_ID=<spa application (client) id> \
+#     -e BLACKHOLE_UI_API_SCOPE=api://<api-client-id>/access_as_user blackhole-web
 
 FROM node:24-alpine AS build
 WORKDIR /app

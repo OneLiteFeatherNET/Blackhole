@@ -1,8 +1,9 @@
+import { flushPromises } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
+import { fakeHttpAuth } from '../test/auth'
 import type { paths } from './schema'
 import { uploadEvidence, type UploadRequest } from './uploadEvidence'
 
-const SOURCE = '11111111-2222-3333-4444-555555555555'
 const PUNISHMENT = 'ab0e5a9e-1111-4222-8333-444455556666'
 
 /** The smallest XMLHttpRequest the uploader touches; the test fires its events by hand. */
@@ -41,45 +42,51 @@ class FakeXhr {
   }
 }
 
-function start(overrides: Partial<UploadRequest> = {}) {
-  const xhr = new FakeXhr()
+/** Starts an upload and lets the token lookup settle, so the first request has been sent. */
+async function start(overrides: Partial<UploadRequest> = {}, auths = fakeHttpAuth()) {
+  const sent: FakeXhr[] = []
   const file = new File(['png-bytes'], 'shot.png', { type: 'image/png' })
   const upload = uploadEvidence({
     baseUrl: '/api',
-    source: SOURCE,
+    auth: auths.auth,
     punishment: PUNISHMENT,
     file,
-    createRequest: () => xhr as unknown as XMLHttpRequest,
+    createRequest: () => {
+      const created = new FakeXhr()
+      sent.push(created)
+      return created as unknown as XMLHttpRequest
+    },
     ...overrides,
   })
-  return { xhr, upload, file }
+  await flushPromises()
+  return { xhr: sent[0]!, sent, upload, file, events: auths.events }
 }
 
 describe('uploadEvidence', () => {
-  it('posts a multipart form to the file endpoint with the API version', () => {
-    const { xhr } = start()
+  it('posts a multipart form to the file endpoint with the API version', async () => {
+    const { xhr } = await start()
 
     expect(xhr.method).toBe('POST')
     expect(xhr.url).toBe('/api/evidence/file')
     expect(xhr.headers['X-API-VERSION'], 'version header').toBe('1')
   })
 
-  it('sends the text fields before the file part, using fields the API declares', () => {
-    const { xhr, file } = start()
+  it('sends the text fields before the file part, using fields the API declares', async () => {
+    const { xhr, file } = await start()
 
     type Declared = keyof NonNullable<paths['/evidence/file']['post']['requestBody']>['content']['multipart/form-data']
-    const declared: Declared[] = ['punishment', 'sourceSystem', 'source', 'file']
+    const declared: Declared[] = ['punishment', 'sourceSystem', 'file']
     const names = Array.from(xhr.body!.keys())
     expect(names).toEqual(declared)
     expect(xhr.body!.get('punishment')).toBe(PUNISHMENT)
-    expect(xhr.body!.get('source')).toBe(SOURCE)
+    expect(xhr.body!.has('source'), 'client-supplied actor').toBe(false)
     expect(xhr.body!.get('sourceSystem')).toBe('admin-ui')
     expect((xhr.body!.get('file') as File).name).toBe(file.name)
   })
 
-  it('reports progress as a fraction of the bytes sent', () => {
+  it('reports progress as a fraction of the bytes sent', async () => {
     const onProgress = vi.fn()
-    const { xhr } = start({ onProgress })
+    const { xhr } = await start({ onProgress })
 
     xhr.upload.onprogress?.({ lengthComputable: true, loaded: 25, total: 100 })
     xhr.upload.onprogress?.({ lengthComputable: true, loaded: 100, total: 100 })
@@ -87,9 +94,9 @@ describe('uploadEvidence', () => {
     expect(onProgress.mock.calls).toEqual([[0.25], [1]])
   })
 
-  it('ignores progress events without a known total', () => {
+  it('ignores progress events without a known total', async () => {
     const onProgress = vi.fn()
-    const { xhr } = start({ onProgress })
+    const { xhr } = await start({ onProgress })
 
     xhr.upload.onprogress?.({ lengthComputable: false, loaded: 25, total: 0 })
 
@@ -97,7 +104,7 @@ describe('uploadEvidence', () => {
   })
 
   it('resolves with the stored item on success', async () => {
-    const { xhr, upload } = start()
+    const { xhr, upload } = await start()
 
     xhr.answer(200, { identifier: 'item-1', kind: 'FILE' })
 
@@ -105,13 +112,14 @@ describe('uploadEvidence', () => {
   })
 
   it.each([
+    [403, 'FORBIDDEN'],
     [413, 'TOO_LARGE'],
     [415, 'UNSUPPORTED_TYPE'],
     [422, 'REJECTED'],
     [503, 'UNAVAILABLE'],
     [500, 'FAILED'],
   ] as const)('maps HTTP %i to %s and keeps the backend message', async (status, kind) => {
-    const { xhr, upload } = start()
+    const { xhr, upload } = await start()
 
     xhr.answer(status, { errorMessage: 'the reason', kind: 'VALIDATION' })
 
@@ -119,7 +127,7 @@ describe('uploadEvidence', () => {
   })
 
   it('maps an answer that is not JSON to an error without a message', async () => {
-    const { xhr, upload } = start()
+    const { xhr, upload } = await start()
 
     xhr.answer(413, '<html>Request Entity Too Large</html>')
 
@@ -127,7 +135,7 @@ describe('uploadEvidence', () => {
   })
 
   it('fails with FAILED when a success answer is not JSON', async () => {
-    const { xhr, upload } = start()
+    const { xhr, upload } = await start()
 
     xhr.answer(200, 'not json')
 
@@ -135,7 +143,7 @@ describe('uploadEvidence', () => {
   })
 
   it('aborts the request on cancel and resolves with CANCELLED', async () => {
-    const { xhr, upload } = start()
+    const { xhr, upload } = await start()
 
     upload.cancel()
 
@@ -144,10 +152,69 @@ describe('uploadEvidence', () => {
   })
 
   it('resolves with NETWORK when the request cannot be sent', async () => {
-    const { xhr, upload } = start()
+    const { xhr, upload } = await start()
 
     xhr.onerror?.()
 
     expect(await upload.result).toEqual({ ok: false, error: { kind: 'NETWORK', status: 0, message: '' } })
+  })
+
+  it('sends the bearer token', async () => {
+    const { xhr } = await start()
+
+    expect(xhr.headers['Authorization']).toBe('Bearer access-token')
+  })
+
+  it('renews the token once and repeats the upload after a 401', async () => {
+    const { xhr, sent, upload, events } = await start()
+
+    xhr.answer(401, { errorMessage: 'expired' })
+    await flushPromises()
+    sent[1]!.answer(200, { identifier: 'item-1', kind: 'FILE' })
+
+    expect(sent, 'requests sent').toHaveLength(2)
+    expect(sent[1]!.headers['Authorization'], 'retried with the renewed token').toBe('Bearer renewed-token')
+    expect(events.renewals, 'renewals').toBe(1)
+    expect(await upload.result).toEqual({ ok: true, data: { identifier: 'item-1', kind: 'FILE' } })
+  })
+
+  it('signs in again when the repeated upload is refused with 401 too', async () => {
+    const { xhr, sent, upload, events } = await start()
+
+    xhr.answer(401, {})
+    await flushPromises()
+    sent[1]!.answer(401, {})
+    await upload.result
+
+    expect(sent, 'requests sent').toHaveLength(2)
+    expect(events.signIns, 'sign-ins').toBe(1)
+  })
+
+  it('signs in again without a second request when the renewal fails', async () => {
+    const { xhr, sent, events } = await start({}, fakeHttpAuth({ renewed: null }))
+
+    xhr.answer(401, {})
+    await flushPromises()
+
+    expect(sent, 'requests sent').toHaveLength(1)
+    expect(events.signIns, 'sign-ins').toBe(1)
+  })
+
+  it('reports a 403 and does not repeat the upload', async () => {
+    const { xhr, sent, upload, events } = await start()
+
+    xhr.answer(403, {})
+    await upload.result
+
+    expect(sent, 'requests sent').toHaveLength(1)
+    expect(events.forbidden, 'forbidden notices').toBe(1)
+    expect(events.renewals, 'renewals').toBe(0)
+  })
+
+  it('renews first when there is no token yet', async () => {
+    const { xhr, events } = await start({}, fakeHttpAuth({ token: null }))
+
+    expect(events.renewals, 'renewals').toBe(1)
+    expect(xhr.headers['Authorization']).toBe('Bearer renewed-token')
   })
 })

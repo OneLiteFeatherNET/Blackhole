@@ -26,9 +26,16 @@ describe('loadUiConfigOrExit', () => {
   it('returns the parsed configuration for a valid environment', () => {
     const d = deps()
 
-    const config = loadUiConfigOrExit({ BLACKHOLE_UI_SOURCE: '3f2b8c1e-5d4a-4e7b-9a60-1c2d3e4f5a6b' }, d)
+    const config = loadUiConfigOrExit(
+      {
+        BLACKHOLE_UI_OIDC_AUTHORITY: 'https://login.example.org/tenant/v2.0',
+        BLACKHOLE_UI_OIDC_CLIENT_ID: 'spa',
+        BLACKHOLE_UI_API_SCOPE: 'api://x/access_as_user',
+      },
+      d,
+    )
 
-    expect(config.source).toBe('3f2b8c1e-5d4a-4e7b-9a60-1c2d3e4f5a6b')
+    expect(config.oidc.clientId).toBe('spa')
     expect(d.messages, 'nothing logged').toEqual([])
   })
 
@@ -41,11 +48,11 @@ describe('loadUiConfigOrExit', () => {
   it('writes every offending variable to stderr before exiting', () => {
     const d = deps()
 
-    expect(() => loadUiConfigOrExit({ BLACKHOLE_BACKEND_URL: 'ftp://x', BLACKHOLE_UI_SOURCE: 'bad' }, d)).toThrow(ExitCalled)
+    expect(() => loadUiConfigOrExit({ BLACKHOLE_BACKEND_URL: 'ftp://x', BLACKHOLE_UI_OIDC_CLIENT_ID: '' }, d)).toThrow(ExitCalled)
 
     const output = d.messages.join('\n')
     expect(output).toContain('BLACKHOLE_BACKEND_URL')
-    expect(output).toContain('BLACKHOLE_UI_SOURCE')
+    expect(output).toContain('BLACKHOLE_UI_OIDC_CLIENT_ID')
     expect(output).toContain('refusing to start')
   })
 })
