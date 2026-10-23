@@ -10,6 +10,7 @@ function section(overrides: Partial<Section> = {}): Section {
     key: 'network',
     displayName: 'Network',
     enforcement: 'BAN',
+    targetKind: 'PATTERN',
     servers: [],
     baseScore: 1000,
     softThreshold: 700,

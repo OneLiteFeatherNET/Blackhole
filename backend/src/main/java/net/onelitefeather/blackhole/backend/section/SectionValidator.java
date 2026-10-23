@@ -32,7 +32,7 @@ public final class SectionValidator {
         if (spec.enforcement() == null) {
             errors.add("enforcement is required");
         } else {
-            errors.addAll(ServerPatterns.validate(spec.enforcement(), spec.servers()));
+            errors.addAll(ServerPatterns.validate(spec.enforcement(), spec.targetKind(), spec.servers()));
         }
         if (spec.permanentThreshold() >= spec.baseScore()) {
             errors.add("permanentThreshold must be lower than baseScore");

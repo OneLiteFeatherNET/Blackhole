@@ -33,6 +33,9 @@ public class SectionEntity {
     @Enumerated(EnumType.STRING)
     private EnforcementKind enforcement;
 
+    @Enumerated(EnumType.STRING)
+    private ServerTargetKind targetKind = ServerTargetKind.PATTERN;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "punishment_section_servers", joinColumns = @JoinColumn(name = "section_key"))
     @Column(name = "pattern")
@@ -70,6 +73,7 @@ public class SectionEntity {
     public void apply(SectionSpec spec) {
         this.displayName = spec.displayName();
         this.enforcement = spec.enforcement();
+        this.targetKind = spec.targetKind();
         this.servers.clear();
         if (spec.servers() != null) {
             this.servers.addAll(spec.servers());
@@ -98,7 +102,7 @@ public class SectionEntity {
     public SectionDTO.Response toResponse() {
         List<String> sortedServers = this.servers.stream().sorted().toList();
         return new SectionDTO.Response(
-                this.sectionKey, this.displayName, this.enforcement, sortedServers, this.baseScore,
+                this.sectionKey, this.displayName, this.enforcement, this.targetKind, sortedServers, this.baseScore,
                 this.softThreshold, this.softDuration, this.permanentThreshold, this.pardonScore,
                 this.permanentReason, this.decayPerDay, this.enabled
         );

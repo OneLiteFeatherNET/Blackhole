@@ -18,6 +18,8 @@ public final class ServerPatterns {
     /** Upper bound on how many patterns one section may list. */
     public static final int MAX_PATTERNS = 50;
 
+    private static final Pattern CLOUDNET_NAME = Pattern.compile("^[A-Za-z0-9_.\\-]+$");
+
     private static final Pattern ALLOWED_CHARACTERS = Pattern.compile("^[A-Za-z0-9_.\\-*?]+$");
 
     /**
@@ -36,28 +38,62 @@ public final class ServerPatterns {
      * @return one message per violated rule, empty if valid
      */
     public static List<String> validate(EnforcementKind enforcement, Collection<String> patterns) {
+        return validate(enforcement, ServerTargetKind.PATTERN, patterns);
+    }
+
+    /**
+     * Checks the entries of a section against its enforcement and target kind. {@link ServerTargetKind#PATTERN}
+     * entries follow the glob rules of {@link #validate(EnforcementKind, Collection)}; CloudNet entries are
+     * exact names of letters, digits and {@code _ . -} (no wildcards), at most {@value #MAX_PATTERN_LENGTH}
+     * characters, at most {@value #MAX_PATTERNS} per section. A name is never checked against CloudNet:
+     * the target may legitimately not exist yet.
+     *
+     * @param enforcement the section's enforcement kind
+     * @param targetKind  what the entries mean, {@code null} for {@link ServerTargetKind#PATTERN}
+     * @param entries     the listed patterns or CloudNet names, possibly {@code null}
+     * @return one message per violated rule, empty if valid
+     */
+    public static List<String> validate(EnforcementKind enforcement, ServerTargetKind targetKind, Collection<String> entries) {
+        ServerTargetKind kind = targetKind == null ? ServerTargetKind.PATTERN : targetKind;
+        boolean cloudNet = kind != ServerTargetKind.PATTERN;
         List<String> errors = new ArrayList<>();
-        boolean none = patterns == null || patterns.isEmpty();
+        boolean none = entries == null || entries.isEmpty();
         if (enforcement != EnforcementKind.SERVER) {
             if (!none) {
                 errors.add("servers are only allowed for SERVER sections");
             }
+            if (cloudNet) {
+                errors.add("targetKind " + kind + " is only allowed for SERVER sections");
+            }
             return errors;
         }
         if (none) {
-            errors.add("a SERVER section needs at least one server pattern");
+            errors.add("a SERVER section needs at least one server " + (cloudNet ? "name" : "pattern"));
             return errors;
         }
-        if (patterns.size() > MAX_PATTERNS) {
-            errors.add("a section may list at most " + MAX_PATTERNS + " server patterns");
+        if (entries.size() > MAX_PATTERNS) {
+            errors.add("a section may list at most " + MAX_PATTERNS + " server " + (cloudNet ? "names" : "patterns"));
         }
-        for (String pattern : patterns) {
-            String problem = problemWith(pattern);
+        for (String entry : entries) {
+            String problem = cloudNet ? problemWithName(entry) : problemWith(entry);
             if (problem != null) {
-                errors.add("server pattern '" + pattern + "' " + problem);
+                errors.add("server " + (cloudNet ? "name" : "pattern") + " '" + entry + "' " + problem);
             }
         }
         return errors;
+    }
+
+    private static String problemWithName(String name) {
+        if (name == null || name.isBlank()) {
+            return "must not be blank";
+        }
+        if (name.length() > MAX_PATTERN_LENGTH) {
+            return "is longer than " + MAX_PATTERN_LENGTH + " characters";
+        }
+        if (!CLOUDNET_NAME.matcher(name).matches()) {
+            return "may only contain letters, digits, '_', '.' and '-' (no wildcards)";
+        }
+        return null;
     }
 
     private static String problemWith(String pattern) {

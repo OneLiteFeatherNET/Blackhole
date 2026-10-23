@@ -28,7 +28,7 @@ class SectionServiceTest {
     private final SectionService service = new SectionService(repository.repository(), sectionCache, events, notified::add);
 
     private static SectionDTO.CreateRequest pvp() {
-        return new SectionDTO.CreateRequest("pvp", "PvP", EnforcementKind.BAN, null, 1000, 700, "P3D", 300, 700, "banned", null);
+        return new SectionDTO.CreateRequest("pvp", "PvP", EnforcementKind.BAN, null, null, 1000, 700, "P3D", 300, 700, "banned", null);
     }
 
     private SectionDTO.Error expectError(SectionDTO result, ErrorKind kind) {
@@ -68,7 +68,7 @@ class SectionServiceTest {
     @Test
     void creatingASectionWithInvalidThresholdsStoresNothing() {
         SectionDTO.CreateRequest invalid = new SectionDTO.CreateRequest(
-                "pvp", "PvP", EnforcementKind.BAN, null, 1000, null, null, 1200, 1500, "banned", null);
+                "pvp", "PvP", EnforcementKind.BAN, null, null, 1000, null, null, 1200, 1500, "banned", null);
 
         expectError(service.create(invalid), ErrorKind.VALIDATION);
         assertEquals(0, repository.all().size(), "nothing stored");
@@ -78,7 +78,7 @@ class SectionServiceTest {
     @Test
     void creatingAServerSectionWithoutPatternsIsRejected() {
         SectionDTO.CreateRequest invalid = new SectionDTO.CreateRequest(
-                "bedwars", "Bedwars", EnforcementKind.SERVER, List.of(), 1000, 700, "P3D", 300, 700, "banned", null);
+                "bedwars", "Bedwars", EnforcementKind.SERVER, null, List.of(), 1000, 700, "P3D", 300, 700, "banned", null);
 
         expectError(service.create(invalid), ErrorKind.VALIDATION);
     }
@@ -86,7 +86,7 @@ class SectionServiceTest {
     @Test
     void aCreatedServerSectionKeepsItsPatternsSorted() {
         SectionDTO.CreateRequest request = new SectionDTO.CreateRequest(
-                "bedwars", "Bedwars", EnforcementKind.SERVER, List.of("bw-*", "bedwars-*"), 1000, 700, "P3D", 300, 700, "banned", null);
+                "bedwars", "Bedwars", EnforcementKind.SERVER, null, List.of("bw-*", "bedwars-*"), 1000, 700, "P3D", 300, 700, "banned", null);
 
         SectionDTO.Response response = assertInstanceOf(SectionDTO.Response.class, service.create(request));
 
@@ -97,7 +97,7 @@ class SectionServiceTest {
     void updatingChangesTheFieldsAndKeepsTheKey() {
         service.create(pvp());
         SectionDTO.UpdateRequest update = new SectionDTO.UpdateRequest(
-                "pvp", "PvP Arena", EnforcementKind.BAN, null, 1200, null, null, 400, 800, "gone", 5, true);
+                "pvp", "PvP Arena", EnforcementKind.BAN, null, null, 1200, null, null, 400, 800, "gone", 5, true);
 
         SectionDTO.Response response = assertInstanceOf(SectionDTO.Response.class, service.update(update));
 
@@ -110,7 +110,7 @@ class SectionServiceTest {
     @Test
     void updatingAMissingSectionIsNotFound() {
         SectionDTO.UpdateRequest update = new SectionDTO.UpdateRequest(
-                "ghost", "Ghost", EnforcementKind.BAN, null, 1000, null, null, 300, 700, "gone", 5, true);
+                "ghost", "Ghost", EnforcementKind.BAN, null, null, 1000, null, null, 300, 700, "gone", 5, true);
 
         expectError(service.update(update), ErrorKind.NOT_FOUND);
     }
@@ -119,7 +119,7 @@ class SectionServiceTest {
     void updatingWithInvalidValuesLeavesTheSectionUnchanged() {
         service.create(pvp());
         SectionDTO.UpdateRequest update = new SectionDTO.UpdateRequest(
-                "pvp", "PvP", EnforcementKind.BAN, null, 1000, null, null, 1000, 1100, "gone", 5, true);
+                "pvp", "PvP", EnforcementKind.BAN, null, null, 1000, null, null, 1000, 1100, "gone", 5, true);
 
         expectError(service.update(update), ErrorKind.VALIDATION);
         assertEquals(300, assertInstanceOf(SectionDTO.Response.class, service.get("pvp")).permanentThreshold(), "unchanged");
@@ -174,5 +174,71 @@ class SectionServiceTest {
         service.disable("pvp");
 
         assertEquals(1, service.list().size(), "disabled sections are still listed");
+    }
+
+    @Test
+    void aSectionWithoutATargetKindIsCreatedAsPatternSection() {
+        SectionDTO.CreateRequest request = new SectionDTO.CreateRequest(
+                "bedwars", "Bedwars", EnforcementKind.SERVER, null, List.of("bedwars-*"), 1000, 700, "P3D", 300, 700, "banned", null);
+
+        SectionDTO.Response response = assertInstanceOf(SectionDTO.Response.class, service.create(request));
+
+        assertEquals(ServerTargetKind.PATTERN, response.targetKind(), "the default target kind");
+    }
+
+    @Test
+    void aCloudNetTaskSectionKeepsItsKindAndNamesThroughCreateAndGet() {
+        SectionDTO.CreateRequest request = new SectionDTO.CreateRequest(
+                "bedwars", "Bedwars", EnforcementKind.SERVER, ServerTargetKind.CLOUDNET_TASK, List.of("BedWars"),
+                1000, 700, "P3D", 300, 700, "banned", null);
+        service.create(request);
+
+        SectionDTO.Response read = assertInstanceOf(SectionDTO.Response.class, service.get("bedwars"));
+
+        assertEquals(ServerTargetKind.CLOUDNET_TASK, read.targetKind(), "kind survives storage");
+        assertEquals(List.of("BedWars"), read.servers(), "names survive storage");
+    }
+
+    @Test
+    void aCloudNetNameWithAWildcardIsRejectedAndNothingIsStored() {
+        SectionDTO.CreateRequest request = new SectionDTO.CreateRequest(
+                "bedwars", "Bedwars", EnforcementKind.SERVER, ServerTargetKind.CLOUDNET_GROUP, List.of("Mini*"),
+                1000, 700, "P3D", 300, 700, "banned", null);
+
+        expectError(service.create(request), ErrorKind.VALIDATION);
+        assertEquals(0, repository.all().size(), "nothing stored");
+    }
+
+    @Test
+    void updatingChangesTheTargetKind() {
+        service.create(new SectionDTO.CreateRequest(
+                "bedwars", "Bedwars", EnforcementKind.SERVER, null, List.of("bedwars-*"), 1000, 700, "P3D", 300, 700, "banned", null));
+
+        SectionDTO.Response response = assertInstanceOf(SectionDTO.Response.class, service.update(new SectionDTO.UpdateRequest(
+                "bedwars", "Bedwars", EnforcementKind.SERVER, ServerTargetKind.CLOUDNET_SERVICE, List.of("BedWars-3"),
+                1000, 700, "P3D", 300, 700, "banned", 10, true)));
+
+        assertEquals(ServerTargetKind.CLOUDNET_SERVICE, response.targetKind(), "kind updated");
+        assertEquals(List.of("BedWars-3"), response.servers(), "names updated");
+    }
+
+    @Test
+    void theCachedSectionListCarriesTheTargetKind() {
+        service.create(new SectionDTO.CreateRequest(
+                "bedwars", "Bedwars", EnforcementKind.SERVER, ServerTargetKind.CLOUDNET_TASK, List.of("BedWars"),
+                1000, 700, "P3D", 300, 700, "banned", null));
+        service.list();
+
+        List<SectionDTO.Response> cached = sectionCache.getAll().orElseThrow();
+
+        assertEquals(ServerTargetKind.CLOUDNET_TASK, cached.getFirst().targetKind(), "the proxies read this list");
+    }
+
+    @Test
+    void aSectionResponseWithoutATargetKindIsAPatternSection() {
+        SectionDTO.Response legacy = new SectionDTO.Response("bedwars", "Bedwars", EnforcementKind.SERVER, null,
+                List.of("bedwars-*"), 1000, 700, "P3D", 300, 700, "banned", 10, true);
+
+        assertEquals(ServerTargetKind.PATTERN, legacy.targetKind(), "a cache entry from before target kinds");
     }
 }

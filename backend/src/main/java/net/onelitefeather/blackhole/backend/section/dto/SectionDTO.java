@@ -10,6 +10,7 @@ import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.response.ErrorResponse;
 import net.onelitefeather.blackhole.backend.section.EnforcementKind;
 import net.onelitefeather.blackhole.backend.section.SectionSpec;
+import net.onelitefeather.blackhole.backend.section.ServerTargetKind;
 
 import java.util.List;
 
@@ -28,6 +29,7 @@ public sealed interface SectionDTO {
             @NonNull @NotBlank String key,
             @NonNull @NotBlank String displayName,
             @NonNull EnforcementKind enforcement,
+            @Nullable ServerTargetKind targetKind,
             @Nullable List<String> servers,
             @NonNull Integer baseScore,
             @Nullable Integer softThreshold,
@@ -42,7 +44,7 @@ public sealed interface SectionDTO {
 
         public SectionSpec toSpec() {
             return new SectionSpec(
-                    this.key, this.displayName, this.enforcement, this.servers, this.baseScore, this.softThreshold,
+                    this.key, this.displayName, this.enforcement, this.targetKind, this.servers, this.baseScore, this.softThreshold,
                     this.softDuration, this.permanentThreshold, this.pardonScore, this.permanentReason,
                     this.decayPerDay == null ? DEFAULT_DECAY_PER_DAY : this.decayPerDay
             );
@@ -56,6 +58,7 @@ public sealed interface SectionDTO {
             @NonNull @NotBlank String key,
             @NonNull @NotBlank String displayName,
             @NonNull EnforcementKind enforcement,
+            @Nullable ServerTargetKind targetKind,
             @Nullable List<String> servers,
             @NonNull Integer baseScore,
             @Nullable Integer softThreshold,
@@ -69,7 +72,7 @@ public sealed interface SectionDTO {
 
         public SectionSpec toSpec() {
             return new SectionSpec(
-                    this.key, this.displayName, this.enforcement, this.servers, this.baseScore, this.softThreshold,
+                    this.key, this.displayName, this.enforcement, this.targetKind, this.servers, this.baseScore, this.softThreshold,
                     this.softDuration, this.permanentThreshold, this.pardonScore, this.permanentReason, this.decayPerDay
             );
         }
@@ -82,6 +85,7 @@ public sealed interface SectionDTO {
             @NonNull String key,
             @NonNull String displayName,
             @NonNull EnforcementKind enforcement,
+            @NonNull ServerTargetKind targetKind,
             @NonNull List<String> servers,
             int baseScore,
             @Nullable Integer softThreshold,
@@ -92,6 +96,11 @@ public sealed interface SectionDTO {
             int decayPerDay,
             boolean enabled
     ) implements SectionDTO {
+
+        /** A cache entry written before target kinds existed has none: it is a pattern section. */
+        public Response {
+            targetKind = targetKind == null ? ServerTargetKind.PATTERN : targetKind;
+        }
     }
 
     @Schema(name = "SectionError")

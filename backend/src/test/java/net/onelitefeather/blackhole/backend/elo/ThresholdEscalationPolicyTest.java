@@ -16,10 +16,10 @@ class ThresholdEscalationPolicyTest {
 
     /** base 1000, soft 700, permanent 300. */
     private static final SectionDTO.Response WITH_SOFT = new SectionDTO.Response(
-            "chat", "Chat", EnforcementKind.MUTE, List.of(), 1000, 700, "PT24H", 300, 700, "muted", 10, true);
+            "chat", "Chat", EnforcementKind.MUTE, null, List.of(), 1000, 700, "PT24H", 300, 700, "muted", 10, true);
 
     private static final SectionDTO.Response WITHOUT_SOFT = new SectionDTO.Response(
-            "chat", "Chat", EnforcementKind.MUTE, List.of(), 1000, null, null, 300, 700, "muted", 10, true);
+            "chat", "Chat", EnforcementKind.MUTE, null, List.of(), 1000, null, null, 300, 700, "muted", 10, true);
 
     private Decision decide(SectionDTO.Response section, int before, int after, boolean hasActivePermanent) {
         return policy.decide(new Context("owner", section, before, after, hasActivePermanent));

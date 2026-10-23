@@ -108,4 +108,28 @@ class SectionValidatorTest {
 
         assertEquals(List.of(), errorsOf(spec), "SERVER with a pattern");
     }
+
+    @Test
+    void aCloudNetTaskSectionWithAnExactNameIsValid() {
+        SectionSpec spec = new SectionSpec("bedwars", "Bedwars", EnforcementKind.SERVER, ServerTargetKind.CLOUDNET_TASK,
+                List.of("BedWars"), 1000, 700, "P3D", 300, 700, "banned", 10);
+
+        assertEquals(List.of(), errorsOf(spec), "SERVER with a CloudNet task");
+    }
+
+    @Test
+    void aCloudNetKindOnABanSectionIsRejected() {
+        SectionSpec spec = new SectionSpec("pvp", "PvP", EnforcementKind.BAN, ServerTargetKind.CLOUDNET_GROUP,
+                null, 1000, 700, "P3D", 300, 700, "banned", 10);
+
+        assertFalse(errorsOf(spec).isEmpty(), "a network-wide section has no server targets");
+    }
+
+    @Test
+    void aSpecWithoutATargetKindIsAPatternSpec() {
+        SectionSpec spec = new SectionSpec("bedwars", "Bedwars", EnforcementKind.SERVER, null,
+                List.of("bedwars-*"), 1000, 700, "P3D", 300, 700, "banned", 10);
+
+        assertEquals(ServerTargetKind.PATTERN, spec.targetKind(), "null defaults to PATTERN");
+    }
 }
