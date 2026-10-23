@@ -93,11 +93,11 @@ The system SHALL expose `GET /elo/{owner}` returning the owner's score per secti
 ## ADDED Requirements
 
 ### Requirement: Manual score adjustment
-The system SHALL expose `POST /elo/{owner}/adjust` with section, signed delta, note and source, recorded with reason MANUAL_ADJUSTMENT and subject to the same soft and permanent threshold rules as any other delta.
+The system SHALL expose `POST /elo/{owner}/adjust` with section, signed delta and note, recorded with reason MANUAL_ADJUSTMENT and subject to the same soft and permanent threshold rules as any other delta.
 
 #### Scenario: Adjustment escalates
 - **WHEN** an admin adjusts a player's `network` score by -400 from 600
-- **THEN** the score becomes 200, the event is recorded with the note and source, and the player is permanently banned from `network`
+- **THEN** the score becomes 200, the event is recorded with the note and the verified caller, and the player is permanently banned from `network`
 
 #### Scenario: Unknown section
 - **WHEN** an adjustment names a section that does not exist
