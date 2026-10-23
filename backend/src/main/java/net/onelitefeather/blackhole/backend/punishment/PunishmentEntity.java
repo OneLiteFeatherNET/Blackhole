@@ -48,6 +48,13 @@ public class PunishmentEntity {
     private UUID recordedByOid;
 
     /**
+     * The staff member {@code source} was linked to when an in-game punishment was written through the
+     * proxy; {@code null} for web writes, unlinked UUIDs and every row from before the link existed.
+     */
+    @Column(name = "actor_oid")
+    private UUID actorOid;
+
+    /**
      * The hashed owner. Needed on the punishment itself so escalation step selection can count a
      * player's earlier punishments in a group.
      */
@@ -97,6 +104,7 @@ public class PunishmentEntity {
         entity.shortId = PunishmentShortId.storageKey(entry.identifier());
         entity.source = entry.source();
         entity.recordedByOid = entry.recordedByOid();
+        entity.actorOid = entry.actorOid();
         entity.owner = owner;
         entity.sectionKey = entry.section();
         entity.scope = entry.scope();
@@ -183,6 +191,14 @@ public class PunishmentEntity {
         this.recordedByOid = recordedByOid;
     }
 
+    public UUID getActorOid() {
+        return actorOid;
+    }
+
+    public void setActorOid(UUID actorOid) {
+        this.actorOid = actorOid;
+    }
+
     public String getOwner() {
         return owner;
     }
@@ -246,6 +262,8 @@ public class PunishmentEntity {
                 this.source,
                 this.recordedByOid,
                 this.recordedByOid != null,
+                this.actorOid,
+                null,
                 this.sectionKey,
                 this.scope,
                 this.permanent,

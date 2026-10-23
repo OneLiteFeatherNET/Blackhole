@@ -65,9 +65,10 @@ public final class PunishmentTestBed {
     public final ProfileCache profileCache = new ProfileCache(eloBed.sharedCache, Duration.ofSeconds(30));
     public final PunishmentTemplateCache templateCache = new PunishmentTemplateCache(eloBed.sharedCache, Duration.ofMinutes(5));
     public final RecordingEvidenceGateway evidence = new RecordingEvidenceGateway();
+    public final StaffLinkTestBed staffLinks = new StaffLinkTestBed(eloBed.events, eloBed.clock);
     public final PunishmentApplicationService punishmentService = new PunishmentApplicationService(
             punishments.repository(), profiles.repository(), slots, templates.repository(), eloBed.sections, eloBed.events,
-            profileCache, evidence, () -> this.elo, eloBed.clock, Duration.ofDays(365));
+            profileCache, evidence, () -> this.elo, this.staffLinks.service, eloBed.clock, Duration.ofDays(365));
     public final PunishmentTemplateService templateService = new PunishmentTemplateService(
             templates.repository(), punishments.repository(), templateCache, eloBed.sections);
 

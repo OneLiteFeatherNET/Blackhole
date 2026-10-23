@@ -4,6 +4,8 @@ import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.security.dto.StaffActorDTO;
 import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.RecordingEventPublisher;
+import net.onelitefeather.blackhole.backend.support.StaffLinkTestBed;
+import net.onelitefeather.blackhole.backend.support.TestClock;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
@@ -21,7 +23,9 @@ class StaffActorServiceTest {
     private final InMemoryRepository<StaffActorRepository, StaffActorEntity, UUID> store =
             InMemoryRepository.<StaffActorRepository, StaffActorEntity, UUID>of(StaffActorRepository.class, StaffActorEntity::getOid).build();
     private final RecordingEventPublisher events = new RecordingEventPublisher();
-    private final StaffActorService service = new StaffActorService(this.store.repository(), this.events);
+    private final TestClock clock = new TestClock();
+    private final StaffLinkTestBed links = new StaffLinkTestBed(this.events, this.clock);
+    private final StaffActorService service = new StaffActorService(this.store.repository(), this.events, this.links.service);
 
     @Test
     void anonymizingClearsTheDisplayNameAndKeepsTheOidAndKind() {
@@ -53,5 +57,27 @@ class StaffActorServiceTest {
 
         assertEquals(ErrorKind.NOT_FOUND, assertInstanceOf(StaffActorDTO.Error.class, result).kind());
         assertTrue(this.events.events().isEmpty(), "no audit event for a no-op");
+    }
+
+    @Test
+    void anonymizingAlsoRemovesTheMinecraftLinkAndPublishesRemovedWithReasonAnonymized() {
+        this.store.given(new StaffActorEntity(LEAVER, ActorKind.HUMAN, "Lea Leaver", 1L), LEAVER);
+        this.links.givenLink(LEAVER, UUID.fromString("55555555-5555-4555-8555-555555555555"));
+
+        this.service.anonymize(LEAVER, ADMIN);
+
+        assertTrue(this.links.linkOf(LEAVER).isEmpty(), "a leaving person must not stay attributable by uuid");
+        var removed = this.events.eventsOfType(StaffLinkService.REMOVED_EVENT).getFirst();
+        assertEquals("ANONYMIZED", removed.payload().get("reason"), "audited with its reason");
+        assertEquals(LEAVER.toString(), removed.payload().get("oid"), "identified by oid");
+    }
+
+    @Test
+    void anonymizingAPersonWithoutALinkPublishesNoRemoval() {
+        this.store.given(new StaffActorEntity(LEAVER, ActorKind.HUMAN, "Lea Leaver", 1L), LEAVER);
+
+        this.service.anonymize(LEAVER, ADMIN);
+
+        assertTrue(this.events.eventsOfType(StaffLinkService.REMOVED_EVENT).isEmpty(), "nothing to remove");
     }
 }

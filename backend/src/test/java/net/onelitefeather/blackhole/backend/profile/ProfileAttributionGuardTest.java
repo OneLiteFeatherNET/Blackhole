@@ -35,7 +35,7 @@ class ProfileAttributionGuardTest {
     }
 
     private static PunishEntryDTO entry(String id, UUID source, UUID recordedBy) {
-        return new PunishEntryDTO(id, "#AAAAAAAA", source, recordedBy, recordedBy != null, "chat", null, false, false, 1L,
+        return new PunishEntryDTO(id, "#AAAAAAAA", source, recordedBy, recordedBy != null, null, null, "chat", null, false, false, 1L,
                 null, null, null, null, null, null, new HashMap<>());
     }
 
@@ -92,5 +92,25 @@ class ProfileAttributionGuardTest {
         assertEquals(STAFF, result.history().get(0).recordedByOid(), "stored entry keeps its value");
         assertNull(result.history().get(1).recordedByOid(), "new entry has none");
         assertNull(result.active(), "a missing active map stays missing");
+    }
+
+    @Test
+    void aClientCannotSetTheActorOidOfAnEntry() {
+        givenStored("p-5", STAFF, STAFF);
+        PunishEntryDTO forged = entry("p-5", STAFF, STAFF).withActorOid(FORGED);
+
+        PunishEntryDTO result = sanitizedActive(forged);
+
+        assertNull(result.actorOid(), "the stored actor oid (none) wins over the forged one");
+    }
+
+    @Test
+    void anExistingEntryKeepsItsStoredActorOid() {
+        givenStored("p-6", STAFF, STAFF);
+        this.store.repository().findById("p-6").orElseThrow().setActorOid(OTHER_STAFF);
+
+        PunishEntryDTO result = sanitizedActive(entry("p-6", STAFF, STAFF));
+
+        assertEquals(OTHER_STAFF, result.actorOid(), "profile writes never lose the attribution");
     }
 }

@@ -30,6 +30,7 @@ import net.onelitefeather.blackhole.backend.section.SectionService;
 import net.onelitefeather.blackhole.backend.section.dto.SectionDTO;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.Attribution;
+import net.onelitefeather.blackhole.backend.security.StaffLinkService;
 import net.onelitefeather.blackhole.backend.utils.Durations;
 import net.onelitefeather.blackhole.backend.utils.IdGenerator;
 import net.onelitefeather.blackhole.backend.utils.OwnerHash;
@@ -84,6 +85,7 @@ public class PunishmentApplicationService implements SectionPunisher {
     private final ProfileCache profileCache;
     private final PunishmentEvidenceGateway evidence;
     private final Provider<EloScoring> eloScoring;
+    private final StaffLinkService staffLinks;
     private final Clock clock;
     private final Duration defaultEscalationWindow;
 
@@ -102,6 +104,7 @@ public class PunishmentApplicationService implements SectionPunisher {
             ProfileCache profileCache,
             PunishmentEvidenceGateway evidence,
             Provider<EloScoring> eloScoring,
+            StaffLinkService staffLinks,
             Clock clock,
             @Value("${blackhole.punishment.escalation.default-window:P365D}") Duration defaultEscalationWindow
     ) {
@@ -114,6 +117,7 @@ public class PunishmentApplicationService implements SectionPunisher {
         this.profileCache = profileCache;
         this.evidence = evidence;
         this.eloScoring = eloScoring;
+        this.staffLinks = staffLinks;
         this.clock = clock;
         this.defaultEscalationWindow = defaultEscalationWindow;
     }
@@ -221,7 +225,7 @@ public class PunishmentApplicationService implements SectionPunisher {
         long now = planned.plan().now();
         String group = planned.plan().group();
         StepSelector.Selection selection = planned.plan().selection();
-        Attribution attribution = planned.plan().attribution();
+        Attribution attribution = this.staffLinks.withLinkedActor(planned.plan().attribution());
         int cost = selection.step().getEloCost();
 
         Map<String, Object> metadata = new HashMap<>();
@@ -233,6 +237,7 @@ public class PunishmentApplicationService implements SectionPunisher {
                 IdGenerator.generateId(), attribution.source(), owner, section.key(), false, now, template, metadata
         );
         punishment.setRecordedByOid(attribution.recordedByOid());
+        punishment.setActorOid(attribution.actorOid());
         punishment.recordEscalation(group, selection.index(), selection.stepCount(), cost);
         PunishmentEntity saved = this.punishmentRepository.save(punishment);
         if (!place(owner, section, saved)) {
@@ -462,9 +467,13 @@ public class PunishmentApplicationService implements SectionPunisher {
                 .orElseGet(() -> error(ErrorKind.VALIDATION, "a short id is # followed by exactly eight hex characters"));
     }
 
-    /** The punishment as a DTO that tells how many valid evidence items it has, and nothing more about them. */
+    /** The punishment as a DTO that tells how many valid evidence items it has, and nothing more about them, and who linked staff member issued it. */
     private PunishEntryDTO withEvidenceCount(PunishmentEntity punishment) {
-        return punishment.toDTO().withEvidenceCount(this.evidence.countValid(punishment.getIdentifier()));
+        PunishEntryDTO entry = punishment.toDTO().withEvidenceCount(this.evidence.countValid(punishment.getIdentifier()));
+        if (punishment.getActorOid() == null) {
+            return entry;
+        }
+        return entry.withActorName(this.staffLinks.displayName(punishment.getActorOid()).orElse(null));
     }
 
     private static PunishmentDTO.Error error(ErrorKind kind, String message) {

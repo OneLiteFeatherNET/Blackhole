@@ -109,6 +109,8 @@ public sealed interface EvidenceDTO {
      *                             vouched for, or whatever was stored before SSO
      * @param recordedByOid        the {@code oid} of the verified principal that attached it, {@code null} before SSO
      * @param verified             whether {@code recordedByOid} is present
+     * @param actorOid             the staff member the in-game {@code createdBy} was linked to when it was attached,
+     *                             {@code null} for web writes and unlinked UUIDs
      * @param reference            the URL of a REPLAY or LINK
      * @param payload              the structured content
      * @param file                 the stored file's metadata
@@ -131,6 +133,7 @@ public sealed interface EvidenceDTO {
             @Nullable UUID createdBy,
             @Nullable UUID recordedByOid,
             boolean verified,
+            @Nullable UUID actorOid,
             @Nullable String reference,
             @Nullable Map<String, Object> payload,
             @Nullable FileInfo file,

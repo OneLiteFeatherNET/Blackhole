@@ -20,6 +20,10 @@ import java.util.UUID;
  * @param recordedByOid   the {@code oid} of the verified principal that wrote it, {@code null} for punishments written
  *                        before SSO
  * @param verified        whether {@code recordedByOid} is present: {@code false} marks a legacy, unverified attribution
+ * @param actorOid        the staff member the in-game {@code source} was linked to when it was written, {@code null}
+ *                        for web writes, unlinked UUIDs and punishments from before the link existed
+ * @param actorName       the display name of {@code actorOid}, {@code null} when unknown, anonymized or not looked up
+ *                        (profile listings carry only the {@code actorOid})
  * @param section         the section it belongs to
  * @param scope           the optional scope (e.g. event/community) it is restricted to, or {@code null}
  * @param permanent       whether it is a permanent punishment issued by the system's escalation
@@ -46,6 +50,8 @@ public record PunishEntryDTO(
         UUID source,
         @Nullable UUID recordedByOid,
         boolean verified,
+        @Nullable UUID actorOid,
+        @Nullable String actorName,
         String section,
         @Nullable String scope,
         boolean permanent,
@@ -62,16 +68,30 @@ public record PunishEntryDTO(
 
     /** This entry with the number of valid evidence items filled in. */
     public PunishEntryDTO withEvidenceCount(long count) {
-        return new PunishEntryDTO(this.identifier, this.shortId, this.source, this.recordedByOid, this.verified, this.section, this.scope, this.permanent,
+        return new PunishEntryDTO(this.identifier, this.shortId, this.source, this.recordedByOid, this.verified, this.actorOid, this.actorName, this.section, this.scope, this.permanent,
                 this.lifted, this.createdAt, this.escalationGroup, this.stepIndex, this.stepCount, this.eloCost,
                 this.template, count, this.metaData);
     }
 
     /** This entry attributed to the given verified principal, or to none ({@code null}), which marks it unverified. */
     public PunishEntryDTO withRecordedByOid(UUID recordedByOid) {
-        return new PunishEntryDTO(this.identifier, this.shortId, this.source, recordedByOid, recordedByOid != null, this.section,
+        return new PunishEntryDTO(this.identifier, this.shortId, this.source, recordedByOid, recordedByOid != null, this.actorOid, this.actorName, this.section,
                 this.scope, this.permanent, this.lifted, this.createdAt, this.escalationGroup, this.stepIndex, this.stepCount,
                 this.eloCost, this.template, this.evidenceCount, this.metaData);
+    }
+
+    /** This entry attributed to the staff member the guard found stored ({@code null} if none). */
+    public PunishEntryDTO withActorOid(UUID actorOid) {
+        return new PunishEntryDTO(this.identifier, this.shortId, this.source, this.recordedByOid, this.verified, actorOid, null,
+                this.section, this.scope, this.permanent, this.lifted, this.createdAt, this.escalationGroup, this.stepIndex,
+                this.stepCount, this.eloCost, this.template, this.evidenceCount, this.metaData);
+    }
+
+    /** This entry with the display name of its {@code actorOid} filled in. */
+    public PunishEntryDTO withActorName(String actorName) {
+        return new PunishEntryDTO(this.identifier, this.shortId, this.source, this.recordedByOid, this.verified, this.actorOid, actorName,
+                this.section, this.scope, this.permanent, this.lifted, this.createdAt, this.escalationGroup, this.stepIndex,
+                this.stepCount, this.eloCost, this.template, this.evidenceCount, this.metaData);
     }
 
     @Override

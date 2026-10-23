@@ -24,7 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RouteCoverageIntegrationTest extends ApiIntegrationTest {
 
     private static final Set<String> V = Set.of("VIEWER");
-    private static final Set<String> VP = Set.of("VIEWER", "PROXY");
+    private static final Set<String> P = Set.of("PROXY");
+    private static final Set<String> VP =Set.of("VIEWER", "PROXY");
     private static final Set<String> M = Set.of("MODERATOR");
     private static final Set<String> MP = Set.of("MODERATOR", "PROXY");
     private static final Set<String> A = Set.of("ADMIN");
@@ -82,6 +83,14 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("DELETE /evidence/{identifier}", A),
             Map.entry("DELETE /evidence/owner/{owner}", A),
             Map.entry("DELETE /profile/delete/{owner}", A),
+            // staff account link: own (any staff role), the proxy's confirmation and lookup, admin
+            Map.entry("POST /staff-link/code", V),
+            Map.entry("GET /staff-link/me", V),
+            Map.entry("DELETE /staff-link/me", V),
+            Map.entry("POST /staff-link/confirm", P),
+            Map.entry("GET /staff-link/by-minecraft/{uuid}", P),
+            Map.entry("GET /admin/staff-link", A),
+            Map.entry("DELETE /admin/staff-link/{oid}", A),
             // identity
             Map.entry("GET /auth/me", AUTHENTICATED)
     );

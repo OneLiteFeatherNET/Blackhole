@@ -12,7 +12,8 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Keeps a whole-profile write from forging verification. {@code recordedByOid} is only ever set by
+ * Keeps a whole-profile write from forging verification. {@code actorOid} is treated like
+ * {@code recordedByOid}. {@code recordedByOid} is only ever set by
  * the server from a token, so whatever a client sends in a profile body is discarded: an entry the
  * server already stores keeps its stored value, unless the client changed its {@code source}, and a
  * new entry has none. An entry without {@code recordedByOid} is shown as unverified.
@@ -42,8 +43,8 @@ public class ProfileAttributionGuard {
     private PunishEntryDTO sanitize(PunishEntryDTO entry) {
         PunishmentEntity stored = entry.identifier() == null ? null : this.punishments.findById(entry.identifier()).orElse(null);
         if (stored == null || !Objects.equals(stored.getSource(), entry.source())) {
-            return entry.withRecordedByOid(null);
+            return entry.withRecordedByOid(null).withActorOid(null);
         }
-        return entry.withRecordedByOid(stored.getRecordedByOid());
+        return entry.withRecordedByOid(stored.getRecordedByOid()).withActorOid(stored.getActorOid());
     }
 }
