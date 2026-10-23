@@ -47,11 +47,11 @@ The system SHALL return a paginated list of all reports via `GET /report`.
 - **THEN** the response is a page of reports with their current status
 
 ### Requirement: Report resolution
-The system SHALL resolve reports via `POST /report/{identifier}/resolve` with a `status`, required `resolvedBy`, and optional `resolutionNote` (at most 1000 characters), updating the report's status, resolver, note and update time. It MUST return HTTP 404 for an unknown report. Resolution MAY be repeated on the same report.
+The system SHALL let callers with at least `MODERATOR` resolve reports via `POST /report/{identifier}/resolve` with a `status` and optional `resolutionNote` (at most 1000 characters), updating its status, resolver, note and update time. The resolver and any applied punishment's source SHALL be the caller's verified `oid`; the request MUST NOT carry `resolvedBy` or `punishmentSource`. It MUST return HTTP 404 for an unknown report and MAY be repeated.
 
 #### Scenario: Dismiss a report
 - **WHEN** staff resolves a report with status `DISMISSED` and a note
-- **THEN** the report's status, `resolvedBy` and `resolutionNote` are updated
+- **THEN** the report's status, `resolvedBy` (the caller's `oid`) and `resolutionNote` are updated
 
 #### Scenario: Unknown report
 - **WHEN** a resolution targets a report identifier that does not exist

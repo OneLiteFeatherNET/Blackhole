@@ -16,7 +16,7 @@ paths:
   groups overage answers 403 with reason `groups-overage` (no Graph call).
 - Put `@Secured(Roles.X)` on every controller or method; controllers hold no authorization logic.
   `RouteCoverageIntegrationTest` and `PermissionMatrixIntegrationTest` fail for a route without a rule
-  or one that differs from the matrix in `openspec/changes/add-team-sso/design.md` (decision 3).
+  or one that differs from the matrix in `openspec/changes/archive/2026-10-23-add-team-sso/design.md` (decision 3).
 - Actor: take it from `ActorResolver` (the token's `oid`), write it as `recorded_by_oid`. Never read a
   client-supplied `source`/`resolvedBy`/`reviewerId`; only `PROXY` may send `onBehalfOf`. Email and UPN
   claims are never read. For in-game actions the proxy sends `onBehalfOf` (a Minecraft UUID); the
@@ -26,7 +26,7 @@ paths:
 - Staff link (`security/` `StaffLink*`): `POST /staff-link/code` needs a human token; `confirm` and
   `by-minecraft` are `PROXY`-only; the code is stored hashed and never logged. No failed-attempt cap in
   the app on purpose (infra rate limits; `blackhole.link` goes to staff groups only). `anonymize` removes
-  the link. The route matrix lives in `openspec/changes/add-team-sso/design.md`.
+  the link. The route matrix lives in `openspec/changes/archive/2026-10-23-add-team-sso/design.md`.
 - Config is `blackhole.security.*` in `application.yml` (`BLACKHOLE_AUTH_*`). The defaults point at the
   mock OIDC server in `docker/docker-compose.yml`; a non-dev context with an `http`/localhost issuer
   refuses to start.

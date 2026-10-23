@@ -67,7 +67,7 @@ tenant's published keys and keeps no session. There is no setting that turns aut
 | `PROXY` | the routes the proxy needs (profiles, punishments, reports, evidence) with `onBehalfOf` |
 | `METRICS` | `GET /prometheus` |
 
-The full route matrix is in `openspec/changes/add-team-sso/design.md` and enforced by a test.
+The full route matrix is in `openspec/changes/archive/2026-10-23-add-team-sso/design.md` and enforced by a test.
 
 **Verified actor.** The actor of every write is the `oid` of the token and is stored as
 `recorded_by_oid`; the former client-supplied `source`, `resolvedBy` and `reviewerId` fields are gone
