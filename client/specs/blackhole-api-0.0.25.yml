@@ -1487,6 +1487,110 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PunishEntryDTO"
+  /punishment/active:
+    get:
+      tags:
+      - Punishment
+      summary: List active punishments across players
+      description: "Lists every punishment that currently holds a player's active\
+        \ slot and has not ended, newest first by default. Every filter is optional.\
+        \ kind is MUTE, BAN or SERVER; section is a section key (a CloudNet target\
+        \ section is a SERVER section whose targetKind is CLOUDNET_TASK, CLOUDNET_GROUP\
+        \ or CLOUDNET_SERVICE); permanent selects permanent or temporary punishments;\
+        \ expiresBefore (epoch milliseconds) keeps temporary punishments that end\
+        \ before it; automatic selects those the ELO system applied; actor is the\
+        \ staff member's oid. sort is CREATED or EXPIRES (a permanent punishment sorts\
+        \ as the latest), direction ASC or DESC. Players appear as their hashed owner\
+        \ only; no raw UUID, IP address or ban ID is returned."
+      operationId: listActivePunishments
+      parameters:
+      - name: kind
+        in: query
+        explode: false
+        schema:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/EnforcementKind"
+      - name: section
+        in: query
+        explode: false
+        schema:
+          type: string
+          nullable: true
+      - name: targetKind
+        in: query
+        explode: false
+        schema:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/ServerTargetKind"
+      - name: permanent
+        in: query
+        explode: false
+        schema:
+          type: boolean
+          nullable: true
+      - name: expiresBefore
+        in: query
+        explode: false
+        schema:
+          type: integer
+          format: int64
+          nullable: true
+      - name: automatic
+        in: query
+        explode: false
+        schema:
+          type: boolean
+          nullable: true
+      - name: actor
+        in: query
+        explode: false
+        schema:
+          type: string
+          format: uuid
+          nullable: true
+      - name: sort
+        in: query
+        explode: false
+        schema:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/ActivePunishmentSort"
+      - name: direction
+        in: query
+        explode: false
+        schema:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/SortDirection"
+      - name: page
+        in: query
+        explode: false
+        schema:
+          type: integer
+          format: int32
+          nullable: true
+      - name: size
+        in: query
+        explode: false
+        schema:
+          type: integer
+          format: int32
+          nullable: true
+      responses:
+        "200":
+          description: One page of active punishments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivePunishmentPage"
+        "400":
+          description: A filter or the page is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivePunishmentError"
   /punishment/apply:
     post:
       tags:
@@ -1529,6 +1633,35 @@ paths:
         "409":
           description: "The template's section is disabled, or the player is already\
             \ permanently punished in it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+  /punishment/lookup:
+    post:
+      tags:
+      - Punishment
+      summary: Find a punishment by Ban ID
+      description: "Finds the punishment a Ban ID belongs to. The Ban ID is a credential,\
+        \ so it goes in the request body and never in a URL or query. Anything that\
+        \ matches nothing, malformed or unknown, answers the same 404 without the\
+        \ input in it. The response is never cacheable (Cache-Control: no-store)."
+      operationId: findPunishmentByBanId
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishmentLookupRequest"
+        required: true
+      responses:
+        "200":
+          description: The punishment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentLookupResponse"
+        "404":
+          description: No punishment has this Ban ID
           content:
             application/json:
               schema:
@@ -1644,6 +1777,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PunishmentError"
+  /punishment/{reference}/ban-id:
+    get:
+      tags:
+      - Punishment
+      summary: Reveal the Ban ID of a punishment
+      description: "Returns the current Ban ID of a punishment: the eight character\
+        \ credential the player uses for the appeal portal. For moderators and the\
+        \ proxy (it shows the value on the ban screen); never cacheable (Cache-Control:\
+        \ no-store). The reference is the full identifier, or a legacy short id when\
+        \ it is unambiguous. The Ban ID is part of no other response."
+      operationId: revealBanId
+      parameters:
+      - name: reference
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The current Ban ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BanIdResponse"
+        "404":
+          description: "Unknown punishment, or its Ban ID has not been issued yet"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BanIdError"
+        "409":
+          description: The short id matches several punishments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BanIdError"
+        "503":
+          description: The stored Ban ID cannot be read with the configured key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BanIdError"
   /punishment/{reference}/evidence:
     get:
       tags:
@@ -2223,6 +2398,118 @@ paths:
                 $ref: "#/components/schemas/PunishTemplateError"
 components:
   schemas:
+    ActivePunishmentError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+    ActivePunishmentItem:
+      required:
+      - automatic
+      - createdAt
+      - owner
+      - permanent
+      - punishmentId
+      - section
+      - shortId
+      type: object
+      properties:
+        owner:
+          type: string
+          description: the player's SHA-512 owner hash; the key of the player page
+        punishmentId:
+          type: string
+          description: "the punishment's identifier, which addresses its case"
+        shortId:
+          type: string
+          description: the `#` and eight hex characters players quote
+        section:
+          type: string
+          description: the section key
+        sectionName:
+          type: string
+          description: the section's display name; null if the section was deleted
+          nullable: true
+        kind:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/EnforcementKind"
+        targetKind:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/ServerTargetKind"
+        templateKey:
+          type: string
+          description: the template the punishment came from; null for automatic punishments
+          nullable: true
+        reason:
+          type: string
+          description: the template's reason or the stored reason; for an automatic
+            punishment an English placeholder
+          nullable: true
+        automatic:
+          type: boolean
+          description: whether the ELO system applied it
+        createdAt:
+          type: integer
+          format: int64
+        expiresAt:
+          type: integer
+          description: when it ends (epoch millis); null for a permanent punishment
+          format: int64
+          nullable: true
+        permanent:
+          type: boolean
+        caseStatus:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/CaseStatus"
+        actorName:
+          type: string
+          description: "the display name of the verified staff member who applied\
+            \ it; null when unverified, unknown, anonymized or automatic"
+          nullable: true
+      description: One active punishment.
+    ActivePunishmentPage:
+      required:
+      - items
+      - page
+      - size
+      - totalPages
+      - totalSize
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivePunishmentItem"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalSize:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+      description: One page of the overview.
+    ActivePunishmentSort:
+      type: string
+      description: What the list of active punishments is ordered by.
+      enum:
+      - CREATED
+      - EXPIRES
+      x-enum-descriptions:
+      - When the punishment was applied.
+      - "When it ends; a permanent punishment never ends, so it sorts as the latest."
     ActorKind:
       type: string
       description: Whether a verified principal is a signed-in person or an application
@@ -2381,6 +2668,25 @@ components:
           type: array
           items:
             type: string
+    BanIdError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+    BanIdResponse:
+      required:
+      - banId
+      type: object
+      properties:
+        banId:
+          type: string
+          description: "the current Ban ID, eight Crockford base32 characters; a credential,\
+            \ never to be logged"
     CaseActorInfo:
       required:
       - trust
@@ -4120,6 +4426,22 @@ components:
           format: int32
       description: A permanent punishment the system applied because a deduction left
         the score too low.
+    PunishmentLookupRequest:
+      type: object
+      properties:
+        banId:
+          type: string
+          description: "the Ban ID as typed, with or without `#`, in any case; a credential,\
+            \ so it is a body field and is never printed"
+          nullable: true
+      description: Staff look up a punishment by the Ban ID a player quotes.
+    PunishmentLookupResponse:
+      required:
+      - punishment
+      type: object
+      properties:
+        punishment:
+          $ref: "#/components/schemas/PunishEntryDTO"
     PunishmentPreviewResponse:
       required:
       - duration
@@ -4617,6 +4939,12 @@ components:
           type: boolean
     Sort.Order.Direction:
       type: string
+      enum:
+      - ASC
+      - DESC
+    SortDirection:
+      type: string
+      description: The direction of a sorted list.
       enum:
       - ASC
       - DESC
