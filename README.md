@@ -169,7 +169,7 @@ score, and says how it is enforced:
 |-------------|-------------------------------------------------------------------------------------|
 | `BAN`       | The player cannot log in.                                                           |
 | `MUTE`      | The player's chat messages are not delivered.                                       |
-| `SERVER`    | The player cannot connect to backend servers matching the section's glob patterns. |
+| `SERVER`    | The player cannot connect to backend servers the section targets: glob patterns, or CloudNet [tasks, groups or services](#cloudnet-sections). |
 
 Two sections are seeded: `chat` (MUTE) and `network` (BAN). Operators add more through
 `POST /section`, for example `bedwars` as SERVER with the pattern `bedwars-*` (`*` matches any run
@@ -177,6 +177,93 @@ of characters, `?` one character, case-insensitive). A player stays on the netwo
 section punishes them; if they stand on a matching server when it arrives they are moved to the
 `fallbackServer` of the proxy config (default `lobby`), or disconnected if there is none.
 There is one active punishment per player and section: a mute never lifts a ban.
+
+### CloudNet sections
+
+A `SERVER` section normally lists glob patterns for the Velocity server names. On a network that runs
+[CloudNet](https://cloudnetservice.eu/) it can instead name CloudNet **tasks, groups or single
+services**, so a ban on `BedWars` covers every `BedWars-<n>` instance without a pattern.
+
+**Requirements.** CloudNet 4.0.0-RC17 or newer (4.x has no stable release yet, all versions are
+release candidates), and Velocity running as a CloudNet service with the Bridge module, which
+registers every started CloudNet service in Velocity under its service name. The plugin only reads
+CloudNet's driver API; it does not bundle it and the backend never talks to CloudNet. Without
+CloudNet the plugin behaves as before and `PATTERN` sections keep working.
+
+**Target kinds.** A section has one `targetKind` (set it through `POST /section` or the "Target"
+selector of the admin UI); `servers` then holds the patterns or the exact names:
+
+| `targetKind`       | UI label       | `servers` holds         | Covers a server when                                 |
+|--------------------|----------------|-------------------------|------------------------------------------------------|
+| `PATTERN` (default)| Namensmuster   | glob patterns (`bedwars-*`) | the pattern matches the server name (needs no CloudNet) |
+| `CLOUDNET_TASK`    | CloudNet-Task  | exact task names (`BedWars`) | the service belongs to one of the tasks              |
+| `CLOUDNET_GROUP`   | CloudNet-Gruppe | exact group names (`Games`) | the service is in one of the groups                  |
+| `CLOUDNET_SERVICE` | CloudNet-Service | exact service names (`BedWars-3`) | the service name equals one of the names        |
+
+CloudNet names are letters, digits, `_`, `.` and `-` without wildcards, and are compared ignoring
+case. The backend does not check them against CloudNet: a section may name a task that does not
+exist yet, and then simply covers nothing. The admin UI lists the names that the proxies report
+and marks a name that is not among them as "Nicht im Katalog" / "Not in catalogue"; it also accepts
+typed names, and it is the only way to enter names when no catalogue has been reported.
+
+**Service names are not stable.** A `CLOUDNET_SERVICE` target is the service *name*. After a restart
+the name can belong to a different instance (dynamic services get the lowest free number), so the
+ban follows the name, not the instance, and survives restarts. Use a task or a group for lasting
+bans; the UI shows this warning when you pick the service kind.
+
+**Unknown servers are not covered (fail open).** If CloudNet does not know the server a player is
+connecting to, for example a server registered by hand in `velocity.toml`, or the plugin runs without
+CloudNet, a CloudNet section does not match and the player may connect. The proxy logs a warning once
+per server name (and at startup when CloudNet sections exist but CloudNet is unavailable). This is
+deliberate: the same rule as for a state outage, where an outage never locks players out, and the
+Bridge only registers CloudNet services, which CloudNet knows. Cover hand-registered servers with a
+`PATTERN` section. `BAN` and `MUTE` sections are network-wide and unaffected. Editing a section does
+not move players who are already online; a player who stands on a server that a new punishment
+covers is moved to the `fallbackServer`, or disconnected if the fallback is covered too.
+
+**Configuration** (the `cloudnet` object in the plugin's `config.json`):
+
+```json
+{
+  "cloudnet": {
+    "integration": "auto",
+    "proxyId": "",
+    "reportDebounce": "PT5S",
+    "heartbeat": "PT5M"
+  }
+}
+```
+
+| Key              | Default | Meaning                                                                                       |
+|------------------|---------|------------------------------------------------------------------------------------------------|
+| `integration`    | `auto`  | `auto` uses CloudNet when the plugin runs as a CloudNet service; `off` never probes for it. Any other value counts as `auto`. The environment variable `BLACKHOLE_CLOUDNET_INTEGRATION` wins over the file. |
+| `proxyId`        | empty   | The id this proxy reports its catalogue under. Empty: the proxy's own CloudNet service name (`Proxy-1`). Set it when the proxy has none; without either, nothing is reported (one warning). |
+| `reportDebounce` | `PT5S`  | How long changes are coalesced before one report goes out (ISO-8601, at least one second).       |
+| `heartbeat`      | `PT5M`  | Keep-alive period of the report (ISO-8601, at least one second).                                 |
+
+A missing or invalid value falls back to its default.
+
+**Catalogue.** For the picker in the admin UI each proxy reports its CloudNet tasks, groups and
+services to the backend (`PUT /cloudnet/catalogue`, always a full snapshot): at startup, shortly
+after any change (debounced by `reportDebounce`) and as a heartbeat every `heartbeat` (5 minutes).
+The backend keeps one snapshot per proxy in the shared cache for 15 minutes
+(`blackhole.cloudnet.catalogue.ttl`, default `PT15M`), so the entries of a stopped proxy disappear on
+their own, and `GET /cloudnet/catalogue` merges the live ones. A failed report is only logged and
+never affects enforcement; if the cache is down the UI falls back to free text.
+
+| Route                          | `VIEWER` | `MODERATOR` | `ADMIN` | `PROXY` |
+|--------------------------------|:--------:|:-----------:|:-------:|:-------:|
+| `PUT /cloudnet/catalogue`      | no       | no          | no      | yes     |
+| `GET /cloudnet/catalogue`      | yes      | yes         | yes     | no      |
+
+Only the proxy may report, so a human token cannot forge what the editor trusts; any signed-in staff
+role may read the catalogue (it holds service names, no player data). Creating and editing sections
+stays `ADMIN`-only.
+
+**Rollout.** Deploy the backend first (the new `target_kind` column defaults to `PATTERN`), then
+upgrade the proxies, and only then create CloudNet sections. A proxy from before this release reads
+the names of a CloudNet section as globs, which do not match `BedWars-1`, so it does not enforce them.
+Delete or disable CloudNet sections before rolling back.
 
 ### Templates and escalation
 

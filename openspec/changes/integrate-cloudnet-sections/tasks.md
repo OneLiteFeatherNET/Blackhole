@@ -21,15 +21,15 @@
 
 ## 4. Web (PR 4, `feat(web)`)
 
-- [ ] 4.1 API types/client for `targetKind` and `GET /cloudnet/catalogue`; target selector, picker with free-text fallback, not-in-catalogue marker and service warning in `SectionsView`; list shows the kind; en/de strings; verify component tests (picker, no catalogue, failed catalogue, warning) and `i18n.keys.test.ts`
+- [x] 4.1 API types/client for `targetKind` and `GET /cloudnet/catalogue`; target selector, picker with free-text fallback, not-in-catalogue marker and service warning in `SectionsView`; list shows the kind; en/de strings; verify component tests (picker, no catalogue, failed catalogue, warning) and `i18n.keys.test.ts`
 
 ## 5. Documentation (PR 5, `docs(sections)`)
 
-- [ ] 5.1 README section on CloudNet sections (target kinds, requirements: proxy as CloudNet service with Bridge, `cloudnet.integration`, rollout order, fail-open behaviour, service-name volatility), `.claude/rules` note for the new package and the permission matrix; verify the docs match config keys and routes in code
+- [x] 5.1 README section on CloudNet sections (target kinds, requirements: proxy as CloudNet service with Bridge, `cloudnet.integration`, rollout order, fail-open behaviour, service-name volatility), `.claude/rules` note for the new package and the permission matrix; verify the docs match config keys and routes in code
 
 ## 6. Verification and wrap-up
 
 - [ ] 6.1 Update `.claude/PROGRESS.md` per PR as it lands
 - [ ] 6.2 Manual check against a real CloudNet 4.0.0-RC node (not automated): Velocity plugin classloader sees the driver; Bridge server names equal service names; task, group and service bans deny and move off to the fallback; stop/start of a service keeps a service ban on the new instance; plugin on a non-CloudNet proxy starts with one warning; catalogue appears in the UI picker and expires after the proxy stops; record the result in PR 2/3
 - [ ] 6.3 `openspec validate --all --strict`; archive with `docs(openspec): archive integrate-cloudnet-sections` after the PRs merge (archive `staff-temp-bans-elo-escalation` first)
-- [ ] 6.4 Open the pull requests as small stacked PRs against `main` (each squash-merged, title is the Conventional Commit): `feat(sections): target cloudnet tasks, groups and services`, `feat(velocity): enforce cloudnet sections through the bridge api`, `feat(cloudnet): report the cloudnet catalogue to the backend`, `feat(web): pick cloudnet targets in the section editor`, `docs(sections): document the cloudnet integration`
+- [x] 6.4 Open the pull requests as small stacked PRs against `main` (each squash-merged, title is the Conventional Commit): `feat(sections): target cloudnet tasks, groups and services`, `feat(velocity): enforce cloudnet sections through the bridge api`, `feat(cloudnet): report the cloudnet catalogue to the backend`, `feat(web): pick cloudnet targets in the section editor`, `docs(sections): document the cloudnet integration`
