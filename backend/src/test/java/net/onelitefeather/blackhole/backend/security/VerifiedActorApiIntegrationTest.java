@@ -355,4 +355,79 @@ class VerifiedActorApiIntegrationTest extends ApiIntegrationTest {
     void anonymizingAnUnknownStaffActorIsNotFound() {
         assertEquals(404, post("/admin/staff-actor/" + UUID.randomUUID() + "/anonymize", null, this.jwt.admin()).status());
     }
+
+    // --- whole-profile writes ---
+
+    /** The active network entry of an owner whose punishment a moderator applied, as the API shows it. */
+    private Map<String, Object> givenVerifiedEntry(String owner, String template) {
+        givenTemplate(template);
+        assertEquals(200, apply(owner, template, Map.of(), moderator()).status());
+        return new HashMap<>(map(map(get("/profile/" + owner).json().get("active")).get("network")));
+    }
+
+    private Map<String, Object> profileBody(String owner, Map<String, Object> entry) {
+        return Map.of("owner", owner, "active", Map.of("network", entry), "history", List.of(), "metaData", Map.of());
+    }
+
+    private Map<String, Object> historyBody(String owner, Map<String, Object> entry) {
+        return Map.of("owner", owner, "history", List.of(entry), "metaData", Map.of());
+    }
+
+    @Test
+    void profileUpdateIgnoresASpoofedRecordedByOidAndKeepsTheStoredOne() {
+        String owner = owner("a4");
+        Map<String, Object> entry = givenVerifiedEntry(owner, "va-prof-upd");
+        entry.put("recordedByOid", SPOOFED.toString());
+        entry.put("verified", true);
+
+        Reply reply = post("/profile/update/" + owner, profileBody(owner, entry), moderator());
+
+        assertEquals(200, reply.status(), reply.body());
+        Map<String, Object> saved = map(map(reply.json().get("active")).get("network"));
+        assertEquals(MODERATOR_OID.toString(), saved.get("recordedByOid"), "the stored value, not the forged one");
+        assertEquals(true, saved.get("verified"));
+    }
+
+    @Test
+    void profileUpdateWithAChangedSourceMakesTheEntryUnverified() {
+        String owner = owner("a5");
+        Map<String, Object> entry = givenVerifiedEntry(owner, "va-prof-src");
+        entry.put("source", SPOOFED.toString());
+
+        Reply reply = post("/profile/update/" + owner, profileBody(owner, entry), moderator());
+
+        assertEquals(200, reply.status(), reply.body());
+        Map<String, Object> saved = map(map(reply.json().get("active")).get("network"));
+        // A whole-profile write does not persist punishment fields (the join has no cascade), so the stored
+        // source stays; either way a re-attributed entry must never be reported as verified.
+        assertEquals(MODERATOR_OID.toString(), saved.get("source"), "the source is not rewritten by a profile write");
+        assertTrue(!SPOOFED.toString().equals(saved.get("source")) || Boolean.FALSE.equals(saved.get("verified")),
+                "an entry attributed to the forged source is never verified");
+    }
+
+    @Test
+    void profileAddIgnoresASpoofedRecordedByOid() {
+        Map<String, Object> entry = givenVerifiedEntry(owner("a6"), "va-prof-add");
+        String newOwner = owner("a7");
+        entry.put("recordedByOid", SPOOFED.toString());
+        entry.put("verified", true);
+        entry.put("source", SPOOFED.toString());
+
+        Reply reply = post("/profile", historyBody(newOwner, entry), moderator());
+
+        assertEquals(200, reply.status(), reply.body());
+        Map<String, Object> saved = map(((List<?>) reply.json().get("history")).getFirst());
+        assertTrue(!SPOOFED.toString().equals(saved.get("recordedByOid")), "a forged recordedByOid is never accepted");
+    }
+
+    @Test
+    void profileAddKeepsTheStoredRecordedByOidOfAnUnchangedEntry() {
+        Map<String, Object> entry = givenVerifiedEntry(owner("a8"), "va-prof-add2");
+        entry.put("recordedByOid", SPOOFED.toString());
+
+        Reply reply = post("/profile", historyBody(owner("a9"), entry), moderator());
+
+        assertEquals(200, reply.status(), reply.body());
+        assertEquals(MODERATOR_OID.toString(), map(((List<?>) reply.json().get("history")).getFirst()).get("recordedByOid"));
+    }
 }

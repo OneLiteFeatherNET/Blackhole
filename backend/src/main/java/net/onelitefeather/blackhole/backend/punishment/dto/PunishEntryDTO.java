@@ -67,6 +67,13 @@ public record PunishEntryDTO(
                 this.template, count, this.metaData);
     }
 
+    /** This entry attributed to the given verified principal, or to none ({@code null}), which marks it unverified. */
+    public PunishEntryDTO withRecordedByOid(UUID recordedByOid) {
+        return new PunishEntryDTO(this.identifier, this.shortId, this.source, recordedByOid, recordedByOid != null, this.section,
+                this.scope, this.permanent, this.lifted, this.createdAt, this.escalationGroup, this.stepIndex, this.stepCount,
+                this.eloCost, this.template, this.evidenceCount, this.metaData);
+    }
+
     @Override
     public void addMetaData(String key, Object value) {
         this.metaData.put(key, value);

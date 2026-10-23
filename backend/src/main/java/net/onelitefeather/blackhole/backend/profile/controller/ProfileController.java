@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.profile.controller;
 
+import net.onelitefeather.blackhole.backend.profile.ProfileAttributionGuard;
 import io.micronaut.security.annotation.Secured;
 import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
@@ -48,6 +49,7 @@ public class ProfileController {
     private final ActivePunishmentExpirer expirer;
     private final ProfileSlots slots;
     private final Clock clock;
+    private final ProfileAttributionGuard attributionGuard;
 
     /**
      * Create a new ProfileController.
@@ -58,6 +60,7 @@ public class ProfileController {
      * @param expirer        rotates expired active punishments into history when a profile is read
      * @param slots          row-level profile writes (session telemetry)
      * @param clock          source of the last-seen timestamp
+     * @param attributionGuard discards client-supplied {@code recordedByOid} on whole-profile writes
      */
     @Inject
     public ProfileController(
@@ -66,7 +69,8 @@ public class ProfileController {
             ProfileCache profileCache,
             ActivePunishmentExpirer expirer,
             ProfileSlots slots,
-            Clock clock
+            Clock clock,
+            ProfileAttributionGuard attributionGuard
     ) {
         this.repository = repository;
         this.eventPublisher = eventPublisher;
@@ -74,6 +78,7 @@ public class ProfileController {
         this.expirer = expirer;
         this.slots = slots;
         this.clock = clock;
+        this.attributionGuard = attributionGuard;
     }
 
     /**
@@ -101,7 +106,7 @@ public class ProfileController {
     @Post("/")
     @Secured(Roles.MODERATOR)
     public HttpResponse<PunishProfileResponse> add(@Body @Valid PunishProfileRequestDTO profileEntity) {
-        PunishmentProfileEntity entity = PunishmentProfileEntity.toEntity(profileEntity);
+        PunishmentProfileEntity entity = PunishmentProfileEntity.toEntity(this.attributionGuard.sanitize(profileEntity));
         PunishmentProfileEntity savedEntity = this.repository.save(entity);
         this.profileCache.evict(profileEntity.owner());
         this.eventPublisher.publish("profile.created", Map.of(
@@ -152,7 +157,7 @@ public class ProfileController {
         if (!profileEntity.owner().equals(owner)) {
             return HttpResponse.badRequest(new PunishProfileResponse.ErrorResponse("Owner in path and body do not match"));
         }
-        PunishmentProfileEntity entity = PunishmentProfileEntity.toEntity(profileEntity);
+        PunishmentProfileEntity entity = PunishmentProfileEntity.toEntity(this.attributionGuard.sanitize(profileEntity));
         PunishmentProfileEntity savedEntity = this.repository.update(entity);
         this.profileCache.evict(owner);
         this.eventPublisher.publish("profile.updated", Map.of(
