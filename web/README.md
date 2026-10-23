@@ -41,6 +41,12 @@ the backend verifies it; the UI only decides what to offer.
   (`GET /admin/staff-actor`: name, object id, kind, last seen) and can anonymize one
   (`POST /admin/staff-actor/{oid}/anonymize`) after a confirmation that names the consequences: the name is
   removed, history keeps the object id, the Minecraft link is removed, and it cannot be undone.
+  It also imports a vanilla ban list: choose or paste `banned-players.json` (optionally choose `banned-ips.json`,
+  whose entries are counted but not imported), run the preview (`dryRun`, changes nothing) and then the import
+  (`POST /admin/import/vanilla`, multipart, behind a confirmation). The result shows entries found, imported (or
+  "would be imported"), skipped (player already banned) and errors, with a description per invalid entry. The
+  endpoint is hidden from the published API spec, so the UI calls it by hand; the UI server forwards at most
+  1 MiB per request on this route, so larger lists have to be split.
 - **Sign-out** clears the in-memory user and ends the Entra session (`post_logout_redirect_uri` is
   the UI's origin).
 - **Evidence files** (`GET /evidence/{id}/content`) need the bearer token, which `<img>` and

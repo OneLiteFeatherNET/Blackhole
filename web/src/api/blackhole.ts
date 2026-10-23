@@ -1,4 +1,4 @@
-import { createHttp, map, toResult, type HttpAuth } from './http'
+import { API_VERSION, API_VERSION_HEADER, authenticatedFetch, createHttp, errorFromBody, map, toResult, type HttpAuth } from './http'
 import type { components } from './schema'
 import { EVIDENCE_SOURCE_SYSTEM, uploadEvidence, type Upload } from './uploadEvidence'
 import type {
@@ -29,6 +29,8 @@ import type {
   SectionDraft,
   Template,
   TemplateDraft,
+  VanillaImportRequest,
+  VanillaImportResult,
 } from './types'
 
 export interface ApiOptions {
@@ -109,6 +111,11 @@ export interface BlackholeApi {
   staffActors(): Promise<ApiResult<StaffActor[]>>
   /** Removes the principal's display name and Minecraft link; the `oid` and all history stay (ADMIN only, irreversible). */
   anonymizeStaffActor(oid: string): Promise<ApiResult<void>>
+  /**
+   * Imports a vanilla `banned-players.json` (and optionally `banned-ips.json`), or with `dryRun`
+   * only reports what would happen (ADMIN only). Invalid entries are reported, not fatal.
+   */
+  importVanillaBans(request: VanillaImportRequest): Promise<ApiResult<VanillaImportResult>>
 }
 
 const EVIDENCE_PAGE_SIZE = 20
@@ -390,6 +397,35 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     staffLinks: async () => map(await toResult(http.GET('/admin/staff-link')), (body) => body.items),
     unlinkStaffLink: async (oid) =>
       map(await toResult(http.DELETE('/admin/staff-link/{oid}', { params: { path: { oid } } })), () => undefined),
+
+    async importVanillaBans(request) {
+      // Hidden from the published spec, so it cannot go through the typed client.
+      const form = new FormData()
+      form.append('bannedPlayers', request.players, 'banned-players.json')
+      if (request.ips) form.append('bannedIps', request.ips, 'banned-ips.json')
+      const send = authenticatedFetch(options.auth, (options.fetch ?? ((r: Request) => globalThis.fetch(r))) as typeof fetch)
+      try {
+        const response = await send(
+          new Request(`${options.baseUrl}/admin/import/vanilla?dryRun=${request.dryRun}`, {
+            method: 'POST',
+            headers: { [API_VERSION_HEADER]: API_VERSION },
+            body: form,
+          }),
+        )
+        const text = await response.text()
+        let body: unknown = text
+        try {
+          body = JSON.parse(text)
+        } catch {
+          // A plain text error body is shown as it is.
+        }
+        if (!response.ok) return { ok: false, error: errorFromBody(response.status, body) }
+        const result = body as VanillaImportResult
+        return { ok: true, data: { ...result, invalidEntries: result.invalidEntries ?? [] } }
+      } catch (cause) {
+        return { ok: false, error: { status: 0, message: cause instanceof Error ? cause.message : String(cause), kind: 'NETWORK' } }
+      }
+    },
 
     staffActors: async () => map(await toResult(http.GET('/admin/staff-actor')), (body) => body.items ?? []),
     anonymizeStaffActor: async (oid) =>
