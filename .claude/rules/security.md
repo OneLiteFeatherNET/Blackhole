@@ -36,3 +36,5 @@ paths:
 - Case routes (`/case`): `GET` list, case and timeline need `VIEWER`; `PATCH /case/{reference}`, `POST
   /case/{reference}/notes` and `PUT .../notes/{noteId}` need `MODERATOR`; `POST .../notes/{noteId}/redact`
   needs `ADMIN`; `PROXY` is denied. `Actor.admin` carries the ADMIN role for the author-or-admin note edit.
+- Active punishments (`GET /punishment/active`): the overview of currently punished players needs `VIEWER`;
+  `PROXY` is denied. It returns the hashed owner, never a raw UUID, IP address or name.

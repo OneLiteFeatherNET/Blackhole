@@ -36,6 +36,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             // read-only
             Map.entry("GET /punishment", VP),
             Map.entry("GET /punishment/short/{shortId}", VP),
+            Map.entry("GET /punishment/active", V),
             Map.entry("GET /profile", VP),
             Map.entry("GET /profile/{owner}", VP),
             Map.entry("GET /elo/{owner}", VP),
