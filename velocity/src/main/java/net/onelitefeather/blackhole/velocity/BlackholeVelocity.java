@@ -12,6 +12,11 @@ import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
+import net.onelitefeather.blackhole.velocity.auth.ClientCredentialsTokenProvider;
+import net.onelitefeather.blackhole.velocity.auth.JdkTokenTransport;
+import net.onelitefeather.blackhole.velocity.auth.TokenSource;
+import net.onelitefeather.blackhole.velocity.command.BackendAuthGuard;
+import net.onelitefeather.blackhole.velocity.config.AuthConfig;
 import net.onelitefeather.blackhole.velocity.command.CommandErrorHandlers;
 import net.onelitefeather.blackhole.velocity.command.PardonCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishCommand;
@@ -77,7 +82,7 @@ public class BlackholeVelocity {
     private ApiClient client;
     private BlackholeConfig config;
     private RedisSyncService redisSyncService;
-
+    private volatile boolean authReady;
 
     @Inject
     public BlackholeVelocity(Injector injector, Logger logger, ProxyServer server, @DataDirectory Path dataDirectory) {
@@ -92,15 +97,16 @@ public class BlackholeVelocity {
         registerTranslations();
         this.config = BlackholeConfig.load(dataDirectory.resolve("config.json"));
         this.logger.info("Loaded configuration with base URL: {}", config.getBaseUrl());
+        Clock clock = Clock.systemUTC();
+        TokenSource tokens = authenticate(clock);
         try {
-            this.client = BlackholeApiClients.create(this.config.getBaseUrl());
+            this.client = BlackholeApiClients.create(this.config.getBaseUrl(), tokens);
         } catch (IllegalArgumentException e) {
             this.logger.error("{} - the plugin cannot reach the backend until config.json is fixed.", e.getMessage());
             throw e;
         }
         this.logger.info("Initialized Blackhole client");
 
-        Clock clock = Clock.systemUTC();
         this.redisSyncService = new RedisSyncService(this.config);
         SectionRegistry sections = new SectionRegistry(new BackendSectionSource(this.redisSyncService, this.client));
         PunishmentMirror mirror = new PunishmentMirror();
@@ -136,6 +142,7 @@ public class BlackholeVelocity {
         // Without this Brigadier rejects incomplete input ("elo") as an unknown command before Cloud can answer with the usage line.
         commandManager.brigadierManager().settings().set(BrigadierSetting.FORCE_EXECUTABLE, true);
         CommandErrorHandlers.register(commandManager);
+        BackendAuthGuard.register(commandManager, () -> this.authReady);
         AnnotationParser<CommandSource> annotationParser = new AnnotationParser<>(commandManager, CommandSource.class);
         annotationParser.parse(childInjector.getInstance(TargetParser.class));
         annotationParser.parse(childInjector.getInstance(PunishCommand.class));
@@ -159,6 +166,30 @@ public class BlackholeVelocity {
     public void onProxyShutdown(ProxyShutdownEvent event) {
         if (this.redisSyncService != null) {
             this.redisSyncService.shutdown();
+        }
+    }
+
+    /**
+     * Builds the source of the backend tokens from the file and the environment. Without usable
+     * credentials it logs an error and returns a source that has no token: staff commands then answer
+     * with a configuration message, while the Redis-based enforcement keeps running.
+     */
+    private TokenSource authenticate(Clock clock) {
+        AuthConfig auth = this.config.getAuth().withEnvironment(System::getenv);
+        try {
+            if (!auth.isComplete()) {
+                this.logger.error("The backend credentials are incomplete, missing: {}. Backend calls and staff commands "
+                        + "are disabled until they are set in config.json or the environment; Redis enforcement continues.",
+                        auth.missing());
+                return TokenSource.unavailable("The backend credentials are incomplete, missing: " + auth.missing());
+            }
+            TokenSource tokens = new ClientCredentialsTokenProvider(auth, new JdkTokenTransport(), clock);
+            this.authReady = true;
+            this.logger.info("Authenticating to the backend as client {} at {}", auth.getClientId(), auth.tokenUri());
+            return tokens;
+        } catch (IllegalArgumentException e) {
+            this.logger.error("{} - backend calls and staff commands are disabled until config.json is fixed.", e.getMessage());
+            return TokenSource.unavailable(e.getMessage());
         }
     }
 

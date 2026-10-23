@@ -163,6 +163,11 @@ public final class StaffMessages {
         return Component.translatable("staff.error.player_only");
     }
 
+    /** The answer to any staff command while the proxy has no complete credentials for the backend. */
+    public static @NotNull Component authNotConfigured() {
+        return Component.translatable("staff.error.auth_not_configured");
+    }
+
     /**
      * The answer to an argument Cloud could not parse: a target nobody knows gets its own text, anything
      * else is shown as Cloud describes it.

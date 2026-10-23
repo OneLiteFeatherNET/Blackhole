@@ -57,6 +57,12 @@ public class BlackholeConfig {
     private EvidenceConfig evidence;
 
     /**
+     * How the proxy authenticates to the backend. Absent in configs written before this setting
+     * existed, which {@link #getAuth()} treats as no credentials.
+     */
+    private AuthConfig auth;
+
+    /**
      * Creates a new configuration with default values.
      */
     public BlackholeConfig() {
@@ -67,6 +73,15 @@ public class BlackholeConfig {
         this.appealText = "";
         this.timeZone = ZoneId.systemDefault().getId();
         this.evidence = new EvidenceConfig();
+        this.auth = new AuthConfig();
+    }
+
+    /**
+     * @return the file's backend credentials, without the environment overrides (see
+     * {@link AuthConfig#withEnvironment}); empty for configs written before they existed
+     */
+    public @NotNull AuthConfig getAuth() {
+        return auth == null ? new AuthConfig() : auth;
     }
 
     /**
