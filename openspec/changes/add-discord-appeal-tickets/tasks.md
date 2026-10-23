@@ -10,16 +10,17 @@ A bug found while implementing is reproduced by a failing test first.
 
 - [ ] 1.1 Failing tests first: `Blackhole.Discord` maps to `Roles.DISCORD` from app-only tokens only, DISCORD allowed nowhere but `/discord/**`, staff and PROXY denied there
 - [ ] 1.2 `Roles.DISCORD`, `BlackholeRolesFinder`, `@Secured` constants, matrix rows in `PermissionMatrixIntegrationTest` and `RouteCoverageIntegrationTest`
-- [ ] 1.3 Migration `V15__discord_tickets.sql` (next free version): `case_participant`, `discord_ticket`, `discord_message_link`, `staff_discord_link`; migration test (constraints, cascade)
+- [ ] 1.3 Migration `V16__discord_tickets.sql` (next free version): `case_participant`, `discord_ticket`, `discord_message_link`, `staff_discord_link`; migration test (constraints, cascade)
 - [ ] 1.4 Extend `docs/entra-setup.sh` (app role, `Blackhole Discord (<env>)` registration, assignment, secret, `BLACKHOLE_DISCORD_*` env lines; still idempotent) and `docs/entra-setup.md` (objects table, where each value goes); `bash -n` and a dry read-through
 - [ ] 1.5 Regenerate the client spec (`client/specs/blackhole-api-0.0.N.yml`, next free number, bump `inputSpec`) after PR 2; update `.claude/rules` (security matrix)
 
 ## 2. Ticket and ingest API (PR 2, `feat(discord)`)
 
-- [ ] 2.1 Failing tests first: open (uniform failure incl. bound-to-other and leaked, statement rules, `availableFrom`, bound participant), author resolution table, dedupe keys, edit only when text differs, delete incl. `contentUnavailable`, rescan insert/edit/delete detection, completeness 409 vs success, outbox cursor, link advances `relayed_seq`, leak-check match and non-match, no Discord id or Ban ID in events or logs
+- [ ] 2.1 Failing tests first: open (uniform failure incl. bound-to-other and leaked, statement rules, `availableFrom`, bound participant), author resolution table, dedupe keys, edit only when text differs, delete incl. `contentUnavailable`, rescan insert/edit/delete detection, completeness 409 vs success, `close` stores a protocol and answers its version (503 when storing fails), archive and delete refused with 409 `PROTOCOL_REQUIRED` without a current protocol, `protocol/ensure` after a late edit, staff links list, outbox cursor, link advances `relayed_seq`, leak-check match and non-match, no Discord id or Ban ID in events or logs
 - [ ] 2.2 `discord/` backend package: `DiscordApi` + thin controllers (`@Version(ApiVersion.V1)`), sealed DTOs, `TicketService`, `DiscordIngestService` (CTE per batch item: event + link + cursor), `LeakCheckService` (reuses the portal change's leak CTE with source `DISCORD_BOT` and poster fields)
 - [ ] 2.3 New payloads `ticket.opened`, `ticket.transcript_complete`, `ticket.archived`, `ticket.channel_deleted`, attachment/embed metadata in `message.added`; portal allow-list gets opened/closed only; redaction covers attachment metadata
 - [ ] 2.4 Participant erasure route (`ADMIN`) and the player-side erase of the portal change clears the bound participant; staff-link confirm/unlink for Discord with the existing one-to-one rules
+- [ ] 2.4a Wire the portal change's protocol generator into `POST /discord/tickets/{id}/close` (same request as the completeness proof), `protocol/ensure` (forced), and the `ARCHIVED`/`DELETED` state gates; `GET /discord/staff-links`
 - [ ] 2.5 Domain events `discord.ticket_*` (no content) and a durable-queue note in `.claude/rules/events.md`; config `blackhole.discord.*` documented in `application.yml`
 - [ ] 2.6 Regenerate the client spec; verify `./gradlew :backend:test :client:compileJava`
 
@@ -29,7 +30,8 @@ A bug found while implementing is reproduced by a failing test first.
 - [ ] 3.2 Module skeleton: `settings.gradle.kts` include, version catalog entries (`net.dv8tion:JDA:6.7.0` without voice, `com.rabbitmq:amqp-client:5.37.0`; re-check Maven Central and the two-week rule), Shadow jar, `application` main, env config with fail-fast validation, architecture test (core packages do not import `net.dv8tion`)
 - [ ] 3.3 `auth` (client credentials token source, reuse or move the Velocity provider), `BackendGateway` adapter on the generated client
 - [ ] 3.4 `DiscordGateway` interface, JDA adapter (intents, cache flags off, member cache none, slash commands `/appeal`, `/link`, `/unlink`, button and modal, ephemeral replies, permission overwrites), composition test without connecting
-- [ ] 3.5 Core: `TicketLifecycle`, `SyncEngine` (inbound ingest, outbox relay, cursor poll, RabbitMQ consumer as hint), `CatchUp` (startup and close rescan), `ArchiveSweeper` (delete delay), `PermissionSelfCheck`
+- [ ] 3.4a `StaffAccessReconciler`: member overwrites for staff who hold the role and have a live link (creation, interval, `staff-link.removed`), no role overwrite, tests for linked/unlinked/role lost/administrator
+- [ ] 3.5 Core: `TicketLifecycle` (archive only with the protocol version, delete only after `protocol/ensure`), `SyncEngine` (inbound ingest, outbox relay, cursor poll, RabbitMQ consumer as hint), `CatchUp` (startup and close rescan), `ArchiveSweeper` (delete delay), `PermissionSelfCheck`
 - [ ] 3.6 Health endpoint, metrics (counters for relays, ingests, catch-ups, incomplete transcripts, dropped leak candidates), JSON logs without message content
 
 ## 4. Leak scanning (PR 4, `feat(discord)`)
@@ -48,11 +50,11 @@ A bug found while implementing is reproduced by a failing test first.
 ## 6. Deployment and docs (PR 6, `docs(discord)`, plus `ci(discord)` for the workflow lines)
 
 - [ ] 6.1 `discord/Dockerfile`, compose service with env, `ci(discord)`: image build and smoke check beside web and portal in `.github/workflows/build-pr.yml`
-- [ ] 6.2 `discord/README.md` and `docs/`: developer-portal setup (bot, `MESSAGE_CONTENT` intent), categories and staff role, permission list per category, env table, Entra script usage, attachments-vanish-with-the-channel note, channel topic text, retention (pending legal confirmation), rate limiting asks for infra (`POST /discord/tickets`, `/discord/leak-check`)
+- [ ] 6.2 `discord/README.md` and `docs/`: developer-portal setup (bot, `MESSAGE_CONTENT` intent), categories and staff role, permission list per category, env table, Entra script usage, attachments-vanish-with-the-channel note, channel topic text, operator edge rule for the bot ingress, infra only and no app limiter: `POST /discord/tickets` global 30 per minute and `POST /discord/leak-check` global 120 per minute answering 429 (suggested starting values; the bot treats 429 as backend unavailable), the 30 day archive deletion and its protocol precondition, linked-staff-only channel access (`/link` first)
 - [ ] 6.3 Note in `.claude/PROGRESS.md` per PR as it lands
 
 ## 7. Verification and wrap-up
 
-- [ ] 7.1 Manual check against a real test guild and the real stack: open a ticket, chat three ways (Discord, portal, panel), edit and delete, stop the bot, write meanwhile, restart and verify catch-up, decide the appeal, verify `ticket.transcript_complete` and the archive, delete the channel after a short delay and read the history in panel and portal, post a Ban ID in a public channel (deleted, frozen), link a staff account; record the result in PR 3
+- [ ] 7.1 Manual check against a real test guild and the real stack: open a ticket, chat three ways (Discord, portal, panel), edit and delete, stop the bot, write meanwhile, restart and verify catch-up, decide the appeal, verify `ticket.transcript_complete`, the stored protocol (text and JSON, equal to the panel record) and the archive, an unlinked staff member cannot see the channel, edit a message in the archive, delete the channel after a short delay (protocol regenerated first) and read the history in panel and portal, post a Ban ID in a public channel (deleted, frozen), link a staff account; record the result in PR 3
 - [ ] 7.2 `openspec validate --all --strict`; archive with `docs(openspec): archive add-discord-appeal-tickets` after the PRs merge
 - [ ] 7.3 Open the pull requests as small stacked PRs (each squash-merged, title is the Conventional Commit): `feat(discord): add the discord role and ticket facade foundation`, `feat(discord): add the ticket and message ingest api`, `feat(discord): add the discord appeal ticket bot`, `feat(discord): remove ban ids posted in public channels`, `feat(web): show discord tickets on the case page`, `docs(discord): document and deploy the discord bot`

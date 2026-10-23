@@ -6,11 +6,15 @@ Shows the Discord ticket state in the case page and lets staff link their Discor
 ## ADDED Requirements
 
 ### Requirement: Ticket status on the case page
-The case page SHALL show, for each Discord ticket of the case, its number, state and transcript status, a banner when a ticket has no `ticket.transcript_complete` after closing or lost its channel early, and, for Discord-written entries, the channel and author trust (verified, unverified, player, bot). It MUST NOT show Discord user ids.
+The case page SHALL show, for each Discord ticket of the case, its number, state, transcript status and protocol version (with a link to the protocol list of the case), a banner when a ticket has no `ticket.transcript_complete` or no stored protocol after closing or lost its channel early, and, for Discord-written entries, the channel and author trust (verified, unverified, player, bot). It MUST NOT show Discord user ids.
 
 #### Scenario: Incomplete transcript
 - **WHEN** a closed ticket has no completeness event
 - **THEN** a banner states that the transcript may be incomplete and since when
+
+#### Scenario: Protocol missing
+- **WHEN** a closed ticket is complete but has no stored protocol
+- **THEN** a banner states that the channel is not archived or deleted until the protocol exists
 
 #### Scenario: Entry from Discord
 - **WHEN** the timeline holds a Discord message by unverified staff

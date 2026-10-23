@@ -41,3 +41,18 @@ The appeals queue SHALL mark appeals whose latest conversation entry is a player
 #### Scenario: Unanswered
 - **WHEN** the newest entry of an open appeal is a player message
 - **THEN** the queue row is marked unanswered
+
+### Requirement: Appeal protocol on the case page
+The case page SHALL list the protocol versions of each appeal (version, time, entry count, status), open the latest human-readable protocol and offer text and JSON downloads to `VIEWER` and above, mark superseded versions, and show a notice when a decided appeal has no protocol yet. Purged versions MUST NOT be listed with content. The opened protocol MUST NOT be written to browser storage.
+
+#### Scenario: Open the latest
+- **WHEN** a viewer opens the protocol of a decided appeal
+- **THEN** the text is shown with its version and completeness footer
+
+#### Scenario: Superseded version
+- **WHEN** a late edit created version 2
+- **THEN** version 1 is listed as superseded and version 2 as current
+
+#### Scenario: Not yet created
+- **WHEN** a decided appeal has no protocol
+- **THEN** a notice says it is being created

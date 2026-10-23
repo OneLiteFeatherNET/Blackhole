@@ -38,6 +38,17 @@ The system SHALL store the Ban ID only as a keyed hash (HMAC-SHA256) for lookups
 - **WHEN** the backend starts in a non-development context without `BLACKHOLE_BANID_KEY`
 - **THEN** it refuses to start
 
+### Requirement: Key rotation reissues every Ban ID in this version
+Replacing `BLACKHOLE_BANID_KEY` SHALL make all existing Ban IDs unusable, and the documented recovery MUST be the idempotent `BanIdBackfill --reissue-all` job, which issues a new Ban ID to every punishment and bumps its generation. This version stores no key identifier; supporting several valid keys is a later change.
+
+#### Scenario: New key
+- **WHEN** the key is replaced and the reissue job runs
+- **THEN** every punishment has a new Ban ID with a higher generation and the old IDs no longer log in
+
+#### Scenario: Job is repeatable
+- **WHEN** the reissue job is interrupted and run again
+- **THEN** punishments already reissued are not reissued twice
+
 ### Requirement: The Ban ID is never logged or published
 The system MUST NOT write a Ban ID to any log, metric label, trace attribute, URL, query string, domain event, timeline payload, note or error response, and MUST reject a note, message or statement that contains a Ban ID shaped token.
 

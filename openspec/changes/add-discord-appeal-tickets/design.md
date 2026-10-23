@@ -46,10 +46,11 @@ without hurting anything else.
 | `DISCORD_TOKEN` | bot token (secret, never logged) |
 | `DISCORD_GUILD_ID` | the one guild |
 | `DISCORD_TICKET_CATEGORY_ID`, `DISCORD_ARCHIVE_CATEGORY_ID` | where ticket channels live and move to |
-| `DISCORD_STAFF_ROLE_ID` | the role whose members may see ticket channels and count as staff |
+| `DISCORD_STAFF_ROLE_ID` | the staff role; only its holders **with a live staff link** are added to ticket channels (decision 6) |
+| `DISCORD_STAFF_RECONCILE_INTERVAL` | how often channel access is reconciled with links and roles, default `PT5M` |
 | `DISCORD_PANEL_CHANNEL_ID` | channel holding the "open appeal" button message (optional) |
 | `DISCORD_LEAK_SCAN` | `PUBLIC` (default), `LIST` or `OFF`; `DISCORD_LEAK_SCAN_CHANNELS` for `LIST` |
-| `DISCORD_ARCHIVE_DELETE_AFTER` | ISO-8601 duration, default `P30D`, `PT0S` keeps archived channels |
+| `DISCORD_ARCHIVE_DELETE_AFTER` | ISO-8601 duration, default `P30D` (decided 2026-10-23), `PT0S` keeps archived channels; deletion also needs the stored protocol (decision 15) |
 | `DISCORD_SYNC_INTERVAL` | cursor poll, default `PT30S` |
 | `BLACKHOLE_BACKEND_URL`, `BLACKHOLE_DISCORD_TENANT_ID`, `_CLIENT_ID`, `_CLIENT_SECRET`, `_AUTH_SCOPE` | backend and Entra client credentials |
 | `RABBITMQ_HOST`, `_PORT`, `_USER`, `_PASSWORD` | event consumption |
@@ -70,7 +71,7 @@ without hurting anything else.
 
 ### 2. Where state lives: the backend, not the bot
 
-The bot has no database. Backend tables (V15):
+The bot has no database. Backend tables (V16):
 
 | Table | Purpose |
 |---|---|
@@ -111,7 +112,7 @@ Discord user id is bound to the ticket by Ban ID possession.
 - **Create:** the bot first calls the backend (ticket `PENDING_CHANNEL`, `ticket_no`), then creates
   `appeal-<ticket_no>` (zero padded, **no Ban ID, name or hash in the name or topic**; the topic is
   `blackhole-ticket:<ticketId>`) in the ticket category with overwrites: `@everyone` denied View, the
-  staff role allowed, the bot allowed, the player's member id allowed to View, Send, Read History but
+  **no role overwrite for staff**; each linked staff member who holds the staff role gets a member overwrite to View, Send and Read History (decision 6), the bot is allowed, the player's member id is allowed to View, Send, Read History but
   **denied Attach Files and Embed Links** (no attachments in v1), and finally posts the case's earlier
   `PLAYER`-visible messages in order, then reports `channel_id` to the backend (`OPEN`). Startup finds
   `PENDING_CHANNEL` tickets (a crash between the two steps) and finishes them, matching an existing
@@ -120,10 +121,14 @@ Discord user id is bound to the ticket by Ban ID possession.
   a notice; `case.ban_id_reissued` restores it. Staff keep writing.
 - **Decision:** `appeal.resolved` (the event the backend already publishes) triggers: post the decision
   message (the `PLAYER`-visible staff message), lock (deny Send for the player), final catch-up (decision
-  7), `POST .../close` which records `ticket.transcript_complete`, then move the channel to the archive
-  category (`ARCHIVED`).
-- **Delete policy:** a channel is never deleted before `transcript_complete` exists; after
-  `DISCORD_ARCHIVE_DELETE_AFTER` (default 30 days) the bot deletes it (`DELETED`, `ticket.channel_deleted`).
+  7), `POST .../close`, which records `ticket.transcript_complete` **and stores the ticket protocol** (decision 15),
+  and only when that answer carries the protocol version move the channel to the archive category
+  (`ARCHIVED`; the backend refuses the state change with 409 `PROTOCOL_REQUIRED` otherwise).
+- **Delete policy:** a channel is never deleted before `transcript_complete` exists **and the protocol is
+  stored and current**; after `DISCORD_ARCHIVE_DELETE_AFTER` (default 30 days, decided) the bot first calls
+  `POST .../protocol/ensure` (forced, idempotent: a late edit makes a new version) and only then deletes it
+  (`DELETED`, `ticket.channel_deleted`; the backend refuses `DELETED` with 409 `PROTOCOL_REQUIRED` without a
+  current protocol).
   `PT0S` keeps archives forever. Deleting also removes Discord's own copy, which is the point for data
   protection; the case keeps the record. If a human deletes a channel early, the bot's channel-delete handler
   reports it and the case shows a "transcript may be incomplete from message X" banner (decision 7).
@@ -182,7 +187,7 @@ Author resolution on ingest, in this order:
 |---|---|---|---|
 | the ticket's bound participant | `PLAYER` | `PLAYER` | Player (Discord) |
 | a user with the staff role **and** a live `staff_discord_link` | `STAFF`, `actor_oid` = the linked `oid` | `VERIFIED` | the staff member's name in the panel; "Moderation team" to the player |
-| a user with the staff role and **no** link | `STAFF`, participant only | `UNVERIFIED` | "unverified staff (Discord)" |
+| a user with the staff role and **no** link (only reachable in the window after a link was removed, before the next access reconcile, or for a Discord administrator who sees every channel) | `STAFF`, participant only | `UNVERIFIED` | "unverified staff (Discord)" |
 | any other human | `EXTERNAL` | `UNVERIFIED` | other participant |
 | a bot (not ours) | `BOT` | `SYSTEM`-like, visibility `STAFF` | bot |
 
@@ -194,6 +199,18 @@ existing one-time code (decision 9). A message is judged **at ingest time** from
 sends and the link as it is then; a later role change does not rewrite history. Discord can never
 perform a privileged action: no decision, no leak-reissue, no punishment change, only chat. Unverified
 Discord staff messages are shown with the unverified badge, never as verified.
+
+**Channel access needs a live link (decided 2026-10-23).** Staff without a linked Discord account are **not
+allowed** in ticket channels. The staff role alone grants nothing: the ticket and archive categories give the
+role no View permission, and the bot adds exactly the staff members who hold the role **and** have a live
+`staff_discord_link` as per-channel member overwrites. A `StaffAccessReconciler` (every
+`DISCORD_STAFF_RECONCILE_INTERVAL`, at ticket creation and when a `staff-link.removed` event arrives) reads
+`GET /discord/staff-links`, checks each linked user's role by REST (no member cache, no `GUILD_MEMBERS` intent)
+and adds or removes the overwrites on every non-deleted ticket channel, so an unlink or a lost role removes
+access within the interval. Consequence: a new ticket is invisible to staff who have not linked; the README
+and the channel topic say so, and `/link` is the way in. `PermissionSelfCheck` warns when the staff role holds
+View on a ticket category. Discord administrators and the guild owner bypass overwrites by design; their
+messages are `UNVERIFIED` unless linked.
 
 ### 7. Transcript completeness: catch-up, close, completeness event
 
@@ -212,7 +229,10 @@ Discord staff messages are shown with the unverified badge, never as verified.
   messages that are no longer in Discord (deleted while it was down).
 - **Completeness:** `POST .../close` `{count, lastMessageId}` is accepted only when the backend's own tally
   of inbound-linked Discord messages equals `count` and `lastMessageId` is the highest id seen; it then appends
-  `ticket.transcript_complete` (`ticketId`, `count`, `lastMessageId`, `edits`, `deletes`) and sets `transcript_*`.
+  `ticket.transcript_complete` (`ticketId`, `count`, `lastMessageId`, `edits`, `deletes`), sets `transcript_*`
+  and, **in the same request**, generates and stores the ticket protocol (decision 15); the answer carries
+  `protocolVersion`. If storing the protocol fails the request answers 503 and the event stays; the bot retries
+  `close` (idempotent) and does not archive until it gets a version.
   A mismatch answers 409; the bot rescans up to three times, then marks the ticket `CLOSED` **without**
   the event, does not delete the channel and raises a metric and an alert log. The panel shows a banner
   for a ticket with no `transcript_complete`.
@@ -221,7 +241,8 @@ Discord staff messages are shown with the unverified badge, never as verified.
   visible in the panel (`ticket.channel_deleted` with `transcriptComplete: false`, a banner with the last
   recorded message time) rather than hidden.
 - **After the channel is gone:** nothing reads Discord. The panel case page and the portal (player-visible,
-  allow-listed types) render the conversation from `case_event`, and the admin export includes it.
+  allow-listed types) render the conversation from `case_event`, the admin export includes it and the stored
+  protocol (decision 15) is the durable record of the whole ticket.
 
 ### 8. Content stored: text, attachments, embeds
 
@@ -247,7 +268,8 @@ member runs `/link <code>` (ephemeral); the bot calls `POST /discord/staff-link/
 user id. The same rules as the Minecraft link apply: the code is consumed on success, wrong/expired/used are
 indistinguishable, one to one in both directions (a new pairing replaces the old and publishes
 `staff-link.removed` with reason `REPLACED`). The code kind is not fixed at issue: whichever channel confirms
-first claims it, and it is consumed. `/unlink` removes it; the existing anonymize clears it.
+first claims it, and it is consumed. `/unlink` removes it; the existing anonymize clears it. Both also remove the member's access to ticket channels
+at the next access reconcile (decision 6), and anonymising regenerates the stored protocols (decision 15).
 
 ### 10. Leak scanning of public channels
 
@@ -271,7 +293,7 @@ first claims it, and it is consumed. `/unlink` removes it; the existing anonymiz
   in-memory queue for five minutes, then drops the candidate with a warning counter (no content).
 - **Edits and races:** the ID was visible for some time, so it counts as leaked even if it is deleted at once.
   Posting a valid ID is itself the oracle for guessing; the exposure is bounded by Discord's own limits and a
-  global infra limit on the route (open question 1).
+  global infra limit on the route (decision 16).
 - **Griefing:** anyone who has a valid Ban ID can forfeit its owner's right by posting it, but could also log in
   with it; the `poster` fields let staff judge and an admin reissue for a leak that was not the player's fault.
 
@@ -287,9 +309,9 @@ first claims it, and it is consumed. `/unlink` removes it; the existing anonymiz
   participant. Timeline entries keep their structure with an anonymous author. Message text is redacted by the
   portal change's routes. The panel offers both. Staff anonymize clears `staff_discord_link`. Deleting the
   punishment record cascades participants, tickets and links.
-- **Retention:** the transcript lives as long as the case and punishment (evidence rule), **pending legal
-  confirmation**. Discord's own copy lives until the archived channel is deleted (30 days by default) and is
-  governed by Discord.
+- **Retention:** the transcript and the stored protocol live as long as the case and punishment (evidence rule),
+  **pending legal confirmation**. Discord's own copy lives until the archived channel is deleted (30 days,
+  decided) and is governed by Discord.
 - **Export:** the portal change's ADMIN transcript export includes Discord entries with channel, author kind
   and trust, redaction markers, `ticket.opened`/`ticket.transcript_complete` markers, and never a Discord id.
 
@@ -311,7 +333,9 @@ first claims it, and it is consumed. `/unlink` removes it; the existing anonymiz
 | `GET /discord/tickets/{id}/outbox?afterSeq=` | player-visible events with text, for relaying |
 | `POST /discord/tickets/{id}/messages` | ingest a batch (idempotent), `complete` flag for rescans |
 | `POST /discord/tickets/{id}/links` | relay link, advances `relayed_seq` |
-| `POST /discord/tickets/{id}/close` | completeness proof |
+| `POST /discord/tickets/{id}/close` | completeness proof; stores the protocol, answers `protocolVersion` |
+| `POST /discord/tickets/{id}/protocol/ensure` | forced idempotent regeneration, answers the current version (deletion gate) |
+| `GET /discord/staff-links` | Discord user ids of live staff links, for the access reconcile |
 | `POST /discord/leak-check` | candidates, channel kind, poster |
 | `POST /discord/staff-link/confirm`, `DELETE /discord/staff-link/{discordUserId}` | link and unlink |
 
@@ -336,7 +360,11 @@ first claims it, and it is consumed. `/unlink` removes it; the existing anonymiz
 | Player left the guild | Overwrite is gone; messages stop; the ticket stays open; staff can still decide in the panel; the portal still works. |
 | Staff role removed | Next message is judged without the role (unverified); history unchanged. |
 | Bot lacks a permission | Startup self-check logs the missing permission by channel and the health endpoint reports it; no partial silent failure. |
-| Incomplete transcript | No `transcript_complete`, channel not deleted, panel banner. |
+| Incomplete transcript | No `transcript_complete`, no protocol, channel not archived or deleted, panel banner. |
+| Protocol cannot be stored | `close` answers 503; the bot retries, does not archive and raises a metric; the backend reconciler also retries. |
+| Late edit after the protocol | The reconciler makes a new version; the deletion gate forces a current one first. |
+| Edge answers 429 on `POST /discord/tickets` or `/discord/leak-check` | Treated like backend-unavailable: generic "try again later" to the player, no tight retry loop, no local cooldown. |
+| Staff link removed or role lost | Access removed at the next reconcile; messages before it stay as recorded. |
 
 ### 14. Tests (F.I.R.S.T.)
 
@@ -345,6 +373,10 @@ first claims it, and it is consumed. `/unlink` removes it; the existing anonymiz
   in-memory fakes and a `ManualScheduler`/`TestClock` the test advances (`runDue()`); no sleeps, no network, no
   Discord. The JDA adapters are thin and covered by a contract test of the interface against the fake plus a
   composition test that builds the JDA builder without connecting (intents, cache flags, permissions).
+- **Protocol and access:** `close` stores a protocol and answers its version, 503 when storing fails, archive and delete refused with
+  409 without a current protocol, forced `ensure` after a late edit, staff access reconcile table (linked and
+  role, linked without role, role without link, unlink, role removed, administrator), 429 treated as unavailable
+  with no cooldown state.
 - **Cases:** open (success, wrong Ban ID uniform, bound to another user, leaked ID, crash between create and
   channel), relay (order, cursor, restart without duplicate, edit, delete, own-message skip), ingest (author
   table, other bot visibility, edit and delete, replay), catch-up (startup after cursor, close full rescan,
@@ -356,21 +388,68 @@ first claims it, and it is consumed. `/unlink` removes it; the existing anonymiz
   409, participant erasure, cascade, no Discord id or Ban ID in events, logs or export; migration test.
 - A bug found while implementing is first reproduced by a failing test.
 
+### 15. The ticket protocol (requirement of 2026-10-23)
+
+A Discord ticket channel is **turned into a protocol and stored with the case before it is archived or
+deleted**. The generator, the content, the idempotent versioning, the storage and the GDPR handling are defined
+once in the portal change (`appeal-protocol`, `punishment-evidence`, design decision 16 there) and are the same
+for every ticket whatever channel it used. This change adds the Discord triggers and gates:
+
+- **Stored as:** evidence of kind `TRANSCRIPT` (not a case attachment): it reuses the S3 `BlobStore`, the audit,
+  the access rules and the "lifetime = punishment record" rule of evidence; see the portal design for the reasons
+  and for what is deliberately not reused (sniffing, scanner, `PiiGuard`).
+- **Generated by the backend from the stored `case_event` rows**, never from Discord, so it equals the record.
+  Authors: players pseudonymised as in the case timeline (opaque participant id in the JSON), staff by display
+  name; edits, deletes, attachment metadata and the completeness check (count and last Discord message id from
+  `ticket.transcript_complete`) are in it.
+- **When:** in `POST /discord/tickets/{id}/close`, in the same request that verifies the transcript complete. No
+  verified transcript, no protocol.
+- **Gates:** archive (`ARCHIVED`) only after the protocol is stored (the answer carries `protocolVersion`;
+  409 `PROTOCOL_REQUIRED` otherwise). Delete (`DELETED`) only when a protocol exists **and is current**: the bot
+  calls `protocol/ensure` first, which regenerates when the source digest changed (a staff message or edit in the
+  archived channel before deletion, a late ingest). The backend enforces both gates, so a buggy or hostile bot
+  cannot skip them.
+- **Staff:** open or download text or JSON from the case page. **Players:** the portal offers the player-visible
+  view only, rendered on demand (portal design decision 16).
+- **GDPR:** a redaction or erasure (including erasing the Discord participant, which anonymises the author in
+  the next version) purges the stored versions and regenerates, defined in the portal change.
+
+### 16. Bot ingress rate limiting: infra only (decided 2026-10-23)
+
+The bot is one caller, so the backend cannot tell players apart and there is **no per-user cooldown in the
+bot or the backend** (repo rule: no app-level rate limiting). Operator docs (task 6.2) state the required edge
+rule on the backend host, applied to the bot's client-credentials traffic:
+
+| Route | Required edge rule (suggested starting value) |
+|---|---|
+| `POST /discord/tickets` | global limit 30 requests per minute, answer 429 |
+| `POST /discord/leak-check` | global limit 120 requests per minute, answer 429 |
+| everything else under `/discord/**` | no extra rule (chatty by design: ingest, outbox, links) |
+
+The bot treats 429 like "backend unavailable" (failure table). The numbers are a starting point for the
+operator to tune; the docs also say that a global limit on a single caller caps the guessing rate of the modal
+path as a whole.
+
 ## Flyway migrations
 
-`V15__discord_tickets.sql` (next free version): the four tables of decision 2. No existing rows are
+`V16__discord_tickets.sql` (next free version): the four tables of decision 2. No existing rows are
 affected (new tables); no backfill.
 
 ## Risks / Trade-offs
 
 - [The bot is a guessing path for Ban IDs, bypassing the portal's edge rules] -> ingress limit on
-  `POST /discord/tickets` and `/discord/leak-check` (global, one caller), documented; open question 1.
+  `POST /discord/tickets` and `/discord/leak-check` at the edge only (global, one caller), documented as an
+  operator task; no app-level limiter or per-user cooldown (decision 16).
 - [Message content privilege] -> `MESSAGE_CONTENT` intent is required; scoped by category/public channels,
   no content logged.
 - [Deleted-while-down is unrecoverable] -> stated, bannered, rare.
 - [Discord can show staff internal chatter to the player] -> the channel is for the player's conversation; internal
   talk goes to notes; documented in the channel topic.
 - [Attachments vanish with the channel] -> staff use evidence upload for what matters; stated in the README.
+- [Staff who have not linked cannot see new tickets] -> intended (decision 6); `/link` documented; unverified
+  fallback only for administrators.
+- [A protocol is a second stored copy of the conversation] -> same redaction purge and regenerate as the portal
+  change (decision 15); same lifetime and audit as evidence.
 - [Duplicate relay in a crash window] -> accepted, footer marker mitigates.
 - [JDA/Discord API churn] -> pinned version, adapter isolates it.
 
@@ -381,11 +460,13 @@ the bot container, create the categories and the staff role, the "open appeal" b
 start when `DISCORD_PANEL_CHANNEL_ID` is set. Rollback: stop the container; the new tables are
 ignored; panel and portal are unaffected; open tickets keep their record.
 
-## Open Questions
+## Decisions (settled 2026-10-23)
 
-1. The bot is a second way to guess Ban IDs (modal) that the portal's edge rules do not cover. Is an infra-only
-   global limit on the `/discord/**` ingress enough, or may the bot keep a per-Discord-user attempt cooldown?
-   (Repo rule: no app-level rate limiting.)
-2. `DISCORD_ARCHIVE_DELETE_AFTER` default 30 days: OK, or should archives be kept longer for staff reference?
-3. Should unverified staff messages (role without link) be allowed at all, or should the staff role also require a link
-   to see ticket channels?
+These were open questions; the team decided:
+
+1. **Rate limiting of the bot ingress:** at infra only; no per-user cooldown in the bot or backend (decision 16).
+2. **Archive retention:** archived channels are deleted after 30 days, and only when the protocol is stored (decision 4, 15).
+3. **Staff without a Discord link:** not allowed in ticket channels; the bot adds only role holders with a live link (decision 6).
+4. **New requirement:** a ticket is turned into a protocol stored with the case before archive or deletion (decision 15).
+
+No open questions remain except the legal confirmation of the case retention period, which is shared with the portal change.

@@ -68,8 +68,10 @@ Staff must see the Ban ID (to read it back to a player), so a one-way hash alone
 are derived with HKDF (different `info`). A non-dev context without it refuses to start, like the
 insecure-issuer guard. Consequences: a database leak alone yields neither login nor plaintext; losing
 the key makes every Ban ID unreadable and unusable, and the recovery is the reissue job
-(`BanIdBackfill --reissue-all`), so the key needs the same backup care as any secret. Key rotation is
-not designed here (open question 3).
+(`BanIdBackfill --reissue-all`), so the key needs the same backup care as any secret. Key rotation in v1
+is "reissue all": a new key makes every Ban ID unusable and `BanIdBackfill --reissue-all` issues new ones
+(decided 2026-10-23). Key ids (several keys valid at once, lazy re-encryption) come in a later change, so the
+stored columns need no key id column now.
 Lookup input is HMACed and compared by the unique index, so there is no timing signal beyond a DB
 lookup. The plain Ban ID exists in memory only (generation, the reveal route, the login request).
 
@@ -106,7 +108,7 @@ test Ban ID. The reveal route (`GET /punishment/{ref}/ban-id`, `MODERATOR` and `
 - **Session:** on a good login the backend creates a `player_session` row and returns a random
   256 bit token once. Only its SHA-256 is stored (`token_hash`), with the punishment identifier, scope
   (`FULL` or `LIMITED`, decision 7), `csrf_token`, `created_at`, `last_seen_at`, `expires_at`.
-  Expiry: idle 30 minutes (sliding) and absolute 4 hours (`blackhole.public.session.*`). A sweeper
+  Expiry: idle 30 minutes (sliding) and absolute 4 hours (`blackhole.public.session.*`; both decided 2026-10-23, an unsent draft is kept in memory across the expiry page). A sweeper
   deletes expired rows; the clock is injected. A leak mark or a reissue deletes all sessions of that
   punishment in the same statement as the case change. Why not a signed token: leak and reissue
   need immediate revocation and an idle timeout, which needs server state anyway.
@@ -176,7 +178,7 @@ the few files, do not couple the builds.
 - **Module:** `portal/` (Gradle module driving npm like `web/`), Vue 3 + Tailwind with the MD3 tokens,
   Nitro `node-server` preset, own `Dockerfile`, `/healthz`, CI image build and smoke check beside
   the web image. Env: `BLACKHOLE_BACKEND_URL`, `BLACKHOLE_PORTAL_ORIGIN`, validated at start like `web`.
-- **Host:** `appeal.onelitefeather.net` (default; open question 1).
+- **Host:** `appeal.onelitefeather.net` (decided 2026-10-23). It is the BFF origin, the cookie host (`__Host-`, no Domain) and the `BLACKHOLE_PORTAL_ORIGIN` value.
 - **Pages:** login (Ban ID field, `autocomplete=off`, paste friendly, normalisation preview not
   required), punishment facts, appeal form (statement counter, one-appeal notice and the date it
   becomes available), conversation (thread, composer, status, decision), "appeal forfeited" and
@@ -341,6 +343,12 @@ transcript** (`ADMIN`). The appeals queue shows "unanswered player message" and 
 - Portal (Vitest, fake backend client): the BFF allow-list rejects unknown routes, cookie flags,
   CSRF and Origin checks, no body logging, uniform login error, header set, i18n parity, component
   tests per page including keyboard use.
+- Protocol: byte-identical regeneration from unchanged data (fixed `Clock`), digest and count recomputed from
+  the JSON, author labels and the no-identifier scan, edit/delete/attachment/redaction rendering, idempotent
+  versioning (same digest, concurrent runs), settle delay and `force` on the test clock, redaction purge with a
+  failing regeneration, `TRANSCRIPT` rejected by the attach routes, not counted, not marked on lift/revoke,
+  player copy without `STAFF` entries or staff names, audit on open and download (Testcontainers for the unique
+  indexes and the purge statement, `InMemoryBlobStore` for files).
 - No sleeps: polling is driven by a fake timer in tests; expiry by clock injection. A bug found
   while implementing is first reproduced by a failing test.
 
@@ -348,6 +356,78 @@ transcript** (`ADMIN`). The appeals queue shows "unanswered player message" and 
 
 `docs/` gets the portal deployment note (domain, env, required edge rate-limit rules, the key and
 its backup, the no-body-logging requirement) and the Entra setup is untouched by this change.
+
+### 16. The appeal protocol (stored with the case)
+
+Requirement of 2026-10-23: when an appeal's conversation closes, it is **turned into a protocol and stored
+with the case**, so the record outlives every channel (a Discord channel is deleted 30 days after it is
+archived, see `add-discord-appeal-tickets`). The protocol is the same for every appeal whatever channel the
+conversation used. It is not the ADMIN export of decision 12: the export is an on-demand, complete-case file
+for complaints and data-subject requests; the protocol is automatic, stored, versioned and per appeal.
+
+- **Source:** the backend generates it **only from `case_event`**, never from Discord or any other system
+  (`AppealProtocolService` in `casetimeline/protocol/`), so it equals the record. Source set: the appeal's
+  message events (all channels, visibility `PLAYER` and `STAFF`, with edits, deletes, redactions) and its
+  lifecycle markers (`appeal.*`, `ban_id.*`, `ticket.*`). Notes are excluded.
+- **Content:** one model, two renderings: a human-readable text document and JSON (`schemaVersion` 1). Per
+  entry: `seq`, time, channel, author label and kind, trust, visibility, text, earlier versions with times,
+  deletion time with the kept last text, attachment metadata (no bytes, no CDN URL), embed type and host, or a
+  redaction marker. Players: the case's pseudonymous label (the JSON also carries the opaque participant id);
+  staff: display name; unverified staff and other bots: their kind label. Never a Ban ID, Discord user id or
+  owner hash. The header carries ticket and appeal ids, generation time and version; the footer is the
+  **completeness check**: entry count, first and last `seq`, SHA-256 digest of the source (event id, `seq`,
+  type, redaction state, in order) and, for a Discord ticket, the `ticket.transcript_complete` count and last
+  message id. A reader can recompute count and digest from the JSON.
+- **When:** on the appeal decision for an appeal without a Discord ticket; for an appeal with a Discord
+  ticket, in the request that accepts the completeness proof (`POST /discord/tickets/{id}/close`), and
+  only then. A protocol for an unverified Discord transcript is never made.
+  A storage failure after a decision does not fail the decision (same rule as the evidence gateway: log, no
+  content); `ProtocolReconciler` (interval `blackhole.protocol.reconcile-interval`, default PT5M) creates
+  missing protocols.
+- **Where it is stored: an evidence item of the new kind `TRANSCRIPT` (recommended and chosen).** Reasons:
+  (1) the evidence capability already is the audited, access-controlled home for case material kept for as long
+  as the punishment: the `BlobStore` (S3 by default), the `VIEWED`/`DOWNLOADED` audit, `nosniff`/sandbox/`no-store`
+  serving, cascade deletion with the punishment, and the rule "lifetime = punishment record, no expiry sweep";
+  (2) a case attachment would need a second blob path, access rule, audit and erasure route for the same job;
+  (3) the case page already lists evidence. What is **not** reused, deliberately: upload sniffing, the malware
+  scanner, image re-encoding, `PiiGuard` and the chat IP redaction. The content is generated by the backend and
+  has no uploaded bytes (attachments are metadata only), and those guards would rewrite or reject the record.
+  Consequences written into the evidence delta: `TRANSCRIPT` is system-only (attach routes answer 400),
+  holds a file pair (text and JSON), is never marked `LIFTED`/`REVOKED` (the protocol of a lifted ban matters
+  most), is not part of `evidenceCount`, and is capped by `blackhole.protocol.max-bytes`.
+  The evidence package exposes one narrow `GeneratedEvidenceGateway.store(...)` for it; the protocol service
+  uses nothing else of the package. No blocker was found in the evidence spec.
+- **Index table** `appeal_protocol` (`V15`): `id`, `punishment_identifier` FK cascade, `appeal_id`, `version`,
+  `evidence_id` FK cascade, `source_digest`, `entry_count`, `last_seq`, `status` (`ACTIVE`, `SUPERSEDED`,
+  `PURGE_PENDING`), `created_at`; unique `(appeal_id, version)` and unique `(appeal_id, source_digest)`.
+  The timeline records `protocol.stored` (STAFF visibility, no content) and the domain event
+  `case.protocol_stored` is published after the write.
+- **Idempotent and versioned:** generation computes the digest first. Same digest as the active version: no new
+  version, the existing one is returned. Different digest: version `n+1`, the previous becomes `SUPERSEDED`
+  (kept, so staff can see what the record said earlier). The unique digest index makes concurrent runs
+  produce one version. Dedupe key `protocol:<appealId>:<digest>`.
+- **Late changes:** the reconciler also regenerates when the digest of the live source differs from the active
+  version (a late edit, a staff message after the decision, a Discord message in the archived channel) once
+  the conversation was quiet for `blackhole.protocol.settle-delay` (PT1M, injected clock). Callers that must be
+  current at once (the Discord deletion gate) call generation with `force`.
+- **Access:** staff `VIEWER` and above list, open (rendered text) and download text or JSON from the case page,
+  because they already read the thread; every use is audited. The conversation's `STAFF`-visibility entries are
+  inside it, which is why the audit matters.
+- **Players in the portal:** yes, but only the player-visible view. `GET /public/appeal/protocol?format=text|json`
+  (FULL session, appeal decided) renders **on demand**, with the same query and allow-list as the portal
+  conversation (visibility `PLAYER`, allow-listed types only), labelling the player "You" and staff "Moderation
+  team", no staff names, no `STAFF` entries, attachments as "attachment (type, size)", `no-store`, attachment
+  disposition. It is derived, not stored, so it is never stale and needs no redaction coupling. The stored staff
+  protocol is never served to a player session.
+- **GDPR:** the stored protocol holds redactable text, so redaction must reach it. Defined behaviour: whenever
+  message text or author data is redacted or erased (message redaction, player-side erase, Discord participant
+  erasure, staff anonymisation), the same SQL statement marks all protocol versions of the affected appeals
+  `PURGE_PENDING` (unreadable at once), then a **new version is regenerated** with markers and anonymous
+  authors, and the purged versions' files are deleted (`evidence.deleted`, reason `ERASURE`; audit entries
+  stay, without content). Regeneration is retried by the reconciler, so a failure never undoes the redaction and
+  never leaves old text readable. Deleting the punishment cascades protocol rows and files as for any evidence.
+- **Not done:** no signing or hash chain beyond the digest in the footer and the `protocol.stored` event (a
+  tamper-evidence design is a later change if wanted).
 
 ## Flyway migrations
 
@@ -359,6 +439,9 @@ its backup, the no-body-logging requirement) and the Entra setup is untouched by
   except the partial index, whose pre-check (open appeals per punishment) is part of the migration test.
 - `V14__player_session.sql`: `player_session` (token hash PK, punishment FK `ON DELETE CASCADE`, scope,
   csrf, times) and an index on `expires_at`.
+- `V15__appeal_protocol.sql`: `appeal_protocol` (decision 16) and the new evidence kind `TRANSCRIPT` (extend the
+  kind column check or enum of `evidence_items`, plus a second file key column for the file pair). New table and
+  a widened check: no backfill; existing evidence rows are untouched.
 
 ## Risks / Trade-offs
 
@@ -371,6 +454,9 @@ its backup, the no-body-logging requirement) and the Entra setup is untouched by
 - [Duplicate plumbing between `web/` and `portal/`] -> accepted for v1, revisit.
 - [A leaked-ID holder sees punishment facts] -> they are the facts the real player may see; no
   conversation or decision text is exposed in `LIMITED` scope.
+- [A stored protocol is a second copy of conversation text] -> redaction purges every version and regenerates
+  (decision 16); it lives under the evidence cascade; staff access is audited.
+- [Version churn from late messages] -> settle delay; superseded versions are cheap text; purged on redaction.
 - [Polling every 15 s] -> cheap keyset read, cache headers `no-store`; push is a later change.
 
 ## Migration Plan
@@ -379,8 +465,13 @@ Deploy the backend (migrations, key set), run the backfill (automatic at start, 
 gauge `blackhole.banid.missing`), roll out Velocity with the Ban ID screen, then expose the portal.
 Rollback: the portal can be switched off at the edge; the new columns are ignored by the old backend.
 
-## Open Questions
+## Decisions (settled 2026-10-23)
 
-1. Portal host: `appeal.onelitefeather.net` proposed; confirm the name with the infra owner.
-2. Is the 30 minute idle and 4 hour absolute session right for players who write long statements?
-3. Key rotation for `BLACKHOLE_BANID_KEY`: leave as "reissue all" in v1, or design key ids now?
+These were open questions; the team decided:
+
+1. **Portal host:** `appeal.onelitefeather.net` (decision 6).
+2. **Session:** 30 minutes idle, 4 hours absolute (decision 4). Long statements are protected by the in-memory
+   draft kept across the expiry page; no longer limits.
+3. **Key rotation:** in v1 a new `BLACKHOLE_BANID_KEY` means "reissue all" (decision 2). Key ids come in a later change.
+
+No open questions remain.
