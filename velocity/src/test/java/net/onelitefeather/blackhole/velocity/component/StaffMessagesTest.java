@@ -349,4 +349,13 @@ class StaffMessagesTest {
 
         assertEquals("Blackhole » ✖ Invalid argument: 'x' is not a number", rendered.text());
     }
+
+    @Test
+    void thePlayerOnlyAnswerIsStyledAndHasNoEvents() {
+        assertEquals("Blackhole » ✖ That command can only be used by a player.",
+                Rendered.english(StaffMessages.playerOnly()).text(), "English");
+        assertEquals("Blackhole » ✖ Dieser Befehl kann nur von Spielern verwendet werden.",
+                Rendered.german(StaffMessages.playerOnly()).text(), "German");
+        assertFalse(Rendered.english(StaffMessages.playerOnly()).hasEvents(), "plain for the console");
+    }
 }

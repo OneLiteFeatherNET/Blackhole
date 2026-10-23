@@ -39,8 +39,8 @@ public final class PardonCommand {
         this.sections = sections;
     }
 
-    @Command("blackhole <user> unban [section]")
-    @Command("unban <user> [section]")
+    @Command(value = "blackhole <user> unban [section]", requiredSender = Player.class)
+    @Command(value = "unban <user> [section]", requiredSender = Player.class)
     @Permission(Permissions.UNBAN)
     @CommandDescription("Revoke a player's active ban (default section: network)")
     public void unbanPlayer(
@@ -51,8 +51,8 @@ public final class PardonCommand {
         revoke(context.sender(), user, section, PunishService.BAN_KINDS, "unban");
     }
 
-    @Command("blackhole <user> unmute [section]")
-    @Command("unmute <user> [section]")
+    @Command(value = "blackhole <user> unmute [section]", requiredSender = Player.class)
+    @Command(value = "unmute <user> [section]", requiredSender = Player.class)
     @Permission(Permissions.UNMUTE)
     @CommandDescription("Revoke a player's active mute (default section: chat)")
     public void unmutePlayer(

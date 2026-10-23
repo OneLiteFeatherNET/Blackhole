@@ -1,10 +1,12 @@
 package net.onelitefeather.blackhole.velocity.command;
 
 import com.google.inject.Inject;
-import com.velocitypowered.api.proxy.Player;
+import com.velocitypowered.api.command.CommandSource;
 import net.kyori.adventure.text.Component;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.EloProfileResponse;
+import net.onelitefeather.blackhole.velocity.component.Mode;
+import net.onelitefeather.blackhole.velocity.component.ProfileMessages;
 import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
 import net.onelitefeather.blackhole.velocity.punish.EloReport;
 import net.onelitefeather.blackhole.velocity.punish.TargetResolver.ResolvedTarget;
@@ -39,7 +41,7 @@ public final class EloCommand {
     @Permission("blackhole.elo.view")
     @CommandDescription("Show a player's ELO scores per section")
     public void showElo(
-            CommandContext<Player> context,
+            CommandContext<CommandSource> context,
             @Argument(value = "user", parserName = "target", suggestions = "players") @NotNull ResolvedTarget user
     ) {
         EloProfileResponse elo;
@@ -57,14 +59,6 @@ public final class EloCommand {
             LOGGER.debug("Profile of {} unavailable for the ELO view: {}", user.name(), e.getMessage());
         }
 
-        Component message = Component.translatable("elo.header").arguments(Component.text(user.name()));
-        for (EloReport.Row row : EloReport.rows(elo, profile)) {
-            message = message.append(Component.newline()).append(Component.translatable(row.permanentActive() ? "elo.row.permanent" : "elo.row")
-                    .arguments(
-                            Component.text(row.displayName()), Component.text(row.score()),
-                            row.softThreshold() == null ? Component.translatable("elo.threshold.none") : Component.text(row.softThreshold()),
-                            Component.text(row.permanentThreshold())));
-        }
-        context.sender().sendMessage(message);
+        context.sender().sendMessage(ProfileMessages.elo(user.name(), EloReport.rows(elo, profile), Mode.of(context.sender())));
     }
 }

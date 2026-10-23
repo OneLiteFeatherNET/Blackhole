@@ -70,6 +70,11 @@ public final class Fmt {
         return Component.text("0");
     }
 
+    /** A compact absolute time for list lines, in the given zone: {@code 2026-10-22 20:14}. */
+    public static @NotNull Component date(@NotNull Instant instant, @NotNull ZoneId zone) {
+        return Component.text(TIME.format(instant.atZone(zone)));
+    }
+
     /** An absolute time in the given zone, such as {@code 2026-10-22 20:14 (Europe/Berlin)}. */
     public static @NotNull Component time(@NotNull Instant instant, @NotNull ZoneId zone) {
         return Component.text(TIME.format(instant.atZone(zone)) + " (" + zone.getId() + ")");

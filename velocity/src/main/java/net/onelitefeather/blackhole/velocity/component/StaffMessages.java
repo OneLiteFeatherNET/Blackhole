@@ -158,6 +158,11 @@ public final class StaffMessages {
                 Component.translatable("staff.error.usage", suggestion(shown, base, mode)));
     }
 
+    /** The answer to a command that needs a player, such as {@code /ban}, sent from the console. */
+    public static @NotNull Component playerOnly() {
+        return Component.translatable("staff.error.player_only");
+    }
+
     /**
      * The answer to an argument Cloud could not parse: a target nobody knows gets its own text, anything
      * else is shown as Cloud describes it.

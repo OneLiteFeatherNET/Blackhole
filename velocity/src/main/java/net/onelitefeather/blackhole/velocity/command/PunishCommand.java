@@ -54,8 +54,8 @@ public final class PunishCommand {
         this.config = config;
     }
 
-    @Command("blackhole <user> ban <template>")
-    @Command("ban <user> <template>")
+    @Command(value = "blackhole <user> ban <template>", requiredSender = Player.class)
+    @Command(value = "ban <user> <template>", requiredSender = Player.class)
     @Permission("blackhole.ban")
     @CommandDescription("Ban a player with a template of a ban or server section")
     public void banPlayer(
@@ -66,8 +66,8 @@ public final class PunishCommand {
         apply(context.sender(), user, template, PunishService.BAN_KINDS, "ban", "punishment.error.ban");
     }
 
-    @Command("blackhole <user> mute <template>")
-    @Command("mute <user> <template>")
+    @Command(value = "blackhole <user> mute <template>", requiredSender = Player.class)
+    @Command(value = "mute <user> <template>", requiredSender = Player.class)
     @Permission("blackhole.mute")
     @CommandDescription("Mute a player with a template of a mute section")
     public void mutePlayer(
@@ -78,8 +78,8 @@ public final class PunishCommand {
         apply(context.sender(), user, template, PunishService.MUTE_KINDS, "mute", "punishment.error.mute");
     }
 
-    @Command("blackhole <user> punish <template>")
-    @Command("punish <user> <template>")
+    @Command(value = "blackhole <user> punish <template>", requiredSender = Player.class)
+    @Command(value = "punish <user> <template>", requiredSender = Player.class)
     @Permission("blackhole.punish")
     @CommandDescription("Punish a player with any template")
     public void punishPlayer(
