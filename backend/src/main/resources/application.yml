@@ -95,6 +95,15 @@ blackhole:
       # Prometheus scraper) on app-only tokens.
       machine-proxy: ${BLACKHOLE_AUTH_MACHINE_ROLE_PROXY:Blackhole.Proxy}
       machine-metrics: ${BLACKHOLE_AUTH_MACHINE_ROLE_METRICS:Blackhole.Metrics}
+  # Ban ID: the 8 character credential a player opens the appeal portal with. It is stored only as an
+  # HMAC (login lookup) and an AES-GCM ciphertext (staff reveal), both derived from this one secret:
+  # 32 random bytes, base64 (openssl rand -base64 32). Unset is allowed
+  # in the dev and test environments only: the backend then uses a random key for that run and logs a
+  # warning, so Ban IDs do not survive a restart. Elsewhere it refuses to start without the key. Losing or changing the
+  # key makes every Ban ID unreadable and unusable, so back it up like any other secret. The backfill
+  # issues Ban IDs to punishments that have none (right after start, then periodically).
+  banid:
+    key: ${BLACKHOLE_BANID_KEY:}
   # Swagger / OpenAPI views are only served when enabled (default off; on in the dev profile) and
   # then need the VIEWER role.
   docs:

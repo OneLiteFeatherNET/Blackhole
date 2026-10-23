@@ -25,6 +25,31 @@ public final class PiiGuard {
     private static final Pattern IPV6_CANDIDATE = Pattern.compile("[0-9A-Fa-f:.]{3,}");
     private static final Pattern HEX_GROUP = Pattern.compile("[0-9A-Fa-f]{1,4}");
 
+    private static final Pattern BAN_ID_SHAPE = Pattern.compile("#\\s?([0-9A-Za-z]{8})(?![0-9A-Za-z])");
+    private static final Pattern HEX_ONLY = Pattern.compile("[0-9A-F]{8}");
+
+    /**
+     * The normalised Ban ID shaped tokens of a text: {@code #} and eight alphabet characters, read the
+     * way a player may type them. A hex-only token can also be a legacy short id, which staff do name
+     * in notes, so the caller decides those by lookup; see {@link #isHexOnly}.
+     */
+    public static List<String> banIdCandidates(String text) {
+        List<String> found = new java.util.ArrayList<>();
+        if (text == null) {
+            return found;
+        }
+        Matcher matcher = BAN_ID_SHAPE.matcher(text);
+        while (matcher.find()) {
+            net.onelitefeather.blackhole.backend.banid.BanIdCodec.normalize(matcher.group(1)).ifPresent(found::add);
+        }
+        return found;
+    }
+
+    /** Whether a normalised candidate is also a legacy short id (eight hex digits). */
+    public static boolean isHexOnly(String normalizedCandidate) {
+        return HEX_ONLY.matcher(normalizedCandidate).matches();
+    }
+
     /** Whether the text contains a canonical (dashed) UUID. */
     public static boolean containsUuid(String text) {
         return text != null && UUID.matcher(text).find();

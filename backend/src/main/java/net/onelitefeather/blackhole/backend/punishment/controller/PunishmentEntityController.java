@@ -6,6 +6,7 @@ import io.micronaut.core.version.annotation.Version;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.validation.Validated;
 import jakarta.inject.Inject;
@@ -67,7 +68,13 @@ public class PunishmentEntityController implements PunishmentApi {
         };
     }
 
-    private static HttpResponse<PunishmentDTO> toResponse(PunishmentDTO result) {
+    @Override
+    @Secured({Roles.MODERATOR, Roles.PROXY})
+    public HttpResponse<PunishmentDTO> lookup(PunishmentDTO.LookupRequest request) {
+        return toResponse(this.punishmentApplicationService.findByBanId(request)).header("Cache-Control", "no-store");
+    }
+
+    private static MutableHttpResponse<PunishmentDTO> toResponse(PunishmentDTO result) {
         if (result instanceof PunishmentDTO.Error error) {
             return HttpResponse.<PunishmentDTO>status(error.kind().status()).body(error);
         }

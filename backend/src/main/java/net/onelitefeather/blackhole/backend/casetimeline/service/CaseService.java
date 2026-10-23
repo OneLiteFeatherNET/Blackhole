@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.casetimeline.service;
 
 import io.micronaut.core.annotation.Nullable;
+import net.onelitefeather.blackhole.backend.banid.service.BanIdService;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.casetimeline.ActorTrust;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
@@ -71,10 +72,11 @@ public class CaseService {
     private final CaseEventRepository events;
     private final DomainEventPublisher publisher;
     private final Clock clock;
+    private final BanIdService banIds;
 
     public CaseService(
             PunishmentRepository punishments, StaffActorRepository staff, CaseReader reader, CaseChanges changes,
-            CaseEventRepository events, DomainEventPublisher publisher, Clock clock
+            CaseEventRepository events, DomainEventPublisher publisher, Clock clock, BanIdService banIds
     ) {
         this.punishments = punishments;
         this.staff = staff;
@@ -83,6 +85,7 @@ public class CaseService {
         this.events = events;
         this.publisher = publisher;
         this.clock = clock;
+        this.banIds = banIds;
     }
 
     private record Found(PunishmentEntity punishment, CaseDTO.Error error) {
@@ -388,12 +391,15 @@ public class CaseService {
         return unique.size() > CaseTags.MAX ? null : new ArrayList<>(unique);
     }
 
-    private static @Nullable CaseDTO.Error checkText(@Nullable String text) {
+    private @Nullable CaseDTO.Error checkText(@Nullable String text) {
         if (text == null || text.isBlank() || text.length() > MAX_NOTE) {
             return error(CaseErrorKind.VALIDATION, "a note is 1 to " + MAX_NOTE + " characters");
         }
         if (PiiGuard.containsUuid(text) || PiiGuard.containsIp(text)) {
             return error(CaseErrorKind.VALIDATION, "a note must not contain a UUID or an IP address; name a player by the short id");
+        }
+        if (this.banIds.containsBanId(text)) {
+            return error(CaseErrorKind.VALIDATION, "a note must not contain a Ban ID");
         }
         return null;
     }

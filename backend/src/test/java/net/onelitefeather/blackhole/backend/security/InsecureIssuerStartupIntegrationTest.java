@@ -19,6 +19,8 @@ class InsecureIssuerStartupIntegrationTest extends PostgresIntegrationTest {
     private static ApplicationContext start(String environment, Map<String, Object> extra) {
         Map<String, Object> properties = new HashMap<>(contextProperties());
         properties.put("micronaut.server.port", -1);
+        // A production context needs a real Ban ID key (the development default is refused there).
+        properties.put("blackhole.banid.key", net.onelitefeather.blackhole.backend.support.TestKeys.randomBase64());
         properties.putAll(extra);
         return ApplicationContext.builder().deduceEnvironment(false).environments(environment).properties(properties).start();
     }

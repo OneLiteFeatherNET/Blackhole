@@ -153,6 +153,30 @@ public sealed interface PunishmentDTO {
     }
 
     /** The punishments that match a short ID; several if short IDs collide, none if nothing matches. */
+    /**
+     * Staff look up a punishment by the Ban ID a player quotes.
+     *
+     * @param banId the Ban ID as typed, with or without {@code #}, in any case; a credential, so it
+     *              is a body field and is never printed
+     */
+    @Schema(name = "PunishmentLookupRequest")
+    @Serdeable
+    @ReflectiveAccess
+    record LookupRequest(@Nullable String banId) implements PunishmentDTO {
+
+        /** Never prints the Ban ID. */
+        @Override
+        public String toString() {
+            return "PunishmentDTO.LookupRequest[banId=***]";
+        }
+    }
+
+    @Schema(name = "PunishmentLookupResponse")
+    @Serdeable
+    @ReflectiveAccess
+    record LookupResponse(@NonNull PunishEntryDTO punishment) implements PunishmentDTO {
+    }
+
     @Schema(name = "PunishmentShortIdMatches")
     @Serdeable
     @ReflectiveAccess

@@ -19,6 +19,7 @@ import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEvents;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
+import net.onelitefeather.blackhole.backend.banid.service.BanIdService;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentShortId;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
@@ -44,6 +45,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -89,6 +91,7 @@ public class PunishmentApplicationService implements SectionPunisher {
     private final Provider<EloScoring> eloScoring;
     private final StaffLinkService staffLinks;
     private final Clock clock;
+    private final BanIdService banIds;
     private final Duration defaultEscalationWindow;
 
     /**
@@ -109,6 +112,7 @@ public class PunishmentApplicationService implements SectionPunisher {
             Provider<EloScoring> eloScoring,
             StaffLinkService staffLinks,
             Clock clock,
+            BanIdService banIds,
             @Value("${blackhole.punishment.escalation.default-window:P365D}") Duration defaultEscalationWindow
     ) {
         this.punishmentRepository = punishmentRepository;
@@ -123,6 +127,7 @@ public class PunishmentApplicationService implements SectionPunisher {
         this.eloScoring = eloScoring;
         this.staffLinks = staffLinks;
         this.clock = clock;
+        this.banIds = banIds;
         this.defaultEscalationWindow = defaultEscalationWindow;
     }
 
@@ -244,6 +249,7 @@ public class PunishmentApplicationService implements SectionPunisher {
         punishment.setActorOid(attribution.actorOid());
         punishment.recordEscalation(group, selection.index(), selection.stepCount(), cost);
         PunishmentEntity saved = this.punishmentRepository.save(punishment);
+        this.banIds.issue(saved.getIdentifier());
         if (!place(owner, section, saved)) {
             return error(ErrorKind.CONFLICT, "the player is already permanently punished in section '" + section.key() + "'");
         }
@@ -341,6 +347,7 @@ public class PunishmentApplicationService implements SectionPunisher {
                 IdGenerator.generateId(), EloService.SYSTEM_ELO_SOURCE, owner, section.key(), true, now, null, metadata
         );
         PunishmentEntity saved = this.punishmentRepository.save(punishment);
+        this.banIds.issue(saved.getIdentifier());
         return placeAndRecord(owner, section, saved);
     }
 
@@ -363,6 +370,7 @@ public class PunishmentApplicationService implements SectionPunisher {
                 IdGenerator.generateId(), EloService.SYSTEM_ELO_SOURCE, owner, section.key(), false, now, null, metadata
         );
         PunishmentEntity saved = this.punishmentRepository.save(punishment);
+        this.banIds.issue(saved.getIdentifier());
         return placeAndRecord(owner, section, saved);
     }
 
@@ -489,6 +497,18 @@ public class PunishmentApplicationService implements SectionPunisher {
                 .<PunishmentDTO>map(key -> new PunishmentDTO.ShortIdMatches(
                         this.punishmentRepository.findByShortId(key).stream().map(this::withEvidenceCount).toList()))
                 .orElseGet(() -> error(ErrorKind.VALIDATION, "a short id is # followed by exactly eight hex characters"));
+    }
+
+    /**
+     * Finds the punishment a Ban ID belongs to. The Ban ID arrives in a request body, never in a URL.
+     * Anything that does not match, malformed or unknown alike, is the same {@code NOT_FOUND} without
+     * the input in it.
+     */
+    public PunishmentDTO findByBanId(PunishmentDTO.LookupRequest request) {
+        return this.banIds.findIdentifier(request.banId())
+                .flatMap(this.punishmentRepository::findById)
+                .<PunishmentDTO>map(punishment -> new PunishmentDTO.LookupResponse(withEvidenceCount(punishment)))
+                .orElseGet(() -> error(ErrorKind.NOT_FOUND, "there is no such punishment"));
     }
 
     /** The punishment as a DTO that tells how many valid evidence items it has, and nothing more about them, and who linked staff member issued it. */
