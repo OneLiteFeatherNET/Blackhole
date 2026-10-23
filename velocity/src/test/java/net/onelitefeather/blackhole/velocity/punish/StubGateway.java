@@ -9,6 +9,7 @@ import net.onelitefeather.blackhole.client.model.PunishmentRevokeResponse;
 import net.onelitefeather.blackhole.client.model.ReportCategory;
 import net.onelitefeather.blackhole.client.model.ReportDTO;
 import net.onelitefeather.blackhole.client.model.ReportFeedbackResponse;
+import net.onelitefeather.blackhole.client.model.DiscordLinkCodeResponse;
 import net.onelitefeather.blackhole.client.model.StaffLinkConfirmResponse;
 import net.onelitefeather.blackhole.client.model.StaffLinkLookupResponse;
 import net.onelitefeather.blackhole.velocity.evidence.ChatSnapshot;
@@ -33,6 +34,9 @@ final class StubGateway implements BackendGateway {
     Optional<PunishProfileDTO> profile = Optional.empty();
     ApiException profileFailure;
     EloProfileResponse elo = new EloProfileResponse();
+    final java.util.List<String> discordOwners = new java.util.ArrayList<>();
+    DiscordLinkCodeResponse discordResponse = new DiscordLinkCodeResponse().code("ABCD-EFGH").expiresAt(0L);
+    ApiException discordFailure;
     StaffLinkConfirmResponse confirmResponse = new StaffLinkConfirmResponse();
     ApiException confirmFailure;
     StaffLinkLookupResponse lookupResponse = new StaffLinkLookupResponse().linked(false);
@@ -186,6 +190,15 @@ final class StubGateway implements BackendGateway {
             throw this.lookupFailure;
         }
         return this.lookupResponse;
+    }
+
+    @Override
+    public DiscordLinkCodeResponse issueDiscordLinkCode(String owner) throws ApiException {
+        this.discordOwners.add(owner);
+        if (this.discordFailure != null) {
+            throw this.discordFailure;
+        }
+        return this.discordResponse;
     }
 
     static PunishTemplateResponse template(String key, String section) {

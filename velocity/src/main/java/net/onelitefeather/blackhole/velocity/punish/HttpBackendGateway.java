@@ -6,9 +6,12 @@ import net.onelitefeather.blackhole.client.api.PunishProfileApi;
 import net.onelitefeather.blackhole.client.api.PunishmentApi;
 import net.onelitefeather.blackhole.client.api.PunishmentTemplatesApi;
 import net.onelitefeather.blackhole.client.api.ReportApi;
+import net.onelitefeather.blackhole.client.api.DiscordLinkApi;
 import net.onelitefeather.blackhole.client.api.StaffLinkApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
+import net.onelitefeather.blackhole.client.model.DiscordLinkCodeResponse;
+import net.onelitefeather.blackhole.client.model.DiscordLinkPlayerCodeRequest;
 import net.onelitefeather.blackhole.client.model.EloProfileResponse;
 import net.onelitefeather.blackhole.client.model.EvidenceCreateRequest;
 import net.onelitefeather.blackhole.client.model.Pageable;
@@ -50,6 +53,7 @@ public final class HttpBackendGateway implements BackendGateway {
     private final EvidenceApi evidenceApi;
     private final StaffLinkApi staffLinkApi;
     private final ReportApi reportApi;
+    private final DiscordLinkApi discordLinkApi;
     private final CachedTemplates cachedTemplates;
     private final Clock clock;
 
@@ -61,6 +65,7 @@ public final class HttpBackendGateway implements BackendGateway {
         this.evidenceApi = new EvidenceApi(client);
         this.staffLinkApi = new StaffLinkApi(client);
         this.reportApi = new ReportApi(client);
+        this.discordLinkApi = new DiscordLinkApi(client);
         this.cachedTemplates = cachedTemplates;
         this.clock = clock;
     }
@@ -166,5 +171,10 @@ public final class HttpBackendGateway implements BackendGateway {
     @Override
     public void acknowledgeReportFeedback(UUID identifier) throws ApiException {
         this.reportApi.acknowledgeReportFeedback(identifier);
+    }
+
+    @Override
+    public DiscordLinkCodeResponse issueDiscordLinkCode(String owner) throws ApiException {
+        return this.discordLinkApi.issuePlayerDiscordLinkCode(new DiscordLinkPlayerCodeRequest().owner(owner));
     }
 }

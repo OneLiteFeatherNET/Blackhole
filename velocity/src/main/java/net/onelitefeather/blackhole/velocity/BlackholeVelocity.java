@@ -19,6 +19,7 @@ import net.onelitefeather.blackhole.velocity.auth.TokenSource;
 import net.onelitefeather.blackhole.velocity.command.BackendAuthGuard;
 import net.onelitefeather.blackhole.velocity.config.AuthConfig;
 import net.onelitefeather.blackhole.velocity.command.CommandErrorHandlers;
+import net.onelitefeather.blackhole.velocity.command.DiscordCommand;
 import net.onelitefeather.blackhole.velocity.command.LinkCommand;
 import net.onelitefeather.blackhole.velocity.command.PardonCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishCommand;
@@ -198,6 +199,7 @@ public class BlackholeVelocity {
         annotationParser.parse(childInjector.getInstance(EloCommand.class));
         annotationParser.parse(childInjector.getInstance(LinkCommand.class));
         annotationParser.parse(childInjector.getInstance(ReportCommand.class));
+        annotationParser.parse(childInjector.getInstance(DiscordCommand.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerLoginListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerChatListener.class));
         server.getEventManager().register(this, childInjector.getInstance(ReportFeedbackListener.class));

@@ -11,6 +11,7 @@ import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.velocity.component.tag.DurationTag;
 import net.onelitefeather.blackhole.velocity.punish.PunishService.RevokeOutcome;
+import net.onelitefeather.blackhole.velocity.punish.DiscordLinkService.CodeOutcome;
 import net.onelitefeather.blackhole.velocity.punish.StaffLinkService.LinkOutcome;
 import net.onelitefeather.blackhole.velocity.punish.StaffLinkService.WhoamiOutcome;
 import net.onelitefeather.blackhole.velocity.punish.TargetNotFoundException;
@@ -228,6 +229,15 @@ public final class StaffMessages {
                     : Component.translatable("staff.link.success", Component.text(linked.displayName()));
             case LinkOutcome.InvalidCode ignored -> Component.translatable("staff.link.invalid");
             case LinkOutcome.Failed ignored -> Component.translatable("staff.link.failed");
+        };
+    }
+
+    /** The answer to {@code /blackhole discord}: the code and how to use it. */
+    public static @NotNull Component discordCode(@NotNull CodeOutcome outcome) {
+        return switch (outcome) {
+            case CodeOutcome.Issued issued -> Component.translatable("discord.link.code",
+                    Component.text(issued.code()), Component.text(issued.minutes()));
+            case CodeOutcome.Failed ignored -> Component.translatable("discord.link.failed");
         };
     }
 
