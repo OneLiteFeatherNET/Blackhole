@@ -63,6 +63,12 @@ public class BlackholeConfig {
     private AuthConfig auth;
 
     /**
+     * The optional CloudNet integration. Absent in configs written before this setting existed,
+     * which {@link #getCloudnet()} treats as {@code auto}.
+     */
+    private CloudNetConfig cloudnet;
+
+    /**
      * Creates a new configuration with default values.
      */
     public BlackholeConfig() {
@@ -74,6 +80,14 @@ public class BlackholeConfig {
         this.timeZone = ZoneId.systemDefault().getId();
         this.evidence = new EvidenceConfig();
         this.auth = new AuthConfig();
+        this.cloudnet = new CloudNetConfig();
+    }
+
+    /**
+     * @return the CloudNet integration settings; {@code auto} for configs written before they existed
+     */
+    public @NotNull CloudNetConfig getCloudnet() {
+        return cloudnet == null ? new CloudNetConfig() : cloudnet;
     }
 
     /**

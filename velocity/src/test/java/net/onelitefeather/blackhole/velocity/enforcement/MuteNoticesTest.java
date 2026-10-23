@@ -65,7 +65,9 @@ class MuteNoticesTest {
                     throw new AssertionError("a mute sync must not touch the proxy: " + method.getName());
                 });
         EnforcementActions actions = new EnforcementActions(
-                proxy, TestData.standardRegistry(), null, new BlackholeConfig(), clock, screens());
+                proxy, TestData.standardRegistry(), null, new BlackholeConfig(), clock, screens(),
+                new net.onelitefeather.blackhole.velocity.cloudnet.ServerResolver(
+                        new net.onelitefeather.blackhole.velocity.cloudnet.NoCloudNetView(), TestData.standardRegistry(), message -> {}));
         return new PunishmentSyncHandler(mirror, actions);
     }
 

@@ -1,10 +1,11 @@
 package net.onelitefeather.blackhole.velocity.enforcement;
 
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
+import net.onelitefeather.blackhole.velocity.cloudnet.ServerFacts;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.section.SectionInfo;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
-import net.onelitefeather.blackhole.velocity.section.ServerPatterns;
+import net.onelitefeather.blackhole.velocity.section.ServerTargets;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -53,17 +54,19 @@ public final class Enforcement {
     }
 
     /**
-     * @return the active punishment, in a SERVER section with a pattern matching {@code serverName},
-     * that denies connecting to that server
+     * @param facts what CloudNet knows about the server, empty if nothing; CloudNet sections cover nothing then
+     * @return the active punishment, in a SERVER section that covers {@code serverName}, that denies
+     * connecting to that server
      */
     public static Optional<PunishmentSyncMessage> serverBan(
-            Collection<PunishmentSyncMessage> active, SectionRegistry sections, String serverName, long nowMillis
+            Collection<PunishmentSyncMessage> active, SectionRegistry sections, String serverName,
+            Optional<ServerFacts> facts, long nowMillis
     ) {
         return active.stream()
                 .filter(message -> message.isActiveAt(nowMillis))
                 .filter(message -> kindOf(message, sections).filter(kind -> kind == EnforcementKind.SERVER).isPresent())
                 .filter(message -> sections.find(message.section())
-                        .map(section -> ServerPatterns.matchesAny(section.servers(), serverName))
+                        .map(section -> ServerTargets.covers(section, serverName, facts))
                         .orElse(false))
                 .findFirst();
     }
@@ -71,8 +74,10 @@ public final class Enforcement {
     /**
      * Whether a newly announced SERVER punishment covers the server the player is on right now.
      */
-    public static boolean coversServer(PunishmentSyncMessage message, SectionRegistry sections, String serverName, long nowMillis) {
-        return serverBan(java.util.List.of(message), sections, serverName, nowMillis).isPresent();
+    public static boolean coversServer(
+            PunishmentSyncMessage message, SectionRegistry sections, String serverName, Optional<ServerFacts> facts, long nowMillis
+    ) {
+        return serverBan(java.util.List.of(message), sections, serverName, facts, nowMillis).isPresent();
     }
 
     private static Optional<PunishmentSyncMessage> first(
