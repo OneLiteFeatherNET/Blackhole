@@ -35,6 +35,13 @@ public final class CaseDrafts {
                 "revoked:" + row.identifier());
     }
 
+    /** {@code punishment.retemplated}: an imported punishment was linked to a template; once per punishment and template. */
+    public static CaseEventDraft retemplated(String punishmentIdentifier, String templateId, @Nullable String fromTemplateId,
+                                             CaseActor actor, CaseEventOrigin origin, long occurredAt) {
+        return new CaseEventDraft(punishmentIdentifier, new CaseEventPayload.Retemplated(templateId, fromTemplateId), occurredAt, origin,
+                actor, templateId, "retemplated:" + punishmentIdentifier + ":" + templateId);
+    }
+
     /** {@code punishment.expired}, always by the system. */
     public static CaseEventDraft expired(PunishmentRow row, long expiredAt, CaseEventOrigin origin, long occurredAt) {
         return new CaseEventDraft(row.identifier(), new CaseEventPayload.Expired(expiredAt), occurredAt, origin,

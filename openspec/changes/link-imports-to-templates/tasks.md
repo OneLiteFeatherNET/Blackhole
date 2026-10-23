@@ -13,11 +13,11 @@ fetch and no sleeps).
 
 ## 2. Re-template imported punishments (PR 2, `feat(punishment)`)
 
-- [ ] 2.1 Failing tests first: listing groups, retemplate by reason and by identifiers, idempotency, no score change, MUTE rejection, section mismatch skipped, case event with the token's actor, mirror event, role matrix
-- [ ] 2.2 `punishment.retemplated` payload, draft and `CaseTimeline.retemplated`
-- [ ] 2.3 `ImportedPunishmentService`, controller and `*Api`, matrix row in `RouteCoverageIntegrationTest`
-- [ ] 2.4 Regenerate the client spec (next free number, bump `inputSpec`, web `generate:api`, docs test, `BlackholeApplication`)
-- [ ] 2.5 Open the pull request titled `feat(punishment): re-template imported punishments`
+- [x] 2.1 Failing tests first: listing groups, retemplate by reason and by identifiers, idempotency, no score change, MUTE rejection, not-an-import and unknown ids skipped, never overwriting another template, case event with the token's actor, role matrix
+- [x] 2.2 `punishment.retemplated` payload, draft and `CaseTimeline.retemplated`
+- [x] 2.3 `ImportedPunishmentService`, controller and `*Api`, matrix row in `RouteCoverageIntegrationTest`
+- [x] 2.4 Regenerate the client spec (next free number, bump `inputSpec`, web `generate:api`, docs test, `BlackholeApplication`)
+- [x] 2.5 Open the pull request titled `feat(punishment): re-template imported punishments`
 
 ## 3. Admin UI (PR 3, `feat(web)`)
 

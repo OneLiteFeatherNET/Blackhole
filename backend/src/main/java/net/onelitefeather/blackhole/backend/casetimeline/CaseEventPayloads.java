@@ -56,6 +56,8 @@ public final class CaseEventPayloads {
                         flag(body, "permanent"), flag(body, "escalated"), text(body, "templateId"), number(body, "expiresAt"));
                 case CaseEventPayload.REVOKED -> new CaseEventPayload.Revoked(flag(body, "approximate"));
                 case CaseEventPayload.LIFTED -> new CaseEventPayload.Lifted(text(body, "appealId"), flag(body, "approximate"));
+                case CaseEventPayload.RETEMPLATED -> new CaseEventPayload.Retemplated(
+                        required(text(body, "templateId")), text(body, "fromTemplateId"));
                 case CaseEventPayload.EXPIRED -> new CaseEventPayload.Expired(required(number(body, "expiredAt")));
                 case CaseEventPayload.EVIDENCE_ATTACHED -> new CaseEventPayload.EvidenceAttached(
                         required(text(body, "evidenceId")), text(body, "kind"), text(body, "sourceSystem"));

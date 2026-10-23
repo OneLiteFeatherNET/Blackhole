@@ -21,6 +21,8 @@ class CaseEventPayloadsTest {
                 new CaseEventPayload.Revoked(false),
                 new CaseEventPayload.Revoked(true),
                 new CaseEventPayload.Lifted("appeal-1", false),
+                new CaseEventPayload.Retemplated("tpl-2", null),
+                new CaseEventPayload.Retemplated("tpl-2", "tpl-1"),
                 new CaseEventPayload.Expired(2_000L),
                 new CaseEventPayload.EvidenceAttached("ev-1", "ANTICHEAT", "grim"),
                 new CaseEventPayload.EvidenceLifted("ev-1", "appeal-1", true),

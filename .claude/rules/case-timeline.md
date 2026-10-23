@@ -19,7 +19,7 @@ SQL keyword).
   failure is logged and counted in `blackhole.case.record.failures`; it never reaches the caller. No
   `@Transactional`. Every lifecycle recording has a deterministic dedupe key (`applied:<id>`,
   `revoked:<id>`, `lifted:<id>`, `expired:<id>`, `appeal.filed:<id>`, `appeal.decided:<id>`,
-  `evidence.attached|lifted|revoked:<id>`), so a retry, the reconciler or a replay inserts nothing twice.
+  `evidence.attached|lifted|revoked:<id>`, `retemplated:<id>:<template>`), so a retry, the reconciler or a replay inserts nothing twice.
 - **Case-own changes are one statement.** A change of case state that is itself history (`JdbcCaseWriter`,
   today only the reopen of a `CLOSED` case by a filed appeal) is a single data-modifying CTE, as
   `JdbcEloScoreWriter` is for scores.

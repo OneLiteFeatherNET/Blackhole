@@ -22,6 +22,9 @@ public interface PunishmentRepository extends PageableRepository<PunishmentEntit
      */
     boolean existsByTemplate_Identifier(UUID templateIdentifier);
 
+    /** The punishments of one source (such as the vanilla import identity) that are linked to no template. */
+    List<PunishmentEntity> findBySourceAndTemplateIsNull(UUID source);
+
     /**
      * How many of the owner's punishments in an escalation group were created at or after
      * {@code createdSince} and were not lifted (revoked, or lifted by a granted appeal). Expired

@@ -10,6 +10,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import net.onelitefeather.blackhole.backend.database.converter.MapStringObjectConverter;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishEntryDTO;
+import net.onelitefeather.phoca.metadata.Metadata;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -169,6 +170,16 @@ public class PunishmentEntity {
         this.stepIndex = stepIndex;
         this.stepCount = stepCount;
         this.eloCost = eloCost;
+    }
+
+    /**
+     * Links the punishment to a template after the fact (an imported ban that had none). The original
+     * reason is kept for staff as {@code importedReason}; nothing about the duration, section or escalation changes.
+     */
+    public void retemplate(PunishmentTemplateEntity template, String importedReason, long now) {
+        this.template = template;
+        this.metaData.putIfAbsent("importedReason", importedReason);
+        this.metaData.put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
     }
 
     public String getIdentifier() {
