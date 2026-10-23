@@ -9,6 +9,7 @@ import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.EloChatSignalRequest;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
+import net.onelitefeather.blackhole.velocity.enforcement.MuteChatDenial;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.evidence.EvidenceCounts;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
@@ -21,7 +22,9 @@ import java.util.Optional;
 
 /**
  * Denies the chat messages of muted players (an active punishment in a MUTE section) and forwards
- * the others to the backend for toxicity scoring.
+ * the others to the backend for toxicity scoring. Signed messages are only denied when
+ * SignedVelocity is present (see {@link MuteChatDenial}); otherwise the muted player is told and
+ * the message is delivered, because cancelling it would disconnect the player.
  */
 public final class PlayerChatListener {
 
@@ -31,16 +34,18 @@ public final class PlayerChatListener {
     private final PunishmentState state;
     private final PunishmentScreens screens;
     private final EvidenceCounts evidenceCounts;
+    private final MuteChatDenial denial;
 
     @Inject
     public PlayerChatListener(
             @NotNull ApiClient blackholeClient, @NotNull PunishmentState state, @NotNull PunishmentScreens screens,
-            @NotNull EvidenceCounts evidenceCounts
+            @NotNull EvidenceCounts evidenceCounts, @NotNull MuteChatDenial denial
     ) {
         this.eloApi = new EloApi(blackholeClient);
         this.state = state;
         this.screens = screens;
         this.evidenceCounts = evidenceCounts;
+        this.denial = denial;
     }
 
     @Subscribe
@@ -58,7 +63,7 @@ public final class PlayerChatListener {
             return;
         }
         if (mute.isPresent()) {
-            event.setResult(PlayerChatEvent.ChatResult.denied());
+            this.denial.deny(event, player.getProtocolVersion());
             long evidence = this.evidenceCounts.of(mute.get().punishmentIdentifier()).orElse(0);
             player.sendMessage(this.screens.screen(
                     mute.get(), PunishmentScreens.localeOf(player), PunishmentScreens.Surface.CHAT, false, evidence));

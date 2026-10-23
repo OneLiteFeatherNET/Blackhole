@@ -305,6 +305,29 @@ should:
 Evidence refers to players only by hash or per-evidence alias; raw UUIDs and IP addresses in payloads
 are rejected, and IP addresses in chat text are redacted.
 
+### Muting and signed chat (SignedVelocity)
+
+Since Minecraft 1.19.1 chat is signed, and Velocity disconnects a player whose signed message a
+plugin cancels ("A plugin tried to cancel a signed chat message"). To block a muted player's chat
+without that, the proxy plugin works together with
+[SignedVelocity](https://github.com/4drian3d/SignedVelocity) by 4drian3d. It has no API to call:
+Blackhole denies the chat event as usual, and SignedVelocity, which runs after all other handlers,
+turns that into an "allowed" message plus a cancel order that its backend plugin carries out.
+
+1. Install `SignedVelocity-Proxy` in the Velocity `plugins` folder.
+2. Install `SignedVelocity-Paper` in the `plugins` folder of **every** backend server (Sponge,
+   Fabric and Minestom builds exist as well). A server without it would still show the message.
+3. Restart the proxy and the servers.
+
+Required versions (SignedVelocity 1.5.0): Java 21+, Velocity 3.4.0+, Paper 26.1.2+ on the backend.
+Releases: <https://github.com/4drian3d/SignedVelocity/releases>.
+
+SignedVelocity is an optional dependency of Blackhole. Without it the proxy logs one warning at
+startup and never cancels a signed message (so nobody is kicked): a muted player is still shown the
+mute notice, but their message is delivered. Messages from clients older than 1.19.1 are unsigned
+and are always denied directly. Blackhole does not block commands for muted or banned players, so
+signed commands need no handling.
+
 ### Chat capture on the proxy (optional)
 
 The Velocity plugin can attach the punished player's recent chat as `CHAT_LOG` evidence, so staff do

@@ -5,6 +5,7 @@ import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.enforcement.EnforcementActions;
+import net.onelitefeather.blackhole.velocity.enforcement.MuteChatDenial;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
@@ -36,6 +37,7 @@ import java.time.Clock;
  * @param screens     builds the texts punished players see
  * @param chatBuffer  the optional buffer of recent public chat
  * @param evidenceCounts the evidence count shown on denial screens
+ * @param chatDenial  whether muted signed chat may be denied (SignedVelocity present)
  */
 public record BlackholeClientModule(
         @NotNull ApiClient apiClient,
@@ -51,7 +53,8 @@ public record BlackholeClientModule(
         @NotNull Clock clock,
         @NotNull PunishmentScreens screens,
         @NotNull ChatBuffer chatBuffer,
-        @NotNull EvidenceCounts evidenceCounts
+        @NotNull EvidenceCounts evidenceCounts,
+        @NotNull MuteChatDenial chatDenial
 ) {
 
     /**
@@ -75,6 +78,7 @@ public record BlackholeClientModule(
                 bind(PunishmentScreens.class).toInstance(screens);
                 bind(ChatBuffer.class).toInstance(chatBuffer);
                 bind(EvidenceCounts.class).toInstance(evidenceCounts);
+                bind(MuteChatDenial.class).toInstance(chatDenial);
             }
         };
     }
