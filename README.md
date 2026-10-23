@@ -73,13 +73,54 @@ The full route matrix is in `openspec/changes/add-team-sso/design.md` and enforc
 `recorded_by_oid`; the former client-supplied `source`, `resolvedBy` and `reviewerId` fields are gone
 (an old client that still sends them is ignored). Rows written before this release have no
 `recorded_by_oid` and are shown as unverified. The proxy may send `onBehalfOf` for actions that
-staff took in game. Staff cannot review their own punishment.
+staff took in game; see [Linking a Minecraft account](#linking-a-minecraft-account) for how an in-game
+action is traced to a person. Staff cannot review their own punishment.
 
 **Staff data and retention.** *(Pending legal confirmation.)* Stored per staff member: `oid`,
-`display_name`, timestamps only. Retention: as long as records referencing the person exist
-(punishment history is itself retained). On a leaving or erasure request an admin calls
-`POST /admin/staff-actor/{oid}/anonymize`, which nulls `display_name` (the `oid` stays; once the Entra
-account is deleted it no longer resolves to a person).
+`display_name`, the linked Minecraft account (see below) and timestamps only. Retention: as long as
+records referencing the person exist (punishment history is itself retained); a link lasts as long as
+the person is staff and ends when it is removed or the person is anonymized. On a leaving or erasure
+request an admin calls `POST /admin/staff-actor/{oid}/anonymize`, which nulls `display_name` and
+removes the person's Minecraft link (the `oid` stays; once the Entra account is deleted it no longer
+resolves to a person). The purpose of the link is accountability of moderation decisions.
+
+### Linking a Minecraft account
+
+A punishment issued in game by `/ban` and the like reaches the backend from the proxy, which only
+knows a Minecraft UUID. Staff link that UUID to their sign-in once, so that the action is attributed to
+the person and not to a bare UUID.
+
+1. Sign in to the admin UI, open **Konto** (en: *Account*) in the top bar and choose **Minecraft-Konto
+   verknüpfen** (*Link Minecraft account*). The panel shows a code of 8 characters (for example
+   `ABCD-EFGH`) with a countdown.
+2. In game, with the account to link, run `/blackhole link <code>`. A code is single use and valid for
+   `BLACKHOLE_STAFF_LINK_TTL` (default `PT5M`); issuing a new one invalidates the previous one.
+3. Check with `/blackhole whoami`, which names the staff account the Minecraft account is linked to.
+
+Both commands are player-only and need the Velocity permission `blackhole.link`.
+
+**Operator rule: grant `blackhole.link` to the LuckPerms groups of staff only**, never to a default or
+player group. The code proves that the person typing it holds the staff member's session, but the
+protection against someone else guessing a live code rests on the permission: there is deliberately no
+failed-attempt limit in the application (guessing is bounded by the 40 bits of the code and its lifetime;
+rate limiting belongs to the infrastructure). Anyone who may run the command may try codes.
+
+- One person has one Minecraft account and one account belongs to one person. Linking another account
+  replaces the old link, and the replacement is published as an event.
+- **Attribution.** From the link on, in-game punishments, reports and evidence created by that account
+  carry the person (`actor_oid`), and the punishment timeline in the UI shows the name.
+- **No backfill.** Linking does not rewrite earlier entries: the account was only proven to belong to the
+  person now, and history stays as it was recorded. Older entries keep showing the Minecraft UUID.
+- **Self-review.** A person cannot decide the appeal of a punishment they issued: the check compares the
+  reviewer with the recorded actor, with `actor_oid` and with the current link of the punishment's
+  issuer, so it also covers in-game punishments from before the link existed. Another moderator can
+  decide it.
+- **Unlinking.** Staff remove their own link in the same panel (`DELETE /staff-link/me`); an admin lists
+  all links under *Linked Minecraft accounts* (`GET /admin/staff-link`) and removes one
+  (`DELETE /admin/staff-link/{oid}`). Earlier entries keep their attribution. Anonymizing a person
+  removes the link as well.
+- The code and its hash never appear in logs or events; `staff-link.created` and `staff-link.removed`
+  carry the `oid` only.
 
 **Setup.** [docs/entra-setup.md](docs/entra-setup.md) explains the app registrations and groups and
 ships `docs/entra-setup.sh`, an idempotent Azure CLI script.
@@ -96,15 +137,16 @@ order (between steps 2 and 4 the plugin and UI cannot reach the backend):
    `BLACKHOLE_AUTH_ROLE_ADMIN`, `_MODERATOR`, `_VIEWER`, `_METRICS` (group object ids). The defaults
    point at a local mock server and are refused outside dev. Optional: `BLACKHOLE_AUTH_ROLES_CLAIM_HUMAN`
    (`groups`), `BLACKHOLE_AUTH_ROLES_CLAIM_MACHINE` (`roles`), `BLACKHOLE_AUTH_MACHINE_ROLE_PROXY`,
-   `BLACKHOLE_AUTH_MACHINE_ROLE_METRICS`, `BLACKHOLE_DOCS_ENABLED` (Swagger UI, default `false`). The
-   database migration `V9` runs on start and keeps old actor values.
+   `BLACKHOLE_AUTH_MACHINE_ROLE_METRICS`, `BLACKHOLE_DOCS_ENABLED` (Swagger UI, default `false`), `BLACKHOLE_STAFF_LINK_TTL` (link code lifetime,
+   default `PT5M`). The database migrations (`V9`, `V10`) run on start and keeps old actor values.
 3. **Velocity plugin.** Add the `auth` object to `config.json`:
    `{"auth": {"tenantId": "", "clientId": "", "clientSecret": "", "scope": "api://<api-client-id>/.default"}}`.
    Each key can be overridden by `BLACKHOLE_TENANT_ID`, `BLACKHOLE_CLIENT_ID`,
    `BLACKHOLE_CLIENT_SECRET` and `BLACKHOLE_AUTH_SCOPE`, which win over the file; prefer the environment
    for the secret. `auth.tokenUrl` (`BLACKHOLE_TOKEN_URL`) overrides the token endpoint for a mock server.
    With incomplete credentials the plugin logs an error and keeps enforcing from Redis, but backend-bound
-   commands are refused.
+   commands are refused. Grant the permission `blackhole.link` to the staff LuckPerms groups so that staff
+   can [link their Minecraft account](#linking-a-minecraft-account); grant it to nobody else.
 4. **Admin UI.** Set `BLACKHOLE_UI_OIDC_AUTHORITY`, `BLACKHOLE_UI_OIDC_CLIENT_ID` and
    `BLACKHOLE_UI_API_SCOPE` on the web container (required; it refuses to start without them) and drop
    `BLACKHOLE_UI_SOURCE` and `BLACKHOLE_UI_REVIEWER`.

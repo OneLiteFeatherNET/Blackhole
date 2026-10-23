@@ -19,7 +19,14 @@ paths:
   or one that differs from the matrix in `openspec/changes/add-team-sso/design.md` (decision 3).
 - Actor: take it from `ActorResolver` (the token's `oid`), write it as `recorded_by_oid`. Never read a
   client-supplied `source`/`resolvedBy`/`reviewerId`; only `PROXY` may send `onBehalfOf`. Email and UPN
-  claims are never read.
+  claims are never read. For in-game actions the proxy sends `onBehalfOf` (a Minecraft UUID); the
+  backend resolves it to the person through the live `staff_link` and writes `actor_oid` next to the
+  UUID (null when unlinked; no backfill). Appeal self-review compares the reviewer's `oid` with
+  `recorded_by_oid`, `actor_oid`, and the current link of `source`.
+- Staff link (`security/` `StaffLink*`): `POST /staff-link/code` needs a human token; `confirm` and
+  `by-minecraft` are `PROXY`-only; the code is stored hashed and never logged. No failed-attempt cap in
+  the app on purpose (infra rate limits; `blackhole.link` goes to staff groups only). `anonymize` removes
+  the link. The route matrix lives in `openspec/changes/add-team-sso/design.md`.
 - Config is `blackhole.security.*` in `application.yml` (`BLACKHOLE_AUTH_*`). The defaults point at the
   mock OIDC server in `docker/docker-compose.yml`; a non-dev context with an `http`/localhost issuer
   refuses to start.

@@ -26,9 +26,9 @@
 
 ## 4. Documentation (PR 4, based on PR 3)
 
-- [ ] 4.1 Document linking in `README.md` (flow, permission nodes, the operator rule to grant `blackhole.link` only to staff groups, retention statement still pending legal confirmation, the link as staff personal data) and the operator guide; verify the retention paragraph still says it is pending
-- [ ] 4.2 Update `.claude/rules/security.md` and the matrix reference for the new routes; verify `openspec validate --all --strict`
+- [x] 4.1 Document linking in `README.md` (flow, permission nodes, the operator rule to grant `blackhole.link` only to staff groups, retention statement still pending legal confirmation, the link as staff personal data) and the operator guide; verify the retention paragraph still says it is pending
+- [x] 4.2 Update `.claude/rules/security.md` and the matrix reference for the new routes; verify `openspec validate --all --strict`
 
 ## 5. Pull requests
 
-- [ ] 5.1 Open the stacked pull requests, each based on the previous branch, with the titles `feat(auth): issue and confirm staff account link codes`, `feat(velocity): link a staff minecraft account with a code`, `feat(web): link the minecraft account from the admin ui` and `docs(auth): document staff account linking`; verify CI is green on each and commitlint accepts the titles
+- [x] 5.1 Open the stacked pull requests, each based on the previous branch, with the titles `feat(auth): issue and confirm staff account link codes`, `feat(velocity): link a staff minecraft account with a code`, `feat(web): link the minecraft account from the admin ui` and `docs(auth): document staff account linking`; verify CI is green on each and commitlint accepts the titles
