@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.velocity;
 
+import net.onelitefeather.blackhole.velocity.component.theme.BlackholeTheme;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -29,6 +30,14 @@ class I18nBundlesTest {
             "punishment.success.unban", "punishment.success.unmute",
             "punishment.error.unban", "punishment.error.unmute",
             "punishment.error.unban.none_active", "punishment.error.unmute.none_active");
+
+    /** Keys no code reads. {@code target_not_online} predates the unused-key check and is reworked with the target errors. */
+    private static final Set<String> UNREFERENCED_KEYS = Set.of("target_not_online");
+
+    /** A tag of the style; the name after {@code bh:} must be one the theme defines. */
+    private static final Pattern THEME_TAG = Pattern.compile("</?bh:([a-zA-Z0-9_]*)>");
+
+    private static final Pattern STRING_LITERAL = Pattern.compile("\"([a-z0-9_.]+)\"");
 
     private static final Pattern LITERAL_KEY = Pattern.compile("translatable\\(\\s*\"([a-z0-9_.]+)\"\\s*[),]");
 
@@ -90,5 +99,57 @@ class I18nBundlesTest {
             Set<String> inGerman = new TreeSet<>(placeholder.matcher(german.getProperty(key, "")).results().map(r -> r.group()).toList());
             assertEquals(inEnglish, inGerman, "placeholders of " + key + " differ between the languages");
         }
+    }
+
+    /** The names after {@code bh:} that a text uses but the theme does not define. */
+    private static Set<String> unknownThemeTags(String text) {
+        Set<String> unknown = new TreeSet<>();
+        Matcher matcher = THEME_TAG.matcher(text);
+        while (matcher.find()) {
+            if (!BlackholeTheme.tagNames().contains(matcher.group(1))) {
+                unknown.add(matcher.group(1));
+            }
+        }
+        return unknown;
+    }
+
+    @Test
+    void everyThemeTagInTheTextsIsKnown() throws IOException {
+        for (String resource : new String[]{"blackhole_en.properties", "blackhole_de.properties"}) {
+            Properties properties = load(resource);
+            for (String key : properties.stringPropertyNames()) {
+                assertTrue(unknownThemeTags(properties.getProperty(key)).isEmpty(),
+                        resource + " uses an unknown bh tag in " + key + ": " + unknownThemeTags(properties.getProperty(key)));
+            }
+        }
+    }
+
+    @Test
+    void anUnknownThemeTagIsDetected() {
+        assertEquals(Set.of("bogus"), unknownThemeTags("<bh:ok><bh:bogus>x</bh:bogus> <bh:player>y</bh:player>"),
+                "the check above must fail for a tag the theme does not define");
+    }
+
+    @Test
+    void everyKeyInTheBundlesIsUsedByTheCode() throws IOException {
+        Set<String> literals = new TreeSet<>(COMPOSED_KEYS);
+        try (Stream<Path> files = Files.walk(Path.of("src", "main", "java"))) {
+            for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
+                Matcher matcher = STRING_LITERAL.matcher(Files.readString(file));
+                while (matcher.find()) {
+                    literals.add(matcher.group(1));
+                }
+            }
+        }
+        // A key is used if the code names it or names the start of it ("duration.day" + ".one").
+        Set<String> unused = new TreeSet<>();
+        for (String key : load("blackhole_en.properties").stringPropertyNames()) {
+            boolean used = literals.stream().anyMatch(literal -> key.equals(literal) || (literal.contains(".") && key.startsWith(literal)));
+            if (!used && !UNREFERENCED_KEYS.contains(key)) {
+                unused.add(key);
+            }
+        }
+
+        assertTrue(unused.isEmpty(), "keys in the bundles that no code uses: " + unused);
     }
 }
