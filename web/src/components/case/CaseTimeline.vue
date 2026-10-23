@@ -160,8 +160,10 @@ defineExpose({ reload })
       <p v-if="items.length === 0" class="text-body-large text-on-surface-variant" data-testid="timeline-empty">{{ t('case.timeline.empty') }}</p>
       <ol v-else ref="list" tabindex="-1" class="flex flex-col gap-3 outline-none" :aria-busy="loadingMore ? 'true' : 'false'">
         <CaseEventEntry
-          v-for="event in items"
+          v-for="(event, index) in items"
           :key="event.seq"
+          class="md-enter"
+          :style="{ '--md-i': index % PAGE_SIZE }"
           :event="event"
           :versions="versionsOf(event)"
           :can-edit="canEdit(event)"

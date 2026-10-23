@@ -8,7 +8,7 @@ withDefaults(defineProps<{ label: string; selected?: boolean }>(), { selected: u
   <button
     type="button"
     :aria-pressed="selected === undefined ? undefined : selected ? 'true' : 'false'"
-    class="md-state inline-flex h-8 items-center gap-2 rounded-md-sm border px-3 text-label-large whitespace-nowrap transition-colors"
+    class="md-state inline-flex h-8 items-center gap-2 rounded-md-sm border px-3 text-label-large whitespace-nowrap md-colors"
     :class="
       selected
         ? 'border-transparent bg-secondary-container text-on-secondary-container'

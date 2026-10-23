@@ -43,7 +43,7 @@ const valueText = computed(() =>
         :data-zone="zone"
         class="h-3 overflow-hidden rounded-md-full bg-surface-container-highest"
       >
-        <div class="h-full rounded-md-full transition-[width] duration-300" :class="fillClass" :style="{ width: `${scale.percent(score)}%` }" />
+        <div class="h-full rounded-md-full md-width" :class="fillClass" :style="{ width: `${scale.percent(score)}%` }" />
       </div>
       <!-- Threshold ticks; the numbers are repeated as text below, so the ticks are decorative. -->
       <span

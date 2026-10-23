@@ -12,7 +12,7 @@ const { t } = useI18n()
 
 <template>
   <ul class="grid gap-4 md:grid-cols-2">
-    <li v-for="entry in scores" :key="entry.section">
+    <li v-for="(entry, index) in scores" :key="entry.section" class="md-enter" :style="{ '--md-i': index }">
       <MdCard variant="outlined" class="h-full" :data-testid="`score-${entry.section}`">
         <div class="mb-3 flex items-start justify-between gap-2">
           <div class="min-w-0">

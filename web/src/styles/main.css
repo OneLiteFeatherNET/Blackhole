@@ -112,6 +112,155 @@
 }
 
 /*
+ * MD3 motion tokens. The emphasized curve is a path in the spec; cubic-bezier(0.3, 0, 0, 1) is its CSS
+ * approximation. `--md-motion-shift` and `--md-motion-scale` say how far content travels or grows;
+ * reduced motion sets them to nothing, so only the opacity fade is left.
+ */
+:root {
+  --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-sys-motion-easing-emphasized: cubic-bezier(0.3, 0, 0, 1);
+  --md-sys-motion-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --md-sys-motion-easing-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+
+  --md-sys-motion-duration-short1: 50ms;
+  --md-sys-motion-duration-short2: 100ms;
+  --md-sys-motion-duration-short3: 150ms;
+  --md-sys-motion-duration-short4: 200ms;
+  --md-sys-motion-duration-medium1: 250ms;
+  --md-sys-motion-duration-medium2: 300ms;
+  --md-sys-motion-duration-medium3: 350ms;
+  --md-sys-motion-duration-medium4: 400ms;
+  --md-sys-motion-duration-long1: 450ms;
+  --md-sys-motion-duration-long2: 500ms;
+
+  --md-motion-shift: 16px;
+  --md-motion-scale: 0.9;
+  --md-motion-stagger: 30ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --md-motion-shift: 0px;
+    --md-motion-scale: 1;
+    --md-motion-stagger: 0ms;
+    --md-sys-motion-duration-medium1: var(--md-sys-motion-duration-short2);
+    --md-sys-motion-duration-medium2: var(--md-sys-motion-duration-short2);
+    --md-sys-motion-duration-medium3: var(--md-sys-motion-duration-short2);
+    --md-sys-motion-duration-medium4: var(--md-sys-motion-duration-short2);
+    --md-sys-motion-duration-long1: var(--md-sys-motion-duration-short2);
+    --md-sys-motion-duration-long2: var(--md-sys-motion-duration-short2);
+  }
+}
+
+@keyframes md-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--md-motion-shift));
+  }
+}
+
+@keyframes md-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Content that is swapped in place, e.g. the navigation when it folds into a rail. */
+@utility md-fade-in {
+  animation: md-fade-in var(--md-sys-motion-duration-medium1) var(--md-sys-motion-easing-standard) both;
+}
+
+/*
+ * Vue <Transition> classes (see MdTransition). Only opacity and transform change, so nothing
+ * re-layouts. `md-fade` is also what every variant falls back to under reduced motion.
+ */
+.md-fade-enter-active,
+.md-fade-through-enter-active,
+.md-scale-enter-active,
+.md-menu-enter-active,
+.md-snackbar-enter-active,
+.md-badge-enter-active,
+.md-modal-enter-active {
+  transition:
+    opacity var(--md-sys-motion-duration-medium1) var(--md-sys-motion-easing-emphasized-decelerate),
+    transform var(--md-sys-motion-duration-medium1) var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+.md-fade-leave-active,
+.md-fade-through-leave-active,
+.md-scale-leave-active,
+.md-menu-leave-active,
+.md-snackbar-leave-active,
+.md-badge-leave-active,
+.md-modal-leave-active {
+  pointer-events: none;
+  transition:
+    opacity var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-emphasized-accelerate),
+    transform var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-emphasized-accelerate);
+}
+
+.md-fade-enter-from,
+.md-fade-leave-to,
+.md-fade-through-enter-from,
+.md-fade-through-leave-to,
+.md-scale-enter-from,
+.md-scale-leave-to,
+.md-menu-enter-from,
+.md-menu-leave-to,
+.md-snackbar-enter-from,
+.md-snackbar-leave-to,
+.md-badge-enter-from,
+.md-badge-leave-to,
+.md-modal-enter-from,
+.md-modal-leave-to {
+  opacity: 0;
+}
+
+/* Fade through: the old content fades out, the new content fades in while it settles up from below. */
+.md-fade-through-enter-from {
+  transform: translateY(calc(var(--md-motion-shift) / 2));
+}
+
+/* Dialog: scrim and panel fade together, the panel scales up from the center. */
+.md-scale-enter-from [role="dialog"],
+.md-scale-leave-to [role="dialog"] {
+  transform: scale(var(--md-motion-scale));
+}
+
+/* Menus grow from their anchor; the anchor side is set with `--md-menu-origin`. */
+.md-menu-enter-from,
+.md-menu-leave-to {
+  transform: scale(1, var(--md-motion-scale));
+  transform-origin: var(--md-menu-origin, top);
+}
+
+.md-snackbar-enter-from,
+.md-snackbar-leave-to {
+  transform: translateY(var(--md-motion-shift));
+}
+
+.md-badge-enter-from,
+.md-badge-leave-to {
+  transform: scale(var(--md-motion-scale));
+}
+
+/* Modal navigation drawer: the scrim fades with the root, the panel slides in from the start edge. */
+.md-modal-enter-active nav,
+.md-scale-enter-active [role="dialog"] {
+  transition: transform var(--md-sys-motion-duration-medium1) var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+.md-modal-leave-active nav,
+.md-scale-leave-active [role="dialog"] {
+  transition: transform var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-emphasized-accelerate);
+}
+
+.md-modal-enter-from nav,
+.md-modal-leave-to nav {
+  transform: translateX(-100%);
+}
+
+/*
  * MD3 state layer: a tint in the element's text color above its background, below its content.
  * Hover 8%, focus and press 12%. Also draws the visible focus ring for keyboard users.
  */
@@ -129,21 +278,48 @@
     background-color: currentColor;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 150ms ease-out;
+    transition: opacity var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard);
   }
 
   &:hover::before {
     opacity: 0.08;
   }
 
-  &:focus-visible::before,
+  &:focus-visible::before {
+    opacity: 0.12;
+  }
+
+  /* Pressed answers at once and fades out slowly. */
   &:active::before {
     opacity: 0.12;
+    transition-duration: var(--md-sys-motion-duration-short1);
   }
 
   &:focus-visible {
     outline: 2px solid var(--md-sys-color-primary);
   }
+}
+
+@utility md-transform {
+  transition: transform var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-standard);
+}
+
+/* A bar that fills; the width of a thin bar is the one layout property animated here. */
+@utility md-width {
+  transition: width var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-standard);
+}
+
+/* Color changes of a surface, e.g. the current destination or a hovered row. */
+@utility md-colors {
+  transition:
+    background-color var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-standard),
+    color var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-standard);
+}
+
+/* A list item enters with a short fade and slide; `--md-i` (set per item) staggers it, capped at 8 steps. */
+@utility md-enter {
+  animation: md-enter var(--md-sys-motion-duration-medium1) var(--md-sys-motion-easing-emphasized-decelerate) both;
+  animation-delay: calc(min(var(--md-i, 0), 8) * var(--md-motion-stagger));
 }
 
 html,

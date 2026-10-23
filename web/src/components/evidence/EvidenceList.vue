@@ -13,7 +13,7 @@ const { t } = useI18n()
 <template>
   <p v-if="items.length === 0" class="text-body-large text-on-surface-variant" data-testid="empty">{{ t('evidence.empty') }}</p>
   <ul v-else class="flex flex-col gap-3">
-    <EvidenceItem v-for="item in items" :key="item.identifier" :item="item" @delete="emit('delete', $event)" />
+    <EvidenceItem v-for="(item, index) in items" :key="item.identifier" :item="item" class="md-enter" :style="{ '--md-i': index }" @delete="emit('delete', $event)" />
   </ul>
   <nav v-if="totalPages > 1" :aria-label="t('evidence.paging.label')" class="mt-3 flex items-center justify-end gap-2">
     <MdButton variant="text" data-testid="previous" :disabled="page <= 0" @click="emit('page', page - 1)">{{ t('evidence.paging.previous') }}</MdButton>
