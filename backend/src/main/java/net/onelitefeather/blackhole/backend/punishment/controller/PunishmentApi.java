@@ -92,6 +92,21 @@ public interface PunishmentApi {
     HttpResponse<?> findByShortId(@PathVariable String shortId);
 
     @Operation(
+            summary = "Find a punishment by Ban ID",
+            description = "Finds the punishment a Ban ID belongs to. The Ban ID is a credential, so it goes in the request body and "
+                    + "never in a URL or query. Anything that matches nothing, malformed or unknown, answers the same 404 without "
+                    + "the input in it. The response is never cacheable (Cache-Control: no-store).",
+            operationId = "findPunishmentByBanId",
+            tags = {"Punishment"}
+    )
+    @ApiResponse(responseCode = "200", description = "The punishment",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.LookupResponse.class)))
+    @ApiResponse(responseCode = "404", description = "No punishment has this Ban ID",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
+    @Post("/lookup")
+    HttpResponse<PunishmentDTO> lookup(@Body PunishmentDTO.LookupRequest request);
+
+    @Operation(
             summary = "Get all punishments",
             description = "Retrieves a paginated list of all punishment entries in the system",
             operationId = "getPunishments",

@@ -9,6 +9,7 @@ import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.ActorKind;
 import net.onelitefeather.blackhole.backend.security.StaffActorEntity;
 import net.onelitefeather.blackhole.backend.security.StaffActorRepository;
+import net.onelitefeather.blackhole.backend.support.BanIdTestBed;
 import net.onelitefeather.blackhole.backend.support.FakeCaseStore;
 import net.onelitefeather.blackhole.backend.support.InMemoryCaseEventRepository;
 import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
@@ -49,8 +50,10 @@ class CaseServiceTest {
                     .build();
     private final InMemoryRepository<StaffActorRepository, StaffActorEntity, UUID> staff =
             InMemoryRepository.<StaffActorRepository, StaffActorEntity, UUID>of(StaffActorRepository.class, StaffActorEntity::getOid).build();
+    private final BanIdTestBed banIds = new BanIdTestBed(this.punishments.repository());
     private final CaseService service = new CaseService(
-            this.punishments.repository(), this.staff.repository(), this.store, this.store, this.log, this.events, this.clock);
+            this.punishments.repository(), this.staff.repository(), this.store, this.store, this.log, this.events, this.clock,
+            this.banIds.service);
 
     private void givenPunishment(String identifier) {
         this.punishments.given(new PunishmentEntity(identifier, UUID.randomUUID(), OWNER, "network", false, 1L, null, new HashMap<>()), identifier);
@@ -129,7 +132,7 @@ class CaseServiceTest {
             }
         };
         CaseService racing = new CaseService(this.punishments.repository(), this.staff.repository(), racingReader, this.store, this.log,
-                this.events, this.clock);
+                this.events, this.clock, this.banIds.service);
 
         CaseDTO result = racing.update(ID, patch(0, CaseStatus.CLOSED, null, null, null), ALICE);
 
@@ -245,6 +248,24 @@ class CaseServiceTest {
         givenPunishment(ID);
 
         assertEquals(CaseErrorKind.VALIDATION, kindOf(this.service.addNote(ID, new CaseDTO.NoteRequest("from 203.0.113.9"), ALICE)));
+    }
+
+    @Test
+    void aNoteWithAnIssuedBanIdIsRejectedAndNothingIsStored() {
+        givenPunishment(ID);
+        String banId = this.banIds.issueFor(ID);
+
+        CaseDTO result = this.service.addNote(ID, new CaseDTO.NoteRequest("player said #" + banId), ALICE);
+
+        assertEquals(CaseErrorKind.VALIDATION, kindOf(result));
+        assertTrue(this.log.all().isEmpty(), "nothing is stored");
+    }
+
+    @Test
+    void aNoteMayNameALegacyShortId() {
+        givenPunishment(ID);
+
+        assertNotNull(addNote(ALICE, "same player as #A1B2C3D4"), "a hex short id that is no Ban ID is a normal reference");
     }
 
     @Test

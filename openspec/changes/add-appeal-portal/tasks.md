@@ -7,12 +7,12 @@ implementing is reproduced by a failing test first.
 
 ## 1. Ban ID (PR 1, `feat(appeal)`)
 
-- [ ] 1.1 Failing tests first: normalisation table, generator (alphabet, retry on collision, legacy short id rejected), HKDF/HMAC/AES round trip with the punishment id as AAD, `PiiGuard` rejects a Ban ID shape
-- [ ] 1.2 Migration `V13__ban_id.sql` (next free version): `ban_id_hash` (unique), `ban_id_enc`, `ban_id_gen`, case leak columns, partial unique index for one open appeal; migration test over representative rows (open-appeal pre-check)
-- [ ] 1.3 `BanIdService`, `BLACKHOLE_BANID_KEY` config with the start guard, issue on punishment creation, `BanIdBackfill` (idempotent, batched, gauge `blackhole.banid.missing`, `--reissue-all` for a key rotation, the v1 rotation path)
-- [ ] 1.4 `GET /punishment/{ref}/ban-id` (`MODERATOR`, `PROXY`, `no-store`); staff short-id lookup tries the Ban ID first, then the legacy key (409 behaviour unchanged)
-- [ ] 1.5 Test that logs, events and metrics of issue, reveal and lookup never contain the Ban ID
-- [ ] 1.6 Regenerate the client spec (`client/specs/blackhole-api-0.0.N.yml`, next free number, bump `inputSpec`); update `.claude/rules`; verify `./gradlew :backend:test :client:compileJava`
+- [x] 1.1 Failing tests first: normalisation table, generator (alphabet, retry on collision, legacy short id rejected), HKDF/HMAC/AES round trip with the punishment id as AAD, `PiiGuard` rejects a Ban ID shape
+- [x] 1.2 Migration `V13__ban_id.sql` (next free version): `ban_id_hash` (unique), `ban_id_enc`, `ban_id_gen`, case leak columns, partial unique index for one open appeal (existing duplicates flagged `legacy_duplicate_open`, not failed); migration test over representative rows (open-appeal pre-check)
+- [x] 1.3 `BanIdService`, `BLACKHOLE_BANID_KEY` config with the start guard, issue on punishment creation, `BanIdBackfill` (idempotent, batched, gauge `blackhole.banid.missing`, `--reissue-all` for a key rotation, the v1 rotation path)
+- [x] 1.4 `GET /punishment/{ref}/ban-id` (`MODERATOR`, `PROXY`, `no-store`); `POST /punishment/lookup` with the Ban ID in the body (`MODERATOR`, `PROXY`, uniform 404, `no-store`); the short-id route stays legacy hex only (409 behaviour unchanged), a Ban ID never goes in a URL
+- [x] 1.5 Test that logs, events and metrics of issue, reveal and lookup never contain the Ban ID
+- [x] 1.6 Regenerate the client spec (`client/specs/blackhole-api-0.0.N.yml`, next free number, bump `inputSpec`); update `.claude/rules`; verify `./gradlew :backend:test :client:compileJava`
 
 ## 2. Case conversation (PR 2, `feat(case)`)
 

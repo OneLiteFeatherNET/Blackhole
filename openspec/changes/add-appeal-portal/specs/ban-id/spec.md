@@ -72,7 +72,7 @@ The system MUST NOT write a Ban ID to any log, metric label, trace attribute, UR
 - **THEN** the response contains the Ban ID and is not cacheable
 
 ### Requirement: Legacy short ids stay for staff lookup
-The hex short id of an existing punishment SHALL remain valid for the staff short id lookup, unchanged including the 409 for an ambiguous id, and MUST NOT be accepted as a portal credential. The staff lookup SHALL also accept a Ban ID, which never yields an ambiguous result.
+The hex short id of an existing punishment SHALL remain valid for the staff short id lookup, unchanged including the 409 for an ambiguous id, and MUST NOT be accepted as a portal credential. A Ban ID MUST NOT be accepted in a URL or query, staff lookups included; staff look one up with `POST /punishment/lookup` and the Ban ID in the body (`MODERATOR`, `PROXY`), which never yields an ambiguous result, answers every miss with the same 404 that does not echo the input, and is not cacheable.
 
 #### Scenario: Legacy id at login
 - **WHEN** a player types the legacy hex short id into the portal
@@ -83,8 +83,16 @@ The hex short id of an existing punishment SHALL remain valid for the staff shor
 - **THEN** the response is HTTP 409 with the candidates as today
 
 #### Scenario: Staff look up by Ban ID
-- **WHEN** staff look up a punishment by its Ban ID
-- **THEN** exactly that punishment is returned
+- **WHEN** staff post a Ban ID to the lookup route
+- **THEN** exactly that punishment is returned and the response is `no-store`
+
+#### Scenario: Ban ID in the short id path
+- **WHEN** staff put a Ban ID into the short id route
+- **THEN** no punishment is found by it
+
+#### Scenario: Lookup miss
+- **WHEN** the posted Ban ID is unknown or malformed
+- **THEN** the response is the same HTTP 404 body in both cases and does not contain the input
 
 ### Requirement: Backfill of existing punishments
 The system SHALL issue a Ban ID to every punishment without one by an idempotent background job at application start, in batches, and expose the number still missing as the gauge `blackhole.banid.missing`. A punishment without a Ban ID MUST behave as an unknown ID at login.

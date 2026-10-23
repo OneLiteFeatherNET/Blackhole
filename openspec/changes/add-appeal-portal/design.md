@@ -46,8 +46,10 @@ admin UI stays internal; the later Discord bot plugs into the same model.
 - **Existing hex short ids (decision): keep as the legacy staff key, do not accept them at login.**
   They are 32 bits, not unique, and have been shown on screens and typed into chats and evidence
   for months, so treat them as already public. `short_id` stays as is; staff lookup by short id
-  works exactly as today (409 when ambiguous). The lookup route also accepts a Ban ID: it first
-  tries the Ban ID hash (always unique, so never 409), then the legacy key.
+  works exactly as today (409 when ambiguous) and takes legacy hex ids only. **A Ban ID never goes in
+  a URL or query, staff lookups included:** staff look one up with `POST /punishment/lookup` and the
+  Ban ID in the body (`MODERATOR`, `PROXY`). Every miss, malformed or unknown, is the same 404 without
+  the input, and the response is `no-store`. The hash is unique, so this never yields several matches.
 - **Existing punishments:** an idempotent `BanIdBackfill` job (application start, batches, only rows
   without a Ban ID) issues one to every punishment that has none. No SQL backfill is possible
   because generation needs the key. Until the job reaches a row, login for it fails like an unknown
@@ -433,10 +435,14 @@ for complaints and data-subject requests; the protocol is automatic, stored, ver
 
 - `V13__ban_id.sql`: `punishments.ban_id_hash bytea` (unique index, nullable until backfilled),
   `ban_id_enc bytea`, `ban_id_gen int not null default 1`; `punishment_case.ban_id_leaked_at bigint`,
-  `ban_id_leak_reason varchar(16)`; a partial unique index on `appeals (punishment_identifier)` for
-  open statuses. Existing rows are migrated by `BanIdBackfill` (application side, because it needs the key);
-  the migration cannot fail on existing duplicates because it adds no constraint to existing data
-  except the partial index, whose pre-check (open appeals per punishment) is part of the migration test.
+  `ban_id_leak_reason varchar(16)`; `appeals.legacy_duplicate_open boolean not null default false` and
+  a partial unique index on `appeals (punishment_identifier)` for open statuses that are not legacy
+  duplicates. Existing rows are migrated by `BanIdBackfill` (application side, because it needs the key).
+  The migration cannot fail on existing data: where a punishment already has several open appeals
+  (nothing prevented that before), all but the newest by `created_at` get `legacy_duplicate_open = true`
+  and fall outside the index. No appeal status changes, no history is lost; the flag only says "this
+  open appeal predates the one-open rule", for staff to close by hand. The migration test seeds two
+  open appeals on one punishment.
 - `V14__player_session.sql`: `player_session` (token hash PK, punishment FK `ON DELETE CASCADE`, scope,
   csrf, times) and an index on `expires_at`.
 - `V15__appeal_protocol.sql`: `appeal_protocol` (decision 16) and the new evidence kind `TRANSCRIPT` (extend the
