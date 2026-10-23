@@ -1,14 +1,14 @@
 ## 1. Backend: issue and confirm link codes (PR 1)
 
-- [ ] 1.1 Write the failing JUnit tests first (injected `Clock`, self-signed JWTs via `TestJwtIssuer`, no sleeps) for code issue, confirm success, expired, reused, wrong, one-to-one, unlink and anonymize; verify they fail for the right reason
-- [ ] 1.2 Add Flyway `V10__staff_account_link.sql` (use the next free number at apply time): `staff_link_code`, `staff_link`, nullable `actor_oid` on `punishments`, `reports`, `evidence_items`, `evidence_audit`; verify on the scratch-DB Flyway technique and that no applied migration changed
-- [ ] 1.3 Add `StaffLinkCodeGenerator` (8 chars Crockford base32 from `SecureRandom`, normalisation of input, hash), entities and repositories in the `security` package; verify with unit tests for alphabet, length, normalisation and hash-only storage
-- [ ] 1.4 Add `StaffLinkService` (issue, confirm, status, unlink, list, lookup by Minecraft UUID) returning the sealed `StaffLinkDTO` Error variant for expected failures, no `@Transactional`; verify the one-to-one and replace-with-audit scenarios
-- [ ] 1.5 Add `StaffLinkController`/`StaffLinkApi` and `AdminStaffLinkController`/`AdminStaffLinkApi` with `@Secured` per the permission matrix; extend `PermissionMatrixIntegrationTest` and the matrix table; verify `RouteCoverageIntegrationTest` is green
-- [ ] 1.6 Resolve `actor_oid` from the live link when the proxy sends `onBehalfOf` and write it on punishments, reports and evidence; expose `actorOid` and `actorName` on the punishment DTO; verify an in-game punishment of a linked and of an unlinked UUID
-- [ ] 1.7 Extend `AppealDecisionService` self-review (reviewer `oid` against `source`, `recorded_by_oid`, `actor_oid` and the current link of `source`); verify an in-game ban cannot be decided by its linked issuer and another moderator can
-- [ ] 1.8 Make `StaffActorService.anonymize` remove the link; publish `staff-link.created`/`staff-link.removed` with the `oid` only; verify logs and events never contain the code
-- [ ] 1.9 Add `blackhole.security.staff-link.*` to `application.yml` (`BLACKHOLE_STAFF_LINK_TTL`) with explanatory comments; regenerate the OpenAPI spec to `client/specs/blackhole-api-0.0.16.yml`, point `client/build.gradle.kts` at it and verify `./gradlew :client:openApiGenerate :backend:test` passes
+- [x] 1.1 Write the failing JUnit tests first (injected `Clock`, self-signed JWTs via `TestJwtIssuer`, no sleeps) for code issue, confirm success, expired, reused, wrong, one-to-one, unlink and anonymize; verify they fail for the right reason
+- [x] 1.2 Add Flyway `V10__staff_account_link.sql` (use the next free number at apply time): `staff_link_code`, `staff_link`, nullable `actor_oid` on `punishments`, `reports`, `evidence_items`, `evidence_audit`; verify on the scratch-DB Flyway technique and that no applied migration changed
+- [x] 1.3 Add `StaffLinkCodeGenerator` (8 chars Crockford base32 from `SecureRandom`, normalisation of input, hash), entities and repositories in the `security` package; verify with unit tests for alphabet, length, normalisation and hash-only storage
+- [x] 1.4 Add `StaffLinkService` (issue, confirm, status, unlink, list, lookup by Minecraft UUID) returning the sealed `StaffLinkDTO` Error variant for expected failures, no `@Transactional`; verify the one-to-one and replace-with-audit scenarios
+- [x] 1.5 Add `StaffLinkController`/`StaffLinkApi` and `AdminStaffLinkController`/`AdminStaffLinkApi` with `@Secured` per the permission matrix; extend `PermissionMatrixIntegrationTest` and the matrix table; verify `RouteCoverageIntegrationTest` is green
+- [x] 1.6 Resolve `actor_oid` from the live link when the proxy sends `onBehalfOf` and write it on punishments, reports and evidence; expose `actorOid` and `actorName` on the punishment DTO; verify an in-game punishment of a linked and of an unlinked UUID
+- [x] 1.7 Extend `AppealDecisionService` self-review (reviewer `oid` against `source`, `recorded_by_oid`, `actor_oid` and the current link of `source`); verify an in-game ban cannot be decided by its linked issuer and another moderator can
+- [x] 1.8 Make `StaffActorService.anonymize` remove the link; publish `staff-link.created`/`staff-link.removed` with the `oid` only; verify logs and events never contain the code
+- [x] 1.9 Add `blackhole.security.staff-link.*` to `application.yml` (`BLACKHOLE_STAFF_LINK_TTL`) with explanatory comments; regenerate the OpenAPI spec to `client/specs/blackhole-api-0.0.16.yml`, point `client/build.gradle.kts` at it and verify `./gradlew :client:openApiGenerate :backend:test` passes
 
 ## 2. Velocity: /blackhole link (PR 2, based on PR 1)
 
