@@ -76,7 +76,8 @@ class CaseReconcilerTest {
     private final TestClock clock = new TestClock();
     private final CaseTestBed bed = new CaseTestBed(clock);
     private final GapReader gaps = new GapReader();
-    private final CaseReconciler reconciler = new CaseReconciler(gaps, bed.timeline, clock, LOOK_BACK);
+    private final CaseReconciler reconciler = new CaseReconciler(gaps, bed.timeline, clock, LOOK_BACK, Duration.ZERO);
+    private final CaseReconciler gracious = new CaseReconciler(gaps, bed.timeline, clock, LOOK_BACK, Duration.ofMinutes(5));
 
     private PunishmentRow punishment(String id, long createdAt, Long updatedAt, Long expiresAt, UUID source, UUID recordedBy) {
         return new PunishmentRow(id, source, recordedBy, null, "network", 0, 1, 40, false, false, createdAt, expiresAt, updatedAt,
@@ -231,5 +232,25 @@ class CaseReconcilerTest {
         assertEquals(0, repaired);
         assertTrue(bed.log.all().isEmpty());
         assertEquals(1.0, bed.failures(), "counted, and the next run tries again");
+    }
+
+    @Test
+    void aSourceRowInsideTheGracePeriodIsSkipped() {
+        gaps.applied.add(punishment("p-1", clock.millis() - Duration.ofMinutes(4).toMillis(), null, null, STAFF, STAFF));
+
+        int repaired = gracious.reconcile();
+
+        assertEquals(0, repaired, "its live recording may still be in flight");
+        assertTrue(bed.log.all().isEmpty(), "nothing is labelled RECONSTRUCTED yet");
+    }
+
+    @Test
+    void aSourceRowOlderThanTheGracePeriodIsRepaired() {
+        gaps.applied.add(punishment("p-1", clock.millis() - Duration.ofMinutes(6).toMillis(), null, null, STAFF, STAFF));
+
+        int repaired = gracious.reconcile();
+
+        assertEquals(1, repaired);
+        assertEquals(CaseEventOrigin.RECONSTRUCTED, bed.log.ofType("p-1", "punishment.applied").getFirst().origin());
     }
 }

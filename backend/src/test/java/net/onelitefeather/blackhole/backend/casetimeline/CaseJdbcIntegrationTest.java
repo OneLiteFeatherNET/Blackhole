@@ -233,7 +233,7 @@ class CaseJdbcIntegrationTest extends PostgresIntegrationTest {
     // ---- the reconciler against the real queries ------------------------------------------
 
     private CaseReconciler reconciler() {
-        return new CaseReconciler(new JdbcCaseSourceReader(db.dataSource), timeline, clock, Duration.ofHours(48));
+        return new CaseReconciler(new JdbcCaseSourceReader(db.dataSource), timeline, clock, Duration.ofHours(48), Duration.ZERO);
     }
 
     @Test

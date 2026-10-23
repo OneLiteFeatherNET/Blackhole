@@ -130,6 +130,9 @@ blackhole:
     reconcile:
       interval: ${BLACKHOLE_CASE_RECONCILE_INTERVAL:10m}
       look-back: ${BLACKHOLE_CASE_RECONCILE_LOOK_BACK:P2D}
+      # A source row younger than this is not reconstructed: its live recording may still be in
+      # flight, and a repair would wrongly label it RECONSTRUCTED. ISO-8601 duration.
+      grace-period: ${BLACKHOLE_CASE_RECONCILE_GRACE_PERIOD:PT5M}
   # ELO scoring is per punishment section (chat and network ship by default; operators add more via
   # /section). A section owns its base score, soft and permanent thresholds, soft duration, pardon
   # score and decay rate - they are data managed through the API, not config. Crossing below a
