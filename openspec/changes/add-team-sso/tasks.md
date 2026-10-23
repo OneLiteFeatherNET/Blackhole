@@ -1,7 +1,7 @@
 # Tasks
 
-Prerequisites: ADR-BLKH-0002 is accepted; `staff-temp-bans-elo-escalation` and
-`capture-proxy-chat-evidence` are merged (rebase otherwise). The work ships as a stack of small
+Prerequisites: ADR-BLKH-0002 is accepted; `staff-temp-bans-elo-escalation`,
+`capture-proxy-chat-evidence` and `serve-web-with-nitro` are merged (rebase otherwise). The work ships as a stack of small
 PRs, one per section 1-5, each branching from the previous one and merged back-to-back with no
 release in between (design decision 9). Backend tests follow F.I.R.S.T.: self-signed JWTs, an
 injected `Clock`, a fresh key and application context per class, no network to Entra. UI tests
@@ -46,7 +46,7 @@ use Vitest with a fake `UserManager` and `fakeFetch`.
 - [ ] 4.1 Add `oidc-client-ts` (current stable, exact version pinned) and `authService.ts`: `UserManager` with PKCE, in-memory `userStore`, `sessionStorage` state store, `automaticSilentRenew`; verify unit tests with a fake manager that no token reaches any web storage and the state is removed after the callback
 - [ ] 4.2 Router guard, `/auth/callback` route, sign-out with end-session; verify router tests for the redirect, callback and return-to route
 - [ ] 4.3 Bearer header, one renew-and-retry on 401, 403 handling in `src/api/http.ts`; remove `source`/`reviewer` plumbing from `blackhole.ts` and `config.ts`; verify the existing API wrapper tests updated, plus tests for 401 retry once and 403 no retry
-- [ ] 4.4 `/config.json` and `nginx/40-config-json.sh`: `BLACKHOLE_UI_OIDC_AUTHORITY`, `_OIDC_CLIENT_ID`, `_API_SCOPE` replace `BLACKHOLE_UI_SOURCE` / `_REVIEWER` with strict validation; update the nginx CSP `connect-src`; verify the script's shell tests for valid, missing and malformed values
+- [ ] 4.4 `/config.json` in `web/server/lib/config.ts` (served by `web/server/routes/config.json.ts`): `BLACKHOLE_UI_OIDC_AUTHORITY`, `_OIDC_CLIENT_ID`, `_API_SCOPE` replace `BLACKHOLE_UI_SOURCE` / `_REVIEWER` with strict validation and fail-fast startup; add the authority origin to the CSP `connect-src` in `web/server/lib/headers.ts`; verify the Vitest tests in `web/server/lib/` for valid, missing and malformed values and the exact CSP string
 - [ ] 4.5 `GET /auth/me` store, "signed in as" in the top bar, removal of the "Acting as" label, role-aware hiding or disabling of actions per the matrix, and a "no access" page for a signed-in user with an empty role list; regenerate `src/api/schema.d.ts` from the new spec; verify component tests per role (none, viewer, moderator, admin) and `vue-tsc --noEmit`
 - [ ] 4.6 German and English strings, a11y check of the sign-in states (focus, `aria-live` for the redirect message); verify the locale-parity test and component tests
 - [ ] 4.7 Verify against the mock OIDC server in a browser: sign-in as each test user, silent renewal (short token lifetime in the mock config), reload, sign-out; note the results in the PR

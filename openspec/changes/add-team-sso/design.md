@@ -266,11 +266,11 @@ Roles in the UI: the UI does not decode tokens. After sign-in it calls `GET /aut
 disables actions the role cannot perform (sections/templates/import for non-admins, delete
 evidence, moderation actions for viewers). The backend remains authoritative.
 
-`/config.json` is rewritten at container start: `BLACKHOLE_UI_OIDC_AUTHORITY`,
+`/config.json` is served by the Nitro server (`web/server/routes/config.json.ts`), built from the environment at startup: `BLACKHOLE_UI_OIDC_AUTHORITY`,
 `BLACKHOLE_UI_OIDC_CLIENT_ID`, `BLACKHOLE_UI_API_SCOPE` replace `BLACKHOLE_UI_SOURCE` and
-`BLACKHOLE_UI_REVIEWER` (validated by the same strict patterns in `40-config-json.sh`). The
-"Acting as" label is removed (the verified name replaces it). The nginx CSP / `connect-src`
-must allow the authority origin.
+`BLACKHOLE_UI_REVIEWER` (validated by the same strict patterns in `web/server/lib/config.ts`; an invalid value stops the server before it listens). The
+"Acting as" label is removed (the verified name replaces it). The CSP `connect-src` built in
+`web/server/lib/headers.ts` must allow the authority origin.
 
 ### 8. Local development and tests
 

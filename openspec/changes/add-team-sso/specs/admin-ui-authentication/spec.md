@@ -7,7 +7,7 @@ Defines how staff sign in to the admin web UI with Microsoft Entra ID, how token
 ## ADDED Requirements
 
 ### Requirement: Sign-in with Authorization Code and PKCE
-The UI SHALL authenticate staff through the OIDC Authorization Code flow with PKCE against the configured authority and client id, and MUST NOT use the implicit flow. Authority, client id and API scope SHALL be read from `/config.json`, which the container writes from `BLACKHOLE_UI_OIDC_AUTHORITY`, `BLACKHOLE_UI_OIDC_CLIENT_ID` and `BLACKHOLE_UI_API_SCOPE`; the container MUST refuse to start when one is missing or malformed.
+The UI SHALL authenticate staff through the OIDC Authorization Code flow with PKCE against the configured authority and client id, and MUST NOT use the implicit flow. Authority, client id and API scope SHALL be read from `/config.json`, which the web server serves from `BLACKHOLE_UI_OIDC_AUTHORITY`, `BLACKHOLE_UI_OIDC_CLIENT_ID` and `BLACKHOLE_UI_API_SCOPE`; the web server MUST refuse to start when one is missing or malformed.
 
 #### Scenario: Unauthenticated visit
 - **WHEN** a visitor without a session opens any UI route
@@ -17,8 +17,8 @@ The UI SHALL authenticate staff through the OIDC Authorization Code flow with PK
 - **WHEN** the authority redirects back with a valid code and state
 - **THEN** the UI exchanges it, stores the user in memory and shows the originally requested route
 
-#### Scenario: Misconfigured container
-- **WHEN** the container starts without `BLACKHOLE_UI_OIDC_CLIENT_ID`
+#### Scenario: Misconfigured web server
+- **WHEN** the web server starts without `BLACKHOLE_UI_OIDC_CLIENT_ID`
 - **THEN** it exits with a message naming the variable
 
 ### Requirement: Tokens stay in memory
