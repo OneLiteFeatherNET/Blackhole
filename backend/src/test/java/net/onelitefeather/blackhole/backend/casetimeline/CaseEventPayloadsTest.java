@@ -1,0 +1,92 @@
+package net.onelitefeather.blackhole.backend.casetimeline;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.Map;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class CaseEventPayloadsTest {
+
+    static Stream<CaseEventPayload> everyPayloadType() {
+        return Stream.of(
+                new CaseEventPayload.Applied("network", 1, 3, 40, 960, 920, false, false, "tpl", 1_000L),
+                new CaseEventPayload.Applied(null, null, null, null, null, null, true, true, null, null),
+                new CaseEventPayload.Revoked(false),
+                new CaseEventPayload.Revoked(true),
+                new CaseEventPayload.Lifted("appeal-1", false),
+                new CaseEventPayload.Expired(2_000L),
+                new CaseEventPayload.EvidenceAttached("ev-1", "ANTICHEAT", "grim"),
+                new CaseEventPayload.EvidenceLifted("ev-1", "appeal-1", true),
+                new CaseEventPayload.EvidenceRevoked("ev-1", false),
+                new CaseEventPayload.AppealFiled("appeal-1", true),
+                new CaseEventPayload.AppealDecided("appeal-1", "GRANTED_DURATION_REDUCTION", 3_000L),
+                new CaseEventPayload.AppealDecided("appeal-1", "DENIED", null),
+                new CaseEventPayload.StatusChanged("CLOSED", "OPEN"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("everyPayloadType")
+    void aPayloadSurvivesBeingStoredAndRead(CaseEventPayload payload) {
+        Map<String, Object> stored = CaseEventPayloads.parse(CaseEventPayloads.toJson(payload));
+
+        CaseEventPayload read = CaseEventPayloads.read(payload.type(), payload.version(), stored);
+
+        assertEquals(payload, read, "the " + payload.type() + " payload must read back as written");
+    }
+
+    @Test
+    void aTypeThisReleaseDoesNotKnowIsKeptAsAnOpaquePayload() {
+        Map<String, Object> body = Map.of("messageId", "m-1");
+
+        CaseEventPayload read = CaseEventPayloads.read("message.added", 1, body);
+
+        CaseEventPayload.Unknown unknown = assertInstanceOf(CaseEventPayload.Unknown.class, read);
+        assertEquals("message.added", unknown.type());
+        assertEquals(body, unknown.body(), "the body is kept, not dropped");
+    }
+
+    @Test
+    void aNewerPayloadVersionOfAKnownTypeIsKeptAsAnOpaquePayload() {
+        Map<String, Object> body = Map.of("expiredAt", 5, "reason", "added by a newer release");
+
+        CaseEventPayload read = CaseEventPayloads.read(CaseEventPayload.EXPIRED, 2, body);
+
+        CaseEventPayload.Unknown unknown = assertInstanceOf(CaseEventPayload.Unknown.class, read);
+        assertEquals(2, unknown.version());
+        assertEquals(body, unknown.body());
+    }
+
+    @Test
+    void aBodyThatDoesNotMatchItsTypeIsKeptAsAnOpaquePayloadInsteadOfFailing() {
+        CaseEventPayload read = CaseEventPayloads.read(CaseEventPayload.APPEAL_FILED, 1, Map.of("eligible", true));
+
+        assertInstanceOf(CaseEventPayload.Unknown.class, read, "the appeal id is missing");
+    }
+
+    @Test
+    void aRedactedPayloadIsReadWithoutFailing() {
+        CaseEventPayload read = CaseEventPayloads.read("note.added", 1, CaseEventPayloads.parse(null));
+
+        assertTrue(assertInstanceOf(CaseEventPayload.Unknown.class, read).body().isEmpty(), "nothing is left to show");
+    }
+
+    @Test
+    void anAppealFiledPayloadHoldsNoStatementText() {
+        Map<String, Object> body = new CaseEventPayload.AppealFiled("appeal-1", true).toMap();
+
+        assertEquals(Map.of("appealId", "appeal-1", "eligible", true), body, "ids and flags only");
+    }
+
+    @Test
+    void theReservedPortalTypesAreNotTypedByThisRelease() {
+        assertInstanceOf(CaseEventPayload.Unknown.class, CaseEventPayloads.read("ban_id.leak_marked", 1, Map.of()));
+        assertFalse(CaseEventPayloads.read("message.added", 1, Map.of()) instanceof CaseEventPayload.Applied);
+    }
+}

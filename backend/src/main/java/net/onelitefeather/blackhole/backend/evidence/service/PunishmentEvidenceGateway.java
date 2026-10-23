@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.evidence.service;
 
+import net.onelitefeather.blackhole.backend.security.Attribution;
+
 import java.util.UUID;
 
 /**
@@ -23,17 +25,19 @@ public interface PunishmentEvidenceGateway {
      * Marks the punishment's valid evidence {@code REVOKED} after staff revoked the punishment. The
      * evidence is kept.
      *
+     * @param by who revoked the punishment, for the case timeline
      * @return how many items changed
      */
-    int markRevoked(String punishmentIdentifier);
+    int markRevoked(String punishmentIdentifier, Attribution by);
 
     /**
      * Marks the punishment's valid evidence {@code LIFTED} after a granted full-lift appeal. The
      * evidence is kept.
      *
+     * @param by the reviewer who granted the appeal, for the case timeline
      * @return how many items changed
      */
-    int markLifted(String punishmentIdentifier, UUID appealIdentifier);
+    int markLifted(String punishmentIdentifier, UUID appealIdentifier, Attribution by);
 
     /**
      * Deletes the punishment's evidence rows and files; to be called before the punishment record is

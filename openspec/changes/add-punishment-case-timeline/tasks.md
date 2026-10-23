@@ -6,12 +6,12 @@ Testcontainers for the migration), every UI group its own Vitest tests with a fa
 
 ## 1. Timeline model and recording (PR 1, `feat(case)`)
 
-- [ ] 1.1 Failing tests first: payload (de)serialisation per type incl. unknown type/version, trust derivation, dedupe, ordering by `occurred_at` then `seq`
-- [ ] 1.2 Migration `V<n>__punishment_case.sql` (next free version): `punishment_case`, `case_event`, indexes, backfill of design decision 3; Testcontainers test over representative old rows (counts, origin `BACKFILLED`, trust, `CLOSED` for ended punishments, idempotent re-run, cascade)
-- [ ] 1.3 `case/` package: entities, `CaseEventRepository` with only append / redact / delete-for-punishment (+ architecture test), sealed `CaseEventPayload`, `CaseTimeline.record` with dedupe key and failure counter `blackhole.case.record.failures`
-- [ ] 1.4 Record from the flows: apply and escalation (`punishment.applied`), revoke, expiry sweeper (once per punishment), appeal filed / decided / lifted, evidence attached / lifted / revoked through `PunishmentEvidenceGateway`; automatic reopen of a `CLOSED` case on appeal; tests prove a recording failure never fails the primary change
-- [ ] 1.5 `CaseReconciler` with `blackhole.case.*` config documented in `application.yml`; tests on fixed data with `TestClock` (source time used, no duplicates)
-- [ ] 1.6 Update `.claude/rules` for the new package; verify `./gradlew :backend:test`
+- [x] 1.1 Failing tests first: payload (de)serialisation per type incl. unknown type/version, trust derivation, dedupe, ordering by `occurred_at` then `seq`
+- [x] 1.2 Migration `V<n>__punishment_case.sql` (next free version): `punishment_case`, `case_event`, indexes, backfill of design decision 3; Testcontainers test over representative old rows (counts, origin `BACKFILLED`, trust, `CLOSED` for ended punishments, idempotent re-run, cascade)
+- [x] 1.3 `case/` package: entities, `CaseEventRepository` with only append / redact / delete-for-punishment (+ architecture test), sealed `CaseEventPayload`, `CaseTimeline.record` with dedupe key and failure counter `blackhole.case.record.failures`
+- [x] 1.4 Record from the flows: apply and escalation (`punishment.applied`), revoke, expiry sweeper (once per punishment), appeal filed / decided / lifted, evidence attached / lifted / revoked through `PunishmentEvidenceGateway`; automatic reopen of a `CLOSED` case on appeal; tests prove a recording failure never fails the primary change
+- [x] 1.5 `CaseReconciler` with `blackhole.case.*` config documented in `application.yml`; tests on fixed data with `TestClock` (source time used, no duplicates)
+- [x] 1.6 Update `.claude/rules` for the new package; verify `./gradlew :backend:test`
 
 ## 2. Metadata, notes and API (PR 2, `feat(case)`)
 

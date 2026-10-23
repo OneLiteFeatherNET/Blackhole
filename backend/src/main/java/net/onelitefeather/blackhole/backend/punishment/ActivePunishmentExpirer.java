@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.punishment;
 
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseTimeline;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
 import net.onelitefeather.blackhole.backend.profile.ProfileSlots;
@@ -27,6 +28,7 @@ public class ActivePunishmentExpirer {
     private final SectionService sectionService;
     private final DomainEventPublisher eventPublisher;
     private final ProfileCache profileCache;
+    private final CaseTimeline caseTimeline;
     private final Clock clock;
 
     public ActivePunishmentExpirer(
@@ -35,6 +37,7 @@ public class ActivePunishmentExpirer {
             SectionService sectionService,
             DomainEventPublisher eventPublisher,
             ProfileCache profileCache,
+            CaseTimeline caseTimeline,
             Clock clock
     ) {
         this.profileRepository = profileRepository;
@@ -42,6 +45,7 @@ public class ActivePunishmentExpirer {
         this.sectionService = sectionService;
         this.eventPublisher = eventPublisher;
         this.profileCache = profileCache;
+        this.caseTimeline = caseTimeline;
         this.clock = clock;
     }
 
@@ -95,6 +99,7 @@ public class ActivePunishmentExpirer {
         for (PunishmentEntity punishment : expired) {
             SectionDTO.Response section = this.sectionService.find(punishment.getSectionKey()).orElse(null);
             this.eventPublisher.publish("punishment.expired", PunishmentEvents.expired(punishment, section));
+            this.caseTimeline.expired(punishment);
         }
         return true;
     }

@@ -71,6 +71,7 @@ public final class EvidenceTestBed {
     public final RecordingEventPublisher events = new RecordingEventPublisher();
     public final net.onelitefeather.blackhole.backend.support.StaffLinkTestBed staffLinks =
             new net.onelitefeather.blackhole.backend.support.StaffLinkTestBed(events, clock);
+    public final net.onelitefeather.blackhole.backend.support.CaseTestBed cases = new net.onelitefeather.blackhole.backend.support.CaseTestBed(clock);
     public final EvidenceConfig config = new EvidenceConfig();
     public final FakeScanner scanner = new FakeScanner();
     public final EvidenceService service;
@@ -95,7 +96,7 @@ public final class EvidenceTestBed {
     public EvidenceTestBed(Path spoolDirectory, DomainEventPublisher publisher) {
         this.service = new EvidenceService(
                 items.repository(), audit.repository(), punishments.repository(), new PayloadValidator(config),
-                new UploadPipeline(config, scanner), blobs, publisher == null ? events : publisher, this.staffLinks.service, clock, spoolDirectory);
+                new UploadPipeline(config, scanner), blobs, publisher == null ? events : publisher, this.staffLinks.service, cases.timeline, clock, spoolDirectory);
         this.sweeper = new EvidenceHousekeepingSweeper(service, items.repository(), audit.repository(), blobs, config, clock);
     }
 
