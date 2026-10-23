@@ -95,11 +95,12 @@ public class CatalogueService {
         for (CatalogueSnapshot snapshot : live) {
             proxies.add(snapshot.proxyId());
             reportedAt = snapshot.reportedAt().isAfter(reportedAt) ? snapshot.reportedAt() : reportedAt;
-            groups.addAll(snapshot.groups());
-            for (CatalogueDTO.TaskEntry task : snapshot.tasks()) {
+            groups.addAll(orEmpty(snapshot.groups()));
+            // The serializer omits empty collections, so a stored snapshot reads back with nulls.
+            for (CatalogueDTO.TaskEntry task : orEmpty(snapshot.tasks())) {
                 tasks.computeIfAbsent(task.name(), name -> new TreeSet<>()).addAll(orEmpty(task.groups()));
             }
-            for (CatalogueDTO.ServiceEntry service : snapshot.services()) {
+            for (CatalogueDTO.ServiceEntry service : orEmpty(snapshot.services())) {
                 services.merge(service.name(), new CatalogueDTO.MergedService(service.name(), service.task(), service.running()),
                         (a, b) -> new CatalogueDTO.MergedService(a.name(), a.task() != null ? a.task() : b.task(), a.running() || b.running()));
             }

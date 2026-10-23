@@ -203,4 +203,15 @@ class CatalogueServiceTest {
 
         assertInstanceOf(CatalogueDTO.Stored.class, result);
     }
+
+    @Test
+    void aStoredSnapshotWithOmittedEmptyListsIsStillMerged() {
+        this.cache.put(CacheKeys.cloudnetCatalogue("Proxy-1"), io.micronaut.core.type.Argument.of(CatalogueSnapshot.class),
+                new CatalogueSnapshot("Proxy-1", this.clock.instant(), null, null, null), Duration.ofMinutes(15));
+
+        CatalogueDTO.Response response = this.service.catalogue();
+
+        assertTrue(response.available());
+        assertEquals(List.of(), response.tasks());
+    }
 }
