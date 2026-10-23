@@ -41,3 +41,25 @@ jobs:
           node-version: 24
       - name: Smoke-check the admin web UI image
         run: node web/scripts/smoke.mjs blackhole-web:pr
+
+  discord_image:
+    if: github.repository_owner == 'OneLiteFeatherNET'
+    name: Build Discord bot image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Build the Discord bot image
+        run: docker build -f discord/Dockerfile -t blackhole-discord:pr .
+      - name: Smoke-check the Discord bot image
+        # Without configuration the bot must refuse to start with exit code 2 and name what is missing,
+        # and it must not run as root.
+        run: |
+          set +e
+          out=$(docker run --rm blackhole-discord:pr 2>&1)
+          code=$?
+          set -e
+          echo "$out"
+          test "$code" -eq 2
+          echo "$out" | grep -q "DISCORD_TOKEN is missing"
+          test "$(docker run --rm --entrypoint id blackhole-discord:pr -u)" != "0"
