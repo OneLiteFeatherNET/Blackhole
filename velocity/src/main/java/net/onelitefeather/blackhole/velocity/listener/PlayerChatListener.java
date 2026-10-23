@@ -10,7 +10,7 @@ import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.EloChatSignalRequest;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteChatDenial;
-import net.onelitefeather.blackhole.velocity.enforcement.MuteNoticeCooldown;
+import net.onelitefeather.blackhole.velocity.enforcement.MuteNotices;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.evidence.EvidenceCounts;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
@@ -19,8 +19,6 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Clock;
-import java.time.Duration;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -33,27 +31,23 @@ import java.util.Optional;
 public final class PlayerChatListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerChatListener.class);
-    /** After a full mute notice, further chat attempts get the one-line reminder for this long. */
-    private static final Duration MUTE_NOTICE_COOLDOWN = Duration.ofSeconds(30);
 
     private final EloApi eloApi;
     private final PunishmentState state;
-    private final PunishmentScreens screens;
     private final EvidenceCounts evidenceCounts;
     private final MuteChatDenial denial;
-    private final MuteNoticeCooldown noticeCooldown;
+    private final MuteNotices notices;
 
     @Inject
     public PlayerChatListener(
-            @NotNull ApiClient blackholeClient, @NotNull PunishmentState state, @NotNull PunishmentScreens screens,
-            @NotNull EvidenceCounts evidenceCounts, @NotNull MuteChatDenial denial, @NotNull Clock clock
+            @NotNull ApiClient blackholeClient, @NotNull PunishmentState state,
+            @NotNull EvidenceCounts evidenceCounts, @NotNull MuteChatDenial denial, @NotNull MuteNotices notices
     ) {
         this.eloApi = new EloApi(blackholeClient);
         this.state = state;
-        this.screens = screens;
         this.evidenceCounts = evidenceCounts;
         this.denial = denial;
-        this.noticeCooldown = new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN);
+        this.notices = notices;
     }
 
     @Subscribe
@@ -74,9 +68,7 @@ public final class PlayerChatListener {
             this.denial.deny(event, player.getProtocolVersion());
             long evidence = this.evidenceCounts.of(mute.get().punishmentIdentifier()).orElse(0);
             Locale locale = PunishmentScreens.localeOf(player);
-            player.sendMessage(this.noticeCooldown.fullNoticeDue(uuidHash)
-                    ? this.screens.screen(mute.get(), locale, PunishmentScreens.Surface.CHAT, false, evidence)
-                    : this.screens.muteReminder(mute.get(), locale));
+            player.sendMessage(this.notices.notice(uuidHash, mute.get(), locale, evidence));
             return;
         }
         submitChatSignal(player, uuidHash, event.getMessage());

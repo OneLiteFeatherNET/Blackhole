@@ -6,6 +6,7 @@ import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.enforcement.EnforcementActions;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteChatDenial;
+import net.onelitefeather.blackhole.velocity.enforcement.MuteNotices;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
@@ -38,6 +39,7 @@ import java.time.Clock;
  * @param chatBuffer  the optional buffer of recent public chat
  * @param evidenceCounts the evidence count shown on denial screens
  * @param chatDenial  whether muted signed chat may be denied (SignedVelocity present)
+ * @param muteNotices what a muted player is told, once per punishment
  */
 public record BlackholeClientModule(
         @NotNull ApiClient apiClient,
@@ -54,7 +56,8 @@ public record BlackholeClientModule(
         @NotNull PunishmentScreens screens,
         @NotNull ChatBuffer chatBuffer,
         @NotNull EvidenceCounts evidenceCounts,
-        @NotNull MuteChatDenial chatDenial
+        @NotNull MuteChatDenial chatDenial,
+        @NotNull MuteNotices muteNotices
 ) {
 
     /**
@@ -79,6 +82,7 @@ public record BlackholeClientModule(
                 bind(ChatBuffer.class).toInstance(chatBuffer);
                 bind(EvidenceCounts.class).toInstance(evidenceCounts);
                 bind(MuteChatDenial.class).toInstance(chatDenial);
+                bind(MuteNotices.class).toInstance(muteNotices);
             }
         };
     }

@@ -96,10 +96,10 @@ class ThemeStoreCompatibilityTest {
         PunishmentScreens themed = screens(themedRenderer());
         long expiresAt = Instant.parse("2026-10-21T21:05:00Z").toEpochMilli();
         String id = "obLD1AAAQACAAAAAAAAAAQ";
+        // The mute title carries <bh:prefix> on purpose, so a plain MiniMessage cannot render a mute screen.
         PunishmentSyncMessage[] punishments = {
                 new PunishmentSyncMessage(TestData.OWNER, "network", EnforcementKind.BAN.name(), PunishmentSyncMessage.STATE_SET, id, null, "Cheating", expiresAt),
                 new PunishmentSyncMessage(TestData.OWNER, "network", EnforcementKind.BAN.name(), PunishmentSyncMessage.STATE_SET, id, null, "Cheating", null),
-                new PunishmentSyncMessage(TestData.OWNER, "chat", EnforcementKind.MUTE.name(), PunishmentSyncMessage.STATE_SET, id, null, "Insult", expiresAt),
                 new PunishmentSyncMessage(TestData.OWNER, "bedwars", EnforcementKind.SERVER.name(), PunishmentSyncMessage.STATE_SET, id, null, "Griefing", null)};
 
         for (PunishmentSyncMessage punishment : punishments) {

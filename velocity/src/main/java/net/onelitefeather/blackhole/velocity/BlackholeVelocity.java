@@ -43,6 +43,8 @@ import net.onelitefeather.blackhole.velocity.listener.ServerConnectListener;
 import net.onelitefeather.blackhole.velocity.module.BlackholeClientModule;
 import net.onelitefeather.blackhole.velocity.enforcement.EnforcementActions;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteChatDenial;
+import net.onelitefeather.blackhole.velocity.enforcement.MuteNoticeCooldown;
+import net.onelitefeather.blackhole.velocity.enforcement.MuteNotices;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
@@ -80,6 +82,9 @@ import java.util.ResourceBundle;
         dependencies = @Dependency(id = MuteChatDenial.RELAY_PLUGIN_ID, optional = true)
 )
 public class BlackholeVelocity {
+    /** After a full mute notice, further notices for the same mute are the one-line reminder for this long. */
+    private static final Duration MUTE_NOTICE_COOLDOWN = Duration.ofSeconds(30);
+
     private final Injector injector;
     private final ProxyServer server;
     private final Path dataDirectory;
@@ -140,7 +145,8 @@ public class BlackholeVelocity {
 
         Injector childInjector = this.injector.createChildInjector(
                 new BlackholeClientModule(this.client, this.config, this.redisSyncService, sections, mirror, state,
-                        syncHandler, actions, backend, punishService, clock, screens, chatBuffer, evidenceCounts, chatDenial).asModule(),
+                        syncHandler, actions, backend, punishService, clock, screens, chatBuffer, evidenceCounts, chatDenial,
+                        new MuteNotices(screens, new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN))).asModule(),
                 new CloudInjectionModule<>(
                         CommandSource.class,
                         ExecutionCoordinator.simpleCoordinator(),

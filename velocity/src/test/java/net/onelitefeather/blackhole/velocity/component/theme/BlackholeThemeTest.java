@@ -4,6 +4,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.junit.jupiter.api.Test;
@@ -138,11 +139,20 @@ class BlackholeThemeTest {
     }
 
     @Test
-    void prefixIsDarkPurpleNameAndDarkGreySeparator() {
+    void prefixNameIsTheBrandGradientAndTheSeparatorStaysDarkGrey() {
         Component prefix = render("<bh:prefix>");
+        List<TextColor> colours = new ArrayList<>();
+        for (char c : "Blackhole".toCharArray()) {
+            colours.add(find(prefix, String.valueOf(c)).color());
+        }
 
         assertEquals("Blackhole » ", plain(prefix));
-        assertEquals(NamedTextColor.DARK_PURPLE, find(prefix, "Blackhole").color(), "name colour");
+        assertEquals(TextColor.color(0xF7931D), colours.get(0), "first character is the orange stop");
+        assertEquals(TextColor.color(0x91268F), colours.get(8), "last character is the purple stop");
+        assertEquals(TextColor.color(0xEC008B), colours.get(4), "the middle character is the pink stop");
+        TextColor orange = TextColor.color(0xF7931D);
+        TextColor pink = TextColor.color(0xEC008B);
+        assertEquals(TextColor.lerp(0.5f, orange, pink), colours.get(2), "characters between stops are interpolated");
         assertEquals(NamedTextColor.DARK_GRAY, find(prefix, " » ").color(), "separator colour");
     }
 
