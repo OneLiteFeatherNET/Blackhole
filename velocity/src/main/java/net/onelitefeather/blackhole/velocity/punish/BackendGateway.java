@@ -3,6 +3,8 @@ package net.onelitefeather.blackhole.velocity.punish;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.EloProfileResponse;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
+import net.onelitefeather.blackhole.client.model.ReportCategory;
+import net.onelitefeather.blackhole.client.model.ReportDTO;
 import net.onelitefeather.blackhole.client.model.StaffLinkConfirmResponse;
 import net.onelitefeather.blackhole.client.model.StaffLinkLookupResponse;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
@@ -71,4 +73,21 @@ public interface BackendGateway {
      * @return whether the Minecraft account is linked, and to whom
      */
     StaffLinkLookupResponse lookupStaffLink(UUID player) throws ApiException;
+
+    /**
+     * Posts the reported player's chat snapshot as {@code CHAT_LOG} evidence under the reported owner. It
+     * is attributed to the proxy only, never to the reporting player. Asynchronous: the caller bounds the wait.
+     *
+     * @return the id of the stored evidence item
+     */
+    CompletableFuture<UUID> postReportChatEvidence(String reported, String correlationId, ChatSnapshot snapshot, String sourceSystem);
+
+    /**
+     * Files a player report; the backend answers HTTP 429 ({@link ApiException#getCode()}) when its report
+     * limiter refuses it.
+     *
+     * @param description the reporter's text, or null
+     * @param evidence    the evidence items the report references
+     */
+    ReportDTO submitReport(String reporter, String reported, ReportCategory category, String description, List<UUID> evidence) throws ApiException;
 }

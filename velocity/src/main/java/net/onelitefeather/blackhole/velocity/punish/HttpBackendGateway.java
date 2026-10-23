@@ -5,6 +5,7 @@ import net.onelitefeather.blackhole.client.api.EvidenceApi;
 import net.onelitefeather.blackhole.client.api.PunishProfileApi;
 import net.onelitefeather.blackhole.client.api.PunishmentApi;
 import net.onelitefeather.blackhole.client.api.PunishmentTemplatesApi;
+import net.onelitefeather.blackhole.client.api.ReportApi;
 import net.onelitefeather.blackhole.client.api.StaffLinkApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
@@ -18,6 +19,9 @@ import net.onelitefeather.blackhole.client.model.PunishmentApplyRequest;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentRevokeRequest;
 import net.onelitefeather.blackhole.client.model.PunishmentRevokeResponse;
+import net.onelitefeather.blackhole.client.model.ReportCategory;
+import net.onelitefeather.blackhole.client.model.ReportDTO;
+import net.onelitefeather.blackhole.client.model.ReportRequestDTO;
 import net.onelitefeather.blackhole.client.model.StaffLinkConfirmRequest;
 import net.onelitefeather.blackhole.client.model.StaffLinkConfirmResponse;
 import net.onelitefeather.blackhole.client.model.StaffLinkLookupResponse;
@@ -44,6 +48,7 @@ public final class HttpBackendGateway implements BackendGateway {
     private final EloApi eloApi;
     private final EvidenceApi evidenceApi;
     private final StaffLinkApi staffLinkApi;
+    private final ReportApi reportApi;
     private final CachedTemplates cachedTemplates;
     private final Clock clock;
 
@@ -54,6 +59,7 @@ public final class HttpBackendGateway implements BackendGateway {
         this.eloApi = new EloApi(client);
         this.evidenceApi = new EvidenceApi(client);
         this.staffLinkApi = new StaffLinkApi(client);
+        this.reportApi = new ReportApi(client);
         this.cachedTemplates = cachedTemplates;
         this.clock = clock;
     }
@@ -129,5 +135,24 @@ public final class HttpBackendGateway implements BackendGateway {
     @Override
     public StaffLinkLookupResponse lookupStaffLink(UUID player) throws ApiException {
         return this.staffLinkApi.lookupStaffLinkByMinecraft(player);
+    }
+
+    @Override
+    public CompletableFuture<UUID> postReportChatEvidence(String reported, String correlationId, ChatSnapshot snapshot, String sourceSystem) {
+        EvidenceCreateRequest request = ChatEvidenceRequests.create(reported, correlationId, snapshot, sourceSystem, null, this.clock.millis());
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return this.evidenceApi.attachEvidence(request).getIdentifier();
+            } catch (ApiException e) {
+                throw new CompletionException(e);
+            }
+        });
+    }
+
+    @Override
+    public ReportDTO submitReport(String reporter, String reported, ReportCategory category, String description, List<UUID> evidence) throws ApiException {
+        return this.reportApi.submitReport(new ReportRequestDTO()
+                .reporterHash(reporter).reportedHash(reported).category(category).description(description)
+                .evidenceReferences(evidence).metaData(java.util.Map.of()));
     }
 }
