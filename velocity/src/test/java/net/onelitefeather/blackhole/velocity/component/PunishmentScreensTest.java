@@ -269,6 +269,44 @@ class PunishmentScreensTest {
         assertFalse(text.contains("Fallback"), text);
     }
 
+    private String cloudNetScreen(net.onelitefeather.blackhole.client.model.ServerTargetKind kind, String name, Locale locale) {
+        var section = new net.onelitefeather.blackhole.velocity.section.SectionInfo(
+                "target", "Target", EnforcementKind.SERVER, java.util.List.of(name), kind);
+        var screens = new PunishmentScreens(CLOCK, config("", ""), TestData.registry(section), renderer());
+        return plain(screen(screens, punishment("target", EnforcementKind.SERVER, null, "x"), locale, Surface.DISCONNECT, false));
+    }
+
+    @Test
+    void cloudNetTaskScreenNamesTheTaskInGerman() {
+        String text = cloudNetScreen(net.onelitefeather.blackhole.client.model.ServerTargetKind.CLOUDNET_TASK, "BedWars", Locale.GERMAN);
+
+        assertTrue(text.contains("Du bist auf BedWars gesperrt"), text);
+        assertFalse(text.contains("Gesperrte Server"), "the pattern line is replaced: " + text);
+    }
+
+    @Test
+    void cloudNetTaskScreenNamesTheTaskInEnglish() {
+        String text = cloudNetScreen(net.onelitefeather.blackhole.client.model.ServerTargetKind.CLOUDNET_TASK, "BedWars", Locale.ENGLISH);
+
+        assertTrue(text.contains("You are banned from BedWars"), text);
+    }
+
+    @Test
+    void cloudNetGroupScreenNamesTheGroup() {
+        var kind = net.onelitefeather.blackhole.client.model.ServerTargetKind.CLOUDNET_GROUP;
+
+        assertTrue(cloudNetScreen(kind, "Minigames", Locale.GERMAN).contains("Du bist auf der Gruppe Minigames gesperrt"));
+        assertTrue(cloudNetScreen(kind, "Minigames", Locale.ENGLISH).contains("You are banned from the group Minigames"));
+    }
+
+    @Test
+    void cloudNetServiceScreenNamesTheService() {
+        var kind = net.onelitefeather.blackhole.client.model.ServerTargetKind.CLOUDNET_SERVICE;
+
+        assertTrue(cloudNetScreen(kind, "BedWars-3", Locale.GERMAN).contains("Du bist auf dem Server BedWars-3 gesperrt"));
+        assertTrue(cloudNetScreen(kind, "BedWars-3", Locale.ENGLISH).contains("You are banned from the server BedWars-3"));
+    }
+
     @Test
     void muteInChatIsCompact() {
         assertEquals("""

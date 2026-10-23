@@ -139,7 +139,7 @@ class PunishmentStateTest {
         redisDown = true;
         backendDown = true;
 
-        assertTrue(state.activeServerBan(OWNER, "bedwars-1").isEmpty());
+        assertTrue(state.activeServerBan(OWNER, "bedwars-1", Optional.empty()).isEmpty());
     }
 
     @Test
@@ -147,8 +147,8 @@ class PunishmentStateTest {
         givenRedisHolds(active("bedwars", EnforcementKind.SERVER, "p1", null));
         state.onLogin(OWNER);
 
-        assertTrue(state.activeServerBan(OWNER, "bedwars-2").isPresent());
-        assertTrue(state.activeServerBan(OWNER, "lobby-1").isEmpty());
+        assertTrue(state.activeServerBan(OWNER, "bedwars-2", Optional.empty()).isPresent());
+        assertTrue(state.activeServerBan(OWNER, "lobby-1", Optional.empty()).isEmpty());
     }
 
     @Test

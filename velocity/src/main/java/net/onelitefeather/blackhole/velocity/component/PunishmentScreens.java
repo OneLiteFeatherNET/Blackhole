@@ -120,7 +120,13 @@ public final class PunishmentScreens {
             where.add(Component.translatable("punishment.screen.id", id));
         }
         if (kind == EnforcementKind.SERVER && section != null && !section.servers().isEmpty()) {
-            where.add(Component.translatable("punishment.screen.servers", Component.text(String.join(", ", section.servers()))));
+            Component targets = Component.text(String.join(", ", section.servers()));
+            where.add(switch (section.targetKind()) {
+                case CLOUDNET_TASK -> Component.translatable("punishment.screen.target.task", targets);
+                case CLOUDNET_GROUP -> Component.translatable("punishment.screen.target.group", targets);
+                case CLOUDNET_SERVICE -> Component.translatable("punishment.screen.target.service", targets);
+                case PATTERN -> Component.translatable("punishment.screen.servers", targets);
+            });
             if (movedToFallback) {
                 where.add(Component.translatable("punishment.screen.moved"));
             }

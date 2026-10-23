@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.velocity.module;
 
 import com.google.inject.AbstractModule;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
+import net.onelitefeather.blackhole.velocity.cloudnet.ServerResolver;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.enforcement.EnforcementActions;
@@ -40,6 +41,7 @@ import java.time.Clock;
  * @param evidenceCounts the evidence count shown on denial screens
  * @param chatDenial  whether muted signed chat may be denied (SignedVelocity present)
  * @param muteNotices what a muted player is told, once per punishment
+ * @param servers     resolves what CloudNet knows about a backend server
  */
 public record BlackholeClientModule(
         @NotNull ApiClient apiClient,
@@ -57,7 +59,8 @@ public record BlackholeClientModule(
         @NotNull ChatBuffer chatBuffer,
         @NotNull EvidenceCounts evidenceCounts,
         @NotNull MuteChatDenial chatDenial,
-        @NotNull MuteNotices muteNotices
+        @NotNull MuteNotices muteNotices,
+        @NotNull ServerResolver servers
 ) {
 
     /**
@@ -83,6 +86,7 @@ public record BlackholeClientModule(
                 bind(EvidenceCounts.class).toInstance(evidenceCounts);
                 bind(MuteChatDenial.class).toInstance(chatDenial);
                 bind(MuteNotices.class).toInstance(muteNotices);
+                bind(ServerResolver.class).toInstance(servers);
             }
         };
     }

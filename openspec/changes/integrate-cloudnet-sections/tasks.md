@@ -7,10 +7,10 @@
 
 ## 2. Velocity: enforcement (PR 2, `feat(velocity)`)
 
-- [ ] 2.1 Add `compileOnly` `eu.cloudnetservice.cloudnet:driver-api:4.0.0-RC17` (Maven Central) to the version catalogue and `velocity/build.gradle.kts`, not shaded; verify the shadow jar contains no `eu/cloudnetservice` classes
-- [ ] 2.2 Add `CloudNetView`, `ServerFacts`, `NoCloudNetView`, `DriverCloudNetView` (only class importing the driver; cache fed by `CloudServiceLifecycleChangeEvent`/`CloudServiceUpdateEvent`, one `serviceByName` lookup on a miss), detection and `cloudnet.integration` config; verify unit tests with `FakeCloudNetView` and a test that only `DriverCloudNetView` imports `eu.cloudnetservice`
-- [ ] 2.3 Add `ServerTargets.covers` and use it in `Enforcement.serverBan`/`coversServer`, `ServerConnectListener` and `PunishmentSyncHandler` (move-off, fallback-also-covered disconnects); `SectionInfo` reads `targetKind` (missing -> `PATTERN`); verify tests for each kind, case, unknown server (warn once), no CloudNet, service restart, fallback covered
-- [ ] 2.4 Deny screen: `punishment.screen.target.{task,group,service}` in `blackhole_en.properties` and `blackhole_de.properties`; verify `PunishmentScreensTest` and `I18nBundlesTest`
+- [x] 2.1 Add `compileOnly` `eu.cloudnetservice.cloudnet:driver-api:4.0.0-RC17` (Maven Central) to the version catalogue and `velocity/build.gradle.kts`, not shaded; verify the shadow jar contains no `eu/cloudnetservice` classes
+- [x] 2.2 Add `CloudNetView`, `ServerFacts`, `NoCloudNetView`, `DriverCloudNetView` (only class importing the driver; cache fed by `CloudServiceLifecycleChangeEvent`/`CloudServiceUpdateEvent`, one `serviceByName` lookup on a miss), detection and `cloudnet.integration` config; verify unit tests with `FakeCloudNetView` and a test that only `DriverCloudNetView` imports `eu.cloudnetservice`
+- [x] 2.3 Add `ServerTargets.covers` and use it in `Enforcement.serverBan`/`coversServer`, `ServerConnectListener` and `PunishmentSyncHandler` (move-off, fallback-also-covered disconnects); `SectionInfo` reads `targetKind` (missing -> `PATTERN`); verify tests for each kind, case, unknown server (warn once), no CloudNet, service restart, fallback covered
+- [x] 2.4 Deny screen: `punishment.screen.target.{task,group,service}` in `blackhole_en.properties` and `blackhole_de.properties`; verify `PunishmentScreensTest` and `I18nBundlesTest`
 
 ## 3. Catalogue (PR 3, `feat(cloudnet)`)
 

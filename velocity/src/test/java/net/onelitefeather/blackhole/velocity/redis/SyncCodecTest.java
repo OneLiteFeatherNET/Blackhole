@@ -64,6 +64,18 @@ class SyncCodecTest {
         assertEquals(1, sections.size());
         assertEquals(EnforcementKind.SERVER, sections.getFirst().enforcement());
         assertEquals(List.of("bedwars-*"), sections.getFirst().servers());
+        assertEquals(net.onelitefeather.blackhole.client.model.ServerTargetKind.PATTERN, sections.getFirst().targetKind(),
+                "a list without targetKind is a list of patterns");
+    }
+
+    @Test
+    void theTargetKindOfACachedSectionIsRead() {
+        String json = "[{\"key\":\"bedwars\",\"displayName\":\"Bedwars\",\"enforcement\":\"SERVER\",\"servers\":[\"BedWars\"],"
+                + "\"targetKind\":\"CLOUDNET_TASK\",\"baseScore\":1000,\"permanentThreshold\":300,\"pardonScore\":700,"
+                + "\"permanentReason\":\"r\",\"decayPerDay\":10,\"enabled\":true}]";
+
+        assertEquals(net.onelitefeather.blackhole.client.model.ServerTargetKind.CLOUDNET_TASK,
+                codec.sections(json).orElseThrow().getFirst().targetKind());
     }
 
     @Test

@@ -6,6 +6,7 @@ import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
 
 import static net.onelitefeather.blackhole.velocity.TestData.active;
 import static net.onelitefeather.blackhole.velocity.TestData.standardRegistry;
@@ -70,13 +71,13 @@ class EnforcementTest {
     void aServerBanDeniesOnlyMatchingServers() {
         var serverBan = active("bedwars", EnforcementKind.SERVER, "p1", null);
 
-        assertTrue(Enforcement.serverBan(List.of(serverBan), sections, "bedwars-3", NOW).isPresent(), "bedwars-3 matches bedwars-*");
-        assertTrue(Enforcement.serverBan(List.of(serverBan), sections, "skywars-1", NOW).isEmpty(), "skywars-1 stays reachable");
+        assertTrue(Enforcement.serverBan(List.of(serverBan), sections, "bedwars-3", Optional.empty(), NOW).isPresent(), "bedwars-3 matches bedwars-*");
+        assertTrue(Enforcement.serverBan(List.of(serverBan), sections, "skywars-1", Optional.empty(), NOW).isEmpty(), "skywars-1 stays reachable");
     }
 
     @Test
     void aNetworkBanIsNotAServerBan() {
-        assertTrue(Enforcement.serverBan(List.of(active("network", EnforcementKind.BAN, "p1", null)), sections, "bedwars-1", NOW).isEmpty());
+        assertTrue(Enforcement.serverBan(List.of(active("network", EnforcementKind.BAN, "p1", null)), sections, "bedwars-1", Optional.empty(), NOW).isEmpty());
     }
 
     @Test
@@ -106,7 +107,7 @@ class EnforcementTest {
     void aNewServerBanCoversThePlayersCurrentServerOnlyIfItMatches() {
         var serverBan = active("bedwars", EnforcementKind.SERVER, "p1", null);
 
-        assertTrue(Enforcement.coversServer(serverBan, sections, "bedwars-1", NOW), "the player stands on a banned server");
-        assertFalse(Enforcement.coversServer(serverBan, sections, "lobby-1", NOW), "the player stands elsewhere");
+        assertTrue(Enforcement.coversServer(serverBan, sections, "bedwars-1", Optional.empty(), NOW), "the player stands on a banned server");
+        assertFalse(Enforcement.coversServer(serverBan, sections, "lobby-1", Optional.empty(), NOW), "the player stands elsewhere");
     }
 }

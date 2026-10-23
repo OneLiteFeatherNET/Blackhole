@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.velocity.enforcement;
 
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
+import net.onelitefeather.blackhole.velocity.cloudnet.ServerFacts;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.section.SectionInfo;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
@@ -73,17 +74,18 @@ public final class PunishmentState {
     }
 
     /**
+     * @param facts what CloudNet knows about the server, empty if nothing
      * @return the active punishment that denies connecting to {@code serverName}; empty if the state
      * cannot be determined, so an outage never locks players out of servers
      */
-    public Optional<PunishmentSyncMessage> activeServerBan(String owner, String serverName) {
+    public Optional<PunishmentSyncMessage> activeServerBan(String owner, String serverName, Optional<ServerFacts> facts) {
         try {
             ensureLoaded(owner);
         } catch (Unavailable e) {
             LOGGER.debug("Server ban state of {} unknown, allowing the connect: {}", owner, e.getMessage());
             return Optional.empty();
         }
-        return Enforcement.serverBan(this.mirror.active(owner), this.sections, serverName, this.clock.millis());
+        return Enforcement.serverBan(this.mirror.active(owner), this.sections, serverName, facts, this.clock.millis());
     }
 
     private void ensureLoaded(String owner) {

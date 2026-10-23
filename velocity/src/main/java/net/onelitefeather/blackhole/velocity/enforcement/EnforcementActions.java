@@ -5,6 +5,7 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.text.Component;
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
+import net.onelitefeather.blackhole.velocity.cloudnet.ServerResolver;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
@@ -32,11 +33,12 @@ public final class EnforcementActions {
     private final BlackholeConfig config;
     private final Clock clock;
     private final PunishmentScreens screens;
+    private final ServerResolver servers;
 
     public EnforcementActions(
             @NotNull ProxyServer proxy, @NotNull SectionRegistry sections, @NotNull PunishmentState state,
             @NotNull BlackholeConfig config, @NotNull Clock clock,
-            @NotNull PunishmentScreens screens
+            @NotNull PunishmentScreens screens, @NotNull ServerResolver servers
     ) {
         this.proxy = proxy;
         this.sections = sections;
@@ -44,6 +46,7 @@ public final class EnforcementActions {
         this.config = config;
         this.clock = clock;
         this.screens = screens;
+        this.servers = servers;
     }
 
     /**
@@ -86,12 +89,15 @@ public final class EnforcementActions {
 
     private void moveOffCoveredServer(Player player, PunishmentSyncMessage punishment) {
         String current = player.getCurrentServer().map(connection -> connection.getServerInfo().getName()).orElse(null);
-        if (current == null || !Enforcement.coversServer(punishment, this.sections, current, this.clock.millis())) {
+        if (current == null || !Enforcement.coversServer(punishment, this.sections, current, this.servers.facts(current), this.clock.millis())) {
             return;
         }
         String owner = punishment.owner();
         RegisteredServer fallback = this.proxy.getServer(this.config.getFallbackServer())
-                .filter(server -> this.state.activeServerBan(owner, server.getServerInfo().getName()).isEmpty())
+                .filter(server -> {
+                    String name = server.getServerInfo().getName();
+                    return this.state.activeServerBan(owner, name, this.servers.facts(name)).isEmpty();
+                })
                 .orElse(null);
         if (fallback == null) {
             player.disconnect(screen(player, punishment, PunishmentScreens.Surface.DISCONNECT, false));

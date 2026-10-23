@@ -4,6 +4,7 @@ import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.proxy.Player;
+import net.onelitefeather.blackhole.velocity.cloudnet.ServerResolver;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
@@ -22,18 +23,22 @@ public final class ServerConnectListener {
 
     private final PunishmentState state;
     private final PunishmentScreens screens;
+    private final ServerResolver servers;
 
     @Inject
-    public ServerConnectListener(@NotNull PunishmentState state, @NotNull PunishmentScreens screens) {
+    public ServerConnectListener(@NotNull PunishmentState state, @NotNull PunishmentScreens screens,
+                                 @NotNull ServerResolver servers) {
         this.state = state;
         this.screens = screens;
+        this.servers = servers;
     }
 
     @Subscribe
     public void onServerPreConnect(@NotNull ServerPreConnectEvent event) {
         Player player = event.getPlayer();
         String serverName = event.getOriginalServer().getServerInfo().getName();
-        Optional<PunishmentSyncMessage> ban = this.state.activeServerBan(UUIDConverter.convertToSHA(player.getUniqueId()), serverName);
+        Optional<PunishmentSyncMessage> ban = this.state.activeServerBan(UUIDConverter.convertToSHA(player.getUniqueId()), serverName,
+                this.servers.facts(serverName));
         if (ban.isEmpty()) {
             return;
         }

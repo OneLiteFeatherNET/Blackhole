@@ -21,6 +21,8 @@ dependencies {
     implementation(libs.jackson.databind)
 
     compileOnly(libs.velocity.api)
+    // Provided by the CloudNet wrapper at runtime; never shaded (a second copy would not share its injection layer).
+    compileOnly(libs.cloudnet.driver.api)
 
     // Adventure components and Player appear in the signatures of classes under test.
     testImplementation(libs.velocity.api)

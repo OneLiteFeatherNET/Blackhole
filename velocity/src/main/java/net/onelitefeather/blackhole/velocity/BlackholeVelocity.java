@@ -25,6 +25,9 @@ import net.onelitefeather.blackhole.velocity.command.PunishCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishInfoCommand;
 import net.onelitefeather.blackhole.velocity.command.EloCommand;
 import net.onelitefeather.blackhole.velocity.command.TargetParser;
+import net.onelitefeather.blackhole.velocity.cloudnet.CloudNetView;
+import net.onelitefeather.blackhole.velocity.cloudnet.CloudNets;
+import net.onelitefeather.blackhole.velocity.cloudnet.ServerResolver;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.config.BlackholeApiClients;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
@@ -56,6 +59,7 @@ import net.onelitefeather.blackhole.velocity.redis.CachedTemplates;
 import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
 import net.onelitefeather.blackhole.velocity.section.BackendSectionSource;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
+import net.onelitefeather.blackhole.client.model.ServerTargetKind;
 import net.kyori.adventure.text.minimessage.translation.MiniMessageTranslationStore;
 import net.kyori.adventure.translation.GlobalTranslator;
 import org.incendo.cloud.SenderMapper;
@@ -124,7 +128,10 @@ public class BlackholeVelocity {
         BackendGateway backend = new HttpBackendGateway(this.client, new CachedTemplates(this.redisSyncService), clock);
         PunishmentState state = new PunishmentState(sections, mirror, this.redisSyncService, owner -> backend.profile(owner), clock);
         PunishmentScreens screens = new PunishmentScreens(clock, this.config, sections, GlobalTranslator.renderer());
-        EnforcementActions actions = new EnforcementActions(this.server, sections, state, this.config, clock, screens);
+        CloudNetView cloudNet = CloudNets.detect(this.config.getCloudnet().withEnvironment(System::getenv).getIntegration(),
+                BlackholeVelocity.class.getClassLoader(), this.logger);
+        ServerResolver servers = new ServerResolver(cloudNet, sections, this.logger::warn);
+        EnforcementActions actions = new EnforcementActions(this.server, sections, state, this.config, clock, screens, servers);
         PunishmentSyncHandler syncHandler = new PunishmentSyncHandler(mirror, actions);
         ChatCaptureConfig chatCapture = this.config.getEvidence().getChatCapture();
         ChatBuffer chatBuffer = new ChatBuffer(clock, chatCapture);
@@ -143,11 +150,15 @@ public class BlackholeVelocity {
         this.redisSyncService.onSectionChanged(changed -> CompletableFuture.runAsync(sections::reload));
         this.redisSyncService.connect();
         sections.reload();
+        long cloudNetSections = sections.all().stream().filter(section -> section.targetKind() != ServerTargetKind.PATTERN).count();
+        if (!cloudNet.available() && cloudNetSections > 0) {
+            this.logger.warn("{} CloudNet section(s) exist but CloudNet is not available: they cover no server and are not enforced", cloudNetSections);
+        }
 
         Injector childInjector = this.injector.createChildInjector(
                 new BlackholeClientModule(this.client, this.config, this.redisSyncService, sections, mirror, state,
                         syncHandler, actions, backend, punishService, clock, screens, chatBuffer, evidenceCounts, chatDenial,
-                        new MuteNotices(screens, new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN))).asModule(),
+                        new MuteNotices(screens, new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN)), servers).asModule(),
                 new CloudInjectionModule<>(
                         CommandSource.class,
                         ExecutionCoordinator.simpleCoordinator(),
