@@ -47,6 +47,9 @@ the backend verifies it; the UI only decides what to offer.
   "would be imported"), skipped (player already banned) and errors, with a description per invalid entry. The
   endpoint is hidden from the published API spec, so the UI calls it by hand; the UI server forwards at most
   1 MiB per request on this route, so larger lists have to be split.
+  The page also shows the CloudNet catalogue the proxies report (`GET /cloudnet/catalogue`, read-only): tasks with
+  their groups, groups, services (running or stopped), the reporting proxies and when the data was last reported,
+  or a hint when no catalogue exists.
 - **Sign-out** clears the in-memory user and ends the Entra session (`post_logout_redirect_uri` is
   the UI's origin).
 - **Evidence files** (`GET /evidence/{id}/content`) need the bearer token, which `<img>` and

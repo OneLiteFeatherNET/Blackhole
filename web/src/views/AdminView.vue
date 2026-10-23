@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
+import CloudNetCataloguePanel from '../components/admin/CloudNetCataloguePanel.vue'
 import StaffActorsPanel from '../components/admin/StaffActorsPanel.vue'
 import VanillaImportPanel from '../components/admin/VanillaImportPanel.vue'
 
@@ -12,5 +13,6 @@ const { t } = useI18n()
     <p class="text-body-large text-on-surface-variant">{{ t('admin.intro') }}</p>
     <StaffActorsPanel />
     <VanillaImportPanel />
+    <CloudNetCataloguePanel />
   </div>
 </template>

@@ -654,5 +654,30 @@
     "confirmTitle": "Import the bans?",
     "confirmBody": "The bans are created and take effect right away. An import cannot be undone as a whole; single bans can be revoked on the player page. Run the preview first if you have not.",
     "confirm": "Import now"
+  },
+  "cloudnetCatalogue": {
+    "title": "CloudNet catalogue",
+    "intro": "What the proxies report from CloudNet. Read-only; the section editor uses it for suggestions.",
+    "reload": "Reload",
+    "empty": "No CloudNet data has been reported yet. A proxy reports it after it starts and then on a regular schedule; reports expire after a while, so the data disappears when no proxy reports it.",
+    "reportedAt": "Last reported: {time}",
+    "reportedUnknown": "Time of the last report unknown.",
+    "proxies": "Reporting proxies",
+    "noProxies": "No proxy is reporting.",
+    "tasks": "Tasks",
+    "groups": "Groups",
+    "services": "Services",
+    "noneTasks": "No tasks reported.",
+    "noneGroups": "No groups reported.",
+    "noneServices": "No services reported.",
+    "none": "none",
+    "running": "Running",
+    "stopped": "Stopped",
+    "columns": {
+      "task": "Task",
+      "groups": "Groups",
+      "service": "Service",
+      "state": "State"
+    }
   }
 }
