@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.punishment.controller;
 
+import io.micronaut.security.annotation.Secured;
+import net.onelitefeather.blackhole.backend.security.Roles;
 import io.micronaut.core.version.annotation.Version;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -39,26 +41,31 @@ public class PunishmentTemplateController implements PunishmentTemplateApi {
     }
 
     @Override
+    @Secured(Roles.ADMIN)
     public HttpResponse<PunishTemplateDTO> addTemplate(PunishTemplateDTO.CreateRequest template) {
         return toResponse(this.templateService.create(template));
     }
 
     @Override
+    @Secured(Roles.ADMIN)
     public HttpResponse<PunishTemplateDTO> updateTemplate(PunishTemplateDTO.UpdateRequest template) {
         return toResponse(this.templateService.update(template));
     }
 
     @Override
+    @Secured(Roles.ADMIN)
     public HttpResponse<PunishTemplateDTO> removeTemplate(UUID identifier) {
         return toResponse(this.templateService.remove(identifier));
     }
 
     @Override
+    @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<Page<PunishTemplateDTO.Response>> getAll(Pageable pageable) {
         return HttpResponse.ok(this.templateService.findAll(pageable));
     }
 
     @Override
+    @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<PunishTemplateDTO> get(UUID identifier) {
         return this.templateService.find(identifier)
                 .<HttpResponse<PunishTemplateDTO>>map(HttpResponse::ok)

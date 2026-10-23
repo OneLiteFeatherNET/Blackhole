@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.playerresolver.controller;
 
+import io.micronaut.security.annotation.Secured;
+import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.playerresolver.dto.PlayerResolveDTO;
 import net.onelitefeather.blackhole.backend.playerresolver.service.PlayerLookupService;
 import io.micronaut.core.version.annotation.Version;
@@ -27,6 +29,7 @@ public class PlayerLookupController implements PlayerLookupApi {
     }
 
     @Override
+    @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<PlayerResolveDTO> resolve(String name) {
         PlayerResolveDTO result = this.playerLookupService.resolve(name);
         if (result instanceof PlayerResolveDTO.Error) {

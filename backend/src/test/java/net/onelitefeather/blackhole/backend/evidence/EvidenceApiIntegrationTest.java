@@ -59,7 +59,8 @@ class EvidenceApiIntegrationTest extends ApiIntegrationTest {
 
     private HttpResponse<byte[]> exchange(HttpRequest<?> request) {
         try {
-            return this.http.toBlocking().exchange(request, byte[].class);
+            return this.http.toBlocking().exchange(
+                    ((io.micronaut.http.MutableHttpRequest<?>) request).bearerAuth(this.jwt.admin()), byte[].class);
         } catch (HttpClientResponseException e) {
             @SuppressWarnings("unchecked") HttpResponse<byte[]> response = (HttpResponse<byte[]>) e.getResponse();
             return response;

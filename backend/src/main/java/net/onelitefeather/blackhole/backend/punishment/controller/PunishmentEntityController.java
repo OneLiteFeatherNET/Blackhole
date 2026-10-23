@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.punishment.controller;
 
+import io.micronaut.security.annotation.Secured;
+import net.onelitefeather.blackhole.backend.security.Roles;
 import io.micronaut.core.version.annotation.Version;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -31,26 +33,31 @@ public class PunishmentEntityController implements PunishmentApi {
     }
 
     @Override
+    @Secured({Roles.MODERATOR, Roles.PROXY})
     public HttpResponse<PunishmentDTO> apply(PunishmentDTO.ApplyRequest request) {
         return toResponse(this.punishmentApplicationService.apply(request));
     }
 
     @Override
+    @Secured(Roles.MODERATOR)
     public HttpResponse<PunishmentDTO> preview(PunishmentDTO.ApplyRequest request) {
         return toResponse(this.punishmentApplicationService.preview(request));
     }
 
     @Override
+    @Secured({Roles.MODERATOR, Roles.PROXY})
     public HttpResponse<PunishmentDTO> revoke(PunishmentDTO.RevokeRequest request) {
         return toResponse(this.punishmentApplicationService.revoke(request));
     }
 
     @Override
+    @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<Page<PunishEntryDTO>> getAll(Pageable pageable) {
         return HttpResponse.ok(this.punishmentApplicationService.findAll(pageable));
     }
 
     @Override
+    @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<?> findByShortId(String shortId) {
         return switch (this.punishmentApplicationService.findByShortId(shortId)) {
             case PunishmentDTO.ShortIdMatches matches -> HttpResponse.ok(matches.punishments());

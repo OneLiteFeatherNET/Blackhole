@@ -17,7 +17,10 @@ public enum ErrorKind {
     NOT_FOUND(HttpStatus.NOT_FOUND),
 
     /** The request is valid but conflicts with current state (409). */
-    CONFLICT(HttpStatus.CONFLICT);
+    CONFLICT(HttpStatus.CONFLICT),
+
+    /** The caller's credentials do not identify them well enough for this request (401). */
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED);
 
     private final HttpStatus status;
 

@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.appeal.controller;
 
+import io.micronaut.security.annotation.Secured;
+import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
 import net.onelitefeather.blackhole.backend.evidence.service.PunishmentEvidenceGateway;
 import net.onelitefeather.blackhole.backend.appeal.AppealReviewResult;
@@ -56,6 +58,7 @@ public class AppealController implements AppealApi {
     }
 
     @Override
+    @Secured({Roles.MODERATOR, Roles.PROXY})
     public HttpResponse<?> submit(AppealSubmissionDTO submission) {
         Optional<AppealEntity> saved = this.eligibilityService.submitAppeal(
                 submission.punishmentIdentifier(), submission.appellantHash(), submission.statement()
@@ -77,12 +80,14 @@ public class AppealController implements AppealApi {
     }
 
     @Override
+    @Secured(Roles.VIEWER)
     public HttpResponse<Page<AppealDTO>> getAll(Pageable pageable) {
         Page<AppealEntity> entities = this.eligibilityService.findAll(pageable);
         return HttpResponse.ok(entities.map(this::withEvidenceCount));
     }
 
     @Override
+    @Secured(Roles.MODERATOR)
     public HttpResponse<?> review(UUID identifier, AppealReviewDTO review) {
         AppealReviewResult result = this.decisionService.reviewAppeal(identifier, review);
         return switch (result.kind()) {

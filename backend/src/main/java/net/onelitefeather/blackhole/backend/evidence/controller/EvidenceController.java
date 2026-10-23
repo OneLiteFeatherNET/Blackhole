@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.evidence.controller;
 
+import io.micronaut.security.annotation.Secured;
+import net.onelitefeather.blackhole.backend.security.Roles;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.version.annotation.Version;
 import io.micronaut.data.model.Pageable;
@@ -44,11 +46,13 @@ public class EvidenceController implements EvidenceApi {
     }
 
     @Override
+    @Secured({Roles.MODERATOR, Roles.PROXY})
     public HttpResponse<EvidenceDTO> attach(EvidenceDTO.CreateRequest request) {
         return toResponse(this.evidenceService.attach(request));
     }
 
     @Override
+    @Secured({Roles.MODERATOR, Roles.PROXY})
     public HttpResponse<EvidenceDTO> upload(
             StreamingFileUpload file, @Nullable String punishment, @Nullable String owner, @Nullable String correlationId,
             @Nullable String sourceSystem, @Nullable Long capturedAt, @Nullable String description, @Nullable UUID source
@@ -63,26 +67,31 @@ public class EvidenceController implements EvidenceApi {
     }
 
     @Override
+    @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<EvidenceDTO> listByPunishment(String reference, boolean includeInactive, @Nullable UUID source, Pageable pageable) {
         return toResponse(this.evidenceService.list(reference, includeInactive, pageable, source));
     }
 
     @Override
+    @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<EvidenceDTO> count(String reference) {
         return toResponse(this.evidenceService.count(reference));
     }
 
     @Override
+    @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<EvidenceDTO> listByOwner(String owner, boolean includeInactive, @Nullable UUID source, Pageable pageable) {
         return toResponse(this.evidenceService.listByOwner(owner, includeInactive, pageable, source));
     }
 
     @Override
+    @Secured(Roles.VIEWER)
     public HttpResponse<EvidenceDTO> get(UUID identifier, @Nullable UUID source) {
         return toResponse(this.evidenceService.get(identifier, source));
     }
 
     @Override
+    @Secured(Roles.VIEWER)
     public HttpResponse<?> content(UUID identifier, @Nullable String range, @Nullable UUID source) {
         return switch (this.evidenceService.content(identifier, range, source)) {
             case EvidenceDTO.Download download -> file(download);
@@ -94,11 +103,13 @@ public class EvidenceController implements EvidenceApi {
     }
 
     @Override
+    @Secured(Roles.ADMIN)
     public HttpResponse<EvidenceDTO> delete(UUID identifier, @Nullable String reason, @Nullable String note, @Nullable UUID source) {
         return toResponse(this.evidenceService.delete(identifier, reason, note, source));
     }
 
     @Override
+    @Secured(Roles.ADMIN)
     public HttpResponse<EvidenceDTO> deleteByOwner(String owner, @Nullable String reason, @Nullable String note, @Nullable UUID source) {
         return toResponse(this.evidenceService.deleteByOwner(owner, reason, note, source));
     }

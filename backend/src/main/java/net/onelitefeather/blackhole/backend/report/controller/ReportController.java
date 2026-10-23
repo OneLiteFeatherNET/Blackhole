@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.report.controller;
 
+import io.micronaut.security.annotation.Secured;
+import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.report.dto.ReportRequestDTO;
 import net.onelitefeather.blackhole.backend.report.dto.ReportResolutionDTO;
 import net.onelitefeather.blackhole.backend.report.dto.ReportErrorDTO;
@@ -51,6 +53,7 @@ public class ReportController implements ReportApi {
     }
 
     @Override
+    @Secured({Roles.MODERATOR, Roles.PROXY})
     public HttpResponse<?> submit(ReportRequestDTO submission) {
         ReportService.SubmitResult result = this.reportService.submit(submission);
         return switch (result) {
@@ -60,11 +63,13 @@ public class ReportController implements ReportApi {
     }
 
     @Override
+    @Secured(Roles.VIEWER)
     public HttpResponse<Page<ReportDTO>> getAll(Pageable pageable) {
         return HttpResponse.ok(this.reportService.getAll(pageable));
     }
 
     @Override
+    @Secured(Roles.MODERATOR)
     public HttpResponse<?> resolve(UUID identifier, ReportResolutionDTO resolution) {
         ReportService.ResolveResult result = this.reportService.resolve(identifier, resolution);
         return switch (result) {

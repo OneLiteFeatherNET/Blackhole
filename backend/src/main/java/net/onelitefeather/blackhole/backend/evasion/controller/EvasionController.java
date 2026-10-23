@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.evasion.controller;
 
+import io.micronaut.security.annotation.Secured;
+import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.evasion.dto.EvasionRecordDTO;
 import net.onelitefeather.blackhole.backend.evasion.service.IpCorrelationService;
 import io.micronaut.http.HttpResponse;
@@ -41,6 +43,7 @@ public class EvasionController {
     @ApiResponse(responseCode = "503", description = "blackhole.evasion.ip-salt is not configured - evasion detection is disabled")
     @Validated
     @Post("/record")
+    @Secured({Roles.MODERATOR, Roles.PROXY})
     public HttpResponse<?> record(@Body @Valid EvasionRecordDTO request) {
         if (!this.ipCorrelationService.isConfigured()) {
             return HttpResponse.status(HttpStatus.SERVICE_UNAVAILABLE, "Ban-evasion detection is not configured");

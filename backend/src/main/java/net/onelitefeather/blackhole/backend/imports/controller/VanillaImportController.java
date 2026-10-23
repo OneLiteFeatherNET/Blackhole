@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.imports.controller;
 
+import io.micronaut.security.annotation.Secured;
+import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.imports.dto.VanillaImportResultDTO;
 import net.onelitefeather.blackhole.backend.imports.service.VanillaImportService;
 import io.micronaut.core.annotation.Nullable;
@@ -35,6 +37,7 @@ public class VanillaImportController {
 
     @Operation(hidden = true)
     @Post(value = "/vanilla", consumes = MediaType.MULTIPART_FORM_DATA)
+    @Secured(Roles.ADMIN)
     public HttpResponse<?> importVanilla(
             @Part("bannedPlayers") CompletedFileUpload bannedPlayers,
             @Part("bannedIps") @Nullable CompletedFileUpload bannedIps,
