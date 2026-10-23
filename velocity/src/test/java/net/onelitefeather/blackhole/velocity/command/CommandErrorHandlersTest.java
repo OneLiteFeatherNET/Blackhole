@@ -57,7 +57,7 @@ class CommandErrorHandlersTest {
         manager.parserRegistry().registerSuggestionProvider("players", SuggestionProvider.blockingStrings((context, input) -> List.of()));
         CommandErrorHandlers.register(manager);
         AnnotationParser<CommandSource> parser = new AnnotationParser<>(manager, CommandSource.class);
-        parser.parse(new PunishCommand(null, null, null, null, null));
+        parser.parse(new PunishCommand(null, null, null, null, null, null));
         parser.parse(new PardonCommand(null, null, null));
         parser.parse(new EloCommand(null));
         parser.parse(new PunishInfoCommand(null, null, null));

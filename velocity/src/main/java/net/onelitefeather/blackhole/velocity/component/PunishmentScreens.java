@@ -6,6 +6,7 @@ import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.renderer.ComponentRenderer;
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
@@ -138,6 +139,27 @@ public final class PunishmentScreens {
                 ? JoinConfiguration.separator(Component.newline().append(Component.newline()))
                 : JoinConfiguration.newlines();
         return this.renderer.render(Component.join(separator, paragraphs), locale);
+    }
+
+    /**
+     * The one-line reminder for a muted player who keeps chatting: the title, the remaining time (or
+     * "permanent") and the short ID. The reason and the appeal hint are left to the full screen.
+     */
+    public @NotNull Component muteReminder(@NotNull PunishmentSyncMessage punishment, @NotNull Locale locale) {
+        List<Component> parts = new ArrayList<>();
+        parts.add(Component.translatable("punishment.screen.title.mute"));
+        if (punishment.expiresAt() == null) {
+            parts.add(Component.translatable("punishment.screen.duration.permanent"));
+        } else {
+            Duration remaining = Duration.ofMillis(punishment.expiresAt() - this.clock.millis());
+            parts.add(Component.translatable("punishment.screen.remaining", DurationTag.remaining(remaining)));
+        }
+        Component id = id(punishment.punishmentIdentifier(), Surface.CHAT);
+        if (id != null) {
+            parts.add(Component.translatable("punishment.screen.id", id));
+        }
+        return this.renderer.render(
+                Component.join(JoinConfiguration.separator(Component.text(" · ", NamedTextColor.GRAY)), parts), locale);
     }
 
     /**
