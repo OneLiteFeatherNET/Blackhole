@@ -72,6 +72,17 @@ describe('ReportsView', () => {
     wrapper.unmount()
   })
 
+  it('links every report to its detail page, resolved ones too', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-testid="details-r-1"]').attributes('href')).toBe('/reports/r-1')
+    await wrapper.get('[data-testid="filter-all"]').trigger('click')
+    expect(wrapper.get('[data-testid="details-r-2"]').attributes('href')).toBe('/reports/r-2')
+
+    wrapper.unmount()
+  })
+
   it('links the reported player to the player detail by hash only', async () => {
     const { mount } = setup()
     const { wrapper } = await mount()

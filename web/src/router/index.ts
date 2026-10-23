@@ -11,6 +11,7 @@ import PlayerDetailView from '../views/PlayerDetailView.vue'
 import PlayersView from '../views/PlayersView.vue'
 import PunishedPlayersView from '../views/PunishedPlayersView.vue'
 import AppealsView from '../views/AppealsView.vue'
+import ReportDetailView from '../views/ReportDetailView.vue'
 import ReportsView from '../views/ReportsView.vue'
 import SectionsView from '../views/SectionsView.vue'
 import TemplatesView from '../views/TemplatesView.vue'
@@ -23,6 +24,7 @@ export const routes: RouteRecordRaw[] = [
   { path: '/templates', name: 'templates', component: TemplatesView, meta: { titleKey: 'nav.templates' } },
   { path: '/sections', name: 'sections', component: SectionsView, meta: { titleKey: 'nav.sections' } },
   { path: '/reports', name: 'reports', component: ReportsView, meta: { titleKey: 'nav.reports' } },
+  { path: '/reports/:id', name: 'report', component: ReportDetailView, props: true, meta: { titleKey: 'reports.detail.title' } },
   { path: '/appeals', name: 'appeals', component: AppealsView, meta: { titleKey: 'nav.appeals' } },
   { path: '/admin', name: 'admin', component: AdminView, meta: { titleKey: 'nav.admin', admin: true } },
   { path: '/cases', name: 'cases', component: CasesView, meta: { titleKey: 'nav.cases' } },

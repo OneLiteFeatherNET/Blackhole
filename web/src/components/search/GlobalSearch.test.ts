@@ -77,7 +77,16 @@ describe('GlobalSearch', () => {
 
     await submit(input, 'two words')
 
-    expect(wrapper.get('[data-testid="search-message"]').text()).toBe('Enter a player name (3 to 16 characters) or a case id such as #A1B2C3D4.')
+    expect(wrapper.get('[data-testid="search-message"]').text()).toBe('Enter a player name (3 to 16 characters), a case id such as #A1B2C3D4 or report: and a report id.')
+    wrapper.unmount()
+  })
+
+  it('opens the report page for report: and a report id without asking the backend', async () => {
+    const { wrapper, router, input } = await setup()
+
+    await submit(input, 'report:3F2B8C1E-0000-4000-8000-000000000001')
+
+    expect(router.currentRoute.value.fullPath).toBe('/reports/3f2b8c1e-0000-4000-8000-000000000001')
     wrapper.unmount()
   })
 

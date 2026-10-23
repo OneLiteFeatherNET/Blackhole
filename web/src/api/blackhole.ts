@@ -86,6 +86,10 @@ export interface BlackholeApi {
   /** All reports, newest first. */
   reports(): Promise<ApiResult<Report[]>>
   resolveReport(identifier: string, resolution: ReportResolution): Promise<ApiResult<Report>>
+  /** One report; NOT_FOUND if there is none. */
+  report(identifier: string): Promise<ApiResult<Report>>
+  /** Every report against the player (owner hash), newest first. */
+  reportsAgainst(reportedHash: string): Promise<ApiResult<Report[]>>
   /** All appeals, newest first. */
   appeals(): Promise<ApiResult<Appeal[]>>
   reviewAppeal(identifier: string, decision: AppealDecision): Promise<ApiResult<Appeal>>
@@ -349,6 +353,20 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     async reports() {
       const reports = await collectPages<Report>((page) =>
         toResult(http.GET('/report', { params: { query: { pageable: NO_PAGEABLE } }, querySerializer: pageQuery(page) })),
+      )
+      return map(reports, (all) => [...all].sort((a, b) => b.createdAt - a.createdAt))
+    },
+
+    report: (identifier) => toResult(http.GET('/report/{identifier}', { params: { path: { identifier } } })),
+
+    async reportsAgainst(reportedHash) {
+      const reports = await collectPages<Report>((page) =>
+        toResult(
+          http.GET('/report', {
+            params: { query: { pageable: NO_PAGEABLE, reportedHash } },
+            querySerializer: pageQuery(page, { reportedHash }),
+          }),
+        ),
       )
       return map(reports, (all) => [...all].sort((a, b) => b.createdAt - a.createdAt))
     },

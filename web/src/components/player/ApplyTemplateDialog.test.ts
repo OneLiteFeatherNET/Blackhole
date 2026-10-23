@@ -165,3 +165,64 @@ describe('ApplyTemplateDialog', () => {
     wrapper.unmount()
   })
 })
+
+describe('ApplyTemplateDialog for a report', () => {
+  const sections = [
+    { key: 'network', enforcement: 'BAN' },
+    { key: 'chat', enforcement: 'MUTE' },
+  ]
+
+  function reportSetup(category: string) {
+    const api = {
+      templates: vi.fn(async () => ok(templates)),
+      sections: vi.fn(async () => ok(sections)),
+      previewApply: vi.fn(async () => ok(preview())),
+      applyTemplate: vi.fn(),
+      resolveReport: vi.fn(async () => ok({})),
+    }
+    const report = { identifier: 'r-1', reportedHash: OWNER, reporterHash: 'cd'.repeat(64), category, createdAt: 0, updatedAt: 0, metaData: {} }
+    return { api, mount: () => mountWithApp(ApplyTemplateDialog, { api: mockApi(api), props: { open: true, owner: OWNER, report } }) }
+  }
+
+  it('offers only templates of sections that fit a cheating report, until asked for all', async () => {
+    const { mount } = reportSetup('CHEATING')
+    const { wrapper } = await mount()
+
+    expect((await listOptions(wrapper.get('[role="combobox"]'))).map((option) => option.value)).toEqual(['hacking'])
+
+    await wrapper.get('[data-testid="show-all-templates"] input').setValue(true)
+    expect((await listOptions(wrapper.get('[role="combobox"]'))).map((option) => option.value)).toEqual(['hacking', 'spam'])
+    wrapper.unmount()
+  })
+
+  it('offers mute templates for chat abuse', async () => {
+    const { mount } = reportSetup('CHAT_ABUSE')
+    const { wrapper } = await mount()
+
+    expect((await listOptions(wrapper.get('[role="combobox"]'))).map((option) => option.value)).toEqual(['spam'])
+    wrapper.unmount()
+  })
+
+  it('offers every template for the category other, without a filter switch', async () => {
+    const { mount } = reportSetup('OTHER')
+    const { wrapper } = await mount()
+
+    expect((await listOptions(wrapper.get('[role="combobox"]'))).map((option) => option.value)).toEqual(['hacking', 'spam'])
+    expect(wrapper.find('[data-testid="show-all-templates"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('resolves the report with the template instead of applying it on its own', async () => {
+    const { api, mount } = reportSetup('CHEATING')
+    const { wrapper } = await mount()
+
+    await choose(wrapper, 'hacking')
+    await wrapper.get('[data-testid="confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(api.resolveReport).toHaveBeenCalledWith('r-1', { status: 'ACTIONED', templateId: 'id-1' })
+    expect(api.applyTemplate).not.toHaveBeenCalled()
+    expect(wrapper.emitted('done')).toBeTruthy()
+    wrapper.unmount()
+  })
+})

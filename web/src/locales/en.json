@@ -419,6 +419,37 @@
       "note": "Note",
       "noteHint": "Optional; recorded with the decision",
       "confirm": "Save decision"
+    },
+    "detail": {
+      "back": "Back to reports",
+      "open": "Details",
+      "title": "Report",
+      "summary": "Summary",
+      "reportedPlayer": "Reported player",
+      "reporter": "Reporter",
+      "pseudonymous": "(pseudonymous)",
+      "reason": "Reason given",
+      "noReason": "No reason given.",
+      "resolutionNote": "Resolution note",
+      "noNote": "No note.",
+      "actions": "Actions on this report",
+      "applyTemplate": "Apply template",
+      "dismiss": "Dismiss",
+      "evidence": "Evidence",
+      "evidenceMissing": "{n} evidence item could not be loaded. It may have been deleted. | {n} evidence items could not be loaded. They may have been deleted.",
+      "others": "Other reports against this player",
+      "othersEmpty": "There are no other reports against this player.",
+      "active": "Active punishments",
+      "loadFailed": "This section could not be loaded.",
+      "allTemplates": "Show all templates",
+      "allTemplatesHint": "By default only templates that fit the category of the report are offered.",
+      "actioned": "Report actioned: punishment applied in {section}.",
+      "dismissed": "Report dismissed.",
+      "dismissTitle": "Dismiss report",
+      "dismissHint": "The reporter is told that no action was taken. They do not see your note.",
+      "dismissNote": "Note",
+      "dismissNoteHint": "Required; why is no action taken?",
+      "dismissConfirm": "Dismiss report"
     }
   },
   "appeals": {
@@ -997,8 +1028,9 @@
     "results": "Search results",
     "player": "Open player \"{name}\"",
     "case": "Open case {id}",
-    "hint": "Enter a player name (3 to 16 characters) or a case id such as #A1B2C3D4.",
+    "hint": "Enter a player name (3 to 16 characters), a case id such as #A1B2C3D4 or report: and a report id.",
     "caseNotFound": "Nothing matches the case id {id}.",
-    "ambiguous": "The id {id} matches {n} cases. Pick one."
+    "ambiguous": "The id {id} matches {n} cases. Pick one.",
+    "report": "Open report {id}"
   }
 }
