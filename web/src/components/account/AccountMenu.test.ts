@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { i18n } from '../../i18n'
+import { LOCALE_STORAGE_KEY } from '../../stores/ui'
 import AccountMenu from './AccountMenu.vue'
 
 function mountMenu(displayName: string | null = 'Dev Admin') {
@@ -16,6 +17,7 @@ function mountMenu(displayName: string | null = 'Dev Admin') {
 describe('AccountMenu', () => {
   beforeEach(() => {
     localStorage.clear()
+    localStorage.setItem(LOCALE_STORAGE_KEY, 'de')
   })
 
   it('is closed at first and shows the initial of the name on its button', () => {

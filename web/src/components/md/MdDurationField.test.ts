@@ -1,7 +1,11 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { i18n } from '../../i18n'
 import MdDurationField from './MdDurationField.vue'
+
+beforeEach(() => {
+  i18n.global.locale.value = 'de'
+})
 
 function setup(modelValue = '', extra: Record<string, unknown> = {}) {
   const onUpdate = vi.fn()
