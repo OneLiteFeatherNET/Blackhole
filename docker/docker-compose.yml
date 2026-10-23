@@ -121,8 +121,9 @@ services:
     networks:
       - blackhole_go_net
 
-  # The admin web UI at http://localhost:8081. It has no login of its own and neither has the API it
-  # proxies, so it only listens on localhost here; anywhere else put it on a private network or
+  # The admin web UI at http://localhost:8081, a Node (Nitro) server that serves the built files and
+  # forwards /api/ to the backend; the image's own healthcheck probes /healthz. It has no login of its
+  # own and neither has the API it proxies, so it only listens on localhost here; anywhere else put it on a private network or
   # behind a proxy that authenticates (see web/README.md). The backend is expected on the host
   # (./gradlew :backend:run); point BLACKHOLE_BACKEND_URL elsewhere to use another one.
   web:

@@ -18,11 +18,11 @@ network, no sleeps; the only container check is task 2.4.
 
 ## 2. Container (PR 2: `build(web): serve the admin ui from a nitro node image`)
 
-- [ ] 2.1 Rewrite `web/Dockerfile` (node:24-alpine build and runtime, `.output` only, `USER node`, `NITRO_PORT=8080`, `NITRO_HOST=0.0.0.0`, healthcheck) and adjust `Dockerfile.dockerignore`; verify `docker build -f web/Dockerfile -t blackhole-web .`
-- [ ] 2.2 Delete `web/nginx/` (template, script, shell test); verify `grep -rni nginx web .github docker` only finds intended prose
-- [ ] 2.3 Adjust the web service comments and healthcheck in `docker/docker-compose.yml`; verify `docker compose -f docker/docker-compose.yml config`
-- [ ] 2.4 Container smoke check script (`web/scripts/smoke.mjs`) and a CI step in `build-pr.yml` job `web_image`: run the image against a throwaway upstream and assert the cases in design.md, then run it without `BLACKHOLE_UI_SOURCE` and assert a non-zero exit and the message; verify locally and in CI
-- [ ] 2.5 Align the Node version in CI and `web/build.gradle.kts` with `main` after #185; verify `./gradlew :web:build`
+- [x] 2.1 Rewrite `web/Dockerfile` (node:24-alpine build and runtime, `.output` only, `USER node`, `NITRO_PORT=8080`, `NITRO_HOST=0.0.0.0`, healthcheck) and adjust `Dockerfile.dockerignore`; verify `docker build -f web/Dockerfile -t blackhole-web .`
+- [x] 2.2 Delete `web/nginx/` (template, script, shell test); verify `grep -rni nginx web .github docker` only finds intended prose
+- [x] 2.3 Adjust the web service comments and healthcheck in `docker/docker-compose.yml`; verify `docker compose -f docker/docker-compose.yml config`
+- [x] 2.4 Container smoke check script (`web/scripts/smoke.mjs`) and a CI step in `build-pr.yml` job `web_image`: run the image against a throwaway upstream and assert the cases in design.md, then run it without `BLACKHOLE_UI_SOURCE` and assert a non-zero exit and the message; verify locally and in CI
+- [x] 2.5 Align the Node version in CI and `web/build.gradle.kts` with `main` after #185; verify `./gradlew :web:build`
 
 ## 3. Documentation (PR 3: `docs(web): document the nitro runtime`)
 

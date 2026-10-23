@@ -6,6 +6,7 @@
 **/build
 **/node_modules
 **/dist
+**/.output
 backend
 velocity
 phoca
