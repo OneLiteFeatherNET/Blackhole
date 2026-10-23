@@ -83,7 +83,7 @@ The detection window, retention period and retention sweep schedule SHALL each b
 - **THEN** only sightings last seen within the past day are considered for correlation
 
 ### Requirement: Read sightings for a player
-The system SHALL answer `GET /evasion/{owner}/sightings` for VIEWER and above (not PROXY) with the other owners that shared a hashed address with `owner` inside the detection window, each with its owner hash, the reason `SHARED_IP`, the number of shared addresses and its first and last sighting, at most 50 and newest first. The response MUST NOT contain an IP, a token or a raw UUID. A malformed owner SHALL be answered with 400. When `blackhole.evasion.ip-salt` is unset the response SHALL be 200 with `detectionEnabled` false and no owners.
+The system SHALL answer `GET /evasion/{owner}/sightings` for VIEWER and above (not PROXY) with the other owners that shared a hashed address with `owner` inside the detection window, each with its owner hash, the reason `SHARED_IP`, the number of shared addresses and its first and last sighting, at most 50 and newest first. A malformed owner SHALL be answered with 400.
 
 #### Scenario: Two owners on one address
 - **WHEN** owners A and B were recorded from the same IP and a viewer requests the sightings of A
@@ -92,3 +92,17 @@ The system SHALL answer `GET /evasion/{owner}/sightings` for VIEWER and above (n
 #### Scenario: No shared address
 - **WHEN** a viewer requests the sightings of an owner nobody shares an address with
 - **THEN** the response is 200 with an empty `linkedOwners`
+
+### Requirement: Sightings carry no address
+The sightings response MUST NOT contain an IP, a token or a raw UUID.
+
+#### Scenario: Response is free of addresses
+- **WHEN** a viewer requests the sightings of an owner that shares an address
+- **THEN** the body contains no IP, no token and no raw UUID
+
+### Requirement: Sightings without a salt
+When `blackhole.evasion.ip-salt` is unset the sightings response SHALL be 200 with `detectionEnabled` false and no owners.
+
+#### Scenario: Detection is off
+- **WHEN** a viewer requests sightings while no salt is configured
+- **THEN** the response is 200 with `detectionEnabled` false and no owners
