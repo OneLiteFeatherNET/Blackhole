@@ -6,6 +6,8 @@ export type ThemeChoice = 'system' | 'light' | 'dark'
 
 export const THEME_STORAGE_KEY = 'blackhole.theme'
 export const LOCALE_STORAGE_KEY = 'blackhole.locale'
+/** "true" when the viewer folded the navigation drawer into a rail. */
+export const NAV_COLLAPSED_STORAGE_KEY = 'blackhole.navCollapsed'
 /** The free-text "acting as" label of earlier versions; the verified sign-in replaced it and it is dropped on start. */
 const LEGACY_ACTING_AS_KEY = 'blackhole.actingAs'
 
@@ -54,6 +56,7 @@ export const useUiStore = defineStore('ui', () => {
 
   const theme = ref<ThemeChoice>(isThemeChoice(storedTheme) ? storedTheme : 'system')
   const locale = ref<Locale>(isLocale(storedLocale) ? storedLocale : DEFAULT_LOCALE)
+  const navCollapsed = ref(readStorage(NAV_COLLAPSED_STORAGE_KEY) === 'true')
   removeStorage(LEGACY_ACTING_AS_KEY)
 
   applyTheme(theme.value)
@@ -73,5 +76,10 @@ export const useUiStore = defineStore('ui', () => {
     document.documentElement.lang = next
   }
 
-  return { theme, locale, setTheme, setLocale }
+  function setNavCollapsed(collapsed: boolean): void {
+    navCollapsed.value = collapsed
+    writeStorage(NAV_COLLAPSED_STORAGE_KEY, String(collapsed))
+  }
+
+  return { theme, locale, navCollapsed, setTheme, setLocale, setNavCollapsed }
 })

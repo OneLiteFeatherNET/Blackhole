@@ -9,7 +9,18 @@
     "reports": "Reports",
     "appeals": "Appeals",
     "admin": "Admin",
-    "cases": "Cases"
+    "cases": "Cases",
+    "groups": {
+      "overview": "Overview",
+      "moderation": "Moderation",
+      "rules": "Rules",
+      "system": "System"
+    },
+    "brand": "Blackhole",
+    "open": "Open navigation",
+    "close": "Close navigation",
+    "collapse": "Collapse navigation",
+    "expand": "Expand navigation"
   },
   "settings": {
     "theme": {
@@ -594,7 +605,8 @@
       "unlinkConfirm": "Remove link",
       "unlinked": "Link removed.",
       "close": "Close"
-    }
+    },
+    "menu": "Account menu"
   },
   "staffLinks": {
     "title": "Linked Minecraft accounts",
@@ -867,5 +879,10 @@
         "activity": "Last activity"
       }
     }
+  },
+  "notFound": {
+    "heading": "Page not found",
+    "body": "This address does not belong to any page of the admin interface. It may have been moved or mistyped.",
+    "back": "Back to the overview"
   }
 }
