@@ -106,6 +106,16 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void aViewerMayListTheActivePunishments() {
+        assertEquals(200, get("/punishment/active", this.jwt.viewer()).status(), "viewer on the active punishment overview");
+    }
+
+    @Test
+    void theProxyCannotListTheActivePunishments() {
+        assertEquals(403, get("/punishment/active", this.jwt.proxy()).status(), "the overview is for the staff UI");
+    }
+
+    @Test
     void aViewerMayReadACase() {
         assertAuthorized(get("/case/unknown-punishment", this.jwt.viewer()), "viewer on GET /case/{reference}");
     }
