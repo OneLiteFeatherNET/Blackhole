@@ -46,13 +46,17 @@ A punishment applied from a template SHALL receive an expiration date equal to t
 - **THEN** the created punishment has no expiration date, no template and is marked permanent
 
 ### Requirement: Applying a template creates a punishment
-`POST /punishment/apply` with owner, template (key or identifier) and source SHALL create a temporary punishment from the template in its section, record the source and timestamps, create the profile if absent, and return the punishment, the section, the selected step and step count, the section score before and after the ELO cost, and any escalation it caused. Unknown templates, disabled sections or invalid owner hashes MUST produce an error result without any change.
+`POST /punishment/apply` with owner and template (key or identifier) SHALL, for a caller with at least `MODERATOR` or the `PROXY` role, create a temporary punishment from the template in its section, recording the source from the verified token (or the proxy's `onBehalfOf`) and timestamps, create the profile if absent, and return the punishment, the section, the selected step and step count, the section score before and after the ELO cost, and any escalation it caused. The request MUST NOT carry a client-supplied source; a client-sent source is ignored. Unknown templates, disabled sections or invalid owner hashes MUST produce an error result without any change.
 
 #### Scenario: Apply to a first-time offender
 - **WHEN** template `spam` (section `chat`, first step eloCost 50) is applied to an owner without a profile
 - **THEN** a profile is created holding the new punishment as the active `chat` punishment
 - **AND** the response reports step 1 of the template's steps and `chat` score 1000 before and 950 after
 - **AND** `profile.created` and `punishment.created` events are published
+
+#### Scenario: Source is the verified caller
+- **WHEN** a moderator applies a template
+- **THEN** the punishment's source and `recorded_by_oid` equal the moderator's `oid`
 
 #### Scenario: Unknown template
 - **WHEN** a punishment is applied with a template key that does not exist
@@ -86,11 +90,11 @@ When a template is applied by any source other than the ELO system itself, the s
 - **THEN** no ELO cost is deducted for that punishment
 
 ### Requirement: Manual revocation
-The system SHALL let callers revoke an owner's active punishment in a section via `POST /punishment/revoke` with owner, section and source, recording the revoking source in the punishment metadata, moving it to history and publishing `punishment.revoked` with the section. Revoking a permanent punishment MUST set the owner's score in that section to the section's pardon score. A staff revoke of a temporary punishment MUST NOT refund the ELO cost it was charged; only a granted appeal that fully lifts it does (see `appeal-workflow`). If there is no active punishment in that section the response MUST be 404.
+The system SHALL let callers with at least `MODERATOR` or the `PROXY` role revoke an owner's active punishment in a section via `POST /punishment/revoke` with owner and section, recording the verified identity (or the proxy's `onBehalfOf`) in the metadata as `revokedBy` with `recordedByOid`, moving it to history and publishing `punishment.revoked` with the section. Revoking a permanent punishment MUST set the owner's score in that section to the section's pardon score. A staff revoke of a temporary punishment MUST NOT refund the ELO cost it was charged; only a granted appeal that fully lifts it does (see `appeal-workflow`). If there is no active punishment in that section the response MUST be 404.
 
 #### Scenario: Revoke an active mute
 - **WHEN** the revoke endpoint is called for section `chat` of an owner with an active chat punishment
-- **THEN** the punishment moves to history with `revokedBy` recorded and the `chat` slot is cleared
+- **THEN** the punishment moves to history with `revokedBy` recorded from the token and the `chat` slot is cleared
 - **AND** `punishment.revoked` is published with owner, punishment identifier, section and revokedBy
 
 #### Scenario: Revoking a temporary punishment does not refund its cost

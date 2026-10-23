@@ -3,7 +3,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Staff ban command
-The proxy SHALL provide `/ban <user> <template>` and `/blackhole <user> ban <template>`, requiring permission `blackhole.ban` and accepting only templates of sections with enforcement BAN or SERVER. It MUST apply the template via the backend with the sender's UUID as source, disconnect a connected target (BAN) or move it off matching servers (SERVER) with the rendered punishment message, and reply with target, section, duration, escalation step and the ELO change; if the backend escalated, the reply MUST also state the permanent ban.
+The proxy SHALL provide `/ban <user> <template>` and `/blackhole <user> ban <template>`, requiring permission `blackhole.ban` and accepting only templates of sections with enforcement BAN or SERVER. It MUST apply the template via the backend with the sender's UUID as `onBehalfOf`, disconnect a connected target (BAN) or move it off matching servers (SERVER) with the rendered punishment message, and reply with target, section, duration, escalation step and the ELO change; if the backend escalated, the reply MUST also state the permanent ban.
 
 #### Scenario: Ban an online player
 - **WHEN** a staff member with `blackhole.ban` runs `/ban Steve hacking` and Steve is connected
@@ -30,7 +30,7 @@ The proxy SHALL provide `/ban <user> <template>` and `/blackhole <user> ban <tem
 - **THEN** the command is not executed
 
 ### Requirement: Staff mute command
-The proxy SHALL provide `/mute <user> <template>` and `/blackhole <user> mute <template>`, requiring permission `blackhole.mute` and accepting only templates of sections with enforcement MUTE. It MUST apply the template via the backend with the sender's UUID as source, inform a connected target, and reply with section, duration, ELO change and any escalation. On backend failure the sender MUST receive `punishment.error.mute`.
+The proxy SHALL provide `/mute <user> <template>` and `/blackhole <user> mute <template>`, requiring permission `blackhole.mute` and accepting only templates of sections with enforcement MUTE. It MUST apply the template via the backend with the sender's UUID as `onBehalfOf`, inform a connected target, and reply with section, duration, ELO change and any escalation. On backend failure the sender MUST receive `punishment.error.mute`.
 
 #### Scenario: Mute a player
 - **WHEN** a staff member with `blackhole.mute` runs `/mute Steve spam`
