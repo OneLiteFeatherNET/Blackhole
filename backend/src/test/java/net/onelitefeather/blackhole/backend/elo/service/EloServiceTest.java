@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.elo.service;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.security.ActorKind;
 import net.onelitefeather.blackhole.backend.cache.CacheKeys;
 import net.onelitefeather.blackhole.backend.elo.EloChange;
 import net.onelitefeather.blackhole.backend.elo.EloEventEntity;
@@ -24,6 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EloServiceTest {
+
+    private static final Actor STAFF = new Actor(UUID.nameUUIDFromBytes("staff".getBytes()), "Staff", ActorKind.HUMAN, false);
 
     private static final String OWNER = "ab".repeat(64);
 
@@ -281,7 +285,8 @@ class EloServiceTest {
         bed.givenScore(OWNER, "network", 600);
         UUID source = UUID.randomUUID();
 
-        EloDTO result = bed.elo.adjust(OWNER, new EloDTO.AdjustRequest("network", -400, "evidence reviewed", source));
+        EloDTO result = bed.elo.adjust(OWNER, new EloDTO.AdjustRequest("network", -400, "evidence reviewed"),
+                new Actor(source, "Staff", ActorKind.HUMAN, false));
 
         EloDTO.AdjustResponse response = assertInstanceOf(EloDTO.AdjustResponse.class, result, "adjustment applied: " + result);
         assertEquals(200, response.scoreAfter());
@@ -290,18 +295,19 @@ class EloServiceTest {
         assertEquals(EloReasonCode.MANUAL_ADJUSTMENT, event.getReasonCode());
         assertEquals("evidence reviewed", event.getMetaData().get("note"));
         assertEquals(source.toString(), event.getMetaData().get("source"));
+        assertEquals(source.toString(), event.getMetaData().get("recordedByOid"), "the verified oid is recorded as well");
     }
 
     @Test
     void anAdjustmentOfZeroIsRejected() {
-        EloDTO result = bed.elo.adjust(OWNER, new EloDTO.AdjustRequest("network", 0, null, UUID.randomUUID()));
+        EloDTO result = bed.elo.adjust(OWNER, new EloDTO.AdjustRequest("network", 0, null), STAFF);
 
         assertEquals(ErrorKind.VALIDATION, assertInstanceOf(EloDTO.Error.class, result).kind());
     }
 
     @Test
     void anAdjustmentInAnUnknownSectionChangesNothing() {
-        EloDTO result = bed.elo.adjust(OWNER, new EloDTO.AdjustRequest("ghost", -50, null, UUID.randomUUID()));
+        EloDTO result = bed.elo.adjust(OWNER, new EloDTO.AdjustRequest("ghost", -50, null), STAFF);
 
         assertEquals(ErrorKind.NOT_FOUND, assertInstanceOf(EloDTO.Error.class, result).kind());
         assertTrue(bed.scoreRepository.all().isEmpty());

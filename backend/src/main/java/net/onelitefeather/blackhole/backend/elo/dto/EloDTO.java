@@ -87,8 +87,7 @@ public sealed interface EloDTO {
     record AdjustRequest(
             @NonNull @NotBlank String section,
             int delta,
-            @Nullable @Size(max = 500) String note,
-            @NonNull UUID source
+            @Nullable @Size(max = 500) String note
     ) implements EloDTO {
     }
 

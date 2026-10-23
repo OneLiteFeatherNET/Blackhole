@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static net.onelitefeather.blackhole.backend.evidence.EvidenceTestBed.OWNER;
+import static net.onelitefeather.blackhole.backend.evidence.EvidenceTestBed.ACTOR;
 import static net.onelitefeather.blackhole.backend.evidence.EvidenceTestBed.STAFF;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -42,7 +43,7 @@ class EvidenceAuditTest {
 
     private EvidenceDTO.Response attachLink(String correlation) {
         return assertInstanceOf(EvidenceDTO.Response.class, this.bed.service.attach(new EvidenceDTO.CreateRequest(
-                null, OWNER, correlation, EvidenceKind.LINK, "test", null, "https://example.org/a", null, STAFF)));
+                null, OWNER, correlation, EvidenceKind.LINK, "test", null, "https://example.org/a", null, null), ACTOR));
     }
 
     private List<EvidenceAuditEntity> entries(EvidenceAuditAction action) {
@@ -67,9 +68,9 @@ class EvidenceAuditTest {
 
     @Test
     void anUploadWritesAnAttachedEntryToo() throws IOException {
-        EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(null, OWNER, "c1", "test", null, null, STAFF, "a.png");
+        EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(null, OWNER, "c1", "test", null, null, null, "a.png");
 
-        this.bed.service.attachFile(request, new ByteArrayInputStream(EvidenceFixtures.png(8, 8)));
+        this.bed.service.attachFile(request, new ByteArrayInputStream(EvidenceFixtures.png(8, 8)), ACTOR);
 
         assertEquals(1, entries(EvidenceAuditAction.ATTACHED).size());
     }
@@ -78,7 +79,7 @@ class EvidenceAuditTest {
     void readingAValidItemWritesAViewedEntry() {
         EvidenceDTO.Response response = attachLink("c1");
 
-        this.bed.service.get(response.identifier(), STAFF);
+        this.bed.service.get(response.identifier(), ACTOR);
 
         assertEquals(1, entries(EvidenceAuditAction.VIEWED).size());
         assertEquals(0, entries(EvidenceAuditAction.VIEWED_INACTIVE).size());
@@ -89,7 +90,7 @@ class EvidenceAuditTest {
         EvidenceDTO.Response response = attachLink("c1");
         markInactive(response, EvidenceStatus.LIFTED);
 
-        this.bed.service.get(response.identifier(), STAFF);
+        this.bed.service.get(response.identifier(), ACTOR);
 
         assertEquals(1, entries(EvidenceAuditAction.VIEWED_INACTIVE).size());
     }
@@ -102,7 +103,7 @@ class EvidenceAuditTest {
         markInactive(lifted, EvidenceStatus.LIFTED);
         markInactive(revoked, EvidenceStatus.REVOKED);
 
-        this.bed.service.listByOwner(OWNER, true, Pageable.from(0, 20), STAFF);
+        this.bed.service.listByOwner(OWNER, true, Pageable.from(0, 20), ACTOR);
 
         assertEquals(2, entries(EvidenceAuditAction.VIEWED_INACTIVE).size());
         assertEquals(Set.of(lifted.identifier(), revoked.identifier()),
@@ -114,18 +115,18 @@ class EvidenceAuditTest {
         attachLink("c1");
         int before = this.bed.audit.all().size();
 
-        this.bed.service.listByOwner(OWNER, false, Pageable.from(0, 20), STAFF);
+        this.bed.service.listByOwner(OWNER, false, Pageable.from(0, 20), ACTOR);
 
         assertEquals(before, this.bed.audit.all().size());
     }
 
     @Test
     void downloadingAFileWritesADownloadedEntryWithTheActor() throws IOException {
-        EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(null, OWNER, "c1", "test", null, null, STAFF, "a.png");
+        EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(null, OWNER, "c1", "test", null, null, null, "a.png");
         EvidenceDTO.Response file = assertInstanceOf(EvidenceDTO.Response.class,
-                this.bed.service.attachFile(request, new ByteArrayInputStream(EvidenceFixtures.png(8, 8))));
+                this.bed.service.attachFile(request, new ByteArrayInputStream(EvidenceFixtures.png(8, 8)), ACTOR));
 
-        this.bed.service.content(file.identifier(), null, STAFF);
+        this.bed.service.content(file.identifier(), null, ACTOR);
 
         EvidenceAuditEntity entry = entries(EvidenceAuditAction.DOWNLOADED).getFirst();
         assertEquals(STAFF, entry.getActor());
@@ -134,13 +135,13 @@ class EvidenceAuditTest {
 
     @Test
     void laterRangeRequestsOfTheSameDownloadAreNotAuditedAgain() throws IOException {
-        EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(null, OWNER, "c1", "test", null, null, STAFF, "a.png");
+        EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(null, OWNER, "c1", "test", null, null, null, "a.png");
         EvidenceDTO.Response file = assertInstanceOf(EvidenceDTO.Response.class,
-                this.bed.service.attachFile(request, new ByteArrayInputStream(EvidenceFixtures.png(8, 8))));
+                this.bed.service.attachFile(request, new ByteArrayInputStream(EvidenceFixtures.png(8, 8)), ACTOR));
 
-        this.bed.service.content(file.identifier(), "bytes=0-3", STAFF);
-        this.bed.service.content(file.identifier(), "bytes=4-7", STAFF);
-        this.bed.service.content(file.identifier(), "bytes=8-11", STAFF);
+        this.bed.service.content(file.identifier(), "bytes=0-3", ACTOR);
+        this.bed.service.content(file.identifier(), "bytes=4-7", ACTOR);
+        this.bed.service.content(file.identifier(), "bytes=8-11", ACTOR);
 
         assertEquals(1, entries(EvidenceAuditAction.DOWNLOADED).size(), "only the request that starts the file is audited");
     }
@@ -149,7 +150,7 @@ class EvidenceAuditTest {
     void deletingWritesADeletedEntryWithReasonNoteAndActor() {
         EvidenceDTO.Response response = attachLink("c1");
 
-        this.bed.service.delete(response.identifier(), "wrong_evidence", "typo", STAFF);
+        this.bed.service.delete(response.identifier(), "wrong_evidence", "typo", ACTOR);
 
         EvidenceAuditEntity entry = entries(EvidenceAuditAction.DELETED).getFirst();
         assertEquals("WRONG_EVIDENCE", entry.getReason());
@@ -162,7 +163,7 @@ class EvidenceAuditTest {
         attachLink("c1");
         attachLink("c2");
 
-        this.bed.service.deleteByOwner(OWNER, "ERASURE_REQUEST", null, STAFF);
+        this.bed.service.deleteByOwner(OWNER, "ERASURE_REQUEST", null, ACTOR);
 
         assertEquals(2, entries(EvidenceAuditAction.DELETED).size());
         assertTrue(entries(EvidenceAuditAction.DELETED).stream().allMatch(entry -> "ERASURE_REQUEST".equals(entry.getReason())));
@@ -172,7 +173,7 @@ class EvidenceAuditTest {
     void aRejectedDeleteWritesNoDeletedEntry() {
         EvidenceDTO.Response response = attachLink("c1");
 
-        this.bed.service.delete(response.identifier(), null, null, STAFF);
+        this.bed.service.delete(response.identifier(), null, null, ACTOR);
 
         assertEquals(0, entries(EvidenceAuditAction.DELETED).size());
     }
@@ -181,7 +182,7 @@ class EvidenceAuditTest {
     void theAuditTrailOutlivesTheDeletedEvidence() {
         EvidenceDTO.Response response = attachLink("c1");
 
-        this.bed.service.delete(response.identifier(), "OTHER", null, STAFF);
+        this.bed.service.delete(response.identifier(), "OTHER", null, ACTOR);
 
         assertTrue(this.bed.items.all().isEmpty(), "the evidence is gone");
         assertEquals(1, entries(EvidenceAuditAction.ATTACHED).size(), "its trail is not");
@@ -192,7 +193,7 @@ class EvidenceAuditTest {
     void anAuditEntryHasNoFieldThatCouldHoldEvidenceContent() {
         Set<String> fields = Set.copyOf(Arrays.stream(EvidenceAuditEntity.class.getDeclaredFields()).map(Field::getName).toList());
 
-        assertEquals(Set.of("identifier", "evidenceIdentifier", "punishmentIdentifier", "owner", "action", "actor", "reason", "note", "occurredAt"),
+        assertEquals(Set.of("identifier", "evidenceIdentifier", "punishmentIdentifier", "owner", "action", "actor", "recordedByOid", "reason", "note", "occurredAt"),
                 fields, "content fields (payload, reference, file) must never be added to the audit entity");
     }
 
@@ -200,8 +201,8 @@ class EvidenceAuditTest {
     void anAuditEntryNeverContainsTheEvidenceText() {
         Map<String, Object> payload = Map.of("description", "secret-description-text");
         EvidenceDTO.Response response = assertInstanceOf(EvidenceDTO.Response.class, this.bed.service.attach(new EvidenceDTO.CreateRequest(
-                null, OWNER, "c9", EvidenceKind.LINK, "test", null, "https://example.org/secret-path", payload, STAFF)));
-        this.bed.service.get(response.identifier(), STAFF);
+                null, OWNER, "c9", EvidenceKind.LINK, "test", null, "https://example.org/secret-path", payload, null), ACTOR));
+        this.bed.service.get(response.identifier(), ACTOR);
 
         String dump = this.bed.audit.all().stream().map(entry -> String.join("|", String.valueOf(entry.getReason()), String.valueOf(entry.getNote()),
                 String.valueOf(entry.getOwner()), String.valueOf(entry.getPunishmentIdentifier()))).reduce("", String::concat);

@@ -161,7 +161,7 @@ class PunishmentTemplateServiceTest {
     void removingATemplateThatAPunishmentReferencesIsAConflict() {
         PunishmentTemplateEntity template = bed.givenTemplate("spam", "chat", null, step("PT1H", 0));
         bed.punishmentService.apply(new net.onelitefeather.blackhole.backend.punishment.dto.PunishmentDTO.ApplyRequest(
-                PunishmentTestBed.OWNER, "spam", null, PunishmentTestBed.STAFF));
+                PunishmentTestBed.OWNER, "spam", null, null), PunishmentTestBed.ACTOR);
 
         expectError(service.remove(template.getIdentifier()), ErrorKind.CONFLICT);
         assertEquals(1, bed.templates.all().size(), "the template stays");

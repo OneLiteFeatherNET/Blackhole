@@ -53,8 +53,8 @@ class EvidenceCascadeIntegrationTest extends ApiIntegrationTest {
         @SuppressWarnings("unchecked") String punishment = (String) ((Map<String, Object>) applied.json().get("punishment")).get("identifier");
         EvidenceService service = this.context.getBean(EvidenceService.class);
         assertInstanceOf(EvidenceDTO.Response.class, service.attachFile(
-                new EvidenceDTO.UploadRequest(punishment, null, null, "it", null, null, UUID.fromString(STAFF), "shot.png"),
-                new ByteArrayInputStream(EvidenceFixtures.png(8, 8))));
+                new EvidenceDTO.UploadRequest(punishment, null, null, "it", null, null, null, "shot.png"),
+                new ByteArrayInputStream(EvidenceFixtures.png(8, 8)), EvidenceTestBed.ACTOR));
         assertEquals(1, storedFiles(), "precondition: the file is stored");
         // The profile's slots reference the punishment, so the profile goes first.
         this.context.getBean(PunishmentProfileRepository.class).deleteById(owner);

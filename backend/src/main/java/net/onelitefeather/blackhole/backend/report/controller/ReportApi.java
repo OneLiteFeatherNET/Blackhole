@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.report.controller;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
+import io.swagger.v3.oas.annotations.Parameter;
 import net.onelitefeather.blackhole.backend.report.dto.ReportDTO;
 import net.onelitefeather.blackhole.backend.report.dto.ReportErrorDTO;
 import net.onelitefeather.blackhole.backend.report.dto.ReportRequestDTO;
@@ -57,7 +59,8 @@ public interface ReportApi {
 
     @Operation(
             summary = "Resolve a report",
-            description = "Resolves a report, optionally applying a punishment template to the reported player",
+            description = "Resolves a report, optionally applying a punishment template to the reported player. "
+                    + "The resolver and the punishment source are the caller of the token.",
             operationId = "resolveReport",
             tags = {"Report"}
     )
@@ -72,7 +75,7 @@ public interface ReportApi {
     )
     @ApiResponse(
             responseCode = "400",
-            description = "punishmentSource is missing, a template was given for a report that is not ACTIONED, "
+            description = "A template was given for a report that is not ACTIONED, "
                     + "or the template or its section does not exist",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ReportErrorDTO.class))
     )
@@ -83,5 +86,5 @@ public interface ReportApi {
     )
     @Validated
     @Post("/{identifier}/resolve")
-    HttpResponse<?> resolve(UUID identifier, @Body @Valid ReportResolutionDTO resolution);
+    HttpResponse<?> resolve(UUID identifier, @Body @Valid ReportResolutionDTO resolution, @Parameter(hidden = true) Actor actor);
 }

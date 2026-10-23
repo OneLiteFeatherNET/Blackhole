@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.appeal.service;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
 import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
 import net.onelitefeather.blackhole.backend.appeal.AppealReviewResult;
@@ -100,7 +101,7 @@ public class AppealDecisionService {
      * and persists the decided appeal. The single entry point {@code AppealController.review}
      * calls, so the controller never branches on business rules itself.
      */
-    public AppealReviewResult reviewAppeal(UUID appealIdentifier, AppealReviewDTO review) {
+    public AppealReviewResult reviewAppeal(UUID appealIdentifier, AppealReviewDTO review, Actor reviewer) {
         AppealEntity appeal = this.appealRepository.findById(appealIdentifier).orElse(null);
         if (appeal == null) {
             return AppealReviewResult.notFound();
@@ -113,7 +114,8 @@ public class AppealDecisionService {
         }
 
         PunishmentEntity punishment = appeal.getPunishment();
-        if (review.reviewerId().equals(punishment.getSource())) {
+        // Compared by the reviewer's verified oid: the punishment's attributed source, or the principal that recorded it.
+        if (reviewer.oid().equals(punishment.getSource()) || reviewer.oid().equals(punishment.getRecordedByOid())) {
             return AppealReviewResult.selfReview();
         }
 
@@ -136,7 +138,7 @@ public class AppealDecisionService {
         }
 
         DecisionOutcome outcome = applyDecision(
-                punishment, appeal.getAppellantHash(), review.decision(), review.newExpirationAt(), review.reviewerId()
+                punishment, appeal.getAppellantHash(), review.decision(), review.newExpirationAt(), reviewer.oid()
         );
         if (outcome == DecisionOutcome.PUNISHMENT_NOT_ACTIVE) {
             return AppealReviewResult.punishmentNotActive();
@@ -146,7 +148,8 @@ public class AppealDecisionService {
         }
 
         appeal.setStatus(review.decision());
-        appeal.setDecidedBy(review.reviewerId());
+        appeal.setDecidedBy(reviewer.oid());
+        appeal.setRecordedByOid(reviewer.oid());
         appeal.setDecisionNote(review.decisionNote());
         appeal.setUpdatedAt(this.clock.millis());
         AppealEntity saved = this.appealRepository.update(appeal);
@@ -160,7 +163,7 @@ public class AppealDecisionService {
      * @param owner           the appellant's hashed owner (also the punishment's owner)
      * @param decision        {@code GRANTED_FULL_LIFT}, {@code GRANTED_DURATION_REDUCTION}, or {@code DENIED}
      * @param newExpirationAt required for {@code GRANTED_DURATION_REDUCTION}, ignored otherwise
-     * @param revokedBy       the reviewer granting the decision; stamped onto the punishment's own
+     * @param revokedBy       the reviewer's verified {@code oid}, also its {@code recordedByOid}; stamped onto the punishment's own
      *                        metadata for {@code GRANTED_FULL_LIFT}, matching
      *                        {@code PunishmentApplicationService.revoke()}'s audit-trail pattern
      * @return whether the decision was applied, or {@code PUNISHMENT_NOT_ACTIVE} if the
@@ -184,9 +187,11 @@ public class AppealDecisionService {
         }
 
         long now = this.clock.millis();
-        Map<String, Object> eloMetaData = Map.of("punishmentIdentifier", active.getIdentifier(), "revokedBy", revokedBy.toString());
+        Map<String, Object> eloMetaData = Map.of(
+                "punishmentIdentifier", active.getIdentifier(), "revokedBy", revokedBy.toString(), "recordedByOid", revokedBy.toString());
         if (decision == AppealStatus.GRANTED_FULL_LIFT) {
             active.getMetaData().put("revokedBy", revokedBy.toString());
+            active.getMetaData().put("recordedByOid", revokedBy.toString());
             active.getMetaData().put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
             active.setLifted(true);
             this.punishmentRepository.update(active);

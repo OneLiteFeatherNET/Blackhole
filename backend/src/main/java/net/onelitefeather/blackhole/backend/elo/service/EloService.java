@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.elo.service;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -316,12 +317,13 @@ public class EloService implements EloScoring {
     }
 
     /**
-     * Applies a manual score adjustment, subject to the same threshold rules as any other delta.
+     * Applies a manual score adjustment, subject to the same threshold rules as any other delta. The
+     * event records the caller's verified {@code oid} as its {@code source} and {@code recordedByOid}.
      *
      * @return the {@link EloDTO.AdjustResponse}, or an {@link EloDTO.Error} for an invalid
      * request or an unknown or disabled section
      */
-    public EloDTO adjust(String owner, EloDTO.AdjustRequest request) {
+    public EloDTO adjust(String owner, EloDTO.AdjustRequest request, Actor actor) {
         if (request.delta() == 0) {
             return new EloDTO.Error("delta must not be zero", ErrorKind.VALIDATION);
         }
@@ -329,7 +331,8 @@ public class EloService implements EloScoring {
             return new EloDTO.Error("note must be at most " + MAX_NOTE_LENGTH + " characters", ErrorKind.VALIDATION);
         }
         Map<String, Object> metaData = new HashMap<>();
-        metaData.put("source", request.source().toString());
+        metaData.put("source", actor.oid().toString());
+        metaData.put("recordedByOid", actor.oid().toString());
         if (request.note() != null) {
             metaData.put("note", request.note());
         }

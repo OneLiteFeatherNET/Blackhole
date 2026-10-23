@@ -38,7 +38,7 @@ public record AppealReviewResult(Kind kind, String message, AppealEntity appeal)
     }
 
     public static AppealReviewResult selfReview() {
-        return new AppealReviewResult(Kind.SELF_REVIEW, "Reviewer must not be the punishment's original source", null);
+        return new AppealReviewResult(Kind.SELF_REVIEW, "Reviewer must not be the one who issued the punishment", null);
     }
 
     public static AppealReviewResult severeFullLiftDisallowed() {

@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.evidence;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.security.ActorKind;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
@@ -29,6 +31,10 @@ public final class EvidenceTestBed {
     public static final String OWNER = "ab".repeat(64);
     public static final String OTHER_OWNER = "cd".repeat(64);
     public static final UUID STAFF = UUID.nameUUIDFromBytes("staff".getBytes());
+    /** The verified caller of the evidence tests: a signed-in staff member whose oid is {@link #STAFF}. */
+    public static final Actor ACTOR = new Actor(STAFF, "Staff", ActorKind.HUMAN, false);
+    /** The proxy, which may vouch for an in-game staff member through onBehalfOf. */
+    public static final Actor PROXY = new Actor(UUID.nameUUIDFromBytes("proxy".getBytes()), "Proxy", ActorKind.SERVICE, true);
 
     public final TestClock clock = new TestClock();
     public final InMemoryBlobStore blobs = new InMemoryBlobStore();

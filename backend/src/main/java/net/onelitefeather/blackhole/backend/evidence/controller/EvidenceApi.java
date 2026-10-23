@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.evidence.controller;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
@@ -23,8 +25,8 @@ import net.onelitefeather.blackhole.backend.evidence.dto.EvidenceDTO;
 import java.util.UUID;
 
 /**
- * Evidence endpoints. Evidence is for staff tooling behind the network boundary; there is no
- * authentication, so {@code source} (the acting staff member) is client-supplied and unverified.
+ * Evidence endpoints. The acting staff member is the caller of the verified token (audited as such);
+ * only the proxy may send {@code onBehalfOf} on an attach to name the in-game staff member.
  */
 public interface EvidenceApi {
 
@@ -49,12 +51,12 @@ public interface EvidenceApi {
     @ApiResponse(responseCode = "422", description = "The payload contains personal data (a UUID or IP address)",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = EvidenceDTO.Error.class)))
     @Post("/evidence")
-    HttpResponse<EvidenceDTO> attach(@Valid @Body EvidenceDTO.CreateRequest request);
+    HttpResponse<EvidenceDTO> attach(@Valid @Body EvidenceDTO.CreateRequest request, @Parameter(hidden = true) Actor actor);
 
     @Operation(
             summary = "Upload an evidence file",
             description = "Uploads a screenshot (PNG, JPEG) or video (MP4, WebM) as multipart form data. Send the text fields "
-                    + "(punishment, or owner and correlationId; sourceSystem; capturedAt; description; source) before the file part. "
+                    + "(punishment, or owner and correlationId; sourceSystem; capturedAt; description; onBehalfOf) before the file part. "
                     + "The type is detected from the file's bytes, images are re-encoded without metadata, and the file is virus "
                     + "scanned before it is stored.",
             operationId = "uploadEvidenceFile",
@@ -86,7 +88,8 @@ public interface EvidenceApi {
             @Nullable String sourceSystem,
             @Nullable Long capturedAt,
             @Nullable String description,
-            @Nullable UUID source
+            @Nullable UUID onBehalfOf,
+            @Parameter(hidden = true) Actor actor
     );
 
     @Operation(
@@ -106,8 +109,8 @@ public interface EvidenceApi {
     HttpResponse<EvidenceDTO> listByPunishment(
             @PathVariable String reference,
             @QueryValue(defaultValue = "false") boolean includeInactive,
-            @Nullable @QueryValue UUID source,
-            Pageable pageable
+            Pageable pageable,
+            @Parameter(hidden = true) Actor actor
     );
 
     @Operation(
@@ -141,8 +144,8 @@ public interface EvidenceApi {
     HttpResponse<EvidenceDTO> listByOwner(
             @QueryValue String owner,
             @QueryValue(defaultValue = "false") boolean includeInactive,
-            @Nullable @QueryValue UUID source,
-            Pageable pageable
+            Pageable pageable,
+            @Parameter(hidden = true) Actor actor
     );
 
     @Operation(
@@ -156,7 +159,7 @@ public interface EvidenceApi {
     @ApiResponse(responseCode = "404", description = "Unknown evidence",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = EvidenceDTO.Error.class)))
     @Get("/evidence/{identifier}")
-    HttpResponse<EvidenceDTO> get(@PathVariable UUID identifier, @Nullable @QueryValue UUID source);
+    HttpResponse<EvidenceDTO> get(@PathVariable UUID identifier, @Parameter(hidden = true) Actor actor);
 
     @Operation(
             summary = "Download an evidence file",
@@ -176,7 +179,7 @@ public interface EvidenceApi {
     @ApiResponse(responseCode = "503", description = "The file store is unavailable",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = EvidenceDTO.Error.class)))
     @Get("/evidence/{identifier}/content")
-    HttpResponse<?> content(@PathVariable UUID identifier, @Nullable @Header("Range") String range, @Nullable @QueryValue UUID source);
+    HttpResponse<?> content(@PathVariable UUID identifier, @Nullable @Header("Range") String range, @Parameter(hidden = true) Actor actor);
 
     @Operation(
             summary = "Delete an evidence item",
@@ -199,7 +202,7 @@ public interface EvidenceApi {
             @PathVariable UUID identifier,
             @Nullable @QueryValue String reason,
             @Nullable @QueryValue String note,
-            @Nullable @QueryValue UUID source
+            @Parameter(hidden = true) Actor actor
     );
 
     @Operation(
@@ -220,6 +223,6 @@ public interface EvidenceApi {
             @PathVariable String owner,
             @Nullable @QueryValue String reason,
             @Nullable @QueryValue String note,
-            @Nullable @QueryValue UUID source
+            @Parameter(hidden = true) Actor actor
     );
 }

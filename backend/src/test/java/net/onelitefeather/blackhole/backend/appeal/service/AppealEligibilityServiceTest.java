@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.OWNER;
+import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.ACTOR;
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.STAFF;
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.step;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -52,7 +53,7 @@ class AppealEligibilityServiceTest {
     @Test
     void aTemporaryBanIsNotSevere() {
         bed.givenTemplate("grief", "network", null, step("P3D", 0));
-        bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "grief", null, STAFF));
+        bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "grief", null, null), ACTOR);
 
         assertFalse(service.evaluate(bed.punishments.all().getFirst(), OWNER).severe());
     }
@@ -60,7 +61,7 @@ class AppealEligibilityServiceTest {
     @Test
     void theSupportingSectionsAreEveryOtherEnabledSectionAndMustHaveRecoveredTheirBaseScore() {
         bed.givenTemplate("grief", "network", null, step("P3D", 0));
-        bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "grief", null, STAFF));
+        bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "grief", null, null), ACTOR);
         bed.eloBed.givenScore(OWNER, "chat", 800);
 
         Map<String, Object> checklist = service.evaluate(bed.punishments.all().getFirst(), OWNER).checklistSnapshot();

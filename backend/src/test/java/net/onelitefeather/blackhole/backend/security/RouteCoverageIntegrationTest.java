@@ -77,6 +77,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /template/update", A),
             Map.entry("DELETE /template/delete/{identifier}", A),
             Map.entry("POST /admin/import/vanilla", A),
+            Map.entry("POST /admin/staff-actor/{oid}/anonymize", A),
             // erasure and destructive
             Map.entry("DELETE /evidence/{identifier}", A),
             Map.entry("DELETE /evidence/owner/{owner}", A),

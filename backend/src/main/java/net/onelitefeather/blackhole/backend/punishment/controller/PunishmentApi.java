@@ -8,6 +8,7 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -15,6 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishEntryDTO;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishmentDTO;
+import net.onelitefeather.blackhole.backend.security.Actor;
 
 public interface PunishmentApi {
 
@@ -22,20 +24,21 @@ public interface PunishmentApi {
             summary = "Apply a punishment template",
             description = "Applies a template to a player: creates a temporary punishment in the template's section with "
                     + "the duration and ELO cost of the escalation step the player has reached, deducts the cost, and "
-                    + "reports the step, the score before and after, and any permanent escalation it caused.",
+                    + "reports the step, the score before and after, and any permanent escalation it caused. The staff member is "
+                    + "the caller of the token; only the proxy may send onBehalfOf (the in-game staff member's UUID).",
             operationId = "applyPunishment",
             tags = {"Punishment"}
     )
     @ApiResponse(responseCode = "200", description = "Punishment applied",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.ApplyResponse.class)))
-    @ApiResponse(responseCode = "400", description = "Invalid request (owner must be a SHA-512 hash, exactly one of templateKey and templateId)",
+    @ApiResponse(responseCode = "400", description = "Invalid request (owner must be a SHA-512 hash, exactly one of templateKey and templateId, onBehalfOf from a caller that is not the proxy)",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
     @ApiResponse(responseCode = "404", description = "Unknown template",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
     @ApiResponse(responseCode = "409", description = "The template's section is disabled, or the player is already permanently punished in it",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
     @Post("/apply")
-    HttpResponse<PunishmentDTO> apply(@Valid @Body PunishmentDTO.ApplyRequest request);
+    HttpResponse<PunishmentDTO> apply(@Valid @Body PunishmentDTO.ApplyRequest request, @Parameter(hidden = true) Actor actor);
 
     @Operation(
             summary = "Preview applying a template",
@@ -47,14 +50,14 @@ public interface PunishmentApi {
     )
     @ApiResponse(responseCode = "200", description = "What applying the template would do",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.PreviewResponse.class)))
-    @ApiResponse(responseCode = "400", description = "Invalid request (owner must be a SHA-512 hash, exactly one of templateKey and templateId)",
+    @ApiResponse(responseCode = "400", description = "Invalid request (owner must be a SHA-512 hash, exactly one of templateKey and templateId, onBehalfOf from a caller that is not the proxy)",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
     @ApiResponse(responseCode = "404", description = "Unknown template",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
     @ApiResponse(responseCode = "409", description = "The template's section is disabled, or the player is already permanently punished in it",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
     @Post("/preview")
-    HttpResponse<PunishmentDTO> preview(@Valid @Body PunishmentDTO.ApplyRequest request);
+    HttpResponse<PunishmentDTO> preview(@Valid @Body PunishmentDTO.ApplyRequest request, @Parameter(hidden = true) Actor actor);
 
     @Operation(
             summary = "Revoke the active punishment of a section",
@@ -65,12 +68,12 @@ public interface PunishmentApi {
     )
     @ApiResponse(responseCode = "200", description = "Punishment revoked",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.RevokeResponse.class)))
-    @ApiResponse(responseCode = "400", description = "Invalid request (owner must be a SHA-512 hash)",
+    @ApiResponse(responseCode = "400", description = "Invalid request (owner must be a SHA-512 hash, onBehalfOf from a caller that is not the proxy)",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
     @ApiResponse(responseCode = "404", description = "The player has no active punishment in that section",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
     @Post("/revoke")
-    HttpResponse<PunishmentDTO> revoke(@Valid @Body PunishmentDTO.RevokeRequest request);
+    HttpResponse<PunishmentDTO> revoke(@Valid @Body PunishmentDTO.RevokeRequest request, @Parameter(hidden = true) Actor actor);
 
     @Operation(
             summary = "Find punishments by short ID",

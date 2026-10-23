@@ -22,15 +22,15 @@ use Vitest with a fake `UserManager` and `fakeFetch`.
 
 ## 2. Verified actor on writes (PR 2: `feat(auth)!: record the verified actor on every write`)
 
-- [ ] 2.1 Append `V9__staff_actor_and_recorded_by.sql` (next free number): `staff_actor` table and nullable `recorded_by_oid` on the punishment, report, appeal, `evidence_items` and `evidence_audit` tables; verify the PostgreSQL Testcontainers integration test migrates a database that already holds V1-V8 rows (legacy rows keep their actor value, new column NULL) and Hibernate `validate` passes
-- [ ] 2.2 `ActorResolver` and `staff_actor` upsert in a new `security` package, no `@Transactional`; verify unit tests for first write, name change, `HUMAN` vs `SERVICE`, and that email/UPN claims are never read
-- [ ] 2.3 Remove the client-supplied actor fields (`source`, `resolvedBy`, `reviewerId`, `punishmentSource`, evidence `source`/`createdBy`, ELO adjustment `source`) from the request DTOs, path variables and `*Api` interfaces; set the actor from `ActorResolver`; write `recorded_by_oid` / `recordedByOid`; verify per endpoint a test that a spoofed field is ignored and the token's `oid` is stored
-- [ ] 2.4 `onBehalfOf` for punishment, revocation and evidence writes, accepted only for `PROXY` (400 otherwise); verify tests for both roles and for the absent value
-- [ ] 2.5 Self-review compares the reviewer's `oid` with the punishment's source and `recorded_by_oid`; verify tests for same-oid (403), different moderator (200), spoofed `reviewerId` ignored and a legacy punishment
-- [ ] 2.6 Expose unverified (NULL `recorded_by_oid`) vs verified in the read DTOs and events where actors appear (`punishment.revoked`, evidence audit); verify DTO and event tests
-- [ ] 2.7 `POST /admin/staff-actor/{oid}/anonymize` (`ADMIN`, audited with the admin's `oid`); verify tests incl. 403 for moderators and that history still references the `oid`
-- [ ] 2.8 Regenerate the client spec; adapt Velocity call sites to compile against the regenerated client (they send `onBehalfOf` instead of `source`, no auth yet); verify `./gradlew build` across all modules
-- [ ] 2.9 Verify `./gradlew :backend:test` and the integration tests (`-PexcludeTags=integration` and without)
+- [x] 2.1 Append `V9__staff_actor_and_recorded_by.sql` (next free number): `staff_actor` table and nullable `recorded_by_oid` on the punishment, report, appeal, `evidence_items` and `evidence_audit` tables; verify the PostgreSQL Testcontainers integration test migrates a database that already holds V1-V8 rows (legacy rows keep their actor value, new column NULL) and Hibernate `validate` passes
+- [x] 2.2 `ActorResolver` and `staff_actor` upsert in a new `security` package, no `@Transactional`; verify unit tests for first write, name change, `HUMAN` vs `SERVICE`, and that email/UPN claims are never read
+- [x] 2.3 Remove the client-supplied actor fields (`source`, `resolvedBy`, `reviewerId`, `punishmentSource`, evidence `source`/`createdBy`, ELO adjustment `source`) from the request DTOs, path variables and `*Api` interfaces; set the actor from `ActorResolver`; write `recorded_by_oid` / `recordedByOid`; verify per endpoint a test that a spoofed field is ignored and the token's `oid` is stored
+- [x] 2.4 `onBehalfOf` for punishment, revocation and evidence writes, accepted only for `PROXY` (400 otherwise); verify tests for both roles and for the absent value
+- [x] 2.5 Self-review compares the reviewer's `oid` with the punishment's source and `recorded_by_oid`; verify tests for same-oid (403), different moderator (200), spoofed `reviewerId` ignored and a legacy punishment
+- [x] 2.6 Expose unverified (NULL `recorded_by_oid`) vs verified in the read DTOs and events where actors appear (`punishment.revoked`, evidence audit); verify DTO and event tests
+- [x] 2.7 `POST /admin/staff-actor/{oid}/anonymize` (`ADMIN`, audited with the admin's `oid`); verify tests incl. 403 for moderators and that history still references the `oid`
+- [x] 2.8 Regenerate the client spec; adapt Velocity call sites to compile against the regenerated client (they send `onBehalfOf` instead of `source`, no auth yet); verify `./gradlew build` across all modules
+- [x] 2.9 Verify `./gradlew :backend:test` and the integration tests (`-PexcludeTags=integration` and without)
 
 ## 3. Velocity machine credentials (PR 3: `feat(velocity): authenticate to the backend with client credentials`)
 

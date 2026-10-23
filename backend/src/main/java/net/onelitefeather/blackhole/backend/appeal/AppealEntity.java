@@ -53,6 +53,10 @@ public class AppealEntity {
 
     private UUID decidedBy;
 
+    /** The {@code oid} of the verified principal that decided the appeal; {@code null} while undecided and for pre-SSO rows. */
+    @Column(name = "recorded_by_oid")
+    private UUID recordedByOid;
+
     @Column(length = 2000)
     private String decisionNote;
 
@@ -128,6 +132,14 @@ public class AppealEntity {
         this.decidedBy = decidedBy;
     }
 
+    public UUID getRecordedByOid() {
+        return recordedByOid;
+    }
+
+    public void setRecordedByOid(UUID recordedByOid) {
+        this.recordedByOid = recordedByOid;
+    }
+
     public String getDecisionNote() {
         return decisionNote;
     }
@@ -155,8 +167,8 @@ public class AppealEntity {
     public AppealDTO toDTO() {
         return new AppealDTO(
                 this.identifier, this.punishment.getIdentifier(), this.appellantHash, this.statement,
-                this.status, this.eligibilityCheckResult, this.decidedBy, this.decisionNote,
-                this.createdAt, this.updatedAt, 0L, this.metaData
+                this.status, this.eligibilityCheckResult, this.decidedBy, this.recordedByOid, this.recordedByOid != null,
+                this.decisionNote, this.createdAt, this.updatedAt, 0L, this.metaData
         );
     }
 }

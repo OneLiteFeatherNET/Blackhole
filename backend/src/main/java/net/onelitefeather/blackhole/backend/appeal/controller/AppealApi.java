@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.appeal.controller;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
+import io.swagger.v3.oas.annotations.Parameter;
 import net.onelitefeather.blackhole.backend.appeal.dto.AppealDTO;
 import net.onelitefeather.blackhole.backend.appeal.dto.AppealReviewDTO;
 import net.onelitefeather.blackhole.backend.appeal.dto.AppealSubmissionDTO;
@@ -56,7 +58,7 @@ public interface AppealApi {
 
     @Operation(
             summary = "Review an appeal",
-            description = "Decides an eligible appeal. Rejects self-review (reviewerId matching the punishment's own source) "
+            description = "Decides an eligible appeal. Rejects self-review (the caller's oid matching the punishment's source or the principal that recorded it) "
                     + "and full lifts of SEVERE punishments (duration reduction only).",
             operationId = "reviewAppeal",
             tags = {"Appeal"}
@@ -68,9 +70,9 @@ public interface AppealApi {
     )
     @ApiResponse(responseCode = "404", description = "Appeal not found")
     @ApiResponse(responseCode = "400", description = "Invalid decision, or a full lift was attempted on a SEVERE punishment")
-    @ApiResponse(responseCode = "403", description = "reviewerId matches the punishment's original source (self-review)")
+    @ApiResponse(responseCode = "403", description = "The caller issued the punishment (self-review)")
     @ApiResponse(responseCode = "409", description = "Appeal is not awaiting review, or the punishment is no longer active")
     @Validated
     @Post("/{identifier}/review")
-    HttpResponse<?> review(UUID identifier, @Body @Valid AppealReviewDTO review);
+    HttpResponse<?> review(UUID identifier, @Body @Valid AppealReviewDTO review, @Parameter(hidden = true) Actor actor);
 }

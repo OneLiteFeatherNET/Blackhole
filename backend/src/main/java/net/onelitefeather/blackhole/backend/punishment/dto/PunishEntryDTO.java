@@ -15,7 +15,11 @@ import java.util.UUID;
  *
  * @param identifier      the identifier of the punishment
  * @param shortId         the short ID players quote, {@code #} and eight upper case hex characters
- * @param source          the source of the punishment
+ * @param source          the source of the punishment: the staff member's {@code oid} for punishments written with a
+ *                        token, the delegated in-game UUID for the proxy's, or whatever was stored before SSO
+ * @param recordedByOid   the {@code oid} of the verified principal that wrote it, {@code null} for punishments written
+ *                        before SSO
+ * @param verified        whether {@code recordedByOid} is present: {@code false} marks a legacy, unverified attribution
  * @param section         the section it belongs to
  * @param scope           the optional scope (e.g. event/community) it is restricted to, or {@code null}
  * @param permanent       whether it is a permanent punishment issued by the system's escalation
@@ -40,6 +44,8 @@ public record PunishEntryDTO(
         String identifier,
         String shortId,
         UUID source,
+        @Nullable UUID recordedByOid,
+        boolean verified,
         String section,
         @Nullable String scope,
         boolean permanent,
@@ -56,9 +62,16 @@ public record PunishEntryDTO(
 
     /** This entry with the number of valid evidence items filled in. */
     public PunishEntryDTO withEvidenceCount(long count) {
-        return new PunishEntryDTO(this.identifier, this.shortId, this.source, this.section, this.scope, this.permanent,
+        return new PunishEntryDTO(this.identifier, this.shortId, this.source, this.recordedByOid, this.verified, this.section, this.scope, this.permanent,
                 this.lifted, this.createdAt, this.escalationGroup, this.stepIndex, this.stepCount, this.eloCost,
                 this.template, count, this.metaData);
+    }
+
+    /** This entry attributed to the given verified principal, or to none ({@code null}), which marks it unverified. */
+    public PunishEntryDTO withRecordedByOid(UUID recordedByOid) {
+        return new PunishEntryDTO(this.identifier, this.shortId, this.source, recordedByOid, recordedByOid != null, this.section,
+                this.scope, this.permanent, this.lifted, this.createdAt, this.escalationGroup, this.stepIndex, this.stepCount,
+                this.eloCost, this.template, this.evidenceCount, this.metaData);
     }
 
     @Override

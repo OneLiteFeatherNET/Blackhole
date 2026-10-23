@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.elo.controller;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
@@ -67,7 +69,8 @@ public interface EloApi {
     @Operation(
             summary = "Adjust a player's score by hand",
             description = "Applies a signed delta to the player's score in one section, recorded as a MANUAL_ADJUSTMENT "
-                    + "and subject to the same soft and permanent threshold rules as any other delta.",
+                    + "and subject to the same soft and permanent threshold rules as any other delta. "
+                    + "The adjusting staff member is the caller of the token.",
             operationId = "adjustElo",
             tags = {"Elo"}
     )
@@ -82,6 +85,7 @@ public interface EloApi {
     @Post("/{owner}/adjust")
     HttpResponse<EloDTO> adjust(
             @PathVariable @Pattern(regexp = OWNER_HASH, message = "Owner must be a sha-512 hash") String owner,
-            @Valid @Body EloDTO.AdjustRequest request
+            @Valid @Body EloDTO.AdjustRequest request,
+            @Parameter(hidden = true) Actor actor
     );
 }

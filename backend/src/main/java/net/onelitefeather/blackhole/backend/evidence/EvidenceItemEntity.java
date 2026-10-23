@@ -60,6 +60,10 @@ public class EvidenceItemEntity {
     @Column(name = "created_by")
     private UUID createdBy;
 
+    /** The {@code oid} of the verified principal that attached the item; {@code null} for pre-SSO rows. */
+    @Column(name = "recorded_by_oid")
+    private UUID recordedByOid;
+
     @Column(name = "file_key")
     private String fileKey;
 
@@ -147,6 +151,10 @@ public class EvidenceItemEntity {
         this.createdBy = createdBy;
     }
 
+    public void setRecordedByOid(UUID recordedByOid) {
+        this.recordedByOid = recordedByOid;
+    }
+
     public UUID getIdentifier() {
         return identifier;
     }
@@ -193,6 +201,10 @@ public class EvidenceItemEntity {
 
     public UUID getCreatedBy() {
         return createdBy;
+    }
+
+    public UUID getRecordedByOid() {
+        return recordedByOid;
     }
 
     public String getFileKey() {

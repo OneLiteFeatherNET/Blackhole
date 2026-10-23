@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static net.onelitefeather.blackhole.backend.evidence.EvidenceTestBed.OWNER;
+import static net.onelitefeather.blackhole.backend.evidence.EvidenceTestBed.ACTOR;
 import static net.onelitefeather.blackhole.backend.evidence.EvidenceTestBed.STAFF;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -51,12 +52,12 @@ class EvidenceEventsTest {
 
     private static EvidenceDTO.CreateRequest link(String punishment, String owner, String correlation) {
         return new EvidenceDTO.CreateRequest(punishment, owner, correlation, EvidenceKind.LINK, "anticheat-x", null,
-                "https://example.org/secret-path", Map.of("description", "secret-description"), STAFF);
+                "https://example.org/secret-path", Map.of("description", "secret-description"), null);
     }
 
     @Test
     void attachingPublishesAnAttachedEventForAPendingItem() {
-        EvidenceDTO.Response response = assertInstanceOf(EvidenceDTO.Response.class, this.bed.service.attach(link(null, OWNER, "c1")));
+        EvidenceDTO.Response response = assertInstanceOf(EvidenceDTO.Response.class, this.bed.service.attach(link(null, OWNER, "c1"), ACTOR));
 
         RecordingEventPublisher.Event event = this.bed.events.eventsOfType("evidence.attached").getFirst();
         assertEquals(response.identifier().toString(), event.payload().get("evidenceId"));
@@ -70,14 +71,14 @@ class EvidenceEventsTest {
     void attachingToAPunishmentNamesThePunishmentInTheEvent() {
         PunishmentEntity punishment = this.bed.givenPunishment("p-1");
 
-        this.bed.service.attach(link("p-1", null, null));
+        this.bed.service.attach(link("p-1", null, null), ACTOR);
 
         assertEquals(punishment.getIdentifier(), this.bed.events.eventsOfType("evidence.attached").getFirst().payload().get("punishmentId"));
     }
 
     @Test
     void eventPayloadsCarryNoEvidenceContent() {
-        this.bed.service.attach(link(null, OWNER, "c1"));
+        this.bed.service.attach(link(null, OWNER, "c1"), ACTOR);
 
         Map<String, Object> payload = this.bed.events.eventsOfType("evidence.attached").getFirst().payload();
 
@@ -87,25 +88,25 @@ class EvidenceEventsTest {
 
     @Test
     void anUploadPublishesAnAttachedEventOfKindFile() throws IOException {
-        EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(null, OWNER, "c1", "test", null, null, STAFF, "a.png");
+        EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(null, OWNER, "c1", "test", null, null, null, "a.png");
 
-        this.bed.service.attachFile(request, new ByteArrayInputStream(EvidenceFixtures.png(8, 8)));
+        this.bed.service.attachFile(request, new ByteArrayInputStream(EvidenceFixtures.png(8, 8)), ACTOR);
 
         assertEquals("FILE", this.bed.events.eventsOfType("evidence.attached").getFirst().payload().get("kind"));
     }
 
     @Test
     void aRejectedAttachPublishesNothing() {
-        this.bed.service.attach(link(null, null, null));
+        this.bed.service.attach(link(null, null, null), ACTOR);
 
         assertTrue(this.bed.events.events().isEmpty());
     }
 
     @Test
     void deletingOneItemPublishesADeletedEventWithReasonManual() {
-        EvidenceDTO.Response response = assertInstanceOf(EvidenceDTO.Response.class, this.bed.service.attach(link(null, OWNER, "c1")));
+        EvidenceDTO.Response response = assertInstanceOf(EvidenceDTO.Response.class, this.bed.service.attach(link(null, OWNER, "c1"), ACTOR));
 
-        this.bed.service.delete(response.identifier(), "OTHER", null, STAFF);
+        this.bed.service.delete(response.identifier(), "OTHER", null, ACTOR);
 
         Map<String, Object> payload = this.bed.events.eventsOfType("evidence.deleted").getFirst().payload();
         assertEquals("MANUAL", payload.get("reason"));
@@ -115,10 +116,10 @@ class EvidenceEventsTest {
 
     @Test
     void erasingAnOwnerPublishesOneDeletedEventPerItemWithReasonErasure() {
-        this.bed.service.attach(link(null, OWNER, "c1"));
-        this.bed.service.attach(link(null, OWNER, "c2"));
+        this.bed.service.attach(link(null, OWNER, "c1"), ACTOR);
+        this.bed.service.attach(link(null, OWNER, "c2"), ACTOR);
 
-        this.bed.service.deleteByOwner(OWNER, "ERASURE_REQUEST", null, STAFF);
+        this.bed.service.deleteByOwner(OWNER, "ERASURE_REQUEST", null, ACTOR);
 
         var deleted = this.bed.events.eventsOfType("evidence.deleted");
         assertEquals(2, deleted.size());
@@ -127,9 +128,9 @@ class EvidenceEventsTest {
 
     @Test
     void aRejectedDeletePublishesNothing() {
-        EvidenceDTO.Response response = assertInstanceOf(EvidenceDTO.Response.class, this.bed.service.attach(link(null, OWNER, "c1")));
+        EvidenceDTO.Response response = assertInstanceOf(EvidenceDTO.Response.class, this.bed.service.attach(link(null, OWNER, "c1"), ACTOR));
 
-        this.bed.service.delete(response.identifier(), null, null, STAFF);
+        this.bed.service.delete(response.identifier(), null, null, ACTOR);
 
         assertTrue(this.bed.events.eventsOfType("evidence.deleted").isEmpty());
     }
@@ -138,7 +139,7 @@ class EvidenceEventsTest {
     void aBrokerFailureDoesNotFailAnAttach() {
         EvidenceTestBed failing = new EvidenceTestBed(this.spool, new FailingPublisher());
 
-        EvidenceDTO result = failing.service.attach(link(null, OWNER, "c1"));
+        EvidenceDTO result = failing.service.attach(link(null, OWNER, "c1"), ACTOR);
 
         assertInstanceOf(EvidenceDTO.Response.class, result);
         assertEquals(1, failing.items.all().size(), "the item is stored");
@@ -147,9 +148,9 @@ class EvidenceEventsTest {
     @Test
     void aBrokerFailureDoesNotFailADelete() {
         EvidenceTestBed failing = new EvidenceTestBed(this.spool, new FailingPublisher());
-        EvidenceDTO.Response response = assertInstanceOf(EvidenceDTO.Response.class, failing.service.attach(link(null, OWNER, "c1")));
+        EvidenceDTO.Response response = assertInstanceOf(EvidenceDTO.Response.class, failing.service.attach(link(null, OWNER, "c1"), ACTOR));
 
-        EvidenceDTO result = failing.service.delete(response.identifier(), "OTHER", null, STAFF);
+        EvidenceDTO result = failing.service.delete(response.identifier(), "OTHER", null, ACTOR);
 
         assertInstanceOf(EvidenceDTO.DeleteResponse.class, result);
         assertTrue(failing.items.all().isEmpty(), "the item is deleted");

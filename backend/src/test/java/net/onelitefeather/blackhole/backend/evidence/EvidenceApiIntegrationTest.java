@@ -286,14 +286,17 @@ class EvidenceApiIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
-    void aDownloadIsAuditedWithTheSuppliedActor() throws IOException {
+    void aDownloadIsAuditedWithTheVerifiedCallerAndNotTheSuppliedSource() throws IOException {
         String punishment = givenPunishment("f4".repeat(64), "ev-audit");
         String id = (String) upload(punishment, EvidenceFixtures.png(8, 8)).json().get("identifier");
 
         assertEquals(200, exchange(HttpRequest.GET("/evidence/" + id + "/content?source=" + STAFF)).code());
 
         List<EvidenceAuditEntity> trail = this.context.getBean(EvidenceAuditRepository.class).findByEvidenceIdentifierOrderByOccurredAt(UUID.fromString(id));
-        assertTrue(trail.stream().anyMatch(entry -> entry.getAction() == EvidenceAuditAction.DOWNLOADED && UUID.fromString(STAFF).equals(entry.getActor())),
-                "a DOWNLOADED entry with the actor exists: " + trail.stream().map(EvidenceAuditEntity::getAction).toList());
+        EvidenceAuditEntity downloaded = trail.stream().filter(entry -> entry.getAction() == EvidenceAuditAction.DOWNLOADED).findFirst()
+                .orElseThrow(() -> new AssertionError("a DOWNLOADED entry exists: " + trail.stream().map(EvidenceAuditEntity::getAction).toList()));
+        assertNotNull(downloaded.getRecordedByOid(), "the verified principal is recorded");
+        assertEquals(downloaded.getRecordedByOid(), downloaded.getActor(), "the actor is the token's oid");
+        assertTrue(!UUID.fromString(STAFF).equals(downloaded.getActor()), "the source query parameter is ignored");
     }
 }
