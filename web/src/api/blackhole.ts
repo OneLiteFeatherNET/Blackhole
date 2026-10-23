@@ -2,6 +2,8 @@ import { API_VERSION, API_VERSION_HEADER, authenticatedFetch, createHttp, errorF
 import type { components } from './schema'
 import { EVIDENCE_SOURCE_SYSTEM, uploadEvidence, type Upload } from './uploadEvidence'
 import type {
+  ActivePunishmentPage,
+  ActivePunishmentQuery,
   ApiResult,
   Case,
   CaseListPage,
@@ -128,6 +130,9 @@ export interface BlackholeApi {
    */
   importVanillaBans(request: VanillaImportRequest): Promise<ApiResult<VanillaImportResult>>
 
+  /** One page of the currently active punishments of all players, newest first unless sorted otherwise. */
+  activePunishments(query?: ActivePunishmentQuery): Promise<ApiResult<ActivePunishmentPage>>
+
   /** One page of cases, newest activity first. */
   cases(query?: CaseListQuery): Promise<ApiResult<CaseListPage>>
   /** The punishments whose short id (`#` and eight hex characters) matches; several if short ids collide, none if nothing matches. */
@@ -195,7 +200,7 @@ function timelineQuery(query: CaseTimelineQuery): () => string {
 }
 
 /** Only the filters that are set are sent. */
-function caseListQuery(query: CaseListQuery): () => string {
+function caseListQuery(query: object): () => string {
   return () => {
     const params = new URLSearchParams()
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== '') params.set(key, String(value))
@@ -486,6 +491,9 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     staffActors: async () => map(await toResult(http.GET('/admin/staff-actor')), (body) => body.items ?? []),
     anonymizeStaffActor: async (oid) =>
       map(await toResult(http.POST('/admin/staff-actor/{oid}/anonymize', { params: { path: { oid } } })), () => undefined),
+
+    activePunishments: (query = {}) =>
+      toResult(http.GET('/punishment/active', { querySerializer: caseListQuery(query) })),
 
     cases: (query = {}) =>
       toResult(http.GET('/case', { querySerializer: caseListQuery(query) })),

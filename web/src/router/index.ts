@@ -9,6 +9,7 @@ import NotFoundView from '../views/NotFoundView.vue'
 import NoAccessView from '../views/NoAccessView.vue'
 import PlayerDetailView from '../views/PlayerDetailView.vue'
 import PlayersView from '../views/PlayersView.vue'
+import PunishedPlayersView from '../views/PunishedPlayersView.vue'
 import AppealsView from '../views/AppealsView.vue'
 import ReportsView from '../views/ReportsView.vue'
 import SectionsView from '../views/SectionsView.vue'
@@ -16,6 +17,7 @@ import TemplatesView from '../views/TemplatesView.vue'
 
 export const routes: RouteRecordRaw[] = [
   { path: '/', name: 'dashboard', component: DashboardView, meta: { titleKey: 'nav.dashboard' } },
+  { path: '/punished', name: 'punished', component: PunishedPlayersView, meta: { titleKey: 'nav.punished' } },
   { path: '/players', name: 'players', component: PlayersView, meta: { titleKey: 'nav.players' } },
   { path: '/players/:owner', name: 'player', component: PlayerDetailView, props: true, meta: { titleKey: 'nav.players' } },
   { path: '/templates', name: 'templates', component: TemplatesView, meta: { titleKey: 'nav.templates' } },

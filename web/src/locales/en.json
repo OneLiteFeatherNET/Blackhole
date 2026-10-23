@@ -4,6 +4,7 @@
     "skip": "Skip to content",
     "dashboard": "Dashboard",
     "players": "Players",
+    "punished": "Punished players",
     "templates": "Templates",
     "sections": "Sections",
     "reports": "Reports",
@@ -884,6 +885,68 @@
         "activity": "Last activity"
       }
     }
+  },
+  "punished": {
+    "title": "Punished players",
+    "filters": "Filters for punished players",
+    "kind": {
+      "label": "Kind",
+      "all": "All",
+      "BAN": "Bans",
+      "MUTE": "Mutes",
+      "SERVER": "Server"
+    },
+    "term": {
+      "label": "Duration",
+      "all": "All durations",
+      "permanent": "Permanent",
+      "temporary": "Temporary",
+      "soon": "Expiring soon"
+    },
+    "source": {
+      "label": "Source",
+      "all": "All sources",
+      "automatic": "Automatic",
+      "manual": "Manual"
+    },
+    "mine": "Issued by me",
+    "section": "Section",
+    "allSections": "All sections",
+    "sort": {
+      "label": "Sort by",
+      "CREATED": "Issued on",
+      "EXPIRES": "Expires",
+      "ASC": "Ascending",
+      "DESC": "Descending",
+      "direction": "Sort direction"
+    },
+    "search": {
+      "label": "Search players in this list",
+      "hint": "Name (known names only), hash prefix, case ID or reason"
+    },
+    "columns": {
+      "player": "Player",
+      "type": "Kind and section",
+      "reason": "Reason",
+      "since": "Since",
+      "until": "Until",
+      "source": "Source",
+      "issuer": "Issued by",
+      "case": "Case"
+    },
+    "permanent": "permanent",
+    "remaining": "{duration} left",
+    "automatic": "Automatic (ELO)",
+    "manual": "Manual",
+    "automaticReason": "Automatic punishment (ELO system)",
+    "noReason": "No reason given",
+    "unverified": "Not verified",
+    "noCase": "No case",
+    "empty": "No player is punished right now.",
+    "emptyFiltered": "No punished players for these filters.",
+    "emptySearch": "No player on this page matches the search.",
+    "total": "{count} active punishments",
+    "paging": "Pages of punished players"
   },
   "notFound": {
     "heading": "Page not found",

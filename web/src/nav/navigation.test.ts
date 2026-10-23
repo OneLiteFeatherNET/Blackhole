@@ -20,12 +20,20 @@ describe('visibleGroups', () => {
     expect(groups.map((group) => group.key)).not.toContain('system')
   })
 
+  it('offers the punished players to every role that may read, administrator or not', () => {
+    for (const administrator of [false, true]) {
+      const items = visibleGroups({ hasAccess: true, administrator }).flatMap((group) => group.items.map((item) => item.to))
+      expect(items).toContain('/punished')
+    }
+    expect(visibleGroups({ hasAccess: false, administrator: false }).flatMap((group) => group.items.map((item) => item.to))).not.toContain('/punished')
+  })
+
   it('groups the destinations as overview, moderation, rules and system', () => {
     const groups = visibleGroups({ hasAccess: true, administrator: true })
 
     expect(groups.map((group) => [group.key, group.items.map((item) => item.key)])).toEqual([
       ['overview', ['dashboard']],
-      ['moderation', ['cases', 'appeals', 'reports', 'players']],
+      ['moderation', ['cases', 'appeals', 'reports', 'punished', 'players']],
       ['rules', ['sections', 'templates']],
       ['system', ['admin']],
     ])

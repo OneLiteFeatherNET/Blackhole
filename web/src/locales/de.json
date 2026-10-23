@@ -4,6 +4,7 @@
     "skip": "Zum Inhalt springen",
     "dashboard": "Übersicht",
     "players": "Spieler",
+    "punished": "Gesperrte Spieler",
     "templates": "Vorlagen",
     "sections": "Bereiche",
     "reports": "Meldungen",
@@ -884,6 +885,68 @@
         "activity": "Letzte Aktivität"
       }
     }
+  },
+  "punished": {
+    "title": "Gesperrte Spieler",
+    "filters": "Filter der gesperrten Spieler",
+    "kind": {
+      "label": "Art",
+      "all": "Alle",
+      "BAN": "Bans",
+      "MUTE": "Mutes",
+      "SERVER": "Server"
+    },
+    "term": {
+      "label": "Dauer",
+      "all": "Alle Dauern",
+      "permanent": "Dauerhaft",
+      "temporary": "Befristet",
+      "soon": "Läuft bald ab"
+    },
+    "source": {
+      "label": "Herkunft",
+      "all": "Alle Herkünfte",
+      "automatic": "Automatisch",
+      "manual": "Manuell"
+    },
+    "mine": "Von mir verhängt",
+    "section": "Bereich",
+    "allSections": "Alle Bereiche",
+    "sort": {
+      "label": "Sortieren nach",
+      "CREATED": "Verhängt am",
+      "EXPIRES": "Läuft ab",
+      "ASC": "Aufsteigend",
+      "DESC": "Absteigend",
+      "direction": "Sortierrichtung"
+    },
+    "search": {
+      "label": "Spieler in dieser Liste suchen",
+      "hint": "Name (nur bekannte Namen), Hash-Anfang, Fall-ID oder Grund"
+    },
+    "columns": {
+      "player": "Spieler",
+      "type": "Art und Bereich",
+      "reason": "Grund",
+      "since": "Seit",
+      "until": "Bis",
+      "source": "Herkunft",
+      "issuer": "Verhängt von",
+      "case": "Fall"
+    },
+    "permanent": "dauerhaft",
+    "remaining": "noch {duration}",
+    "automatic": "Automatisch (ELO)",
+    "manual": "Manuell",
+    "automaticReason": "Automatische Strafe (ELO-System)",
+    "noReason": "Kein Grund angegeben",
+    "unverified": "Nicht verifiziert",
+    "noCase": "Kein Fall",
+    "empty": "Aktuell ist kein Spieler gesperrt.",
+    "emptyFiltered": "Keine gesperrten Spieler für diese Filter.",
+    "emptySearch": "Auf dieser Seite passt kein Spieler zur Suche.",
+    "total": "{count} aktive Strafen",
+    "paging": "Seiten der gesperrten Spieler"
   },
   "notFound": {
     "heading": "Seite nicht gefunden",
