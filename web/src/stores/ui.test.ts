@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { i18n } from '../i18n'
-import { LOCALE_STORAGE_KEY, THEME_STORAGE_KEY, useUiStore } from './ui'
+import { LOCALE_STORAGE_KEY, NAV_COLLAPSED_STORAGE_KEY, THEME_STORAGE_KEY, useUiStore } from './ui'
 
 // The store reads storage and the document when it is created, so each test gets a fresh pinia.
 function freshStore() {
@@ -94,5 +94,46 @@ describe('ui store: locale', () => {
     expect(i18n.global.locale.value).toBe('en')
     expect(document.documentElement.lang).toBe('en')
     expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('en')
+  })
+})
+
+describe('ui store: navigation collapse', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('starts expanded when nothing is stored', () => {
+    expect(freshStore().navCollapsed).toBe(false)
+  })
+
+  it('persists the choice and restores it in the next session', () => {
+    freshStore().setNavCollapsed(true)
+
+    expect(localStorage.getItem(NAV_COLLAPSED_STORAGE_KEY)).toBe('true')
+    expect(freshStore().navCollapsed, 'restored').toBe(true)
+  })
+
+  it('ignores a stored value it does not know', () => {
+    localStorage.setItem(NAV_COLLAPSED_STORAGE_KEY, 'maybe')
+
+    expect(freshStore().navCollapsed).toBe(false)
+  })
+
+  it('still works for the page when storage throws on read and write', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError')
+    })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError')
+    })
+    const store = freshStore()
+    expect(store.navCollapsed, 'default').toBe(false)
+
+    store.setNavCollapsed(true)
+
+    expect(store.navCollapsed, 'in-memory choice').toBe(true)
   })
 })

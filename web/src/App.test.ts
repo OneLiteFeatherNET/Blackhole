@@ -1,12 +1,13 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { chooseOption } from './test/select'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory } from 'vue-router'
 import App from './App.vue'
 import { i18n } from './i18n'
 import { createAppRouter } from './router'
 import { useSessionStore } from './stores/session'
-import { THEME_STORAGE_KEY } from './stores/ui'
+import { NAV_COLLAPSED_STORAGE_KEY, THEME_STORAGE_KEY } from './stores/ui'
+import { fakeMatchMedia } from './test/media'
 import { API_KEY } from './api/inject'
 import { AUTH_KEY } from './auth/inject'
 import { fakeAuthService } from './test/auth'
@@ -30,6 +31,7 @@ async function mountApp(path = '/', options: { roles?: string[]; auth?: ReturnTy
           eloHistory: async () => ok([]),
           evasionSightings: async () => ok({ detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false }),
           staffLinkStatus: async () => ok({ linked: false }),
+          cases: async () => ok({ items: [], page: 0, size: 20, totalSize: 0, totalPages: 0 }),
         }),
       },
     },
@@ -38,7 +40,16 @@ async function mountApp(path = '/', options: { roles?: string[]; auth?: ReturnTy
   return Object.assign(wrapper, { auth, session: useSessionStore(pinia) })
 }
 
+/** Opens the account menu of the top bar, which holds the account, theme, language and sign-out controls. */
+async function openAccountMenu(wrapper: Awaited<ReturnType<typeof mountApp>>) {
+  await wrapper.get('[data-testid="account-menu"]').trigger('click')
+}
+
 describe('App shell', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
   beforeEach(() => {
     localStorage.clear()
     delete document.documentElement.dataset.theme
@@ -65,6 +76,7 @@ describe('App shell', () => {
 
   it('shows who is signed in instead of a free-text acting-as field', async () => {
     const wrapper = await mountApp('/')
+    await openAccountMenu(wrapper)
 
     expect(wrapper.get('[data-testid="signed-in-as"]').text()).toBe('Angemeldet als Dev Admin')
     expect(wrapper.find('input').exists(), 'text input').toBe(false)
@@ -72,8 +84,9 @@ describe('App shell', () => {
     wrapper.unmount()
   })
 
-  it('signs out from the top bar', async () => {
+  it('signs out from the account menu', async () => {
     const wrapper = await mountApp('/')
+    await openAccountMenu(wrapper)
 
     await wrapper.get('[data-testid="sign-out"]').trigger('click')
 
@@ -133,8 +146,9 @@ describe('App shell', () => {
     wrapper.unmount()
   })
 
-  it('switches the language and the theme from the top bar', async () => {
+  it('switches the language and the theme from the account menu', async () => {
     const wrapper = await mountApp('/')
+    await openAccountMenu(wrapper)
     const [themeSelect, localeSelect] = wrapper.findAll('[role="combobox"]')
 
     await chooseOption(themeSelect!, 'dark')
@@ -153,9 +167,133 @@ describe('App shell', () => {
     const wrapper = await mountApp('/', { roles: ['VIEWER'] })
 
     expect(wrapper.find('[role="dialog"]').exists(), 'closed at first').toBe(false)
+    await openAccountMenu(wrapper)
     await wrapper.get('[data-testid="account"]').trigger('click')
 
     expect(wrapper.find('[role="dialog"]').exists(), 'opened by the button').toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('groups the navigation and shows the admin group to an admin', async () => {
+    const wrapper = await mountApp('/')
+
+    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text()), 'headings').toEqual(['Moderation', 'Regelwerk', 'System'])
+    expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual([
+      'Übersicht', 'Fälle', 'Einsprüche', 'Meldungen', 'Spieler', 'Bereiche', 'Vorlagen', 'Verwaltung',
+    ])
+
+    wrapper.unmount()
+  })
+
+  it('leaves out the system group for a moderator', async () => {
+    const wrapper = await mountApp('/', { roles: ['MODERATOR'] })
+
+    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text())).toEqual(['Moderation', 'Regelwerk'])
+
+    wrapper.unmount()
+  })
+
+  it('marks only the current destination with aria-current', async () => {
+    const wrapper = await mountApp('/cases')
+
+    expect(wrapper.findAll('nav a[aria-current="page"]').map((a) => a.text())).toEqual(['Fälle'])
+
+    wrapper.unmount()
+  })
+
+  it('shows the not-found page for an unknown path after sign-in instead of waiting forever', async () => {
+    const wrapper = await mountApp('/gibt-es-nicht')
+
+    expect(wrapper.get('h1').text()).toBe('Seite nicht gefunden')
+    expect(wrapper.get('[data-testid="auth-status"]').text(), 'status text').toBe('')
+    expect(wrapper.get('[data-testid="back-to-dashboard"]').attributes('href')).toBe('/')
+    expect(wrapper.find('nav').exists(), 'navigation stays available').toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('folds the drawer into a rail and remembers the choice', async () => {
+    const wrapper = await mountApp('/')
+    const toggle = wrapper.get('[data-testid="nav-toggle"]')
+    expect(toggle.attributes('aria-label')).toBe('Navigation einklappen')
+    expect(wrapper.findAll('nav [role="group"]'), 'headings while expanded').toHaveLength(3)
+
+    await toggle.trigger('click')
+
+    expect(localStorage.getItem(NAV_COLLAPSED_STORAGE_KEY)).toBe('true')
+    expect(toggle.attributes('aria-label')).toBe('Navigation ausklappen')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.get('nav').classes(), 'rail width').toContain('w-20')
+
+    wrapper.unmount()
+  })
+
+  it('starts as a rail when the viewer collapsed the navigation before', async () => {
+    localStorage.setItem(NAV_COLLAPSED_STORAGE_KEY, 'true')
+
+    const wrapper = await mountApp('/')
+
+    expect(wrapper.get('nav').classes()).toContain('w-20')
+
+    wrapper.unmount()
+  })
+
+  it('works when localStorage throws', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError')
+    })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError')
+    })
+    const wrapper = await mountApp('/')
+
+    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+
+    expect(wrapper.get('nav').classes(), 'collapsed for this page').toContain('w-20')
+
+    wrapper.unmount()
+    vi.restoreAllMocks()
+  })
+
+  it('shows a rail without toggle on medium windows', async () => {
+    vi.stubGlobal('matchMedia', fakeMatchMedia({ value: 900 }).matchMedia)
+
+    const wrapper = await mountApp('/')
+
+    expect(wrapper.get('nav').classes()).toContain('w-20')
+    expect(wrapper.find('[data-testid="nav-toggle"]').exists(), 'toggle').toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('opens a modal drawer from the menu button on compact windows and closes it on navigation', async () => {
+    vi.stubGlobal('matchMedia', fakeMatchMedia({ value: 500 }).matchMedia)
+    const wrapper = await mountApp('/')
+    expect(wrapper.find('nav').exists(), 'closed at first').toBe(false)
+
+    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+    expect(wrapper.get('[data-testid="nav-toggle"]').attributes('aria-expanded')).toBe('true')
+    await wrapper.findAll('nav a').find((a) => a.text() === 'Spieler')!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('nav').exists(), 'closed after navigating').toBe(false)
+    expect(wrapper.get('h1').text()).toBe('Spieler')
+
+    wrapper.unmount()
+  })
+
+  it('closes the modal drawer with Escape and with the scrim', async () => {
+    vi.stubGlobal('matchMedia', fakeMatchMedia({ value: 500 }).matchMedia)
+    const wrapper = await mountApp('/')
+
+    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+    await wrapper.get('nav').trigger('keydown', { key: 'Escape' })
+    expect(wrapper.find('nav').exists(), 'after Escape').toBe(false)
+
+    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+    await wrapper.get('[data-testid="nav-scrim"]').trigger('click')
+    expect(wrapper.find('nav').exists(), 'after the scrim').toBe(false)
 
     wrapper.unmount()
   })

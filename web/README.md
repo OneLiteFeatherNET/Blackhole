@@ -30,7 +30,13 @@ the backend verifies it; the UI only decides what to offer.
   | `MODERATOR` | and: apply, revoke and adjust punishments, resolve reports, decide appeals, add and upload evidence |
   | `ADMIN` | and: create, edit and disable sections, create, edit and delete templates, delete evidence |
 
-- **Account.** The "Konto" (*Account*) button in the top bar opens a dialog that shows whether the signed-in
+- **Navigation.** A side navigation groups the pages as Übersicht, Moderation (Fälle, Einsprüche, Meldungen,
+  Spieler), Regelwerk (Bereiche, Vorlagen) and System (Verwaltung, `ADMIN` only; a group without a visible
+  entry is left out). From 1200 px it is a drawer that can be folded into a rail (the choice is kept in
+  `localStorage`); from 768 px it is a rail; below that a menu button opens a modal drawer. The top bar
+  carries the product mark and the account menu (account, theme, language, sign-out). An unknown path shows
+  a "Seite nicht gefunden" page after sign-in.
+- **Account.** The "Konto" (*Account*) entry in the account menu of the top bar opens a dialog that shows whether the signed-in
   person's Minecraft account is linked. "Minecraft-Konto verknüpfen" issues a code with a countdown and a
   copy button for the code and for the command `/blackhole link <code>`; "Verknüpfung entfernen" unlinks
   after a confirmation. Admins also get a list of all links with an unlink action. See

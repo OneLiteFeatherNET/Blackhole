@@ -5,6 +5,7 @@ import AuthErrorView from '../views/AuthErrorView.vue'
 import CasesView from '../views/CasesView.vue'
 import CaseView from '../views/CaseView.vue'
 import DashboardView from '../views/DashboardView.vue'
+import NotFoundView from '../views/NotFoundView.vue'
 import NoAccessView from '../views/NoAccessView.vue'
 import PlayerDetailView from '../views/PlayerDetailView.vue'
 import PlayersView from '../views/PlayersView.vue'
@@ -27,6 +28,8 @@ export const routes: RouteRecordRaw[] = [
   { path: '/no-access', name: 'no-access', component: NoAccessView, meta: { titleKey: 'auth.noAccess.title' } },
   { path: '/auth/callback', name: 'auth-callback', component: AuthCallbackView, meta: { public: true, titleKey: 'auth.signingIn' } },
   { path: '/auth/error', name: 'auth-error', component: AuthErrorView, meta: { public: true, titleKey: 'auth.error.heading' } },
+  // Last: any other path. Not public, so it is shown after sign-in like every page.
+  { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView, meta: { titleKey: 'notFound.heading' } },
 ]
 
 export function createAppRouter(history: RouterHistory = createWebHistory()) {

@@ -34,6 +34,30 @@ describe('router guard', () => {
     expect(router.currentRoute.value.name, 'the navigation was cancelled').toBeUndefined()
   })
 
+  it('sends a visitor to an unknown path through the sign-in first, keeping that path', async () => {
+    const { router, auth } = setup({ auth: { token: null } })
+
+    await router.push('/gibt-es-nicht')
+
+    expect(auth.calls.signIn).toEqual(['/gibt-es-nicht'])
+  })
+
+  it('shows the not-found route to a signed-in user for an unknown path', async () => {
+    const { router } = setup()
+
+    await router.push('/gibt-es-nicht')
+
+    expect(router.currentRoute.value.name).toBe('not-found')
+  })
+
+  it('keeps a user without a role on the no-access page even for an unknown path', async () => {
+    const { router } = setup({ roles: [] })
+
+    await router.push('/gibt-es-nicht')
+
+    expect(router.currentRoute.value.name).toBe('no-access')
+  })
+
   it('does not ask the backend who the visitor is before they have a token', async () => {
     const { router, me } = setup({ auth: { token: null } })
 
