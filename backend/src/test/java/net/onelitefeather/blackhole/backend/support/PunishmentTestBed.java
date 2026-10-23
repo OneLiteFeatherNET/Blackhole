@@ -47,6 +47,9 @@ public final class PunishmentTestBed {
                     .finder("findByShortId", args -> this.punishments.all().stream()
                             .filter(p -> args[0].equals(p.getShortId()))
                             .toList())
+                    .finder("findBySourceAndTemplateIsNull", args -> this.punishments.all().stream()
+                            .filter(p -> args[0].equals(p.getSource()) && p.getTemplate() == null)
+                            .toList())
                     .finder("existsByTemplate_Identifier", args -> this.punishments.all().stream()
                             .anyMatch(p -> p.getTemplate() != null && args[0].equals(p.getTemplate().getIdentifier())))
                     .build();
