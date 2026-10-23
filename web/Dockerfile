@@ -9,7 +9,7 @@
 #     -e BLACKHOLE_BACKEND_URL=http://backend:8080 \
 #     -e BLACKHOLE_UI_SOURCE=<operator uuid> blackhole-web
 
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 # package.json points openapi-typescript at ../client/specs/<pinned spec>.
 COPY client/specs ./client/specs
