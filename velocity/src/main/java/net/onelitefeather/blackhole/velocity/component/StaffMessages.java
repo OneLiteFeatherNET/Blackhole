@@ -10,6 +10,7 @@ import net.onelitefeather.blackhole.client.model.PunishEntryDTO;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.velocity.component.tag.DurationTag;
+import net.onelitefeather.blackhole.velocity.punish.PunishService.RevokeOutcome;
 import net.onelitefeather.blackhole.velocity.punish.TargetNotFoundException;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.section.SectionInfo;
@@ -21,6 +22,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -168,6 +170,56 @@ public final class StaffMessages {
         }
         String detail = cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage();
         return Component.translatable("staff.error.argument", Component.text(detail));
+    }
+
+    /**
+     * The answer to lifting a punishment, whichever way it ended. Every failure names the next step: the
+     * sections the command accepts, ready to click, or the {@code info} command that shows what is active.
+     *
+     * @param command   the command that was used ({@code unban} or {@code unmute})
+     * @param requested the section key the sender asked for
+     * @param sections  the sections that command accepts, to name and to suggest
+     */
+    public static @NotNull Component revoked(
+            @NotNull RevokeOutcome outcome, @NotNull String targetName, @NotNull String command, @NotNull String requested,
+            @NotNull Collection<SectionInfo> sections, @NotNull Mode mode
+    ) {
+        boolean mute = command.equals("unmute");
+        Component player = Fmt.player(targetName, mode);
+        return switch (outcome) {
+            case RevokeOutcome.Revoked revoked -> Component.translatable(
+                    mute ? "staff.revoke.unmute.success" : "staff.revoke.unban.success",
+                    player, Component.text(sectionName(requested, sections)));
+            case RevokeOutcome.NothingActive none -> Component.join(JoinConfiguration.newlines(),
+                    Component.translatable(mute ? "staff.revoke.unmute.none_active" : "staff.revoke.unban.none_active",
+                            player, Component.text(sectionName(none.section(), sections))),
+                    Component.translatable("staff.revoke.info_hint", suggestion(
+                            "/blackhole " + targetName + " info", "/blackhole " + targetName + " info", mode)));
+            case RevokeOutcome.PermanentNotAllowed permanent -> Component.join(JoinConfiguration.newlines(),
+                    Component.translatable("staff.revoke.permanent", player, Component.text(sectionName(permanent.section(), sections))),
+                    Component.translatable("staff.revoke.permanent.hint"));
+            case RevokeOutcome.UnknownSection unknown -> Component.join(JoinConfiguration.newlines(),
+                    Component.translatable("staff.revoke.section.unknown", Component.text(unknown.section())),
+                    sectionList(command, targetName, sections, mode));
+            case RevokeOutcome.WrongSection wrong -> Component.join(JoinConfiguration.newlines(),
+                    Component.translatable("staff.revoke.section.wrong", Component.text(wrong.section()), Component.text("/" + command)),
+                    sectionList(command, targetName, sections, mode));
+            case RevokeOutcome.Failed ignored -> Component.translatable(mute ? "staff.revoke.unmute.failed" : "staff.revoke.unban.failed");
+        };
+    }
+
+    private static String sectionName(String key, Collection<SectionInfo> sections) {
+        return sections.stream().filter(section -> section.key().equals(key)).map(SectionInfo::displayName).findFirst().orElse(key);
+    }
+
+    private static Component sectionList(String command, String targetName, Collection<SectionInfo> sections, Mode mode) {
+        if (sections.isEmpty()) {
+            return Component.translatable("staff.revoke.sections.none");
+        }
+        List<Component> suggestions = sections.stream()
+                .map(section -> suggestion(section.key(), "/" + command + " " + targetName + " " + section.key(), mode))
+                .toList();
+        return Component.translatable("staff.revoke.sections", Component.join(JoinConfiguration.separator(Component.text(", ")), suggestions));
     }
 
     private static Component undoButton(String targetName, SectionInfo section) {

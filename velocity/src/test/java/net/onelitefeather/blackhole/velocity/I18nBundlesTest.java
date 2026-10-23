@@ -25,11 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class I18nBundlesTest {
 
-    /** Keys the code builds from parts ({@code "punishment.success." + action}), which the scan cannot see. */
-    private static final Set<String> COMPOSED_KEYS = Set.of(
-            "punishment.success.unban", "punishment.success.unmute",
-            "punishment.error.unban", "punishment.error.unmute",
-            "punishment.error.unban.none_active", "punishment.error.unmute.none_active");
+    /** Keys the code builds from parts, which the scan cannot see; none at the moment. */
+    private static final Set<String> COMPOSED_KEYS = Set.of();
 
     /** A tag of the style; the name after {@code bh:} must be one the theme defines. */
     private static final Pattern THEME_TAG = Pattern.compile("</?bh:([a-zA-Z0-9_]*)>");

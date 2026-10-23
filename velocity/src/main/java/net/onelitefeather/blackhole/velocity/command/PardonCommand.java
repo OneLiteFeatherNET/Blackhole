@@ -2,12 +2,15 @@ package net.onelitefeather.blackhole.velocity.command;
 
 import com.google.inject.Inject;
 import com.velocitypowered.api.proxy.Player;
-import net.kyori.adventure.text.Component;
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
+import net.onelitefeather.blackhole.velocity.component.Mode;
+import net.onelitefeather.blackhole.velocity.component.Permissions;
+import net.onelitefeather.blackhole.velocity.component.StaffMessages;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
 import net.onelitefeather.blackhole.velocity.punish.PunishService;
 import net.onelitefeather.blackhole.velocity.punish.TargetResolver.ResolvedTarget;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
+import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.CommandDescription;
@@ -20,24 +23,25 @@ import java.util.Set;
 
 /**
  * Lifts an active ban or mute. The target may be offline, so it is resolved like any other punishment
- * target. Lifting a permanent punishment additionally needs {@value #PARDON_PERMANENT_PERMISSION}.
+ * target. Lifting a permanent punishment additionally needs {@value Permissions#PARDON_PERMANENT}.
  */
 public final class PardonCommand {
 
-    static final String PARDON_PERMANENT_PERMISSION = "blackhole.pardon.permanent";
-
     private final PunishService service;
     private final PunishmentSyncHandler syncHandler;
+    private final SectionRegistry sections;
 
     @Inject
-    public PardonCommand(@NotNull PunishService service, @NotNull PunishmentSyncHandler syncHandler) {
+    public PardonCommand(@NotNull PunishService service, @NotNull PunishmentSyncHandler syncHandler,
+                         @NotNull SectionRegistry sections) {
         this.service = service;
         this.syncHandler = syncHandler;
+        this.sections = sections;
     }
 
     @Command("blackhole <user> unban [section]")
     @Command("unban <user> [section]")
-    @Permission("blackhole.unban")
+    @Permission(Permissions.UNBAN)
     @CommandDescription("Revoke a player's active ban (default section: network)")
     public void unbanPlayer(
             CommandContext<Player> context,
@@ -49,7 +53,7 @@ public final class PardonCommand {
 
     @Command("blackhole <user> unmute [section]")
     @Command("unmute <user> [section]")
-    @Permission("blackhole.unmute")
+    @Permission(Permissions.UNMUTE)
     @CommandDescription("Revoke a player's active mute (default section: chat)")
     public void unmutePlayer(
             CommandContext<Player> context,
@@ -60,25 +64,15 @@ public final class PardonCommand {
     }
 
     private void revoke(Player sender, ResolvedTarget user, String section, Set<EnforcementKind> kinds, String action) {
-        boolean mayPardonPermanent = sender.hasPermission(PARDON_PERMANENT_PERMISSION);
+        boolean mayPardonPermanent = Permissions.of(sender).mayPardonPermanent();
         PunishService.RevokeOutcome outcome = this.service.revoke(user.ownerHash(), section, sender.getUniqueId(), mayPardonPermanent, kinds);
-        switch (outcome) {
-            case PunishService.RevokeOutcome.Revoked revoked -> {
-                // Keeps this proxy's mirror right even if the Redis announcement is not delivered.
-                this.syncHandler.accept(new PunishmentSyncMessage(
-                        user.ownerHash(), section, null, PunishmentSyncMessage.STATE_CLEARED,
-                        revoked.response().getPunishment().getIdentifier(), null, null, null));
-                sender.sendMessage(Component.translatable("punishment.success." + action).arguments(Component.text(user.name())));
-            }
-            case PunishService.RevokeOutcome.NothingActive ignored ->
-                    sender.sendMessage(Component.translatable("punishment.error." + action + ".none_active"));
-            case PunishService.RevokeOutcome.PermanentNotAllowed ignored ->
-                    sender.sendMessage(Component.translatable("punishment.error.pardon.permanent_permission"));
-            case PunishService.RevokeOutcome.UnknownSection unknown ->
-                    sender.sendMessage(Component.translatable("punishment.error.section.unknown").arguments(Component.text(unknown.section())));
-            case PunishService.RevokeOutcome.WrongSection wrong ->
-                    sender.sendMessage(Component.translatable("punishment.error.section.wrong_kind").arguments(Component.text(wrong.section())));
-            case PunishService.RevokeOutcome.Failed ignored -> sender.sendMessage(Component.translatable("punishment.error." + action));
+        if (outcome instanceof PunishService.RevokeOutcome.Revoked revoked) {
+            // Keeps this proxy's mirror right even if the Redis announcement is not delivered.
+            this.syncHandler.accept(new PunishmentSyncMessage(
+                    user.ownerHash(), section, null, PunishmentSyncMessage.STATE_CLEARED,
+                    revoked.response().getPunishment().getIdentifier(), null, null, null));
         }
+        sender.sendMessage(StaffMessages.revoked(outcome, user.name(), action, section,
+                this.sections.ofKind(kinds.toArray(EnforcementKind[]::new)), Mode.of(sender)));
     }
 }
