@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.evidence.service;
 
+import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseTimeline;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.Attribution;
 import net.onelitefeather.blackhole.backend.security.StaffLinkService;
@@ -79,6 +81,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
     private final BlobStore blobs;
     private final DomainEventPublisher events;
     private final StaffLinkService staffLinks;
+    private final CaseTimeline caseTimeline;
     private final Clock clock;
     private final Path spoolDirectory;
 
@@ -94,6 +97,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
             BlobStore blobs,
             DomainEventPublisher events,
             StaffLinkService staffLinks,
+            CaseTimeline caseTimeline,
             Clock clock,
             @Value("${java.io.tmpdir}") Path spoolDirectory
     ) {
@@ -105,6 +109,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         this.blobs = blobs;
         this.events = events;
         this.staffLinks = staffLinks;
+        this.caseTimeline = caseTimeline;
         this.clock = clock;
         this.spoolDirectory = spoolDirectory;
     }
@@ -385,6 +390,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         for (EvidenceItemEntity item : pending) {
             item.claim(punishmentIdentifier);
             this.items.update(item);
+            this.caseTimeline.evidenceAttached(item, CaseActor.ofRow(item.getCreatedBy(), item.getRecordedByOid(), item.getActorOid()));
         }
         return pending.size();
     }
@@ -395,8 +401,8 @@ public class EvidenceService implements PunishmentEvidenceGateway {
      * {@code LIFTED} or {@code REVOKED} keep their first status.
      */
     @Override
-    public int markRevoked(String punishmentIdentifier) {
-        return changeStatus(punishmentIdentifier, EvidenceStatus.REVOKED, null);
+    public int markRevoked(String punishmentIdentifier, Attribution by) {
+        return changeStatus(punishmentIdentifier, EvidenceStatus.REVOKED, null, by);
     }
 
     /**
@@ -404,8 +410,8 @@ public class EvidenceService implements PunishmentEvidenceGateway {
      * punishment. Nothing is deleted. Appeals that deny or only reduce a punishment must not call this.
      */
     @Override
-    public int markLifted(String punishmentIdentifier, UUID appealIdentifier) {
-        return changeStatus(punishmentIdentifier, EvidenceStatus.LIFTED, appealIdentifier);
+    public int markLifted(String punishmentIdentifier, UUID appealIdentifier, Attribution by) {
+        return changeStatus(punishmentIdentifier, EvidenceStatus.LIFTED, appealIdentifier, by);
     }
 
     /**
@@ -457,7 +463,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         return deleted;
     }
 
-    private int changeStatus(String punishmentIdentifier, EvidenceStatus status, UUID liftedByAppeal) {
+    private int changeStatus(String punishmentIdentifier, EvidenceStatus status, UUID liftedByAppeal, Attribution by) {
         int changed = 0;
         for (EvidenceItemEntity item : this.items.findByPunishmentIdentifier(punishmentIdentifier)) {
             if (item.getStatus() != EvidenceStatus.VALID) {
@@ -465,6 +471,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
             }
             item.markStatus(status, this.clock.millis(), liftedByAppeal);
             this.items.update(item);
+            this.caseTimeline.evidenceStatusChanged(item, CaseActor.of(by));
             changed++;
         }
         return changed;
@@ -488,6 +495,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
     private EvidenceDTO attached(EvidenceItemEntity saved, Attribution by) {
         record(saved, EvidenceAuditAction.ATTACHED, by, null, null);
         publish(EvidenceEvents.ATTACHED, EvidenceEvents.attached(saved));
+        this.caseTimeline.evidenceAttached(saved, CaseActor.of(by));
         return toResponse(saved);
     }
 

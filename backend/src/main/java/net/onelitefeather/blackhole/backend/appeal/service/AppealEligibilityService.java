@@ -8,6 +8,7 @@ import io.micronaut.context.annotation.Value;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseTimeline;
 import net.onelitefeather.blackhole.backend.elo.EloScoring;
 import net.onelitefeather.blackhole.backend.elo.service.EloService;
 import net.onelitefeather.blackhole.backend.section.EnforcementKind;
@@ -40,6 +41,7 @@ public class AppealEligibilityService {
     private final PunishmentRepository punishmentRepository;
     private final EloScoring eloScoring;
     private final SectionService sectionService;
+    private final CaseTimeline caseTimeline;
     private final Clock clock;
     private final int minDaysManual;
     private final int minDaysAuto;
@@ -50,6 +52,7 @@ public class AppealEligibilityService {
             PunishmentRepository punishmentRepository,
             EloScoring eloScoring,
             SectionService sectionService,
+            CaseTimeline caseTimeline,
             Clock clock,
             @Value("${blackhole.appeal.min-days-manual:14}") int minDaysManual,
             @Value("${blackhole.appeal.min-days-auto:3}") int minDaysAuto,
@@ -59,6 +62,7 @@ public class AppealEligibilityService {
         this.punishmentRepository = punishmentRepository;
         this.eloScoring = eloScoring;
         this.sectionService = sectionService;
+        this.caseTimeline = caseTimeline;
         this.clock = clock;
         this.minDaysManual = minDaysManual;
         this.minDaysAuto = minDaysAuto;
@@ -87,7 +91,9 @@ public class AppealEligibilityService {
                 eligibility.eligible() ? AppealStatus.ELIGIBLE_PENDING_REVIEW : AppealStatus.INELIGIBLE,
                 eligibility.checklistSnapshot(), now, now, new HashMap<>()
         );
-        return Optional.of(this.appealRepository.save(appeal));
+        AppealEntity saved = this.appealRepository.save(appeal);
+        this.caseTimeline.appealFiled(saved);
+        return Optional.of(saved);
     }
 
     /**

@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.appeal.service;
 
 import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.security.Attribution;
 import net.onelitefeather.blackhole.backend.security.StaffLinkService;
 import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
 import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
@@ -9,6 +10,7 @@ import net.onelitefeather.blackhole.backend.appeal.AppealStatus;
 import net.onelitefeather.blackhole.backend.appeal.DecisionOutcome;
 import net.onelitefeather.blackhole.backend.appeal.dto.AppealReviewDTO;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseTimeline;
 import net.onelitefeather.blackhole.backend.elo.EloChange;
 import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.EloScoring;
@@ -70,6 +72,7 @@ public class AppealDecisionService {
     private final DomainEventPublisher eventPublisher;
     private final PunishmentEvidenceGateway evidence;
     private final StaffLinkService staffLinks;
+    private final CaseTimeline caseTimeline;
     private final Clock clock;
 
     public AppealDecisionService(
@@ -83,6 +86,7 @@ public class AppealDecisionService {
             DomainEventPublisher eventPublisher,
             PunishmentEvidenceGateway evidence,
             StaffLinkService staffLinks,
+            CaseTimeline caseTimeline,
             Clock clock
     ) {
         this.appealRepository = appealRepository;
@@ -95,6 +99,7 @@ public class AppealDecisionService {
         this.eventPublisher = eventPublisher;
         this.evidence = evidence;
         this.staffLinks = staffLinks;
+        this.caseTimeline = caseTimeline;
         this.clock = clock;
     }
 
@@ -151,7 +156,7 @@ public class AppealDecisionService {
             return AppealReviewResult.punishmentNotActive();
         }
         if (review.decision() == AppealStatus.GRANTED_FULL_LIFT) {
-            markEvidenceLifted(punishment, appealIdentifier);
+            markEvidenceLifted(punishment, appealIdentifier, reviewer.attribution());
         }
 
         appeal.setStatus(review.decision());
@@ -160,6 +165,7 @@ public class AppealDecisionService {
         appeal.setDecisionNote(review.decisionNote());
         appeal.setUpdatedAt(this.clock.millis());
         AppealEntity saved = this.appealRepository.update(appeal);
+        recordDecision(saved, punishment, review);
         publishResolved(appealIdentifier, saved, punishment, review);
 
         return AppealReviewResult.decided(saved);
@@ -221,13 +227,21 @@ public class AppealDecisionService {
         return DecisionOutcome.APPLIED;
     }
 
+    /** Records the decision, and the lift of a granted full-lift appeal, in the punishment's case. */
+    private void recordDecision(AppealEntity decided, PunishmentEntity punishment, AppealReviewDTO review) {
+        this.caseTimeline.appealDecided(decided, review.newExpirationAt());
+        if (review.decision() == AppealStatus.GRANTED_FULL_LIFT) {
+            this.caseTimeline.lifted(punishment, decided.getIdentifier(), decided.getRecordedByOid());
+        }
+    }
+
     /**
      * Marks the evidence of a fully lifted punishment {@code LIFTED}. The punishment is already
      * lifted, so a failure here is logged and never fails the decision.
      */
-    private void markEvidenceLifted(PunishmentEntity punishment, UUID appealIdentifier) {
+    private void markEvidenceLifted(PunishmentEntity punishment, UUID appealIdentifier, Attribution by) {
         try {
-            this.evidence.markLifted(punishment.getIdentifier(), appealIdentifier);
+            this.evidence.markLifted(punishment.getIdentifier(), appealIdentifier, by);
         } catch (RuntimeException e) {
             LOGGER.warn("Could not mark the evidence of lifted punishment {}", punishment.getIdentifier(), e);
         }

@@ -120,6 +120,16 @@ blackhole:
     # (ISO-8601). A template can carry its own window; this is the fallback for templates without one.
     escalation:
       default-window: ${BLACKHOLE_PUNISHMENT_ESCALATION_DEFAULT_WINDOW:P365D}
+  # Punishment case: an append-only timeline of what happens to each punishment. The flows record
+  # their events after their own write; a failed recording is counted in
+  # blackhole.case.record.failures and never fails the write. CaseReconciler repairs lost recordings
+  # from the authoritative rows (origin RECONSTRUCTED, dated by the source row). interval is how
+  # often it runs (ISO-8601 or Micronaut duration; "0" switches the reconciler off); look-back is how
+  # far back it looks for punishments, appeals and evidence without their event.
+  case:
+    reconcile:
+      interval: ${BLACKHOLE_CASE_RECONCILE_INTERVAL:10m}
+      look-back: ${BLACKHOLE_CASE_RECONCILE_LOOK_BACK:P2D}
   # ELO scoring is per punishment section (chat and network ship by default; operators add more via
   # /section). A section owns its base score, soft and permanent thresholds, soft duration, pardon
   # score and decay rate - they are data managed through the API, not config. Crossing below a

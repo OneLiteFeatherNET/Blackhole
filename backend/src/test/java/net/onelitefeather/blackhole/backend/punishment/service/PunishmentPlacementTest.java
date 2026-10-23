@@ -29,7 +29,7 @@ class PunishmentPlacementTest {
 
     private final PunishmentTestBed bed = new PunishmentTestBed();
     private final ActivePunishmentExpirer expirer = new ActivePunishmentExpirer(
-            bed.profiles.repository(), bed.slots, bed.eloBed.sections, bed.eloBed.events, bed.profileCache, bed.eloBed.clock);
+            bed.profiles.repository(), bed.slots, bed.eloBed.sections, bed.eloBed.events, bed.profileCache, bed.cases.timeline, bed.eloBed.clock);
 
     private PunishmentDTO.ApplyResponse apply(String key) {
         return assertInstanceOf(PunishmentDTO.ApplyResponse.class,

@@ -4,6 +4,7 @@ import net.onelitefeather.blackhole.backend.evidence.EvidenceItemEntity;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceKind;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceStatus;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceTestBed;
+import net.onelitefeather.blackhole.backend.security.Attribution;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -19,6 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class EvidenceLifecycleTest {
 
     private static final UUID APPEAL = UUID.nameUUIDFromBytes("appeal".getBytes());
+    private static final UUID STAFF = UUID.nameUUIDFromBytes("staff".getBytes());
+    private static final Attribution BY = new Attribution(STAFF, STAFF);
 
     @TempDir
     Path spool;
@@ -43,7 +46,7 @@ class EvidenceLifecycleTest {
         EvidenceItemEntity item = givenItem("p-1");
         this.bed.clock.advance(Duration.ofMinutes(5));
 
-        int changed = this.bed.service.markLifted("p-1", APPEAL);
+        int changed = this.bed.service.markLifted("p-1", APPEAL, BY);
 
         assertEquals(1, changed, "one item changed");
         assertEquals(EvidenceStatus.LIFTED, item.getStatus());
@@ -56,7 +59,7 @@ class EvidenceLifecycleTest {
         EvidenceItemEntity item = givenItem("p-1");
         this.bed.clock.advance(Duration.ofMinutes(7));
 
-        int changed = this.bed.service.markRevoked("p-1");
+        int changed = this.bed.service.markRevoked("p-1", BY);
 
         assertEquals(1, changed, "one item changed");
         assertEquals(EvidenceStatus.REVOKED, item.getStatus());
@@ -68,7 +71,7 @@ class EvidenceLifecycleTest {
     void aLifecycleChangeKeepsTheEvidence() {
         givenItem("p-1");
 
-        this.bed.service.markRevoked("p-1");
+        this.bed.service.markRevoked("p-1", BY);
 
         assertEquals(1, this.bed.items.all().size(), "the row is kept");
         assertEquals(0, this.bed.events.eventsOfType("evidence.deleted").size(), "nothing was deleted");
@@ -79,7 +82,7 @@ class EvidenceLifecycleTest {
         EvidenceItemEntity item = givenItem("p-1");
         item.markStatus(EvidenceStatus.REVOKED, 1L, null);
 
-        int changed = this.bed.service.markLifted("p-1", APPEAL);
+        int changed = this.bed.service.markLifted("p-1", APPEAL, BY);
 
         assertEquals(0, changed, "nothing left to change");
         assertEquals(EvidenceStatus.REVOKED, item.getStatus());
@@ -91,7 +94,7 @@ class EvidenceLifecycleTest {
         EvidenceItemEntity other = givenItem("p-2");
         givenItem("p-1");
 
-        this.bed.service.markLifted("p-1", APPEAL);
+        this.bed.service.markLifted("p-1", APPEAL, BY);
 
         assertEquals(EvidenceStatus.VALID, other.getStatus());
     }
@@ -101,7 +104,7 @@ class EvidenceLifecycleTest {
         givenItem("p-1");
         givenItem("p-1");
 
-        this.bed.service.markLifted("p-1", APPEAL);
+        this.bed.service.markLifted("p-1", APPEAL, BY);
 
         assertEquals(0, this.bed.service.countValid("p-1"), "inactive evidence is not counted");
     }

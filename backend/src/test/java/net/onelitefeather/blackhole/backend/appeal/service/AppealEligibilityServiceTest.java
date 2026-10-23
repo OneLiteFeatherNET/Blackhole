@@ -29,7 +29,7 @@ class AppealEligibilityServiceTest {
     private final InMemoryRepository<AppealRepository, AppealEntity, UUID> appeals =
             InMemoryRepository.<AppealRepository, AppealEntity, UUID>of(AppealRepository.class, AppealEntity::getIdentifier).build();
     private final AppealEligibilityService service = new AppealEligibilityService(
-            appeals.repository(), bed.punishments.repository(), bed.elo, bed.eloBed.sections, bed.eloBed.clock, 14, 3, 7);
+            appeals.repository(), bed.punishments.repository(), bed.elo, bed.eloBed.sections, bed.cases.timeline, bed.eloBed.clock, 14, 3, 7);
 
     @Test
     void aPermanentNetworkBanIsTheSevereTier() {

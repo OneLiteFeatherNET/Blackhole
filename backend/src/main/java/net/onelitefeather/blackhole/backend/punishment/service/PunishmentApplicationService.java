@@ -5,6 +5,7 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseTimeline;
 import net.onelitefeather.blackhole.backend.elo.EloChange;
 import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.EloScoring;
@@ -84,6 +85,7 @@ public class PunishmentApplicationService implements SectionPunisher {
     private final DomainEventPublisher eventPublisher;
     private final ProfileCache profileCache;
     private final PunishmentEvidenceGateway evidence;
+    private final CaseTimeline caseTimeline;
     private final Provider<EloScoring> eloScoring;
     private final StaffLinkService staffLinks;
     private final Clock clock;
@@ -103,6 +105,7 @@ public class PunishmentApplicationService implements SectionPunisher {
             DomainEventPublisher eventPublisher,
             ProfileCache profileCache,
             PunishmentEvidenceGateway evidence,
+            CaseTimeline caseTimeline,
             Provider<EloScoring> eloScoring,
             StaffLinkService staffLinks,
             Clock clock,
@@ -116,6 +119,7 @@ public class PunishmentApplicationService implements SectionPunisher {
         this.eventPublisher = eventPublisher;
         this.profileCache = profileCache;
         this.evidence = evidence;
+        this.caseTimeline = caseTimeline;
         this.eloScoring = eloScoring;
         this.staffLinks = staffLinks;
         this.clock = clock;
@@ -273,6 +277,7 @@ public class PunishmentApplicationService implements SectionPunisher {
             scoreAfter = scoreBefore;
         }
 
+        this.caseTimeline.applied(saved, scoreBefore, scoreAfter);
         return new PunishmentDTO.ApplyResponse(
                 withEvidenceCount(saved), section.key(), section.enforcement(),
                 selection.index() + 1, selection.stepCount(), scoreBefore, scoreAfter, escalation
@@ -298,11 +303,20 @@ public class PunishmentApplicationService implements SectionPunisher {
      * Marks the revoked punishment's evidence {@code REVOKED}. The revoke already happened, so a
      * failure here is logged and never fails it.
      */
-    private void markEvidenceRevoked(PunishmentEntity punishment) {
+    private void markEvidenceRevoked(PunishmentEntity punishment, Attribution by) {
         try {
-            this.evidence.markRevoked(punishment.getIdentifier());
+            this.evidence.markRevoked(punishment.getIdentifier(), this.staffLinks.withLinkedActor(by));
         } catch (RuntimeException e) {
             LOGGER.warn("Could not mark the evidence of revoked punishment {}", punishment.getIdentifier(), e);
+        }
+    }
+
+    /** Records the revoke in the case. The punishment is already revoked, so nothing here may fail it. */
+    private void recordRevoked(PunishmentEntity punishment, Attribution attribution) {
+        try {
+            this.caseTimeline.revoked(punishment, this.staffLinks.withLinkedActor(attribution));
+        } catch (RuntimeException e) {
+            LOGGER.warn("Could not record the revoke of punishment {} in its case", punishment.getIdentifier(), e);
         }
     }
 
@@ -327,7 +341,7 @@ public class PunishmentApplicationService implements SectionPunisher {
                 IdGenerator.generateId(), EloService.SYSTEM_ELO_SOURCE, owner, section.key(), true, now, null, metadata
         );
         PunishmentEntity saved = this.punishmentRepository.save(punishment);
-        return place(owner, section, saved) ? Optional.of(saved.getIdentifier()) : Optional.empty();
+        return placeAndRecord(owner, section, saved);
     }
 
     @Override
@@ -349,7 +363,16 @@ public class PunishmentApplicationService implements SectionPunisher {
                 IdGenerator.generateId(), EloService.SYSTEM_ELO_SOURCE, owner, section.key(), false, now, null, metadata
         );
         PunishmentEntity saved = this.punishmentRepository.save(punishment);
-        return place(owner, section, saved) ? Optional.of(saved.getIdentifier()) : Optional.empty();
+        return placeAndRecord(owner, section, saved);
+    }
+
+    /** Places an automatic punishment and, once it stands, records it in its case. */
+    private Optional<String> placeAndRecord(String owner, SectionDTO.Response section, PunishmentEntity saved) {
+        if (!place(owner, section, saved)) {
+            return Optional.empty();
+        }
+        this.caseTimeline.applied(saved, null, null);
+        return Optional.of(saved.getIdentifier());
     }
 
     /**
@@ -429,7 +452,8 @@ public class PunishmentApplicationService implements SectionPunisher {
         active.setLifted(true);
         this.punishmentRepository.update(active);
         this.profileCache.evict(owner);
-        markEvidenceRevoked(active);
+        markEvidenceRevoked(active, attribution);
+        recordRevoked(active, attribution);
 
         Integer scoreReset = null;
         if (active.isPermanent()) {

@@ -1,0 +1,14 @@
+package net.onelitefeather.blackhole.backend.casetimeline;
+
+/**
+ * How far an event's actor can be trusted. A reader must never present {@link #UNVERIFIED} like
+ * {@link #VERIFIED}.
+ */
+public enum ActorTrust {
+    /** The actor's {@code oid} came from a human token or a live staff link. */
+    VERIFIED,
+    /** Only an attributed source UUID (legacy rows, unlinked in-game staff) or no actor is known. */
+    UNVERIFIED,
+    /** The system itself: escalation, the expiry sweeper, the reconciler, an automatic reopen. */
+    SYSTEM
+}

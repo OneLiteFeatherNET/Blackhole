@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.support;
 
 import net.onelitefeather.blackhole.backend.evidence.service.PunishmentEvidenceGateway;
+import net.onelitefeather.blackhole.backend.security.Attribution;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -67,7 +68,7 @@ public final class RecordingEvidenceGateway implements PunishmentEvidenceGateway
     }
 
     @Override
-    public int markRevoked(String punishmentIdentifier) {
+    public int markRevoked(String punishmentIdentifier, Attribution by) {
         if (this.failure != null) {
             throw this.failure;
         }
@@ -76,7 +77,7 @@ public final class RecordingEvidenceGateway implements PunishmentEvidenceGateway
     }
 
     @Override
-    public int markLifted(String punishmentIdentifier, UUID appealIdentifier) {
+    public int markLifted(String punishmentIdentifier, UUID appealIdentifier, Attribution by) {
         if (this.failure != null) {
             throw this.failure;
         }
