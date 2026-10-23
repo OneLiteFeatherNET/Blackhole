@@ -65,7 +65,8 @@ web/server/plugins/config.ts   reads env once at startup, fails fast
 web/server/lib/config.ts       parseUiConfig(env): pure, typed, unit tested
 web/server/lib/headers.ts      securityHeaders(): pure
 web/server/lib/proxy.ts        buildBackendRequest(...): pure URL/header building
-web/server/middleware/security-headers.ts
+web/server/plugins/security-headers.ts   `request` hook: headers on every response, static files included
+web/server/error.ts            error handler: same headers on error responses
 web/server/routes/config.json.ts
 web/server/routes/healthz.ts
 web/server/routes/[...].ts     SPA fallback: index.html from serverAssets
@@ -107,9 +108,12 @@ table of hostile paths. `BLACKHOLE_BACKEND_URL` is operator configuration, not c
 scheme check is the only URL validation needed (CLAUDE.md SSRF rule applies to caller-supplied
 URLs).
 
-### 5. Security headers via middleware
+### 5. Security headers via a `request` hook
 
-A global middleware sets on every response, including static files and the SPA fallback:
+Implementation finding (PR 1): Nitro answers public assets before any middleware runs, so a
+middleware never saw static files. The headers are set in a plugin's `request` hook instead, and a
+custom `errorHandler` (`server/error.ts`) keeps them on error responses (Nitro's default one
+replaces them). Sets on every response, including static files and the SPA fallback:
 `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer` and
 `Content-Security-Policy` (the string used today, produced by `securityHeaders()` so the SSO change
 adds `connect-src` in one place). No `Server` or `X-Powered-By` header (asserted). `routeRules` is
@@ -117,16 +121,17 @@ not used because of the static-file caveat above.
 
 ### 6. Static files, caching and SPA fallback
 
-`nitro.config.ts` declares `publicAssets: [{ dir: 'dist/assets', baseURL: '/assets',
+`nitro.config.ts` declares (dirs resolve against `srcDir`, so they are written `../dist`) `publicAssets: [{ dir: 'dist/assets', baseURL: '/assets',
 maxAge: 31536000 }, { dir: 'dist', baseURL: '/' }]` (the root entry is top-level and falls through;
 `/assets` has `fallthrough: false`): hashed files get `public, max-age=31536000, immutable` and a
 missing `/assets/x` is a real 404, like `try_files =404`. The root entry also copies `dist/assets`
 once more into `.output/public`; this is harmless duplication because Nitro has no `ignore` option
 (task 1.1 verifies it and, if needed, lets Vite emit assets elsewhere). `serverAssets:
-[{ baseName: 'ui', dir: 'dist' }]` bundles `index.html` into the server; `routes/[...].ts` answers
+[{ baseName: 'ui', dir: 'dist', pattern: 'index.html' }]` bundles `index.html` into the server; `routes/[...].ts` answers
 `GET`/`HEAD` for every path nothing else handled with that document, status 200,
 `Cache-Control: no-cache`. Other methods get 404. The build order is `vite build`, then
-`nitro build`.
+`nitro build`. Vite runs with `copyPublicDir: false`: otherwise the dev fixture `public/config.json`
+is copied to `dist/` and Nitro serves that static file instead of the typed route.
 
 ### 7. Image
 
