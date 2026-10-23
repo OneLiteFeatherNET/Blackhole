@@ -162,7 +162,7 @@ When a punishment is lifted by a granted full-lift appeal, the system SHALL keep
 - **THEN** its evidence is kept with status `REVOKED`
 
 ### Requirement: Marked evidence access
-Marked evidence MUST be excluded from list responses unless `includeInactive=true` is passed, MUST NOT be counted in `evidenceCount`, MUST carry its status in every response, and listing it MUST write a `VIEWED_INACTIVE` audit entry. The system cannot restrict `includeInactive` to admins because no auth layer exists.
+Marked evidence MUST be excluded from list responses unless `includeInactive=true` is passed, MUST NOT be counted in `evidenceCount`, MUST carry its status in every response, and listing it MUST write a `VIEWED_INACTIVE` audit entry. The system does not restrict `includeInactive` to admins: every reader (`VIEWER` and up) may use it, and each use is audited.
 
 #### Scenario: Default list hides lifted evidence
 - **WHEN** a punishment lifted by appeal is listed without `includeInactive`

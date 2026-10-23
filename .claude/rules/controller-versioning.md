@@ -15,3 +15,6 @@ still route correctly. Infra/doc endpoints (health, prometheus, swagger) declare
 and stay outside this scheme entirely. To introduce a breaking v2 of an endpoint, add a second
 method annotated `@Version("2")` alongside the existing v1 method (same controller, same path) —
 don't bump `ApiVersion.V1` itself or touch the URI.
+
+Every controller (health aside) also carries `@Secured` with constants from `security/Roles`, on the
+class or per method; see `security.md`. A route without a rule is rejected by the route-coverage test.

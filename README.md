@@ -26,18 +26,15 @@ services can consume. Hot reads (punishment profiles, ELO profiles, templates an
 resolutions) are served from one shared Redis-protocol cache (Dragonfly in production), so every
 replica reads and evicts the same entries and the API can be scaled horizontally.
 
-There is deliberately no authentication system right now: every endpoint is open. The trust
-model is that only trusted callers can reach the API at all - admins/tools calling the REST API
-directly, or the Velocity plugin acting on behalf of admins/moderators - enforced at the
-network/deployment level (firewalling, private networking), not by the application.
+Every route except `GET /health` needs a Microsoft Entra ID access token; see
+[Authentication](#authentication).
 
 ### Admin web UI
 
 `web/` is a browser UI for admins and staff. Run it with `cd web && npm ci && npm run dev` (proxies
 `/api/` to a backend on `localhost:8080`), or as a container with `docker compose -f
-docker/docker-compose.yml up -d web` (http://localhost:8081). **It has no login, like the API:
-deploy it on a private network or behind a proxy that authenticates users.** See
-[web/README.md](web/README.md) for the container variables, the identity caveats and development.
+docker/docker-compose.yml up -d web` (http://localhost:8081). Staff sign in with Entra ID. See
+[web/README.md](web/README.md) for the container variables and development.
 
 ### Tech stack
 
@@ -47,6 +44,73 @@ deploy it on a private network or behind a proxy that authenticates users.** See
 - **Build**: Gradle (Kotlin DSL), multi-module.
 - **Releases**: [release-please](https://github.com/googleapis/release-please), driven by
   [Conventional Commits](https://www.conventionalcommits.org/) — see [Contributing](#contributing).
+
+## Authentication
+
+Blackhole signs staff in with Microsoft Entra ID (the Free tier is enough). Every route except
+`GET /health` needs an access token as `Authorization: Bearer`; the backend verifies it against the
+tenant's published keys and keeps no session. There is no setting that turns authentication off.
+
+- **Staff** sign in to the admin UI (Authorization Code flow with PKCE). Their role comes from the
+  `groups` claim: the object ids of the Entra security groups are mapped to roles with
+  `BLACKHOLE_AUTH_ROLE_ADMIN`, `_MODERATOR`, `_VIEWER` and `_METRICS`.
+- **The Velocity plugin** and a **Prometheus scraper** use app-only tokens (client credentials) whose
+  `roles` claim holds the app role `Blackhole.Proxy` or `Blackhole.Metrics`.
+- A signed-in person in no mapped group has no role: every protected route answers 403 and the UI shows
+  a "no access" page. `GET /auth/me` returns the caller's display name and roles.
+
+| Role | May |
+|------|-----|
+| `VIEWER` | read everything |
+| `MODERATOR` | and: apply, revoke and adjust punishments, resolve reports, decide appeals, add evidence |
+| `ADMIN` | and: configure sections and templates, delete evidence and profiles, import, anonymize staff data |
+| `PROXY` | the routes the proxy needs (profiles, punishments, reports, evidence) with `onBehalfOf` |
+| `METRICS` | `GET /prometheus` |
+
+The full route matrix is in `openspec/changes/add-team-sso/design.md` and enforced by a test.
+
+**Verified actor.** The actor of every write is the `oid` of the token and is stored as
+`recorded_by_oid`; the former client-supplied `source`, `resolvedBy` and `reviewerId` fields are gone
+(an old client that still sends them is ignored). Rows written before this release have no
+`recorded_by_oid` and are shown as unverified. The proxy may send `onBehalfOf` for actions that
+staff took in game. Staff cannot review their own punishment.
+
+**Staff data and retention.** *(Pending legal confirmation.)* Stored per staff member: `oid`,
+`display_name`, timestamps only. Retention: as long as records referencing the person exist
+(punishment history is itself retained). On a leaving or erasure request an admin calls
+`POST /admin/staff-actor/{oid}/anonymize`, which nulls `display_name` (the `oid` stays; once the Entra
+account is deleted it no longer resolves to a person).
+
+**Setup.** [docs/entra-setup.md](docs/entra-setup.md) explains the app registrations and groups and
+ships `docs/entra-setup.sh`, an idempotent Azure CLI script.
+
+### Migrating an existing deployment
+
+This is a breaking release: callers without a token get 401. Move everything in one window, in this
+order (between steps 2 and 4 the plugin and UI cannot reach the backend):
+
+1. **Entra.** Register the apps and groups ([docs/entra-setup.md](docs/entra-setup.md)).
+2. **Backend.** Set `BLACKHOLE_AUTH_TENANT_ID`, `BLACKHOLE_AUTH_AUDIENCE` (API client id),
+   `BLACKHOLE_AUTH_ISSUER` (`https://login.microsoftonline.com/<tenant-id>/v2.0`),
+   `BLACKHOLE_AUTH_JWKS_URL` (`https://login.microsoftonline.com/<tenant-id>/discovery/v2.0/keys`) and
+   `BLACKHOLE_AUTH_ROLE_ADMIN`, `_MODERATOR`, `_VIEWER`, `_METRICS` (group object ids). The defaults
+   point at a local mock server and are refused outside dev. Optional: `BLACKHOLE_AUTH_ROLES_CLAIM_HUMAN`
+   (`groups`), `BLACKHOLE_AUTH_ROLES_CLAIM_MACHINE` (`roles`), `BLACKHOLE_AUTH_MACHINE_ROLE_PROXY`,
+   `BLACKHOLE_AUTH_MACHINE_ROLE_METRICS`, `BLACKHOLE_DOCS_ENABLED` (Swagger UI, default `false`). The
+   database migration `V9` runs on start and keeps old actor values.
+3. **Velocity plugin.** Add the `auth` object to `config.json`:
+   `{"auth": {"tenantId": "", "clientId": "", "clientSecret": "", "scope": "api://<api-client-id>/.default"}}`.
+   Each key can be overridden by `BLACKHOLE_TENANT_ID`, `BLACKHOLE_CLIENT_ID`,
+   `BLACKHOLE_CLIENT_SECRET` and `BLACKHOLE_AUTH_SCOPE`, which win over the file; prefer the environment
+   for the secret. `auth.tokenUrl` (`BLACKHOLE_TOKEN_URL`) overrides the token endpoint for a mock server.
+   With incomplete credentials the plugin logs an error and keeps enforcing from Redis, but backend-bound
+   commands are refused.
+4. **Admin UI.** Set `BLACKHOLE_UI_OIDC_AUTHORITY`, `BLACKHOLE_UI_OIDC_CLIENT_ID` and
+   `BLACKHOLE_UI_API_SCOPE` on the web container (required; it refuses to start without them) and drop
+   `BLACKHOLE_UI_SOURCE` and `BLACKHOLE_UI_REVIEWER`.
+5. **Other callers.** Any script that calls the API directly now needs a token. Regenerate clients from
+   the current `client/specs/blackhole-api-*.yml`. Prometheus scrapes `/prometheus` with a
+   `Blackhole.Metrics` token.
 
 ## Staff workflow
 
@@ -168,10 +232,9 @@ minutes. Only set `BLACKHOLE_EVIDENCE_SCAN_ENABLED=false` if uploads are scanned
 - When staff revoke a punishment, its evidence is marked `REVOKED`; when an appeal fully lifts it,
   the evidence is marked `LIFTED`. Nothing is deleted. Such evidence is not counted and is hidden
   unless a request passes `includeInactive=true`; revealing it is audited.
-- **There is no authentication.** Anyone who can reach the API can read all evidence, including lifted
-  and revoked evidence through `includeInactive=true`. The default hiding and the audit entries are
-  not access control; keep the API on a trusted network (see the trust model above). The `source`
-  recorded in the audit trail is client-supplied and unverified.
+- **Access follows the role.** Every reader (`VIEWER` and up) can read all evidence, including lifted
+  and revoked evidence through `includeInactive=true`; the default hiding is not access control, but
+  revealing it is audited with the verified actor.
 - **Video metadata is not stripped.** Images are re-encoded, which drops EXIF/GPS data; MP4 and WebM
   files are stored as uploaded. Ask staff to prefer screen recordings of the game, or disable video.
 
@@ -269,11 +332,17 @@ cd docker
 docker compose up -d
 ```
 
-Then run the backend:
+Then run the backend against the real Entra dev registration (create it once with
+`docs/entra-setup.sh dev`, which writes `~/.config/blackhole/entra-dev.env`):
 
 ```shell
+set -a; . ~/.config/blackhole/entra-dev.env; set +a
 ./gradlew :backend:run
 ```
+
+For the admin UI see [web/README.md](web/README.md#local-development-with-entra-id). Tests never reach
+Entra: they use self-signed JWTs. The compose file also starts a mock OIDC server (port 18090) whose
+values are the defaults of `application.yml`, for working offline.
 
 Key environment variables (all have local-dev defaults, see
 `backend/src/main/resources/application.yml` for the full list):
@@ -284,8 +353,9 @@ Key environment variables (all have local-dev defaults, see
 | `RABBITMQ_HOST` / `RABBITMQ_USER` / `RABBITMQ_PASSWORD` | RabbitMQ connection.                              |
 | `REDIS_URI`                       | Redis-protocol server (Dragonfly) for proxy sync and the shared cache. |
 | `BLACKHOLE_EVASION_IP_SALT`       | Required for ban-evasion detection; that feature returns `503` until it's set. |
+| `BLACKHOLE_AUTH_*`                | Entra ID sign-in, see [Authentication](#authentication). |
 
-Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
+Swagger UI is served at `/swagger/views/swagger-ui` when `BLACKHOLE_DOCS_ENABLED=true` (off by default).
 
 ### Building
 

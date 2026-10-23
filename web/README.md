@@ -47,7 +47,8 @@ registration. The scopes requested are `openid profile offline_access` plus the 
 
 The UI keeps only **theme** and **language** in the browser's local storage. Player names live in
 memory for the current lookup; owner hashes are only in the URL of the player page. Staff display
-names come from `GET /auth/me` and are held in memory. Fonts are bundled (no requests to third
+names come from `GET /auth/me` and are held in memory; the backend's retention of staff data is described in the
+[root README](../README.md#authentication). Fonts are bundled (no requests to third
 parties).
 
 ## Evidence
@@ -197,7 +198,9 @@ docker run --rm -p 127.0.0.1:8081:8080 \
 | `NITRO_PORT`, `NITRO_HOST` | `8080`, `0.0.0.0` (set in the image) | Listen port and address of the server. |
 
 `BLACKHOLE_UI_SOURCE` and `BLACKHOLE_UI_REVIEWER` no longer exist; the backend records the verified
-signed-in user. The `BLACKHOLE_UI_EVIDENCE_*` variables from the Evidence section are optional. The environment is
+signed-in user. The rollout order for backend, plugin and UI is in the
+[migration guide](../README.md#migrating-an-existing-deployment); the Entra setup is in
+[docs/entra-setup.md](../docs/entra-setup.md). The `BLACKHOLE_UI_EVIDENCE_*` variables from the Evidence section are optional. The environment is
 validated once at startup: an invalid or missing value stops the container with a non-zero exit and a
 message naming every offending variable, before it listens.
 

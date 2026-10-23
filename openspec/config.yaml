@@ -12,11 +12,12 @@ context: |
   1. GDPR-by-design, single-tenant. PII (IPs, raw player UUIDs) is hashed/tokenized wherever
      it is stored or published. No multi-tenancy, no tenantId discriminator; multiple
      networks = multiple deployments.
-  2. No auth layer. No JWT/@Secured/micronaut-security; every endpoint is open and trust is
-     enforced at the network boundary (private network, VPN, reverse proxy with its own
-     auth). This also applies to the admin web UI. There is no verified per-actor identity:
-     source/resolvedBy/reviewerId are client-supplied; do not design around a verified
-     identity claim.
+  2. Team SSO via Entra ID, verified actor, no tenancy. Every route except GET /health needs
+     an Entra ID access token (JWT bearer) and is guarded by @Secured; the backend maps token
+     claims to roles (groups for staff, app roles for the proxy and metrics) and denies by
+     default. The actor of every write is the token's oid, never a client-supplied field.
+     There is no switch that turns authentication off and no break-glass login. Still one
+     tenant per deployment: no tenantId, no multi-tenancy.
   3. Layered backend: thin controllers (routing/versioning + one service call + response
      mapping), business logic in a @Singleton service in its feature package, one sealed
      DTO marker interface per resource (CreateRequest/UpdateRequest/Response/Error), services

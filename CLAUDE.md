@@ -38,8 +38,10 @@ API version, don't edit generated sources directly.
 # Build everything (all modules)
 ./gradlew clean build
 
-# Run just the backend against local infra (needs docker/docker-compose.yml running)
+# Run just the backend against local infra (needs docker/docker-compose.yml running and the
+# Entra dev env loaded, see .claude/rules/security.md)
 cd docker && docker compose up -d && cd ..
+set -a; . ~/.config/blackhole/entra-dev.env; set +a
 ./gradlew :backend:run
 
 # Run a single module's tests
@@ -71,17 +73,12 @@ Per-package detail below is intentionally short — full detail for each loads a
 `.claude/rules/*.md` (path-scoped) when you actually open a file in that package, instead of
 consuming context in every session regardless of what you're touching.
 
-- **No authentication system.** There is deliberately no JWT/`@Secured`/auth layer at all right
-  now — every endpoint is open. The trust model is that only trusted callers can reach the API in
-  the first place: admins/tools calling the REST API directly, or the Velocity plugin acting on
-  behalf of admins/moderators, with that boundary enforced at the network/deployment level
-  (firewalling, private networking), not by the application. Don't add `@Secured` or reintroduce
-  micronaut-security for new endpoints without an explicit decision to do so — this was a
-  deliberate removal, not an oversight.
-  - **Known gap**: there is no per-actor identity anywhere in this system (removed along with
-    auth) — fields like `source`/`resolvedBy`/`reviewerId` are client-supplied and unverified.
-    Don't design new features around a per-user identity claim existing yet — that's deferred to
-    a dedicated future phase that would likely reintroduce some form of auth alongside it.
+- **Authentication: Entra ID JWT bearer on every route except `/health`.** Roles come from the
+  `groups` claim (Entra Free) for humans and `roles` for app-only tokens (PROXY, METRICS);
+  `@Secured` is on every controller and a route-coverage test enforces the matrix. The actor
+  is the token's `oid`, stored as `recorded_by_oid`; client actor fields are ignored. Local dev
+  uses the real Entra dev registration (`~/.config/blackhole/entra-dev.env`), tests self-signed
+  JWTs. Never add an open route or an auth-off switch. Detail: `.claude/rules/security.md`.
 - **`controller/`** — REST controllers; class-level `@Version` API versioning convention.
   Detail: `.claude/rules/controller-versioning.md`.
 - **`events/`** — Domain event bus over RabbitMQ (`blackhole.events` topic exchange). There is
@@ -144,7 +141,7 @@ consuming context in every session regardless of what you're touching.
   as needed; CLI `openspec`, validate with `openspec validate --all --strict`). Current
   behavior lives in `openspec/specs/<capability>/spec.md`, in-flight work in
   `openspec/changes/<change>/`. `openspec/config.yaml` (`context`) holds the ratified
-  architecture/product principles (GDPR-by-design, no-auth-layer, layering, dual-ELO,
+  architecture/product principles (GDPR-by-design, Entra sign-in, layering, dual-ELO,
   infra-owns-rate-limiting) — a proposal or design must not contradict it. Trivial fixes and
   small refactors don't need a change; use judgment. `.claude/PROGRESS.md` stays the lighter
   session-level continuity log — it complements OpenSpec changes, it doesn't replace them.
