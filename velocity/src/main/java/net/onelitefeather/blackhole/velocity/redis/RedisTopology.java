@@ -13,6 +13,12 @@ public final class RedisTopology {
     static final String SECTION_CHANGED_CHANNEL = "blackhole.section.changed";
 
     /**
+     * Announces a new report to the staff of every proxy. Unlike the channels above this one is written by
+     * the proxy that took the report (the backend's events carry hashes only, no names) and is never stored.
+     */
+    static final String REPORT_CREATED_CHANNEL = "blackhole.report.created";
+
+    /**
      * The backend's full punishment template list in the shared cache, which the backend
      * refreshes whenever it lists templates. Read here for tab completion only.
      */

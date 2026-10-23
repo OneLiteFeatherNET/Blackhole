@@ -2,13 +2,19 @@ package net.onelitefeather.blackhole.velocity.component;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import net.onelitefeather.blackhole.client.model.ReportCategory;
 import net.onelitefeather.blackhole.velocity.report.ReportCategories;
 import net.onelitefeather.blackhole.velocity.report.ReportEvidence;
+import net.onelitefeather.blackhole.velocity.report.ReportNotice;
 import net.onelitefeather.blackhole.velocity.report.ReportService.Outcome;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * What a player is told after {@code /report}. These are plain texts: a reporter is not staff, so there
@@ -51,6 +57,45 @@ public final class ReportMessages {
     /** @return the answer to a reporter whose permission was explicitly taken away */
     public static @NotNull Component denied() {
         return Component.translatable("report.error.denied");
+    }
+
+    /**
+     * What staff see for a new report: who reported whom for what, a short excerpt of the text, and two
+     * buttons. "Open" suggests the info command of the reported player (it never runs it); "panel" opens the
+     * report page and is only offered when a panel address is configured and the report has an id.
+     *
+     * @param panelUrl the admin panel's address without a trailing slash, or null
+     */
+    public static @NotNull Component notice(@NotNull ReportNotice notice, @Nullable String panelUrl) {
+        Component category = Component.translatable(categoryKey(notice.category()));
+        Component header = Component.translatable("report.notice.header",
+                Component.text(notice.reporter()), Component.text(notice.reported()), category);
+
+        String infoCommand = "/blackhole " + notice.reported() + " info";
+        Component open = Component.translatable("report.notice.button.open")
+                .clickEvent(ClickEvent.suggestCommand(infoCommand))
+                .hoverEvent(HoverEvent.showText(Component.translatable("report.notice.hover.open", Component.text(infoCommand))));
+        Component buttons = open;
+        if (panelUrl != null && notice.reportId() != null) {
+            Component panel = Component.translatable("report.notice.button.panel")
+                    .clickEvent(ClickEvent.openUrl(panelUrl + "/reports/" + notice.reportId()))
+                    .hoverEvent(HoverEvent.showText(Component.translatable("report.notice.hover.panel")));
+            buttons = Component.join(JoinConfiguration.separator(Component.space()), open, panel);
+        }
+
+        List<Component> lines = new ArrayList<>();
+        lines.add(header);
+        if (!notice.excerpt().isEmpty()) {
+            lines.add(Component.translatable("report.notice.text", Component.text(notice.excerpt())));
+        }
+        lines.add(Component.translatable("report.notice.buttons", buttons));
+        return Component.join(JoinConfiguration.newlines(), lines);
+    }
+
+    private static String categoryKey(String category) {
+        return ReportCategories.parse(category.toLowerCase(Locale.ROOT).replace("_abuse", ""))
+                .map(ReportCategories::nameKey)
+                .orElse("report.category.other");
     }
 
     private static Component submitted(String reportedName, ReportCategory category, ReportEvidence.Result evidence) {

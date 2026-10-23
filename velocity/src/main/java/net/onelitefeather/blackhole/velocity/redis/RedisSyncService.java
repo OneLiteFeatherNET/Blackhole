@@ -6,6 +6,8 @@ import io.lettuce.core.pubsub.RedisPubSubAdapter;
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
+import net.onelitefeather.blackhole.velocity.report.ReportNotice;
+import net.onelitefeather.blackhole.velocity.report.ReportNoticeChannel;
 import net.onelitefeather.blackhole.velocity.section.SectionInfo;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -27,7 +29,7 @@ import java.util.function.Consumer;
  * {@link #read}, an empty {@link Optional} from the cache reads), so callers can fall back to the
  * backend over HTTP - Redis being unreachable must never make a login or chat check fail outright.</p>
  */
-public final class RedisSyncService implements PunishmentState.KeyReader, SharedCacheReader {
+public final class RedisSyncService implements PunishmentState.KeyReader, SharedCacheReader, ReportNoticeChannel {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RedisSyncService.class);
     /** Bounds one shared-cache read, so a slow Redis can't stall tab completion. */
@@ -37,6 +39,7 @@ public final class RedisSyncService implements PunishmentState.KeyReader, Shared
     private final SyncCodec codec = new SyncCodec();
     private final List<Consumer<PunishmentSyncMessage>> syncListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<String>> sectionListeners = new CopyOnWriteArrayList<>();
+    private final List<Consumer<ReportNotice>> reportListeners = new CopyOnWriteArrayList<>();
 
     private RedisClient client;
     private StatefulRedisConnection<String, String> connection;
@@ -56,6 +59,26 @@ public final class RedisSyncService implements PunishmentState.KeyReader, Shared
         this.sectionListeners.add(listener);
     }
 
+    @Override
+    public void onNotice(@NotNull Consumer<ReportNotice> listener) {
+        this.reportListeners.add(listener);
+    }
+
+    @Override
+    public boolean publish(@NotNull ReportNotice notice) {
+        StatefulRedisConnection<String, String> conn = this.connection;
+        if (conn == null) {
+            return false;
+        }
+        try {
+            // Zero receivers means not even this proxy's own subscription is listening.
+            return conn.sync().publish(RedisTopology.REPORT_CREATED_CHANNEL, ReportNotice.encode(notice)) > 0;
+        } catch (RuntimeException e) {
+            LOGGER.warn("A report notice could not be published, delivering it on this proxy only: {}", e.getMessage());
+            return false;
+        }
+    }
+
     /**
      * Connects to Redis and subscribes to the sync channels. A failure here is logged and leaves
      * the service disconnected rather than propagating - every proxy must keep working against the
@@ -72,7 +95,7 @@ public final class RedisSyncService implements PunishmentState.KeyReader, Shared
                     onMessage(channel, message);
                 }
             });
-            this.pubSubConnection.sync().subscribe(RedisTopology.PUNISHMENT_SYNC_CHANNEL, RedisTopology.SECTION_CHANGED_CHANNEL);
+            this.pubSubConnection.sync().subscribe(RedisTopology.PUNISHMENT_SYNC_CHANNEL, RedisTopology.SECTION_CHANGED_CHANNEL, RedisTopology.REPORT_CREATED_CHANNEL);
             LOGGER.info("Connected to Redis for cross-proxy punishment sync at {}", this.config.getRedisUri());
         } catch (RuntimeException e) {
             LOGGER.error("Failed to connect to Redis at {} - falling back to per-request HTTP checks: {}", this.config.getRedisUri(), e.getMessage());
@@ -138,6 +161,12 @@ public final class RedisSyncService implements PunishmentState.KeyReader, Shared
     private void onMessage(String channel, String message) {
         if (RedisTopology.SECTION_CHANGED_CHANNEL.equals(channel)) {
             notifyAll(this.sectionListeners, message);
+            return;
+        }
+        if (RedisTopology.REPORT_CREATED_CHANNEL.equals(channel)) {
+            ReportNotice.decode(message).ifPresentOrElse(
+                    notice -> notifyAll(this.reportListeners, notice),
+                    () -> LOGGER.warn("Ignoring an unreadable report notice"));
             return;
         }
         Optional<PunishmentSyncMessage> parsed = this.codec.tryMessage(message);

@@ -17,7 +17,7 @@ resolution that applies a template claims it for the new punishment.
 The backend event `report.created` carries hashes only, on purpose (the broker is a second at-rest
 copy), so it cannot name the reporter or the reported player. The proxy that accepted the report knows
 both names and the text, so it publishes a short-lived notice on the Redis channel
-`blackhole:report:created` (pub/sub, nothing is stored). **Every** proxy, the publisher included,
+`blackhole.report.created` (pub/sub, nothing is stored). **Every** proxy, the publisher included,
 subscribes and delivers the notice to its own online staff, so each staff member gets it exactly once
 whichever proxy they are on. If Redis is unavailable the publisher delivers locally instead.
 

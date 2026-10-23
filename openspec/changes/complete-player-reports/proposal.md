@@ -52,7 +52,7 @@ are spread over three screens).
 
 - Backend: table `report_feedback` (migration), `report.resolved` side effect, three `PROXY`
   routes under `/report/feedback`, one new client spec version.
-- Velocity: new commands, Redis channels `blackhole:report:created` and
-  `blackhole:report:feedback`, config key `panelUrl`, permissions `blackhole.report`,
+- Velocity: new commands, Redis channels `blackhole.report.created` and
+  `blackhole.report.feedback`, config key `panelUrl`, permissions `blackhole.report`,
   `blackhole.report.bypass`, `blackhole.report.notify`.
 - Web: reports area only.

@@ -20,6 +20,8 @@ public final class Permissions {
     public static final String REPORT = "blackhole.report";
     /** Staff holding it cannot be reported. */
     public static final String REPORT_BYPASS = "blackhole.report.bypass";
+    /** Staff holding it are told about new reports in game. */
+    public static final String REPORT_NOTIFY = "blackhole.report.notify";
 
     private final Predicate<String> granted;
 

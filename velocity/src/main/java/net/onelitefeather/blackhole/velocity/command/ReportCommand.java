@@ -9,6 +9,8 @@ import net.onelitefeather.blackhole.velocity.component.Permissions;
 import net.onelitefeather.blackhole.velocity.component.ReportMessages;
 import net.onelitefeather.blackhole.velocity.punish.TargetResolver.ResolvedTarget;
 import net.onelitefeather.blackhole.velocity.report.ReportCategories;
+import net.onelitefeather.blackhole.velocity.report.ReportNotice;
+import net.onelitefeather.blackhole.velocity.report.ReportNotifier;
 import net.onelitefeather.blackhole.velocity.report.ReportService;
 import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotations.Argument;
@@ -33,10 +35,12 @@ import java.util.Optional;
 public final class ReportCommand {
 
     private final ReportService service;
+    private final ReportNotifier notifier;
 
     @Inject
-    public ReportCommand(@NotNull ReportService service) {
+    public ReportCommand(@NotNull ReportService service, @NotNull ReportNotifier notifier) {
         this.service = service;
+        this.notifier = notifier;
     }
 
     @Command(value = "report <user> <reason> [details]", requiredSender = Player.class)
@@ -70,5 +74,10 @@ public final class ReportCommand {
         boolean bypass = online != null && online.hasPermission(Permissions.REPORT_BYPASS);
         ReportService.Outcome outcome = this.service.submit(sender.getUniqueId(), user.uuid(), bypass, category.get(), details);
         sender.sendMessage(ReportMessages.outcome(outcome, user.name(), category.get()));
+        if (outcome instanceof ReportService.Outcome.Submitted submitted) {
+            String id = submitted.report().getIdentifier() == null ? null : submitted.report().getIdentifier().toString();
+            this.notifier.announce(new ReportNotice(id, sender.getUsername(), user.name(),
+                    category.get().getValue(), ReportNotice.excerptOf(details)));
+        }
     }
 }
