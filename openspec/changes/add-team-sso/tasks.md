@@ -34,12 +34,12 @@ use Vitest with a fake `UserManager` and `fakeFetch`.
 
 ## 3. Velocity machine credentials (PR 3: `feat(velocity): authenticate to the backend with client credentials`)
 
-- [ ] 3.1 `BlackholeConfig` gains `auth` (`tenantId`, `clientId`, `clientSecret`, `scope`, dev `tokenUrl`) with env-var overrides and validation; verify unit tests for defaults, file values, env override precedence and that the secret is never logged
-- [ ] 3.2 `ClientCredentialsTokenProvider` (JDK `HttpClient` behind an interface, injected `Clock`, 60 s skew, single-flight refresh); verify tests with a fake transport: reuse inside lifetime, refresh near expiry, concurrent callers cause one request, error responses surface a clear exception
-- [ ] 3.3 Install the bearer interceptor in `BlackholeApiClients` with one 401 refresh-and-retry; verify tests with a fake server transport for the retry and for no retry loop
-- [ ] 3.4 Fail-safe when credentials are incomplete: startup error log, localized message for backend-bound commands, Redis enforcement continues; verify tests and add the message to all locale files
-- [ ] 3.5 Update the `proxy-enforcement` behaviour tests for `onBehalfOf`; verify `./gradlew :velocity:test` and `:velocity:build`
-- [ ] 3.6 Verify against the mock OIDC server: the plugin (or a small harness) obtains a `Blackhole.Proxy` token and applies a punishment recorded with the proxy `oid` and the delegated UUID
+- [x] 3.1 `BlackholeConfig` gains `auth` (`tenantId`, `clientId`, `clientSecret`, `scope`, dev `tokenUrl`) with env-var overrides and validation; verify unit tests for defaults, file values, env override precedence and that the secret is never logged
+- [x] 3.2 `ClientCredentialsTokenProvider` (JDK `HttpClient` behind an interface, injected `Clock`, 60 s skew, single-flight refresh); verify tests with a fake transport: reuse inside lifetime, refresh near expiry, concurrent callers cause one request, error responses surface a clear exception
+- [x] 3.3 Install the bearer interceptor in `BlackholeApiClients` with one 401 refresh-and-retry; verify tests with a fake server transport for the retry and for no retry loop
+- [x] 3.4 Fail-safe when credentials are incomplete: startup error log, localized message for backend-bound commands, Redis enforcement continues; verify tests and add the message to all locale files
+- [x] 3.5 Update the `proxy-enforcement` behaviour tests for `onBehalfOf`; verify `./gradlew :velocity:test` and `:velocity:build`
+- [x] 3.6 Verify against the mock OIDC server: the plugin (or a small harness) obtains a `Blackhole.Proxy` token and applies a punishment recorded with the proxy `oid` and the delegated UUID
 
 ## 4. Admin UI sign-in (PR 4: `feat(web): sign in with entra id in the admin ui`)
 
