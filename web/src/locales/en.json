@@ -815,6 +815,7 @@
       "punishmentApplied": "Punishment applied",
       "punishmentRevoked": "Punishment revoked",
       "punishmentLifted": "Punishment lifted by appeal",
+      "punishmentRetemplated": "Linked to a template",
       "punishmentExpired": "Punishment expired",
       "evidenceAttached": "Evidence attached",
       "evidenceLifted": "Evidence lifted",

@@ -10,7 +10,7 @@ function keys(node: unknown, prefix = ''): string[] {
 
 // Every type the backend writes today has its own label; anything else gets the generic one.
 const KNOWN_TYPES = [
-  'punishment.applied', 'punishment.revoked', 'punishment.lifted', 'punishment.expired',
+  'punishment.applied', 'punishment.revoked', 'punishment.lifted', 'punishment.retemplated', 'punishment.expired',
   'evidence.attached', 'evidence.lifted', 'evidence.revoked',
   'appeal.filed', 'appeal.decided',
   'case.status_changed', 'case.assignee_changed', 'case.tags_changed', 'case.priority_changed',
