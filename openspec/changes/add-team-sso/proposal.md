@@ -24,9 +24,16 @@ speak OIDC to Entra itself (not through a proxy), so the backend can verify the 
   Entra ID access token (`Authorization: Bearer`). Swagger is no longer public, `/prometheus`
   needs a metrics role.
 - Backend validates tokens as an OAuth2 resource server (JWKS signature, issuer, audience,
-  expiry), stateless, no sessions. Roles come from **Entra app roles** (`roles` claim), assigned
-  to security groups in Entra. The claim name and the role-to-claim-value mapping are
-  configuration, so a `groups` claim with group object ids works as a fallback.
+  expiry), stateless, no sessions. The design targets **Entra ID Free**: assigning groups to app
+  roles needs P1, so it is not used. Human staff roles come from the **`groups` claim** (the API
+  registration sets `groupMembershipClaims: "SecurityGroup"`); configured group object ids map
+  to `ADMIN`, `MODERATOR`, `VIEWER` and `METRICS`. Machine principals (Velocity, metrics
+  scraper) keep **app roles** (application permissions granted by admin consent) in the `roles`
+  claim of app-only tokens. Claim names and values are configuration, so moving to app-role
+  assignment after a P1 upgrade is a config change only.
+- Any tenant member can sign in (no user assignment required); a signed-in user whose groups map
+  to no role gets no role: every protected route answers 403 and the UI shows a "no access"
+  page.
 - A permission matrix (read-only, moderation, admin, proxy, metrics) is enforced per endpoint
   and covered by a table-driven test over every route.
 - **BREAKING** (API/client): the client-supplied actor fields (`source`, `resolvedBy`,
@@ -50,10 +57,20 @@ speak OIDC to Entra itself (not through a proxy), so the backend can verify the 
   `application.yml` comments, and an Entra setup how-to.
 
 Out of scope: the player portal and player authentication (in-game one-time code, not Entra);
-calling Microsoft Graph (no groups-overage resolution); SCIM; token revocation / continuous
-access evaluation; an emergency login path when Entra is down; mapping in-game staff UUIDs to
-Entra identities; authentication of Redis, RabbitMQ or PostgreSQL; app-level rate limiting
-(stays with infra).
+calling Microsoft Graph (no groups-overage resolution, overage is denied); SCIM; token
+revocation / continuous access evaluation; authentication of Redis, RabbitMQ or PostgreSQL;
+app-level rate limiting (stays with infra).
+
+Decisions taken on 2026-10-23 (by the user):
+
+- **Group naming:** the OLF scheme `<typ>-<dienst>-<scope>-<umgebung>-<rolle>` gets the service
+  `blackhole`: `sg-blackhole-prod-admin`, `sg-blackhole-prod-edit` (moderator),
+  `sg-blackhole-prod-view`, `sg-blackhole-prod-ops` (metrics). No new role name is introduced.
+- **Licence:** Entra ID Free only; hence groups claim for humans, app roles for machines.
+- **No break-glass login.** If Entra is down there is no team panel and no staff API writes;
+  Velocity keeps enforcing existing punishments from Redis.
+- **Follow-up, not part of this change:** linking staff Minecraft UUIDs to Entra `oid` is its
+  own later change, because the appeal self-review check then also covers in-game bans.
 
 ## Capabilities
 
@@ -82,7 +99,9 @@ Entra identities; authentication of Redis, RabbitMQ or PostgreSQL; app-level rat
 - `web/`: `oidc-client-ts`, auth service, router guards, `src/api/*`, `config.ts`,
   `nginx/40-config-json.sh`, role-aware components, locales.
 - `docker/`: mock OIDC server. `openspec/config.yaml`, `CLAUDE.md`, `.claude/rules/*`, READMEs.
-- Entra (done by an Entra admin, see tasks 6.1): API app registration with app roles, SPA
-  registration, Velocity registration, group assignments.
+- Entra (done by an Entra admin, see tasks 6.1): API app registration (machine app roles,
+  `groupMembershipClaims`), SPA registration, Velocity and metrics client registrations with
+  admin consent, the four `sg-blackhole-prod-*` groups.
+- Open question left: legal confirmation of the staff-data retention wording (design.md).
 - Depends on: ADR-BLKH-0002 accepted; in-flight changes touching the same code
   (`staff-temp-bans-elo-escalation`, `capture-proxy-chat-evidence`) merged or rebased first.

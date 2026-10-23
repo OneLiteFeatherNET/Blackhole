@@ -22,50 +22,78 @@ Goals: backend verifies every caller; stable verified actor on every write; leas
 roles; no Entra dependency in tests or local dev; one code path for prod and dev (only the
 issuer URL differs).
 
-Non-goals: see "Out of scope" in proposal.md.
+Non-goals: see "Out of scope" in proposal.md. Follow-up (separate change, not here): linking staff Minecraft UUIDs to Entra `oid`, so the appeal self-review check also covers in-game bans.
 
 ## Decisions
 
-### 1. Roles: Entra app roles, not group claims
+### 1. Roles: groups claim for humans, app roles for machines (Entra ID Free)
 
-The API app registration defines app roles; Entra security groups are assigned to those roles on
-the enterprise application. The token's `roles` claim then carries the role values.
+Licence decision (2026-10-23): Blackhole runs on **Entra ID Free**. Microsoft documents that
+group-based assignment to an enterprise application (and therefore groups assigned to app roles)
+requires Entra ID P1 or P2, so human roles cannot come from app-role assignment. Application
+permissions (an app role with allowed member type `applications`, granted to a client app and
+admin consented) are an app-registration feature; the Learn how-to describes them without any
+licence requirement, and this design relies on that (to be confirmed once in task 6.1).
 
-Why: the `groups` claim is capped (200 object ids in JWTs); above that Entra drops it and sends
-an overage pointer, which would force Graph calls and a credential for them. App roles are
-bounded, show up identically for users and for client-credentials tokens (the Velocity plugin
-needs the same mechanism), and role names belong to the API rather than to the group naming
-scheme.
+**Humans: `groups` claim.** The API app registration sets `groupMembershipClaims:
+"SecurityGroup"`, so delegated access tokens carry the object ids of the user's security groups.
+The backend maps configured group object ids to `ADMIN`, `MODERATOR`, `VIEWER` and `METRICS`.
+The token holds object ids, not display names, so the mapping is by object id; the group names
+below are documentation for the Entra admin, nothing in code names a group. Ids are env-driven
+in `application.yml` (`${ENV:default}` plus an explanatory comment).
 
-Fallback, kept configurable: `blackhole.security.roles.claim` (default `roles`) may be `groups`
-with group object ids as values; an overage token (no claim, `_claim_names` present) gets no
-roles and is rejected with 403 and a log line. Group-to-application assignment may need an
-Entra licence tier beyond free; if unavailable the fallback or direct user assignment is used
-(open question for the Entra admin).
+**Machines: app roles.** `Blackhole.Proxy` and `Blackhole.Metrics` are application permissions
+on the API, granted to the Velocity and metrics client registrations by admin consent. They
+arrive in the `roles` claim of app-only tokens (client credentials). Service principals do not
+appear in group claims, so the two sources never overlap.
 
-OLF naming scheme: it knows roles `admin`, `edit`, `view`, `ops`, `audit` and `dienst` values
-`k8s`, `vpn`, `cf` only, and excludes app-internal roles. App roles therefore map onto scheme
-roles; nothing in code names a group:
+**No user assignment required.** The enterprise application keeps "Assignment required" off, so
+any tenant member (and guest) can obtain a token. The backend is the gate: a signed-in user
+whose groups map to no role has no role, every protected route answers 403, and the UI shows a
+"no access" page (`GET /auth/me` still answers, with an empty role list, so the UI can tell).
 
-| App role value (default) | Internal role | Scheme role | Suggested group (needs `dienst` `blackhole`) |
+**Groups overage.** Entra caps the `groups` claim in JWTs at 200 ids; above that the token has
+no `groups` but `_claim_names`/`hasgroups`. Such a token gets no role, the response is 403 with
+the reason `groups-overage`, and the event is logged (oid only, no token). The backend does NOT
+call Microsoft Graph. The OLF user groups are few, so overage is not expected; if it ever
+happens for a person, the fix on the Entra side is fewer group memberships (or the P1 upgrade
+path below).
+
+**Upgrade path (documented, config only).** With P1 later, switch to app-role assignment:
+set `BLACKHOLE_AUTH_ROLES_CLAIM_HUMAN` from `groups` to `roles` and the per-role values from
+group object ids to the app role values (`Blackhole.Admin`, ...), define those app roles on the
+API registration and assign the groups to them. No code change.
+
+Configuration (comma separated values per internal role):
+
+- `BLACKHOLE_AUTH_ROLES_CLAIM_HUMAN` (default `groups`): claim read on delegated tokens.
+- `BLACKHOLE_AUTH_ROLES_CLAIM_MACHINE` (default `roles`): claim read on app-only tokens.
+- `BLACKHOLE_AUTH_ROLE_ADMIN`, `_MODERATOR`, `_VIEWER`, `_METRICS`: values (group object ids by
+  default) accepted on delegated tokens.
+- `BLACKHOLE_AUTH_MACHINE_ROLE_PROXY` (default `Blackhole.Proxy`) and
+  `BLACKHOLE_AUTH_MACHINE_ROLE_METRICS` (default `Blackhole.Metrics`): accepted on app-only
+  tokens.
+
+OLF naming scheme `<typ>-<dienst>-<scope>-<umgebung>-<rolle>`, extended with the service
+`blackhole` (decided). `moderator` maps to the existing scheme role `edit`; no new role name.
+
+| Internal role | Source | Scheme role | Entra object |
 |---|---|---|---|
-| `Blackhole.Admin` | `ADMIN` | `admin` | `sg-blackhole-prod-admin` |
-| `Blackhole.Moderator` | `MODERATOR` | `edit` | `sg-blackhole-prod-edit` |
-| `Blackhole.Viewer` | `VIEWER` | `view` | `sg-blackhole-prod-view` |
-| `Blackhole.Metrics` | `METRICS` | `ops` | machine principal, no group |
-| `Blackhole.Proxy` | `PROXY` | (machine) | machine principal, no group |
+| `ADMIN` | `groups` claim, delegated token | `admin` | group `sg-blackhole-prod-admin` |
+| `MODERATOR` | `groups` claim, delegated token | `edit` | group `sg-blackhole-prod-edit` |
+| `VIEWER` | `groups` claim, delegated token | `view` | group `sg-blackhole-prod-view` |
+| `METRICS` | `groups` claim (delegated) or `roles` = `Blackhole.Metrics` (app-only) | `ops` | group `sg-blackhole-prod-ops`; metrics client app role |
+| `PROXY` | `roles` = `Blackhole.Proxy`, app-only token | (machine) | Velocity client app role |
 
-`audit` is not used: no endpoint exposes the evidence audit trail. Extending the scheme with
-dienst `blackhole` is a prerequisite for the Entra admin, listed as an open question; until
-then the group names are placeholders. Configuration (comma separated values per internal role,
-each tunable `${ENV:default}` with an explanatory comment): `BLACKHOLE_AUTH_ROLES_CLAIM`,
-`BLACKHOLE_AUTH_ROLE_ADMIN`, `_MODERATOR`, `_VIEWER`, `_METRICS`, `_PROXY`.
+`audit` is not used: no endpoint exposes the evidence audit trail.
 
 Role semantics: a custom `RolesFinder` maps claim values to internal roles. Hierarchy is
 expanded there: `ADMIN` implies `MODERATOR` implies `VIEWER`. `PROXY` and `METRICS` are separate
-and implied by nothing. Human roles are honoured only on tokens that carry `scp` (delegated
-tokens); `PROXY`/`METRICS` only on app-only tokens (no `scp`). A user token cannot act as the
-proxy and a machine token cannot act as a moderator even if mis-assigned.
+and implied by nothing. The token kind selects the claim: tokens that carry `scp` (delegated)
+are read from the human claim and can be granted `ADMIN`, `MODERATOR`, `VIEWER`, `METRICS`
+(never `PROXY`); tokens without `scp` (app-only) are read from the machine claim and can be
+granted `PROXY` and `METRICS` (never a human role). A user token cannot act as the proxy and a
+machine token cannot act as a moderator even if mis-assigned.
 
 ### 2. Token validation
 
@@ -74,7 +102,8 @@ Signature: remote JWKS `https://login.microsoftonline.com/{tenant}/discovery/v2.
 (cached by the library, rotates with Entra). Claims validators: `iss`
 `https://login.microsoftonline.com/{tenant}/v2.0`, `aud` the API's application (client) id,
 `exp` (default). The API registration must set `accessTokenAcceptedVersion: 2` in its manifest,
-otherwise Entra issues v1 tokens with another issuer and `aud`. Tenant id
+otherwise Entra issues v1 tokens with another issuer and `aud`, and
+`groupMembershipClaims: "SecurityGroup"` so delegated tokens carry the `groups` claim. Tenant id
 (`BLACKHOLE_AUTH_TENANT_ID`), API client id (`BLACKHOLE_AUTH_AUDIENCE`) and, for dev,
 `BLACKHOLE_AUTH_ISSUER` / `BLACKHOLE_AUTH_JWKS_URL` are env-driven. Stateless: no session, no
 cookies, no CSRF surface. No server-side request is made to a caller-supplied URL (issuer and
@@ -100,11 +129,12 @@ call; `ADMIN` > `MODERATOR` > `VIEWER`; `PROXY` listed separately):
 | Intake (today called by the proxy) | `POST /report`, `POST /appeal`, `POST /elo/chat`, `POST /evasion/record`, `POST /profile/{owner}/session` | `MODERATOR` | yes (these are the proxy's routes) |
 | Admin configuration | `POST /section`, `/section/update`, `/section/{key}/disable`; `POST /template`, `/template/update`, `DELETE /template/delete/{id}`; `POST /admin/import/vanilla` | `ADMIN` | no |
 | Erasure / destructive | `DELETE /evidence/{id}`, `DELETE /evidence/owner/{owner}`, `DELETE /profile/delete/{owner}`, `POST /admin/staff-actor/{oid}/anonymize` | `ADMIN` | no |
-| Identity | `GET /auth/me` | any authenticated human or machine | yes |
+| Identity | `GET /auth/me` | any authenticated caller, also one with no role | yes |
 | Operations | `GET /prometheus` | `METRICS` | no |
 | Public | `GET /health` (status only, no details) | none | n/a |
 
-Evidence reads stay `VIEWER`; showing lifted evidence remains audited server-side, now with a
+Assumption (no longer open): `DELETE /profile/delete/{owner}` and the vanilla import are
+`ADMIN` only, as in the table. Evidence reads stay `VIEWER`; showing lifted evidence remains audited server-side, now with a
 real actor. Rate limiting is untouched (infra-owned, plus the existing report limiter).
 
 A JUnit test enumerates every route of the running application (from the router) and
@@ -175,7 +205,9 @@ Self-review: `AppealDecisionService` rejects (403) when the reviewer's `oid` equ
 punishment's attributed `source` or its `recorded_by_oid`. This is tamper-proof between web
 staff. Known limit: a ban issued in game is attributed to the in-game UUID with the proxy as
 `recorded_by_oid`; the same person reviewing in the web UI is not detected because nothing
-links a Minecraft UUID to an `oid`. Linking is deferred (open question).
+links a Minecraft UUID to an `oid`. Linking is deferred to a separate follow-up change (decided 2026-10-23), not part of
+`add-team-sso`: once staff Minecraft UUIDs are linked to `oid`, the self-review check also
+covers in-game bans.
 
 Transactions: no `@Transactional` (principle 6); the `staff_actor` upsert is one idempotent
 repository save done before the main write, using the same mechanisms the services already use.
@@ -191,7 +223,8 @@ not decided here.
 ### 6. Velocity machine identity
 
 Separate app registration "Blackhole Velocity" with application permission (app role)
-`Blackhole.Proxy` on the API, admin consented. Plugin `config.json` gains
+`Blackhole.Proxy` on the API, admin consented (see decision 1 for the licence).
+The metrics scraper is a second client registration with `Blackhole.Metrics`. Plugin `config.json` gains
 `auth: { tenantId, clientId, clientSecret, scope }` with `scope` defaulting to
 `api://<api-client-id>/.default` and a dev-only `tokenUrl` override (pointing at the mock
 server). Environment variables (`BLACKHOLE_TENANT_ID`, `BLACKHOLE_CLIENT_ID`,
@@ -245,7 +278,9 @@ One code path: only issuer and JWKS URL differ.
 
 - Dev: `docker/docker-compose.yml` gains `ghcr.io/navikt/mock-oauth2-server` (pinned tag) with
   `docker/mock-oauth/config.json`: interactive login for three users (admin, moderator,
-  viewer) with `oid`, `name`, `roles`, `scp`, and a client-credentials token callback giving
+  viewer) plus a fourth user in no group, each with `oid`, `name`, `scp` and a `groups` claim of
+  fake object ids that match the dev defaults in `application.yml` (the no-group user carries an
+  empty list), and a client-credentials token callback giving
   `Blackhole.Proxy` / `Blackhole.Metrics` without `scp`. Dev defaults in `application.yml` and
   the UI/plugin examples point at it.
 - Tests: `TestJwtIssuer` (test source set) generates an RSA key pair per test class, signs JWTs
@@ -271,7 +306,14 @@ contract is not versioned side by side because every caller must be updated anyw
 ## Risks / Trade-offs
 
 - Entra outage blocks new sign-ins; running sessions and cached machine tokens work until they
-  expire. No break-glass path (open question).
+  expire. **No break-glass login (decision, 2026-10-23).** Consequence: while Entra is down
+  there is no team panel and no staff API writes; Velocity keeps enforcing existing punishments
+  from Redis, and in-game bans need a still-valid cached machine token.
+- Group object ids are tenant-specific and carry no names; a wrong id silently grants nothing
+  (deny by default). Mitigated by the setup how-to listing the ids to copy and the
+  `GET /auth/me` check in task 6.1.
+- Any tenant member or guest can obtain a token for the API (no user assignment); this is
+  safe only because the backend denies every role-less caller.
 - Role removal in Entra takes effect only when the access token expires (typically 60-90 min).
   Acceptable; a shorter lifetime is an Entra policy choice.
 - Dropping `source` from requests loses attribution of system-to-system calls by UUID;
@@ -283,12 +325,4 @@ contract is not versioned side by side because every caller must be updated anyw
 
 ## Open Questions
 
-1. Extend the OLF Entra naming scheme with dienst `blackhole`; confirm group names and that
-   `moderator` maps to `edit`.
-2. Entra licence tier: can security groups be assigned to the enterprise application's app
-   roles, or is direct user assignment / the `groups` fallback needed?
-3. Break-glass access when Entra is unavailable: wanted or not?
-4. Link in-game staff UUIDs to Entra `oid` (for complete self-review)? Separate change.
-5. Should `DELETE /profile/delete/{owner}` and the vanilla import be `ADMIN` only (assumed) or
-   open to `MODERATOR`?
-6. Legal confirmation of the staff-data retention statement (ADR-BLKH-0002 consequence).
+1. Legal confirmation of the staff-data retention statement (ADR-BLKH-0002 consequence).

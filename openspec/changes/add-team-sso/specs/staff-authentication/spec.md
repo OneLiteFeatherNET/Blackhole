@@ -32,35 +32,47 @@ The backend MUST refuse to start when the configured issuer uses plain `http` or
 - **WHEN** the backend starts in a non-dev environment with the default `http://localhost` issuer
 - **THEN** startup fails with a message naming the issuer setting
 
-### Requirement: Roles from app roles
-The backend SHALL derive internal roles `ADMIN`, `MODERATOR`, `VIEWER`, `PROXY` and `METRICS` from the token claim named by `blackhole.security.roles.claim` (default `roles`) using a configurable list of accepted values per internal role. `ADMIN` MUST imply `MODERATOR` and `MODERATOR` MUST imply `VIEWER`. No group name SHALL be hard-coded. A token without a mapped value MUST have no role and be answered with HTTP 403 on any role-protected route.
+### Requirement: Role mapping
+The backend SHALL derive internal roles `ADMIN`, `MODERATOR`, `VIEWER`, `PROXY` and `METRICS` from token claims, with configurable claim names and accepted values per role, and MUST hard-code no group name or object id. `ADMIN` MUST imply `MODERATOR` and `MODERATOR` MUST imply `VIEWER`. A token without a mapped value MUST have no role and be answered with HTTP 403 on any role-protected route.
 
-#### Scenario: Role mapping from configuration
-- **WHEN** the moderator value is configured as `Blackhole.Moderator` and a token's `roles` contains it
+#### Scenario: Human role from a group object id
+- **WHEN** the moderator group object id is configured and a delegated token's `groups` contains it
 - **THEN** the caller has `MODERATOR` and `VIEWER` but not `ADMIN`
 
-#### Scenario: Groups claim fallback
-- **WHEN** the claim is configured as `groups` and the token lists a configured group object id
-- **THEN** the mapped internal role is granted
+#### Scenario: Machine role from an app role
+- **WHEN** an app-only token's `roles` contains `Blackhole.Proxy`
+- **THEN** the caller has `PROXY`
+
+#### Scenario: Switching to app-role assignment is configuration only
+- **WHEN** `claim-human` is set to `roles` and the per-role values to app role values such as `Blackhole.Moderator`
+- **THEN** a delegated token whose `roles` contains that value grants `MODERATOR` without any code change
 
 #### Scenario: Groups overage
-- **WHEN** the token has no `groups` claim but an overage claim reference
-- **THEN** the caller has no role, the response is HTTP 403 and the event is logged without the token
+- **WHEN** a delegated token has no `groups` claim but carries `_claim_names` or `hasgroups` for groups
+- **THEN** the caller has no role, a role-protected route answers HTTP 403 with the reason `groups-overage`, the event is logged without the token, and no Microsoft Graph call is made
+
+#### Scenario: Signed in without a mapped group
+- **WHEN** a valid delegated token carries `groups` but none of the configured object ids
+- **THEN** every role-protected route answers HTTP 403
 
 #### Scenario: Unmapped token
-- **WHEN** a valid token carries no recognised role value
+- **WHEN** a valid token carries no recognised value in the claim for its kind
 - **THEN** a protected route answers HTTP 403
 
 ### Requirement: Human and machine tokens are separated
-The backend MUST grant `ADMIN`, `MODERATOR` and `VIEWER` only on delegated tokens (those carrying `scp`) and `PROXY` and `METRICS` only on app-only tokens (no `scp`).
+On delegated tokens (those carrying `scp`) the backend SHALL read the claim named by `blackhole.security.roles.claim-human` (default `groups`, values are Entra group object ids) and MAY grant `ADMIN`, `MODERATOR`, `VIEWER` and `METRICS`. On app-only tokens (no `scp`) it SHALL read `blackhole.security.roles.claim-machine` (default `roles`, values are app role values) and MAY grant `PROXY` and `METRICS`. A value in the claim of the other token kind MUST grant nothing.
 
 #### Scenario: App-only token with a human role
-- **WHEN** an app-only token carries the moderator value
+- **WHEN** an app-only token carries the moderator value in its `roles` claim
 - **THEN** the moderator role is not granted
 
 #### Scenario: Delegated token with the proxy role
 - **WHEN** a user token carries the proxy value
 - **THEN** the proxy role is not granted
+
+#### Scenario: Metrics group member
+- **WHEN** a delegated token's `groups` contains the configured metrics group object id
+- **THEN** the caller has `METRICS` and can call `GET /prometheus`
 
 ### Requirement: Permission matrix
 The backend SHALL enforce a minimum role per endpoint group: read-only routes need `VIEWER`; moderation routes (apply, preview and revoke punishments, resolve reports, review appeals, adjust ELO, add evidence, profile create and update) and intake routes need `MODERATOR`; section, template and vanilla-import writes, evidence deletion, profile deletion and staff-actor anonymization need `ADMIN`; `GET /prometheus` needs `METRICS`. A route with no explicit rule MUST be rejected.
@@ -115,14 +127,18 @@ The route prefix `/public/**` SHALL be reserved for the later player portal. No 
 - **THEN** none starts with `/public`
 
 ### Requirement: Caller identity endpoint
-The backend SHALL provide `GET /auth/me` for any authenticated caller, returning the caller's `oid`, display name (if any) and internal roles.
+The backend SHALL provide `GET /auth/me` for any caller with a valid token, including one that has no role, returning the caller's `oid`, display name (if any) and internal roles (an empty list when none is mapped).
 
 #### Scenario: Moderator asks who they are
 - **WHEN** a moderator calls `GET /auth/me`
 - **THEN** the response contains their `oid`, name and the roles `MODERATOR` and `VIEWER`
 
+#### Scenario: Signed-in user without a mapped group
+- **WHEN** a user with a valid token and no mapped group calls `GET /auth/me`
+- **THEN** the response is HTTP 200 with an empty role list, so the UI can show its no-access page
+
 ### Requirement: Development and test issuer
-The system SHALL run and be testable without Microsoft Entra: the local compose file SHALL provide a mock OIDC server whose issuer and JWKS URL are the only differences from production configuration, and backend tests SHALL sign their own JWTs with a per-test key and make no network call.
+The system SHALL run and be testable without Microsoft Entra: the local compose file SHALL provide a mock OIDC server (users carry a `groups` claim of fake object ids) whose issuer and JWKS URL are the only differences from production configuration, and backend tests SHALL sign their own JWTs with a per-test key and make no network call.
 
 #### Scenario: Local sign-in with the mock server
 - **WHEN** a developer starts compose and the backend with the default dev settings

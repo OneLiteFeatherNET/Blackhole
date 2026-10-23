@@ -55,7 +55,7 @@ Every API request SHALL carry `Authorization: Bearer`. On HTTP 401 the UI MUST r
 - **THEN** a not-permitted message is shown and no retry is made
 
 ### Requirement: Role-aware interface
-After sign-in the UI SHALL load the caller from `GET /auth/me` and MUST NOT decode tokens itself. It SHALL show the signed-in display name, hide or disable actions the role cannot perform (sections, templates and import for non-admins; evidence deletion for non-admins; moderation actions for viewers), and MUST NOT send `source`, `resolvedBy` or `reviewerId`. The "Acting as" label and the `BLACKHOLE_UI_SOURCE` / `BLACKHOLE_UI_REVIEWER` settings SHALL no longer exist.
+After sign-in the UI SHALL load the caller from `GET /auth/me` and MUST NOT decode tokens itself. It SHALL show the signed-in display name, hide or disable actions the role cannot perform, and MUST NOT send `source`, `resolvedBy` or `reviewerId`. The "Acting as" label and the `BLACKHOLE_UI_SOURCE` / `BLACKHOLE_UI_REVIEWER` settings SHALL no longer exist.
 
 #### Scenario: Viewer opens a player
 - **WHEN** a viewer opens a player detail page
@@ -64,6 +64,13 @@ After sign-in the UI SHALL load the caller from `GET /auth/me` and MUST NOT deco
 #### Scenario: Admin opens configuration
 - **WHEN** an admin opens the sections page
 - **THEN** create, edit and disable controls are offered
+
+### Requirement: No-access page
+When `GET /auth/me` returns an empty role list, the UI SHALL show a "no access" page with the sign-out action and MUST NOT request any other protected data.
+
+#### Scenario: Signed-in user without any role
+- **WHEN** `GET /auth/me` returns an empty role list for the signed-in user
+- **THEN** the UI shows a "no access" page with the sign-out action and no data requests are made
 
 ### Requirement: Sign-out
 The UI SHALL provide sign-out that clears the in-memory user and ends the authority session.
