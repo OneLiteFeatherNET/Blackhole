@@ -11,6 +11,7 @@ import type {
   ApplyResult,
   DashboardSummary,
   EloAdjustResult,
+  EvasionSightings,
   EloEvent,
   EloProfile,
   Evidence,
@@ -80,6 +81,8 @@ export interface BlackholeApi {
   previewApply(owner: string, templateKey: string): Promise<ApiResult<ApplyPreview>>
   applyTemplate(owner: string, templateKey: string): Promise<ApiResult<ApplyResult>>
   revoke(owner: string, section: string): Promise<ApiResult<RevokeResult>>
+  /** Other owners that shared a hashed network address with this one; hashes only, never an IP. */
+  evasionSightings(owner: string): Promise<ApiResult<EvasionSightings>>
   adjustElo(owner: string, change: { section: string; delta: number; note: string }): Promise<ApiResult<EloAdjustResult>>
   /**
    * One page of a punishment's evidence (identifier or short id), oldest first. Lifted and revoked
@@ -327,6 +330,11 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     revoke: (owner, section) =>
       toResult(http.POST('/punishment/revoke', { body: { owner, section } })),
+
+    async evasionSightings(owner) {
+      const result = await toResult(http.GET('/evasion/{owner}/sightings', { params: { path: { owner } } }))
+      return map(result, (sightings) => ({ ...sightings, linkedOwners: sightings.linkedOwners ?? [] }))
+    },
 
     adjustElo: (owner, change) =>
       toResult(

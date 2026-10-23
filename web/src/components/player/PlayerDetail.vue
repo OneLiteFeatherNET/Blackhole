@@ -15,6 +15,7 @@ import ActivePunishments from './ActivePunishments.vue'
 import AdjustDialog from './AdjustDialog.vue'
 import ApplyTemplateDialog from './ApplyTemplateDialog.vue'
 import EloHistory from './EloHistory.vue'
+import EvasionHints from './EvasionHints.vue'
 import PunishmentHistory from './PunishmentHistory.vue'
 import RevokeDialog from './RevokeDialog.vue'
 import SectionScores from './SectionScores.vue'
@@ -147,6 +148,11 @@ async function finished(done: string): Promise<void> {
           :loading="eventsLoading"
           :error="eventsError"
         />
+      </section>
+
+      <section aria-labelledby="evasion-heading">
+        <h2 id="evasion-heading" class="mb-3 text-title-large">{{ t('player.evasion.title') }}</h2>
+        <EvasionHints :owner="owner" />
       </section>
 
       <ApplyTemplateDialog :open="applyOpen" :owner="owner" @close="applyOpen = false" @done="finished" />
