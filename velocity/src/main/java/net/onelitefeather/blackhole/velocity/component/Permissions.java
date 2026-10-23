@@ -26,6 +26,11 @@ public final class Permissions {
         return new Permissions(subject::hasPermission);
     }
 
+    /** @return whether the receiver may lift permanent punishments */
+    public boolean mayPardonPermanent() {
+        return this.granted.test(PARDON_PERMANENT);
+    }
+
     /**
      * @return whether the receiver may lift a punishment of this kind; a permanent one needs
      * {@value #PARDON_PERMANENT} on top

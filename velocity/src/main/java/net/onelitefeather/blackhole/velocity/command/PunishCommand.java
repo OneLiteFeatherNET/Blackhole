@@ -5,7 +5,10 @@ import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
-import net.onelitefeather.blackhole.velocity.component.PunishmentMessages;
+import net.onelitefeather.blackhole.velocity.component.Mode;
+import net.onelitefeather.blackhole.velocity.component.Permissions;
+import net.onelitefeather.blackhole.velocity.component.StaffMessages;
+import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
 import net.onelitefeather.blackhole.velocity.evidence.ChatEvidence;
 import net.onelitefeather.blackhole.velocity.enforcement.ProfileAdapter;
@@ -37,16 +40,18 @@ public final class PunishCommand {
     private final SectionRegistry sections;
     private final PunishmentSyncHandler syncHandler;
     private final Clock clock;
+    private final BlackholeConfig config;
 
     @Inject
     public PunishCommand(
             @NotNull PunishService service, @NotNull SectionRegistry sections,
-            @NotNull PunishmentSyncHandler syncHandler, @NotNull Clock clock
+            @NotNull PunishmentSyncHandler syncHandler, @NotNull Clock clock, @NotNull BlackholeConfig config
     ) {
         this.service = service;
         this.sections = sections;
         this.syncHandler = syncHandler;
         this.clock = clock;
+        this.config = config;
     }
 
     @Command("blackhole <user> ban <template>")
@@ -58,7 +63,7 @@ public final class PunishCommand {
             @Argument(value = "user", parserName = "target", suggestions = "players") @NotNull ResolvedTarget user,
             @Argument(value = "template", suggestions = "ban-templates") @NotNull String template
     ) {
-        apply(context.sender(), user, template, PunishService.BAN_KINDS, "punishment.error.ban");
+        apply(context.sender(), user, template, PunishService.BAN_KINDS, "ban", "punishment.error.ban");
     }
 
     @Command("blackhole <user> mute <template>")
@@ -70,7 +75,7 @@ public final class PunishCommand {
             @Argument(value = "user", parserName = "target", suggestions = "players") @NotNull ResolvedTarget user,
             @Argument(value = "template", suggestions = "mute-templates") @NotNull String template
     ) {
-        apply(context.sender(), user, template, PunishService.MUTE_KINDS, "punishment.error.mute");
+        apply(context.sender(), user, template, PunishService.MUTE_KINDS, "mute", "punishment.error.mute");
     }
 
     @Command("blackhole <user> punish <template>")
@@ -82,7 +87,7 @@ public final class PunishCommand {
             @Argument(value = "user", parserName = "target", suggestions = "players") @NotNull ResolvedTarget user,
             @Argument(value = "template", suggestions = "all-templates") @NotNull String template
     ) {
-        apply(context.sender(), user, template, PunishService.ANY_KINDS, "punishment.error.punish");
+        apply(context.sender(), user, template, PunishService.ANY_KINDS, "punish", "punishment.error.punish");
     }
 
     @Suggestions("ban-templates")
@@ -100,14 +105,14 @@ public final class PunishCommand {
         return this.service.suggest(input.readString(), PunishService.ANY_KINDS);
     }
 
-    private void apply(Player sender, ResolvedTarget target, String templateKey, Set<EnforcementKind> kinds, String failureKey) {
+    private void apply(Player sender, ResolvedTarget target, String templateKey, Set<EnforcementKind> kinds, String command, String failureKey) {
         PunishService.ApplyOutcome outcome = this.service.apply(target.ownerHash(), templateKey, sender.getUniqueId(), kinds);
         switch (outcome) {
             case PunishService.ApplyOutcome.Applied applied -> applied(sender, target, applied);
-            case PunishService.ApplyOutcome.TemplateNotFound missing ->
-                    sender.sendMessage(Component.translatable("punishment.error.template.not_found").arguments(Component.text(missing.key())));
+            case PunishService.ApplyOutcome.TemplateNotFound missing -> sender.sendMessage(
+                    StaffMessages.templateNotFound(command, target.name(), missing.key(), missing.similar(), Mode.of(sender)));
             case PunishService.ApplyOutcome.WrongSection wrong ->
-                    sender.sendMessage(Component.translatable("punishment.error.template.wrong_section").arguments(Component.text(wrong.key())));
+                    sender.sendMessage(StaffMessages.wrongSection(target.name(), wrong.key(), wrong.kind(), Mode.of(sender)));
             case PunishService.ApplyOutcome.Failed failed -> sender.sendMessage(failed.status() == 409
                     ? Component.translatable("punishment.error.conflict")
                     : Component.translatable(failureKey));
@@ -139,7 +144,8 @@ public final class PunishCommand {
         if (applied.section().enforcement() == EnforcementKind.MUTE && target.onlinePlayer() != null) {
             target.onlinePlayer().sendMessage(Component.translatable("punishment.info.muted"));
         }
-        sender.sendMessage(PunishmentMessages.applied(target.name(), applied.section(), response, punished, this.clock.millis()));
+        sender.sendMessage(StaffMessages.applied(target.name(), applied.section(), response, punished, this.clock,
+                this.config.getZone(), Permissions.of(sender), Mode.of(sender)));
         evidenceFeedback(sender, applied.evidence());
     }
 }

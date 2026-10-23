@@ -31,9 +31,6 @@ class I18nBundlesTest {
             "punishment.error.unban", "punishment.error.unmute",
             "punishment.error.unban.none_active", "punishment.error.unmute.none_active");
 
-    /** Keys no code reads. {@code target_not_online} predates the unused-key check and is reworked with the target errors. */
-    private static final Set<String> UNREFERENCED_KEYS = Set.of("target_not_online");
-
     /** A tag of the style; the name after {@code bh:} must be one the theme defines. */
     private static final Pattern THEME_TAG = Pattern.compile("</?bh:([a-zA-Z0-9_]*)>");
 
@@ -145,7 +142,7 @@ class I18nBundlesTest {
         Set<String> unused = new TreeSet<>();
         for (String key : load("blackhole_en.properties").stringPropertyNames()) {
             boolean used = literals.stream().anyMatch(literal -> key.equals(literal) || (literal.contains(".") && key.startsWith(literal)));
-            if (!used && !UNREFERENCED_KEYS.contains(key)) {
+            if (!used) {
                 unused.add(key);
             }
         }

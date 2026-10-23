@@ -228,4 +228,63 @@ class PunishServiceTest {
 
         assertTrue(service.suggest("a", PunishService.ANY_KINDS).isEmpty(), "tab completion must not fail");
     }
+
+    // ---- similar keys ----------------------------------------------------------------------
+
+    @Test
+    void anUnknownKeyIsAnsweredWithTheSimilarKeysOfTheRightKind() {
+        backend.templates = List.of(template("spam_1", "network"), template("spam_2", "bedwars"), template("spam_chat", "chat"));
+
+        var outcome = assertInstanceOf(PunishService.ApplyOutcome.TemplateNotFound.class, apply("spamm", PunishService.BAN_KINDS));
+
+        assertEquals(List.of("spam_1", "spam_2"), outcome.similar(), "the mute template must not be suggested for a ban");
+    }
+
+    @Test
+    void anUnknownKeyWithNothingSimilarCarriesNoSuggestions() {
+        backend.templates = List.of(template("hacking", "network"));
+
+        var outcome = assertInstanceOf(PunishService.ApplyOutcome.TemplateNotFound.class, apply("zzzzzz", PunishService.BAN_KINDS));
+
+        assertTrue(outcome.similar().isEmpty(), "nothing resembles the typed key");
+    }
+
+    @Test
+    void keysContainingTheTextRankBeforeSharedPrefixesBeforeNearMisses() {
+        List<String> ranked = PunishService.closest("spam", List.of("spax", "xspam", "spamming", "pam"), 5);
+
+        assertEquals(List.of("spamming", "xspam", "spax", "pam"), ranked, "contains first (alphabetical), then near misses by distance");
+    }
+
+    @Test
+    void aSharedPrefixOfThreeCharactersCounts() {
+        assertEquals(List.of("hacking_1"), PunishService.closest("hackxyzabc", List.of("hacking_1", "flying"), 5));
+    }
+
+    @Test
+    void aKeyWithinTwoEditsCounts() {
+        assertEquals(List.of("spam_1"), PunishService.closest("spamm", List.of("spam_1", "grief"), 5));
+    }
+
+    @Test
+    void aKeyThreeEditsAwayDoesNotCount() {
+        assertTrue(PunishService.closest("abcdef", List.of("xyzuvw1"), 5).isEmpty(), "too different");
+    }
+
+    @Test
+    void atMostFiveKeysAreReturned() {
+        List<String> keys = List.of("a1", "a2", "a3", "a4", "a5", "a6", "a7");
+
+        assertEquals(List.of("a1", "a2", "a3", "a4", "a5"), PunishService.closest("a", keys, PunishService.SIMILAR_LIMIT));
+    }
+
+    @Test
+    void rankingIgnoresCase() {
+        assertEquals(List.of("Spam_1"), PunishService.closest("SPAM", List.of("Spam_1"), 5));
+    }
+
+    @Test
+    void nothingTypedSuggestsNothing() {
+        assertTrue(PunishService.closest("", List.of("spam"), 5).isEmpty(), "an empty text resembles everything, so it suggests nothing");
+    }
 }

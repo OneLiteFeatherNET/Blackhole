@@ -75,6 +75,9 @@ class ThemeStoreCompatibilityTest {
         int checked = 0;
 
         for (String key : bundle.keySet()) {
+            if (bundle.getString(key).contains("<bh:")) {
+                continue; // written for the theme, a plain MiniMessage cannot render it
+            }
             for (Locale locale : new Locale[]{Locale.ENGLISH, Locale.GERMAN}) {
                 Component component = translatable(key, bundle.getString(key));
 

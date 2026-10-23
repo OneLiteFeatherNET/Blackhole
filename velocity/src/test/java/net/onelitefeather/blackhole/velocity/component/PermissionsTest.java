@@ -51,6 +51,12 @@ class PermissionsTest {
     }
 
     @Test
+    void thePardonPermissionIsReportedOnItsOwn() {
+        assertTrue(with(Permissions.PARDON_PERMANENT).mayPardonPermanent());
+        assertFalse(with(Permissions.UNBAN).mayPardonPermanent(), "unban does not lift permanent punishments");
+    }
+
+    @Test
     void withoutAnyPermissionNothingCanBeUndone() {
         for (EnforcementKind kind : EnforcementKind.values()) {
             assertFalse(with().mayUndo(kind, false), kind + " must not be undoable without permissions");
