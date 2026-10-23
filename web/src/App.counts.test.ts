@@ -36,6 +36,7 @@ async function mountApp(numbers: Numbers, path = '/players') {
           cases,
           profile: async () => ok({ active: {}, history: [] }),
           staffLinkStatus: async () => ok({ linked: false }),
+          discordLinkStatus: async () => ok({ linked: false }),
         }),
         [TICKER_KEY as symbol]: clock.ticker,
       },

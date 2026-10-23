@@ -31,6 +31,7 @@ async function mountApp(path = '/', options: { roles?: string[]; auth?: ReturnTy
           eloHistory: async () => ok([]),
           evasionSightings: async () => ok({ detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false }),
           staffLinkStatus: async () => ok({ linked: false }),
+          discordLinkStatus: async () => ok({ linked: false }),
           cases: async () => ok({ items: [], page: 0, size: 20, totalSize: 0, totalPages: 0 }),
         }),
       },

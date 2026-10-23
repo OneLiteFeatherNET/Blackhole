@@ -36,6 +36,9 @@ export type EvidencePage = Schemas['EvidencePage']
 export type StaffLinkCode = Schemas['StaffLinkCodeResponse']
 export type StaffLinkStatus = Schemas['StaffLinkStatusResponse']
 export type StaffLink = Schemas['StaffLinkItem']
+export type DiscordLinkCode = Schemas['DiscordLinkCodeResponse']
+export type DiscordLinkStatus = Schemas['DiscordLinkStatusResponse']
+export type DiscordLink = Schemas['DiscordLinkItem']
 /** The summary of a vanilla ban-list import or preview. The endpoint is hidden from the published spec, so this is typed by hand. */
 export interface VanillaImportResult {
   dryRun: boolean

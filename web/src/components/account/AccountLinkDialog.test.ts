@@ -11,6 +11,7 @@ function setup(overrides: Record<string, unknown> = {}, roles?: string[]) {
     staffLinkStatus: vi.fn(async () => ok({ linked: false })),
     issueStaffLinkCode: vi.fn(async () => ok({ code: 'ABCD-EFGH', expiresAt: NOW + 5 * 60_000 })),
     unlinkOwnStaffLink: vi.fn(async () => ok(undefined)),
+    discordLinkStatus: vi.fn(async () => ok({ linked: false })),
     ...overrides,
   }
   return { api, mount: () => mountWithApp(AccountLinkDialog, { api: mockApi(api), props: { open: true }, roles }) }

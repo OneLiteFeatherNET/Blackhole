@@ -194,3 +194,60 @@ describe('imported punishment calls', () => {
     expect(outcome.ok ? null : outcome.error).toMatchObject({ status: 400, kind: 'VALIDATION' })
   })
 })
+
+describe('discord link calls', () => {
+  const ID = '00000000-0000-4000-8000-0000000000d1'
+
+  it('issues a code with POST /staff-discord-link/code', async () => {
+    const { api, calls } = apiWith([{ body: { code: 'ABCD-EFGH', expiresAt: 1_000 } }])
+
+    const result = await api.issueDiscordLinkCode()
+
+    expect(result).toEqual({ ok: true, data: { code: 'ABCD-EFGH', expiresAt: 1_000 } })
+    expect([calls[0]!.method, path(calls[0]!)]).toEqual(['POST', '/api/staff-discord-link/code'])
+  })
+
+  it('reads the own status from GET /staff-discord-link/me', async () => {
+    const { api, calls } = apiWith([{ body: { linked: true, linkedAt: 5 } }])
+
+    const result = await api.discordLinkStatus()
+
+    expect(result).toEqual({ ok: true, data: { linked: true, linkedAt: 5 } })
+    expect([calls[0]!.method, path(calls[0]!)]).toEqual(['GET', '/api/staff-discord-link/me'])
+  })
+
+  it('removes the own link with DELETE /staff-discord-link/me', async () => {
+    const { api, calls } = apiWith([{ body: { removed: 1 } }])
+
+    const result = await api.unlinkOwnDiscordLink()
+
+    expect(result, 'the removal count is dropped').toEqual({ ok: true, data: undefined })
+    expect([calls[0]!.method, path(calls[0]!)]).toEqual(['DELETE', '/api/staff-discord-link/me'])
+  })
+
+  it('lists all links as plain items from GET /admin/discord-link', async () => {
+    const item = { id: ID, kind: 'PLAYER', subject: 'abcdef0123456789', linkedAt: 5 }
+    const { api, calls } = apiWith([{ body: { items: [item] } }])
+
+    const result = await api.discordLinks()
+
+    expect(result).toEqual({ ok: true, data: [item] })
+    expect(path(calls[0]!)).toBe('/api/admin/discord-link')
+  })
+
+  it('removes one link with DELETE /admin/discord-link/{id}', async () => {
+    const { api, calls } = apiWith([{ body: { removed: 1 } }])
+
+    await api.removeDiscordLink(ID)
+
+    expect([calls[0]!.method, path(calls[0]!)]).toEqual(['DELETE', `/api/admin/discord-link/${ID}`])
+  })
+
+  it('reports a 403 as FORBIDDEN', async () => {
+    const { api } = apiWith([{ status: 403, body: { errorMessage: 'no', kind: 'FORBIDDEN' } }])
+
+    const result = await api.discordLinks()
+
+    expect(!result.ok && result.error.kind, 'a moderator is refused').toBe('FORBIDDEN')
+  })
+})

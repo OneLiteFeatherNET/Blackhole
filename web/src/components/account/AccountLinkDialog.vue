@@ -6,6 +6,7 @@ import type { ApiError, StaffLinkStatus } from '../../api/types'
 import { formatDateTime } from '../../format'
 import MdButton from '../md/MdButton.vue'
 import MdDialog from '../md/MdDialog.vue'
+import DiscordLinkSection from './DiscordLinkSection.vue'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: [] }>()
@@ -156,6 +157,7 @@ onBeforeUnmount(stopTimer)
       <!-- Always mounted so a screen reader announces the text when it appears. -->
       <p role="status" aria-live="polite" data-testid="announcement" class="min-h-6 text-body-medium">{{ announcement }}</p>
       <p v-if="error" data-testid="error" role="alert" class="rounded-md-md bg-error-container p-3 text-on-error-container">{{ error }}</p>
+      <DiscordLinkSection v-if="open" />
     </div>
     <template #actions>
       <MdButton variant="text" data-testid="close" @click="emit('close')">{{ t('account.link.close') }}</MdButton>
