@@ -41,6 +41,13 @@ public class PunishmentEntity {
     private UUID source;
 
     /**
+     * The {@code oid} of the verified principal that wrote the punishment; {@code null} for rows
+     * written before SSO, which are shown as unverified.
+     */
+    @Column(name = "recorded_by_oid")
+    private UUID recordedByOid;
+
+    /**
      * The hashed owner. Needed on the punishment itself so escalation step selection can count a
      * player's earlier punishments in a group.
      */
@@ -89,6 +96,7 @@ public class PunishmentEntity {
         entity.identifier = entry.identifier();
         entity.shortId = PunishmentShortId.storageKey(entry.identifier());
         entity.source = entry.source();
+        entity.recordedByOid = entry.recordedByOid();
         entity.owner = owner;
         entity.sectionKey = entry.section();
         entity.scope = entry.scope();
@@ -167,6 +175,14 @@ public class PunishmentEntity {
         return source;
     }
 
+    public UUID getRecordedByOid() {
+        return recordedByOid;
+    }
+
+    public void setRecordedByOid(UUID recordedByOid) {
+        this.recordedByOid = recordedByOid;
+    }
+
     public String getOwner() {
         return owner;
     }
@@ -228,6 +244,8 @@ public class PunishmentEntity {
                 this.identifier,
                 PunishmentShortId.display(this.shortId),
                 this.source,
+                this.recordedByOid,
+                this.recordedByOid != null,
                 this.sectionKey,
                 this.scope,
                 this.permanent,

@@ -62,6 +62,10 @@ public class ReportEntity {
 
     private UUID resolvedBy;
 
+    /** The {@code oid} of the verified principal that resolved the report; {@code null} while open and for pre-SSO rows. */
+    @Column(name = "recorded_by_oid")
+    private UUID recordedByOid;
+
     @Column(length = 1000)
     private String resolutionNote;
 
@@ -151,6 +155,14 @@ public class ReportEntity {
         this.resolvedBy = resolvedBy;
     }
 
+    public UUID getRecordedByOid() {
+        return recordedByOid;
+    }
+
+    public void setRecordedByOid(UUID recordedByOid) {
+        this.recordedByOid = recordedByOid;
+    }
+
     public String getResolutionNote() {
         return resolutionNote;
     }
@@ -175,6 +187,8 @@ public class ReportEntity {
                 this.createdAt,
                 this.updatedAt,
                 this.resolvedBy,
+                this.recordedByOid,
+                this.recordedByOid != null,
                 this.resolutionNote,
                 this.metaData
         );

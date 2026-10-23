@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.report.service;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.report.ReportEntity;
 import net.onelitefeather.blackhole.backend.report.ReportRepository;
 import net.onelitefeather.blackhole.backend.report.ReportStatus;
@@ -45,13 +46,9 @@ import java.util.UUID;
  * request; {@code rateLimitMaxReportsNetworkWide} is an aggregate, network-wide backstop that caps
  * the blast radius regardless of what {@code reporterHash} value is claimed.</p>
  *
- * <p><b>Known limitation (deferred, not fixed here):</b> {@code resolve}'s {@code resolvedBy} and
- * {@code punishmentSource} are likewise client-supplied and unverified against the caller's actual
- * identity - the same property {@code PunishmentEntityController}'s {@code source} field has had
- * since Phase 0. This is a systemic actor-identity gap, not something specific to reports, and is
- * intentionally deferred to a dedicated pass that adds real per-actor identity (and, if
- * reintroduced, authentication) everywhere at once rather than patching one endpoint
- * inconsistently with the rest.</p>
+ * <p>{@code resolve} takes the resolver from the verified {@link Actor}: {@code resolvedBy} and the
+ * source of an applied punishment are the caller's {@code oid}, and {@code recorded_by_oid} is set
+ * to the same token's {@code oid}. The request carries no actor.</p>
  *
  * <p>A report resolves once: resolving an already {@code ACTIONED} or {@code DISMISSED} report is
  * refused ({@link ResolveResult.AlreadyResolved}) so neither the template nor the ELO effects repeat.
@@ -144,9 +141,6 @@ public class ReportService {
         record TemplateNotAllowed(String message) implements ResolveResult {
         }
 
-        record PunishmentSourceRequired() implements ResolveResult {
-        }
-
         /**
          * The punishment could not be applied: an unknown template or section (a problem of the
          * request, {@code VALIDATION}), a disabled section or an already permanently punished player
@@ -201,7 +195,7 @@ public class ReportService {
         return new SubmitResult.Success(saved.toDTO());
     }
 
-    public ResolveResult resolve(UUID identifier, ReportResolutionDTO resolution) {
+    public ResolveResult resolve(UUID identifier, ReportResolutionDTO resolution, Actor actor) {
         ReportEntity report = this.reportRepository.findById(identifier).orElse(null);
         if (report == null) {
             return new ResolveResult.NotFound();
@@ -215,12 +209,9 @@ public class ReportService {
             if (resolution.status() != ReportStatus.ACTIONED) {
                 return new ResolveResult.TemplateNotAllowed("a punishment template can only be applied when the report is ACTIONED");
             }
-            if (resolution.punishmentSource() == null) {
-                return new ResolveResult.PunishmentSourceRequired();
-            }
             PunishmentDTO applied = this.punishmentApplicationService.apply(new PunishmentDTO.ApplyRequest(
-                    report.getReportedHash(), null, resolution.punishmentTemplateId(), resolution.punishmentSource()
-            ));
+                    report.getReportedHash(), null, resolution.punishmentTemplateId(), null
+            ), actor);
             if (applied instanceof PunishmentDTO.Error error) {
                 // A missing template or section is reported as a problem of the request, so it cannot be
                 // mistaken for "report not found".
@@ -231,7 +222,8 @@ public class ReportService {
 
         report.setStatus(resolution.status());
         report.setResolutionNote(resolution.resolutionNote());
-        report.setResolvedBy(resolution.resolvedBy());
+        report.setResolvedBy(actor.oid());
+        report.setRecordedByOid(actor.oid());
         report.setUpdatedAt(this.clock.millis());
         ReportEntity saved = this.reportRepository.update(report);
 
@@ -263,7 +255,8 @@ public class ReportService {
                 "reportIdentifier", identifier.toString(),
                 "reportedHash", report.getReportedHash(),
                 "status", resolution.status().toString(),
-                "resolvedBy", resolution.resolvedBy().toString()
+                "resolvedBy", actor.oid().toString(),
+                "recordedByOid", actor.oid().toString()
         ));
 
         return new ResolveResult.Success(saved.toDTO());

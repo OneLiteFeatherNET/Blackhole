@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.evidence.service;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.security.Attribution;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
@@ -62,6 +64,9 @@ public class EvidenceService implements PunishmentEvidenceGateway {
 
     /** The longest source system, note and description the API accepts. */
     private static final int MAX_SOURCE_SYSTEM = 64;
+
+    /** The answer to an {@code onBehalfOf} from any role but the proxy. */
+    static final String ON_BEHALF_OF_PROXY_ONLY = "onBehalfOf is only accepted from the proxy";
     private static final int MAX_NOTE = 500;
     private static final int MAX_DESCRIPTION = 500;
 
@@ -118,10 +123,14 @@ public class EvidenceService implements PunishmentEvidenceGateway {
      * request or payload, 404/409 for an unknown or ambiguous punishment, 413 for an oversized
      * payload, 422 for personal data in the payload
      */
-    public EvidenceDTO attach(EvidenceDTO.CreateRequest request) {
+    public EvidenceDTO attach(EvidenceDTO.CreateRequest request, Actor actor) {
         EvidenceDTO.Error invalid = checkCommon(request.sourceSystem());
         if (invalid != null) {
             return invalid;
+        }
+        Attribution attribution = actor.attribution(request.onBehalfOf()).orElse(null);
+        if (attribution == null) {
+            return error(EvidenceErrorKind.VALIDATION, ON_BEHALF_OF_PROXY_ONLY);
         }
         Target target = resolveTarget(request.punishment(), request.owner(), request.correlationId());
         if (target.error() != null) {
@@ -131,9 +140,9 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         if (!validated.accepted()) {
             return validated.error();
         }
-        EvidenceItemEntity item = newItem(target, request.kind(), request.sourceSystem(), request.capturedAt(), request.source());
+        EvidenceItemEntity item = newItem(target, request.kind(), request.sourceSystem(), request.capturedAt(), attribution);
         item.setContent(validated.reference(), validated.payload());
-        return attached(this.items.save(item), request.source());
+        return attached(this.items.save(item), attribution);
     }
 
     /**
@@ -145,10 +154,14 @@ public class EvidenceService implements PunishmentEvidenceGateway {
      * the target, 413 too large, 415 type not allowed, 422 infected or not a valid image, 503 when
      * the scanner or the file store is unavailable
      */
-    public EvidenceDTO attachFile(EvidenceDTO.UploadRequest request, InputStream content) {
+    public EvidenceDTO attachFile(EvidenceDTO.UploadRequest request, InputStream content, Actor actor) {
         EvidenceDTO.Error invalid = checkCommon(request.sourceSystem());
         if (invalid != null) {
             return invalid;
+        }
+        Attribution attribution = actor.attribution(request.onBehalfOf()).orElse(null);
+        if (attribution == null) {
+            return error(EvidenceErrorKind.VALIDATION, ON_BEHALF_OF_PROXY_ONLY);
         }
         Target target = resolveTarget(request.punishment(), request.owner(), request.correlationId());
         if (target.error() != null) {
@@ -186,11 +199,11 @@ public class EvidenceService implements PunishmentEvidenceGateway {
             try (InputStream in = Files.newInputStream(accepted.file())) {
                 this.blobs.put(key, in, accepted.size(), accepted.contentType());
             }
-            EvidenceItemEntity item = newItem(target, EvidenceKind.FILE, request.sourceSystem(), request.capturedAt(), request.source());
+            EvidenceItemEntity item = newItem(target, EvidenceKind.FILE, request.sourceSystem(), request.capturedAt(), attribution);
             item.setFile(key, accepted.displayName(), accepted.contentType(), accepted.size(), accepted.sha256());
             item.setContent(null, description);
             try {
-                return attached(this.items.save(item), request.source());
+                return attached(this.items.save(item), attribution);
             } catch (RuntimeException saveFailed) {
                 deleteQuietly(key);
                 throw saveFailed;
@@ -214,7 +227,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
      *
      * @param includeInactive whether {@code LIFTED} and {@code REVOKED} items are returned too
      */
-    public EvidenceDTO list(String punishmentReference, boolean includeInactive, Pageable pageable, UUID source) {
+    public EvidenceDTO list(String punishmentReference, boolean includeInactive, Pageable pageable, Actor actor) {
         Found found = find(punishmentReference);
         if (found.error() != null) {
             return found.error();
@@ -223,29 +236,29 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         Page<EvidenceItemEntity> page = includeInactive
                 ? this.items.findByPunishmentIdentifierOrderByCreatedAt(id, pageable)
                 : this.items.findByPunishmentIdentifierAndStatusOrderByCreatedAt(id, EvidenceStatus.VALID, pageable);
-        auditInactive(page, source);
+        auditInactive(page, actor.attribution());
         return toPage(page);
     }
 
     /** Lists the evidence of an owner hash, oldest first (access requests). */
-    public EvidenceDTO listByOwner(String owner, boolean includeInactive, Pageable pageable, UUID source) {
+    public EvidenceDTO listByOwner(String owner, boolean includeInactive, Pageable pageable, Actor actor) {
         if (!OwnerHash.isValid(owner)) {
             return error(EvidenceErrorKind.VALIDATION, "owner must be a sha-512 hash");
         }
         Page<EvidenceItemEntity> page = includeInactive
                 ? this.items.findByOwnerOrderByCreatedAt(owner, pageable)
                 : this.items.findByOwnerAndStatusOrderByCreatedAt(owner, EvidenceStatus.VALID, pageable);
-        auditInactive(page, source);
+        auditInactive(page, actor.attribution());
         return toPage(page);
     }
 
     /** The one item with its metadata and payload; reading it is audited, as {@code VIEWED_INACTIVE} when it is lifted or revoked. */
-    public EvidenceDTO get(UUID identifier, UUID source) {
+    public EvidenceDTO get(UUID identifier, Actor actor) {
         EvidenceItemEntity item = this.items.findById(identifier).orElse(null);
         if (item == null) {
             return notFound(identifier);
         }
-        record(item, item.getStatus() == EvidenceStatus.VALID ? EvidenceAuditAction.VIEWED : EvidenceAuditAction.VIEWED_INACTIVE, source, null, null);
+        record(item, item.getStatus() == EvidenceStatus.VALID ? EvidenceAuditAction.VIEWED : EvidenceAuditAction.VIEWED_INACTIVE, actor.attribution(), null, null);
         return toResponse(item);
     }
 
@@ -267,12 +280,12 @@ public class EvidenceService implements PunishmentEvidenceGateway {
      * Opens the stored file of an item.
      *
      * @param rangeHeader the raw {@code Range} header, may be {@code null}
-     * @param source      the (unverified) actor downloading; a {@code DOWNLOADED} audit entry is written when the
+     * @param actor       the verified caller downloading; a {@code DOWNLOADED} audit entry is written when the
      *                    response starts at byte 0, so scrubbing a video does not flood the trail with one entry per range
      * @return a {@link EvidenceDTO.Download}, {@link EvidenceDTO.OutOfRange} for an unsatisfiable
      * range, or an {@link EvidenceDTO.Error} (404 when the item or its file does not exist, 503 when the store fails)
      */
-    public EvidenceDTO content(UUID identifier, String rangeHeader, UUID source) {
+    public EvidenceDTO content(UUID identifier, String rangeHeader, Actor actor) {
         EvidenceItemEntity item = this.items.findById(identifier).orElse(null);
         if (item == null) {
             return notFound(identifier);
@@ -296,7 +309,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         try {
             BlobStore.BlobContent blob = this.blobs.open(item.getFileKey(), start, end);
             if (start == 0) {
-                record(item, EvidenceAuditAction.DOWNLOADED, source, null, null);
+                record(item, EvidenceAuditAction.DOWNLOADED, actor.attribution(), null, null);
             }
             return new EvidenceDTO.Download(blob.stream(), blob.length(), start, end, total, partial,
                     item.getFileContentType(), item.getFileName());
@@ -317,7 +330,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
      * @return the {@link EvidenceDTO.DeleteResponse}, or an {@link EvidenceDTO.Error}: 400 without
      * a valid reason (nothing is deleted), 404, 503 when the file cannot be deleted
      */
-    public EvidenceDTO delete(UUID identifier, String reason, String note, UUID source) {
+    public EvidenceDTO delete(UUID identifier, String reason, String note, Actor actor) {
         Deletion deletion = checkDeletion(reason, note);
         if (deletion.error() != null) {
             return deletion.error();
@@ -326,7 +339,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         if (item == null) {
             return notFound(identifier);
         }
-        EvidenceDTO.Error failure = remove(item, deletion.reason(), EvidenceDeletionReason.MANUAL, note, source);
+        EvidenceDTO.Error failure = remove(item, deletion.reason(), EvidenceDeletionReason.MANUAL, note, actor.attribution());
         return failure != null ? failure : new EvidenceDTO.DeleteResponse(1);
     }
 
@@ -334,7 +347,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
      * Deletes every item of an owner hash and their files (data-subject erasure). Stops at the
      * first file that cannot be deleted; what was deleted before stays deleted.
      */
-    public EvidenceDTO deleteByOwner(String owner, String reason, String note, UUID source) {
+    public EvidenceDTO deleteByOwner(String owner, String reason, String note, Actor actor) {
         Deletion deletion = checkDeletion(reason, note);
         if (deletion.error() != null) {
             return deletion.error();
@@ -344,7 +357,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         }
         int deleted = 0;
         for (EvidenceItemEntity item : this.items.findByOwner(owner)) {
-            EvidenceDTO.Error failure = remove(item, deletion.reason(), EvidenceDeletionReason.ERASURE, note, source);
+            EvidenceDTO.Error failure = remove(item, deletion.reason(), EvidenceDeletionReason.ERASURE, note, actor.attribution());
             if (failure != null) {
                 return failure;
             }
@@ -453,7 +466,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         return changed;
     }
 
-    private EvidenceDTO.Error remove(EvidenceItemEntity item, EvidenceDeleteReason reason, EvidenceDeletionReason published, String note, UUID source) {
+    private EvidenceDTO.Error remove(EvidenceItemEntity item, EvidenceDeleteReason reason, EvidenceDeletionReason published, String note, Attribution by) {
         if (item.getFileKey() != null) {
             try {
                 this.blobs.delete(item.getFileKey());
@@ -463,13 +476,13 @@ public class EvidenceService implements PunishmentEvidenceGateway {
             }
         }
         this.items.delete(item);
-        record(item, EvidenceAuditAction.DELETED, source, reason.name(), note);
+        record(item, EvidenceAuditAction.DELETED, by, reason.name(), note);
         publish(EvidenceEvents.DELETED, EvidenceEvents.deleted(item, published));
         return null;
     }
 
-    private EvidenceDTO attached(EvidenceItemEntity saved, UUID source) {
-        record(saved, EvidenceAuditAction.ATTACHED, source, null, null);
+    private EvidenceDTO attached(EvidenceItemEntity saved, Attribution by) {
+        record(saved, EvidenceAuditAction.ATTACHED, by, null, null);
         publish(EvidenceEvents.ATTACHED, EvidenceEvents.attached(saved));
         return toResponse(saved);
     }
@@ -487,28 +500,31 @@ public class EvidenceService implements PunishmentEvidenceGateway {
     }
 
     /** Lifted and revoked items in a returned page were revealed to the caller: each reveal is audited. */
-    private void auditInactive(Page<EvidenceItemEntity> page, UUID source) {
+    private void auditInactive(Page<EvidenceItemEntity> page, Attribution by) {
         for (EvidenceItemEntity item : page.getContent()) {
             if (item.getStatus() != EvidenceStatus.VALID) {
-                record(item, EvidenceAuditAction.VIEWED_INACTIVE, source, null, null);
+                record(item, EvidenceAuditAction.VIEWED_INACTIVE, by, null, null);
             }
         }
     }
 
     /**
      * Appends an audit line. It names the item, its punishment and owner (hashes and ids) and the
-     * unverified actor, plus the reason and note of an admin delete - never any evidence content.
+     * attributed actor and the verified principal ({@code null} for system actions), plus the reason and
+     * note of an admin delete - never any evidence content.
      */
-    private void record(EvidenceItemEntity item, EvidenceAuditAction action, UUID actor, String reason, String note) {
+    private void record(EvidenceItemEntity item, EvidenceAuditAction action, Attribution by, String reason, String note) {
         this.audit.save(new EvidenceAuditEntity(UUID.randomUUID(), item.getIdentifier(), item.getPunishmentIdentifier(),
-                item.getOwner(), action, actor, reason, note, this.clock.millis()));
+                item.getOwner(), action, by == null ? null : by.source(), by == null ? null : by.recordedByOid(),
+                reason, note, this.clock.millis()));
     }
 
-    private EvidenceItemEntity newItem(Target target, EvidenceKind kind, String sourceSystem, Long capturedAt, UUID source) {
+    private EvidenceItemEntity newItem(Target target, EvidenceKind kind, String sourceSystem, Long capturedAt, Attribution by) {
         EvidenceItemEntity item = new EvidenceItemEntity(UUID.randomUUID(), target.punishmentIdentifier(), target.owner(),
                 target.correlationId(), kind, sourceSystem, this.clock.millis());
         item.setCapturedAt(capturedAt);
-        item.setCreatedBy(source);
+        item.setCreatedBy(by.source());
+        item.setRecordedByOid(by.recordedByOid());
         return item;
     }
 
@@ -596,6 +612,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
                 item.getFileName(), item.getFileContentType(), item.getFileSize(), item.getFileSha256());
         return new EvidenceDTO.Response(item.getIdentifier(), item.getPunishmentIdentifier(), item.getOwner(), item.getCorrelationId(),
                 item.getKind(), item.getSourceSystem(), item.getCapturedAt(), item.getCreatedAt(), item.getCreatedBy(),
+                item.getRecordedByOid(), item.getRecordedByOid() != null,
                 item.getExternalRef(), item.getPayload() == null ? null : new HashMap<>(item.getPayload()), file,
                 item.getStatus(), item.getStatusChangedAt(), item.getLiftedByAppeal());
     }

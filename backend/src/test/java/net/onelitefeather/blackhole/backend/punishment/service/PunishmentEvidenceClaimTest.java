@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.OWNER;
+import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.ACTOR;
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.STAFF;
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.step;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -23,7 +24,7 @@ class PunishmentEvidenceClaimTest {
     }
 
     private PunishmentDTO apply(String correlationId) {
-        return bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "spam", null, STAFF, correlationId));
+        return bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "spam", null, null, correlationId), ACTOR);
     }
 
     @Test
@@ -60,7 +61,7 @@ class PunishmentEvidenceClaimTest {
 
     @Test
     void aRejectedApplyClaimsNothing() {
-        PunishmentDTO result = bed.punishmentService.apply(new PunishmentDTO.ApplyRequest("not-a-hash", "spam", null, STAFF, "c1"));
+        PunishmentDTO result = bed.punishmentService.apply(new PunishmentDTO.ApplyRequest("not-a-hash", "spam", null, null, "c1"), ACTOR);
 
         assertInstanceOf(PunishmentDTO.Error.class, result);
         assertTrue(bed.evidence.claims().isEmpty());

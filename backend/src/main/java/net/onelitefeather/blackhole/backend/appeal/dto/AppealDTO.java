@@ -25,6 +25,8 @@ public record AppealDTO(
         @NonNull AppealStatus status,
         @NonNull Map<String, Object> eligibilityCheckResult,
         @Nullable UUID decidedBy,
+        @Nullable UUID recordedByOid,
+        boolean verified,
         @Nullable String decisionNote,
         long createdAt,
         long updatedAt,
@@ -35,6 +37,7 @@ public record AppealDTO(
     /** This appeal with the number of valid evidence items of its punishment filled in. */
     public AppealDTO withEvidenceCount(long count) {
         return new AppealDTO(this.identifier, this.punishmentIdentifier, this.appellantHash, this.statement, this.status,
-                this.eligibilityCheckResult, this.decidedBy, this.decisionNote, this.createdAt, this.updatedAt, count, this.metaData);
+                this.eligibilityCheckResult, this.decidedBy, this.recordedByOid, this.verified, this.decisionNote, this.createdAt,
+                this.updatedAt, count, this.metaData);
     }
 }

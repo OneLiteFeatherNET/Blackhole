@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.UUID;
 
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.OWNER;
+import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.ACTOR;
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.STAFF;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -84,7 +85,7 @@ class PunishmentShortIdLookupTest {
     void anAppliedPunishmentCanBeFoundByTheShortIdOfItsIdentifier() {
         bed.givenTemplate("spam", "chat", null, PunishmentTestBed.step("PT1H", 50));
         var applied = assertInstanceOf(PunishmentDTO.ApplyResponse.class,
-                bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "spam", null, STAFF)));
+                bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "spam", null, null), ACTOR));
 
         String shortId = applied.punishment().shortId();
 

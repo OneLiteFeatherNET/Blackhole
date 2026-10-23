@@ -24,7 +24,10 @@ public sealed interface PunishmentDTO {
 
     /**
      * Apply a template to a player. Exactly one of {@code templateKey} and {@code templateId} is required.
+     * The staff member is the caller of the verified token; there is no client-supplied source.
      *
+     * @param onBehalfOf            the Minecraft UUID of the in-game staff member the proxy acts for; accepted only
+     *                              from the {@code PROXY} role (HTTP 400 otherwise)
      * @param evidenceCorrelationId the key evidence was sent under before this punishment existed;
      *                              the pending evidence of this owner with that key is attached to the new punishment
      */
@@ -35,13 +38,13 @@ public sealed interface PunishmentDTO {
             @NonNull @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
             @Nullable String templateKey,
             @Nullable UUID templateId,
-            @NonNull UUID source,
+            @Nullable UUID onBehalfOf,
             @Nullable @Size(max = 64) String evidenceCorrelationId
     ) implements PunishmentDTO {
 
         /** An apply request that claims no pending evidence. */
-        public ApplyRequest(String owner, String templateKey, UUID templateId, UUID source) {
-            this(owner, templateKey, templateId, source, null);
+        public ApplyRequest(String owner, String templateKey, UUID templateId, UUID onBehalfOf) {
+            this(owner, templateKey, templateId, onBehalfOf, null);
         }
     }
 
@@ -116,13 +119,19 @@ public sealed interface PunishmentDTO {
     record Escalation(@NonNull PunishEntryDTO punishment, int resultingScore) {
     }
 
+    /**
+     * Revoke the active punishment of a section. The revoking staff member is the caller of the verified token.
+     *
+     * @param onBehalfOf the Minecraft UUID of the in-game staff member the proxy acts for; accepted only from
+     *                   the {@code PROXY} role (HTTP 400 otherwise)
+     */
     @Schema(name = "PunishmentRevokeRequest")
     @Serdeable
     @ReflectiveAccess
     record RevokeRequest(
             @NonNull @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner,
             @NonNull @NotBlank String section,
-            @NonNull UUID source
+            @Nullable UUID onBehalfOf
     ) implements PunishmentDTO {
     }
 

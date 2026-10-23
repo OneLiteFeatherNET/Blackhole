@@ -63,7 +63,7 @@ public final class HttpBackendGateway implements BackendGateway {
     @Override
     public PunishmentApplyResponse apply(String owner, String templateKey, UUID source, String evidenceCorrelationId) throws ApiException {
         return this.punishmentApi.applyPunishment(new PunishmentApplyRequest()
-                .owner(owner).templateKey(templateKey).source(source).evidenceCorrelationId(evidenceCorrelationId));
+                .owner(owner).templateKey(templateKey).onBehalfOf(source).evidenceCorrelationId(evidenceCorrelationId));
     }
 
     @Override
@@ -93,7 +93,7 @@ public final class HttpBackendGateway implements BackendGateway {
 
     @Override
     public PunishmentRevokeResponse revoke(String owner, String section, UUID source) throws ApiException {
-        return this.punishmentApi.revokePunishment(new PunishmentRevokeRequest().owner(owner).section(section).source(source));
+        return this.punishmentApi.revokePunishment(new PunishmentRevokeRequest().owner(owner).section(section).onBehalfOf(source));
     }
 
     @Override

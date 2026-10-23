@@ -34,7 +34,7 @@ class ChatEvidenceRequestsTest {
         assertNull(request.getPunishment(), "evidence ahead of its punishment is addressed by owner and correlation id, not by punishment");
         assertEquals("velocity", request.getSourceSystem());
         assertEquals(3000L, request.getCapturedAt());
-        assertEquals(STAFF, request.getSource());
+        assertEquals(STAFF, request.getOnBehalfOf());
     }
 
     @Test

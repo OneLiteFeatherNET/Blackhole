@@ -38,7 +38,7 @@ public final class ChatEvidenceRequests {
                 .kind(EvidenceKind.CHAT_LOG)
                 .sourceSystem(sourceSystem)
                 .capturedAt(capturedAt)
-                .source(source)
+                .onBehalfOf(source)
                 .payload(Map.of("lines", lines));
     }
 }

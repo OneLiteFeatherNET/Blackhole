@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.elo.controller;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
 import io.micronaut.security.annotation.Secured;
 import net.onelitefeather.blackhole.backend.security.Roles;
 import io.micronaut.core.version.annotation.Version;
@@ -55,8 +56,8 @@ public class EloController implements EloApi {
 
     @Override
     @Secured(Roles.MODERATOR)
-    public HttpResponse<EloDTO> adjust(String owner, EloDTO.AdjustRequest request) {
-        EloDTO result = this.eloService.adjust(owner, request);
+    public HttpResponse<EloDTO> adjust(String owner, EloDTO.AdjustRequest request, Actor actor) {
+        EloDTO result = this.eloService.adjust(owner, request, actor);
         if (result instanceof EloDTO.Error error) {
             return HttpResponse.<EloDTO>status(error.kind().status()).body(error);
         }

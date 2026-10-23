@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.evidence.controller;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
 import io.micronaut.security.annotation.Secured;
 import net.onelitefeather.blackhole.backend.security.Roles;
 import io.micronaut.core.annotation.Nullable;
@@ -47,20 +48,21 @@ public class EvidenceController implements EvidenceApi {
 
     @Override
     @Secured({Roles.MODERATOR, Roles.PROXY})
-    public HttpResponse<EvidenceDTO> attach(EvidenceDTO.CreateRequest request) {
-        return toResponse(this.evidenceService.attach(request));
+    public HttpResponse<EvidenceDTO> attach(EvidenceDTO.CreateRequest request, Actor actor) {
+        return toResponse(this.evidenceService.attach(request, actor));
     }
 
     @Override
     @Secured({Roles.MODERATOR, Roles.PROXY})
     public HttpResponse<EvidenceDTO> upload(
             StreamingFileUpload file, @Nullable String punishment, @Nullable String owner, @Nullable String correlationId,
-            @Nullable String sourceSystem, @Nullable Long capturedAt, @Nullable String description, @Nullable UUID source
+            @Nullable String sourceSystem, @Nullable Long capturedAt, @Nullable String description, @Nullable UUID onBehalfOf,
+            Actor actor
     ) {
         EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(
-                punishment, owner, correlationId, sourceSystem, capturedAt, description, source, file.getFilename());
+                punishment, owner, correlationId, sourceSystem, capturedAt, description, onBehalfOf, file.getFilename());
         try (InputStream content = file.asInputStream()) {
-            return toResponse(this.evidenceService.attachFile(request, content));
+            return toResponse(this.evidenceService.attachFile(request, content, actor));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -68,8 +70,8 @@ public class EvidenceController implements EvidenceApi {
 
     @Override
     @Secured({Roles.VIEWER, Roles.PROXY})
-    public HttpResponse<EvidenceDTO> listByPunishment(String reference, boolean includeInactive, @Nullable UUID source, Pageable pageable) {
-        return toResponse(this.evidenceService.list(reference, includeInactive, pageable, source));
+    public HttpResponse<EvidenceDTO> listByPunishment(String reference, boolean includeInactive, Pageable pageable, Actor actor) {
+        return toResponse(this.evidenceService.list(reference, includeInactive, pageable, actor));
     }
 
     @Override
@@ -80,20 +82,20 @@ public class EvidenceController implements EvidenceApi {
 
     @Override
     @Secured({Roles.VIEWER, Roles.PROXY})
-    public HttpResponse<EvidenceDTO> listByOwner(String owner, boolean includeInactive, @Nullable UUID source, Pageable pageable) {
-        return toResponse(this.evidenceService.listByOwner(owner, includeInactive, pageable, source));
+    public HttpResponse<EvidenceDTO> listByOwner(String owner, boolean includeInactive, Pageable pageable, Actor actor) {
+        return toResponse(this.evidenceService.listByOwner(owner, includeInactive, pageable, actor));
     }
 
     @Override
     @Secured(Roles.VIEWER)
-    public HttpResponse<EvidenceDTO> get(UUID identifier, @Nullable UUID source) {
-        return toResponse(this.evidenceService.get(identifier, source));
+    public HttpResponse<EvidenceDTO> get(UUID identifier, Actor actor) {
+        return toResponse(this.evidenceService.get(identifier, actor));
     }
 
     @Override
     @Secured(Roles.VIEWER)
-    public HttpResponse<?> content(UUID identifier, @Nullable String range, @Nullable UUID source) {
-        return switch (this.evidenceService.content(identifier, range, source)) {
+    public HttpResponse<?> content(UUID identifier, @Nullable String range, Actor actor) {
+        return switch (this.evidenceService.content(identifier, range, actor)) {
             case EvidenceDTO.Download download -> file(download);
             case EvidenceDTO.OutOfRange outOfRange -> HttpResponse.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
                     .header("Content-Range", "bytes */" + outOfRange.size());
@@ -104,14 +106,14 @@ public class EvidenceController implements EvidenceApi {
 
     @Override
     @Secured(Roles.ADMIN)
-    public HttpResponse<EvidenceDTO> delete(UUID identifier, @Nullable String reason, @Nullable String note, @Nullable UUID source) {
-        return toResponse(this.evidenceService.delete(identifier, reason, note, source));
+    public HttpResponse<EvidenceDTO> delete(UUID identifier, @Nullable String reason, @Nullable String note, Actor actor) {
+        return toResponse(this.evidenceService.delete(identifier, reason, note, actor));
     }
 
     @Override
     @Secured(Roles.ADMIN)
-    public HttpResponse<EvidenceDTO> deleteByOwner(String owner, @Nullable String reason, @Nullable String note, @Nullable UUID source) {
-        return toResponse(this.evidenceService.deleteByOwner(owner, reason, note, source));
+    public HttpResponse<EvidenceDTO> deleteByOwner(String owner, @Nullable String reason, @Nullable String note, Actor actor) {
+        return toResponse(this.evidenceService.deleteByOwner(owner, reason, note, actor));
     }
 
     /**

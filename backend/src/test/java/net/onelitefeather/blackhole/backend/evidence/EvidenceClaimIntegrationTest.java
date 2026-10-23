@@ -28,7 +28,7 @@ class EvidenceClaimIntegrationTest extends ApiIntegrationTest {
 
     private void givenPending(String owner, String correlation) {
         EvidenceDTO result = this.context.getBean(EvidenceService.class).attach(new EvidenceDTO.CreateRequest(
-                null, owner, correlation, EvidenceKind.LINK, "it", null, "https://example.org/replay", null, UUID.fromString(STAFF)));
+                null, owner, correlation, EvidenceKind.LINK, "it", null, "https://example.org/replay", null, null), EvidenceTestBed.ACTOR);
         assertInstanceOf(EvidenceDTO.Response.class, result, String.valueOf(result));
     }
 
@@ -42,7 +42,7 @@ class EvidenceClaimIntegrationTest extends ApiIntegrationTest {
 
     private long listed(String punishment) {
         EvidenceDTO.PageResponse page = assertInstanceOf(EvidenceDTO.PageResponse.class,
-                this.context.getBean(EvidenceService.class).list(punishment, false, Pageable.from(0, 20), null));
+                this.context.getBean(EvidenceService.class).list(punishment, false, Pageable.from(0, 20), EvidenceTestBed.ACTOR));
         return page.totalSize();
     }
 

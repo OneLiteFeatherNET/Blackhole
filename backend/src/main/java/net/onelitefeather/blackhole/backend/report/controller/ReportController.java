@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.report.controller;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
 import io.micronaut.security.annotation.Secured;
 import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.report.dto.ReportRequestDTO;
@@ -32,14 +33,6 @@ import java.util.UUID;
  * per-reporterHash limit alone is therefore bypassable by simply varying that field on every
  * request; the service's network-wide rate limit is an aggregate backstop that caps the blast
  * radius regardless of what {@code reporterHash} value is claimed.</p>
- *
- * <p><b>Known limitation (deferred, not fixed here):</b> {@code resolve}'s {@code resolvedBy}
- * and {@code punishmentSource} are likewise client-supplied and unverified against the caller's
- * actual identity - the same property {@code PunishmentEntityController}'s {@code source} field
- * has had since Phase 0. This is a systemic actor-identity gap, not something specific to
- * reports, and is intentionally deferred to a dedicated pass that adds real per-actor identity
- * (and, if reintroduced, authentication) everywhere at once rather than patching one endpoint
- * inconsistently with the rest.</p>
  */
 @Version(ApiVersion.V1)
 @Controller("/report")
@@ -70,8 +63,8 @@ public class ReportController implements ReportApi {
 
     @Override
     @Secured(Roles.MODERATOR)
-    public HttpResponse<?> resolve(UUID identifier, ReportResolutionDTO resolution) {
-        ReportService.ResolveResult result = this.reportService.resolve(identifier, resolution);
+    public HttpResponse<?> resolve(UUID identifier, ReportResolutionDTO resolution, Actor actor) {
+        ReportService.ResolveResult result = this.reportService.resolve(identifier, resolution, actor);
         return switch (result) {
             case ReportService.ResolveResult.Success success -> HttpResponse.ok(success.report());
             case ReportService.ResolveResult.NotFound ignored ->
@@ -80,8 +73,6 @@ public class ReportController implements ReportApi {
                     error(ErrorKind.CONFLICT, "the report is already resolved (" + already.status() + ")");
             case ReportService.ResolveResult.TemplateNotAllowed notAllowed ->
                     error(ErrorKind.VALIDATION, notAllowed.message());
-            case ReportService.ResolveResult.PunishmentSourceRequired ignored ->
-                    error(ErrorKind.VALIDATION, "punishmentSource is required when punishmentTemplateId is set");
             case ReportService.ResolveResult.PunishmentRejected rejected -> error(rejected.kind(), rejected.message());
         };
     }

@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.support;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.security.ActorKind;
 import net.onelitefeather.blackhole.backend.elo.ThresholdEscalationPolicy;
 import net.onelitefeather.blackhole.backend.elo.service.EloService;
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
@@ -30,6 +32,10 @@ public final class PunishmentTestBed {
 
     public static final String OWNER = "ab".repeat(64);
     public static final UUID STAFF = UUID.nameUUIDFromBytes("staff".getBytes());
+    /** The verified caller of the punishment tests: a signed-in staff member whose oid is {@link #STAFF}. */
+    public static final Actor ACTOR = new Actor(STAFF, "Staff", ActorKind.HUMAN, false);
+    /** The proxy, which may vouch for an in-game staff member through onBehalfOf. */
+    public static final Actor PROXY = new Actor(UUID.nameUUIDFromBytes("proxy".getBytes()), "Proxy", ActorKind.SERVICE, true);
 
     public final EloTestBed eloBed = new EloTestBed();
     public final InMemoryRepository<PunishmentRepository, PunishmentEntity, String> punishments =

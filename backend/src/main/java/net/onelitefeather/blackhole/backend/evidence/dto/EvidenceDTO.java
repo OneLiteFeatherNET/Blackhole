@@ -38,7 +38,8 @@ public sealed interface EvidenceDTO {
      * @param capturedAt    when the evidence was captured, epoch millis
      * @param reference     the absolute http(s) URL of a REPLAY or LINK
      * @param payload       the kind's structured content; a REPLAY or LINK takes only a {@code description}
-     * @param source        the (unverified) UUID of the actor attaching the evidence
+     * @param onBehalfOf    the Minecraft UUID of the in-game staff member attaching the evidence; accepted only from
+     *                      the {@code PROXY} role (HTTP 400 otherwise). The caller of the token is always recorded.
      */
     @Schema(name = "EvidenceCreateRequest")
     @Serdeable
@@ -52,7 +53,7 @@ public sealed interface EvidenceDTO {
             @Nullable Long capturedAt,
             @Nullable String reference,
             @Nullable Map<String, Object> payload,
-            @Nullable UUID source
+            @Nullable UUID onBehalfOf
     ) implements EvidenceDTO {
     }
 
@@ -69,7 +70,7 @@ public sealed interface EvidenceDTO {
             @Nullable String sourceSystem,
             @Nullable Long capturedAt,
             @Nullable String description,
-            @Nullable UUID source,
+            @Nullable UUID onBehalfOf,
             @Nullable String fileName
     ) implements EvidenceDTO {
     }
@@ -104,7 +105,10 @@ public sealed interface EvidenceDTO {
      * @param sourceSystem         the (unverified) system that sent it
      * @param capturedAt           when it was captured, epoch millis
      * @param createdAt            when it was attached, epoch millis
-     * @param createdBy            the (unverified) actor, if given
+     * @param createdBy            the attributed actor: the caller's {@code oid}, the in-game staff UUID the proxy
+     *                             vouched for, or whatever was stored before SSO
+     * @param recordedByOid        the {@code oid} of the verified principal that attached it, {@code null} before SSO
+     * @param verified             whether {@code recordedByOid} is present
      * @param reference            the URL of a REPLAY or LINK
      * @param payload              the structured content
      * @param file                 the stored file's metadata
@@ -125,6 +129,8 @@ public sealed interface EvidenceDTO {
             @Nullable Long capturedAt,
             long createdAt,
             @Nullable UUID createdBy,
+            @Nullable UUID recordedByOid,
+            boolean verified,
             @Nullable String reference,
             @Nullable Map<String, Object> payload,
             @Nullable FileInfo file,

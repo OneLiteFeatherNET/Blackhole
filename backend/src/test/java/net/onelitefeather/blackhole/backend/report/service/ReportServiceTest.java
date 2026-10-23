@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.report.service;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.security.ActorKind;
 import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.report.CategorySectionMapping;
 import net.onelitefeather.blackhole.backend.report.ReportCategory;
@@ -24,9 +26,12 @@ import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReportServiceTest {
+
+    private static final Actor MODERATOR = new Actor(UUID.nameUUIDFromBytes("moderator".getBytes()), "Moderator", ActorKind.HUMAN, false);
 
     private static final String REPORTED = "aa".repeat(64);
     private static final String REPORTER = "bb".repeat(64);
@@ -48,7 +53,7 @@ class ReportServiceTest {
     }
 
     private ReportService.ResolveResult resolve(UUID id, ReportStatus status) {
-        return service.resolve(id, new ReportResolutionDTO(status, "note", UUID.randomUUID(), null, null));
+        return service.resolve(id, new ReportResolutionDTO(status, "note", null), MODERATOR);
     }
 
     @Test
@@ -83,7 +88,7 @@ class ReportServiceTest {
     }
 
     private ReportService.ResolveResult resolveWithTemplate(UUID id, UUID templateId) {
-        return service.resolve(id, new ReportResolutionDTO(ReportStatus.ACTIONED, "note", UUID.randomUUID(), templateId, UUID.randomUUID()));
+        return service.resolve(id, new ReportResolutionDTO(ReportStatus.ACTIONED, "note", templateId), MODERATOR);
     }
 
     @Test
@@ -136,7 +141,7 @@ class ReportServiceTest {
         var template = bed.givenTemplate("grief", "network", null, PunishmentTestBed.step("P3D", 100));
 
         var result = assertInstanceOf(ReportService.ResolveResult.TemplateNotAllowed.class,
-                service.resolve(id, new ReportResolutionDTO(ReportStatus.DISMISSED, "note", UUID.randomUUID(), template.getIdentifier(), UUID.randomUUID())));
+                service.resolve(id, new ReportResolutionDTO(ReportStatus.DISMISSED, "note", template.getIdentifier()), MODERATOR));
 
         assertFalse(result.message().isBlank());
         assertFalse(bed.profiles.repository().findById(REPORTED).isPresent(), "no punishment was applied");
@@ -195,5 +200,38 @@ class ReportServiceTest {
         resolve(id, ReportStatus.DISMISSED);
 
         assertTrue(scoring.deltas().isEmpty(), "only ACTIONED reports score");
+    }
+
+    @Test
+    void aResolvedReportRecordsTheResolversVerifiedOid() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+
+        var success = assertInstanceOf(ReportService.ResolveResult.Success.class, resolve(id, ReportStatus.DISMISSED));
+
+        assertEquals(MODERATOR.oid(), success.report().resolvedBy(), "resolvedBy is the token's oid");
+        assertEquals(MODERATOR.oid(), success.report().recordedByOid(), "recorded by the token's oid");
+        assertTrue(success.report().verified(), "resolved with a token");
+    }
+
+    @Test
+    void thePunishmentAppliedByAResolutionIsAttributedToTheResolver() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+        var template = bed.givenTemplate("grief", "network", null, PunishmentTestBed.step("P3D", 0));
+
+        resolveWithTemplate(id, template.getIdentifier());
+
+        var punishment = bed.punishments.all().getFirst();
+        assertEquals(MODERATOR.oid(), punishment.getSource(), "source is the resolver's oid");
+        assertEquals(MODERATOR.oid(), punishment.getRecordedByOid());
+    }
+
+    @Test
+    void anOpenReportIsReportedAsUnverified() {
+        UUID id = givenReport(ReportCategory.CHEATING);
+
+        var open = reports.repository().findById(id).orElseThrow().toDTO();
+
+        assertNull(open.recordedByOid(), "nobody resolved it yet");
+        assertEquals(false, open.verified());
     }
 }

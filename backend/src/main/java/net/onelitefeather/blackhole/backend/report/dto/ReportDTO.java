@@ -27,7 +27,12 @@ import java.util.UUID;
  * @param status             the current lifecycle state
  * @param createdAt          epoch millis when the report was submitted
  * @param updatedAt          epoch millis of the last status change
- * @param resolvedBy         the staff/system identity that resolved this report, if resolved
+ * @param resolvedBy         the staff identity that resolved this report, if resolved: the resolver's {@code oid}
+ *                           for reports resolved with a token, whatever was stored before SSO otherwise
+ * @param recordedByOid      the {@code oid} of the verified principal that resolved it, {@code null} while open
+ *                           and for reports resolved before SSO
+ * @param verified           whether the resolution is attributed to a verified principal; {@code false} for an open
+ *                           report and for one resolved before SSO
  * @param resolutionNote     a note explaining the resolution, if resolved
  * @param metaData           extensible metadata
  */
@@ -44,6 +49,8 @@ public record ReportDTO(
         long createdAt,
         long updatedAt,
         @Nullable UUID resolvedBy,
+        @Nullable UUID recordedByOid,
+        boolean verified,
         @Nullable @Size(max = 1000) String resolutionNote,
         @NonNull Map<String, Object> metaData
 ) {

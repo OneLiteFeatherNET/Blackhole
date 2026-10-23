@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.OWNER;
+import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.ACTOR;
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.STAFF;
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.step;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,8 +29,8 @@ class ActivePunishmentExpirerTest {
     private void givenMuteAndBan() {
         bed.givenTemplate("spam", "chat", null, step("PT1H", 0));
         bed.givenTemplate("grief", "network", null, step("P3D", 0));
-        bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "spam", null, STAFF));
-        bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "grief", null, STAFF));
+        bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "spam", null, null), ACTOR);
+        bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "grief", null, null), ACTOR);
         bed.eloBed.events.events().clear();
     }
 

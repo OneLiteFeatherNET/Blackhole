@@ -28,6 +28,8 @@ import net.onelitefeather.blackhole.backend.punishment.dto.PunishmentDTO;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.section.SectionService;
 import net.onelitefeather.blackhole.backend.section.dto.SectionDTO;
+import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.security.Attribution;
 import net.onelitefeather.blackhole.backend.utils.Durations;
 import net.onelitefeather.blackhole.backend.utils.IdGenerator;
 import net.onelitefeather.blackhole.backend.utils.OwnerHash;
@@ -67,6 +69,9 @@ import java.util.Optional;
 public class PunishmentApplicationService implements SectionPunisher {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PunishmentApplicationService.class);
+
+    /** The answer to an {@code onBehalfOf} from any role but the proxy. */
+    static final String ON_BEHALF_OF_PROXY_ONLY = "onBehalfOf is only accepted from the proxy";
 
     private static final String SOFT_REASON = "Automatic temporary punishment (ELO system)";
 
@@ -121,8 +126,8 @@ public class PunishmentApplicationService implements SectionPunisher {
      *
      * @return the {@link PunishmentDTO.PreviewResponse}, or the {@link PunishmentDTO.Error} {@link #apply} would answer
      */
-    public PunishmentDTO preview(PunishmentDTO.ApplyRequest request) {
-        Planned planned = plan(request);
+    public PunishmentDTO preview(PunishmentDTO.ApplyRequest request, Actor actor) {
+        Planned planned = plan(request, actor);
         if (planned.error() != null) {
             return planned.error();
         }
@@ -139,7 +144,8 @@ public class PunishmentApplicationService implements SectionPunisher {
     }
 
     /** Everything {@link #apply} and {@link #preview} agree on before they diverge. */
-    private record Plan(PunishmentTemplateEntity template, SectionDTO.Response section, long now, String group, StepSelector.Selection selection) {
+    private record Plan(PunishmentTemplateEntity template, SectionDTO.Response section, long now, String group,
+                        StepSelector.Selection selection, Attribution attribution) {
     }
 
     private record Planned(Plan plan, PunishmentDTO.Error error) {
@@ -150,12 +156,13 @@ public class PunishmentApplicationService implements SectionPunisher {
     }
 
     /** Validates the request and selects the escalation step, or says why the template cannot be applied. */
-    private Planned plan(PunishmentDTO.ApplyRequest request) {
+    private Planned plan(PunishmentDTO.ApplyRequest request, Actor actor) {
         if (!OwnerHash.isValid(request.owner())) {
             return failed(ErrorKind.VALIDATION, "owner must be a sha-512 hash");
         }
-        if (request.source() == null) {
-            return failed(ErrorKind.VALIDATION, "source is required");
+        Attribution attribution = actor.attribution(request.onBehalfOf()).orElse(null);
+        if (attribution == null) {
+            return failed(ErrorKind.VALIDATION, ON_BEHALF_OF_PROXY_ONLY);
         }
         boolean hasKey = request.templateKey() != null && !request.templateKey().isBlank();
         if (hasKey == (request.templateId() != null)) {
@@ -190,7 +197,7 @@ public class PunishmentApplicationService implements SectionPunisher {
                 owner, group, now - window.toMillis()
         );
         StepSelector.Selection selection = StepSelector.select(template.getSteps(), counted);
-        return new Planned(new Plan(template, section, now, group, selection), null);
+        return new Planned(new Plan(template, section, now, group, selection, attribution), null);
     }
 
     /**
@@ -200,10 +207,11 @@ public class PunishmentApplicationService implements SectionPunisher {
      *
      * @return the {@link PunishmentDTO.ApplyResponse}, or a {@link PunishmentDTO.Error} for an
      * invalid request, an unknown template or section, a disabled section, or an owner that is
-     * already permanently punished in the section - in every error case nothing changed
+     * already permanently punished in the section, or an {@code onBehalfOf} from a caller that is not
+     * the proxy - in every error case nothing changed
      */
-    public PunishmentDTO apply(PunishmentDTO.ApplyRequest request) {
-        Planned planned = plan(request);
+    public PunishmentDTO apply(PunishmentDTO.ApplyRequest request, Actor actor) {
+        Planned planned = plan(request, actor);
         if (planned.error() != null) {
             return planned.error();
         }
@@ -213,6 +221,7 @@ public class PunishmentApplicationService implements SectionPunisher {
         long now = planned.plan().now();
         String group = planned.plan().group();
         StepSelector.Selection selection = planned.plan().selection();
+        Attribution attribution = planned.plan().attribution();
         int cost = selection.step().getEloCost();
 
         Map<String, Object> metadata = new HashMap<>();
@@ -221,8 +230,9 @@ public class PunishmentApplicationService implements SectionPunisher {
         metadata.put(Expirable.META_DATA_KEY_EXPIRATION_DATE, now + selection.step().parsedDuration().toMillis());
 
         PunishmentEntity punishment = new PunishmentEntity(
-                IdGenerator.generateId(), request.source(), owner, section.key(), false, now, template, metadata
+                IdGenerator.generateId(), attribution.source(), owner, section.key(), false, now, template, metadata
         );
+        punishment.setRecordedByOid(attribution.recordedByOid());
         punishment.recordEscalation(group, selection.index(), selection.stepCount(), cost);
         PunishmentEntity saved = this.punishmentRepository.save(punishment);
         if (!place(owner, section, saved)) {
@@ -234,7 +244,7 @@ public class PunishmentApplicationService implements SectionPunisher {
         int scoreAfter;
         PunishmentDTO.Escalation escalation = null;
         EloScoring scoring = this.eloScoring.get();
-        if (cost > 0 && !EloService.SYSTEM_ELO_SOURCE.equals(request.source())) {
+        if (cost > 0 && !EloService.SYSTEM_ELO_SOURCE.equals(attribution.source())) {
             EloChange change = scoring.applyDelta(owner, section.key(), -cost, EloReasonCode.PUNISHMENT_APPLIED, null, Map.of(
                     "punishmentIdentifier", saved.getIdentifier(),
                     "templateIdentifier", template.getIdentifier().toString()
@@ -388,9 +398,13 @@ public class PunishmentApplicationService implements SectionPunisher {
      * @return the {@link PunishmentDTO.RevokeResponse}, or a {@link PunishmentDTO.Error} if the
      * request is invalid or the owner has no active punishment in that section
      */
-    public PunishmentDTO revoke(PunishmentDTO.RevokeRequest request) {
+    public PunishmentDTO revoke(PunishmentDTO.RevokeRequest request, Actor actor) {
         if (!OwnerHash.isValid(request.owner())) {
             return error(ErrorKind.VALIDATION, "owner must be a sha-512 hash");
+        }
+        Attribution attribution = actor.attribution(request.onBehalfOf()).orElse(null);
+        if (attribution == null) {
+            return error(ErrorKind.VALIDATION, ON_BEHALF_OF_PROXY_ONLY);
         }
         String owner = request.owner();
         PunishmentProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
@@ -404,7 +418,8 @@ public class PunishmentApplicationService implements SectionPunisher {
         if (!this.slots.clearIf(owner, request.section(), active.getIdentifier())) {
             return error(ErrorKind.NOT_FOUND, "the player has no active punishment in section '" + request.section() + "'");
         }
-        active.getMetaData().put("revokedBy", request.source().toString());
+        active.getMetaData().put("revokedBy", attribution.source().toString());
+        active.getMetaData().put("recordedByOid", attribution.recordedByOid().toString());
         active.getMetaData().put(Metadata.META_DATA_KEY_UPDATE_DATE, this.clock.millis());
         active.setLifted(true);
         this.punishmentRepository.update(active);
@@ -415,12 +430,13 @@ public class PunishmentApplicationService implements SectionPunisher {
         if (active.isPermanent()) {
             scoreReset = this.eloScoring.get().resetToPardon(owner, request.section(), Map.of(
                     "punishmentIdentifier", active.getIdentifier(),
-                    "revokedBy", request.source().toString()
+                    "revokedBy", attribution.source().toString(),
+                    "recordedByOid", attribution.recordedByOid().toString()
             )).orElse(null);
         }
 
         SectionDTO.Response section = this.sectionService.find(request.section()).orElse(null);
-        this.eventPublisher.publish("punishment.revoked", PunishmentEvents.revoked(active, section, request.source().toString()));
+        this.eventPublisher.publish("punishment.revoked", PunishmentEvents.revoked(active, section, attribution.source().toString(), attribution.recordedByOid()));
 
         return new PunishmentDTO.RevokeResponse(withEvidenceCount(active), request.section(), scoreReset);
     }

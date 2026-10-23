@@ -104,7 +104,7 @@ class EvidenceHousekeepingSweeperTest {
     @Test
     void auditRowsAreKeptWhenNoRetentionIsConfigured() {
         this.bed.audit.given(new EvidenceAuditEntity(UUID.randomUUID(), UUID.randomUUID(), null, OWNER,
-                EvidenceAuditAction.ATTACHED, null, null, null, this.bed.clock.millis()), UUID.randomUUID());
+                EvidenceAuditAction.ATTACHED, null, null, null, null, this.bed.clock.millis()), UUID.randomUUID());
         this.bed.clock.advance(Duration.ofDays(3650));
 
         this.bed.sweeper.sweep();
@@ -117,11 +117,11 @@ class EvidenceHousekeepingSweeperTest {
         this.bed.config.setAuditRetention(Duration.ofDays(30));
         UUID old = UUID.randomUUID();
         this.bed.audit.given(new EvidenceAuditEntity(old, UUID.randomUUID(), null, OWNER,
-                EvidenceAuditAction.ATTACHED, null, null, null, this.bed.clock.millis()), old);
+                EvidenceAuditAction.ATTACHED, null, null, null, null, this.bed.clock.millis()), old);
         this.bed.clock.advance(Duration.ofDays(31));
         UUID recent = UUID.randomUUID();
         this.bed.audit.given(new EvidenceAuditEntity(recent, UUID.randomUUID(), null, OWNER,
-                EvidenceAuditAction.ATTACHED, null, null, null, this.bed.clock.millis()), recent);
+                EvidenceAuditAction.ATTACHED, null, null, null, null, this.bed.clock.millis()), recent);
 
         this.bed.sweeper.sweep();
 

@@ -27,6 +27,7 @@ import java.util.stream.Stream;
 
 import static net.onelitefeather.blackhole.backend.evidence.EvidenceTestBed.OTHER_OWNER;
 import static net.onelitefeather.blackhole.backend.evidence.EvidenceTestBed.OWNER;
+import static net.onelitefeather.blackhole.backend.evidence.EvidenceTestBed.ACTOR;
 import static net.onelitefeather.blackhole.backend.evidence.EvidenceTestBed.STAFF;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -57,7 +58,7 @@ class EvidenceServiceTest {
 
     private static EvidenceDTO.CreateRequest link(String punishment, String owner, String correlation) {
         return new EvidenceDTO.CreateRequest(punishment, owner, correlation, EvidenceKind.LINK, "test-system", 5L,
-                "https://example.org/replay/1", Map.of("description", "d"), STAFF);
+                "https://example.org/replay/1", Map.of("description", "d"), null);
     }
 
     private EvidenceDTO.Response attached(EvidenceDTO result) {
@@ -73,7 +74,7 @@ class EvidenceServiceTest {
     void evidenceIsAttachedByTheFullPunishmentIdentifier() {
         PunishmentEntity punishment = givenPunishment(SHARED);
 
-        EvidenceDTO.Response response = attached(this.bed.service.attach(link(punishment.getIdentifier(), null, null)));
+        EvidenceDTO.Response response = attached(this.bed.service.attach(link(punishment.getIdentifier(), null, null), ACTOR));
 
         assertEquals(punishment.getIdentifier(), response.punishmentIdentifier());
         assertEquals(OWNER, response.owner(), "the owner comes from the punishment, not from the caller");
@@ -85,7 +86,7 @@ class EvidenceServiceTest {
     void evidenceIsAttachedByAShortIdThatMatchesOnePunishment() {
         PunishmentEntity punishment = givenPunishment(SHARED);
 
-        EvidenceDTO.Response response = attached(this.bed.service.attach(link("#a1b2c3d4", null, null)));
+        EvidenceDTO.Response response = attached(this.bed.service.attach(link("#a1b2c3d4", null, null), ACTOR));
 
         assertEquals(punishment.getIdentifier(), response.punishmentIdentifier());
     }
@@ -94,7 +95,7 @@ class EvidenceServiceTest {
     void aShortIdThatMatchesNothingIsNotFoundAndStoresNothing() {
         givenPunishment(SHARED);
 
-        assertError(this.bed.service.attach(link("#00000000", null, null)), EvidenceErrorKind.NOT_FOUND);
+        assertError(this.bed.service.attach(link("#00000000", null, null), ACTOR), EvidenceErrorKind.NOT_FOUND);
         assertTrue(this.bed.items.all().isEmpty(), "nothing is stored");
     }
 
@@ -103,7 +104,7 @@ class EvidenceServiceTest {
         PunishmentEntity first = givenPunishment(SHARED);
         PunishmentEntity second = givenPunishment(UUID.fromString("a1b2c3d4-ffff-4000-8000-000000000002"));
 
-        EvidenceDTO result = this.bed.service.attach(link("#A1B2C3D4", null, null));
+        EvidenceDTO result = this.bed.service.attach(link("#A1B2C3D4", null, null), ACTOR);
 
         assertError(result, EvidenceErrorKind.CONFLICT);
         String message = ((EvidenceDTO.Error) result).errorMessage();
@@ -113,39 +114,39 @@ class EvidenceServiceTest {
 
     @Test
     void anUnknownPunishmentReferenceIsNotFound() {
-        assertError(this.bed.service.attach(link("not-a-punishment", null, null)), EvidenceErrorKind.NOT_FOUND);
+        assertError(this.bed.service.attach(link("not-a-punishment", null, null), ACTOR), EvidenceErrorKind.NOT_FOUND);
     }
 
     @Test
     void aPunishmentTogetherWithAnOwnerIsRejectedBecauseExactlyOneTargetIsRequired() {
         PunishmentEntity punishment = givenPunishment(SHARED);
 
-        assertError(this.bed.service.attach(link(punishment.getIdentifier(), OWNER, "c1")), EvidenceErrorKind.VALIDATION);
+        assertError(this.bed.service.attach(link(punishment.getIdentifier(), OWNER, "c1"), ACTOR), EvidenceErrorKind.VALIDATION);
     }
 
     @Test
     void noTargetAtAllIsRejected() {
-        assertError(this.bed.service.attach(link(null, null, null)), EvidenceErrorKind.VALIDATION);
+        assertError(this.bed.service.attach(link(null, null, null), ACTOR), EvidenceErrorKind.VALIDATION);
     }
 
     @Test
     void anOwnerWithoutACorrelationIdIsRejected() {
-        assertError(this.bed.service.attach(link(null, OWNER, null)), EvidenceErrorKind.VALIDATION);
+        assertError(this.bed.service.attach(link(null, OWNER, null), ACTOR), EvidenceErrorKind.VALIDATION);
     }
 
     @Test
     void aCorrelationIdWithoutAnOwnerIsRejected() {
-        assertError(this.bed.service.attach(link(null, null, "c1")), EvidenceErrorKind.VALIDATION);
+        assertError(this.bed.service.attach(link(null, null, "c1"), ACTOR), EvidenceErrorKind.VALIDATION);
     }
 
     @Test
     void anOwnerThatIsNotAHashIsRejected() {
-        assertError(this.bed.service.attach(link(null, "player-uuid", "c1")), EvidenceErrorKind.VALIDATION);
+        assertError(this.bed.service.attach(link(null, "player-uuid", "c1"), ACTOR), EvidenceErrorKind.VALIDATION);
     }
 
     @Test
     void evidenceBeforeThePunishmentIsStoredPendingForTheOwner() {
-        EvidenceDTO.Response response = attached(this.bed.service.attach(link(null, OWNER, "c1")));
+        EvidenceDTO.Response response = attached(this.bed.service.attach(link(null, OWNER, "c1"), ACTOR));
 
         assertNull(response.punishmentIdentifier(), "a pending item belongs to no punishment yet");
         assertEquals("c1", response.correlationId());
@@ -157,7 +158,7 @@ class EvidenceServiceTest {
         EvidenceDTO.CreateRequest request = new EvidenceDTO.CreateRequest(null, OWNER, "c1", EvidenceKind.LINK, " ", null,
                 "https://example.org/", null, null);
 
-        assertError(this.bed.service.attach(request), EvidenceErrorKind.VALIDATION);
+        assertError(this.bed.service.attach(request, ACTOR), EvidenceErrorKind.VALIDATION);
     }
 
     @Test
@@ -165,7 +166,7 @@ class EvidenceServiceTest {
         EvidenceDTO.CreateRequest request = new EvidenceDTO.CreateRequest(null, OWNER, "c1", EvidenceKind.LINK, "test", null,
                 "javascript:alert(1)", null, null);
 
-        assertError(this.bed.service.attach(request), EvidenceErrorKind.VALIDATION);
+        assertError(this.bed.service.attach(request, ACTOR), EvidenceErrorKind.VALIDATION);
         assertTrue(this.bed.items.all().isEmpty(), "nothing is stored");
     }
 
@@ -173,12 +174,12 @@ class EvidenceServiceTest {
     void aPunishmentCanHaveManyItems() {
         PunishmentEntity punishment = givenPunishment(SHARED);
         for (int i = 0; i < 3; i++) {
-            attached(this.bed.service.attach(link(punishment.getIdentifier(), null, null)));
+            attached(this.bed.service.attach(link(punishment.getIdentifier(), null, null), ACTOR));
             this.bed.clock.advance(java.time.Duration.ofSeconds(1));
         }
 
         EvidenceDTO.PageResponse page = assertInstanceOf(EvidenceDTO.PageResponse.class,
-                this.bed.service.list(punishment.getIdentifier(), false, Pageable.from(0, 20), STAFF));
+                this.bed.service.list(punishment.getIdentifier(), false, Pageable.from(0, 20), ACTOR));
 
         assertEquals(3, page.items().size());
         assertEquals(3, page.totalSize());
@@ -188,19 +189,19 @@ class EvidenceServiceTest {
     void listingIsPaged() {
         PunishmentEntity punishment = givenPunishment(SHARED);
         for (int i = 0; i < 3; i++) {
-            attached(this.bed.service.attach(link(punishment.getIdentifier(), null, null)));
+            attached(this.bed.service.attach(link(punishment.getIdentifier(), null, null), ACTOR));
             this.bed.clock.advance(java.time.Duration.ofSeconds(1));
         }
 
         EvidenceDTO.PageResponse page = assertInstanceOf(EvidenceDTO.PageResponse.class,
-                this.bed.service.list(punishment.getIdentifier(), false, Pageable.from(1, 2), STAFF));
+                this.bed.service.list(punishment.getIdentifier(), false, Pageable.from(1, 2), ACTOR));
 
         assertEquals(1, page.items().size(), "the second page of two holds the third item");
         assertEquals(2, page.totalPages());
     }
 
     private EvidenceItemEntity givenInactive(PunishmentEntity punishment, EvidenceStatus status) {
-        EvidenceDTO.Response response = attached(this.bed.service.attach(link(punishment.getIdentifier(), null, null)));
+        EvidenceDTO.Response response = attached(this.bed.service.attach(link(punishment.getIdentifier(), null, null), ACTOR));
         EvidenceItemEntity item = this.bed.items.all().stream().filter(i -> i.getIdentifier().equals(response.identifier())).findFirst().orElseThrow();
         item.markStatus(status, 99L, null);
         return item;
@@ -209,12 +210,12 @@ class EvidenceServiceTest {
     @Test
     void liftedAndRevokedItemsAreHiddenFromTheDefaultList() {
         PunishmentEntity punishment = givenPunishment(SHARED);
-        attached(this.bed.service.attach(link(punishment.getIdentifier(), null, null)));
+        attached(this.bed.service.attach(link(punishment.getIdentifier(), null, null), ACTOR));
         givenInactive(punishment, EvidenceStatus.LIFTED);
         givenInactive(punishment, EvidenceStatus.REVOKED);
 
         EvidenceDTO.PageResponse page = assertInstanceOf(EvidenceDTO.PageResponse.class,
-                this.bed.service.list(punishment.getIdentifier(), false, Pageable.from(0, 20), STAFF));
+                this.bed.service.list(punishment.getIdentifier(), false, Pageable.from(0, 20), ACTOR));
 
         assertEquals(1, page.items().size());
         assertEquals(EvidenceStatus.VALID, page.items().getFirst().status());
@@ -226,7 +227,7 @@ class EvidenceServiceTest {
         givenInactive(punishment, EvidenceStatus.LIFTED);
 
         EvidenceDTO.PageResponse page = assertInstanceOf(EvidenceDTO.PageResponse.class,
-                this.bed.service.list(punishment.getIdentifier(), true, Pageable.from(0, 20), STAFF));
+                this.bed.service.list(punishment.getIdentifier(), true, Pageable.from(0, 20), ACTOR));
 
         assertEquals(1, page.items().size());
         assertEquals(EvidenceStatus.LIFTED, page.items().getFirst().status());
@@ -236,8 +237,8 @@ class EvidenceServiceTest {
     @Test
     void liftedAndRevokedItemsAreNotCounted() {
         PunishmentEntity punishment = givenPunishment(SHARED);
-        attached(this.bed.service.attach(link(punishment.getIdentifier(), null, null)));
-        attached(this.bed.service.attach(link(punishment.getIdentifier(), null, null)));
+        attached(this.bed.service.attach(link(punishment.getIdentifier(), null, null), ACTOR));
+        attached(this.bed.service.attach(link(punishment.getIdentifier(), null, null), ACTOR));
         givenInactive(punishment, EvidenceStatus.LIFTED);
         givenInactive(punishment, EvidenceStatus.REVOKED);
 
@@ -253,16 +254,16 @@ class EvidenceServiceTest {
 
     @Test
     void listingByOwnerRequiresAHash() {
-        assertError(this.bed.service.listByOwner("name", false, Pageable.from(0, 20), STAFF), EvidenceErrorKind.VALIDATION);
+        assertError(this.bed.service.listByOwner("name", false, Pageable.from(0, 20), ACTOR), EvidenceErrorKind.VALIDATION);
     }
 
     @Test
     void listingByOwnerReturnsOnlyThatOwnersItems() {
-        attached(this.bed.service.attach(link(null, OWNER, "c1")));
-        attached(this.bed.service.attach(link(null, OTHER_OWNER, "c1")));
+        attached(this.bed.service.attach(link(null, OWNER, "c1"), ACTOR));
+        attached(this.bed.service.attach(link(null, OTHER_OWNER, "c1"), ACTOR));
 
         EvidenceDTO.PageResponse page = assertInstanceOf(EvidenceDTO.PageResponse.class,
-                this.bed.service.listByOwner(OWNER, false, Pageable.from(0, 20), STAFF));
+                this.bed.service.listByOwner(OWNER, false, Pageable.from(0, 20), ACTOR));
 
         assertEquals(1, page.items().size());
         assertEquals(OWNER, page.items().getFirst().owner());
@@ -270,38 +271,38 @@ class EvidenceServiceTest {
 
     @Test
     void anUnknownEvidenceIdIsNotFound() {
-        assertError(this.bed.service.get(UUID.randomUUID(), STAFF), EvidenceErrorKind.NOT_FOUND);
+        assertError(this.bed.service.get(UUID.randomUUID(), ACTOR), EvidenceErrorKind.NOT_FOUND);
     }
 
     @Test
     void deletingWithoutAReasonIsRejectedAndKeepsTheItem() {
-        EvidenceDTO.Response response = attached(this.bed.service.attach(link(null, OWNER, "c1")));
+        EvidenceDTO.Response response = attached(this.bed.service.attach(link(null, OWNER, "c1"), ACTOR));
 
-        assertError(this.bed.service.delete(response.identifier(), null, null, STAFF), EvidenceErrorKind.VALIDATION);
+        assertError(this.bed.service.delete(response.identifier(), null, null, ACTOR), EvidenceErrorKind.VALIDATION);
         assertEquals(1, this.bed.items.all().size(), "the item still exists");
     }
 
     @Test
     void deletingWithAnUnknownReasonIsRejectedAndKeepsTheItem() {
-        EvidenceDTO.Response response = attached(this.bed.service.attach(link(null, OWNER, "c1")));
+        EvidenceDTO.Response response = attached(this.bed.service.attach(link(null, OWNER, "c1"), ACTOR));
 
-        assertError(this.bed.service.delete(response.identifier(), "BORED", null, STAFF), EvidenceErrorKind.VALIDATION);
+        assertError(this.bed.service.delete(response.identifier(), "BORED", null, ACTOR), EvidenceErrorKind.VALIDATION);
         assertEquals(1, this.bed.items.all().size());
     }
 
     @Test
     void deletingWithATooLongNoteIsRejected() {
-        EvidenceDTO.Response response = attached(this.bed.service.attach(link(null, OWNER, "c1")));
+        EvidenceDTO.Response response = attached(this.bed.service.attach(link(null, OWNER, "c1"), ACTOR));
 
-        assertError(this.bed.service.delete(response.identifier(), "OTHER", "x".repeat(501), STAFF), EvidenceErrorKind.VALIDATION);
+        assertError(this.bed.service.delete(response.identifier(), "OTHER", "x".repeat(501), ACTOR), EvidenceErrorKind.VALIDATION);
     }
 
     @Test
     void deletingWithAReasonRemovesTheItem() {
-        EvidenceDTO.Response response = attached(this.bed.service.attach(link(null, OWNER, "c1")));
+        EvidenceDTO.Response response = attached(this.bed.service.attach(link(null, OWNER, "c1"), ACTOR));
 
         EvidenceDTO.DeleteResponse deleted = assertInstanceOf(EvidenceDTO.DeleteResponse.class,
-                this.bed.service.delete(response.identifier(), "wrong_evidence", "typo", STAFF));
+                this.bed.service.delete(response.identifier(), "wrong_evidence", "typo", ACTOR));
 
         assertEquals(1, deleted.deleted());
         assertTrue(this.bed.items.all().isEmpty());
@@ -309,17 +310,17 @@ class EvidenceServiceTest {
 
     @Test
     void deletingAnUnknownItemIsNotFound() {
-        assertError(this.bed.service.delete(UUID.randomUUID(), "OTHER", null, STAFF), EvidenceErrorKind.NOT_FOUND);
+        assertError(this.bed.service.delete(UUID.randomUUID(), "OTHER", null, ACTOR), EvidenceErrorKind.NOT_FOUND);
     }
 
     @Test
     void erasingAnOwnerDeletesOnlyThatOwnersItemsAndFiles() throws IOException {
         EvidenceDTO.Response file = attached(upload(OWNER, "c1", EvidenceFixtures.png(8, 8)));
-        attached(this.bed.service.attach(link(null, OWNER, "c2")));
-        attached(this.bed.service.attach(link(null, OTHER_OWNER, "c1")));
+        attached(this.bed.service.attach(link(null, OWNER, "c2"), ACTOR));
+        attached(this.bed.service.attach(link(null, OTHER_OWNER, "c1"), ACTOR));
 
         EvidenceDTO.DeleteResponse deleted = assertInstanceOf(EvidenceDTO.DeleteResponse.class,
-                this.bed.service.deleteByOwner(OWNER, "ERASURE_REQUEST", null, STAFF));
+                this.bed.service.deleteByOwner(OWNER, "ERASURE_REQUEST", null, ACTOR));
 
         assertEquals(2, deleted.deleted());
         assertEquals(1, this.bed.items.all().size());
@@ -329,9 +330,9 @@ class EvidenceServiceTest {
 
     @Test
     void erasingWithoutAReasonDeletesNothing() {
-        attached(this.bed.service.attach(link(null, OWNER, "c1")));
+        attached(this.bed.service.attach(link(null, OWNER, "c1"), ACTOR));
 
-        assertError(this.bed.service.deleteByOwner(OWNER, "", null, STAFF), EvidenceErrorKind.VALIDATION);
+        assertError(this.bed.service.deleteByOwner(OWNER, "", null, ACTOR), EvidenceErrorKind.VALIDATION);
         assertEquals(1, this.bed.items.all().size());
     }
 
@@ -340,15 +341,15 @@ class EvidenceServiceTest {
         attached(upload(OWNER, "c1", EvidenceFixtures.png(8, 8)));
         this.bed.blobs.fail();
 
-        assertError(this.bed.service.deleteByOwner(OWNER, "ERASURE_REQUEST", null, STAFF), EvidenceErrorKind.UNAVAILABLE);
+        assertError(this.bed.service.deleteByOwner(OWNER, "ERASURE_REQUEST", null, ACTOR), EvidenceErrorKind.UNAVAILABLE);
         assertEquals(1, this.bed.items.all().size(), "the row stays so the deletion can be retried");
     }
 
     @Test
     void claimingAttachesThePendingItemsOfTheOwnerAndCorrelation() {
         PunishmentEntity punishment = givenPunishment(SHARED);
-        attached(this.bed.service.attach(link(null, OWNER, "c1")));
-        attached(this.bed.service.attach(link(null, OWNER, "c1")));
+        attached(this.bed.service.attach(link(null, OWNER, "c1"), ACTOR));
+        attached(this.bed.service.attach(link(null, OWNER, "c1"), ACTOR));
 
         int claimed = this.bed.service.claimPending(OWNER, "c1", punishment.getIdentifier());
 
@@ -360,8 +361,8 @@ class EvidenceServiceTest {
     @Test
     void claimingIgnoresAnotherOwnersAndAnotherCorrelationsItems() {
         PunishmentEntity punishment = givenPunishment(SHARED);
-        attached(this.bed.service.attach(link(null, OTHER_OWNER, "c1")));
-        attached(this.bed.service.attach(link(null, OWNER, "c2")));
+        attached(this.bed.service.attach(link(null, OTHER_OWNER, "c1"), ACTOR));
+        attached(this.bed.service.attach(link(null, OWNER, "c2"), ACTOR));
 
         assertEquals(0, this.bed.service.claimPending(OWNER, "c1", punishment.getIdentifier()));
         assertTrue(this.bed.items.all().stream().allMatch(EvidenceItemEntity::isPending), "nothing was claimed");
@@ -370,14 +371,14 @@ class EvidenceServiceTest {
     @Test
     void claimingWithoutACorrelationIdClaimsNothing() {
         PunishmentEntity punishment = givenPunishment(SHARED);
-        attached(this.bed.service.attach(link(null, OWNER, "c1")));
+        attached(this.bed.service.attach(link(null, OWNER, "c1"), ACTOR));
 
         assertEquals(0, this.bed.service.claimPending(OWNER, null, punishment.getIdentifier()));
     }
 
     private EvidenceDTO upload(String owner, String correlation, byte[] content) {
-        EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(null, owner, correlation, "test-system", null, null, STAFF, "shot.png");
-        return this.bed.service.attachFile(request, new ByteArrayInputStream(content));
+        EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(null, owner, correlation, "test-system", null, null, null, "shot.png");
+        return this.bed.service.attachFile(request, new ByteArrayInputStream(content), ACTOR);
     }
 
     @Test
@@ -395,18 +396,18 @@ class EvidenceServiceTest {
 
     @Test
     void anUploadKeepsAnOptionalDescription() throws IOException {
-        EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(null, OWNER, "c1", "test", null, "the hacker", STAFF, "a.png");
+        EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(null, OWNER, "c1", "test", null, "the hacker", null, "a.png");
 
-        EvidenceDTO.Response response = attached(this.bed.service.attachFile(request, new ByteArrayInputStream(EvidenceFixtures.png(8, 8))));
+        EvidenceDTO.Response response = attached(this.bed.service.attachFile(request, new ByteArrayInputStream(EvidenceFixtures.png(8, 8)), ACTOR));
 
         assertEquals("the hacker", response.payload().get("description"));
     }
 
     @Test
     void aDescriptionWithAnIpAddressIsRefusedAndNothingIsStored() throws IOException {
-        EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(null, OWNER, "c1", "test", null, "from 203.0.113.5", STAFF, "a.png");
+        EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(null, OWNER, "c1", "test", null, "from 203.0.113.5", null, "a.png");
 
-        assertError(this.bed.service.attachFile(request, new ByteArrayInputStream(EvidenceFixtures.png(8, 8))), EvidenceErrorKind.UNPROCESSABLE);
+        assertError(this.bed.service.attachFile(request, new ByteArrayInputStream(EvidenceFixtures.png(8, 8)), ACTOR), EvidenceErrorKind.UNPROCESSABLE);
         assertTrue(this.bed.blobs.keys().isEmpty());
         assertTrue(this.bed.items.all().isEmpty());
     }
@@ -440,16 +441,16 @@ class EvidenceServiceTest {
 
     @Test
     void anUploadWithoutATargetIsRejectedBeforeAnyBytesAreRead() throws IOException {
-        EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(null, null, null, "test", null, null, STAFF, "a.png");
+        EvidenceDTO.UploadRequest request = new EvidenceDTO.UploadRequest(null, null, null, "test", null, null, null, "a.png");
 
-        assertError(this.bed.service.attachFile(request, new ByteArrayInputStream(EvidenceFixtures.png(8, 8))), EvidenceErrorKind.VALIDATION);
+        assertError(this.bed.service.attachFile(request, new ByteArrayInputStream(EvidenceFixtures.png(8, 8)), ACTOR), EvidenceErrorKind.VALIDATION);
     }
 
     @Test
     void contentIsServedWhole() throws IOException {
         EvidenceDTO.Response response = attached(upload(OWNER, "c1", EvidenceFixtures.png(8, 8)));
 
-        EvidenceDTO.Download download = assertInstanceOf(EvidenceDTO.Download.class, this.bed.service.content(response.identifier(), null, STAFF));
+        EvidenceDTO.Download download = assertInstanceOf(EvidenceDTO.Download.class, this.bed.service.content(response.identifier(), null, ACTOR));
 
         assertEquals(response.file().size(), download.length());
         assertEquals(false, download.partial());
@@ -463,7 +464,7 @@ class EvidenceServiceTest {
         String key = this.bed.blobs.keys().iterator().next();
         byte[] stored = this.bed.blobs.bytes(key);
 
-        EvidenceDTO.Download download = assertInstanceOf(EvidenceDTO.Download.class, this.bed.service.content(response.identifier(), "bytes=2-5", STAFF));
+        EvidenceDTO.Download download = assertInstanceOf(EvidenceDTO.Download.class, this.bed.service.content(response.identifier(), "bytes=2-5", ACTOR));
 
         assertEquals(true, download.partial());
         assertEquals(4, download.length());
@@ -478,16 +479,16 @@ class EvidenceServiceTest {
         EvidenceDTO.Response response = attached(upload(OWNER, "c1", EvidenceFixtures.png(8, 8)));
 
         EvidenceDTO.OutOfRange outOfRange = assertInstanceOf(EvidenceDTO.OutOfRange.class,
-                this.bed.service.content(response.identifier(), "bytes=999999-", STAFF));
+                this.bed.service.content(response.identifier(), "bytes=999999-", ACTOR));
 
         assertEquals(response.file().size(), outOfRange.size());
     }
 
     @Test
     void contentOfAnItemWithoutAFileIsNotFound() {
-        EvidenceDTO.Response response = attached(this.bed.service.attach(link(null, OWNER, "c1")));
+        EvidenceDTO.Response response = attached(this.bed.service.attach(link(null, OWNER, "c1"), ACTOR));
 
-        assertError(this.bed.service.content(response.identifier(), null, STAFF), EvidenceErrorKind.NOT_FOUND);
+        assertError(this.bed.service.content(response.identifier(), null, ACTOR), EvidenceErrorKind.NOT_FOUND);
     }
 
     @Test
@@ -495,7 +496,7 @@ class EvidenceServiceTest {
         EvidenceDTO.Response response = attached(upload(OWNER, "c1", EvidenceFixtures.png(8, 8)));
         this.bed.blobs.keys().clear();
 
-        assertError(this.bed.service.content(response.identifier(), null, STAFF), EvidenceErrorKind.NOT_FOUND);
+        assertError(this.bed.service.content(response.identifier(), null, ACTOR), EvidenceErrorKind.NOT_FOUND);
     }
 
     @Test
@@ -503,6 +504,6 @@ class EvidenceServiceTest {
         EvidenceDTO.Response response = attached(upload(OWNER, "c1", EvidenceFixtures.png(8, 8)));
         this.bed.blobs.fail();
 
-        assertError(this.bed.service.content(response.identifier(), null, STAFF), EvidenceErrorKind.UNAVAILABLE);
+        assertError(this.bed.service.content(response.identifier(), null, ACTOR), EvidenceErrorKind.UNAVAILABLE);
     }
 }

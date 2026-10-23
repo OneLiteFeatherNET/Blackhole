@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.appeal.controller;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
 import io.micronaut.security.annotation.Secured;
 import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
@@ -88,8 +89,8 @@ public class AppealController implements AppealApi {
 
     @Override
     @Secured(Roles.MODERATOR)
-    public HttpResponse<?> review(UUID identifier, AppealReviewDTO review) {
-        AppealReviewResult result = this.decisionService.reviewAppeal(identifier, review);
+    public HttpResponse<?> review(UUID identifier, AppealReviewDTO review, Actor actor) {
+        AppealReviewResult result = this.decisionService.reviewAppeal(identifier, review, actor);
         return switch (result.kind()) {
             case NOT_FOUND -> HttpResponse.notFound();
             case NOT_AWAITING_REVIEW, PUNISHMENT_NOT_ACTIVE -> HttpResponse.status(HttpStatus.CONFLICT, result.message());

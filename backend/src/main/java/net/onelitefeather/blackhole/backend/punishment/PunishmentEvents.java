@@ -5,6 +5,7 @@ import net.onelitefeather.phoca.metadata.Expirable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Payloads of the punishment domain events, so every publisher (apply, escalation, import, expiry,
@@ -45,11 +46,19 @@ public final class PunishmentEvents {
     }
 
     /**
-     * Payload of {@code punishment.revoked}.
+     * Payload of {@code punishment.revoked}. {@code recordedByOid} is the verified principal that
+     * revoked it; {@code verified} says whether there is one, so a consumer never mistakes an
+     * unverified attribution for a verified one.
      */
-    public static Map<String, Object> revoked(PunishmentEntity punishment, SectionDTO.Response section, String revokedBy) {
+    public static Map<String, Object> revoked(
+            PunishmentEntity punishment, SectionDTO.Response section, String revokedBy, UUID recordedByOid
+    ) {
         Map<String, Object> payload = base(punishment, section);
         payload.put("revokedBy", revokedBy);
+        payload.put("verified", recordedByOid != null);
+        if (recordedByOid != null) {
+            payload.put("recordedByOid", recordedByOid.toString());
+        }
         return payload;
     }
 

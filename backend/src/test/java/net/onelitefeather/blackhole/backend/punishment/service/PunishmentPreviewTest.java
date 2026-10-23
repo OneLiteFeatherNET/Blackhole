@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.OWNER;
+import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.ACTOR;
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.STAFF;
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.step;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -21,11 +22,11 @@ class PunishmentPreviewTest {
     private final PunishmentTestBed bed = new PunishmentTestBed();
 
     private PunishmentDTO.ApplyRequest request(String templateKey) {
-        return new PunishmentDTO.ApplyRequest(OWNER, templateKey, null, STAFF);
+        return new PunishmentDTO.ApplyRequest(OWNER, templateKey, null, null);
     }
 
     private PunishmentDTO.PreviewResponse preview(String templateKey) {
-        PunishmentDTO result = bed.punishmentService.preview(request(templateKey));
+        PunishmentDTO result = bed.punishmentService.preview(request(templateKey), ACTOR);
         return assertInstanceOf(PunishmentDTO.PreviewResponse.class, result, "expected a preview but got " + result);
     }
 
@@ -54,7 +55,7 @@ class PunishmentPreviewTest {
     @Test
     void thePreviewFollowsTheOffencesAlreadyCounted() {
         givenHackingLadder();
-        bed.punishmentService.apply(request("hacking"));
+        bed.punishmentService.apply(request("hacking"), ACTOR);
 
         PunishmentDTO.PreviewResponse preview = preview("hacking");
 
@@ -101,13 +102,13 @@ class PunishmentPreviewTest {
 
         assertTrue(bed.punishments.all().isEmpty(), "no punishment was stored");
         assertEquals(-1, bed.eloBed.storedScore(OWNER, "network"), "no score row was written");
-        assertEquals(1, ((PunishmentDTO.ApplyResponse) bed.punishmentService.apply(request("hacking"))).step(),
+        assertEquals(1, ((PunishmentDTO.ApplyResponse) bed.punishmentService.apply(request("hacking"), ACTOR)).step(),
                 "the previews did not count as offences");
     }
 
     @Test
     void previewingAnUnknownTemplateIsNotFound() {
-        PunishmentDTO result = bed.punishmentService.preview(request("missing"));
+        PunishmentDTO result = bed.punishmentService.preview(request("missing"), ACTOR);
 
         assertEquals(ErrorKind.NOT_FOUND, assertInstanceOf(PunishmentDTO.Error.class, result).kind());
     }
@@ -118,14 +119,14 @@ class PunishmentPreviewTest {
         bed.eloBed.givenScore(OWNER, "network", 400);
         bed.elo.applyDelta(OWNER, "network", -200, net.onelitefeather.blackhole.backend.elo.EloReasonCode.MANUAL_ADJUSTMENT, null, java.util.Map.of());
 
-        PunishmentDTO result = bed.punishmentService.preview(request("hacking"));
+        PunishmentDTO result = bed.punishmentService.preview(request("hacking"), ACTOR);
 
         assertEquals(ErrorKind.CONFLICT, assertInstanceOf(PunishmentDTO.Error.class, result, "permanent ban in force").kind());
     }
 
     @Test
     void anInvalidOwnerIsAValidationError() {
-        PunishmentDTO result = bed.punishmentService.preview(new PunishmentDTO.ApplyRequest("nope", "hacking", null, STAFF));
+        PunishmentDTO result = bed.punishmentService.preview(new PunishmentDTO.ApplyRequest("nope", "hacking", null, null), ACTOR);
 
         assertEquals(ErrorKind.VALIDATION, assertInstanceOf(PunishmentDTO.Error.class, result).kind());
     }
@@ -133,7 +134,7 @@ class PunishmentPreviewTest {
     @Test
     void theEscalationWindowOfTheTemplateDecidesWhichOffencesCount() {
         givenHackingLadder();
-        bed.punishmentService.apply(request("hacking"));
+        bed.punishmentService.apply(request("hacking"), ACTOR);
         bed.eloBed.clock.advance(Duration.ofDays(366));
 
         assertEquals(1, preview("hacking").step(), "the earlier offence is outside the default window");

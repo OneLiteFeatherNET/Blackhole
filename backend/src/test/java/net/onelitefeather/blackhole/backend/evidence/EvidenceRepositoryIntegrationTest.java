@@ -88,7 +88,7 @@ class EvidenceRepositoryIntegrationTest extends PostgresIntegrationTest {
         String punishment = givenPunishment();
         EvidenceItemEntity item = givenItem(punishment, OWNER, null, EvidenceStatus.VALID, 10L);
         this.audit.save(new EvidenceAuditEntity(UUID.randomUUID(), item.getIdentifier(), punishment, OWNER,
-                EvidenceAuditAction.ATTACHED, null, null, null, 10L));
+                EvidenceAuditAction.ATTACHED, null, null, null, null, 10L));
 
         this.punishments.deleteById(punishment);
 

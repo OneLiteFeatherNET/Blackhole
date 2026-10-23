@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.OWNER;
+import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.ACTOR;
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.STAFF;
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.step;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,7 +31,7 @@ class PunishmentEvidenceCountTest {
     }
 
     private PunishEntryDTO applied() {
-        PunishmentDTO result = bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "spam", null, STAFF));
+        PunishmentDTO result = bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "spam", null, null), ACTOR);
         return assertInstanceOf(PunishmentDTO.ApplyResponse.class, result).punishment();
     }
 

@@ -10,7 +10,7 @@ import java.util.UUID;
 /**
  * One line of the append-only evidence audit trail. It has no foreign keys, so it outlives the
  * evidence it describes, and it never holds evidence content - only ids, the hashed owner, who
- * (unverified, client-supplied) did what, and an admin delete's reason and note.
+ * (the attributed actor and the verified principal that recorded it) did what, and an admin delete's reason and note.
  */
 @Entity
 @Table(name = "evidence_audit")
@@ -31,6 +31,10 @@ public class EvidenceAuditEntity {
 
     private UUID actor;
 
+    /** The {@code oid} of the verified principal behind the action; {@code null} for system actions and pre-SSO rows. */
+    @Column(name = "recorded_by_oid")
+    private UUID recordedByOid;
+
     @Column(length = 32)
     private String reason;
 
@@ -46,7 +50,7 @@ public class EvidenceAuditEntity {
 
     public EvidenceAuditEntity(
             UUID identifier, UUID evidenceIdentifier, String punishmentIdentifier, String owner,
-            EvidenceAuditAction action, UUID actor, String reason, String note, long occurredAt
+            EvidenceAuditAction action, UUID actor, UUID recordedByOid, String reason, String note, long occurredAt
     ) {
         this.identifier = identifier;
         this.evidenceIdentifier = evidenceIdentifier;
@@ -54,6 +58,7 @@ public class EvidenceAuditEntity {
         this.owner = owner;
         this.action = action;
         this.actor = actor;
+        this.recordedByOid = recordedByOid;
         this.reason = reason;
         this.note = note;
         this.occurredAt = occurredAt;
@@ -81,6 +86,10 @@ public class EvidenceAuditEntity {
 
     public UUID getActor() {
         return actor;
+    }
+
+    public UUID getRecordedByOid() {
+        return recordedByOid;
     }
 
     public String getReason() {

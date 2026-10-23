@@ -13,6 +13,7 @@ import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishEntryDTO;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishmentDTO;
 import net.onelitefeather.blackhole.backend.punishment.service.PunishmentApplicationService;
+import net.onelitefeather.blackhole.backend.security.Actor;
 
 /**
  * Routing and OpenAPI annotations live on {@link PunishmentApi}, which this class implements.
@@ -34,20 +35,20 @@ public class PunishmentEntityController implements PunishmentApi {
 
     @Override
     @Secured({Roles.MODERATOR, Roles.PROXY})
-    public HttpResponse<PunishmentDTO> apply(PunishmentDTO.ApplyRequest request) {
-        return toResponse(this.punishmentApplicationService.apply(request));
+    public HttpResponse<PunishmentDTO> apply(PunishmentDTO.ApplyRequest request, Actor actor) {
+        return toResponse(this.punishmentApplicationService.apply(request, actor));
     }
 
     @Override
     @Secured(Roles.MODERATOR)
-    public HttpResponse<PunishmentDTO> preview(PunishmentDTO.ApplyRequest request) {
-        return toResponse(this.punishmentApplicationService.preview(request));
+    public HttpResponse<PunishmentDTO> preview(PunishmentDTO.ApplyRequest request, Actor actor) {
+        return toResponse(this.punishmentApplicationService.preview(request, actor));
     }
 
     @Override
     @Secured({Roles.MODERATOR, Roles.PROXY})
-    public HttpResponse<PunishmentDTO> revoke(PunishmentDTO.RevokeRequest request) {
-        return toResponse(this.punishmentApplicationService.revoke(request));
+    public HttpResponse<PunishmentDTO> revoke(PunishmentDTO.RevokeRequest request, Actor actor) {
+        return toResponse(this.punishmentApplicationService.revoke(request, actor));
     }
 
     @Override

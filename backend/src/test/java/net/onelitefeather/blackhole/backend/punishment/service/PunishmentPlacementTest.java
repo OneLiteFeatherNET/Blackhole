@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.OWNER;
+import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.ACTOR;
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.STAFF;
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.step;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,7 +33,7 @@ class PunishmentPlacementTest {
 
     private PunishmentDTO.ApplyResponse apply(String key) {
         return assertInstanceOf(PunishmentDTO.ApplyResponse.class,
-                bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, key, null, STAFF)));
+                bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, key, null, null), ACTOR));
     }
 
     @Test
@@ -41,7 +42,7 @@ class PunishmentPlacementTest {
         bed.slots.failNextOccupy(new IllegalStateException("database down"));
 
         assertThrows(IllegalStateException.class,
-                () -> bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "spam", null, STAFF)));
+                () -> bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "spam", null, null), ACTOR));
 
         assertTrue(bed.punishments.all().isEmpty(), "the saved punishment must be removed again");
     }
@@ -51,7 +52,7 @@ class PunishmentPlacementTest {
         bed.givenTemplate("spam", "chat", null, step("PT1H", 0), step("PT2H", 0));
         bed.slots.failNextOccupy(new IllegalStateException("database down"));
         assertThrows(IllegalStateException.class,
-                () -> bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "spam", null, STAFF)));
+                () -> bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "spam", null, null), ACTOR));
 
         PunishmentDTO.ApplyResponse retry = apply("spam");
 

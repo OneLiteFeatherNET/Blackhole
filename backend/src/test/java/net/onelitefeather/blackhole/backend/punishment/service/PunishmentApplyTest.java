@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.OWNER;
+import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.ACTOR;
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.STAFF;
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.step;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,12 +32,12 @@ class PunishmentApplyTest {
     private final PunishmentTestBed bed = new PunishmentTestBed();
 
     private PunishmentDTO.ApplyResponse apply(String templateKey) {
-        PunishmentDTO result = bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, templateKey, null, STAFF));
+        PunishmentDTO result = bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, templateKey, null, null), ACTOR);
         return assertInstanceOf(PunishmentDTO.ApplyResponse.class, result, "expected the template to be applied but got " + result);
     }
 
     private PunishmentDTO.Error applyExpectingError(PunishmentDTO.ApplyRequest request, ErrorKind kind) {
-        PunishmentDTO.Error error = assertInstanceOf(PunishmentDTO.Error.class, bed.punishmentService.apply(request));
+        PunishmentDTO.Error error = assertInstanceOf(PunishmentDTO.Error.class, bed.punishmentService.apply(request, ACTOR));
         assertEquals(kind, error.kind(), error.errorMessage());
         return error;
     }
@@ -112,7 +113,7 @@ class PunishmentApplyTest {
     void aRevokedPunishmentDoesNotCountTowardsTheNextStep() {
         givenHackingLadder();
         apply("hacking");
-        bed.punishmentService.revoke(new PunishmentDTO.RevokeRequest(OWNER, "network", STAFF));
+        bed.punishmentService.revoke(new PunishmentDTO.RevokeRequest(OWNER, "network", null), ACTOR);
 
         assertEquals(1, apply("hacking").step(), "the revoked punishment is not counted");
     }
@@ -153,7 +154,7 @@ class PunishmentApplyTest {
     void theOffencesOfOtherPlayersDoNotCount() {
         givenHackingLadder();
         String other = "cd".repeat(64);
-        bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(other, "hacking", null, STAFF));
+        bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(other, "hacking", null, null), ACTOR);
 
         assertEquals(1, apply("hacking").step());
     }
@@ -196,14 +197,14 @@ class PunishmentApplyTest {
     void applyingByIdWorksLikeApplyingByKey() {
         PunishmentTemplateEntity template = bed.givenTemplate("spam", "chat", null, step("PT1H", 50));
 
-        PunishmentDTO result = bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, null, template.getIdentifier(), STAFF));
+        PunishmentDTO result = bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, null, template.getIdentifier(), null), ACTOR);
 
         assertInstanceOf(PunishmentDTO.ApplyResponse.class, result);
     }
 
     @Test
     void anUnknownTemplateIsNotFoundAndChangesNothing() {
-        applyExpectingError(new PunishmentDTO.ApplyRequest(OWNER, "ghost", null, STAFF), ErrorKind.NOT_FOUND);
+        applyExpectingError(new PunishmentDTO.ApplyRequest(OWNER, "ghost", null, null), ErrorKind.NOT_FOUND);
 
         assertTrue(bed.punishments.all().isEmpty(), "no punishment");
         assertTrue(bed.profiles.all().isEmpty(), "no profile");
@@ -214,15 +215,15 @@ class PunishmentApplyTest {
     void aRequestNamingNoTemplateOrBothIsRejected() {
         bed.givenTemplate("spam", "chat", null, step("PT1H", 50));
 
-        applyExpectingError(new PunishmentDTO.ApplyRequest(OWNER, null, null, STAFF), ErrorKind.VALIDATION);
-        applyExpectingError(new PunishmentDTO.ApplyRequest(OWNER, "spam", UUID.randomUUID(), STAFF), ErrorKind.VALIDATION);
+        applyExpectingError(new PunishmentDTO.ApplyRequest(OWNER, null, null, null), ErrorKind.VALIDATION);
+        applyExpectingError(new PunishmentDTO.ApplyRequest(OWNER, "spam", UUID.randomUUID(), null), ErrorKind.VALIDATION);
     }
 
     @Test
     void anOwnerThatIsNotAHashIsRejectedWithoutAnyChange() {
         bed.givenTemplate("spam", "chat", null, step("PT1H", 50));
 
-        applyExpectingError(new PunishmentDTO.ApplyRequest("not-a-hash", "spam", null, STAFF), ErrorKind.VALIDATION);
+        applyExpectingError(new PunishmentDTO.ApplyRequest("not-a-hash", "spam", null, null), ErrorKind.VALIDATION);
 
         assertTrue(bed.punishments.all().isEmpty());
     }
@@ -232,7 +233,7 @@ class PunishmentApplyTest {
         bed.givenTemplate("spam", "chat", null, step("PT1H", 50));
         bed.eloBed.sections.disable("chat");
 
-        applyExpectingError(new PunishmentDTO.ApplyRequest(OWNER, "spam", null, STAFF), ErrorKind.CONFLICT);
+        applyExpectingError(new PunishmentDTO.ApplyRequest(OWNER, "spam", null, null), ErrorKind.CONFLICT);
 
         assertTrue(bed.punishments.all().isEmpty(), "no punishment");
         assertTrue(bed.eloBed.eventRepository.all().isEmpty(), "no deduction");
@@ -268,7 +269,7 @@ class PunishmentApplyTest {
         bed.givenTemplate("grief", "network", null, step("P3D", 200));
 
         bed.punishmentService.apply(new PunishmentDTO.ApplyRequest(OWNER, "grief", null,
-                net.onelitefeather.blackhole.backend.elo.service.EloService.SYSTEM_ELO_SOURCE));
+                net.onelitefeather.blackhole.backend.elo.service.EloService.SYSTEM_ELO_SOURCE), ACTOR);
 
         assertTrue(bed.eloBed.eventRepository.all().isEmpty(), "the ELO system never charges itself");
     }
@@ -312,7 +313,7 @@ class PunishmentApplyTest {
         apply("grief");
         int punishmentsBefore = bed.punishments.all().size();
 
-        applyExpectingError(new PunishmentDTO.ApplyRequest(OWNER, "grief", null, STAFF), ErrorKind.CONFLICT);
+        applyExpectingError(new PunishmentDTO.ApplyRequest(OWNER, "grief", null, null), ErrorKind.CONFLICT);
 
         assertEquals(punishmentsBefore, bed.punishments.all().size(), "the permanent punishment is not downgraded");
     }
