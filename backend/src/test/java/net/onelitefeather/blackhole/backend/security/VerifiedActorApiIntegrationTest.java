@@ -352,6 +352,28 @@ class VerifiedActorApiIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void theStaffActorListShowsTheSignedInPrincipalAndHidesAnAnonymizedName() {
+        String list = "/admin/staff-actor";
+        assertEquals(200, get("/auth/me", moderator()).status(), "the moderator is recorded as seen");
+
+        Reply before = get(list, this.jwt.admin());
+        assertEquals(200, before.status(), before.body());
+        Map<String, Object> row = items(before).stream().filter(i -> MODERATOR_OID.toString().equals(i.get("oid"))).findFirst().orElseThrow();
+        assertEquals("HUMAN", row.get("kind"), "a signed-in person");
+        assertNotNull(row.get("displayName"), "the name is listed before anonymizing");
+
+        assertEquals(200, post("/admin/staff-actor/" + MODERATOR_OID + "/anonymize", null, this.jwt.admin()).status());
+        Map<String, Object> after = items(get(list, this.jwt.admin())).stream()
+                .filter(i -> MODERATOR_OID.toString().equals(i.get("oid"))).findFirst().orElseThrow();
+        assertNull(after.get("displayName"), "the erased name is not listed");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> items(Reply reply) {
+        return (List<Map<String, Object>>) reply.json().get("items");
+    }
+
+    @Test
     void anonymizingAnUnknownStaffActorIsNotFound() {
         assertEquals(404, post("/admin/staff-actor/" + UUID.randomUUID() + "/anonymize", null, this.jwt.admin()).status());
     }
