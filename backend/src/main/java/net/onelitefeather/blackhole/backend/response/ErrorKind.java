@@ -26,7 +26,10 @@ public enum ErrorKind {
     FORBIDDEN(HttpStatus.FORBIDDEN),
 
     /** A staff link code is wrong, expired or already used; deliberately one answer for all three (400). */
-    INVALID_CODE(HttpStatus.BAD_REQUEST);
+    INVALID_CODE(HttpStatus.BAD_REQUEST),
+
+    /** A dependency the request needs, such as the shared cache, is down; the caller may retry (503). */
+    UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE);
 
     private final HttpStatus status;
 

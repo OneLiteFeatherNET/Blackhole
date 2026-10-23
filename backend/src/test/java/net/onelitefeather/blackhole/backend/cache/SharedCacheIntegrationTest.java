@@ -103,4 +103,17 @@ class SharedCacheIntegrationTest {
         assertTrue(cache().get(uniqueKey("missing"), Argument.of(String.class)).isEmpty(),
                 "a key never written must read as a miss");
     }
+
+    @Test
+    void keysFindsOnlyTheKeysMatchingThePattern() {
+        String prefix = uniqueKey("scan");
+        SharedCache cache = cache();
+        cache.put(prefix + ":a", Argument.of(String.class), "a", Duration.ofMinutes(1));
+        cache.put(prefix + ":b", Argument.of(String.class), "b", Duration.ofMinutes(1));
+        cache.put(uniqueKey("other"), Argument.of(String.class), "c", Duration.ofMinutes(1));
+
+        java.util.List<String> keys = cache.keys(prefix + ":*").orElseThrow();
+
+        assertEquals(java.util.List.of(prefix + ":a", prefix + ":b"), keys.stream().sorted().toList());
+    }
 }

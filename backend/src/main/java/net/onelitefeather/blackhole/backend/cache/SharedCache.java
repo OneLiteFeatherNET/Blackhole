@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.cache;
 
+import io.lettuce.core.KeyScanCursor;
+import io.lettuce.core.ScanArgs;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.core.type.Argument;
@@ -10,7 +12,9 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -73,6 +77,49 @@ public class SharedCache {
         } catch (Exception e) {
             LOGGER.error("Shared cache write failed for {}: {}", key, e.getMessage());
         }
+    }
+
+    /**
+     * Like {@link #put} but reports whether the write reached the cache, for callers that must tell
+     * their client to retry when it did not.
+     */
+    public <T> boolean tryPut(String key, Argument<T> type, T value, Duration ttl) {
+        try {
+            String json = new String(this.jsonMapper.writeValueAsBytes(type, value), StandardCharsets.UTF_8);
+            this.connection.async().psetex(key, ttl.toMillis(), json).get(this.timeoutMillis, TimeUnit.MILLISECONDS);
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOGGER.warn("Shared cache write interrupted for {}", key);
+        } catch (Exception e) {
+            LOGGER.error("Shared cache write failed for {}: {}", key, e.getMessage());
+        }
+        return false;
+    }
+
+    /**
+     * Lists the keys matching a glob with SCAN (never KEYS).
+     *
+     * @return the keys, or empty if the cache could not be reached; an empty list means "no match"
+     */
+    public Optional<List<String>> keys(String pattern) {
+        try {
+            ScanArgs args = ScanArgs.Builder.matches(pattern).limit(1000);
+            List<String> found = new ArrayList<>();
+            KeyScanCursor<String> cursor = this.connection.async().scan(args).get(this.timeoutMillis, TimeUnit.MILLISECONDS);
+            found.addAll(cursor.getKeys());
+            while (!cursor.isFinished()) {
+                cursor = this.connection.async().scan(cursor, args).get(this.timeoutMillis, TimeUnit.MILLISECONDS);
+                found.addAll(cursor.getKeys());
+            }
+            return Optional.of(found);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOGGER.warn("Shared cache scan interrupted for {}", pattern);
+        } catch (Exception e) {
+            LOGGER.warn("Shared cache scan failed for {}: {}", pattern, e.getMessage());
+        }
+        return Optional.empty();
     }
 
     /**
