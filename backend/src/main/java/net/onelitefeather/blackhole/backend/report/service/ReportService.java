@@ -40,11 +40,10 @@ import java.util.UUID;
  * half-updated (FR-013/SC-006's "no partial completion" guarantee). Preserve this ordering in any
  * future change to this method.</p>
  *
- * <p><b>Security note:</b> {@code reporterHash} is client-supplied - there is no authentication in
- * this system at all, so nothing here can verify it actually belongs to the caller. A
- * per-reporterHash limit alone is therefore bypassable by simply varying that field on every
- * request; {@code rateLimitMaxReportsNetworkWide} is an aggregate, network-wide backstop that caps
- * the blast radius regardless of what {@code reporterHash} value is claimed.</p>
+ * <p><b>Security note:</b> the caller is the verified Entra ID token, but the reporter is not taken
+ * from it. {@code reporterHash} is still client-supplied and cannot be verified, so a
+ * per-reporterHash limit can be bypassed by varying it. {@code rateLimitMaxReportsNetworkWide} is
+ * the aggregate, network-wide backstop that caps the blast radius.</p>
  *
  * <p>{@code resolve} takes the resolver from the verified {@link Actor}: {@code resolvedBy} and the
  * source of an applied punishment are the caller's {@code oid}, and {@code recorded_by_oid} is set
