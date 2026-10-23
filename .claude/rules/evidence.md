@@ -7,7 +7,7 @@ paths:
 # Punishment evidence
 
 `evidence/` holds anticheat records, chat excerpts, links and uploaded files attached to
-punishments. Detail of the decisions: `openspec/changes/add-punishment-evidence/design.md`.
+punishments. Detail of the decisions: `openspec/changes/archive/2026-10-23-add-punishment-evidence/design.md`.
 
 - **Lifetime = punishment record.** There is deliberately no time-based expiry and no retention
   sweep for evidence. It is deleted only with its punishment (`deleteForPunishment`, reason
