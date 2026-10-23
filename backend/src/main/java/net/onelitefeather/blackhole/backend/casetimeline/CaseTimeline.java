@@ -84,6 +84,12 @@ public class CaseTimeline {
         });
     }
 
+    /** An imported punishment was linked to a template by staff. */
+    public void retemplated(PunishmentEntity punishment, @Nullable UUID fromTemplate, Attribution by) {
+        recordSafely(() -> CaseDrafts.retemplated(punishment.getIdentifier(), punishment.getTemplate().getIdentifier().toString(),
+                fromTemplate == null ? null : fromTemplate.toString(), CaseActor.of(by), CaseEventOrigin.LIVE, this.clock.millis()));
+    }
+
     /** The punishment ran out; recorded once however often a sweep or a profile read notices it. */
     public void expired(PunishmentEntity punishment) {
         recordSafely(() -> {

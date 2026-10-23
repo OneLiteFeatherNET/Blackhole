@@ -22,6 +22,7 @@ public sealed interface CaseEventPayload {
     String APPLIED = "punishment.applied";
     String REVOKED = "punishment.revoked";
     String LIFTED = "punishment.lifted";
+    String RETEMPLATED = "punishment.retemplated";
     String EXPIRED = "punishment.expired";
     String EVIDENCE_ATTACHED = "evidence.attached";
     String EVIDENCE_LIFTED = "evidence.lifted";
@@ -117,6 +118,27 @@ public sealed interface CaseEventPayload {
             if (approximate) {
                 map.put("approximate", true);
             }
+            return map;
+        }
+    }
+
+    /** An imported punishment was linked to another template; no score, step or duration changed. */
+    record Retemplated(String templateId, @Nullable String fromTemplateId) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return RETEMPLATED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("templateId", templateId);
+            put(map, "fromTemplateId", fromTemplateId);
             return map;
         }
     }
