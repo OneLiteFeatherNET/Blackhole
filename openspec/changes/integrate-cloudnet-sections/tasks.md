@@ -1,9 +1,9 @@
 ## 1. Sections: target kinds (PR 1, `feat(sections)`)
 
-- [ ] 1.1 Add `ServerTargetKind`, carry `targetKind` through `SectionSpec`, `SectionEntity`, `SectionDTO` (create/update optional, response required) and extend `ServerPatterns.validate` with the CloudNet rules; verify with JUnit tests per kind (valid, wildcard, empty, >50, wrong enforcement, case-insensitive duplicates)
-- [ ] 1.2 Append Flyway `V11__section_target_kind.sql` (`target_kind varchar(24) NOT NULL DEFAULT 'PATTERN'`, next free version); verify a migration test that pre-existing rows read as `PATTERN`
-- [ ] 1.3 Section list in the shared cache and `SectionChangeNotifier` carry the new field; verify a cache round-trip test and that an entry without `targetKind` deserialises as `PATTERN`
-- [ ] 1.4 Publish `client/specs/blackhole-api-0.0.17.yml`, bump `inputSpec` in `client/build.gradle.kts`, regenerate; verify `./gradlew :client:openApiGenerate :backend:test`
+- [x] 1.1 Add `ServerTargetKind`, carry `targetKind` through `SectionSpec`, `SectionEntity`, `SectionDTO` (create/update optional, response required) and extend `ServerPatterns.validate` with the CloudNet rules; verify with JUnit tests per kind (valid, wildcard, empty, >50, wrong enforcement, case-insensitive duplicates)
+- [x] 1.2 Append Flyway `V11__section_target_kind.sql` (`target_kind varchar(24) NOT NULL DEFAULT 'PATTERN'`, next free version); verify a migration test that pre-existing rows read as `PATTERN`
+- [x] 1.3 Section list in the shared cache and `SectionChangeNotifier` carry the new field; verify a cache round-trip test and that an entry without `targetKind` deserialises as `PATTERN`
+- [x] 1.4 Publish `client/specs/blackhole-api-0.0.17.yml`, bump `inputSpec` in `client/build.gradle.kts`, regenerate; verify `./gradlew :client:openApiGenerate :backend:test`
 
 ## 2. Velocity: enforcement (PR 2, `feat(velocity)`)
 

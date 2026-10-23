@@ -14,7 +14,7 @@ import io.swagger.v3.oas.annotations.security.SecurityScheme;
 @OpenAPIDefinition(
         info = @Info(
                 title = "Blackhole API",
-                version = "0.0.16",
+                version = "0.0.17",
                 description = "Simple ban management system",
                 license = @License(name = "Close Source"),
                 contact = @Contact(

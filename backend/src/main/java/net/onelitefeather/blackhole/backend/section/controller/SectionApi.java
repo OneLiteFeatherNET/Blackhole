@@ -19,7 +19,7 @@ public interface SectionApi {
 
     @Operation(
             summary = "Create a punishment section",
-            description = "Creates an enabled section with its own ELO score, thresholds and enforcement kind.",
+            description = "Creates an enabled section with its own ELO score, thresholds and enforcement kind. A SERVER section lists glob patterns (targetKind PATTERN, the default) or exact CloudNet task, group or service names.",
             operationId = "createSection",
             tags = {"Section"}
     )

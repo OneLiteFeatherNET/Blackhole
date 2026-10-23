@@ -262,7 +262,7 @@ class EloServiceTest {
     @Test
     void aSectionWithoutSoftThresholdAppliesNoSoftPunishment() {
         bed.sections.update(new SectionDTO.UpdateRequest(
-                "chat", "Chat", net.onelitefeather.blackhole.backend.section.EnforcementKind.MUTE, null,
+                "chat", "Chat", net.onelitefeather.blackhole.backend.section.EnforcementKind.MUTE, null, null,
                 1000, null, null, 300, 700, "muted", 10, true));
 
         applied(delta("chat", -400));

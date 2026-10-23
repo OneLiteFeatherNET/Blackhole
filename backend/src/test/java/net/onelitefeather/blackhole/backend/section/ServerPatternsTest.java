@@ -82,4 +82,70 @@ class ServerPatternsTest {
         assertTrue(ServerPatterns.matches("a.b", "a.b"), "dot matches itself");
         assertFalse(ServerPatterns.matches("a.b", "axb"), "dot is not a regex wildcard");
     }
+
+    private static final List<ServerTargetKind> CLOUDNET_KINDS =
+            List.of(ServerTargetKind.CLOUDNET_TASK, ServerTargetKind.CLOUDNET_GROUP, ServerTargetKind.CLOUDNET_SERVICE);
+
+    @Test
+    void aCloudNetKindAcceptsExactNames() {
+        for (ServerTargetKind kind : CLOUDNET_KINDS) {
+            assertEquals(List.of(), ServerPatterns.validate(EnforcementKind.SERVER, kind, List.of("BedWars", "Bed_Wars.1-b")),
+                    kind + " accepts letters, digits and _ . -");
+        }
+    }
+
+    @Test
+    void aCloudNetKindRejectsWildcards() {
+        for (ServerTargetKind kind : CLOUDNET_KINDS) {
+            assertFalse(ServerPatterns.validate(EnforcementKind.SERVER, kind, List.of("bedwars-*")).isEmpty(),
+                    kind + " must not accept '*'");
+            assertFalse(ServerPatterns.validate(EnforcementKind.SERVER, kind, List.of("bedwars-?")).isEmpty(),
+                    kind + " must not accept '?'");
+        }
+    }
+
+    @Test
+    void aCloudNetKindRejectsBlankAndIllegalNames() {
+        assertFalse(ServerPatterns.validate(EnforcementKind.SERVER, ServerTargetKind.CLOUDNET_TASK, List.of(" ")).isEmpty(), "blank");
+        assertFalse(ServerPatterns.validate(EnforcementKind.SERVER, ServerTargetKind.CLOUDNET_TASK, List.of("bed wars")).isEmpty(), "space");
+        assertFalse(ServerPatterns.validate(EnforcementKind.SERVER, ServerTargetKind.CLOUDNET_TASK, java.util.Arrays.asList("a", null)).isEmpty(), "null entry");
+    }
+
+    @Test
+    void aCloudNetKindRejectsAnEmptyList() {
+        assertFalse(ServerPatterns.validate(EnforcementKind.SERVER, ServerTargetKind.CLOUDNET_GROUP, List.of()).isEmpty(), "empty list");
+        assertFalse(ServerPatterns.validate(EnforcementKind.SERVER, ServerTargetKind.CLOUDNET_GROUP, null).isEmpty(), "null list");
+    }
+
+    @Test
+    void aCloudNetNameLongerThanTheMaximumIsRejected() {
+        String tooLong = "a".repeat(ServerPatterns.MAX_PATTERN_LENGTH + 1);
+
+        assertFalse(ServerPatterns.validate(EnforcementKind.SERVER, ServerTargetKind.CLOUDNET_SERVICE, List.of(tooLong)).isEmpty(), "65 characters");
+        assertTrue(ServerPatterns.validate(EnforcementKind.SERVER, ServerTargetKind.CLOUDNET_SERVICE,
+                List.of("a".repeat(ServerPatterns.MAX_PATTERN_LENGTH))).isEmpty(), "64 characters");
+    }
+
+    @Test
+    void moreCloudNetNamesThanTheMaximumAreRejected() {
+        List<String> names = java.util.stream.IntStream.range(0, ServerPatterns.MAX_PATTERNS + 1)
+                .mapToObj(i -> "task-" + i).toList();
+
+        assertFalse(ServerPatterns.validate(EnforcementKind.SERVER, ServerTargetKind.CLOUDNET_TASK, names).isEmpty(), "51 names");
+        assertTrue(ServerPatterns.validate(EnforcementKind.SERVER, ServerTargetKind.CLOUDNET_TASK, names.subList(0, ServerPatterns.MAX_PATTERNS)).isEmpty(), "50 names");
+    }
+
+    @Test
+    void aCloudNetKindOnANonServerSectionIsRejected() {
+        for (EnforcementKind enforcement : List.of(EnforcementKind.BAN, EnforcementKind.MUTE)) {
+            assertFalse(ServerPatterns.validate(enforcement, ServerTargetKind.CLOUDNET_TASK, List.of()).isEmpty(),
+                    enforcement + " must not carry a CloudNet target kind");
+        }
+    }
+
+    @Test
+    void aMissingTargetKindValidatesAsPatterns() {
+        assertTrue(ServerPatterns.validate(EnforcementKind.SERVER, null, List.of("bedwars-*")).isEmpty(), "glob accepted without a kind");
+        assertFalse(ServerPatterns.validate(EnforcementKind.SERVER, ServerTargetKind.PATTERN, List.of("*")).isEmpty(), "match-all still rejected");
+    }
 }

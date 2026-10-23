@@ -72,7 +72,7 @@ class DashboardServiceTest {
 
     private void givenSection(String key) {
         sectionService.create(new SectionDTO.CreateRequest(
-                key, key, EnforcementKind.BAN, null, 1000, 700, "P3D", 300, 700, "banned", null));
+                key, key, EnforcementKind.BAN, null, null, 1000, 700, "P3D", 300, 700, "banned", null));
     }
 
     @Test

@@ -106,4 +106,40 @@ class SectionApiIntegrationTest extends ApiIntegrationTest {
                 .filter(s -> "to-disable".equals(s.get("key"))).findFirst().orElseThrow();
         assertEquals(false, listed.get("enabled"), "the list reflects the disable, so no stale cache entry");
     }
+
+    @Test
+    void aSectionCreatedWithoutATargetKindIsReadBackAsPattern() {
+        post("/section", section("kind-default", "SERVER", List.of("lobby-*")));
+
+        assertEquals("PATTERN", get("/section/kind-default").json().get("targetKind"), "the default kind is always present on read");
+    }
+
+    @Test
+    void aCloudNetTaskSectionIsCreatedAndReadBackWithItsKind() {
+        Map<String, Object> body = section("cloudnet-task", "SERVER", List.of("BedWars"));
+        body.put("targetKind", "CLOUDNET_TASK");
+
+        Reply created = post("/section", body);
+
+        assertEquals(200, created.status(), created.body());
+        Reply read = get("/section/cloudnet-task");
+        assertEquals("CLOUDNET_TASK", read.json().get("targetKind"), "kind survives the database round trip");
+        assertEquals(List.of("BedWars"), read.json().get("servers"));
+    }
+
+    @Test
+    void aCloudNetNameWithAWildcardIsRejectedWithBadRequest() {
+        Map<String, Object> body = section("cloudnet-wildcard", "SERVER", List.of("Bed*"));
+        body.put("targetKind", "CLOUDNET_GROUP");
+
+        assertEquals(400, post("/section", body).status(), "wildcards are only for PATTERN sections");
+    }
+
+    @Test
+    void aCloudNetKindOnABanSectionIsRejectedWithBadRequest() {
+        Map<String, Object> body = section("cloudnet-ban", "BAN", List.of());
+        body.put("targetKind", "CLOUDNET_SERVICE");
+
+        assertEquals(400, post("/section", body).status(), "only SERVER sections have targets");
+    }
 }
