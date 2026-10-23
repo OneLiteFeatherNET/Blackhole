@@ -60,6 +60,8 @@ dependencyResolutionManagement {
             version("awssdk", "2.57.3")
             // Discord gateway client for the bot (discord module). Pinned on purpose: bump after checking Maven Central and the 2 week age rule.
             version("jda", "6.7.0")
+            // RabbitMQ client for the bot's event consumer (the backend uses the Micronaut RabbitMQ module).
+            version("rabbitmq-amqp-client", "5.37.0")
 
             library("jetbrains.annotations", "org.jetbrains", "annotations").versionRef("jetbrains.annotations")
 
@@ -98,6 +100,7 @@ dependencyResolutionManagement {
 
             // Discord bot (discord module). JDA is hidden behind small interfaces, voice (opus-java) is excluded.
             library("jda", "net.dv8tion", "JDA").versionRef("jda")
+            library("rabbitmq-amqp-client", "com.rabbitmq", "amqp-client").versionRef("rabbitmq-amqp-client")
 
             plugin("micronaut.application", "io.micronaut.application").versionRef("micronaut")
             plugin("micronaut.aot", "io.micronaut.aot").versionRef("micronaut")

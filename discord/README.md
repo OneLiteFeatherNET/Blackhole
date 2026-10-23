@@ -1,7 +1,7 @@
 # Blackhole Discord bot
 
 A small, stateless JDA application. It links Discord accounts to Blackhole staff and players and (next
-step) posts new reports and appeals to the team channel. It talks to the backend with the OAuth2
+posts new reports and appeals to the team channel and edits the message when they are resolved. It talks to the backend with the OAuth2
 client credentials grant (Entra app role `Blackhole.Discord`, which only reaches `/discord/**`) and
 keeps no data of its own; when it is down, the panel and the game keep working.
 
@@ -20,9 +20,21 @@ English first, German second (the reply follows the Discord client language). Al
 1. Create an application and a bot in the Discord developer portal. No privileged intent is needed
    (`MESSAGE_CONTENT`, `GUILD_MEMBERS` and `GUILD_PRESENCES` stay off).
 2. Invite it with the scopes `bot` and `applications.commands`. For the link commands no channel
-   permission is required; the team notifications need View Channel, Send Messages and Embed Links in
-   the team channel. Never grant Administrator.
+   permission is required; the team notifications need View Channel, Send Messages, Embed Links and
+   Read Message History in the team channel. Never grant Administrator.
 3. Copy the ids (developer mode): the guild, the team channel, the staff role.
+
+## Team notifications
+
+The bot declares the durable queue `blackhole.discord.notify` (messages kept 7 days) on the topic exchange
+`blackhole.events`, bound to `report.created`, `report.resolved`, `appeal.submitted` and `appeal.resolved`.
+For each event it reads the display facts from `GET /discord/notifications/report|appeal/{id}` and posts one
+embed to the team channel: player (name if the proxy recorded one, otherwise a short reference), category or
+section, short reason, time, the staff role ping and an "Open in panel" button. When the item is resolved the
+same message is edited to show the outcome. The message is found again by a marker in its footer, so a
+redelivered event, an event that arrives late and a restart never create a second message. Needs View Channel,
+Send Messages, Embed Links and Read Message History in the team channel. If the broker is down the bot keeps
+serving the commands and reconnects every 30 seconds.
 
 ## Entra setup
 
@@ -44,6 +56,7 @@ English first, German second (the reply follows the Discord client language). Al
 | `BLACKHOLE_DISCORD_CLIENT_ID` | Client id of `Blackhole Discord (<env>)`. |
 | `BLACKHOLE_DISCORD_CLIENT_SECRET` | Its secret. |
 | `BLACKHOLE_DISCORD_AUTH_SCOPE` | `api://<api client id>/.default`. |
+| `RABBITMQ_HOST`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD` | The broker the backend publishes its events to. Optional: `RABBITMQ_PORT` (5672), `RABBITMQ_VHOST` (`/`). |
 | `BLACKHOLE_DISCORD_TOKEN_URL` | Optional, development: a mock token endpoint instead of Entra. |
 | `DISCORD_HEALTH_PORT` | Optional, default `8082`, `0` turns the health endpoint off. |
 
@@ -61,7 +74,7 @@ bot is connected to Discord. `docker/docker-compose.yml` has a commented `discor
 
 ## Code layout
 
-`config` (environment, fail-fast), `auth` (client credentials token, a copy of the Velocity plugin's
+`notify` (event parsing, embed rendering, the handler, the RabbitMQ adapter), `config` (environment, fail-fast), `auth` (client credentials token, a copy of the Velocity plugin's
 provider because that one depends on the plugin's config class), `backend` (`BackendGateway` interface
 and the adapter on the generated client), `command` (the command logic and texts, no Discord types),
 `gateway` (`DiscordGateway` interface, the JDA adapter and the health endpoint). Only `gateway` imports

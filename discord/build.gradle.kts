@@ -17,6 +17,9 @@ dependencies {
         exclude(module = "opus-java")
     }
 
+    // Events about new reports and appeals come from the backend's topic exchange.
+    implementation(libs.rabbitmq.amqp.client)
+
     // client's jackson-databind is `implementation`-scoped there, so it isn't exposed transitively.
     implementation(platform(libs.jackson.bom))
     implementation(libs.jackson.core)

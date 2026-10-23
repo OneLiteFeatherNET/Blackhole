@@ -15,7 +15,7 @@ Stacked PRs: `feat(discord): add the discord account link api` (V14, client spec
 - [x] 0.3 `docs/entra-setup.sh` and `.md`: app role, `Blackhole Discord (<env>)` registration, secret, consent
 - [x] 0.4 `/blackhole discord` in the Velocity plugin
 - [x] 0.5 The `discord` module: config, token provider, `/link`, `/unlink`, `/whoami`, Dockerfile, CI
-- [ ] 0.6 Notifications for reports and appeals (queue consumer, read facade, embeds, edit on resolve)
+- [x] 0.6 Notifications for reports and appeals (queue consumer, read facade, embeds, edit on resolve)
 - [ ] 0.7 Panel: account dialog section and admin list
 
 ## 1. Entra role and backend facade foundation (PR 1, `feat(discord)`)

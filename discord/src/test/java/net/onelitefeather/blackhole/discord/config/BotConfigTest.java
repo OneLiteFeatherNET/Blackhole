@@ -25,6 +25,9 @@ class BotConfigTest {
         env.put("BLACKHOLE_DISCORD_CLIENT_ID", "client-1");
         env.put("BLACKHOLE_DISCORD_CLIENT_SECRET", "client-secret");
         env.put("BLACKHOLE_DISCORD_AUTH_SCOPE", "api://api-1/.default");
+        env.put("RABBITMQ_HOST", "rabbit");
+        env.put("RABBITMQ_USER", "guest");
+        env.put("RABBITMQ_PASSWORD", "rabbit-secret");
         return env;
     }
 
@@ -42,6 +45,7 @@ class BotConfigTest {
         assertEquals("http://backend:8080", config.backendUrl(), "backend url");
         assertEquals("https://panel.example.org", config.panelUrl(), "panel url");
         assertEquals(8082, config.healthPort(), "default health port");
+        assertEquals(new BotConfig.RabbitSettings("rabbit", 5672, "guest", "rabbit-secret", "/"), config.rabbit(), "broker with defaults");
     }
 
     @Test
@@ -50,7 +54,7 @@ class BotConfigTest {
 
         for (String name : List.of("DISCORD_TOKEN", "DISCORD_GUILD_ID", "DISCORD_TEAM_CHANNEL_ID", "DISCORD_STAFF_ROLE_ID",
                 "BLACKHOLE_BACKEND_URL", "BLACKHOLE_PANEL_URL", "BLACKHOLE_DISCORD_CLIENT_ID",
-                "BLACKHOLE_DISCORD_CLIENT_SECRET", "BLACKHOLE_DISCORD_AUTH_SCOPE")) {
+                "BLACKHOLE_DISCORD_CLIENT_SECRET", "BLACKHOLE_DISCORD_AUTH_SCOPE", "RABBITMQ_HOST", "RABBITMQ_USER", "RABBITMQ_PASSWORD")) {
             assertTrue(problems.stream().anyMatch(problem -> problem.contains(name)), name + " is named: " + problems);
         }
     }
@@ -94,5 +98,6 @@ class BotConfigTest {
 
         assertFalse(text.contains("bot-token-secret"), "bot token: " + text);
         assertFalse(text.contains("client-secret"), "client secret: " + text);
+        assertFalse(text.contains("rabbit-secret"), "broker password: " + text);
     }
 }

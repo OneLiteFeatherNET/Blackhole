@@ -16,7 +16,8 @@ import java.util.function.Function;
  * <p>Environment variables: {@code DISCORD_TOKEN}, {@code DISCORD_GUILD_ID},
  * {@code DISCORD_TEAM_CHANNEL_ID}, {@code DISCORD_STAFF_ROLE_ID}, {@code BLACKHOLE_BACKEND_URL},
  * {@code BLACKHOLE_PANEL_URL}, {@code BLACKHOLE_DISCORD_TENANT_ID}, {@code BLACKHOLE_DISCORD_CLIENT_ID},
- * {@code BLACKHOLE_DISCORD_CLIENT_SECRET}, {@code BLACKHOLE_DISCORD_AUTH_SCOPE}; optional
+ * {@code BLACKHOLE_DISCORD_CLIENT_SECRET}, {@code BLACKHOLE_DISCORD_AUTH_SCOPE}, {@code RABBITMQ_HOST},
+ * {@code RABBITMQ_USER}, {@code RABBITMQ_PASSWORD}; optional {@code RABBITMQ_PORT} (5672), {@code RABBITMQ_VHOST} (/),
  * {@code BLACKHOLE_DISCORD_TOKEN_URL} (development: a mock token endpoint) and
  * {@code DISCORD_HEALTH_PORT} (default 8082, 0 turns the health endpoint off).</p>
  *
@@ -27,6 +28,7 @@ import java.util.function.Function;
  * @param backendUrl     the backend base URL without a trailing slash
  * @param panelUrl       the admin panel base URL without a trailing slash, for links into the panel
  * @param auth           the backend client credentials
+ * @param rabbit         the broker the report and appeal events come from
  * @param healthPort     the port of the local health endpoint, 0 for none
  */
 public record BotConfig(
@@ -37,6 +39,7 @@ public record BotConfig(
         @NotNull String backendUrl,
         @NotNull String panelUrl,
         @NotNull TokenSettings auth,
+        @NotNull RabbitSettings rabbit,
         int healthPort
 ) {
 
@@ -51,7 +54,28 @@ public record BotConfig(
     public static final String ENV_CLIENT_SECRET = "BLACKHOLE_DISCORD_CLIENT_SECRET";
     public static final String ENV_AUTH_SCOPE = "BLACKHOLE_DISCORD_AUTH_SCOPE";
     public static final String ENV_TOKEN_URL = "BLACKHOLE_DISCORD_TOKEN_URL";
+    public static final String ENV_RABBIT_HOST = "RABBITMQ_HOST";
+    public static final String ENV_RABBIT_PORT = "RABBITMQ_PORT";
+    public static final String ENV_RABBIT_USER = "RABBITMQ_USER";
+    public static final String ENV_RABBIT_PASSWORD = "RABBITMQ_PASSWORD";
+    public static final String ENV_RABBIT_VHOST = "RABBITMQ_VHOST";
     public static final String ENV_HEALTH_PORT = "DISCORD_HEALTH_PORT";
+
+    /**
+     * @param host     the RabbitMQ host
+     * @param port     its AMQP port
+     * @param user     the user to connect as
+     * @param password its password (a secret, never printed)
+     * @param vhost    the virtual host
+     */
+    public record RabbitSettings(@NotNull String host, int port, @NotNull String user, @NotNull String password, @NotNull String vhost) {
+
+        @Override
+        public String toString() {
+            return "RabbitSettings{host=" + this.host + ", port=" + this.port + ", user=" + this.user
+                    + ", password=<redacted>, vhost=" + this.vhost + "}";
+        }
+    }
 
     /** The configuration is wrong; {@link #problems()} names every problem. */
     public static final class ConfigException extends Exception {
@@ -92,6 +116,23 @@ public record BotConfig(
                 problems.add(e.getMessage());
             }
         }
+        String rabbitHost = required(env, ENV_RABBIT_HOST, problems);
+        String rabbitUser = required(env, ENV_RABBIT_USER, problems);
+        String rabbitPassword = required(env, ENV_RABBIT_PASSWORD, problems);
+        int rabbitPort = 5672;
+        String rabbitPortText = value(env, ENV_RABBIT_PORT);
+        if (!rabbitPortText.isEmpty()) {
+            try {
+                rabbitPort = Integer.parseInt(rabbitPortText);
+                if (rabbitPort < 1 || rabbitPort > 65535) {
+                    problems.add(ENV_RABBIT_PORT + " must be between 1 and 65535");
+                }
+            } catch (NumberFormatException e) {
+                problems.add(ENV_RABBIT_PORT + " must be a number");
+            }
+        }
+        String vhost = value(env, ENV_RABBIT_VHOST);
+        RabbitSettings rabbit = new RabbitSettings(rabbitHost, rabbitPort, rabbitUser, rabbitPassword, vhost.isEmpty() ? "/" : vhost);
         int healthPort = 8082;
         String port = value(env, ENV_HEALTH_PORT);
         if (!port.isEmpty()) {
@@ -107,7 +148,7 @@ public record BotConfig(
         if (!problems.isEmpty()) {
             throw new ConfigException(problems);
         }
-        return new BotConfig(token, guildId, teamChannelId, staffRoleId, backendUrl, panelUrl, auth, healthPort);
+        return new BotConfig(token, guildId, teamChannelId, staffRoleId, backendUrl, panelUrl, auth, rabbit, healthPort);
     }
 
     /** Never prints the bot token or the client secret. */
@@ -115,7 +156,7 @@ public record BotConfig(
     public String toString() {
         return "BotConfig{discordToken=<redacted>, guildId=" + this.guildId + ", teamChannelId=" + this.teamChannelId
                 + ", staffRoleId=" + this.staffRoleId + ", backendUrl=" + this.backendUrl + ", panelUrl=" + this.panelUrl
-                + ", auth=" + this.auth + ", healthPort=" + this.healthPort + "}";
+                + ", auth=" + this.auth + ", rabbit=" + this.rabbit + ", healthPort=" + this.healthPort + "}";
     }
 
     private static String value(Function<String, String> env, String name) {

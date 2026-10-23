@@ -59,6 +59,50 @@ public interface BackendGateway {
         }
     }
 
+    /** Which kind of item a team notification is about. */
+    enum NotificationKind {
+        REPORT, APPEAL
+    }
+
+    /**
+     * The display facts of a report or an appeal. Never a raw UUID or a Ban ID.
+     *
+     * @param kind                 report or appeal
+     * @param identifier           the report or appeal
+     * @param punishmentIdentifier the appealed punishment, only for an appeal (for the case link)
+     * @param playerName           the player's name when one was recorded
+     * @param playerRef            a short pseudonymous reference, shown when there is no name
+     * @param topic                the report category or the appeal's section
+     * @param text                 the shortened description or statement
+     * @param status               the backend status such as OPEN, ACTIONED or DENIED
+     * @param createdAt            epoch millis
+     * @param updatedAt            epoch millis
+     */
+    record Notification(
+            @NotNull NotificationKind kind, @NotNull String identifier, @Nullable String punishmentIdentifier,
+            @Nullable String playerName, @NotNull String playerRef, @NotNull String topic, @Nullable String text,
+            @NotNull String status, long createdAt, long updatedAt
+    ) {
+    }
+
+    /** What a notification lookup found. */
+    sealed interface NotificationResult {
+        record Found(@NotNull Notification notification) implements NotificationResult {
+        }
+
+        record NotFound() implements NotificationResult {
+        }
+
+        record Unavailable(int status) implements NotificationResult {
+        }
+    }
+
+    /** @return the facts for the embed of a report */
+    @NotNull NotificationResult report(@NotNull String identifier);
+
+    /** @return the facts for the embed of an appeal */
+    @NotNull NotificationResult appeal(@NotNull String identifier);
+
     /**
      * Confirms the code the Discord user typed. Never throws for an expected failure.
      *
