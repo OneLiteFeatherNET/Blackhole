@@ -32,7 +32,7 @@ public class JdbcCaseEventRepository implements CaseEventRepository {
             """;
     private static final String REDACT = """
             UPDATE case_event SET payload = NULL, redacted_at = ?, redacted_by_oid = ?
-            WHERE punishment_identifier = ? AND subject_id = ? AND type IN ('note.added', 'note.edited')
+            WHERE punishment_identifier = ? AND subject_id = ? AND type IN ('note.added', 'note.edited') AND redacted_at IS NULL
             """;
     private static final String DELETE_EVENTS = "DELETE FROM case_event WHERE punishment_identifier = ?";
     private static final String DELETE_CASE = "DELETE FROM punishment_case WHERE punishment_identifier = ?";

@@ -35,3 +35,12 @@ any other content in an event: the broker is a second at-rest copy. Claiming pen
 new punishment publishes no event (the item was announced when it was attached). Nothing binds to
 these keys yet; the service wraps `publish` in a try/catch so a broker problem never fails the
 request that already changed the evidence.
+
+## Case events
+
+`case.note_added`, `case.note_edited`, `case.note_redacted`, `case.status_changed`,
+`case.assignee_changed`, `case.tags_changed` and `case.priority_changed` are published by `CaseService`
+(payloads built in `CaseEvents`): `{caseEventId, punishmentIdentifier, owner, seq, actorTrust, actorOid,
+occurredAt}` plus the non-content change (`from`/`to`, tag lists, `noteId`, redaction reason code). Never
+note text. Nothing binds to them yet (the future Discord sync). Lifecycle facts keep their
+`punishment.*`/`appeal.*`/`evidence.*` keys.

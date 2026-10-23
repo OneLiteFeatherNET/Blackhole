@@ -3,6 +3,7 @@ package net.onelitefeather.blackhole.backend.casetimeline;
 import io.micronaut.core.annotation.Nullable;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -28,6 +29,12 @@ public sealed interface CaseEventPayload {
     String APPEAL_FILED = "appeal.filed";
     String APPEAL_DECIDED = "appeal.decided";
     String STATUS_CHANGED = "case.status_changed";
+    String ASSIGNEE_CHANGED = "case.assignee_changed";
+    String PRIORITY_CHANGED = "case.priority_changed";
+    String TAGS_CHANGED = "case.tags_changed";
+    String NOTE_ADDED = "note.added";
+    String NOTE_EDITED = "note.edited";
+    String NOTE_REDACTED = "note.redacted";
 
     /** The dotted lower case type, such as {@code punishment.applied}. */
     String type();
@@ -256,6 +263,117 @@ public sealed interface CaseEventPayload {
         @Override
         public Map<String, Object> toMap() {
             return Map.of("from", from, "to", to);
+        }
+    }
+
+    /** The case was assigned, or unassigned ({@code null}); the values are staff {@code oid}s. */
+    record AssigneeChanged(@Nullable String from, @Nullable String to) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return ASSIGNEE_CHANGED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            put(map, "from", from);
+            put(map, "to", to);
+            return map;
+        }
+    }
+
+    /** The case priority changed. */
+    record PriorityChanged(String from, String to) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return PRIORITY_CHANGED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            return Map.of("from", from, "to", to);
+        }
+    }
+
+    /** Tags were added to or removed from the case; both lists are sorted. */
+    record TagsChanged(List<String> added, List<String> removed) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return TAGS_CHANGED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            return Map.of("added", added, "removed", removed);
+        }
+    }
+
+    /** A staff note: the only payload that holds free text. */
+    record NoteAdded(String noteId, String text) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return NOTE_ADDED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            return Map.of("noteId", noteId, "text", text);
+        }
+    }
+
+    /** A note was edited; {@code text} is the new full text. */
+    record NoteEdited(String noteId, String text) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return NOTE_EDITED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            return Map.of("noteId", noteId, "text", text);
+        }
+    }
+
+    /** Every version of a note was redacted; carries the reason code and never the text. */
+    record NoteRedacted(String noteId, String reason) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return NOTE_REDACTED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            return Map.of("noteId", noteId, "reason", reason);
         }
     }
 

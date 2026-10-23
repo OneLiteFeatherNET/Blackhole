@@ -35,3 +35,20 @@ SQL keyword).
   type or version this release does not know is read as `Unknown` and never dropped. Do not copy an
   appeal statement, a decision note, evidence content or a file name into a payload.
 - `type` is text, not an ordinal, on purpose: later changes and consumers add types.
+
+## Case API (`/case`, `casetimeline/controller|service|dto`)
+
+- `CaseController` is thin and implements `CaseApi`; `CaseService` answers expected failures as
+  `CaseDTO.Error` (`CaseErrorKind` adds 403 and 422). Roles: `VIEWER` reads (case, timeline, list, notes),
+  `MODERATOR` writes (PATCH, add and edit note), `ADMIN` redacts. `PROXY` has no rule and is denied.
+- **One statement per case-own change.** `CaseChanges` (`JdbcCaseWriter`) updates `punishment_case` and
+  appends one event per changed field in a single CTE guarded by `version`; zero rows means 409. A note edit
+  is an `INSERT ... WHERE NOT EXISTS (redacted version)`. A new note is `CaseEventRepository.append`.
+  `GET` never creates a case row; the first write does (`ensureCase`, idempotent).
+- **Notes**: 1 to 4000 characters, `PiiGuard` (400), visibility forced `STAFF`, edit only by the verified
+  author or an admin (`Actor.admin`). Redaction = `CaseEventRepository.redact` then `note.redacted`
+  (reason is a code, deduped per note). The timeline serves `redactedAt` and an empty payload.
+- **Reads** go through `CaseReader` (never write). The timeline cursor is `occurredAt:seq` (keyset on the
+  timeline order), page size default 50, max 200. `actor.name` is joined from `staff_actor`.
+- **Domain events** `case.<type>` (`CaseEvents`): ids, hashed owner, `seq`, trust, `from`/`to`, never text.
+  Published after the write in a try/catch. Lifecycle facts are not republished as `case.*`.

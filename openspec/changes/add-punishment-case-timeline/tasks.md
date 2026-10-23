@@ -15,13 +15,13 @@ Testcontainers for the migration), every UI group its own Vitest tests with a fa
 
 ## 2. Metadata, notes and API (PR 2, `feat(case)`)
 
-- [ ] 2.1 Failing tests first: stale version gives 409 with no state or event change, unchanged value appends nothing, unknown assignee 422, tag validation, note length, `PiiGuard`, forced `STAFF` visibility, author-or-admin edit
-- [ ] 2.2 `JdbcCaseWriter` single-statement CTE writes (state + event atomic), `CaseService`, sealed `CaseDTO`, `CaseController` thin + `CaseApi` OpenAPI annotations (`@Version(ApiVersion.V1)`, `@Secured` per route)
-- [ ] 2.3 Routes: list, case + `related`, paged filtered timeline (`seq` cursor, max 200), `PATCH`, notes `POST` / `PUT`, redact; actor from `ActorResolver`; redaction of the whole note chain + `note.redacted`
-- [ ] 2.4 Domain events `case.*` (no note text), try/catch publish; tests with a captured publisher
-- [ ] 2.5 Extend `PermissionMatrixIntegrationTest` and `RouteCoverageIntegrationTest` (VIEWER reads, MODERATOR writes, ADMIN redacts, PROXY denied); anonymize test showing nameless actors
-- [ ] 2.6 Regenerate the OpenAPI client spec: new `client/specs/blackhole-api-0.0.N.yml` (next free number; 0.0.17/0.0.18 are claimed by `integrate-cloudnet-sections`) and bump `inputSpec` in `client/build.gradle.kts`
-- [ ] 2.7 Update `.claude/rules` (events, security matrix); verify `./gradlew :backend:test :client:compileJava`
+- [x] 2.1 Failing tests first: stale version gives 409 with no state or event change, unchanged value appends nothing, unknown assignee 422, tag validation, note length, `PiiGuard`, forced `STAFF` visibility, author-or-admin edit
+- [x] 2.2 `JdbcCaseWriter` single-statement CTE writes (state + event atomic), `CaseService`, sealed `CaseDTO`, `CaseController` thin + `CaseApi` OpenAPI annotations (`@Version(ApiVersion.V1)`, `@Secured` per route)
+- [x] 2.3 Routes: list, case + `related`, paged filtered timeline (`seq` cursor, max 200), `PATCH`, notes `POST` / `PUT`, redact; actor from `ActorResolver`; redaction of the whole note chain + `note.redacted`
+- [x] 2.4 Domain events `case.*` (no note text), try/catch publish; tests with a captured publisher
+- [x] 2.5 Extend `PermissionMatrixIntegrationTest` and `RouteCoverageIntegrationTest` (VIEWER reads, MODERATOR writes, ADMIN redacts, PROXY denied); anonymize test showing nameless actors
+- [x] 2.6 Regenerate the OpenAPI client spec: new `client/specs/blackhole-api-0.0.N.yml` (next free number; 0.0.17/0.0.18 are claimed by `integrate-cloudnet-sections`) and bump `inputSpec` in `client/build.gradle.kts`
+- [x] 2.7 Update `.claude/rules` (events, security matrix); verify `./gradlew :backend:test :client:compileJava`
 
 ## 3. Web case page (PR 3, `feat(web)`)
 

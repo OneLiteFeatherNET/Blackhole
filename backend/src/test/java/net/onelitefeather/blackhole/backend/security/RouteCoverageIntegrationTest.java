@@ -54,7 +54,13 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /evidence/{identifier}", V),
             Map.entry("GET /evidence/{identifier}/content", V),
             Map.entry("GET /cloudnet/catalogue", V),
+            Map.entry("GET /case", V),
+            Map.entry("GET /case/{reference}", V),
+            Map.entry("GET /case/{reference}/timeline", V),
             // moderation
+            Map.entry("PATCH /case/{reference}", M),
+            Map.entry("POST /case/{reference}/notes", M),
+            Map.entry("PUT /case/{reference}/notes/{noteId}", M),
             Map.entry("POST /punishment/apply", MP),
             Map.entry("POST /punishment/preview", M),
             Map.entry("POST /punishment/revoke", MP),
@@ -81,6 +87,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /admin/import/vanilla", A),
             Map.entry("POST /admin/staff-actor/{oid}/anonymize", A),
             // erasure and destructive
+            Map.entry("POST /case/{reference}/notes/{noteId}/redact", A),
             Map.entry("DELETE /evidence/{identifier}", A),
             Map.entry("DELETE /evidence/owner/{owner}", A),
             Map.entry("DELETE /profile/delete/{owner}", A),
