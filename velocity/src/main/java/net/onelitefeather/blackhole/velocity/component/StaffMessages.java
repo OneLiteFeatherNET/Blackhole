@@ -11,6 +11,8 @@ import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.velocity.component.tag.DurationTag;
 import net.onelitefeather.blackhole.velocity.punish.PunishService.RevokeOutcome;
+import net.onelitefeather.blackhole.velocity.punish.StaffLinkService.LinkOutcome;
+import net.onelitefeather.blackhole.velocity.punish.StaffLinkService.WhoamiOutcome;
 import net.onelitefeather.blackhole.velocity.punish.TargetNotFoundException;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.section.SectionInfo;
@@ -215,6 +217,28 @@ public final class StaffMessages {
                     Component.translatable("staff.revoke.section.wrong", Component.text(wrong.section()), Component.text("/" + command)),
                     sectionList(command, targetName, sections, mode));
             case RevokeOutcome.Failed ignored -> Component.translatable(mute ? "staff.revoke.unmute.failed" : "staff.revoke.unban.failed");
+        };
+    }
+
+    /** The answer to {@code /blackhole link}, whichever way it ended. */
+    public static @NotNull Component linked(@NotNull LinkOutcome outcome) {
+        return switch (outcome) {
+            case LinkOutcome.Linked linked -> linked.displayName() == null
+                    ? Component.translatable("staff.link.success.unnamed")
+                    : Component.translatable("staff.link.success", Component.text(linked.displayName()));
+            case LinkOutcome.InvalidCode ignored -> Component.translatable("staff.link.invalid");
+            case LinkOutcome.Failed ignored -> Component.translatable("staff.link.failed");
+        };
+    }
+
+    /** The answer to {@code /blackhole whoami}. */
+    public static @NotNull Component whoami(@NotNull WhoamiOutcome outcome) {
+        return switch (outcome) {
+            case WhoamiOutcome.Linked linked -> linked.displayName() == null
+                    ? Component.translatable("staff.whoami.linked.unnamed")
+                    : Component.translatable("staff.whoami.linked", Component.text(linked.displayName()));
+            case WhoamiOutcome.NotLinked ignored -> Component.translatable("staff.whoami.unlinked");
+            case WhoamiOutcome.Failed ignored -> Component.translatable("staff.whoami.failed");
         };
     }
 

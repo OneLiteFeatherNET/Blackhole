@@ -56,4 +56,9 @@ class CommandSenderTypesTest {
     void unbanAndUnmuteRemainPlayerOnly() {
         assertSenders(PardonCommand.class, Player.class);
     }
+
+    @Test
+    void linkAndWhoamiArePlayerOnly() {
+        assertSenders(LinkCommand.class, Player.class);
+    }
 }
