@@ -6,11 +6,23 @@ tests (F.I.R.S.T.: injected `Clock`, a manual scheduler the test advances, in-me
 `DiscordGateway` and `BackendGateway`, no sleeps, no network, self-signed JWTs, Testcontainers for SQL).
 A bug found while implementing is reproduced by a failing test first.
 
+## 0. Bot MVP, shipped first (phase 0, 2026-10-25)
+
+Stacked PRs: `feat(discord): add the discord account link api` (V14, client spec 0.0.25, Entra script), `feat(velocity): show a discord link code in game`, `feat(discord): run the discord bot as its own module`, `feat(discord): notify the team of new reports and appeals`, `feat(web): link a discord account from the account dialog`.
+
+- [x] 0.1 `Roles.DISCORD`, `Blackhole.Discord` mapping (`BLACKHOLE_AUTH_MACHINE_ROLE_DISCORD`), matrix and route-coverage rows
+- [x] 0.2 `discord_link` and `discord_link_code` (V14), `DiscordLinkService`, `/staff-discord-link`, `/player-discord-link`, `/discord/link`, `/admin/discord-link`; unit, integration and permission tests
+- [x] 0.3 `docs/entra-setup.sh` and `.md`: app role, `Blackhole Discord (<env>)` registration, secret, consent
+- [ ] 0.4 `/blackhole discord` in the Velocity plugin
+- [ ] 0.5 The `discord` module: config, token provider, `/link`, `/unlink`, `/whoami`, Dockerfile, CI
+- [ ] 0.6 Notifications for reports and appeals (queue consumer, read facade, embeds, edit on resolve)
+- [ ] 0.7 Panel: account dialog section and admin list
+
 ## 1. Entra role and backend facade foundation (PR 1, `feat(discord)`)
 
 - [ ] 1.1 Failing tests first: `Blackhole.Discord` maps to `Roles.DISCORD` from app-only tokens only, DISCORD allowed nowhere but `/discord/**`, staff and PROXY denied there
 - [ ] 1.2 `Roles.DISCORD`, `BlackholeRolesFinder`, `@Secured` constants, matrix rows in `PermissionMatrixIntegrationTest` and `RouteCoverageIntegrationTest`
-- [ ] 1.3 Migration `V16__discord_tickets.sql` (next free version): `case_participant`, `discord_ticket`, `discord_message_link`, `staff_discord_link`; migration test (constraints, cascade)
+- [ ] 1.3 Migration `V16__discord_tickets.sql` (next free version): `case_participant`, `discord_ticket`, `discord_message_link` (the link table shipped in phase 0); migration test (constraints, cascade)
 - [ ] 1.4 Extend `docs/entra-setup.sh` (app role, `Blackhole Discord (<env>)` registration, assignment, secret, `BLACKHOLE_DISCORD_*` env lines; still idempotent) and `docs/entra-setup.md` (objects table, where each value goes); `bash -n` and a dry read-through
 - [ ] 1.5 Regenerate the client spec (`client/specs/blackhole-api-0.0.N.yml`, next free number, bump `inputSpec`) after PR 2; update `.claude/rules` (security matrix)
 

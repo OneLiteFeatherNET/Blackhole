@@ -6,6 +6,8 @@
 **Builds on:** `add-appeal-portal` (Ban ID, `/public/**`, the case conversation, leak and reissue,
 transcript export, redaction). That change must land first; this proposal is branched from it.
 
+**Phase 0 (the bot MVP) ships first:** the `discord` module, the `Blackhole.Discord` role, the staff and player Discord account link (`/link`, `/unlink`, `/whoami`) and Discord notifications for new reports and appeals, as small stacked PRs. Tickets, sync, transcripts and leak scanning follow in the phases below on top of it (see design, "Phase 0").
+
 ## Why
 
 Many players live on Discord and will not open a web portal. The team wants them to appeal there,

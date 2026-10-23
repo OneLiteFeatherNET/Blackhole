@@ -4,7 +4,7 @@ How to register Blackhole in Microsoft Entra ID (the Free tier is enough). Doing
 admin: creating app registrations and groups and granting admin consent are admin actions.
 
 Blackhole checks the token itself; Entra only proves who the person is and which groups they are in.
-Humans get their role from the `groups` claim of a delegated token. The Velocity proxy and the
+Humans get their role from the `groups` claim of a delegated token. The Velocity proxy, the Discord bot and the
 metrics scraper use app-only tokens whose `roles` claim carries an app role. A tenant member in no
 mapped group is signed in but has no role, so every protected route answers 403.
 
@@ -12,9 +12,10 @@ mapped group is signed in but has no role, so every protected route answers 403.
 
 | Object | Name (`<env>` is `dev` or `prod`) | Purpose |
 |--------|-----------------------------------|---------|
-| API registration | `Blackhole API (<env>)` | The audience of every token. Exposes the scope `access_as_user` and the app roles `Blackhole.Proxy` and `Blackhole.Metrics`. |
+| API registration | `Blackhole API (<env>)` | The audience of every token. Exposes the scope `access_as_user` and the app roles `Blackhole.Proxy`, `Blackhole.Metrics` and `Blackhole.Discord`. |
 | SPA registration | `Blackhole Admin UI (<env>)` | The admin UI: Authorization Code flow with PKCE, no secret. |
 | Velocity registration | `Blackhole Velocity (<env>)` | The proxy plugin: client credentials, holds `Blackhole.Proxy`. |
+| Discord bot registration | `Blackhole Discord (<env>)` | The Discord bot (`discord` module): client credentials, holds `Blackhole.Discord`, which allows only the `/discord/**` routes. |
 | Security groups | `sg-blackhole-<env>-admin`, `-edit`, `-view`, `-ops` | `ADMIN`, `MODERATOR`, `VIEWER`, `METRICS` (a person who may read `/prometheus`). |
 
 Settings that matter on the API registration (manifest):
@@ -22,7 +23,7 @@ Settings that matter on the API registration (manifest):
 - `requestedAccessTokenVersion: 2` (shown as `accessTokenAcceptedVersion` in the portal manifest).
   Without it Entra issues v1 tokens with another issuer and audience and the backend refuses them.
 - `groupMembershipClaims: "SecurityGroup"`, so delegated tokens carry the `groups` claim.
-- App roles `Blackhole.Proxy` and `Blackhole.Metrics`, allowed member type **Applications** only.
+- App roles `Blackhole.Proxy`, `Blackhole.Metrics` and `Blackhole.Discord`, allowed member type **Applications** only.
 - Application ID URI `api://<api-client-id>` and the delegated scope `access_as_user`.
 - "Assignment required" stays **off** on the API's enterprise application: any tenant member can get a
   token, and the backend denies everyone without a mapped group.
@@ -32,7 +33,7 @@ The SPA registration is a **Single-page application** with the redirect URIs
 development), the delegated permission `access_as_user` of the API, and admin consent for it.
 
 The Velocity registration has the application permission `Blackhole.Proxy` of the API with admin
-consent, and a client secret.
+consent, and a client secret. The Discord bot registration is the same with `Blackhole.Discord`.
 
 ## Run the script
 
@@ -48,8 +49,8 @@ docs/entra-setup.sh prod https://blackhole.example.org ~/.config/blackhole/entra
 ```
 
 It adds the signed-in admin to the `-admin` group, grants tenant-wide consent for the SPA, assigns
-`Blackhole.Proxy` to the Velocity registration and creates a one-year Velocity secret when the env
-file has none. The env file (mode 600) contains tenant, client and group ids and the secret: it
+`Blackhole.Proxy` to the Velocity registration and `Blackhole.Discord` to the Discord bot
+registration, and creates a one-year secret for each when the env file has none. The env file (mode 600) contains tenant, client and group ids and the secret: it
 is a secret file, keep it out of git and out of chat. Add staff to the three role groups afterwards
 (group membership is not scripted).
 
@@ -64,6 +65,10 @@ portal (Groups, the group, Object Id).
 | `BLACKHOLE_AUTH_TENANT_ID`, `_AUDIENCE`, `_ISSUER`, `_JWKS_URL`, `_ROLE_ADMIN`, `_ROLE_MODERATOR`, `_ROLE_VIEWER`, `_ROLE_METRICS` | Backend |
 | `BLACKHOLE_UI_OIDC_AUTHORITY`, `_OIDC_CLIENT_ID`, `_API_SCOPE` | Web container |
 | `BLACKHOLE_TENANT_ID`, `BLACKHOLE_CLIENT_ID`, `BLACKHOLE_CLIENT_SECRET`, `BLACKHOLE_AUTH_SCOPE` | Velocity plugin |
+| `BLACKHOLE_DISCORD_TENANT_ID`, `_CLIENT_ID`, `_CLIENT_SECRET`, `_AUTH_SCOPE` | Discord bot (`discord` module) |
+
+The backend maps the Discord bot's role through `BLACKHOLE_AUTH_MACHINE_ROLE_DISCORD` (default
+`Blackhole.Discord`), next to `BLACKHOLE_AUTH_MACHINE_ROLE_PROXY` and `_METRICS`.
 
 `BLACKHOLE_AUTH_AUDIENCE` is the API's application (client) id and `BLACKHOLE_AUTH_SCOPE` is
 `api://<api-client-id>/.default`.

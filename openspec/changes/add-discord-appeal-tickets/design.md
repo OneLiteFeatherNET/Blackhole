@@ -16,6 +16,15 @@ to one, code stored hashed); `docs/entra-setup.sh` creates the API registration,
 Velocity client; RabbitMQ topic exchange `blackhole.events`; `@Transactional` unusable (single CTE
 writes); infra owns rate limiting; the test rules of F.I.R.S.T.
 
+## Phase 0: the bot MVP (settled 2026-10-24, ships before any ticket channel)
+
+The first deliverable is a small slice of this design so the bot exists and the team can use it: **bot + account link + team notifications**. It needs no ticket, participant or transcript tables.
+
+- **Module and role:** the `discord` module with JDA and the `Blackhole.Discord` app role, exactly as decision 1 and 12. Intents are only `GUILDS` (slash commands, buttons and posting need no message content); `GUILD_MESSAGES` and `MESSAGE_CONTENT` are added with the ticket phase.
+- **Link (staff and player):** one table `discord_link` (V14, `kind` STAFF or PLAYER) plus `discord_link_code`, codes hashed, 10 minutes, no limiter. Staff get a code in the panel; players get one in game with `/blackhole discord` (the proxy sends the hashed owner). Both type `/link <code>` in Discord; the bot confirms through `POST /discord/link/confirm`. `/unlink` and `/whoami` use the same facade. The Discord user id exists only in `discord_link` and is removed by unlink, admin removal, staff anonymise and profile erasure.
+- **Team notifications:** the bot consumes `report.created`, `report.resolved`, `appeal.submitted` and `appeal.resolved` from a durable queue `blackhole.discord.notify`, reads the display facts (player name, category, short reason, panel link) from a `/discord/notifications/**` read facade (events carry only hashed owners) and posts one embed to the team channel; it edits the message when the item is resolved. Idempotency is per event id (the bot keeps a bounded in-memory set and finds its own message by the event id in the embed footer after a restart), so the bot stays stateless.
+- **Later phases reuse all of it:** the same client-credentials token, `BackendGateway` and `DiscordGateway` interfaces, queue consumer and facade.
+
 ## Goals / Non-Goals
 
 **Goals:** appeal in Discord without a second account system; one conversation across portal, panel
@@ -78,7 +87,7 @@ The bot has no database. Backend tables (V16):
 | `case_participant` | `id uuid`, `punishment_identifier` FK (cascade), `kind` (`PLAYER`, `STAFF`, `EXTERNAL`, `BOT`), `discord_user_id varchar(24)` null, `display_name` null, `bot` bool, `created_at`, `erased_at` null. Unique `(punishment_identifier, discord_user_id)`. |
 | `discord_ticket` | `id uuid`, `ticket_no bigint generated always as identity`, `punishment_identifier`, `appeal_id`, `owner_participant_id`, `state` (`PENDING_CHANNEL`, `OPEN`, `CLOSING`, `CLOSED`, `ARCHIVED`, `DELETED`), `channel_id`, `guild_id`, `frozen bool`, `ingested_cursor` (highest recorded Discord message id), `relayed_seq` (highest case `seq` relayed to Discord), `transcript_count`, `transcript_last_message_id`, `transcript_complete_at`, times. Unique open ticket per `(appeal_id, owner_participant_id)`. |
 | `discord_message_link` | `ticket_id`, `message_id uuid` (the case message), `discord_message_id`, `direction` (`INBOUND` from Discord, `RELAYED` to Discord). Unique `(ticket_id, discord_message_id)`. |
-| `staff_discord_link` | `oid`, `discord_user_id`, `created_at`; one to one both ways. |
+| `discord_link` | shipped in phase 0 (V14): `kind` (`STAFF` oid or `PLAYER` hashed owner), `subject`, `discord_user_id`, `linked_at`; one to one both ways per kind. Replaces the first draft's staff-only link table. |
 
 The link table maps ids only (the event rows are immutable). Because everything is in the backend, a
 second bot instance or a restart needs only the env.
@@ -186,7 +195,7 @@ Author resolution on ingest, in this order:
 | Author | Kind | Trust | Shown as |
 |---|---|---|---|
 | the ticket's bound participant | `PLAYER` | `PLAYER` | Player (Discord) |
-| a user with the staff role **and** a live `staff_discord_link` | `STAFF`, `actor_oid` = the linked `oid` | `VERIFIED` | the staff member's name in the panel; "Moderation team" to the player |
+| a user with the staff role **and** a live `discord_link` (kind `STAFF`) | `STAFF`, `actor_oid` = the linked `oid` | `VERIFIED` | the staff member's name in the panel; "Moderation team" to the player |
 | a user with the staff role and **no** link (only reachable in the window after a link was removed, before the next access reconcile, or for a Discord administrator who sees every channel) | `STAFF`, participant only | `UNVERIFIED` | "unverified staff (Discord)" |
 | any other human | `EXTERNAL` | `UNVERIFIED` | other participant |
 | a bot (not ours) | `BOT` | `SYSTEM`-like, visibility `STAFF` | bot |
@@ -203,7 +212,7 @@ Discord staff messages are shown with the unverified badge, never as verified.
 **Channel access needs a live link (decided 2026-10-23).** Staff without a linked Discord account are **not
 allowed** in ticket channels. The staff role alone grants nothing: the ticket and archive categories give the
 role no View permission, and the bot adds exactly the staff members who hold the role **and** have a live
-`staff_discord_link` as per-channel member overwrites. A `StaffAccessReconciler` (every
+`discord_link` (kind `STAFF`) as per-channel member overwrites. A `StaffAccessReconciler` (every
 `DISCORD_STAFF_RECONCILE_INTERVAL`, at ticket creation and when a `staff-link.removed` event arrives) reads
 `GET /discord/staff-links`, checks each linked user's role by REST (no member cache, no `GUILD_MEMBERS` intent)
 and adds or removes the overwrites on every non-deleted ticket channel, so an unlink or a lost role removes
@@ -301,13 +310,13 @@ at the next access reconcile (decision 6), and anonymising regenerates the store
 
 - **Identity stays hashed where the system holds it:** the player's punishment identity is the owner hash as
   before. **Discord user ids are personal data**: stored only in `case_participant.discord_user_id` (and
-  `staff_discord_link` for staff), never in `case_event` payloads, domain events, logs, metrics, the export
+  `discord_link` (kind `STAFF`) for staff), never in `case_event` payloads, domain events, logs, metrics, the export
   or file names. Events reference the opaque `participantId`. `display_name` is a snapshot kept only as long as
   needed to render the panel.
 - **Erasure:** `POST /case/{reference}/participants/{id}/erase` (`ADMIN`) nulls `discord_user_id` and
   `display_name` and sets `erased_at`; the player-side erase of the portal change also does it for the bound
   participant. Timeline entries keep their structure with an anonymous author. Message text is redacted by the
-  portal change's routes. The panel offers both. Staff anonymize clears `staff_discord_link`. Deleting the
+  portal change's routes. The panel offers both. Staff anonymize clears `discord_link` (kind `STAFF`). Deleting the
   punishment record cascades participants, tickets and links.
 - **Retention:** the transcript and the stored protocol live as long as the case and punishment (evidence rule),
   **pending legal confirmation**. Discord's own copy lives until the archived channel is deleted (30 days,

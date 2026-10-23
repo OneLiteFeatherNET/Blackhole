@@ -9,10 +9,10 @@ paths:
 - Every route except `GET /health` needs an Entra ID access token (`Authorization: Bearer`). The
   backend verifies signature (JWKS), issuer, audience and expiry, keeps no session and sets no cookie.
   There is no setting that turns authentication off.
-- Roles (`security/Roles`): `ADMIN` > `MODERATOR` > `VIEWER`, plus `PROXY` and `METRICS`, which imply
-  nothing. `BlackholeRolesFinder` picks the claim by token kind: delegated tokens (they carry `scp`)
+- Roles (`security/Roles`): `ADMIN` > `MODERATOR` > `VIEWER`, plus `PROXY`, `METRICS` and `DISCORD`
+  (the Discord bot, app role `Blackhole.Discord`, only `/discord/**`), which imply nothing. `BlackholeRolesFinder` picks the claim by token kind: delegated tokens (they carry `scp`)
   use `groups` (Entra group object ids), app-only tokens use `roles` (`Blackhole.Proxy`,
-  `Blackhole.Metrics`). A caller with no mapped role gets 403 everywhere except `GET /auth/me`; a
+  `Blackhole.Metrics`, `Blackhole.Discord`). A caller with no mapped role gets 403 everywhere except `GET /auth/me`; a
   groups overage answers 403 with reason `groups-overage` (no Graph call).
 - Put `@Secured(Roles.X)` on every controller or method; controllers hold no authorization logic.
   `RouteCoverageIntegrationTest` and `PermissionMatrixIntegrationTest` fail for a route without a rule
@@ -27,6 +27,11 @@ paths:
   `by-minecraft` are `PROXY`-only; the code is stored hashed and never logged. No failed-attempt cap in
   the app on purpose (infra rate limits; `blackhole.link` goes to staff groups only). `anonymize` removes
   the link. The route matrix lives in `openspec/changes/archive/2026-10-23-add-team-sso/design.md`.
+- Discord link (`discord/` `DiscordLink*`): codes work like the staff link (hashed, single use, no in-app
+  limiter) but live in `discord_link_code`; `POST /staff-discord-link/code` is a human token, `POST
+  /player-discord-link/code` is `PROXY` (hashed owner), `/discord/link/**` is `DISCORD` only. A Discord user
+  id is personal data: only in `discord_link`, never in a response, event or log; unlink, admin removal,
+  staff anonymize and profile erase delete it.
 - Config is `blackhole.security.*` in `application.yml` (`BLACKHOLE_AUTH_*`). The defaults point at the
   mock OIDC server in `docker/docker-compose.yml`; a non-dev context with an `http`/localhost issuer
   refuses to start.

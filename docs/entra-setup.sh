@@ -1,14 +1,14 @@
 #!/bin/bash
 # Creates the Blackhole Entra set for one environment (idempotent): 4 security groups and the
-# API, SPA (admin UI) and Velocity app registrations, with role claims, scopes and admin consent.
-# Needs the Azure CLI (az login as a user who may create app registrations and groups and grant
+# API, SPA (admin UI), Velocity and Discord bot app registrations, with role claims, scopes and
+# admin consent. Needs the Azure CLI (az login as a user who may create app registrations and groups and grant
 # admin consent) and uuidgen. Safe to run again: existing objects are reused and the Velocity
-# secret is only created when the env file has none.
+# secrets (Velocity, Discord bot) are only created when the env file has none.
 #
 # Usage: docs/entra-setup.sh <dev|prod> [redirect-origin] [env-file]
 #   redirect-origin  Where the admin UI is served, no trailing slash. Default for dev:
 #                    http://localhost:5173. Required for prod, e.g. https://blackhole.example.org.
-#   env-file         Where the ids and the Velocity secret are written (mode 600). Default:
+#   env-file         Where the ids and the client secrets are written (mode 600). Default:
 #                    ~/.config/blackhole/entra-<env>.env. Never commit that file.
 # See docs/entra-setup.md.
 set -euo pipefail
@@ -54,6 +54,8 @@ PROXY_ID=$(az ad app show --id "$API" --query "appRoles[?value=='Blackhole.Proxy
 [ -n "$PROXY_ID" ] || PROXY_ID=$(uuidgen)
 METRICS_ID=$(az ad app show --id "$API" --query "appRoles[?value=='Blackhole.Metrics'].id | [0]" -o tsv)
 [ -n "$METRICS_ID" ] || METRICS_ID=$(uuidgen)
+DISCORD_ID=$(az ad app show --id "$API" --query "appRoles[?value=='Blackhole.Discord'].id | [0]" -o tsv)
+[ -n "$DISCORD_ID" ] || DISCORD_ID=$(uuidgen)
 az rest --method PATCH --url "$GRAPH/applications/$API_OBJ" --headers Content-Type=application/json --body @- <<EOF
 {
   "identifierUris": ["api://$API"],
@@ -72,7 +74,9 @@ az rest --method PATCH --url "$GRAPH/applications/$API_OBJ" --headers Content-Ty
     {"id": "$PROXY_ID", "value": "Blackhole.Proxy", "displayName": "Blackhole proxy",
      "description": "Velocity proxy plugin acting for staff.", "allowedMemberTypes": ["Application"], "isEnabled": true},
     {"id": "$METRICS_ID", "value": "Blackhole.Metrics", "displayName": "Blackhole metrics",
-     "description": "Prometheus scraper.", "allowedMemberTypes": ["Application"], "isEnabled": true}
+     "description": "Prometheus scraper.", "allowedMemberTypes": ["Application"], "isEnabled": true},
+    {"id": "$DISCORD_ID", "value": "Blackhole.Discord", "displayName": "Blackhole Discord bot",
+     "description": "Discord bot: account linking and team notifications.", "allowedMemberTypes": ["Application"], "isEnabled": true}
   ]
 }
 EOF
@@ -123,6 +127,21 @@ if ! grep -q '^BLACKHOLE_CLIENT_SECRET=' "$OUT" 2>/dev/null; then
   VEL_SECRET=$(az ad app credential reset --id "$VEL" --display-name "$ENVNAME" --years 1 --append --query password -o tsv)
 fi
 
+# --- Discord bot (client credentials, Blackhole.Discord) ---
+BOT=$(app "Blackhole Discord ($ENVNAME)")
+BOT_OBJ=$(az ad app show --id "$BOT" --query id -o tsv)
+az rest --method PATCH --url "$GRAPH/applications/$BOT_OBJ" --headers Content-Type=application/json \
+  --body "{\"requiredResourceAccess\":[{\"resourceAppId\":\"$API\",\"resourceAccess\":[{\"id\":\"$DISCORD_ID\",\"type\":\"Role\"}]}]}"
+BOT_SP=$(sp "$BOT")
+has=$(az rest --method GET --url "$GRAPH/servicePrincipals/$BOT_SP/appRoleAssignments" --query "value[?appRoleId=='$DISCORD_ID'] | length(@)" -o tsv)
+[ "$has" != "0" ] || az rest --method POST --url "$GRAPH/servicePrincipals/$BOT_SP/appRoleAssignments" \
+  --headers Content-Type=application/json \
+  --body "{\"principalId\":\"$BOT_SP\",\"resourceId\":\"$API_SP\",\"appRoleId\":\"$DISCORD_ID\"}" > /dev/null
+BOT_SECRET=""
+if ! grep -q '^BLACKHOLE_DISCORD_CLIENT_SECRET=' "$OUT" 2>/dev/null; then
+  BOT_SECRET=$(az ad app credential reset --id "$BOT" --display-name "$ENVNAME" --years 1 --append --query password -o tsv)
+fi
+
 umask 077
 {
   echo "# Blackhole Entra $ENVNAME set, tenant $TENANT. Secret file: do not commit or share."
@@ -142,6 +161,11 @@ umask 077
   echo "BLACKHOLE_AUTH_SCOPE=api://$API/.default"
   if [ -n "$VEL_SECRET" ]; then echo "BLACKHOLE_CLIENT_SECRET=$VEL_SECRET";
   else grep '^BLACKHOLE_CLIENT_SECRET=' "$OUT"; fi
+  echo "BLACKHOLE_DISCORD_TENANT_ID=$TENANT"
+  echo "BLACKHOLE_DISCORD_CLIENT_ID=$BOT"
+  echo "BLACKHOLE_DISCORD_AUTH_SCOPE=api://$API/.default"
+  if [ -n "$BOT_SECRET" ]; then echo "BLACKHOLE_DISCORD_CLIENT_SECRET=$BOT_SECRET";
+  else grep '^BLACKHOLE_DISCORD_CLIENT_SECRET=' "$OUT"; fi
 } > "$OUT.new"
 mv "$OUT.new" "$OUT"
 echo "done; ids in $OUT"
