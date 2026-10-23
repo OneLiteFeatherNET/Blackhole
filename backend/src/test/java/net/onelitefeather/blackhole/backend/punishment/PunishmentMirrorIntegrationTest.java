@@ -62,7 +62,7 @@ class PunishmentMirrorIntegrationTest extends PostgresIntegrationTest {
         try (Fixture f = fixture("network")) {
             long expiresAt = f.clock.millis() + Duration.ofMinutes(10).toMillis();
 
-            f.writer.set("network", "BAN", OWNER, "p-1", "t-1", "Griefing", expiresAt);
+            f.writer.set("network", "BAN", OWNER, "p-1", "t-1", "Griefing", expiresAt, false);
 
             String key = RedisTopology.punishKey("network", OWNER);
             assertEquals("blackhole:punish:network:" + OWNER, key);
@@ -80,7 +80,7 @@ class PunishmentMirrorIntegrationTest extends PostgresIntegrationTest {
     @Test
     void aPermanentPunishmentIsStoredWithoutATtl() {
         try (Fixture f = fixture("chat")) {
-            f.writer.set("chat", "MUTE", OWNER, "p-2", null, "Muted for good", null);
+            f.writer.set("chat", "MUTE", OWNER, "p-2", null, "Muted for good", null, false);
 
             assertEquals(-1L, f.connection.sync().pttl(RedisTopology.punishKey("chat", OWNER)), "no expiry on a permanent punishment");
         }
@@ -89,7 +89,7 @@ class PunishmentMirrorIntegrationTest extends PostgresIntegrationTest {
     @Test
     void anAlreadyExpiredPunishmentIsNotResurrected() {
         try (Fixture f = fixture("network")) {
-            f.writer.set("network", "BAN", OWNER, "p-3", null, "old", f.clock.millis() - 1000);
+            f.writer.set("network", "BAN", OWNER, "p-3", null, "old", f.clock.millis() - 1000, false);
 
             assertNull(f.connection.sync().get(RedisTopology.punishKey("network", OWNER)));
         }
@@ -98,8 +98,8 @@ class PunishmentMirrorIntegrationTest extends PostgresIntegrationTest {
     @Test
     void clearingDeletesOnlyThatSectionsKeyAndPublishesACleared() throws InterruptedException {
         try (Fixture f = fixture("chat")) {
-            f.writer.set("chat", "MUTE", OWNER, "p-4", null, "mute", null);
-            f.writer.set("network", "BAN", OWNER, "p-5", null, "ban", null);
+            f.writer.set("chat", "MUTE", OWNER, "p-4", null, "mute", null, false);
+            f.writer.set("network", "BAN", OWNER, "p-5", null, "ban", null, false);
             assertNotNull(f.messages.poll(5, TimeUnit.SECONDS), "SET message of the mute");
             assertNotNull(f.messages.poll(5, TimeUnit.SECONDS), "SET message of the ban");
 

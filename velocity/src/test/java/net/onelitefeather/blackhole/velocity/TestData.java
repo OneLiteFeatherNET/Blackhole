@@ -47,11 +47,11 @@ public final class TestData {
 
     /** An active punishment message of the owner. */
     public static PunishmentSyncMessage active(String section, EnforcementKind kind, String id, Long expiresAt) {
-        return new PunishmentSyncMessage(OWNER, section, kind.name(), PunishmentSyncMessage.STATE_SET, id, null, "reason of " + id, expiresAt);
+        return new PunishmentSyncMessage(OWNER, section, kind.name(), PunishmentSyncMessage.STATE_SET, id, null, "reason of " + id, expiresAt, false);
     }
 
     /** A cleared message for the punishment. */
     public static PunishmentSyncMessage cleared(String section, EnforcementKind kind, String id) {
-        return new PunishmentSyncMessage(OWNER, section, kind.name(), PunishmentSyncMessage.STATE_CLEARED, id, null, null, null);
+        return new PunishmentSyncMessage(OWNER, section, kind.name(), PunishmentSyncMessage.STATE_CLEARED, id, null, null, null, false);
     }
 }

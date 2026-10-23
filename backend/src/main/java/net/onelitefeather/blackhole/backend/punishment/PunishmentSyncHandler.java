@@ -37,7 +37,8 @@ public class PunishmentSyncHandler {
         switch (event.eventType()) {
             case "punishment.created", "punishment.updated" -> this.mirror.set(
                     section, enforcement, owner, punishmentIdentifier,
-                    stringOrNull(payload.get("templateIdentifier")), stringOrNull(payload.get("reason")), asLong(payload.get("expiresAt"))
+                    stringOrNull(payload.get("templateIdentifier")), stringOrNull(payload.get("reason")), asLong(payload.get("expiresAt")),
+                    Boolean.TRUE.equals(payload.get("automatic"))
             );
             case "punishment.expired", "punishment.revoked" -> this.mirror.clear(section, enforcement, owner, punishmentIdentifier);
             case "appeal.resolved" -> {

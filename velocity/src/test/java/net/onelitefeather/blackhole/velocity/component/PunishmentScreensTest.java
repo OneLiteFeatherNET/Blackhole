@@ -62,7 +62,7 @@ class PunishmentScreensTest {
     }
 
     private static PunishmentSyncMessage punishment(String section, EnforcementKind kind, Long expiresAt, String reason) {
-        return new PunishmentSyncMessage(TestData.OWNER, section, kind.name(), PunishmentSyncMessage.STATE_SET, ID, null, reason, expiresAt);
+        return new PunishmentSyncMessage(TestData.OWNER, section, kind.name(), PunishmentSyncMessage.STATE_SET, ID, null, reason, expiresAt, false);
     }
 
     /** Plain text with the narrow no-break spaces of newer JDK locale data normalised. */
@@ -151,6 +151,56 @@ class PunishmentScreensTest {
         assertTrue(text.contains("21.10.2026"), text);
         assertFalse(text.contains("Oct"), text);
         assertFalse(text.contains("PM"), text);
+    }
+
+    private static PunishmentSyncMessage automatic(Long expiresAt) {
+        return new PunishmentSyncMessage(TestData.OWNER, "network", EnforcementKind.BAN.name(), PunishmentSyncMessage.STATE_SET, ID, null,
+                "Permanently banned after repeated violations", expiresAt, true);
+    }
+
+    @Test
+    void automaticEscalationShowsTheTranslatedReasonInGerman() {
+        assertEquals("""
+                Du wurdest vom Netzwerk ausgeschlossen
+
+                Grund
+                Nach wiederholten Verstößen automatisch dauerhaft bestraft
+
+                Dauer: dauerhaft
+
+                Bereich: Network  ·  Strafen-ID: #A1B2C3D4""",
+                text(automatic(null), Locale.GERMAN, Surface.DISCONNECT));
+    }
+
+    @Test
+    void automaticEscalationShowsTheTranslatedReasonInEnglish() {
+        String text = text(automatic(null), Locale.ENGLISH, Surface.DISCONNECT);
+
+        assertTrue(text.contains("Reason\nPermanently punished by the automatic system after repeated violations\n"), text);
+    }
+
+    @Test
+    void automaticTemporaryPunishmentShowsItsTranslatedReason() {
+        assertTrue(text(automatic(IN_59_MIN), Locale.GERMAN, Surface.DISCONNECT).contains("Automatische befristete Bestrafung (ELO-System)"));
+    }
+
+    @Test
+    void automaticMuteNoticeShowsTheTranslatedReason() {
+        PunishmentSyncMessage mute = new PunishmentSyncMessage(TestData.OWNER, "chat", EnforcementKind.MUTE.name(),
+                PunishmentSyncMessage.STATE_SET, ID, null, "Permanently muted after repeated chat violations", null, true);
+
+        String text = text(mute, Locale.GERMAN, Surface.CHAT);
+
+        assertTrue(text.contains("Nach wiederholten Verstößen automatisch dauerhaft bestraft"), text);
+        assertFalse(text.contains("Permanently muted"), text);
+    }
+
+    @Test
+    void aNormalTemplateKeepsItsOwnReasonEvenWhenPermanent() {
+        String text = text(punishment("network", EnforcementKind.BAN, null, "Cheating"), Locale.GERMAN, Surface.DISCONNECT);
+
+        assertTrue(text.contains("Grund\nCheating\n"), text);
+        assertFalse(text.contains("automatisch"), text);
     }
 
     @Test

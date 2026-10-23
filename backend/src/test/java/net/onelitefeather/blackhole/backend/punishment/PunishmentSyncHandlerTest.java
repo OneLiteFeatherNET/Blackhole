@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PunishmentSyncHandlerTest {
 
-    private record Set(String section, String enforcement, String owner, String id, String template, String reason, Long expiresAt) {
+    private record Set(String section, String enforcement, String owner, String id, String template, String reason, Long expiresAt, boolean automatic) {
     }
 
     private record Clear(String section, String enforcement, String owner, String id) {
@@ -22,8 +22,8 @@ class PunishmentSyncHandlerTest {
     private final List<Object> mirrorCalls = new ArrayList<>();
     private final PunishmentSyncHandler handler = new PunishmentSyncHandler(new PunishmentMirror() {
         @Override
-        public void set(String section, String enforcement, String owner, String id, String template, String reason, Long expiresAt) {
-            mirrorCalls.add(new Set(section, enforcement, owner, id, template, reason, expiresAt));
+        public void set(String section, String enforcement, String owner, String id, String template, String reason, Long expiresAt, boolean automatic) {
+            mirrorCalls.add(new Set(section, enforcement, owner, id, template, reason, expiresAt, automatic));
         }
 
         @Override
@@ -46,6 +46,18 @@ class PunishmentSyncHandlerTest {
     }
 
     @Test
+    void anAutomaticPunishmentIsMirroredAsAutomatic() {
+        Map<String, Object> payload = payload("network", "BAN");
+        payload.put("reason", "Permanently banned after repeated violations");
+        payload.put("automatic", true);
+
+        handler.handle(event("punishment.created", payload));
+
+        assertEquals(List.of(new Set("network", "BAN", "owner", "p-1", null, "Permanently banned after repeated violations", null, true)),
+                mirrorCalls);
+    }
+
+    @Test
     void aCreatedTemporaryPunishmentSetsTheStateOfItsSectionWithItsExpiry() {
         Map<String, Object> payload = payload("network", "BAN");
         payload.put("templateIdentifier", "t-1");
@@ -54,14 +66,14 @@ class PunishmentSyncHandlerTest {
 
         handler.handle(event("punishment.created", payload));
 
-        assertEquals(List.of(new Set("network", "BAN", "owner", "p-1", "t-1", "Griefing", 1_900_000_000_000L)), mirrorCalls);
+        assertEquals(List.of(new Set("network", "BAN", "owner", "p-1", "t-1", "Griefing", 1_900_000_000_000L, false)), mirrorCalls);
     }
 
     @Test
     void aCreatedPermanentPunishmentHasNoExpiry() {
         handler.handle(event("punishment.created", payload("chat", "MUTE")));
 
-        assertEquals(List.of(new Set("chat", "MUTE", "owner", "p-1", null, null, null)), mirrorCalls);
+        assertEquals(List.of(new Set("chat", "MUTE", "owner", "p-1", null, null, null, false)), mirrorCalls);
     }
 
     @Test

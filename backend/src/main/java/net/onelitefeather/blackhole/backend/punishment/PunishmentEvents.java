@@ -28,6 +28,9 @@ public final class PunishmentEvents {
         Map<String, Object> payload = base(punishment, section);
         payload.put("permanent", punishment.isPermanent());
         payload.put("reason", reasonOf(punishment));
+        if (Boolean.TRUE.equals(punishment.getMetaData().get("automatic"))) {
+            payload.put("automatic", true);
+        }
         if (punishment.getTemplate() != null) {
             payload.put("templateIdentifier", punishment.getTemplate().getIdentifier().toString());
         }

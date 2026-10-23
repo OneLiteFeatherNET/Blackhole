@@ -98,9 +98,9 @@ class ThemeStoreCompatibilityTest {
         String id = "obLD1AAAQACAAAAAAAAAAQ";
         // The mute title carries <bh:prefix> on purpose, so a plain MiniMessage cannot render a mute screen.
         PunishmentSyncMessage[] punishments = {
-                new PunishmentSyncMessage(TestData.OWNER, "network", EnforcementKind.BAN.name(), PunishmentSyncMessage.STATE_SET, id, null, "Cheating", expiresAt),
-                new PunishmentSyncMessage(TestData.OWNER, "network", EnforcementKind.BAN.name(), PunishmentSyncMessage.STATE_SET, id, null, "Cheating", null),
-                new PunishmentSyncMessage(TestData.OWNER, "bedwars", EnforcementKind.SERVER.name(), PunishmentSyncMessage.STATE_SET, id, null, "Griefing", null)};
+                new PunishmentSyncMessage(TestData.OWNER, "network", EnforcementKind.BAN.name(), PunishmentSyncMessage.STATE_SET, id, null, "Cheating", expiresAt, false),
+                new PunishmentSyncMessage(TestData.OWNER, "network", EnforcementKind.BAN.name(), PunishmentSyncMessage.STATE_SET, id, null, "Cheating", null, false),
+                new PunishmentSyncMessage(TestData.OWNER, "bedwars", EnforcementKind.SERVER.name(), PunishmentSyncMessage.STATE_SET, id, null, "Griefing", null, false)};
 
         for (PunishmentSyncMessage punishment : punishments) {
             for (Locale locale : new Locale[]{Locale.ENGLISH, Locale.GERMAN}) {
