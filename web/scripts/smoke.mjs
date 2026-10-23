@@ -1,5 +1,5 @@
 // Container smoke check: runs the built web image against a throwaway upstream and asserts the
-// behaviour the nginx image had (see openspec/changes/serve-web-with-nitro/design.md).
+// behaviour the nginx image had (see openspec/changes/archive/2026-10-23-serve-web-with-nitro/design.md).
 //   node scripts/smoke.mjs <image>        (docker must be available)
 import { spawnSync } from 'node:child_process'
 import { createServer } from 'node:http'
