@@ -14,4 +14,19 @@ public final class NoCloudNetView implements CloudNetView {
     public Optional<ServerFacts> facts(String serverName) {
         return Optional.empty();
     }
+
+    @Override
+    public Catalogue catalogue() {
+        return Catalogue.empty();
+    }
+
+    @Override
+    public Optional<String> ownName() {
+        return Optional.empty();
+    }
+
+    @Override
+    public void onChange(Runnable listener) {
+        // Nothing ever changes.
+    }
 }

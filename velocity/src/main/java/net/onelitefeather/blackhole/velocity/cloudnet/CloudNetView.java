@@ -18,4 +18,20 @@ public interface CloudNetView {
      * @return what CloudNet knows about the server, empty if it is not a CloudNet service
      */
     Optional<ServerFacts> facts(String serverName);
+
+    /**
+     * @return the tasks, groups and services CloudNet knows now; empty outside CloudNet
+     */
+    Catalogue catalogue();
+
+    /**
+     * @return this proxy's own CloudNet service name, e.g. {@code Proxy-1}; empty outside CloudNet
+     */
+    Optional<String> ownName();
+
+    /**
+     * Calls {@code listener} when a CloudNet service, task or group changes. May run on any thread
+     * and must not block.
+     */
+    void onChange(Runnable listener);
 }
