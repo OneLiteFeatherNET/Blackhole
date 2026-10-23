@@ -79,7 +79,7 @@ describe('App shell', () => {
     await openAccountMenu(wrapper)
 
     expect(wrapper.get('[data-testid="signed-in-as"]').text()).toBe('Angemeldet als Dev Admin')
-    expect(wrapper.find('input').exists(), 'text input').toBe(false)
+    expect(wrapper.find('input:not([data-testid="global-search"])').exists(), 'free-text input').toBe(false)
 
     wrapper.unmount()
   })
@@ -149,7 +149,7 @@ describe('App shell', () => {
   it('switches the language and the theme from the account menu', async () => {
     const wrapper = await mountApp('/')
     await openAccountMenu(wrapper)
-    const [themeSelect, localeSelect] = wrapper.findAll('[role="combobox"]')
+    const [themeSelect, localeSelect] = wrapper.findAll('[role="combobox"]:not([data-testid="global-search"])')
 
     await chooseOption(themeSelect!, 'dark')
     expect(document.documentElement.dataset.theme).toBe('dark')
@@ -294,6 +294,22 @@ describe('App shell', () => {
     await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
     await wrapper.get('[data-testid="nav-scrim"]').trigger('click')
     expect(wrapper.find('nav').exists(), 'after the scrim').toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('puts the search into the top bar for a signed-in user with a role', async () => {
+    const wrapper = await mountApp('/')
+
+    expect(wrapper.find('header [data-testid="global-search"]').exists()).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('offers no search to a user without a role', async () => {
+    const wrapper = await mountApp('/no-access', { roles: [] })
+
+    expect(wrapper.find('[data-testid="global-search"]').exists()).toBe(false)
 
     wrapper.unmount()
   })

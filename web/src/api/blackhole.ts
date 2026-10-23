@@ -24,6 +24,7 @@ import type {
   Evidence,
   EvidenceDeleteReason,
   EvidencePage,
+  Punishment,
   PunishmentProfile,
   Report,
   ReportResolution,
@@ -129,6 +130,8 @@ export interface BlackholeApi {
 
   /** One page of cases, newest activity first. */
   cases(query?: CaseListQuery): Promise<ApiResult<CaseListPage>>
+  /** The punishments whose short id (`#` and eight hex characters) matches; several if short ids collide, none if nothing matches. */
+  punishmentsByShortId(shortId: string): Promise<ApiResult<Punishment[]>>
   /** A case by punishment identifier or short id; its `version` is what {@link updateCase} must send back. */
   caseDetail(reference: string): Promise<ApiResult<Case>>
   /** One page of the case timeline; pass the previous page's `nextCursor` to continue. */
@@ -486,6 +489,9 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     cases: (query = {}) =>
       toResult(http.GET('/case', { querySerializer: caseListQuery(query) })),
+
+    punishmentsByShortId: async (shortId) =>
+      map(await toResult(http.GET('/punishment/short/{shortId}', { params: { path: { shortId } } })), (all) => all ?? []),
 
     caseDetail: (reference) => toResult(http.GET('/case/{reference}', { params: { path: { reference } } })),
 
