@@ -17,6 +17,7 @@ const evidenceFor = ref<string | null>(null)
 const columns = computed(() => [
   { key: 'createdAt' as const, label: t('player.columns.when') },
   { key: 'section' as const, label: t('player.columns.section') },
+  { key: 'source' as const, label: t('player.columns.issuedBy') },
   { key: 'template' as const, label: t('player.columns.reason') },
   { key: 'stepIndex' as const, label: t('player.columns.step') },
   { key: 'eloCost' as const, label: t('player.columns.cost') },
@@ -30,6 +31,7 @@ const columns = computed(() => [
   <MdDataTable v-else :label="t('player.history')" :columns="columns" :rows="history">
     <template #cell="{ row, column }">
       <template v-if="column.key === 'createdAt'">{{ row.createdAt ? formatDateTime(row.createdAt, locale) : '' }}</template>
+      <template v-else-if="column.key === 'source'">{{ row.actorName || row.source }}</template>
       <template v-else-if="column.key === 'template'">{{ reasonOf(row) }}</template>
       <template v-else-if="column.key === 'stepIndex'">{{ stepLabel(row) ?? '' }}</template>
       <template v-else-if="column.key === 'eloCost'">{{ row.eloCost ?? '' }}</template>

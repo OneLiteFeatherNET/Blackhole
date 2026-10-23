@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../api/inject'
 import type { Section } from '../api/types'
+import StaffLinksPanel from '../components/account/StaffLinksPanel.vue'
 import MdButton from '../components/md/MdButton.vue'
 import MdDataTable from '../components/md/MdDataTable.vue'
 import MdDialog from '../components/md/MdDialog.vue'
@@ -138,4 +139,5 @@ async function confirmDisable(): Promise<void> {
     </template>
   </MdDialog>
   <MdSnackbar :open="message !== ''" :message="message" @close="message = ''" />
+  <StaffLinksPanel v-if="session.administrator" />
 </template>

@@ -28,6 +28,7 @@ async function mountApp(path = '/', options: { roles?: string[]; auth?: ReturnTy
           profile: async () => ok({ active: {}, history: [] }),
           eloProfile: async () => ok({ owner: '', sections: [] }),
           eloHistory: async () => ok([]),
+          staffLinkStatus: async () => ok({ linked: false }),
         }),
       },
     },
@@ -127,6 +128,17 @@ describe('App shell', () => {
     await flushPromises()
     expect(wrapper.get('nav').attributes('aria-label')).toBe('Main navigation')
     expect(wrapper.get('h1').text()).toBe('Dashboard')
+
+    wrapper.unmount()
+  })
+
+  it('opens the account dialog from the signed-in area', async () => {
+    const wrapper = await mountApp('/', { roles: ['VIEWER'] })
+
+    expect(wrapper.find('[role="dialog"]').exists(), 'closed at first').toBe(false)
+    await wrapper.get('[data-testid="account"]').trigger('click')
+
+    expect(wrapper.find('[role="dialog"]').exists(), 'opened by the button').toBe(true)
 
     wrapper.unmount()
   })

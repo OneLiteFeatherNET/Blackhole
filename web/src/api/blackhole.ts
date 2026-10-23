@@ -21,6 +21,9 @@ import type {
   ResolvedPlayer,
   RevokeResult,
   Section,
+  StaffLink,
+  StaffLinkCode,
+  StaffLinkStatus,
   SectionDraft,
   Template,
   TemplateDraft,
@@ -88,6 +91,16 @@ export interface BlackholeApi {
   evidenceContent(identifier: string): Promise<ApiResult<Blob>>
   /** Uploads one file to the punishment; resolves through {@link Upload.result}, can be cancelled. */
   startEvidenceUpload(punishment: string, file: File, onProgress?: (fraction: number) => void): Upload
+  /** Issues a one-time code (shown as `ABCD-EFGH`) that links the caller's Minecraft account when typed in game; replaces an earlier code. */
+  issueStaffLinkCode(): Promise<ApiResult<StaffLinkCode>>
+  /** Whether the caller has a linked Minecraft account. */
+  staffLinkStatus(): Promise<ApiResult<StaffLinkStatus>>
+  /** Removes the caller's own link. */
+  unlinkOwnStaffLink(): Promise<ApiResult<void>>
+  /** All links of all staff (ADMIN only). */
+  staffLinks(): Promise<ApiResult<StaffLink[]>>
+  /** Removes anyone's link (ADMIN only). */
+  unlinkStaffLink(oid: string): Promise<ApiResult<void>>
 }
 
 const EVIDENCE_PAGE_SIZE = 20
@@ -349,5 +362,12 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     evidenceContent: (identifier) =>
       toResult(http.GET('/evidence/{identifier}/content', { params: { path: { identifier } }, parseAs: 'blob' })),
+
+    issueStaffLinkCode: () => toResult(http.POST('/staff-link/code')),
+    staffLinkStatus: () => toResult(http.GET('/staff-link/me')),
+    unlinkOwnStaffLink: async () => map(await toResult(http.DELETE('/staff-link/me')), () => undefined),
+    staffLinks: async () => map(await toResult(http.GET('/admin/staff-link')), (body) => body.items),
+    unlinkStaffLink: async (oid) =>
+      map(await toResult(http.DELETE('/admin/staff-link/{oid}', { params: { path: { oid } } })), () => undefined),
   }
 }
