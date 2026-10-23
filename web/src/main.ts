@@ -13,7 +13,7 @@ import '@fontsource/roboto/latin-ext-400.css'
 import '@fontsource/roboto/latin-ext-500.css'
 import './styles/main.css'
 
-/** The reverse proxy (nginx in the container, Vite in development) forwards this prefix to the backend. */
+/** The reverse proxy (the Nitro server in the container, Vite in development) forwards this prefix to the backend. */
 const API_BASE_URL = '/api'
 
 const config = await loadConfig()

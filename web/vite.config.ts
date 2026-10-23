@@ -2,7 +2,7 @@ import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vitest/config'
 
-// Where the dev server forwards /api/ to; the container's nginx does the same in production.
+// Where the dev server forwards /api/ to; the Nitro server (server/api/) does the same in production.
 const backend = process.env.BLACKHOLE_BACKEND_URL ?? 'http://localhost:8080'
 
 // https://vite.dev/config/
