@@ -31,6 +31,8 @@ let attempt: { text: string; key: string } | null = null
 
 const appealState = computed(() => state.punishment?.appeal.state)
 // Once the appeal is decided (or the punishment is over) the backend refuses new messages with NO_APPEAL.
+// The copy is offered once the appeal is decided; the backend refuses it (NOT_DECIDED) before and for a limited session.
+const canDownload = computed(() => state.scope === 'FULL' && !forbidden.value && appeal.value?.decision != null)
 const canPost = computed(() => state.scope === 'FULL' && !forbidden.value && appealState.value === 'OPEN')
 const length = computed(() => drafts.message.trim().length)
 const tooLong = computed(() => length.value > MAX_TEXT_LENGTH)
@@ -257,5 +259,23 @@ const failureText = computed(() => {
       </div>
     </form>
     <p v-else-if="loaded && !forbidden && appealState !== 'FROZEN'" class="text-body-medium text-on-surface-variant">{{ t('conversation.readOnly') }}</p>
+
+    <p v-if="canDownload" class="text-body-medium">
+      <a
+        href="/api/appeal/protocol?format=text"
+        download
+        class="text-primary underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        {{ t('conversation.downloadText') }}
+      </a>
+      <span aria-hidden="true"> · </span>
+      <a
+        href="/api/appeal/protocol?format=json"
+        download
+        class="text-primary underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        {{ t('conversation.downloadJson') }}
+      </a>
+    </p>
   </section>
 </template>
