@@ -28,7 +28,8 @@ class CaseChangeSurfaceTest {
         try (Stream<Path> files = Files.walk(SOURCES)) {
             for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
                 if (WRITES_CASE_EVENTS.matcher(Files.readString(file)).find()) {
-                    writers.add(SOURCES.relativize(file).toString());
+                    // Forward slashes on every platform, so the set compares equal on Windows too.
+                    writers.add(SOURCES.relativize(file).toString().replace('\\', '/'));
                 }
             }
         }
@@ -41,7 +42,7 @@ class CaseChangeSurfaceTest {
                         "evidence/share/JdbcEvidenceShareStore.java"),
                 writers, "a new writer of case_event rows needs a review of its live signal");
         for (String writer : writers) {
-            String text = Files.readString(SOURCES.resolve(writer));
+            String text = Files.readString(SOURCES.resolve(writer.replace('/', java.io.File.separatorChar)));
             assertTrue(text.contains("CaseChangeNotifier"), writer + " writes case events and must signal them");
         }
     }
