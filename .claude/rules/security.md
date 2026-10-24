@@ -49,3 +49,6 @@ paths:
   No response, event or log carries a Ban ID (`CaseConversationNoLeakTest`).
 - Public API (`/public`, `publicapi/`, `security/PlayerSession*`): see `public-api.md`. It is the one place a
   non-Entra credential is accepted; `PlayerSessionRule.ROLE` is no staff role and `BlackholeRolesFinder` never grants it.
+- Protocol routes (`/case/{reference}/protocol...`): list, open and download need `VIEWER` (they already read the thread); `PROXY` is denied. Every
+  open and download writes an evidence audit entry (`VIEWED`/`DOWNLOADED`). A `TRANSCRIPT` item is also served by `/evidence/{id}` and
+  `/evidence/{id}/content` (`VIEWER`) until a redaction makes it unreadable (404).
