@@ -10,13 +10,13 @@ here); client spec bumps use the next free number as well.
 
 ## 1. Rule model and API (PR 1, `feat(client-rules): add the client rule model and api`)
 
-- [ ] 1.1 Failing tests first: rule validation table (key format, kind-specific fields, pattern charset and length, 1 to 32 patterns, protocol range, negate allowed kinds, no regex), scope validation (section exists and is SERVER, target kind names, unknown section rejected), action validation (template exists, deny message length, spoofable acknowledgement required for BRAND/MOD/CHANNEL + TEMPLATE and cleared on kind/action change), duplicate key 409, deleting a template referenced by a rule answers 409
-- [ ] 1.2 Migration `V<next free>__client_rule.sql` (`client_rule`, `client_rule_pattern`, `client_rule_server`, `client_rule_section`; checks, cascade, FK to templates `RESTRICT`); migration test on Testcontainers
-- [ ] 1.3 `clientrule/` package: `ClientRuleApi` (OpenAPI), thin `ClientRuleController` (`@Version(ApiVersion.V1)`), `ClientRuleService` (answers the `Error` variant), sealed `ClientRuleDTO` (`CreateRequest`, `UpdateRequest`, `Response`, `Error`); write is one CTE statement, no `@Transactional`; `recorded_by_oid` from `ActorResolver`
-- [ ] 1.4 Change notification to proxies (same shape as the section notifier) and shared-cache mirror of the enabled rules for `PROXY` reads; test that a write evicts and notifies
-- [ ] 1.5 Catalogue: `PUT/GET /client-rule/catalogue` over the shared cache with TTL `blackhole.clientrules.catalogue.ttl` (`PT24H`), outage tests (`PUT` 503, `GET` `available: false`)
-- [ ] 1.6 Roles: `@Secured` on every method, rows in `PermissionMatrixIntegrationTest` and `RouteCoverageIntegrationTest` for every role (ADMIN writes, VIEWER+PROXY read rules, catalogue PUT PROXY only, catalogue GET refused for PROXY)
-- [ ] 1.7 `application.yml` keys with comments; regenerate the client spec (`client/specs/blackhole-api-<next free>.yml`, bump `inputSpec`); verify `./gradlew :backend:test :client:compileJava`
+- [x] 1.1 Failing tests first: rule validation table (key format, kind-specific fields, pattern charset and length, 1 to 32 patterns, protocol range, negate allowed kinds, no regex), scope validation (section exists and is SERVER, target kind names, unknown section rejected), action validation (template exists, deny message length, spoofable acknowledgement required for BRAND/MOD/CHANNEL + TEMPLATE and cleared on kind/action change), duplicate key 409, deleting a template referenced by a rule answers 409
+- [x] 1.2 Migration `V<next free>__client_rule.sql` (`client_rule`, `client_rule_pattern`, `client_rule_server`, `client_rule_section`; checks, cascade, FK to templates `RESTRICT`); migration test on Testcontainers
+- [x] 1.3 `clientrule/` package: `ClientRuleApi` (OpenAPI), thin `ClientRuleController` (`@Version(ApiVersion.V1)`), `ClientRuleService` (answers the `Error` variant), sealed `ClientRuleDTO` (`CreateRequest`, `UpdateRequest`, `Response`, `Error`); write is one CTE statement, no `@Transactional`; `recorded_by_oid` from `ActorResolver`
+- [x] 1.4 Change notification to proxies (same shape as the section notifier) and shared-cache mirror of the enabled rules for `PROXY` reads; test that a write evicts and notifies
+- [x] 1.5 Catalogue: `PUT/GET /client-rule/catalogue` over the shared cache with TTL `blackhole.clientrules.catalogue.ttl` (`PT24H`), outage tests (`PUT` 503, `GET` `available: false`)
+- [x] 1.6 Roles: `@Secured` on every method, rows in `PermissionMatrixIntegrationTest` and `RouteCoverageIntegrationTest` for every role (ADMIN writes, VIEWER+PROXY read rules, catalogue PUT PROXY only, catalogue GET refused for PROXY)
+- [x] 1.7 `application.yml` keys with comments; regenerate the client spec (`client/specs/blackhole-api-<next free>.yml`, bump `inputSpec`); verify `./gradlew :backend:test :client:compileJava`
 
 ## 2. Hits and actions (PR 2, `feat(client-rules): record rule hits and apply their action`)
 

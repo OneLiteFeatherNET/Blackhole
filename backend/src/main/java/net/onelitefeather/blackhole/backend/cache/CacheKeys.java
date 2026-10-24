@@ -29,6 +29,17 @@ public final class CacheKeys {
         return PREFIX + "cloudnet:catalogue:" + proxyId;
     }
 
+    /** The enabled client rules, as read by proxies. */
+    public static final String CLIENT_RULES_ALL = PREFIX + "client-rules:all";
+
+    /** Glob matching every proxy's client rule catalogue snapshot. */
+    public static final String CLIENT_RULE_CATALOGUE_PATTERN = PREFIX + "client-rules:catalogue:*";
+
+    /** One proxy's client rule catalogue snapshot; {@code proxyId} must not contain glob characters. */
+    public static String clientRuleCatalogue(String proxyId) {
+        return PREFIX + "client-rules:catalogue:" + proxyId;
+    }
+
     public static String section(String key) {
         return PREFIX + "section:" + key;
     }

@@ -125,6 +125,23 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void onlyAnAdminMayWriteClientRulesButTheTeamAndTheProxyMayReadThem() {
+        assertEquals(403, post("/client-rule", Map.of(), this.jwt.moderator()).status(), "moderator on a rule write");
+        assertEquals(403, post("/client-rule", Map.of(), this.jwt.proxy()).status(), "proxy on a rule write");
+        assertAuthorized(post("/client-rule", Map.of(), this.jwt.admin()), "admin on a rule write");
+        assertEquals(200, get("/client-rule", this.jwt.viewer()).status(), "viewer on the rule list");
+        assertEquals(200, get("/client-rule", this.jwt.proxy()).status(), "proxy on the rule list");
+    }
+
+    @Test
+    void theClientRuleCatalogueIsWrittenByTheProxyAndReadByTheTeam() {
+        assertAuthorized(put("/client-rule/catalogue", Map.of("proxyId", "Proxy-1"), this.jwt.proxy()), "proxy on PUT");
+        assertEquals(403, put("/client-rule/catalogue", Map.of("proxyId", "Proxy-1"), this.jwt.admin()).status(), "admin on PUT");
+        assertEquals(200, get("/client-rule/catalogue", this.jwt.viewer()).status(), "viewer on GET");
+        assertEquals(403, get("/client-rule/catalogue", this.jwt.proxy()).status(), "proxy on GET");
+    }
+
+    @Test
     void aViewerMayListTheActivePunishments() {
         assertEquals(200, get("/punishment/active", this.jwt.viewer()).status(), "viewer on the active punishment overview");
     }
