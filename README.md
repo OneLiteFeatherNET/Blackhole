@@ -305,6 +305,111 @@ the permanent escalation. Upgrading from earlier releases: templates are selecte
 by reason, and the proxy reads the Redis keys `blackhole:punish:<section>:<owner>`; deploy backend and
 proxies together.
 
+## Client rules and fingerprints
+
+Staff can decide which clients, client versions and commands reach the network. A **client rule**
+matches one of:
+
+| Kind       | Matches                                                                            | Who observes it                   |
+|------------|------------------------------------------------------------------------------------|-----------------------------------|
+| `BRAND`    | the `minecraft:brand` text (glob, case-insensitive), optionally negated            | the client announces it           |
+| `MOD`      | a mod id of the legacy Forge mod list (Forge up to 1.12 only)                     | the client announces it           |
+| `CHANNEL`  | a plugin channel the client registered (glob)                                      | the client announces it           |
+| `PROTOCOL` | a range of protocol versions, optionally negated (an allowlist)                    | the proxy itself                  |
+| `COMMAND`  | the first word of a command line, also for commands forwarded to a backend server | the proxy itself                  |
+
+**Be honest about what this is.** Brand, mods and channels are chosen by the client and can be faked
+(a mod can send `vanilla`, or no brand at all), and modern Forge, NeoForge and Fabric mod lists are not
+visible to a proxy. A hit is a signal, not proof, and a miss proves nothing. Rules on those values are a
+deterrent against careless users and a hint for the team; only protocol and command rules act on facts
+the proxy observed. That is why the default action is `notify`.
+
+**Actions.** Each rule has one:
+
+| Action     | What happens                                                                                                   |
+|------------|----------------------------------------------------------------------------------------------------------------|
+| `NOTIFY`   | (default) The hit is recorded and online staff are told. Nothing changes for the player. Also the dry run: the hit counts show what a rule would do. |
+| `DENY`     | Additionally refuses the login (global protocol rules), the connect, a disconnect (a trait that arrives late) or the command, with an English message written on the rule (default per kind, at most 200 characters). |
+| `TEMPLATE` | Additionally applies a punishment template through the ELO automatic path: no human actor, a Ban ID, the step and ELO cost, open to appeal. Applied once while the player has an active punishment from the same rule; never for staff with the bypass permission. On a brand, mod or channel the rule must carry an explicit acknowledgement that the value can be faked. |
+
+A `DENY` on a brand, mod or channel refuses as soon as the trait is known: at the first connect if it is
+known by then, otherwise the player is disconnected when it arrives. Those rules never refuse a login,
+because the traits are not reliably known then. Player-facing messages are English only.
+
+**Scope.** A rule is global or limited to servers, with the same targeting as sections: the keys of
+`SERVER` sections (read live) and/or glob patterns or CloudNet tasks, groups and services of its own.
+A section deleted later covers nothing (fail open). Command rules use the server the player is on.
+
+**Command rules and SignedVelocity.** The first word is matched after removing leading spaces and a
+slash and lower-casing; `namespace:label` is matched as written and as `label`, so `minecraft:op` cannot
+slip past a rule for `op`. Arguments are never matched. A denied command is neither run nor forwarded.
+Velocity kicks a player whose command with **signed arguments** a plugin cancels, so such a command is
+denied only when [SignedVelocity](#muting-and-signed-chat-signedvelocity) is loaded on the proxy;
+otherwise it is delivered, the player is told it is not allowed and the hit is recorded as not enforced.
+The startup warning names both chat and commands. A rule can also hide its commands from tab completion
+(cosmetic only; the denial is the enforcement).
+
+**Roles and permissions.**
+
+| Who                                            | May                                                         |
+|------------------------------------------------|-------------------------------------------------------------|
+| `ADMIN`                                        | create, change and delete rules                             |
+| `MODERATOR`, `VIEWER`                          | read rules, hits and the catalogue (`GET /client-rule...`)  |
+| `PROXY`                                        | read rules, report hits, the catalogue and fingerprints     |
+| `blackhole.clientrules.notify` (in game)       | is told about hits, once per hit, on every proxy            |
+| `blackhole.clientrules.bypass` (in game)       | is never refused or punished by a rule; hits are recorded as bypassed |
+
+**Hits and privacy.** A hit stores only the rule key, the hashed owner, the time, the action, whether it
+was enforced or bypassed and the server name. It never stores the brand, channel, mod, command text or
+the value a glob matched, and the `client-rule.hit` event carries none either. Hits are deleted after
+`blackhole.clientrules.hit-retention-days` (default 30) while the rule keeps a total count, and with the
+player's data on erasure. The in-game notice carries the player's name, travels over Redis pub/sub only
+and is never stored.
+
+**Catalogue.** The rule editor suggests brands and channels that at least three distinct players showed
+(`clientRules.catalogue.minPlayers`), the command words of the proxy's command tree (never what players
+typed) and the protocol versions the proxy supports. Names are free text anyway; without a catalogue
+(cache outage) the editor works the same and enforcement never depends on it.
+
+**Client fingerprint.** The proxy submits brand, non-vanilla channels and the legacy mod list once they
+settle (`clientRules.settle`, default `PT5S` after the first connect) and again only when they change. The
+backend turns them into a keyed hash (HMAC-SHA256 under a key derived with HKDF from
+`BLACKHOLE_FINGERPRINT_KEY`) and stores only the hash with the owner hash. It strengthens ban-evasion
+recognition next to the hashed IP: the sightings of a player show the signal per linked account (`IP`,
+`CLIENT` or `BOTH`). A link by the client setup alone is a weak hint and never punishes. Plain vanilla,
+fabric, forge and neoforge clients are not stored; a fingerprint shared by more than five accounts inside
+the window (a popular modpack) links nobody. Defaults: window 14 days, retention 30 days
+(`blackhole.evasion.fingerprint.*`).
+
+**Proxy configuration** (the `clientRules` object in the plugin's `config.json`):
+
+```json
+{
+  "clientRules": {
+    "enabled": true,
+    "settle": "PT5S",
+    "catalogue": { "minPlayers": 3, "heartbeat": "PT15M" }
+  }
+}
+```
+
+`BLACKHOLE_CLIENT_RULES=false` switches rules, collection and fingerprint submission off on a proxy and
+wins over the file. Unreadable or too small values fall back to the defaults.
+
+### Rolling it out
+
+1. Deploy the backend (it adds three tables and routes; nothing changes without callers), set
+   `BLACKHOLE_FINGERPRINT_KEY` (32 random bytes, base64: `openssl rand -base64 32`; unset means no
+   fingerprinting, `503` on the submit route), then upgrade the proxies, then the admin panel.
+2. Create rules with the action `NOTIFY`, read the hit counts for about a week, then switch chosen rules
+   to `DENY` or `TEMPLATE`. Check false positives first: a channel a legitimate mod registers hits innocents.
+3. Grant `blackhole.clientrules.notify` to the team and `blackhole.clientrules.bypass` to staff who must
+   never be locked out by a rule.
+4. Treat the fingerprint key as unrotatable in place: after a new key old and new fingerprints cannot be
+   correlated. A rotation is a new scheme and key with a documented overlap, not an edit. Losing the key
+   only costs the history of the signal. Back it up like any other secret.
+5. Roll back by disabling rules in the panel, or by removing the key; routes and tables are inert without callers.
+
 ## Punishment evidence
 
 Staff and tools can attach evidence to a punishment: anticheat records, chat excerpts, replay links
@@ -418,8 +523,8 @@ Releases: <https://github.com/4drian3d/SignedVelocity/releases>.
 SignedVelocity is an optional dependency of Blackhole. Without it the proxy logs one warning at
 startup and never cancels a signed message (so nobody is kicked): a muted player is still shown the
 mute notice, but their message is delivered. Messages from clients older than 1.19.1 are unsigned
-and are always denied directly. Blackhole does not block commands for muted or banned players, so
-signed commands need no handling.
+and are always denied directly. Mutes and bans do not block commands, but [client command rules](#client-rules-and-fingerprints) can deny them, and a
+command with signed arguments is only denied when SignedVelocity is loaded.
 
 ### Chat capture on the proxy (optional)
 
@@ -514,6 +619,7 @@ Key environment variables (all have local-dev defaults, see
 | `NATS_EVENTS_MAX_AGE` / `NATS_EVENTS_MAX_BYTES` | How long (`P7D`) and how much (2 GiB) of the event history the stream keeps. |
 | `REDIS_URI`                       | Redis-protocol server (Dragonfly) for proxy sync and the shared cache. |
 | `BLACKHOLE_EVASION_IP_SALT`       | Required for ban-evasion detection; that feature returns `503` until it's set. |
+| `BLACKHOLE_FINGERPRINT_KEY`       | Key of the client fingerprint (32 bytes, base64); unset means no fingerprinting outside dev and test, see [Client rules](#client-rules-and-fingerprints). |
 | `BLACKHOLE_AUTH_*`                | Entra ID sign-in, see [Authentication](#authentication). |
 
 Swagger UI is served at `/swagger/views/swagger-ui` when `BLACKHOLE_DOCS_ENABLED=true` (off by default).

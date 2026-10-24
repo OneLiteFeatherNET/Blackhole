@@ -58,9 +58,9 @@ here); client spec bumps use the next free number as well.
 
 ## 7. Docs (PR 7, `docs(client-rules): document client rules and fingerprints`)
 
-- [ ] 7.1 README section: what rules do, the three actions, scopes, command rules and SignedVelocity, the honesty statement (best effort, spoofable, deterrent and signal), `BLACKHOLE_FINGERPRINT_KEY` and the proxy config keys
-- [ ] 7.2 `.claude/rules/client-rules.md` (path-scoped to `clientrule/`) and updates to `evasion.md`, `security.md` (matrix rows)
-- [ ] 7.3 Operations note: rollout order, dry run with `NOTIFY`, key rotation caveat; `openspec validate --all --strict`
+- [x] 7.1 README section: what rules do, the three actions, scopes, command rules and SignedVelocity, the honesty statement (best effort, spoofable, deterrent and signal), `BLACKHOLE_FINGERPRINT_KEY` and the proxy config keys
+- [x] 7.2 `.claude/rules/client-rules.md` (path-scoped to `clientrule/`) and updates to `evasion.md`, `security.md` (matrix rows)
+- [x] 7.3 Operations note: rollout order, dry run with `NOTIFY`, key rotation caveat; `openspec validate --all --strict`
 
 ## 8. Pull requests
 
