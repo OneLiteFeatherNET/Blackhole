@@ -88,7 +88,7 @@ comment), the bot is not a Micronaut app, and the needed semantics (named durabl
 `io.nats.client.Connection` `@Singleton` factory in the backend (reconnect forever, connection
 name `blackhole-backend`, credentials from `NATS_CREDS_FILE`) keeps the dependency to one small
 library, identical in backend and bot (version catalog entry `nats-jnats` = 2.26.4; re-check Maven
-Central and the two-week rule when applying). Alternative: `micronaut-nats`. Open question 3.
+Central and the two-week rule when applying). Alternative: `micronaut-nats`. Open question 1.
 
 ### D3. Ports in the backend
 
@@ -121,7 +121,7 @@ on RabbitMQ, so the swap is a pure adapter change.
 | Exchange/queues declared on connect, idempotent | Stream and consumers created with create-or-update at startup by their owner (backend: stream + `blackhole-redis-sync`; bot: its two consumers) |
 | Broker unreachable: publish error logged; bot retries connect every 30 s | jnats `maxReconnects(-1)` with a reconnect wait; bot keeps serving commands (cursor poll stays the truth); publish error logged |
 | `blackhole.cache.invalidate` fanout | Does not exist on main. If ever needed: a plain core subject `blackhole.cache.invalidate` with no JetStream (a missed eviction is bounded by the entry TTL per the `shared-cache` spec); not added now |
-| Velocity | Unchanged (Dragonfly). Optional: core subjects, see D7 |
+| Velocity (Redis pub/sub, not RabbitMQ) | Core subscriptions on `blackhole.events.*` subjects with a subscribe-only credential, see D7 |
 
 Stream `BLACKHOLE_EVENTS`: `subjects: [blackhole.events.>]`, `storage: file`, `retention: limits`,
 `max_age: 7d`, `discard: old`, `num_replicas: NATS_STREAM_REPLICAS` (3 in feather-core, 1 locally),
@@ -148,9 +148,9 @@ Subject permissions, least privilege:
 |---|---|---|---|---|
 | `blackhole-backend` | feather-core | STANDARD | `blackhole.events.>`, `$JS.API.STREAM.CREATE/UPDATE/INFO.BLACKHOLE_EVENTS`, `$JS.API.CONSUMER.CREATE/DURABLE.CREATE/INFO/MSG.NEXT.BLACKHOLE_EVENTS.blackhole-redis-sync` (+ filtered create subject), `$JS.ACK.BLACKHOLE_EVENTS.blackhole-redis-sync.>` | `_INBOX.>` |
 | `blackhole-discord` | feather-core (or compose profile) | STANDARD, WEBSOCKET if outside the cluster | same `$JS.API.CONSUMER.*` and `$JS.ACK` subjects for `blackhole-discord-*`, plus `$JS.API.STREAM.INFO.BLACKHOLE_EVENTS`; no `blackhole.events.>` | `_INBOX.>` |
-| `blackhole-velocity` (only if D7 is taken) | outside feather-core | WEBSOCKET only | none on `blackhole.events.>` | the specific core subjects it needs, `_INBOX.>` |
+| `blackhole-velocity` | outside feather-core | WEBSOCKET only | **deny `>`** (nothing) | exactly `blackhole.events.punishment.*`, `blackhole.events.appeal.resolved`, `blackhole.events.section.changed`, `blackhole.events.report.created`, `blackhole.events.report.feedback`; no `_INBOX`, no `$JS.>` |
 
-Only the backend publishes events. The exact `$JS.API` list is verified against a real server in the
+Only the backend publishes events; the proxy is subscribe-only and uses plain core subscriptions (no JetStream, no consumer). The exact `$JS.API` list is verified against a real server in the
 integration test (a forbidden publish fails with a permissions violation, which the test asserts).
 
 TLS: client port 4222 inside the cluster is plain today. In-cluster traffic carries only hashed ids
@@ -173,19 +173,48 @@ Exposure options for a client outside feather-core (Velocity, or a bot hosted el
 4. A TCP `LoadBalancer`/NodePort with TLS plus a firewall allow-list: needs a public address or a
    pool that does not exist today (MetalLB is private-only). Rejected unless Cloudflare is ruled out.
 
-Needs the user's decision: exposure (Question 2) and whether Velocity joins at all (Question 1).
+Decided by the user: option 1 for Velocity.
 
-### D7. Velocity
+### D7. Velocity: drops Redis/Dragonfly, uses the API plus NATS over WebSocket
 
-Not an AMQP client today and not required to become one. The recommended default keeps it on
-Dragonfly and leaves `RedisSyncService` unchanged. If the user wants Velocity on NATS, a separate PR
-replaces the four Redis pub/sub channels with core subjects (`blackhole.sync.punishment`,
-`.section-changed`, `.report-created`, `.report-feedback`; the last two are also published by the
-proxy), keeps the Redis keys, uses the WebSocket-only user and `wss://`, and treats loss as today
-(HTTP fallback on a miss). Core (non-JetStream) because pub/sub is already at-most-once. That task
-group is optional and not applied without the decision. The proxy would additionally get a
-`blackhole.sync.>` subscribe permission and, for the two report subjects, a matching publish
-permission.
+User decision (2026-10-24): Velocity runs outside feather-core, gets no direct Dragonfly access, and
+moves to NATS over `wss://nats.onelitefeather.dev` (the Corvus pattern). Verified in the code:
+`velocity/.../redis/RedisSyncService` reads the mirrored punishment keys, the shared-cache lists
+(`blackhole:cache:v1:templates:all`, `sections:all`) and subscribes to four Redis channels
+(`blackhole.punishment.sync`, `blackhole.section.changed`, `blackhole.report.created`,
+`blackhole.report.feedback`); it already falls back to HTTP whenever Redis is unavailable.
+
+After the move the proxy has two inputs only: the HTTP API (truth) and NATS events (hints that
+invalidate local caches):
+
+| Today (Redis) | After |
+|---|---|
+| Punishment key read at login (`blackhole:punish:*`) | Profile over HTTP at login, cached per player |
+| `blackhole.punishment.sync` pub/sub | Core subscription `blackhole.events.punishment.*` and `blackhole.events.appeal.resolved`: update or evict the cached player, trigger the cross-proxy ban kick (fetch profile, disconnect if banned) |
+| `blackhole.section.changed` | `blackhole.events.section.changed`: refresh the section list over HTTP |
+| Shared-cache lists for tab completion | HTTP with a short local TTL cache |
+| `blackhole.report.created` (written by the proxy that took the report, with player names) | `blackhole.events.report.created` (hashes only, written by the backend): each proxy renders the staff notice from an HTTP lookup of the report. Needs a read endpoint that returns display facts; if none exists the notice stays local to the receiving proxy (Question 3) |
+| `blackhole.report.feedback` | `blackhole.events.report.feedback` |
+
+The proxy never publishes, so the report notice cannot be proxy-originated any more.
+
+**NATS unreachable: fail open to HTTP, never open to the player.** Core subscriptions are
+at-most-once, so the local cache is only trustworthy while the connection is up. The proxy:
+(1) discards the whole local punishment cache on a disconnect event and again on reconnect;
+(2) while disconnected, answers every login and chat check from the backend over HTTP, with the
+existing backend-unreachable rule unchanged (login allowed, chat delivered, as today);
+(3) bounds staleness while connected with a maximum cache age (config `cacheMaxAge`, default 60 s)
+so a lost message heals itself; (4) reconnects forever (jnats `maxReconnects(-1)`) from a non-blocking
+connect on plugin start; no login or chat path ever waits on NATS; (5) an unreadable or missing creds
+file is logged and leaves the proxy on HTTP-only checks. Spec: `proxy-enforcement` delta.
+
+Velocity config (`config.json`) loses `redisUri` (BREAKING for the plugin config: the legacy key is
+ignored with one warning) and gains `nats.url`, `nats.credsFile`, `cacheMaxAge`. Lettuce is removed from
+`velocity/build.gradle.kts`; jnats (version catalog) is added and shaded/relocated per the plugin's
+existing packaging. The backend's Redis punishment mirror and its `blackhole-redis-sync` consumer lose
+their only reader with this change; removing them is a separate follow-up PR (Question 2) so the
+transport swap and the proxy move stay independent. Discord and the backend stay in-cluster
+(`nats://nats.nats.svc:4222`, STANDARD connection type).
 
 ### D8. Migration: hard cut, no dual-run, no dual-publish
 
@@ -259,13 +288,19 @@ in-flight changes.
 
 ## Open Questions (for the user, each with a default)
 
-1. **Does Velocity move to NATS now?** Default: **no.** It never used RabbitMQ; keep Dragonfly (D7)
-   and skip the optional `feat(velocity)` PR.
-2. **How is NATS exposed to clients outside feather-core?** Default: **`wss://` through the existing
-   Cloudflare Tunnel** with a WebSocket-only JWT user; internal hosts use the Envoy
-   `wss://nats.apps.onelite.feather`. Alternative: a TCP LoadBalancer with a public address.
-3. **Client library.** Default: **plain `io.nats:jnats` 2.26.4** in backend and bot. Alternative:
-   `micronaut-nats` 5.1.0 in the backend only.
+Decided already (2026-10-24): Velocity moves to NATS over `wss://nats.onelitefeather.dev` and drops
+Dragonfly; exposure is the existing Cloudflare Tunnel WebSocket route; Discord and backend stay
+in-cluster.
+
+1. **Client library.** Default: **plain `io.nats:jnats` 2.26.4** in backend, bot and plugin.
+   Alternative: `micronaut-nats` 5.1.0 in the backend only.
+2. **Remove the backend Redis punishment mirror (and the `blackhole-redis-sync` consumer) once
+   Velocity has moved?** Default: **yes, as a separate follow-up PR** after the Velocity PR is
+   deployed. Dragonfly stays for the shared cache.
+3. **Cross-proxy report notices.** Default: each proxy renders the notice from the backend
+   `report.created` event plus an HTTP lookup of display facts (add a read endpoint if missing, which
+   would be an API change in its own PR). Fallback: the notice stays local to the proxy that took the
+   report.
 4. **Who creates the `BLACKHOLE` account and users in Kubernetes-FLUX, and when?** Default: the user,
    with `nsc`, before the first deploy, following D6; `docs` ships the permission list and an `nsc`
    snippet.

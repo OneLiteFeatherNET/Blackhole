@@ -1,7 +1,7 @@
 # Proposal
 
-**Ships as:** `refactor(events)`, `feat(events)`, `feat(discord)`, optionally `feat(velocity)`,
-`build` and `docs`, as a stack of small pull requests, one Conventional Commits type each (see
+**Ships as:** `refactor(events)`, `feat(events)`, `feat(discord)`, `feat(velocity)`, `refactor(velocity)!`,
+`build`, `docs` and an optional `refactor(punishment)`, as a stack of small pull requests, one Conventional Commits type each (see
 `tasks.md`). The change as a whole is a transport swap: the event envelope, the event types and the
 GDPR rules for payloads do not change.
 
@@ -46,25 +46,32 @@ The bus is small and loosely coupled, which makes the move cheap now and expensi
 - **Configuration:** `RABBITMQ_*` is removed; `NATS_URL`, `NATS_CREDS_FILE` and a few tunables
   replace it, documented in `application.yml` and the bot's `BotConfig`.
 - **Local development:** the compose service `rabbitmq` is replaced by `nats` with JetStream.
-- **BREAKING (operational, not API):** deployments must provide NATS and the `BLACKHOLE` account
-  and drop `RABBITMQ_*`. No HTTP API, OpenAPI spec, generated client or database schema changes,
-  so no client regeneration and no Flyway migration. The Velocity plugin is unaffected unless
-  Question 1 in `design.md` is answered with "yes".
+- **Velocity moves to NATS and drops Redis/Dragonfly** (user decision 2026-10-24). The proxy runs
+  outside feather-core and gets no Dragonfly access. It keeps the HTTP API as the truth and receives
+  punishment, section and report changes as core subscriptions over `wss://nats.onelitefeather.dev`
+  with its own subscribe-only, WebSocket-only credential. If NATS is unreachable it discards its
+  local cache and checks over HTTP (fail open to the fallback, never open to the player).
+  Two PRs: receive over NATS, then remove Redis from the proxy. Discord and the backend stay
+  in-cluster.
+- **BREAKING (operational and plugin config, not HTTP API):** deployments must provide NATS and the
+  `BLACKHOLE` account and drop `RABBITMQ_*`; the Velocity `config.json` loses `redisUri` and gains
+  `nats.url` and `nats.credsFile`. No HTTP API, OpenAPI spec, generated client or database schema
+  changes (unless open question 3 adds a report read endpoint, in its own PR), so no Flyway migration.
 
 ## Findings that differ from the brief
 
-- **Velocity does not consume RabbitMQ.** It reads Dragonfly (Redis protocol): keys plus pub/sub
-  channels `blackhole.punishment.sync`, `blackhole.section.changed`, `blackhole.report.created`,
-  `blackhole.report.feedback` (`velocity/.../redis/RedisTopology.java`). `section.changed` is a
-  domain event published to the bus *and* mirrored to a Redis channel by the backend. So moving
-  the bus does not touch Velocity. Putting Velocity on NATS is a separate, optional step.
+- **Velocity does not consume RabbitMQ.** It reads Dragonfly (Redis protocol): the mirrored
+  punishment keys, the shared-cache lists, and pub/sub channels `blackhole.punishment.sync`,
+  `blackhole.section.changed`, `blackhole.report.created`, `blackhole.report.feedback`
+  (`velocity/.../redis/RedisTopology.java`), with an HTTP fallback whenever Redis is unavailable.
+  Moving the bus alone would not touch it; the user's decision above moves it onto NATS anyway.
 - **There is no `blackhole.cache.invalidate` fanout exchange on main.** Hot reads moved to the
   shared Dragonfly cache and writers evict keys (`shared-cache` spec, `.claude/rules/events.md`),
   so no cross-replica broadcast exists to port. This change adds none.
 
 ## Out of scope
 
-- Moving Velocity's Redis pub/sub onto NATS (optional PR, gated by a user decision).
+- Removing the backend's Redis punishment mirror (optional follow-up PR 9; Dragonfly stays for the shared cache).
 - Kafka/Strimzi, and any new event type, payload field or consumer.
 - Provisioning the NATS account and users in Kubernetes-FLUX (that repository carries the operator
   and account JWTs; this change specifies what to request, `tasks.md` 0.x tracks it).

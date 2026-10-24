@@ -11,8 +11,8 @@ migration is needed.
 
 ## 0. Prerequisites outside this repository
 
-- [ ] 0.1 In Kubernetes-FLUX: create the NATS account `BLACKHOLE` (JetStream limits) and users `blackhole-backend`, `blackhole-discord` (and `blackhole-velocity` if open question 1 is "yes") with the permissions of `design.md` D6, add the account JWT to `resolver_preload`, deliver `.creds` as SOPS secrets; verify with `nats --creds` that a forbidden publish is rejected
-- [ ] 0.2 Confirm the answers to the four open questions in `design.md` and the NATS server version of chart `=2.15.1` (pins the test and compose image tag)
+- [ ] 0.1 In Kubernetes-FLUX: create the NATS account `BLACKHOLE` (JetStream limits) and users `blackhole-backend`, `blackhole-discord` and `blackhole-velocity` (WebSocket-only, subscribe-only) with the permissions of `design.md` D6, add the account JWT to `resolver_preload`, deliver `.creds` as SOPS secrets; verify with `nats --creds` that a forbidden publish is rejected
+- [ ] 0.2 Confirm the answers to the open questions in `design.md` and the NATS server version of chart `=2.15.1` (pins the test and compose image tag)
 
 ## 1. Transport port (PR 1: `refactor(events): put the event bus behind a transport port`)
 
@@ -38,19 +38,34 @@ migration is needed.
 - [ ] 4.2 Replace `RabbitConsumer` by `NatsConsumer` (two durables `blackhole-discord-notify`, `blackhole-discord-case`, jnats reconnect, keeps serving commands while down); `RabbitSettings` becomes `NatsSettings`; update `Main`, `SyncEngine` and `NotificationDispatcher` comments
 - [ ] 4.3 Integration test against the NATS container: a published `report.created` reaches the handler, a retry is redelivered after the delay (injected short delay), the bot's creds cannot publish
 
-## 5. Velocity on NATS (OPTIONAL, only if open question 1 is "yes"; PR 5: `feat(velocity): sync proxies over nats`)
+## 5. Velocity receives changes over NATS (PR 5: `feat(velocity): receive punishment changes over nats`)
 
-- [ ] 5.1 Failing tests first, then replace the four Redis pub/sub channels of `RedisSyncService` by core subjects over `wss://` with the WebSocket-only user; Redis keys and the HTTP fallback stay; skip this group otherwise
+- [ ] 5.1 Failing tests first (fake NATS connection, fixed `Clock`, no sleeps): a punishment event updates or evicts the cached player; `appeal.resolved` evicts; a BAN event for a connected owner triggers the profile fetch and kick; `section.changed` refreshes the section list; a disconnect event empties the cache and makes every check go over HTTP; reconnect empties it again; an entry older than `cacheMaxAge` is re-read over HTTP; a missing or unreadable creds file leaves HTTP-only checks and does not throw; the connect never blocks login or chat
+- [ ] 5.2 jnats in `velocity/build.gradle.kts` (version catalog, relocated in the shadow jar), `NatsSyncService` next to the existing Redis service (both active in this PR, Redis still read as before), `nats` section in `config.json` (`url`, `credsFile`, `cacheMaxAge`), `NATS_URL`/`NATS_CREDS_FILE` overrides; subscribe-only core subscriptions on the five subject groups of D7; verify `./gradlew :velocity:test`
+- [ ] 5.3 Integration test against the NATS container with a subscribe-only user: receives a published `punishment.created`, a publish attempt is rejected with a permissions violation, a forbidden subscription (`blackhole.events.case.>`) is rejected
+- [ ] 5.4 Report notices (open question 3): render the staff notice from `report.created` plus an HTTP lookup of display facts, or keep it local; if an endpoint is needed it is its own `feat(report)` PR before this one and regenerates `client/specs`
 
-## 6. Remove RabbitMQ (PR 6: `build: remove rabbitmq from compose and the version catalog`)
+## 6. Remove Redis/Dragonfly from Velocity (PR 6: `refactor(velocity)!: remove redis from the proxy`)
 
-- [ ] 6.1 Remove the `rabbitmq` service and `RABBITMQ_*` from `docker/docker-compose.yml`, point the `discord` service at `nats`, drop `rabbitmq-amqp-client` from `settings.gradle.kts` and `discord/build.gradle.kts`; verify `grep -ri rabbit` finds only the migration note and the archive
+BREAKING (plugin config): `redisUri` disappears; the backend keeps writing Redis until PR 9.
 
-## 7. Docs (PR 7: `docs: describe the nats event bus`)
+- [ ] 6.1 Failing tests first: config loading ignores a legacy `redisUri` with one warning and writes no Redis default; the proxy enforces bans and mutes with no Redis class on the classpath (HTTP plus NATS only); tab completion of sections and templates reads over HTTP with a short TTL cache
+- [ ] 6.2 Delete `RedisSyncService`, `RedisTopology`, `SharedCacheReader`, `SyncCodec` use and the Lettuce dependency from the Velocity module; move the remaining message types; update `PunishmentState`, `BackendSectionSource`, `BlackholeClientModule` and `BlackholeVelocity`; verify `./gradlew :velocity:build` and that the shadow jar contains no `io.lettuce`
+- [ ] 6.3 PR description carries `BREAKING CHANGE: the plugin no longer reads redisUri; operators must set nats.url and nats.credsFile`
 
-- [ ] 7.1 README (stack, compose, env table), `docs/discord-bot.md`, `discord/README.md` (variables, queue names become consumer names), `openspec/config.yaml` stack line, RabbitMQ wording in in-flight changes; add the `nsc` account/user snippet and the exposure notes from `design.md` D6; verify `openspec validate --all --strict`
-- [ ] 7.2 Run the manual check against a real stack (Docker PostgreSQL, Dragonfly, NATS): create a profile and a punishment, see Redis updated, a report reaching Discord, a bot restart catching up; record the result in the last PR
+## 7. Remove RabbitMQ (PR 7: `build: remove rabbitmq from compose and the version catalog`)
 
-## 8. Open the pull requests
+- [ ] 7.1 Remove the `rabbitmq` service and `RABBITMQ_*` from `docker/docker-compose.yml`, point the `discord` service at `nats`, drop `rabbitmq-amqp-client` from `settings.gradle.kts` and `discord/build.gradle.kts`; verify `grep -ri rabbit` finds only the migration note and the archive
 
-- [ ] 8.1 Push each branch of the stack and open one pull request per group above with exactly the title shown in its heading (single Conventional Commits type, lower case, no trailing period), each based on the previous branch, with no Co-Authored-By trailer; confirm each CI check is green and do not merge
+## 8. Docs (PR 8: `docs: describe the nats event bus`)
+
+- [ ] 8.1 README (stack, compose, env table), `docs/discord-bot.md`, `discord/README.md` (variables, queue names become consumer names), the Velocity plugin docs (`nats` config, no Redis), `openspec/config.yaml` stack line, RabbitMQ wording in in-flight changes; add the `nsc` account/user snippet and the exposure notes from `design.md` D6; verify `openspec validate --all --strict`
+- [ ] 8.2 Run the manual check against a real stack (Docker PostgreSQL, Dragonfly, NATS) with a Velocity instance behind the WebSocket route: ban a player on one proxy and see the other kick, stop NATS and see HTTP checks take over, restart it and see the cache refill; record the result in the last PR
+
+## 9. Remove the backend Redis punishment mirror (PR 9, follow-up after PR 6 is deployed, only if open question 2 is "yes": `refactor(punishment): remove the redis punishment mirror`)
+
+- [ ] 9.1 Failing tests first, then delete `PunishmentMirror`, `RedisTopology`, `PunishmentSyncHandler`'s Redis writes, `RedisSyncConsumer` and the `blackhole-redis-sync` consumer; Dragonfly stays for the shared cache; update the `proxy-enforcement` "Redis punishment mirror" requirement (REMOVED) and `.claude/rules/events.md`
+
+## 10. Open the pull requests
+
+- [ ] 10.1 Push each branch of the stack and open one pull request per group above with exactly the title shown in its heading (single Conventional Commits type, lower case, no trailing period), each based on the previous branch, with no Co-Authored-By trailer; confirm each CI check is green and do not merge
