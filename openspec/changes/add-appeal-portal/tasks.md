@@ -57,7 +57,7 @@ implementing is reproduced by a failing test first.
 - [x] 6.2 Conversation section on the case page (thread, composer, banners), Ban ID mask + reveal, leak dialog, reissue dialog, transcript export; role gating tests
 - [x] 6.3 Appeals queue "unanswered" marker; `playerMessage` field in the decision dialog
 - [x] 6.4 de/en strings, `i18n.keys.test.ts` parity; live regions; verify `npm test` and the type check
-- [ ] 6.5 Protocol section on the case page: versions list (current, superseded), open the text, download text or JSON (`VIEWER`+), notice while a decided appeal has no protocol; fake-client tests, nothing in browser storage
+- [x] 6.5 Protocol section on the case page: versions list (current, superseded), open the text, download text or JSON (`VIEWER`+), notice while a decided appeal has no protocol; fake-client tests, nothing in browser storage
 
 ## 7. Velocity ban screen (PR 7, `feat(velocity)`)
 

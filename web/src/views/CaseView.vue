@@ -8,6 +8,7 @@ import BanIdPanel from '../components/case/BanIdPanel.vue'
 import CaseHeader from '../components/case/CaseHeader.vue'
 import CaseTimeline from '../components/case/CaseTimeline.vue'
 import ConversationSection from '../components/case/ConversationSection.vue'
+import ProtocolSection from '../components/case/ProtocolSection.vue'
 import NoteEditor from '../components/case/NoteEditor.vue'
 import RelatedCases from '../components/case/RelatedCases.vue'
 import TranscriptExport from '../components/case/TranscriptExport.vue'
@@ -76,6 +77,8 @@ async function addNote(text: string): Promise<ApiResult<unknown>> {
         <BanIdPanel :kase="detail.data.value" @changed="acted" />
 
         <ConversationSection ref="conversation" :kase="detail.data.value" @changed="conversationChanged" />
+
+        <ProtocolSection :reference="detail.data.value.punishmentIdentifier" :short-id="detail.data.value.shortId" />
 
         <TranscriptExport
           v-if="session.administrator"

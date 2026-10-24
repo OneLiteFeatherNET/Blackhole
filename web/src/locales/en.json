@@ -1111,6 +1111,7 @@
         "protocolMissing": "The transcript is complete but no protocol is stored yet. The channel is not archived or deleted until it exists."
       },
       "showProtocols": "Show stored protocols",
+      "openProtocols": "Open the stored protocols below",
       "protocolsLoaded": "{count} protocol versions loaded.",
       "protocolList": "Stored protocol versions",
       "noProtocols": "No protocol is stored for this case."
@@ -1172,6 +1173,30 @@
         "json": "JSON",
         "text": "text"
       }
+    },
+    "protocol": {
+      "title": "Stored appeal protocol",
+      "hint": "The conversation of a decided appeal, stored when the decision was made. Opening or downloading a version is recorded on the case.",
+      "loading": "Loading the stored protocols.",
+      "none": "No appeal on this case has a stored protocol.",
+      "pending": "A decided appeal has no protocol yet. It is created shortly after the decision and appears here by itself.",
+      "version": "Version {version}",
+      "entries": "{count} entries",
+      "storedAt": "Stored {when}",
+      "current": "current",
+      "superseded": "superseded",
+      "supersededHint": "Replaced by a newer version of the same appeal. Purged versions are not listed.",
+      "open": "Open text",
+      "close": "Close text",
+      "openLabel": "Open the text of version {version}",
+      "closeLabel": "Close the text of version {version}",
+      "downloadText": "Download text",
+      "downloadJson": "Download JSON",
+      "downloadTextLabel": "Download version {version} as text",
+      "downloadJsonLabel": "Download version {version} as JSON",
+      "textLabel": "Text of version {version}",
+      "opened": "Protocol text opened.",
+      "downloaded": "Protocol downloaded."
     }
   },
   "punished": {

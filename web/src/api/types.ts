@@ -103,6 +103,7 @@ export type MessageAuthorKind = Schemas['MessageAuthorKind']
 export type MessageChannel = Schemas['MessageChannel']
 export type CaseBanIdLeakResult = Schemas['CaseBanIdLeakResponse']
 export type CaseBanIdReissueResult = Schemas['CaseBanIdReissueResponse']
+export type CaseProtocolText = Schemas['CaseProtocolText']
 export type TranscriptFormat = 'json' | 'text'
 /** A transcript file as the server sent it; the caller turns it into a download. */
 export interface TranscriptFile {
