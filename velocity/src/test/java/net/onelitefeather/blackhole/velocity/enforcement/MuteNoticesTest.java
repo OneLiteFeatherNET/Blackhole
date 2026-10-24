@@ -39,7 +39,7 @@ class MuteNoticesTest {
         ClassLoader loader = MuteNoticesTest.class.getClassLoader();
         store.registerAll(Locale.ENGLISH, ResourceBundle.getBundle("blackhole", Locale.ENGLISH, loader), false);
         return new PunishmentScreens(clock, new BlackholeConfig(), TestData.standardRegistry(),
-                TranslatableComponentRenderer.usingTranslationSource(store));
+                TranslatableComponentRenderer.usingTranslationSource(store), identifier -> java.util.Optional.of("7K3M9QXA"));
     }
 
     private static PunishmentSyncMessage mute(String id) {
@@ -96,7 +96,7 @@ class MuteNoticesTest {
         notice(mute);
         clock.advance(Duration.ofSeconds(10));
 
-        assertEquals("Blackhole » You have been muted · Duration: permanent · Punishment ID: #A1B2C3D4", notice(mute));
+        assertEquals("Blackhole » You have been muted · Duration: permanent · Ban ID: 7K3M9QXA", notice(mute));
     }
 
     @Test

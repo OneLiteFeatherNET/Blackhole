@@ -52,6 +52,14 @@ public interface BackendGateway {
     CompletableFuture<Long> countEvidence(String punishment);
 
     /**
+     * The Ban ID of a punishment, the credential for the appeal portal. Asynchronous: the caller bounds
+     * the wait. Never log the answer.
+     *
+     * @param punishment the punishment's identifier
+     */
+    CompletableFuture<String> revealBanId(String punishment);
+
+    /**
      * Revokes the owner's active punishment in the section.
      */
     PunishmentRevokeResponse revoke(String owner, String section, UUID source) throws ApiException;
