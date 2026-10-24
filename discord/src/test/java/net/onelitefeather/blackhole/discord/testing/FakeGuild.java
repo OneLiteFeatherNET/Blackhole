@@ -53,6 +53,8 @@ public final class FakeGuild extends UnsupportedDiscord {
         public String name;
         public String topic;
         public long category;
+        /** Whether {@code @everyone} can view it. Ticket channels are private; channels added by a test are public unless it says otherwise. */
+        public boolean publicView;
         public final Map<Long, MemberAccess> members = new LinkedHashMap<>();
         public final List<Msg> messages = new ArrayList<>();
 
@@ -94,6 +96,7 @@ public final class FakeGuild extends UnsupportedDiscord {
     /** A channel that already exists, such as the appeal channel or a public channel. */
     public Chan addChannel(long id, String name, long category) {
         Chan chan = new Chan(id, name, null, category);
+        chan.publicView = true;
         this.channels.put(id, chan);
         return chan;
     }
@@ -180,7 +183,7 @@ public final class FakeGuild extends UnsupportedDiscord {
     private IncomingMessage incoming(Msg m) {
         Chan chan = this.channels.get(m.channelId);
         boolean self = m.authorId == SELF;
-        return new IncomingMessage(m.id, m.channelId, chan.category, m.authorId, "user-" + m.authorId, m.bot, self,
+        return new IncomingMessage(m.id, m.channelId, chan.category, chan.publicView, m.authorId, "user-" + m.authorId, m.bot, self,
                 this.roleMembers.getOrDefault(this.staffRole, Set.of()).contains(m.authorId), m.createdAt, m.editedAt, m.text, List.of(), List.of(),
                 self ? m.footer : null);
     }

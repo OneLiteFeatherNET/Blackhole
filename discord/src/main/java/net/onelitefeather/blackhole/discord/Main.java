@@ -12,6 +12,7 @@ import net.onelitefeather.blackhole.discord.command.AppealCommands;
 import net.onelitefeather.blackhole.discord.config.BotConfig;
 import net.onelitefeather.blackhole.discord.gateway.HealthServer;
 import net.onelitefeather.blackhole.discord.gateway.JdaGateway;
+import net.onelitefeather.blackhole.discord.leak.LeakScanner;
 import net.onelitefeather.blackhole.discord.metrics.Health;
 import net.onelitefeather.blackhole.discord.metrics.Metrics;
 import net.onelitefeather.blackhole.discord.notify.EmbedRenderer;
@@ -77,8 +78,9 @@ public final class Main {
         TicketLifecycle lifecycle = new TicketLifecycle(config.tickets(), config.guildId(), backend, discord, relay, catchUp, staff, registry, metrics, clock);
         ArchiveSweeper sweeper = new ArchiveSweeper(backend, lifecycle, config.tickets().deleteAfter(), metrics);
         PermissionSelfCheck selfCheck = new PermissionSelfCheck(discord, config.tickets(), config.staffRoleId(), health);
+        LeakScanner leakScanner = new LeakScanner(backend, discord, botScheduler, clock, metrics, config.leak(), config.tickets());
         SyncEngine engine = new SyncEngine(config.tickets(), backend, discord, lifecycle, relay, catchUp, staff, sweeper, selfCheck, registry,
-                botScheduler, metrics, message -> { }, message -> { });
+                botScheduler, metrics, leakScanner::onMessage, leakScanner::onEdit);
         AppealCommands appeals = new AppealCommands(backend, lifecycle);
         discord.appeals(appeals);
         discord.listener(engine);

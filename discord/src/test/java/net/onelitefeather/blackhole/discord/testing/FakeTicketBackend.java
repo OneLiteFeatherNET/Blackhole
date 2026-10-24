@@ -5,6 +5,7 @@ import net.onelitefeather.blackhole.discord.backend.Tickets.Closed;
 import net.onelitefeather.blackhole.discord.backend.Tickets.IngestBatch;
 import net.onelitefeather.blackhole.discord.backend.Tickets.IngestItem;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Ingested;
+import net.onelitefeather.blackhole.discord.backend.Tickets.LeakResult;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Opened;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Outbox;
 import net.onelitefeather.blackhole.discord.backend.Tickets.OutboxItem;
@@ -75,6 +76,16 @@ public final class FakeTicketBackend extends UnsupportedBackend {
     public int protocolGeneration = 1;
     public boolean protocolStale;
     public final Set<String> ingestedLive = new HashSet<>();
+    /** The current Ban IDs the backend knows (normalised) and the ticket each belongs to; a candidate not in here is a look-alike. */
+    public final Map<String, Rec> banIds = new HashMap<>();
+    /** Every leak check the backend received: what the bot sent. */
+    public final List<LeakCall> leakChecks = new ArrayList<>();
+    /** When set, a leak check is refused with this status (400 is a refusal, 503 an outage). */
+    public Integer leakStatus;
+
+    /** One leak check call. */
+    public record LeakCall(List<String> candidates, boolean listed, String poster, boolean posterIsBot) {
+    }
 
     public Rec add(long no, String player) {
         Rec rec = new Rec();
@@ -369,5 +380,32 @@ public final class FakeTicketBackend extends UnsupportedBackend {
     @Override
     public @NotNull NotificationResult report(@NotNull String identifier) {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public @NotNull Result<LeakResult> leakCheck(@NotNull List<String> candidates, boolean listed, @Nullable String posterDiscordUserId, boolean posterIsBot) {
+        Result<LeakResult> gate = gate("leak");
+        if (gate != null) {
+            this.calls.add("leak:failed");
+            return gate;
+        }
+        if (this.leakStatus != null) {
+            this.calls.add("leak:failed");
+            return Result.Failed.of(this.leakStatus, null);
+        }
+        this.leakChecks.add(new LeakCall(List.copyOf(candidates), listed, posterDiscordUserId, posterIsBot));
+        int matched = 0;
+        int marked = 0;
+        for (String candidate : candidates) {
+            Rec rec = this.banIds.get(candidate);
+            if (rec != null) {
+                matched++;
+                if (!rec.leaked) {
+                    rec.leaked = true;
+                    marked++;
+                }
+            }
+        }
+        return new Result.Ok<>(new LeakResult(matched, marked));
     }
 }

@@ -154,4 +154,43 @@ class BotConfigTest {
 
         assertTrue(problems(env).stream().anyMatch(p -> p.startsWith("DISCORD_SYNC_INTERVAL")), "too fast a poll hammers the backend");
     }
+
+    @Test
+    void leakScanningDefaultsToPublicChannels() throws Exception {
+        BotConfig.LeakSettings leak = BotConfig.fromEnvironment(complete()::get).leak();
+
+        assertEquals(BotConfig.LeakMode.PUBLIC, leak.mode(), "public by default");
+        assertTrue(leak.channelIds().isEmpty(), "no list");
+    }
+
+    @Test
+    void listModeTakesTheConfiguredChannelsAndOffNeedsNone() throws Exception {
+        Map<String, String> env = complete();
+        env.put("DISCORD_LEAK_SCAN", "list");
+        env.put("DISCORD_LEAK_SCAN_CHANNELS", "777777777777777777, 888888888888888888");
+
+        BotConfig.LeakSettings list = BotConfig.fromEnvironment(env::get).leak();
+        env.put("DISCORD_LEAK_SCAN", "OFF");
+        env.remove("DISCORD_LEAK_SCAN_CHANNELS");
+        BotConfig.LeakSettings off = BotConfig.fromEnvironment(env::get).leak();
+
+        assertEquals(BotConfig.LeakMode.LIST, list.mode(), "case-insensitive mode");
+        assertEquals(java.util.Set.of(777777777777777777L, 888888888888888888L), list.channelIds(), "both channels");
+        assertEquals(BotConfig.LeakMode.OFF, off.mode(), "off");
+    }
+
+    @Test
+    void listModeWithoutChannelsAnUnknownModeAndAMalformedIdAreRefused() {
+        Map<String, String> noChannels = complete();
+        noChannels.put("DISCORD_LEAK_SCAN", "LIST");
+        Map<String, String> unknown = complete();
+        unknown.put("DISCORD_LEAK_SCAN", "EVERYTHING");
+        Map<String, String> malformed = complete();
+        malformed.put("DISCORD_LEAK_SCAN", "LIST");
+        malformed.put("DISCORD_LEAK_SCAN_CHANNELS", "general");
+
+        assertTrue(problems(noChannels).stream().anyMatch(p -> p.startsWith("DISCORD_LEAK_SCAN_CHANNELS is missing")), "list needs channels");
+        assertTrue(problems(unknown).stream().anyMatch(p -> p.startsWith("DISCORD_LEAK_SCAN must be")), "unknown mode");
+        assertTrue(problems(malformed).stream().anyMatch(p -> p.startsWith("DISCORD_LEAK_SCAN_CHANNELS must be")), "malformed id");
+    }
 }

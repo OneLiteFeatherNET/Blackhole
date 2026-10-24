@@ -154,4 +154,11 @@ public final class Tickets {
      */
     public record ProtocolEnsured(int protocolVersion, boolean stored) {
     }
+
+    /**
+     * @param matched how many candidates were current Ban IDs
+     * @param marked  how many of them were newly marked leaked
+     */
+    public record LeakResult(int matched, int marked) {
+    }
 }
