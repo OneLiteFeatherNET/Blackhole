@@ -3,7 +3,7 @@ package net.onelitefeather.blackhole.backend.banid;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
+import net.onelitefeather.blackhole.backend.support.SnapshotLogAppender;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import net.onelitefeather.blackhole.backend.banid.dto.BanIdDTO;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishmentDTO;
@@ -26,7 +26,7 @@ class BanIdNoLeakTest {
 
     private final PunishmentTestBed bed = new PunishmentTestBed();
     private final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    private final SnapshotLogAppender appender = new SnapshotLogAppender();
     private Level previousLevel;
 
     @BeforeEach
@@ -62,8 +62,8 @@ class BanIdNoLeakTest {
 
         assertEquals(banId, assertInstanceOf(BanIdDTO.Response.class, revealed).banId(), "precondition: the reveal does hold it");
         assertInstanceOf(PunishmentDTO.LookupResponse.class, lookup);
-        assertFalse(this.appender.list.isEmpty(), "precondition: the flow logs something");
-        for (ILoggingEvent line : this.appender.list) {
+        assertFalse(this.appender.snapshot().isEmpty(), "precondition: the flow logs something");
+        for (ILoggingEvent line : this.appender.snapshot()) {
             assertNoBanId(banId, line.getFormattedMessage());
             assertNoBanId(banId, String.valueOf(line.getThrowableProxy()));
         }
