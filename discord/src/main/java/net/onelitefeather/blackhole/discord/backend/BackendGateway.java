@@ -3,6 +3,9 @@ package net.onelitefeather.blackhole.discord.backend;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import net.onelitefeather.blackhole.discord.backend.Tickets.*;
+
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -116,4 +119,44 @@ public interface BackendGateway {
 
     /** Removes every link of the Discord user. */
     @NotNull UnlinkResult unlink(@NotNull String discordUserId);
+
+    // ---- tickets (group 3) ----
+
+    /**
+     * Opens or finds the ticket of a player. The Ban ID is passed through and never kept or logged. Every failure of
+     * eligibility is the same {@code NOT_ELIGIBLE} answer.
+     */
+    @NotNull Result<Opened> openTicket(@NotNull String discordUserId, @Nullable String displayName, @NotNull String banId, @Nullable String statement);
+
+    /** @return the tickets in any of the states, oldest first */
+    @NotNull Result<List<Ticket>> tickets(@NotNull Collection<State> states);
+
+    @NotNull Result<Ticket> ticket(@NotNull String id);
+
+    /** Reports a change: the channel, a state, the freeze mirror or a channel that is gone. */
+    @NotNull Result<Ticket> patchTicket(@NotNull String id, @NotNull Patch patch);
+
+    /** @return the player-visible events after {@code afterSeq}, with their text, for relaying */
+    @NotNull Result<Outbox> outbox(@NotNull String id, long afterSeq, int limit);
+
+    /**
+     * Acknowledges a relayed event; advances the ticket's relay cursor.
+     *
+     * @param messageId        the case message, only for an add
+     * @param discordMessageId the Discord copy, only for an add
+     * @return the cursor afterwards
+     */
+    @NotNull Result<Long> linkRelay(@NotNull String id, long seq, @Nullable String messageId, @Nullable String discordMessageId);
+
+    /** Records messages in their current state (idempotent), or deletes. */
+    @NotNull Result<Ingested> ingest(@NotNull String id, @NotNull IngestBatch batch);
+
+    /** The completeness proof of a closing ticket; stores the protocol and answers its version. */
+    @NotNull Result<Closed> close(@NotNull String id, int count, @Nullable String lastMessageId);
+
+    /** Makes sure a current protocol is stored; the gate before a channel is deleted. */
+    @NotNull Result<ProtocolEnsured> ensureProtocol(@NotNull String id);
+
+    /** @return the Discord user ids of the live staff links, for the channel access reconcile */
+    @NotNull Result<List<String>> staffLinks();
 }

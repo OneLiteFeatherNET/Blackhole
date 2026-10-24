@@ -4,6 +4,8 @@ import net.onelitefeather.blackhole.discord.auth.TokenSettings;
 import org.jetbrains.annotations.NotNull;
 
 import java.net.URI;
+import java.time.Duration;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -21,6 +23,11 @@ import java.util.function.Function;
  * {@code BLACKHOLE_DISCORD_TOKEN_URL} (development: a mock token endpoint) and
  * {@code DISCORD_HEALTH_PORT} (default 8082, 0 turns the health endpoint off).</p>
  *
+ * <p>Tickets: {@code DISCORD_TICKET_CATEGORY_ID} and {@code DISCORD_ARCHIVE_CATEGORY_ID} (two different categories);
+ * optional {@code DISCORD_APPEAL_CHANNEL_ID} (the channel that holds the "open an appeal" button),
+ * {@code DISCORD_ARCHIVE_DELETE_AFTER} (ISO-8601, default {@code P30D}, {@code PT0S} keeps archived channels),
+ * {@code DISCORD_SYNC_INTERVAL} (default {@code PT30S}) and {@code DISCORD_STAFF_RECONCILE_INTERVAL} (default {@code PT5M}).</p>
+ *
  * @param discordToken   the bot token (a secret, never printed)
  * @param guildId        the one guild the bot serves
  * @param teamChannelId  the channel that receives the team notifications
@@ -30,6 +37,7 @@ import java.util.function.Function;
  * @param auth           the backend client credentials
  * @param rabbit         the broker the report and appeal events come from
  * @param healthPort     the port of the local health endpoint, 0 for none
+ * @param tickets        the appeal ticket channels
  */
 public record BotConfig(
         @NotNull String discordToken,
@@ -40,7 +48,8 @@ public record BotConfig(
         @NotNull String panelUrl,
         @NotNull TokenSettings auth,
         @NotNull RabbitSettings rabbit,
-        int healthPort
+        int healthPort,
+        @NotNull TicketSettings tickets
 ) {
 
     public static final String ENV_TOKEN = "DISCORD_TOKEN";
@@ -60,6 +69,24 @@ public record BotConfig(
     public static final String ENV_RABBIT_PASSWORD = "RABBITMQ_PASSWORD";
     public static final String ENV_RABBIT_VHOST = "RABBITMQ_VHOST";
     public static final String ENV_HEALTH_PORT = "DISCORD_HEALTH_PORT";
+    public static final String ENV_TICKET_CATEGORY_ID = "DISCORD_TICKET_CATEGORY_ID";
+    public static final String ENV_ARCHIVE_CATEGORY_ID = "DISCORD_ARCHIVE_CATEGORY_ID";
+    public static final String ENV_APPEAL_CHANNEL_ID = "DISCORD_APPEAL_CHANNEL_ID";
+    public static final String ENV_ARCHIVE_DELETE_AFTER = "DISCORD_ARCHIVE_DELETE_AFTER";
+    public static final String ENV_SYNC_INTERVAL = "DISCORD_SYNC_INTERVAL";
+    public static final String ENV_RECONCILE_INTERVAL = "DISCORD_STAFF_RECONCILE_INTERVAL";
+
+    /**
+     * @param ticketCategoryId  the category the ticket channels are created in
+     * @param archiveCategoryId the category decided tickets move to
+     * @param appealChannelId   the channel with the "open an appeal" button, 0 for none
+     * @param deleteAfter       how long an archived channel lives; zero keeps it
+     * @param syncInterval      how often the backend's cursors are polled
+     * @param reconcileInterval how often channel access is reconciled with the staff links and the role
+     */
+    public record TicketSettings(long ticketCategoryId, long archiveCategoryId, long appealChannelId, @NotNull Duration deleteAfter,
+                                 @NotNull Duration syncInterval, @NotNull Duration reconcileInterval) {
+    }
 
     /**
      * @param host     the RabbitMQ host
@@ -145,10 +172,20 @@ public record BotConfig(
                 problems.add(ENV_HEALTH_PORT + " must be a number");
             }
         }
+        long ticketCategory = snowflake(env, ENV_TICKET_CATEGORY_ID, problems);
+        long archiveCategory = snowflake(env, ENV_ARCHIVE_CATEGORY_ID, problems);
+        if (ticketCategory != 0 && ticketCategory == archiveCategory) {
+            problems.add(ENV_TICKET_CATEGORY_ID + " and " + ENV_ARCHIVE_CATEGORY_ID + " must be different categories");
+        }
+        long appealChannel = value(env, ENV_APPEAL_CHANNEL_ID).isEmpty() ? 0 : snowflake(env, ENV_APPEAL_CHANNEL_ID, problems);
+        Duration deleteAfter = duration(env, ENV_ARCHIVE_DELETE_AFTER, Duration.ofDays(30), Duration.ZERO, problems);
+        Duration syncInterval = duration(env, ENV_SYNC_INTERVAL, Duration.ofSeconds(30), Duration.ofSeconds(5), problems);
+        Duration reconcileInterval = duration(env, ENV_RECONCILE_INTERVAL, Duration.ofMinutes(5), Duration.ofSeconds(30), problems);
         if (!problems.isEmpty()) {
             throw new ConfigException(problems);
         }
-        return new BotConfig(token, guildId, teamChannelId, staffRoleId, backendUrl, panelUrl, auth, rabbit, healthPort);
+        return new BotConfig(token, guildId, teamChannelId, staffRoleId, backendUrl, panelUrl, auth, rabbit, healthPort,
+                new TicketSettings(ticketCategory, archiveCategory, appealChannel, deleteAfter, syncInterval, reconcileInterval));
     }
 
     /** Never prints the bot token or the client secret. */
@@ -156,7 +193,25 @@ public record BotConfig(
     public String toString() {
         return "BotConfig{discordToken=<redacted>, guildId=" + this.guildId + ", teamChannelId=" + this.teamChannelId
                 + ", staffRoleId=" + this.staffRoleId + ", backendUrl=" + this.backendUrl + ", panelUrl=" + this.panelUrl
-                + ", auth=" + this.auth + ", rabbit=" + this.rabbit + ", healthPort=" + this.healthPort + "}";
+                + ", auth=" + this.auth + ", rabbit=" + this.rabbit + ", healthPort=" + this.healthPort + ", tickets=" + this.tickets + "}";
+    }
+
+    private static Duration duration(Function<String, String> env, String name, Duration fallback, Duration minimum, List<String> problems) {
+        String value = value(env, name);
+        if (value.isEmpty()) {
+            return fallback;
+        }
+        try {
+            Duration parsed = Duration.parse(value);
+            if (parsed.compareTo(minimum) < 0) {
+                problems.add(name + " must be at least " + minimum);
+                return fallback;
+            }
+            return parsed;
+        } catch (DateTimeParseException e) {
+            problems.add(name + " must be an ISO-8601 duration such as PT30S");
+            return fallback;
+        }
     }
 
     private static String value(Function<String, String> env, String name) {

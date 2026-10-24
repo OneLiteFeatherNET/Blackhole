@@ -26,7 +26,7 @@ dependencies {
     implementation(libs.jackson.databind)
 
     implementation(libs.jetbrains.annotations)
-    runtimeOnly(mn.logback.classic)
+    implementation(mn.logback.classic)
 
     testImplementation(mn.junit.jupiter.api)
     testRuntimeOnly(mn.junit.jupiter.engine)

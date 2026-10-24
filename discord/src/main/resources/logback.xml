@@ -1,0 +1,15 @@
+<configuration>
+    <!-- JSON lines on stdout. The bot's own log messages carry no message content, Ban IDs or Discord ids;
+         the libraries are kept at WARN so none of them logs payloads. -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="net.onelitefeather.blackhole.discord.log.JsonLayout"/>
+        </encoder>
+    </appender>
+    <logger name="net.dv8tion" level="WARN"/>
+    <logger name="com.rabbitmq" level="WARN"/>
+    <logger name="net.onelitefeather.blackhole.client" level="WARN"/>
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>

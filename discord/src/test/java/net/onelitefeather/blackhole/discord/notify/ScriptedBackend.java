@@ -4,7 +4,7 @@ import net.onelitefeather.blackhole.discord.backend.BackendGateway;
 import org.jetbrains.annotations.NotNull;
 
 /** A backend whose notification answers the test scripts; the link calls are not used here. */
-final class ScriptedBackend implements BackendGateway {
+final class ScriptedBackend extends net.onelitefeather.blackhole.discord.testing.UnsupportedBackend {
 
     NotificationResult report = new NotificationResult.NotFound();
     NotificationResult appeal = new NotificationResult.NotFound();

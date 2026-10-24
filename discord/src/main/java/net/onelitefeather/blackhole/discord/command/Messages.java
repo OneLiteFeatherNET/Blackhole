@@ -100,4 +100,77 @@ final class Messages {
             case DE -> "Bitte nutze diesen Befehl auf dem Server.";
         };
     }
+
+    // ---- appeal tickets ----
+
+    static @NotNull String appealMissingBanId(@NotNull Lang lang) {
+        return switch (lang) {
+            case EN -> "Please enter the ban ID from your ban screen.";
+            case DE -> "Bitte gib die Ban-ID von deinem Bannbildschirm ein.";
+        };
+    }
+
+    /** One text for every reason a ticket cannot be opened: a wrong ID, a leaked ID, an ID bound to someone else. */
+    static @NotNull String appealNotEligible(@NotNull Lang lang) {
+        return switch (lang) {
+            case EN -> "We could not open an appeal with these details. Check the ban ID on your ban screen and try again. "
+                    + "If the ban ID was ever posted publicly, you cannot appeal with it here.";
+            case DE -> "Mit diesen Angaben konnte kein Einspruch eröffnet werden. Prüfe die Ban-ID auf deinem Bannbildschirm und "
+                    + "versuche es erneut. Wurde die Ban-ID jemals öffentlich gepostet, kannst du damit hier keinen Einspruch einlegen.";
+        };
+    }
+
+    static @NotNull String appealStatementRequired(@NotNull Lang lang) {
+        return switch (lang) {
+            case EN -> "Please write a statement: why should your ban be reviewed? Then send the form again.";
+            case DE -> "Bitte schreibe eine Begründung: Warum soll dein Bann überprüft werden? Sende das Formular dann erneut.";
+        };
+    }
+
+    static @NotNull String appealNotYet(@NotNull Lang lang, long availableFromMillis) {
+        long seconds = availableFromMillis / 1000;
+        return switch (lang) {
+            case EN -> "You can appeal again from <t:" + seconds + ":F>.";
+            case DE -> "Du kannst ab <t:" + seconds + ":F> erneut Einspruch einlegen.";
+        };
+    }
+
+    static @NotNull String appealOpened(@NotNull Lang lang, long channelId, boolean created) {
+        return switch (lang) {
+            case EN -> (created ? "Your appeal is open. " : "You already have an open appeal. ") + "Continue in <#" + channelId + ">.";
+            case DE -> (created ? "Dein Einspruch ist eröffnet. " : "Du hast bereits einen offenen Einspruch. ") + "Weiter geht es in <#" + channelId + ">.";
+        };
+    }
+
+    static @NotNull String appealPreparing(@NotNull Lang lang) {
+        return switch (lang) {
+            case EN -> "Your appeal is open. Your private channel is being prepared and appears in a moment; if it does not, run `/appeal` again.";
+            case DE -> "Dein Einspruch ist eröffnet. Dein privater Kanal wird gerade vorbereitet und erscheint gleich; falls nicht, nutze `/appeal` noch einmal.";
+        };
+    }
+
+    static @NotNull String appealModalTitle(@NotNull Lang lang) {
+        return lang == Lang.DE ? "Einspruch einlegen" : "Appeal a ban";
+    }
+
+    static @NotNull String appealBanIdLabel(@NotNull Lang lang) {
+        return lang == Lang.DE ? "Ban-ID (von deinem Bannbildschirm)" : "Ban ID (from your ban screen)";
+    }
+
+    static @NotNull String appealStatementLabel(@NotNull Lang lang) {
+        return lang == Lang.DE ? "Deine Begründung" : "Your statement";
+    }
+
+    static @NotNull String appealPanelTitle() {
+        return "Appeal a ban · Einspruch einlegen";
+    }
+
+    static @NotNull String appealPanelBody() {
+        return "Press the button and enter the ban ID from your ban screen. You get a private channel where you and the team can talk.\n"
+                + "Drücke den Knopf und gib die Ban-ID von deinem Bannbildschirm ein. Du bekommst einen privaten Kanal, in dem du und das Team schreiben können.";
+    }
+
+    static @NotNull String appealPanelButton() {
+        return "Appeal · Einspruch";
+    }
 }

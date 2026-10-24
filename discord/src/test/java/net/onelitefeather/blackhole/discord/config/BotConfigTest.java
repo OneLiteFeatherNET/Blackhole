@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.discord.config;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +29,8 @@ class BotConfigTest {
         env.put("RABBITMQ_HOST", "rabbit");
         env.put("RABBITMQ_USER", "guest");
         env.put("RABBITMQ_PASSWORD", "rabbit-secret");
+        env.put("DISCORD_TICKET_CATEGORY_ID", "444444444444444444");
+        env.put("DISCORD_ARCHIVE_CATEGORY_ID", "555555555555555555");
         return env;
     }
 
@@ -54,7 +57,8 @@ class BotConfigTest {
 
         for (String name : List.of("DISCORD_TOKEN", "DISCORD_GUILD_ID", "DISCORD_TEAM_CHANNEL_ID", "DISCORD_STAFF_ROLE_ID",
                 "BLACKHOLE_BACKEND_URL", "BLACKHOLE_PANEL_URL", "BLACKHOLE_DISCORD_CLIENT_ID",
-                "BLACKHOLE_DISCORD_CLIENT_SECRET", "BLACKHOLE_DISCORD_AUTH_SCOPE", "RABBITMQ_HOST", "RABBITMQ_USER", "RABBITMQ_PASSWORD")) {
+                "BLACKHOLE_DISCORD_CLIENT_SECRET", "BLACKHOLE_DISCORD_AUTH_SCOPE", "RABBITMQ_HOST", "RABBITMQ_USER", "RABBITMQ_PASSWORD",
+                "DISCORD_TICKET_CATEGORY_ID", "DISCORD_ARCHIVE_CATEGORY_ID")) {
             assertTrue(problems.stream().anyMatch(problem -> problem.contains(name)), name + " is named: " + problems);
         }
     }
@@ -99,5 +103,55 @@ class BotConfigTest {
         assertFalse(text.contains("bot-token-secret"), "bot token: " + text);
         assertFalse(text.contains("client-secret"), "client secret: " + text);
         assertFalse(text.contains("rabbit-secret"), "broker password: " + text);
+    }
+
+    @Test
+    void theTicketSettingsHaveTheDocumentedDefaults() throws Exception {
+        BotConfig.TicketSettings tickets = BotConfig.fromEnvironment(complete()::get).tickets();
+
+        assertEquals(444444444444444444L, tickets.ticketCategoryId(), "ticket category");
+        assertEquals(555555555555555555L, tickets.archiveCategoryId(), "archive category");
+        assertEquals(0L, tickets.appealChannelId(), "no appeal channel by default");
+        assertEquals(Duration.ofDays(30), tickets.deleteAfter(), "archive deletion after 30 days");
+        assertEquals(Duration.ofSeconds(30), tickets.syncInterval(), "cursor poll");
+        assertEquals(Duration.ofMinutes(5), tickets.reconcileInterval(), "access reconcile");
+    }
+
+    @Test
+    void theTicketSettingsCanBeOverridden() throws Exception {
+        Map<String, String> env = complete();
+        env.put("DISCORD_APPEAL_CHANNEL_ID", "666666666666666666");
+        env.put("DISCORD_ARCHIVE_DELETE_AFTER", "PT0S");
+        env.put("DISCORD_SYNC_INTERVAL", "PT10S");
+        env.put("DISCORD_STAFF_RECONCILE_INTERVAL", "PT1M");
+
+        BotConfig.TicketSettings tickets = BotConfig.fromEnvironment(env::get).tickets();
+
+        assertEquals(666666666666666666L, tickets.appealChannelId(), "appeal channel");
+        assertEquals(Duration.ZERO, tickets.deleteAfter(), "zero keeps archived channels");
+        assertEquals(Duration.ofSeconds(10), tickets.syncInterval(), "sync interval");
+        assertEquals(Duration.ofMinutes(1), tickets.reconcileInterval(), "reconcile interval");
+    }
+
+    @Test
+    void sameCategoryTwiceAndBadDurationsAreRefused() {
+        Map<String, String> env = complete();
+        env.put("DISCORD_ARCHIVE_CATEGORY_ID", "444444444444444444");
+        env.put("DISCORD_ARCHIVE_DELETE_AFTER", "-P1D");
+        env.put("DISCORD_SYNC_INTERVAL", "30 seconds");
+
+        List<String> problems = problems(env);
+
+        assertTrue(problems.stream().anyMatch(p -> p.contains("must be different categories")), "categories: " + problems);
+        assertTrue(problems.stream().anyMatch(p -> p.startsWith("DISCORD_ARCHIVE_DELETE_AFTER")), "negative delay: " + problems);
+        assertTrue(problems.stream().anyMatch(p -> p.startsWith("DISCORD_SYNC_INTERVAL")), "not ISO-8601: " + problems);
+    }
+
+    @Test
+    void aSyncIntervalBelowFiveSecondsIsRefused() {
+        Map<String, String> env = complete();
+        env.put("DISCORD_SYNC_INTERVAL", "PT1S");
+
+        assertTrue(problems(env).stream().anyMatch(p -> p.startsWith("DISCORD_SYNC_INTERVAL")), "too fast a poll hammers the backend");
     }
 }
