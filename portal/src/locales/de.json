@@ -142,5 +142,66 @@
     "forfeited": "Das Recht auf Einspruch gegen diese Strafe ist verfallen, weil die Ban-ID öffentlich geteilt wurde. Die Strafe läuft trotzdem von selbst aus, und das Team kann sie von sich aus überprüfen.",
     "frozen": "Dein Einspruch ist eingefroren, weil die Ban-ID öffentlich geteilt wurde. Du kannst hier keine Nachrichten mehr schreiben. Das Team kann weiter antworten und entscheiden und meldet sich auf anderem Weg bei dir.",
     "limited": "Diese Ban-ID wurde öffentlich geteilt, deshalb werden nur die Fakten der Strafe angezeigt. Gespräche und Entscheidungen sind nicht sichtbar. Wende dich im Spiel ans Team, wenn du die betroffene Person bist."
+  },
+  "chat": {
+    "attach": "Dateien anhängen",
+    "attached": "Angehängte Dateien",
+    "files": "Angehängte Dateien",
+    "fileCount": "{count} von {max} Dateien",
+    "dropHere": "Dateien hier ablegen, um sie anzuhängen",
+    "formatHint": "Formatierung: **fett**, *kursiv*, `code`, Listen mit - oder 1., Zitate mit >, und Links wie [Text](https://example.org). Es gibt keine Vorschau.",
+    "uploading": "Wird hochgeladen ...",
+    "remove": "{name} entfernen",
+    "removeShort": "Entfernen",
+    "download": "{name} herunterladen",
+    "state": {
+      "uploading": "Wird hochgeladen",
+      "staged": "Bereit zum Senden"
+    },
+    "file": {
+      "pdf": "PDF-Dokument",
+      "text": "Textdatei",
+      "image": "Bild"
+    },
+    "share": {
+      "title": "Vom Moderationsteam geteilt",
+      "noLonger": "Nicht mehr geteilt",
+      "unavailable": "Dieser Nachweis ist nicht mehr verfügbar",
+      "excerpt": "Auszug aus dem Chat",
+      "image": "Geteiltes Bild"
+    },
+    "lightbox": {
+      "title": "Bild",
+      "open": "{name} öffnen",
+      "close": "Schließen"
+    },
+    "live": {
+      "reconnecting": "Verbindung wird wiederhergestellt. Neue Nachrichten können etwas länger brauchen."
+    },
+    "errors": {
+      "TOO_MANY": "Du kannst höchstens {max} Dateien an eine Nachricht anhängen.",
+      "UNSUPPORTED_TYPE": "Dieser Dateityp ist nicht erlaubt. Verwende PNG, JPEG, WebP, PDF oder reinen Text.",
+      "TOO_LARGE": "Die Datei ist größer als 10 MB.",
+      "FILE_FLAGGED": "Die Datei konnte nicht angenommen werden.",
+      "FILE_ACTIVE_CONTENT": "Die Datei konnte nicht angenommen werden, weil sie aktive Inhalte enthält.",
+      "INVALID_FILE": "Die Datei konnte nicht angenommen werden.",
+      "QUOTA": "Du hast das Dateilimit für diesen Einspruch erreicht.",
+      "NO_APPEAL": "Reiche zuerst einen Einspruch ein, bevor du Dateien anhängst.",
+      "FILES_UNAVAILABLE": "Eine der Dateien ist nicht mehr verfügbar. Entferne sie und versuche es erneut.",
+      "FORBIDDEN": "In diesem Gespräch können keine Dateien hinzugefügt werden.",
+      "CONFLICT": "Die Datei konnte im Moment nicht hinzugefügt werden.",
+      "UNAVAILABLE": "Hochladen ist gerade nicht möglich. Bitte versuche es erneut."
+    }
+  },
+  "leave": {
+    "title": "Du verlässt OneLiteFeather",
+    "explain": "Die nächste Seite wird nicht von OneLiteFeather betrieben, und wir können nicht prüfen, was sie enthält.",
+    "address": "Adresse",
+    "host": "Website: {host}",
+    "trusted": "Dies ist eine Website von OneLiteFeather.",
+    "warning": "Prüfe die Adresse, bevor du weitergehst. Gib deine Ban-ID oder ein Passwort niemals auf einer Seite ein, die du nicht erwartet hast.",
+    "back": "Zurück",
+    "continue": "Zur Website weiter",
+    "invalid": "Dieser Link ist nicht gültig. Geh zurück und versuche es erneut."
   }
 }
