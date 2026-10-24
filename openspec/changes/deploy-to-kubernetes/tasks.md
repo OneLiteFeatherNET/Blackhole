@@ -54,17 +54,17 @@ Order: 1 -> 2 -> 3/4/5 (independent after 2) -> 6 -> 7 -> 8. Group 9 starts when
 
 ## 6. Chart checks in CI (PR 6, `ci(deploy)`)
 
-- [ ] 6.1 Failing tests first: a PR that breaks the schema (negative fixture) turns the new job red locally (`act`-free: run the same script)
-- [ ] 6.2 `build-pr.yml`: job `chart` with pinned Helm (as in Apus), `helm lint`, `helm template` over every `ci/*-values.yaml`, the negative render checks of the schema, `tests/*.sh`, and kubeconform (pinned, `-strict`, `-ignore-missing-schemas` only for the ServiceMonitor/PodMonitor/HTTPRoute CRDs with the datree CRD schema location)
-- [ ] 6.3 Render the chart against the `restricted` Pod Security profile (kubeconform cannot; use `kubectl --dry-run=server` is not available offline, so a small `yq` policy check in `tests/psa.sh`: fails on missing `runAsNonRoot`, `seccompProfile`, `allowPrivilegeEscalation: false`, `drop: [ALL]`, with a documented ClamAV exception if 3.5 needs one)
+- [x] 6.1 Failing tests first: a PR that breaks the schema (negative fixture) turns the new job red locally (`act`-free: run the same script)
+- [x] 6.2 `build-pr.yml`: job `chart` with pinned Helm (as in Apus), `helm lint`, `helm template` over every `ci/*-values.yaml`, the negative render checks of the schema, `tests/*.sh`, and kubeconform (pinned, `-strict`, `-ignore-missing-schemas` only for the ServiceMonitor/PodMonitor/HTTPRoute CRDs with the datree CRD schema location)
+- [x] 6.3 Render the chart against the `restricted` Pod Security profile (kubeconform cannot; use `kubectl --dry-run=server` is not available offline, so a small `yq` policy check in `tests/psa.sh`: fails on missing `runAsNonRoot`, `seccompProfile`, `allowPrivilegeEscalation: false`, `drop: [ALL]`, with a documented ClamAV exception if 3.5 needs one)
 - [ ] 6.4 Verify: the job passes on the branch and fails on the negative fixtures
 
 ## 7. Publishing (PR 7, `ci(deploy)`)
 
-- [ ] 7.1 Failing tests first: a dry-run script (`.github/scripts/chart-version.sh`) computes the release chart version (`X.Y.Z`) and the dev chart version (`X.Y.(Z+1)-main.<ts>`) and the dev image tag `main-<ts>-<sha7>`, with unit-style shell tests for the ordering (`main.9` < `main.10` as semver) and for a `-SNAPSHOT` base version
-- [ ] 7.2 `release-please.yml`: build and push `blackhole-web`, `blackhole-portal`, `blackhole-discord` with the shared `docker-publish.yml` (`context: .`, `dockerfile: <module>/Dockerfile`, cosign on), on release and on `main` pushes; the backend publish job `needs` the three; add `extra-tags: type=raw,value=main-<commit unix time>-<sha7>` to every `main` build, backend included
-- [ ] 7.3 `release-please.yml`: job `publish-charts` after the image jobs: `helm package` and `helm push` to `oci://${HARBOR_REGISTRY}/onelitefeather/charts` using the credential-file approach from Apus (no `helm registry login`), release version on release, snapshot version on `main`
-- [ ] 7.4 `workflow_dispatch` input to re-publish a given version's chart and images (extends the existing `docker_version` input)
+- [x] 7.1 Failing tests first: a dry-run script (`.github/scripts/chart-version.sh`) computes the release chart version (`X.Y.Z`) and the dev chart version (`X.Y.(Z+1)-main.<ts>`) and the dev image tag `main-<ts>-<sha7>`, with unit-style shell tests for the ordering (`main.9` < `main.10` as semver) and for a `-SNAPSHOT` base version
+- [x] 7.2 `release-please.yml`: build and push `blackhole-web`, `blackhole-portal`, `blackhole-discord` with the shared `docker-publish.yml` (`context: .`, `dockerfile: <module>/Dockerfile`, cosign on), on release and on `main` pushes; the backend publish job `needs` the three; add `extra-tags: type=raw,value=main-<commit unix time>-<sha7>` to every `main` build, backend included
+- [x] 7.3 `release-please.yml`: job `publish-charts` after the image jobs: `helm package` and `helm push` to `oci://${HARBOR_REGISTRY}/onelitefeather/charts` using the credential-file approach from Apus (no `helm registry login`), release version on release, snapshot version on `main`
+- [x] 7.4 `workflow_dispatch` input to re-publish a given version's chart and images (extends the existing `docker_version` input)
 - [ ] 7.5 Verify on a fork or with `workflow_dispatch`: the four images and the chart appear in Harbor with matching versions; `helm pull oci://.../blackhole --version X` works; record the result in the PR
 
 ## 8. Documentation (PR 8, `docs(deploy)`)
