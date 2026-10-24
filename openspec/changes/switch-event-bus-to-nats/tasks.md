@@ -63,7 +63,7 @@ BREAKING (plugin config): `redisUri` disappears; the backend keeps writing Redis
 
 ## 7. Remove RabbitMQ (PR 7: `build: remove rabbitmq from compose and the version catalog`)
 
-- [ ] 7.1 Remove the `rabbitmq` service and `RABBITMQ_*` from `docker/docker-compose.yml`, point the `discord` service at `nats`, drop `rabbitmq-amqp-client` from `settings.gradle.kts` and `discord/build.gradle.kts`; verify `grep -ri rabbit` finds only the migration note and the archive
+- [x] 7.1 Remove the `rabbitmq` service and `RABBITMQ_*` from `docker/docker-compose.yml`, point the `discord` service at `nats`, drop `rabbitmq-amqp-client` from `settings.gradle.kts` and `discord/build.gradle.kts`; verify `grep -ri rabbit` finds only the migration note and the archive
 
 ## 8. Docs (PR 8: `docs: describe the nats event bus`)
 
