@@ -1,0 +1,3 @@
+{{- if .Values.web.enabled }}
+{{- include "blackhole.exposure" (dict "ctx" . "component" "web" "values" .Values.web) }}
+{{- end }}

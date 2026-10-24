@@ -1,0 +1,55 @@
+{{- if and .Values.backend.enabled .Values.backend.externalApi.enabled }}
+{{- $v := .Values.backend }}
+{{- $api := $v.externalApi }}
+{{- $d := dict "ctx" . "component" "backend" "values" $v }}
+{{- $proxy := dict "ctx" . "component" "api-proxy" }}
+{{- $name := include "blackhole.fullname" $d }}
+{{- /*
+The host the Velocity proxies (outside the cluster) call. Its security boundary is the backend's JWT check
+(Entra token, app role Blackhole.Proxy); on top, only the path prefixes the proxy uses are routed, so the
+anonymous /public/session and the operational routes (/discord, /prometheus, /swagger, /health, /admin, /auth)
+never reach the backend through this host.
+
+mode "paths": the tunnel controller (cloudflare-tunnel-ingress-controller v0.0.23) passes the Ingress path to
+cloudflared unchanged, and cloudflared matches paths as an UNANCHORED regular expression, rules sorted by
+path length, longest first. A plain Prefix such as /appeal would also match /public/appeal/..., so the rule
+is ONE anchored expression (^/(punishment|profile|...)). A single rule per host cannot collide in length with
+another rule (two rules of one host with equal length make the controller's ordering unstable). pathType
+must be ImplementationSpecific, because Prefix and Exact paths must start with a slash.
+
+mode "nginx": the tunnel routes "/" to a small allow-list proxy (api-proxy.yaml) that answers 404 for
+everything else. The fallback if anchored paths ever stop passing through the tunnel controller.
+*/ -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ printf "%s-api" $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+  annotations:
+    cloudflare-tunnel-ingress-controller.strrl.dev/backend-protocol: http
+spec:
+  ingressClassName: {{ $api.className }}
+  rules:
+    - host: {{ $api.host }}
+      http:
+        paths:
+          {{- if eq $api.mode "nginx" }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "blackhole.fullname" $proxy }}
+                port:
+                  name: http
+          {{- else }}
+          - path: {{ include "blackhole.apiPathRegex" . | quote }}
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: {{ $name }}
+                port:
+                  name: http
+          {{- end }}
+{{- end }}

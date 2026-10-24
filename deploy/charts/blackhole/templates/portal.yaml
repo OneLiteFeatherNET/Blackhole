@@ -1,0 +1,110 @@
+{{- if .Values.portal.enabled }}
+{{- $v := .Values.portal }}
+{{- $d := dict "ctx" . "component" "portal" "values" $v }}
+{{- $name := include "blackhole.fullname" $d }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+spec:
+  replicas: {{ $v.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "blackhole.selectorLabels" $d | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "blackhole.podLabels" $d | nindent 8 }}
+      annotations:
+        {{- include "blackhole.podAnnotations" (dict "values" $v) | nindent 8 }}
+    spec:
+      serviceAccountName: {{ $name }}
+      {{- include "blackhole.podDefaults" . | nindent 6 }}
+      securityContext:
+        {{- toYaml $v.podSecurityContext | nindent 8 }}
+      containers:
+        - name: portal
+          image: {{ include "blackhole.image" (dict "ctx" . "image" $v.image "app" true) }}
+          imagePullPolicy: {{ $v.image.pullPolicy }}
+          securityContext:
+            {{- toYaml $v.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          # No secret: the portal calls only /public/** of the backend. The origin must be https outside
+          # local values (the portal refuses to start otherwise; the schema checks it first).
+          env:
+            {{- $env := dict
+                  "BLACKHOLE_BACKEND_URL" (include "blackhole.backendUrl" (dict "ctx" . "url" $v.backendUrl))
+                  "BLACKHOLE_PORTAL_ORIGIN" $v.origin }}
+            {{- range $key, $value := $v.env }}{{- $_ := set $env $key $value }}{{- end }}
+            {{- include "blackhole.env" $env | nindent 12 }}
+          {{- if $v.envFrom }}
+          envFrom:
+            {{- include "blackhole.envFrom" $v.envFrom | nindent 12 }}
+          {{- end }}
+          readinessProbe:
+            {{- toYaml $v.readinessProbe | nindent 12 }}
+          livenessProbe:
+            {{- toYaml $v.livenessProbe | nindent 12 }}
+          resources:
+            {{- toYaml $v.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+      {{- include "blackhole.scheduling" (dict "ctx" . "component" "portal" "values" $v "spread" true) | nindent 6 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "blackhole.selectorLabels" $d | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ $v.service.port }}
+      targetPort: http
+      protocol: TCP
+{{- if and $v.pdb.enabled (gt (int $v.replicaCount) 1) }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+spec:
+  maxUnavailable: {{ $v.pdb.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "blackhole.selectorLabels" $d | nindent 6 }}
+{{- end }}
+{{- end }}

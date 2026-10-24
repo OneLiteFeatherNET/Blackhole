@@ -166,6 +166,14 @@ priorityClassName: {{ . }}
 {{- .Values.auth.jwksUrl | default (printf "https://login.microsoftonline.com/%s/discovery/v2.0/keys" .Values.auth.tenantId) -}}
 {{- end -}}
 
+{{/*
+The one anchored expression that allows the proxy prefixes on the external API host, e.g. ^/(punishment|profile).
+The tunnel (cloudflared) matches it as an unanchored regular expression against the request path.
+*/}}
+{{- define "blackhole.apiPathRegex" -}}
+{{- printf "^/(%s)" (join "|" .Values.backend.externalApi.prefixes) -}}
+{{- end -}}
+
 {{/* Host and port of the scanner: an external one, or the Service of this release. */}}
 {{- define "blackhole.clamdHost" -}}
 {{- .Values.clamav.externalHost | default (include "blackhole.fullname" (dict "ctx" . "component" "clamav")) -}}

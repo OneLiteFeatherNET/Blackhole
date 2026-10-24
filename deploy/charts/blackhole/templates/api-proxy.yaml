@@ -1,0 +1,97 @@
+{{- if and .Values.backend.enabled .Values.backend.externalApi.enabled (eq .Values.backend.externalApi.mode "nginx") }}
+{{- $api := .Values.backend.externalApi }}
+{{- $proxy := dict "ctx" . "component" "api-proxy" }}
+{{- $pname := include "blackhole.fullname" $proxy }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $pname }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $proxy | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $pname }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $proxy | nindent 4 }}
+spec:
+  replicas: {{ $api.nginx.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "blackhole.selectorLabels" $proxy | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "blackhole.podLabels" (dict "ctx" . "component" "api-proxy" "values" (dict "logFormat" "plain")) | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/api-proxy-configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ $pname }}
+      {{- include "blackhole.podDefaults" . | nindent 6 }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nginx
+          image: {{ include "blackhole.image" (dict "ctx" . "image" $api.nginx.image "app" false) }}
+          imagePullPolicy: {{ $api.nginx.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          args: ["nginx", "-g", "daemon off;", "-c", "/etc/nginx/blackhole/nginx.conf"]
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /nginx-health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /nginx-health
+              port: http
+            periodSeconds: 20
+          resources:
+            {{- toYaml $api.nginx.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: config
+              mountPath: /etc/nginx/blackhole
+              readOnly: true
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
+        - name: config
+          configMap:
+            name: {{ $pname }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $pname }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $proxy | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "blackhole.selectorLabels" $proxy | nindent 4 }}
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+{{- end }}

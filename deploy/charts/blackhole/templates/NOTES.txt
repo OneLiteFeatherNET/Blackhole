@@ -1,0 +1,21 @@
+Blackhole {{ .Chart.AppVersion }} is installed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Components:
+{{- range $component := list "backend" "web" "portal" "discord" }}
+  {{ $component }}: {{ if (index $.Values $component).enabled }}enabled{{ else }}disabled{{ end }}
+{{- end }}
+  clamav: {{ if include "blackhole.clamavWorkload" . }}enabled (in this release){{ else if .Values.clamav.externalHost }}external ({{ .Values.clamav.externalHost }}){{ else }}disabled{{ end }}
+
+Hosts:
+{{- if and .Values.web.enabled .Values.web.ingress.enabled }}
+  panel:  https://{{ .Values.web.ingress.host }}
+{{- end }}
+{{- if and .Values.portal.enabled .Values.portal.ingress.enabled }}
+  portal: https://{{ .Values.portal.ingress.host }}
+{{- end }}
+{{- if and .Values.backend.enabled .Values.backend.externalApi.enabled }}
+  proxy API: https://{{ .Values.backend.externalApi.host }} ({{ .Values.backend.externalApi.mode }} mode, only the proxy prefixes are routed)
+{{- end }}
+
+After changing a Secret, raise <component>.secretRevision: the pods are not restarted by a Secret change alone.
+The Ban ID key (BLACKHOLE_BANID_KEY) cannot be replaced after the first start; keep an offline copy.

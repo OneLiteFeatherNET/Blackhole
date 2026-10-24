@@ -140,3 +140,6 @@ adds kubeconform v0.8.0.
 | Script | What it checks |
 |--------|----------------|
 | `tests/render.sh` | every fixture lints and renders; the schema rejects unknown keys, missing required values, literal secrets, RabbitMQ settings |
+| `tests/workloads.sh` | env and Secret wiring, probes, strategies, PDBs, ClamAV, `secretRevision` |
+| `tests/exposure.sh` | hosts, Ingress class, the route table against the cloudflared path semantics |
+| `tests/psa.sh` | the `restricted` Pod Security fields on every pod |
