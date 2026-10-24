@@ -47,9 +47,8 @@ therefore a deterrent and a signal, not proof, and the safe default action is "t
   proxy's command tree (not what players typed) and the protocol versions the proxy supports.
 - **Admin panel**: a "Client rules" view; rule edits `ADMIN`, reading the rules, hits and catalogue
   for every team role.
-- Migrations `V19__client_rule.sql` (V18 is the Discord ticket change's), then the next free
-  numbers for the hit and fingerprint tables. Client spec bumps use the next free number at
-  implementation time.
+- Three Flyway migrations (rules, hits, fingerprints), each numbered with the next free Flyway
+  version at implementation time. Client spec bumps likewise use the next free number.
 
 Not breaking: all routes and fields are additive. A proxy older than this change ignores rules
 (nothing is enforced). A new proxy against a backend without the routes treats the 404 as "no
@@ -73,7 +72,7 @@ The change ships as small stacked pull requests, each squash-merged, each of one
 Commits type (the PR title is the commit on `main`). `feat` carries all behaviour; the last PR is
 `docs`. No `fix`, `refactor` or `perf` is mixed in.
 
-1. `feat(client-rules): add the client rule model and api` (V19, rules CRUD, catalogue, role rows, client spec)
+1. `feat(client-rules): add the client rule model and api` (migration, rules CRUD, catalogue, role rows, client spec)
 2. `feat(client-rules): record rule hits and apply their action` (hit table, intake, notice event, template application, retention, erasure, client spec)
 3. `feat(evasion): correlate hashed client fingerprints` (key, HMAC, table, sightings signal, retention, erasure, client spec)
 4. `feat(velocity): collect client traits and enforce client rules` (traits, rule engine, login and connect enforcement, catalogue, fingerprint submission, staff notice)
@@ -108,7 +107,7 @@ Archive: `docs(openspec): archive add-client-fingerprint-rules`.
   entity, repository, key guard and sweeper; `CacheKeys`; a change notifier like the sections'
   for rule changes; the profile erasure path; `application.yml` keys with comments; route-coverage
   and permission-matrix tests.
-- Flyway: `V19__client_rule.sql`, then next free numbers for the hit and fingerprint tables.
+- Flyway: three migrations (rules, hits, fingerprints), each the next free version at implementation time.
 - `client/specs/blackhole-api-<next free>.yml` (three bumps, one per backend PR), `inputSpec`.
 - Velocity: new `clientrule/` package, listeners for brand, channel, mod info, login, connect,
   command and available-commands events, config, messages; `PlayerClientBrandListener` keeps its

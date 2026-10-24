@@ -5,13 +5,13 @@ starts with failing tests (F.I.R.S.T.: injected `Clock`, a manual scheduler the 
 in-memory fakes behind `BackendGateway` and `CloudNetView`, no sleeps, no network, test keys from
 `TestKeys`, self-signed JWTs, Testcontainers for SQL). Every backend group lands its own JUnit tests
 and every UI group its own Vitest tests. A bug found while implementing is reproduced by a failing
-test first. Migration numbers are planned (V19 first) and are "next free" when another change lands
-first; client spec bumps use the next free number at implementation time.
+test first. Every migration takes the next free Flyway version at implementation time (no number is fixed
+here); client spec bumps use the next free number as well.
 
 ## 1. Rule model and API (PR 1, `feat(client-rules): add the client rule model and api`)
 
 - [ ] 1.1 Failing tests first: rule validation table (key format, kind-specific fields, pattern charset and length, 1 to 32 patterns, protocol range, negate allowed kinds, no regex), scope validation (section exists and is SERVER, target kind names, unknown section rejected), action validation (template exists, deny message length, spoofable acknowledgement required for BRAND/MOD/CHANNEL + TEMPLATE and cleared on kind/action change), duplicate key 409, deleting a template referenced by a rule answers 409
-- [ ] 1.2 Migration `V19__client_rule.sql` (`client_rule`, `client_rule_pattern`, `client_rule_server`, `client_rule_section`; checks, cascade, FK to templates `RESTRICT`); migration test on Testcontainers
+- [ ] 1.2 Migration `V<next free>__client_rule.sql` (`client_rule`, `client_rule_pattern`, `client_rule_server`, `client_rule_section`; checks, cascade, FK to templates `RESTRICT`); migration test on Testcontainers
 - [ ] 1.3 `clientrule/` package: `ClientRuleApi` (OpenAPI), thin `ClientRuleController` (`@Version(ApiVersion.V1)`), `ClientRuleService` (answers the `Error` variant), sealed `ClientRuleDTO` (`CreateRequest`, `UpdateRequest`, `Response`, `Error`); write is one CTE statement, no `@Transactional`; `recorded_by_oid` from `ActorResolver`
 - [ ] 1.4 Change notification to proxies (same shape as the section notifier) and shared-cache mirror of the enabled rules for `PROXY` reads; test that a write evicts and notifies
 - [ ] 1.5 Catalogue: `PUT/GET /client-rule/catalogue` over the shared cache with TTL `blackhole.clientrules.catalogue.ttl` (`PT24H`), outage tests (`PUT` 503, `GET` `available: false`)

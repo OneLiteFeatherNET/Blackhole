@@ -336,16 +336,17 @@ A bug found later is reproduced by a failing test first.
 
 ## Flyway migrations
 
-Append-only; numbers are planned in PR order and are "next free" if another change lands first.
+Append-only. No version number is fixed in this change: each migration takes the next free Flyway
+version at implementation time (other changes are landing migrations concurrently).
 
-- `V19__client_rule.sql`: `client_rule` (identifier, rule_key unique, display_name, kind with CHECK,
+- `V<next free>__client_rule.sql`: `client_rule` (identifier, rule_key unique, display_name, kind with CHECK,
   protocol_min, protocol_max, negate, scope_kind, target_kind, hide_command, action with CHECK,
   deny_message, template_key FK to the template table `ON DELETE RESTRICT`, acknowledged_spoofable,
   enabled, hit_count, created_at, updated_at, recorded_by_oid), `client_rule_pattern`,
   `client_rule_server`, `client_rule_section` (child tables with position, `ON DELETE CASCADE`).
   Check constraints: patterns only for pattern kinds, range only for `PROTOCOL`.
-- Next free number: `client_rule_hit` with indexes on `(rule_key, at)` and `(owner_hash)`.
-- Next free number: `client_fingerprint` with unique `(fingerprint, owner_hash)` and indexes on
+- `V<next free>__client_rule_hit.sql`: `client_rule_hit` with indexes on `(rule_key, at)` and `(owner_hash)`.
+- `V<next free>__client_fingerprint.sql`: `client_fingerprint` with unique `(fingerprint, owner_hash)` and indexes on
   `fingerprint` and `last_seen`.
 Existing rows: none of these tables exist yet, so nothing is migrated; no existing table changes.
 The session-info columns for brand and protocol stay as they are.
@@ -373,14 +374,19 @@ chosen rules to `DENY` or `TEMPLATE`. Set `BLACKHOLE_FINGERPRINT_KEY` (documente
 the deploy notes) before enabling fingerprints. Rollback: disable rules in the panel, or remove the
 key; routes and tables are inert without callers.
 
+## Decisions of 2026-10-24 (open questions resolved)
+
+1. **Trait `DENY` timing.** A `DENY` on a brand, mod or channel rule refuses as soon as the trait is
+   known: if it is known at the first `ServerPreConnectEvent` the connect is refused there, otherwise
+   the player is kicked when the trait arrives. There is no settle delay for enforcement (the settle
+   period only applies to fingerprint submission).
+2. **No concrete value on a hit.** A hit stores and shows only rule key, owner hash, time, action
+   and server, never a raw trait or the concrete value a glob matched.
+3. **Defaults kept.** Hits 30 days, fingerprints 30 days, correlation window 14 days, all
+   configurable (`blackhole.clientrules.hit-retention-days`,
+   `blackhole.evasion.fingerprint.retention-days`, `blackhole.evasion.fingerprint.window-days`).
+4. **`TEMPLATE` opens no case note.** The punishment's own timeline entry is enough.
+
 ## Open Questions
 
-1. Should `DENY` on a trait rule be allowed to refuse the very first connect when the brand is
-   already known at `ServerPreConnectEvent`, or should it always wait for the settle period? Default:
-   refuse as soon as the trait is known.
-2. Should `client-rule.hit` with `TEMPLATE` also open a case note automatically? Default: no, the
-   punishment's own timeline entry is enough.
-3. Should staff see the matched concrete value (for example which channel a glob matched) on a hit?
-   Default: no, the rule key says what matched and nothing raw is stored.
-4. Hit retention and fingerprint retention defaults (30 days each, window 14 days). Default: as
-   stated; revisit after real traffic.
+None open.
