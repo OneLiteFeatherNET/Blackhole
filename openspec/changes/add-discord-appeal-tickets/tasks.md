@@ -61,9 +61,9 @@ Stacked PRs: `feat(discord): add the discord account link api` (V14, client spec
 
 ## 6. Deployment and docs (PR 6, `docs(discord)`, plus `ci(discord)` for the workflow lines)
 
-- [ ] 6.1 `discord/Dockerfile`, compose service with env, `ci(discord)`: image build and smoke check beside web and portal in `.github/workflows/build-pr.yml`
-- [ ] 6.2 `discord/README.md` and `docs/`: developer-portal setup (bot, `MESSAGE_CONTENT` intent), categories and staff role, permission list per category, env table, Entra script usage, attachments-vanish-with-the-channel note, channel topic text, operator edge rule for the bot ingress, infra only and no app limiter: `POST /discord/tickets` global 30 per minute and `POST /discord/leak-check` global 120 per minute answering 429 (suggested starting values; the bot treats 429 as backend unavailable), the 30 day archive deletion and its protocol precondition, linked-staff-only channel access (`/link` first)
-- [ ] 6.3 Note in `.claude/PROGRESS.md` per PR as it lands
+- [x] 6.1 `discord/Dockerfile`, compose service with env, `ci(discord)`: image build and smoke check beside web and portal in `.github/workflows/build-pr.yml`
+- [x] 6.2 `discord/README.md` and `docs/`: developer-portal setup (bot, `MESSAGE_CONTENT` intent), categories and staff role, permission list per category, env table, Entra script usage, attachments-vanish-with-the-channel note, channel topic text, operator edge rule for the bot ingress, infra only and no app limiter: `POST /discord/tickets` global 30 per minute and `POST /discord/leak-check` global 120 per minute answering 429 (suggested starting values; the bot treats 429 as backend unavailable), the 30 day archive deletion and its protocol precondition, linked-staff-only channel access (`/link` first)
+- [x] 6.3 Note in `.claude/PROGRESS.md` per PR as it lands
 
 ## 7. Verification and wrap-up
 

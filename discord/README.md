@@ -6,6 +6,9 @@ posts new reports and appeals to the team channel and edits the message when the
 client credentials grant (Entra app role `Blackhole.Discord`, which only reaches `/discord/**`) and
 keeps no data of its own; when it is down, the panel and the game keep working.
 
+Operators: the step-by-step setup (developer portal, server layout, permissions, deployment, edge rules) is in
+[`docs/discord-bot.md`](../docs/discord-bot.md). This file describes what the bot does and holds the environment table.
+
 ## Slash commands
 
 English first, German second (the reply follows the Discord client language). All replies are ephemeral.
@@ -50,7 +53,9 @@ serving the commands and reconnects every 30 seconds.
 ## Appeal tickets
 
 A player runs `/appeal` (or presses the button), types the ban ID into an ephemeral form and gets a private channel
-`appeal-<number>` in the ticket category. The channel name and topic hold no ban ID, name or hash. Every reason a ticket cannot be opened
+`appeal-<number>` in the ticket category. The channel name and topic hold no ban ID, name or hash; the topic reads
+`blackhole-ticket:<ticket id> - Messages here are recorded with the appeal case. Staff need a linked Discord account (/link).`
+and its marker is how the bot finds the channel again after a crash. Every reason a ticket cannot be opened
 (wrong ID, an ID bound to another Discord user, a leaked ID) gets the same answer. Only the player, the bot and linked
 staff can see the channel: staff need the staff role **and** a live staff link (`/link <code>` first), granted as per-member
 overwrites; the role itself has no access and there is no role overwrite. The reconcile runs when a ticket is created, every
@@ -72,8 +77,16 @@ event, a broker outage or a restart delays but never loses anything. After a sta
 A message written and deleted while the bot itself was down cannot be recovered; the panel shows the gap.
 
 Health and metrics: `GET /healthz` is 200 only while connected and without a permission problem (a failed self-check names the category and the
-permission); `GET /metrics` serves counters (relays, ingests, catch-ups, incomplete transcripts, backend and Discord errors, broker hints,
-dropped leak candidates). Logs are JSON lines on stdout and never contain message content, ban IDs or Discord ids.
+permission), 503 otherwise; `GET /metrics` serves the counters `blackhole_discord_*` (relays, ingests, catch-ups, incomplete transcripts, tickets opened,
+archived and deleted, freezes, backend and Discord errors, broker hints, leak candidates dropped, messages removed and checks). Both are on `DISCORD_HEALTH_PORT`
+and meant for the internal network. Logs are JSON lines on stdout and never contain message content, ban IDs or Discord ids.
+
+## Edge rules for the operator
+
+Rate limiting is infrastructure, not application code: there is no limiter in the backend for the bot's routes. Suggested starting values for the
+reverse proxy or gateway in front of the backend (tune them): `POST /discord/tickets` global 30 per minute and `POST /discord/leak-check` global
+120 per minute, answering `429` over the limit. The bot treats `429` as "backend unavailable": a player is asked to try again later, and leak
+candidates wait in the bounded retry queue. See `docs/discord-bot.md`.
 
 ## Leak scanning
 
@@ -95,7 +108,13 @@ bounded in-memory queue (1000) and are retried with a growing delay for five min
 
 `docs/entra-setup.sh <env>` creates the app role `Blackhole.Discord` and the client
 `Blackhole Discord (<env>)` with a secret and admin consent and writes the `BLACKHOLE_DISCORD_*` lines
-(see `docs/entra-setup.md`).
+(see `docs/entra-setup.md`). Run it as an Entra admin after `az login`:
+
+```shell
+docs/entra-setup.sh dev                                  # or: prod https://blackhole.example.org [env file]
+```
+
+It is safe to run again and keeps other lines of the env file, such as `DISCORD_TOKEN`.
 
 ## Environment
 
@@ -133,7 +152,8 @@ docker build -f discord/Dockerfile -t blackhole-discord .   # from the repositor
 ```
 
 The image runs as a non-root user on a Java 25 JRE; `GET /healthz` on the health port is 200 while the
-bot is connected to Discord. `docker/docker-compose.yml` has a commented `discord` service.
+bot is connected to Discord. `docker/docker-compose.yml` has a `discord` service behind the compose profile `discord`
+(`docker compose --profile discord up -d discord` with the variables above set), so a plain `docker compose up` does not start it.
 
 ## Code layout
 
