@@ -168,6 +168,28 @@ class PunishmentTemplateServiceTest {
     }
 
     @Test
+    void removingATemplateThatAClientRuleAppliesIsAConflict() {
+        PunishmentTemplateEntity template = bed.givenTemplate("old-client", "network", null, step("P1D", 0));
+        bed.clientRules.given(net.onelitefeather.blackhole.backend.clientrule.ClientRuleSpec.builder("old", "Old", net.onelitefeather.blackhole.backend.clientrule.ClientRuleKind.PROTOCOL)
+                .range(1, 100).action(net.onelitefeather.blackhole.backend.clientrule.ClientRuleAction.TEMPLATE).template("old-client").build());
+
+        expectError(service.remove(template.getIdentifier()), ErrorKind.CONFLICT);
+        assertEquals(1, bed.templates.all().size(), "the template stays");
+    }
+
+    @Test
+    void renamingATemplateThatAClientRuleAppliesIsAConflictButOtherEditsPass() {
+        PunishmentTemplateEntity template = bed.givenTemplate("old-client", "network", null, step("P1D", 0));
+        bed.clientRules.given(net.onelitefeather.blackhole.backend.clientrule.ClientRuleSpec.builder("old", "Old", net.onelitefeather.blackhole.backend.clientrule.ClientRuleKind.PROTOCOL)
+                .range(1, 100).action(net.onelitefeather.blackhole.backend.clientrule.ClientRuleAction.TEMPLATE).template("old-client").build());
+
+        expectError(service.update(new PunishTemplateDTO.UpdateRequest(
+                template.getIdentifier(), "renamed", "Renamed", "network", null, null, LADDER, null)), ErrorKind.CONFLICT);
+        assertInstanceOf(PunishTemplateDTO.Response.class, service.update(new PunishTemplateDTO.UpdateRequest(
+                template.getIdentifier(), "old-client", "Same key", "network", null, null, LADDER, null)));
+    }
+
+    @Test
     void updatingATemplateEvictsItAndTheList() {
         PunishmentTemplateEntity template = bed.givenTemplate("spam", "chat", null, step("PT1H", 0));
         bed.templateCache.put(template.getIdentifier(), template.toDTO());

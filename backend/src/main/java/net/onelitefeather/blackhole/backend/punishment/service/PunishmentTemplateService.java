@@ -3,6 +3,7 @@ package net.onelitefeather.blackhole.backend.punishment.service;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.clientrule.ClientRuleUsage;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateCache;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
@@ -32,17 +33,20 @@ public class PunishmentTemplateService {
     private final PunishmentRepository punishmentRepository;
     private final PunishmentTemplateCache templateCache;
     private final SectionService sectionService;
+    private final ClientRuleUsage clientRuleUsage;
 
     public PunishmentTemplateService(
             PunishmentTemplateRepository templateRepository,
             PunishmentRepository punishmentRepository,
             PunishmentTemplateCache templateCache,
-            SectionService sectionService
+            SectionService sectionService,
+            ClientRuleUsage clientRuleUsage
     ) {
         this.templateRepository = templateRepository;
         this.punishmentRepository = punishmentRepository;
         this.templateCache = templateCache;
         this.sectionService = sectionService;
+        this.clientRuleUsage = clientRuleUsage;
     }
 
     /**
@@ -85,6 +89,11 @@ public class PunishmentTemplateService {
         if (sameKey.isPresent() && !sameKey.get().getIdentifier().equals(request.identifier())) {
             return keyTaken(spec.key());
         }
+        PunishmentTemplateEntity current = this.templateRepository.findById(request.identifier()).orElseThrow();
+        if (current.getTemplateKey() != null && !current.getTemplateKey().equals(spec.key())
+                && this.clientRuleUsage.templateInUse(current.getTemplateKey())) {
+            return new PunishTemplateDTO.Error("at least one client rule applies this template under its current key, so the key cannot change", ErrorKind.CONFLICT);
+        }
         PunishmentTemplateEntity saved = this.templateRepository.update(toEntity(request.identifier(), spec));
         this.templateCache.evict(request.identifier());
         return saved.toDTO();
@@ -105,6 +114,9 @@ public class PunishmentTemplateService {
         }
         if (this.punishmentRepository.existsByTemplate_Identifier(identifier)) {
             return new PunishTemplateDTO.Error("at least one punishment still references this template", ErrorKind.CONFLICT);
+        }
+        if (entity.getTemplateKey() != null && this.clientRuleUsage.templateInUse(entity.getTemplateKey())) {
+            return new PunishTemplateDTO.Error("at least one client rule still applies this template", ErrorKind.CONFLICT);
         }
         this.templateRepository.delete(entity);
         this.templateCache.evict(identifier);

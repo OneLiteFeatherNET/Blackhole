@@ -23,6 +23,9 @@ public final class RedisTopology {
     /** Pub/Sub channel announcing that the section list changed; the message is the changed section key. */
     public static final String SECTION_CHANGED_CHANNEL = "blackhole.section.changed";
 
+    /** Pub/Sub channel announcing that the client rules changed; the message is the changed rule key. */
+    public static final String CLIENT_RULE_CHANGED_CHANNEL = "blackhole.clientrule.changed";
+
     /** Pub/Sub channel announcing that a reporter has report feedback waiting; the message is the reporter's owner hash. */
     public static final String REPORT_FEEDBACK_CHANNEL = "blackhole.report.feedback";
 

@@ -74,8 +74,9 @@ public final class PunishmentTestBed {
     public final PunishmentApplicationService punishmentService = new PunishmentApplicationService(
             punishments.repository(), profiles.repository(), slots, templates.repository(), eloBed.sections, eloBed.events,
             profileCache, evidence, cases.timeline, () -> this.elo, this.staffLinks.service, eloBed.clock, banIds.service, Duration.ofDays(365));
+    public final FakeClientRuleStore clientRules = new FakeClientRuleStore();
     public final PunishmentTemplateService templateService = new PunishmentTemplateService(
-            templates.repository(), punishments.repository(), templateCache, eloBed.sections);
+            templates.repository(), punishments.repository(), templateCache, eloBed.sections, clientRules);
 
     /** The ELO engine, punishing through {@link #punishmentService} exactly as in the application. */
     public final EloService elo = new EloService(

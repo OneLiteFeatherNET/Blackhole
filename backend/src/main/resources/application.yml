@@ -279,6 +279,17 @@ blackhole:
       ttl: ${BLACKHOLE_CACHE_TEMPLATE_TTL:PT5M}
     section:
       ttl: ${BLACKHOLE_CACHE_SECTION_TTL:PT5M}
+    # The enabled client rules proxies read; every rule write evicts it.
+    client-rule:
+      ttl: ${BLACKHOLE_CACHE_CLIENT_RULE_TTL:PT5M}
+  # Client rules (net.onelitefeather.blackhole.backend.clientrule): the proxy evaluates the rules,
+  # the backend stores them. The catalogue only feeds the rule editor's suggestions; a brand or
+  # channel is listed only when at least min-players distinct players showed it, so a rare value
+  # that could identify one person is never stored. Nothing in enforcement depends on it.
+  clientrules:
+    catalogue:
+      ttl: ${BLACKHOLE_CLIENTRULES_CATALOGUE_TTL:PT24H}
+      min-players: ${BLACKHOLE_CLIENTRULES_CATALOGUE_MIN_PLAYERS:3}
   # Punishment evidence (net.onelitefeather.blackhole.backend.evidence): anticheat records, replay
   # links, chat excerpts, links and uploaded screenshots/videos attached to punishments. There is
   # NO time-based expiry: evidence lives as long as its punishment record, and is deleted only with
