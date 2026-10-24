@@ -129,6 +129,16 @@ public final class CaseDrafts {
                 CaseEventOrigin.LIVE, actor, messageId, "message.redacted:" + messageId, visibility);
     }
 
+    /**
+     * {@code protocol.stored}: a protocol version was stored for an appeal. Recorded by the system, staff
+     * visibility; one per appeal and version, so a retry or the reconciler inserts nothing twice.
+     */
+    public static CaseEventDraft protocolStored(String punishmentIdentifier, String appealId, int version, String evidenceId, int entries,
+                                                String digest, long occurredAt) {
+        return new CaseEventDraft(punishmentIdentifier, new CaseEventPayload.ProtocolStored(appealId, version, evidenceId, entries, digest),
+                occurredAt, CaseEventOrigin.LIVE, CaseActor.system(), appealId, "protocol:" + appealId + ":v" + version);
+    }
+
     /** {@code transcript.exported}: who exported, in which format and how many entries; never content. */
     public static CaseEventDraft transcriptExported(String punishmentIdentifier, String format, int entries, boolean includeNotes,
                                                     CaseActor actor, long occurredAt) {

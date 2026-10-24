@@ -97,6 +97,9 @@ public final class CaseEventPayloads {
                         required(integer(body, "toGeneration")));
                 case CaseEventPayload.TRANSCRIPT_EXPORTED -> new CaseEventPayload.TranscriptExported(
                         required(text(body, "format")), required(integer(body, "entries")), flag(body, "includeNotes"));
+                case CaseEventPayload.PROTOCOL_STORED -> new CaseEventPayload.ProtocolStored(
+                        required(text(body, "appealId")), required(integer(body, "version")), required(text(body, "evidenceId")),
+                        required(integer(body, "entries")), required(text(body, "digest")));
                 default -> null;
             };
             return typed != null ? typed : new CaseEventPayload.Unknown(type, version, body);

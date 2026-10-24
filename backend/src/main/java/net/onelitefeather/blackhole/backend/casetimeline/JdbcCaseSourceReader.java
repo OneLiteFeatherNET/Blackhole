@@ -73,7 +73,9 @@ public class JdbcCaseSourceReader implements CaseSourceReader {
                    ei.status, ei.status_changed_at, ei.lifted_by_appeal
             FROM evidence_items ei
             """;
-    private static final String ATTACHED_MISSING = EVIDENCE + " WHERE ei.punishment_identifier IS NOT NULL AND ei.created_at >= ? AND "
+    // A stored protocol (TRANSCRIPT) is recorded as protocol.stored, never as evidence.attached.
+    private static final String ATTACHED_MISSING = EVIDENCE + " WHERE ei.punishment_identifier IS NOT NULL AND ei.kind <> "
+            + EvidenceKind.TRANSCRIPT.ordinal() + " AND ei.created_at >= ? AND "
             + NO_EVENT.formatted("'evidence.attached:' || ei.identifier") + " ORDER BY ei.created_at, ei.identifier LIMIT ?";
     private static final String STATUS_MISSING = EVIDENCE + " WHERE ei.punishment_identifier IS NOT NULL AND ei.status IN (%d, %d) AND "
             .formatted(EvidenceStatus.REVOKED.ordinal(), EvidenceStatus.LIFTED.ordinal())
