@@ -37,8 +37,17 @@ export function buildBackendUrl(backendUrl: string, requestPath: string): URL {
   return target
 }
 
-/** Evidence uploads (videos) get 120 s like nginx did; everything else 30 s. */
-export function selectTimeoutMs(method: string, backendPathname: string): number {
+/** The live update stream of a case (`GET /case/{ref}/events`): it is open for as long as the panel listens. */
+export function isEventStream(method: string, backendPathname: string): boolean {
+  return method.toUpperCase() === 'GET' && /^\/case\/[^/]+\/events\/?$/.test(backendPathname)
+}
+
+/**
+ * Evidence uploads (videos) get 120 s like nginx did; everything else 30 s. The event stream gets
+ * no timeout (null): a read timeout would cut it every 30 s, and the backend ends it by itself.
+ */
+export function selectTimeoutMs(method: string, backendPathname: string): number | null {
+  if (isEventStream(method, backendPathname)) return null
   const isUpload = method.toUpperCase() === 'POST' && backendPathname.replace(/\/+$/, '').endsWith('/evidence/file')
   return isUpload ? EVIDENCE_UPLOAD_TIMEOUT_MS : DEFAULT_TIMEOUT_MS
 }
@@ -131,7 +140,8 @@ export async function forwardToBackend(request: ProxyRequest): Promise<Response>
   if (request.headers.get('content-length') !== null && Number.isFinite(declared) && declared > maxBytes) {
     return text(413, 'Request body too large')
   }
-  const signal = request.signal ?? AbortSignal.timeout(selectTimeoutMs(request.method, target.pathname))
+  const timeout = selectTimeoutMs(request.method, target.pathname)
+  const signal = request.signal ?? (timeout === null ? undefined : AbortSignal.timeout(timeout))
   let received = 0
   let tooLarge = false
   const init: RequestInit & { duplex?: 'half' } = {

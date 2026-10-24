@@ -18,9 +18,13 @@ export interface ThreadMessage {
   participantId: string | null
   /** How many attachments and embeds the Discord message had; their content is not stored. */
   attachments: number
+  /** The chat files the message sent (evidence staged in the chat); empty for Discord messages. */
+  files: ChatFile[]
   visibility: string
   /** The latest text; null once redacted. A deleted message keeps its last text for staff. */
   text: string | null
+  /** The sanitised block tree of the latest text, drawn as Markdown; null when there is none. */
+  blocks: unknown[] | null
   edits: number
   deleted: boolean
   redacted: boolean
@@ -28,7 +32,63 @@ export interface ThreadMessage {
   occurredAt: number
 }
 
+/** A chat file of a message; the bytes are fetched through the evidence route when someone asks for them. */
+export interface ChatFile {
+  attachmentId: string
+  name: string
+  contentType: string
+  size: number
+  provenance: 'STAFF' | 'PLAYER' | string
+}
+
+/** A share or a withdrawal of evidence, shown in the thread as a system line; it carries no content. */
+export interface ShareMarker {
+  key: string
+  seq: number
+  kind: 'SHARED' | 'WITHDRAWN'
+  mode: string | null
+  lineCount: number | null
+}
+
 export type Banner = 'FORFEITED' | 'FROZEN' | null
+
+function filesOf(event: CaseTimelineItem): ChatFile[] {
+  const list = field(event, 'attachments')
+  if (!Array.isArray(list)) return []
+  return list.flatMap((raw): ChatFile[] => {
+    if (typeof raw !== 'object' || raw === null) return []
+    const item = raw as Record<string, unknown>
+    if (typeof item.attachmentId !== 'string') return []
+    return [
+      {
+        attachmentId: item.attachmentId,
+        name: typeof item.name === 'string' ? item.name : 'file',
+        contentType: typeof item.contentType === 'string' ? item.contentType : 'application/octet-stream',
+        size: typeof item.size === 'number' ? item.size : 0,
+        provenance: typeof item.provenance === 'string' ? item.provenance : 'STAFF',
+      },
+    ]
+  })
+}
+
+/** The share events of a case, oldest first; the content of a share is never in the event. */
+export function buildMarkers(events: CaseTimelineItem[]): ShareMarker[] {
+  return events
+    .filter((event) => event.type === 'evidence.shared' || event.type === 'evidence.share_revoked')
+    .sort((a, b) => a.seq - b.seq)
+    .map((event) => {
+      const shareId = text(field(event, 'shareId')) ?? String(event.seq)
+      const shared = event.type === 'evidence.shared'
+      const lines = field(event, 'lineCount')
+      return {
+        key: `${event.type}:${shareId}`,
+        seq: event.seq,
+        kind: shared ? 'SHARED' : 'WITHDRAWN',
+        mode: shared ? text(field(event, 'mode')) : null,
+        lineCount: typeof lines === 'number' ? lines : null,
+      }
+    })
+}
 
 const isMessageType = (type: string): boolean => type.startsWith('message.')
 
@@ -69,6 +129,8 @@ export function buildThread(events: CaseTimelineItem[]): ThreadMessage[] {
         channel: text(field(event, 'channel')),
         participantId: text(authorOf(event).participantId),
         attachments: count(field(event, 'attachments')) + count(field(event, 'embeds')),
+        files: filesOf(event),
+        blocks: event.blocks ?? null,
         visibility: event.visibility,
         text: text(field(event, 'text')),
         edits: 0,
@@ -84,6 +146,7 @@ export function buildThread(events: CaseTimelineItem[]): ThreadMessage[] {
     if (event.type === 'message.edited') {
       message.edits += 1
       message.text = text(field(event, 'text'))
+      message.blocks = event.blocks ?? null
     } else if (event.type === 'message.deleted') {
       message.deleted = true
     } else if (event.type === 'message.redacted') {
@@ -92,7 +155,12 @@ export function buildThread(events: CaseTimelineItem[]): ThreadMessage[] {
     if (event.redactedAt != null) message.redacted = true
   }
   const thread = [...byId.values()]
-  for (const message of thread) if (message.redacted) message.text = null
+  for (const message of thread) {
+    if (message.redacted) {
+      message.text = null
+      message.blocks = null
+    }
+  }
   return thread.sort((a, b) => a.firstSeq - b.firstSeq)
 }
 

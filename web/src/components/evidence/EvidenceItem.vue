@@ -12,6 +12,7 @@ import { kindInfo } from './evidenceKind'
 import FilePreview from './FilePreview.vue'
 import { anticheatOf, chatLinesOf, descriptionOf } from './payload'
 import SafeLink from './SafeLink.vue'
+import EvidenceShareDialog from './EvidenceShareDialog.vue'
 
 const props = defineProps<{ item: Evidence }>()
 const emit = defineEmits<{ delete: [item: Evidence] }>()
@@ -21,11 +22,20 @@ const session = useSessionStore()
 
 const detailId = useId()
 const expanded = ref(false)
+const sharing = ref(false)
 
 const info = computed(() => kindInfo(props.item.kind))
 const isLink = computed(() => props.item.kind === 'LINK' || props.item.kind === 'REPLAY')
 /** Lifted and revoked items are kept for the record but no longer support a punishment. */
 const inactive = computed(() => props.item.status !== 'VALID')
+/** Player-supplied files are the player's own words and pictures: they are never shared back. */
+const playerSupplied = computed(() => props.item.provenance === 'PLAYER')
+/** Moderators show a chat capture or a screenshot of a valid item; nothing else is shareable in v1. */
+const shareable = computed(
+  () =>
+    session.moderator && !playerSupplied.value && props.item.status === 'VALID' && props.item.punishmentIdentifier != null &&
+    (props.item.kind === 'CHAT_LOG' || (props.item.kind === 'FILE' && (props.item.file?.contentType ?? '').startsWith('image/'))),
+)
 
 /** One line saying what the item is, without opening it. */
 const summary = computed(() => {
@@ -54,6 +64,7 @@ const summary = computed(() => {
         <div class="flex flex-wrap items-center gap-2">
           <h4 class="text-title-small">{{ t(info.labelKey) }}</h4>
           <StatusPill v-if="inactive" :label="t(`evidence.status.${item.status}`)" tone="tertiary" data-testid="status" />
+          <StatusPill v-if="playerSupplied" :label="t('evidence.provenance.player')" tone="tertiary" data-testid="provenance" />
         </div>
         <p v-if="summary" class="break-words text-body-medium" data-testid="summary">{{ summary }}</p>
         <p v-if="isLink" class="text-body-medium"><SafeLink :href="item.reference" /></p>
@@ -72,6 +83,7 @@ const summary = computed(() => {
         >
           {{ expanded ? t('evidence.item.collapse') : t('evidence.item.expand') }}
         </MdButton>
+        <MdButton v-if="shareable" variant="text" data-testid="share" @click="sharing = true">{{ t('evidence.share.open') }}</MdButton>
         <MdButton v-if="session.administrator" variant="text" data-testid="delete" @click="emit('delete', item)">{{ t('evidence.item.delete') }}</MdButton>
       </div>
     </div>
@@ -80,5 +92,6 @@ const summary = computed(() => {
       <ChatLogDetail v-else-if="item.kind === 'CHAT_LOG'" :item="item" />
       <FilePreview v-else-if="item.kind === 'FILE'" :item="item" />
     </div>
+    <EvidenceShareDialog v-if="shareable" :open="sharing" :item="item" :reference="item.punishmentIdentifier ?? ''" @close="sharing = false" />
   </li>
 </template>

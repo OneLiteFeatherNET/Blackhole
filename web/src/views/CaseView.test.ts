@@ -12,6 +12,7 @@ function setup(options: { roles?: string[]; kase?: Parameters<typeof caseRespons
     caseConversation: vi.fn(async () => ok([])),
     caseProtocols: vi.fn(async () => ok([])),
       caseDecidedAppeals: vi.fn(async () => ok([])),
+    openCaseEvents: () => ({ close() {} }),
     updateCase: vi.fn(async () => ok(caseResponse({ ...options.kase, version: 4, status: 'WAITING' }))),
     addCaseNote: vi.fn(async () => ok({ noteId: NOTE, seq: 9 })),
     ...options.extra,

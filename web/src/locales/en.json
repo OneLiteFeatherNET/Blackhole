@@ -623,6 +623,45 @@
       "noteHint": "Optional; recorded with the deletion",
       "confirm": "Delete",
       "done": "Evidence deleted."
+    },
+    "provenance": {
+      "player": "Player-supplied, unverified"
+    },
+    "breakdown": "{team} team, {player} player-supplied",
+    "share": {
+      "title": "Share with the player",
+      "open": "Share with player",
+      "chatIntro": "Choose the lines the player may see. Nothing is shared until you have checked the preview.",
+      "imageIntro": "The player sees this image in full. Check it before you share it.",
+      "lines": "Lines",
+      "limit": "Up to {max} lines can be shared.",
+      "speaker": "Which speaker is the player?",
+      "speakerHint": "This speaker is shown as You; the others as Player 2, Player 3 and so on.",
+      "speakerPlaceholder": "Choose the player's speaker",
+      "preview": "What the player will see",
+      "previewEmpty": "Choose lines and the player's speaker to see the preview.",
+      "imageAlt": "Screenshot to share with the player",
+      "imageFailed": "The image could not be loaded.",
+      "confirmChat": "I checked this preview. It shows no other person's personal data beyond what this appeal needs.",
+      "confirmChatHint": "Names inside the text cannot be removed automatically, so read it before you confirm.",
+      "confirmImage": "I accept that this image may show other players' names and that the player may see it.",
+      "confirmImageHint": "An image cannot be made anonymous here. Share it only when the appeal needs it.",
+      "submit": "Share with the player",
+      "done": "Shared with the player.",
+      "failed": "The item could not be shared.",
+      "active": "Shared with the player now",
+      "none": "Nothing is shared with the player.",
+      "since": "Shared on {date}",
+      "withdraw": "Withdraw",
+      "withdrawn": "Share withdrawn.",
+      "withdrawTitle": "Withdraw the share?",
+      "withdrawBody": "The player loses access at once. This cannot take back what the player has already seen or saved.",
+      "withdrawConfirm": "Withdraw share",
+      "reason": {
+        "MISTAKE": "Shared by mistake",
+        "PRIVACY": "Personal data of others",
+        "OTHER": "Other reason"
+      }
     }
   },
   "duration": {
@@ -1094,7 +1133,15 @@
         "STAFF": "Staff",
         "BOT": "Bot",
         "EXTERNAL": "Unknown Discord user"
-      }
+      },
+      "formatHint": "Markdown: **bold**, *italic*, ~~strike~~, `code`, > quote, - list, [link](https://...). Links open a warning page first. There is no preview.",
+      "seen": "Seen",
+      "shared": "Evidence shared with the player",
+      "sharedLines": "chat excerpt, {n} lines",
+      "sharedImage": "screenshot",
+      "withdrawn": "Evidence share withdrawn",
+      "playerFile": "Player-supplied, unverified",
+      "reconnecting": "Live updates paused, reconnecting."
     },
     "tickets": {
       "title": "Discord tickets",
@@ -1207,6 +1254,25 @@
       "textLabel": "Text of version {version}",
       "opened": "Protocol text opened.",
       "downloaded": "Protocol downloaded."
+    },
+    "files": {
+      "attach": "Attach file",
+      "pick": "Choose files to attach",
+      "dropHint": "or drop or paste them here",
+      "counter": "{n} / {max} files",
+      "max": "You can attach at most {max} files.",
+      "attached": "Attached {name}.",
+      "removed": "Removed {name}.",
+      "uploading": "Uploading…",
+      "ready": "Ready",
+      "remove": "Remove {name}",
+      "removeLabel": "Remove",
+      "type": "This file type is not allowed",
+      "tooLarge": "The file is larger than {max} MB",
+      "rejected": "The file could not be accepted",
+      "unavailable": "Uploads are unavailable right now, try again",
+      "failed": "The file could not be uploaded",
+      "warning": "The player will see these files once you send the message."
     }
   },
   "punished": {
@@ -1430,5 +1496,13 @@
       "hint": "Rules this player triggered recently. The values the client sent are not stored.",
       "empty": "No client rule hits for this player."
     }
+  },
+  "leave": {
+    "title": "Leaving Blackhole",
+    "heading": "You are leaving Blackhole",
+    "explain": "Blackhole does not control this site. Check the address before you continue.",
+    "invalid": "This link is not a web address (http or https) and cannot be opened.",
+    "continue": "Continue",
+    "back": "Go back"
   }
 }

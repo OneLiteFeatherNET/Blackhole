@@ -28,6 +28,7 @@ const opened = () => timelineItem({ seq: 1, type: 'ticket.opened', payload: { ti
 function setup(events: CaseTimelineItem[], roles = ALL, extra: Record<string, unknown> = {}, banIdLeakedAt?: number) {
   const api = {
     caseConversation: vi.fn(async () => ok(events)),
+    openCaseEvents: () => ({ close() {} }),
     eraseCaseParticipant: vi.fn(async () => ok({ erased: true })),
     caseProtocols: vi.fn(async () => ok([])),
     ...extra,

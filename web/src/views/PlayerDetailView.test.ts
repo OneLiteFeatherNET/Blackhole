@@ -277,7 +277,7 @@ describe('PlayerDetailView', () => {
 describe('PlayerDetailView: evidence', () => {
   const evidenceApi = () => {
     const evidence = vi.fn(async () => ok(evidencePage([evidenceItem({ kind: 'ANTICHEAT', payload: { check: 'Speed' } }), evidenceItem({ kind: 'FILE', file: { name: 'shot.png', contentType: 'image/png', size: 1, sha256: 'x' } })])))
-    return { evidence, overrides: { evidence, evidenceCount: vi.fn(async () => ok(2)), evidenceContent: async () => ok(new Blob(['x'], { type: 'image/png' })) } }
+    return { evidence, overrides: { evidence, evidenceCounts: vi.fn(async () => ok({ count: 2, playerSupplied: 0 })), evidenceContent: async () => ok(new Blob(['x'], { type: 'image/png' })) } }
   }
 
   it('loads no evidence until a punishment is opened', async () => {

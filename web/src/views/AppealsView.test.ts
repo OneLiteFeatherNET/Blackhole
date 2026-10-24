@@ -30,7 +30,7 @@ function setup(overrides: Record<string, unknown> = {}) {
     reviewAppeal: vi.fn(async () => ok(appeal({ status: 'GRANTED_FULL_LIFT' }))),
     caseTimeline: vi.fn(async () => ok(timelinePage([]))),
     evidence: vi.fn(async () => ok(evidencePage([evidenceItem({ kind: 'ANTICHEAT', payload: { check: 'Speed' } })]))),
-    evidenceCount: vi.fn(async () => ok(1)),
+    evidenceCounts: vi.fn(async () => ok({ count: 1, playerSupplied: 0 })),
     evidenceContent: async () => ok(new Blob(['x'], { type: 'image/png' })),
     ...overrides,
   }
