@@ -41,6 +41,13 @@ describe('CaseTimeline: event types', () => {
     ['note.added', { noteId: NOTE, text: 'hello' }, 'Note added', ''],
     ['note.edited', { noteId: NOTE, text: 'hello again' }, 'Note edited', ''],
     ['note.redacted', { noteId: NOTE, reason: 'PERSONAL_DATA' }, 'Note removed', 'Personal data'],
+    ['ticket.opened', { ticketId: 't-1', appealId: 'a-1', ticketNo: 5 }, 'Discord ticket opened', 'Ticket #5'],
+    ['ticket.transcript_complete', { ticketId: 't-1', appealId: 'a-1', count: 9 }, 'Discord transcript verified complete', '9 messages'],
+    ['ticket.archived', { ticketId: 't-1', appealId: 'a-1', protocolVersion: 2 }, 'Discord channel archived', 'Version 2'],
+    ['ticket.channel_deleted', { ticketId: 't-1', appealId: 'a-1', transcriptComplete: false }, 'Discord channel deleted', 'not verified complete'],
+    ['protocol.stored', { appealId: 'a-1', version: 3, entries: 12 }, 'Protocol stored', 'Version 3'],
+    ['ban_id.leak_marked', { reason: 'POSTED_PUBLIC', source: 'DISCORD_BOT', afterFiling: true, poster: 'part-1', posterIsOwner: true }, 'Ban ID marked leaked', 'posted by the ticket\'s player'],
+    ['ban_id.leak_marked', { reason: 'POSTED_PUBLIC', source: 'DISCORD_BOT', afterFiling: false, poster: 'part-2', posterIsOwner: false }, 'Ban ID marked leaked', 'posted by another Discord user'],
   ])('shows %s as a readable entry with its own icon', async (type, payload, title, detail) => {
     const { mount } = setup([[timelineItem({ type, payload })]])
     const { wrapper } = await mount()
@@ -448,6 +455,19 @@ describe('CaseTimeline: inline evidence', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="evidence-error"]').text()).toBe('This evidence is no longer available.')
+
+    wrapper.unmount()
+  })
+})
+
+describe('CaseTimeline: Discord leak entry', () => {
+  it('shows who posted the Ban ID as a role, never the opaque participant or a Discord id', async () => {
+    const leak = timelineItem({ type: 'ban_id.leak_marked', payload: { reason: 'POSTED_PUBLIC', source: 'DISCORD_BOT', afterFiling: true, poster: 'participant-0042', posterIsOwner: false } })
+    const { mount } = setup([[leak]])
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-testid="event-detail"]').text()).toContain('found by the Discord bot')
+    expect(wrapper.text()).not.toContain('participant-0042')
 
     wrapper.unmount()
   })

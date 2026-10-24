@@ -17,6 +17,7 @@ const KNOWN_TYPES = [
   'note.added', 'note.edited', 'note.redacted',
   'message.added', 'message.edited', 'message.deleted', 'message.redacted',
   'ban_id.leak_marked', 'ban_id.reissued', 'transcript.exported',
+  'protocol.stored', 'ticket.opened', 'ticket.transcript_complete', 'ticket.archived', 'ticket.channel_deleted',
 ]
 
 describe('case strings', () => {

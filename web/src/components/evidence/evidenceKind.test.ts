@@ -3,7 +3,7 @@ import de from '../../locales/de.json'
 import en from '../../locales/en.json'
 import { KIND_INFO, kindInfo } from './evidenceKind'
 
-const KINDS = ['ANTICHEAT', 'REPLAY', 'CHAT_LOG', 'LINK', 'FILE'] as const
+const KINDS = ['ANTICHEAT', 'REPLAY', 'CHAT_LOG', 'LINK', 'FILE', 'TRANSCRIPT'] as const
 
 function lookup(messages: unknown, key: string): unknown {
   return key.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], messages)

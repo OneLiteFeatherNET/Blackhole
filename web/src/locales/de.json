@@ -520,7 +520,8 @@
       "REPLAY": "Replay",
       "CHAT_LOG": "Chat-Auszug",
       "LINK": "Link",
-      "FILE": "Datei"
+      "FILE": "Datei",
+      "TRANSCRIPT": "Einspruchsprotokoll"
     },
     "status": {
       "LIFTED": "Strafe per Appeal aufgehoben",
@@ -663,6 +664,7 @@
       "validFor": "Noch gültig: {time}",
       "expired": "Der Code ist abgelaufen.",
       "instructions": "Gib in Discord ein:",
+      "accessHint": "Nur Teammitglieder mit verknüpftem Discord-Konto können die Einspruchs-Ticketkanäle öffnen. Gib dafür zuerst /link mit dem Code in Discord ein.",
       "unlink": "Discord-Verknüpfung entfernen",
       "unlinkTitle": "Discord-Verknüpfung entfernen?",
       "unlinkBody": "Dein Discord-Konto wird dir nicht mehr zugeordnet. Du kannst es mit einem neuen Code erneut verknüpfen.",
@@ -914,7 +916,12 @@
       "messageRedacted": "Nachrichtentext entfernt",
       "banIdLeakMarked": "Ban-ID als geleakt markiert",
       "banIdReissued": "Ban-ID neu ausgestellt",
-      "transcriptExported": "Protokoll exportiert"
+      "transcriptExported": "Protokoll exportiert",
+      "protocolStored": "Protokoll gespeichert",
+      "ticketOpened": "Discord-Ticket eröffnet",
+      "ticketTranscriptComplete": "Discord-Verlauf als vollständig geprüft",
+      "ticketArchived": "Discord-Kanal archiviert",
+      "ticketChannelDeleted": "Discord-Kanal gelöscht"
     },
     "detail": {
       "step": "Stufe {step} von {count}",
@@ -927,6 +934,12 @@
       "tagsRemoved": "entfernt: {tags}",
       "approximate": "Zeit ist ungefähr",
       "afterFiling": "nach Einreichen des Einspruchs",
+      "foundByBot": "vom Discord-Bot gefunden",
+      "posterOwner": "vom Spieler des Tickets gepostet",
+      "posterOther": "von einem anderen Discord-Nutzer gepostet",
+      "posterUnknown": "Poster nicht erfasst",
+      "messages": "{count} Nachrichten",
+      "transcriptIncomplete": "Verlauf nicht als vollständig geprüft",
       "entries": "{count} Einträge"
     },
     "notes": {
@@ -983,7 +996,8 @@
         "note": "Notizen",
         "message": "Nachrichten",
         "ban_id": "Ban-ID",
-        "transcript": "Exporte"
+        "transcript": "Exporte",
+        "ticket": "Discord-Tickets"
       },
       "count": "{count} Ereignisse angezeigt",
       "empty": "Keine passenden Ereignisse.",
@@ -1055,7 +1069,62 @@
         "forfeited": "Die Ban-ID wurde als geleakt markiert, bevor ein Einspruch eingereicht wurde. Das Einspruchsrecht ist verwirkt, bis die Ban-ID neu ausgestellt wird.",
         "frozen": "Die Ban-ID wurde nach dem Einreichen des Einspruchs als geleakt markiert. Das Ticket ist eingefroren: Der Spieler kann nicht schreiben, das Team schon."
       },
-      "emptyInput": "Schreibe zuerst eine Nachricht."
+      "emptyInput": "Schreibe zuerst eine Nachricht.",
+      "discord": "Discord",
+      "attachments": "{count} Anhänge (nicht gespeichert)",
+      "trust": {
+        "verified": "Verifiziertes Team (verknüpftes Konto)",
+        "unverified": "Nicht verifiziertes Team (nicht verknüpft)",
+        "BOT": "Bot",
+        "EXTERNAL": "Unbekannter Discord-Nutzer"
+      },
+      "role": {
+        "PLAYER": "Spieler",
+        "STAFF": "Team",
+        "BOT": "Bot",
+        "EXTERNAL": "Unbekannter Discord-Nutzer"
+      }
+    },
+    "tickets": {
+      "title": "Discord-Tickets",
+      "number": "Ticket #{no}",
+      "opened": "Eröffnet",
+      "transcript": "Verlauf",
+      "protocol": "Protokoll",
+      "complete": "Als vollständig geprüft",
+      "notComplete": "Nicht als vollständig geprüft",
+      "noProtocol": "Keines gespeichert",
+      "version": "Version {version}",
+      "current": "aktuell",
+      "frozen": "Eingefroren",
+      "phase": {
+        "OPEN": "Offen",
+        "CLOSING": "Wird geschlossen",
+        "CLOSED": "Geschlossen",
+        "ARCHIVED": "Archiviert",
+        "DELETED": "Kanal gelöscht"
+      },
+      "banner": {
+        "incomplete": "Der Verlauf ist möglicherweise unvollständig seit {since}: Nach der Entscheidung wurde keine Vollständigkeitsprüfung erfasst.",
+        "lost": "Der Discord-Kanal wurde gelöscht, bevor der Verlauf geprüft war. Die Aufzeichnung ist möglicherweise unvollständig seit {since}.",
+        "protocolMissing": "Der Verlauf ist vollständig, aber es ist noch kein Protokoll gespeichert. Der Kanal wird erst archiviert oder gelöscht, wenn es existiert."
+      },
+      "showProtocols": "Gespeicherte Protokolle anzeigen",
+      "protocolsLoaded": "{count} Protokollversionen geladen.",
+      "protocolList": "Gespeicherte Protokollversionen",
+      "noProtocols": "Für diesen Fall ist kein Protokoll gespeichert."
+    },
+    "participants": {
+      "title": "Discord-Teilnehmende",
+      "hint": "Beim Löschen werden das gespeicherte Discord-Konto und der Name entfernt. Die Einträge bleiben mit anonymem Autor.",
+      "name": "Discord-Teilnehmer {no}",
+      "erase": "Teilnehmer löschen",
+      "erased": "Gelöscht",
+      "confirmTitle": "Discord-Teilnehmer {no} löschen?",
+      "confirmBody": "Das gespeicherte Discord-Konto und der Anzeigename werden endgültig entfernt, die gespeicherten Protokolle werden neu erzeugt. Nachrichtentext wird separat entfernt.",
+      "confirm": "Teilnehmer löschen",
+      "done": "Teilnehmer gelöscht.",
+      "alreadyDone": "Der Teilnehmer war bereits gelöscht."
     },
     "banId": {
       "title": "Ban-ID",

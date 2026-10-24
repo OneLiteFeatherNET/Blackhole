@@ -104,6 +104,12 @@ const detail = computed(() => {
     case 'ban_id.leak_marked':
       parts.push(lookup('case.banId.leakReason', text(field(e, 'reason'))))
       if (field(e, 'afterFiling') === true) parts.push(t('case.detail.afterFiling'))
+      // The bot found it in a Discord channel: who posted it, never a Discord id (only an opaque participant is stored).
+      if (text(field(e, 'source')) === 'DISCORD_BOT') {
+        const owner = field(e, 'posterIsOwner')
+        parts.push(t('case.detail.foundByBot'))
+        parts.push(owner === true ? t('case.detail.posterOwner') : owner === false ? t('case.detail.posterOther') : t('case.detail.posterUnknown'))
+      }
       break
     case 'ban_id.reissued':
       parts.push(lookup('case.banId.reissueReason', text(field(e, 'reason'))))
@@ -114,6 +120,31 @@ const detail = computed(() => {
       if (entries !== null) parts.push(t('case.detail.entries', { count: entries }))
       break
     }
+    case 'protocol.stored': {
+      const version = num(field(e, 'version'))
+      const entries = num(field(e, 'entries'))
+      if (version !== null) parts.push(t('case.tickets.version', { version }))
+      if (entries !== null) parts.push(t('case.detail.entries', { count: entries }))
+      break
+    }
+    case 'ticket.opened': {
+      const no = num(field(e, 'ticketNo'))
+      if (no !== null) parts.push(t('case.tickets.number', { no }))
+      break
+    }
+    case 'ticket.transcript_complete': {
+      const count = num(field(e, 'count'))
+      if (count !== null) parts.push(t('case.detail.messages', { count }))
+      break
+    }
+    case 'ticket.archived': {
+      const version = num(field(e, 'protocolVersion'))
+      if (version !== null) parts.push(t('case.tickets.version', { version }))
+      break
+    }
+    case 'ticket.channel_deleted':
+      if (field(e, 'transcriptComplete') === false) parts.push(t('case.detail.transcriptIncomplete'))
+      break
     default:
       break
   }

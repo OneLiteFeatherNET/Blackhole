@@ -520,7 +520,8 @@
       "REPLAY": "Replay",
       "CHAT_LOG": "Chat excerpt",
       "LINK": "Link",
-      "FILE": "File"
+      "FILE": "File",
+      "TRANSCRIPT": "Appeal protocol"
     },
     "status": {
       "LIFTED": "Punishment lifted by appeal",
@@ -663,6 +664,7 @@
       "validFor": "Valid for {time}",
       "expired": "The code has expired.",
       "instructions": "Type this in Discord:",
+      "accessHint": "Only staff with a linked Discord account can open the appeal ticket channels. Type /link with the code in Discord first.",
       "unlink": "Remove Discord link",
       "unlinkTitle": "Remove the Discord link?",
       "unlinkBody": "Your Discord account is no longer attributed to you. You can link it again with a new code.",
@@ -914,7 +916,12 @@
       "messageRedacted": "Message text removed",
       "banIdLeakMarked": "Ban ID marked leaked",
       "banIdReissued": "Ban ID reissued",
-      "transcriptExported": "Transcript exported"
+      "transcriptExported": "Transcript exported",
+      "protocolStored": "Protocol stored",
+      "ticketOpened": "Discord ticket opened",
+      "ticketTranscriptComplete": "Discord transcript verified complete",
+      "ticketArchived": "Discord channel archived",
+      "ticketChannelDeleted": "Discord channel deleted"
     },
     "detail": {
       "step": "Step {step} of {count}",
@@ -927,6 +934,12 @@
       "tagsRemoved": "removed: {tags}",
       "approximate": "time is approximate",
       "afterFiling": "after the appeal was filed",
+      "foundByBot": "found by the Discord bot",
+      "posterOwner": "posted by the ticket's player",
+      "posterOther": "posted by another Discord user",
+      "posterUnknown": "poster not recorded",
+      "messages": "{count} messages",
+      "transcriptIncomplete": "transcript was not verified complete",
       "entries": "{count} entries"
     },
     "notes": {
@@ -983,7 +996,8 @@
         "note": "Notes",
         "message": "Messages",
         "ban_id": "Ban ID",
-        "transcript": "Exports"
+        "transcript": "Exports",
+        "ticket": "Discord tickets"
       },
       "count": "{count} events shown",
       "empty": "No events match.",
@@ -1055,7 +1069,62 @@
         "forfeited": "The Ban ID was marked leaked before an appeal was filed. The right to appeal is forfeited until the Ban ID is reissued.",
         "frozen": "The Ban ID was marked leaked after the appeal was filed. The ticket is frozen: the player cannot write, staff still can."
       },
-      "emptyInput": "Write a message first."
+      "emptyInput": "Write a message first.",
+      "discord": "Discord",
+      "attachments": "{count} attachments (not stored)",
+      "trust": {
+        "verified": "Verified staff (linked account)",
+        "unverified": "Unverified staff (not linked)",
+        "BOT": "Bot",
+        "EXTERNAL": "Unknown Discord user"
+      },
+      "role": {
+        "PLAYER": "Player",
+        "STAFF": "Staff",
+        "BOT": "Bot",
+        "EXTERNAL": "Unknown Discord user"
+      }
+    },
+    "tickets": {
+      "title": "Discord tickets",
+      "number": "Ticket #{no}",
+      "opened": "Opened",
+      "transcript": "Transcript",
+      "protocol": "Protocol",
+      "complete": "Verified complete",
+      "notComplete": "Not verified complete",
+      "noProtocol": "None stored",
+      "version": "Version {version}",
+      "current": "current",
+      "frozen": "Frozen",
+      "phase": {
+        "OPEN": "Open",
+        "CLOSING": "Closing",
+        "CLOSED": "Closed",
+        "ARCHIVED": "Archived",
+        "DELETED": "Channel deleted"
+      },
+      "banner": {
+        "incomplete": "The transcript may be incomplete since {since}: no completeness check was recorded after the decision.",
+        "lost": "The Discord channel was deleted before the transcript was verified. The record may be incomplete since {since}.",
+        "protocolMissing": "The transcript is complete but no protocol is stored yet. The channel is not archived or deleted until it exists."
+      },
+      "showProtocols": "Show stored protocols",
+      "protocolsLoaded": "{count} protocol versions loaded.",
+      "protocolList": "Stored protocol versions",
+      "noProtocols": "No protocol is stored for this case."
+    },
+    "participants": {
+      "title": "Discord participants",
+      "hint": "Erasing removes the stored Discord account and name of a participant. Their entries stay with an anonymous author.",
+      "name": "Discord participant {no}",
+      "erase": "Erase participant",
+      "erased": "Erased",
+      "confirmTitle": "Erase Discord participant {no}?",
+      "confirmBody": "The stored Discord account and display name are removed for good and the stored protocols are regenerated. Message text is removed separately.",
+      "confirm": "Erase participant",
+      "done": "Participant erased.",
+      "alreadyDone": "The participant was erased before."
     },
     "banId": {
       "title": "Ban ID",

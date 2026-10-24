@@ -4,7 +4,8 @@ import { field, text } from './caseEvents'
 /** The backend rejects longer messages. */
 export const MAX_CASE_MESSAGE_LENGTH = 2000
 
-export type AuthorKind = 'PLAYER' | 'STAFF'
+/** Who wrote a message: the portal player, staff, or (from Discord) a bot or an author nobody could identify. */
+export type AuthorKind = 'PLAYER' | 'STAFF' | 'BOT' | 'EXTERNAL'
 
 /** One message of the thread, folded from its `message.*` events. */
 export interface ThreadMessage {
@@ -13,6 +14,10 @@ export interface ThreadMessage {
   /** Who wrote the first version; for a player this is the player actor (no name, no oid). */
   actor: CaseActorInfo
   channel: string | null
+  /** The opaque participant of a Discord author (never a Discord id); null for portal and panel messages. */
+  participantId: string | null
+  /** How many attachments and embeds the Discord message had; their content is not stored. */
+  attachments: number
   visibility: string
   /** The latest text; null once redacted. A deleted message keeps its last text for staff. */
   text: string | null
@@ -31,11 +36,18 @@ function messageIdOf(event: CaseTimelineItem): string | null {
   return event.subjectId ?? text(field(event, 'messageId'))
 }
 
-function authorKindOf(event: CaseTimelineItem): AuthorKind {
+function authorOf(event: CaseTimelineItem): Record<string, unknown> {
   const author = field(event, 'author')
-  const kind = typeof author === 'object' && author !== null ? (author as Record<string, unknown>).kind : undefined
+  return typeof author === 'object' && author !== null ? (author as Record<string, unknown>) : {}
+}
+
+function authorKindOf(event: CaseTimelineItem): AuthorKind {
+  const kind = authorOf(event).kind
+  if (kind === 'BOT' || kind === 'EXTERNAL') return kind
   return kind === 'PLAYER' || event.actor.trust === 'PLAYER' ? 'PLAYER' : 'STAFF'
 }
+
+const count = (value: unknown): number => (Array.isArray(value) ? value.length : 0)
 
 /**
  * Folds the events of a case into messages: the first `message.added` opens one, edits replace the
@@ -55,6 +67,8 @@ export function buildThread(events: CaseTimelineItem[]): ThreadMessage[] {
         author: authorKindOf(event),
         actor: event.actor,
         channel: text(field(event, 'channel')),
+        participantId: text(authorOf(event).participantId),
+        attachments: count(field(event, 'attachments')) + count(field(event, 'embeds')),
         visibility: event.visibility,
         text: text(field(event, 'text')),
         edits: 0,
