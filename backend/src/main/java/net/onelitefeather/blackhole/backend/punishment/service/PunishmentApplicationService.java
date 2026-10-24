@@ -38,6 +38,7 @@ import net.onelitefeather.blackhole.backend.utils.IdGenerator;
 import net.onelitefeather.blackhole.backend.utils.OwnerHash;
 import net.onelitefeather.phoca.metadata.Expirable;
 import net.onelitefeather.phoca.metadata.Metadata;
+import net.onelitefeather.blackhole.backend.clientrule.ClientRuleTemplateApplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,12 +71,15 @@ import java.util.Optional;
  * {@link #apply} can be stale, which {@code occupy} closes by never replacing a permanent punishment.</p>
  */
 @Singleton
-public class PunishmentApplicationService implements SectionPunisher {
+public class PunishmentApplicationService implements SectionPunisher, ClientRuleTemplateApplier {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PunishmentApplicationService.class);
 
     /** The answer to an {@code onBehalfOf} from any role but the proxy. */
     static final String ON_BEHALF_OF_PROXY_ONLY = "onBehalfOf is only accepted from the proxy";
+
+    /** Metadata key naming the client rule a punishment came from. */
+    static final String CLIENT_RULE_METADATA_KEY = "clientRule";
 
     private static final String SOFT_REASON = "Automatic temporary punishment (ELO system)";
 
@@ -177,6 +181,13 @@ public class PunishmentApplicationService implements SectionPunisher {
         if (attribution == null) {
             return failed(ErrorKind.VALIDATION, ON_BEHALF_OF_PROXY_ONLY);
         }
+        return plan(request, attribution);
+    }
+
+    private Planned plan(PunishmentDTO.ApplyRequest request, Attribution attribution) {
+        if (!OwnerHash.isValid(request.owner())) {
+            return failed(ErrorKind.VALIDATION, "owner must be a sha-512 hash");
+        }
         boolean hasKey = request.templateKey() != null && !request.templateKey().isBlank();
         if (hasKey == (request.templateId() != null)) {
             return failed(ErrorKind.VALIDATION, "exactly one of templateKey and templateId is required");
@@ -228,16 +239,54 @@ public class PunishmentApplicationService implements SectionPunisher {
         if (planned.error() != null) {
             return planned.error();
         }
-        PunishmentTemplateEntity template = planned.plan().template();
-        SectionDTO.Response section = planned.plan().section();
+        return execute(request, planned.plan(), Map.of(), false);
+    }
+
+    /**
+     * Applies a client rule's template for the system: the step the owner has reached, its ELO cost and a
+     * Ban ID, with the ELO system as source (so the punishment counts as automatic, appeals wait like for
+     * any automatic punishment) and the rule recorded in the metadata. Nothing is added while the owner
+     * still has an active punishment from the same rule in the template's section, so a repeated hit
+     * never escalates the step.
+     */
+    @Override
+    public ClientRuleTemplateApplier.Result applyForRule(String owner, String templateKey, String ruleKey) {
+        PunishmentDTO.ApplyRequest request = new PunishmentDTO.ApplyRequest(owner, templateKey, null, null);
+        Planned planned = plan(request, new Attribution(EloService.SYSTEM_ELO_SOURCE, null));
+        if (planned.error() != null) {
+            LOGGER.warn("Client rule {} could not apply template {}: {}", ruleKey, templateKey, planned.error().errorMessage());
+            return new ClientRuleTemplateApplier.Result(ClientRuleTemplateApplier.Outcome.NOT_APPLIED, null);
+        }
+        PunishmentProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
+        PunishmentEntity current = profile == null ? null : profile.getActive().get(planned.plan().section().key());
+        if (current != null && ruleKey.equals(current.getMetaData().get(CLIENT_RULE_METADATA_KEY)) && !isExpired(current, planned.plan().now())) {
+            return new ClientRuleTemplateApplier.Result(ClientRuleTemplateApplier.Outcome.ALREADY_ACTIVE, null);
+        }
+        Map<String, Object> extra = Map.of("automatic", true, CLIENT_RULE_METADATA_KEY, ruleKey, "automaticSource", "client-rule:" + ruleKey);
+        PunishmentDTO result = execute(request, planned.plan(), extra, true);
+        if (result instanceof PunishmentDTO.ApplyResponse applied) {
+            return new ClientRuleTemplateApplier.Result(ClientRuleTemplateApplier.Outcome.APPLIED, applied.punishment().identifier());
+        }
+        return new ClientRuleTemplateApplier.Result(ClientRuleTemplateApplier.Outcome.NOT_APPLIED, null);
+    }
+
+    private static boolean isExpired(PunishmentEntity punishment, long now) {
+        Object expiry = punishment.getMetaData().get(Expirable.META_DATA_KEY_EXPIRATION_DATE);
+        return expiry instanceof Number number && number.longValue() <= now;
+    }
+
+    /** The shared tail of {@link #apply} and {@link #applyForRule}: everything after the plan. */
+    private PunishmentDTO execute(PunishmentDTO.ApplyRequest request, Plan plan, Map<String, Object> extraMetadata, boolean chargeSystemSource) {
+        PunishmentTemplateEntity template = plan.template();
+        SectionDTO.Response section = plan.section();
         String owner = request.owner();
-        long now = planned.plan().now();
-        String group = planned.plan().group();
-        StepSelector.Selection selection = planned.plan().selection();
-        Attribution attribution = this.staffLinks.withLinkedActor(planned.plan().attribution());
+        long now = plan.now();
+        String group = plan.group();
+        StepSelector.Selection selection = plan.selection();
+        Attribution attribution = this.staffLinks.withLinkedActor(plan.attribution());
         int cost = selection.step().getEloCost();
 
-        Map<String, Object> metadata = new HashMap<>();
+        Map<String, Object> metadata = new HashMap<>(extraMetadata);
         metadata.put(Metadata.META_DATA_KEY_CREATION_DATE, now);
         metadata.put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
         metadata.put(Expirable.META_DATA_KEY_EXPIRATION_DATE, now + selection.step().parsedDuration().toMillis());
@@ -259,7 +308,7 @@ public class PunishmentApplicationService implements SectionPunisher {
         int scoreAfter;
         PunishmentDTO.Escalation escalation = null;
         EloScoring scoring = this.eloScoring.get();
-        if (cost > 0 && !EloService.SYSTEM_ELO_SOURCE.equals(attribution.source())) {
+        if (cost > 0 && (chargeSystemSource || !EloService.SYSTEM_ELO_SOURCE.equals(attribution.source()))) {
             EloChange change = scoring.applyDelta(owner, section.key(), -cost, EloReasonCode.PUNISHMENT_APPLIED, null, Map.of(
                     "punishmentIdentifier", saved.getIdentifier(),
                     "templateIdentifier", template.getIdentifier().toString()

@@ -142,6 +142,17 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void theProxyReportsClientRuleHitsAndOnlyTheTeamReadsThem() {
+        String owner = "ab".repeat(64);
+        assertAuthorized(post("/client-rule/hit", Map.of("rule", "x", "owner", owner), this.jwt.proxy()), "proxy on a hit report");
+        assertEquals(403, post("/client-rule/hit", Map.of("rule", "x", "owner", owner), this.jwt.admin()).status(), "admin on a hit report");
+        assertEquals(403, get("/client-rule/x/hits", this.jwt.proxy()).status(), "proxy on a rule's hits");
+        assertEquals(403, get("/client-rule/hits?owner=" + owner, this.jwt.proxy()).status(), "proxy on a player's hits");
+        assertAuthorized(get("/client-rule/x/hits", this.jwt.viewer()), "viewer on a rule's hits");
+        assertEquals(200, get("/client-rule/hits?owner=" + owner, this.jwt.viewer()).status(), "viewer on a player's hits");
+    }
+
+    @Test
     void aViewerMayListTheActivePunishments() {
         assertEquals(200, get("/punishment/active", this.jwt.viewer()).status(), "viewer on the active punishment overview");
     }

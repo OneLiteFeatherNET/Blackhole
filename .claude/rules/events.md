@@ -82,3 +82,9 @@ publishes nothing (the existing `appeal.resolved` announces the decision). `tran
 punishmentIdentifier, owner, occurredAt}`, no content, in a try/catch. The timeline records `protocol.stored` (staff visibility, not in
 `PORTAL_VISIBLE_TYPES`). The stored file also announces itself as `evidence.attached` (kind `TRANSCRIPT`) and a purge as `evidence.deleted`
 (reason `ERASURE`, or `DUPLICATE` when a concurrent identical run lost). Nothing binds to these keys yet.
+
+## Client rule events
+
+`client-rule.hit` is published by `ClientRuleHitService` for every stored hit (non-blocking, like the others) with
+`{rule, owner (hashed), kind, action, at}` only: never a brand, channel, mod or command text, a player name, a server or the
+rule's patterns (`ClientRuleNoLeakTest`). Nothing binds to it yet.
