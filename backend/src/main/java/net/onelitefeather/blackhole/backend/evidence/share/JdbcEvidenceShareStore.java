@@ -3,6 +3,7 @@ package net.onelitefeather.blackhole.backend.evidence.share;
 import io.micronaut.jdbc.DataSourceResolver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseChangeNotifier;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseChanges;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventDraft;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventPayloads;
@@ -65,15 +66,23 @@ public class JdbcEvidenceShareStore implements EvidenceShareStore {
             + "ORDER BY created_at DESC, identifier DESC LIMIT 1";
 
     private final DataSource dataSource;
+    private final CaseChangeNotifier notifier;
 
     @Inject
-    public JdbcEvidenceShareStore(DataSource dataSource, DataSourceResolver resolver) {
+    public JdbcEvidenceShareStore(DataSource dataSource, DataSourceResolver resolver, CaseChangeNotifier notifier) {
         this.dataSource = resolver.resolve(dataSource);
+        this.notifier = notifier;
     }
 
     /** For a plain data source, such as a test's. */
     public JdbcEvidenceShareStore(DataSource plainDataSource) {
+        this(plainDataSource, CaseChangeNotifier.NONE);
+    }
+
+    /** For a plain data source and a notifier, such as a test's. */
+    public JdbcEvidenceShareStore(DataSource plainDataSource, CaseChangeNotifier notifier) {
         this.dataSource = plainDataSource;
+        this.notifier = notifier;
     }
 
     @Override
@@ -94,7 +103,9 @@ public class JdbcEvidenceShareStore implements EvidenceShareStore {
             bindEvent(statement, index, event);
             try (ResultSet rows = statement.executeQuery()) {
                 if (rows.next()) {
-                    return new Created(share, new CaseChanges.Appended(rows.getObject(1, UUID.class), rows.getLong(2), rows.getString(3)), false);
+                    CaseChanges.Appended appended = new CaseChanges.Appended(rows.getObject(1, UUID.class), rows.getLong(2), rows.getString(3));
+                    this.notifier.appended(share.punishmentIdentifier(), appended);
+                    return new Created(share, appended, false);
                 }
             }
             try (PreparedStatement twin = connection.prepareStatement(ACTIVE_TWIN)) {
@@ -126,9 +137,12 @@ public class JdbcEvidenceShareStore implements EvidenceShareStore {
             statement.setString(++index, punishmentIdentifier);
             bindEvent(statement, index, event);
             try (ResultSet rows = statement.executeQuery()) {
-                return rows.next()
-                        ? Optional.of(new CaseChanges.Appended(rows.getObject(1, UUID.class), rows.getLong(2), rows.getString(3)))
-                        : Optional.empty();
+                if (!rows.next()) {
+                    return Optional.empty();
+                }
+                CaseChanges.Appended appended = new CaseChanges.Appended(rows.getObject(1, UUID.class), rows.getLong(2), rows.getString(3));
+                this.notifier.appended(punishmentIdentifier, appended);
+                return Optional.of(appended);
             }
         } catch (SQLException e) {
             throw new IllegalStateException("could not revoke the share " + shareId, e);

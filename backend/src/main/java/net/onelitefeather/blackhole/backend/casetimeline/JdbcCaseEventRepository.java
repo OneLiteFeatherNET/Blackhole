@@ -31,6 +31,7 @@ public class JdbcCaseEventRepository implements CaseEventRepository {
                                     actor_oid, recorded_by_oid, actor_source, subject_id, visibility, payload, dedupe_key)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?)
             ON CONFLICT (dedupe_key) DO NOTHING
+            RETURNING seq
             """;
     /**
      * Redacts the versions of a note or message. When a message was redacted, the same statement marks every
@@ -54,16 +55,24 @@ public class JdbcCaseEventRepository implements CaseEventRepository {
     private static final String DELETE_CASE = "DELETE FROM punishment_case WHERE punishment_identifier = ?";
 
     private final DataSource dataSource;
+    private final CaseChangeNotifier notifier;
 
     @Inject
-    public JdbcCaseEventRepository(DataSource dataSource, DataSourceResolver resolver) {
+    public JdbcCaseEventRepository(DataSource dataSource, DataSourceResolver resolver, CaseChangeNotifier notifier) {
         // The injected source is transaction-aware and refuses connections outside a transaction.
         this.dataSource = resolver.resolve(dataSource);
+        this.notifier = notifier;
     }
 
     /** For a plain data source, such as a test's. */
     public JdbcCaseEventRepository(DataSource plainDataSource) {
+        this(plainDataSource, CaseChangeNotifier.NONE);
+    }
+
+    /** For a plain data source and a notifier, such as a test's. */
+    public JdbcCaseEventRepository(DataSource plainDataSource, CaseChangeNotifier notifier) {
         this.dataSource = plainDataSource;
+        this.notifier = notifier;
     }
 
     @Override
@@ -88,7 +97,13 @@ public class JdbcCaseEventRepository implements CaseEventRepository {
             statement.setString(15, draft.visibility());
             statement.setString(16, CaseEventPayloads.toJson(draft.payload()));
             statement.setString(17, draft.dedupeKey());
-            return statement.executeUpdate() == 1;
+            try (ResultSet rows = statement.executeQuery()) {
+                if (!rows.next()) {
+                    return false;
+                }
+                this.notifier.appended(draft.punishmentIdentifier(), rows.getLong(1), draft.type());
+                return true;
+            }
         } catch (SQLException e) {
             throw new IllegalStateException("could not append the case event " + draft.type(), e);
         }
