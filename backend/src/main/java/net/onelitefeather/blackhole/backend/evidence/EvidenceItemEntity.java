@@ -25,6 +25,9 @@ import java.util.UUID;
 @Table(name = "evidence_items")
 public class EvidenceItemEntity {
 
+    /** The correlation id prefix of chat files, followed by the appeal (player files) or the punishment (staff files). */
+    public static final String CHAT_CORRELATION_PREFIX = "chat:";
+
     @Id
     private UUID identifier;
 
@@ -100,6 +103,9 @@ public class EvidenceItemEntity {
 
     @Column(name = "lifted_by_appeal")
     private UUID liftedByAppeal;
+
+    /** Who supplied the item; a chat upload of the appealing player is {@link EvidenceProvenance#PLAYER}. */
+    private EvidenceProvenance provenance = EvidenceProvenance.STAFF;
 
     public EvidenceItemEntity() {
         // Empty constructor for JPA
@@ -278,6 +284,27 @@ public class EvidenceItemEntity {
 
     public UUID getLiftedByAppeal() {
         return liftedByAppeal;
+    }
+
+    public EvidenceProvenance getProvenance() {
+        return provenance;
+    }
+
+    public void setProvenance(EvidenceProvenance provenance) {
+        this.provenance = provenance;
+    }
+
+    /**
+     * Whether the item is a chat file that no message has bound yet. It is in no listing, no count and no content
+     * route until a message claims it.
+     */
+    public boolean isStagedChatFile() {
+        return this.punishmentIdentifier == null && this.correlationId != null && this.correlationId.startsWith(CHAT_CORRELATION_PREFIX);
+    }
+
+    /** Whether the item is a chat file, staged or bound: its correlation id keeps the chat scope after binding. */
+    public boolean isChatFile() {
+        return this.correlationId != null && this.correlationId.startsWith(CHAT_CORRELATION_PREFIX);
     }
 
     /** Whether the item has no punishment yet and waits to be claimed. */

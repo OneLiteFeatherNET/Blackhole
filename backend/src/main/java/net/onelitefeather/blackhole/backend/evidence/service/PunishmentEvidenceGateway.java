@@ -27,8 +27,16 @@ public interface PunishmentEvidenceGateway {
      */
     int claimPendingByIds(String owner, Collection<UUID> evidenceIds, String punishmentIdentifier);
 
-    /** The number of valid evidence items of the punishment; lifted and revoked ones are not counted. */
+    /**
+     * The team evidence number: valid items with staff provenance; lifted and revoked ones, the protocol and files the appealing player
+     * uploaded themselves are not counted.
+     */
     long countValid(String punishmentIdentifier);
+
+    /** The valid files the appealing player sent in the chat, reported next to (never inside) {@link #countValid}. */
+    default long countPlayerSupplied(String punishmentIdentifier) {
+        return 0;
+    }
 
     /**
      * Marks the punishment's valid evidence {@code REVOKED} after staff revoked the punishment. The

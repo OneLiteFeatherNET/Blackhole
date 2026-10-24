@@ -24,6 +24,25 @@ public interface EvidenceItemRepository extends PageableRepository<EvidenceItemE
      */
     long countByPunishmentIdentifierAndStatusAndKindNotEqual(String punishmentIdentifier, EvidenceStatus status, EvidenceKind kind);
 
+    /**
+     * The team figure: items of the punishment with the status, not of the given kind and of the given provenance. The valid
+     * count the ban screen reads passes {@code TRANSCRIPT} and {@code STAFF}, so a banned player cannot change it.
+     */
+    long countByPunishmentIdentifierAndStatusAndKindNotEqualAndProvenance(
+            String punishmentIdentifier, EvidenceStatus status, EvidenceKind kind, EvidenceProvenance provenance);
+
+    /** How many items of the punishment have the status and the provenance (the separate player-supplied figure). */
+    long countByPunishmentIdentifierAndStatusAndProvenance(String punishmentIdentifier, EvidenceStatus status, EvidenceProvenance provenance);
+
+    /** The items of the punishment with the provenance, for the erasure of a player's files. */
+    List<EvidenceItemEntity> findByPunishmentIdentifierAndProvenance(String punishmentIdentifier, EvidenceProvenance provenance);
+
+    /** All chat files of a scope, staged and bound: the quota of an appeal. */
+    long countByCorrelationId(String correlationId);
+
+    /** The staged chat files of a scope (no message bound them yet). */
+    long countByCorrelationIdAndPunishmentIdentifierIsNull(String correlationId);
+
     /** All items of a punishment, for lifecycle changes and cascades. */
     List<EvidenceItemEntity> findByPunishmentIdentifier(String punishmentIdentifier);
 
