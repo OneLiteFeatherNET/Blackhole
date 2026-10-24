@@ -28,7 +28,7 @@ SQL keyword).
   source row and attributed to the row's actor. `CaseDrafts` builds the events for both the live flows
   and the reconciler, so a repaired event looks like the lost one. `V12` backfills in SQL with the same
   payload shapes; `CaseMigrationIntegrationTest` reads them back as typed payloads to keep both in step.
-- **Trust.** `CaseActor.ofRow` is the one rule for `VERIFIED` / `UNVERIFIED` / `SYSTEM` (the SQL backfill
+- **Trust.** `CaseActor.ofRow` is the one rule for `VERIFIED` / `UNVERIFIED` / `SYSTEM`; `PLAYER` (`CaseActor.player()`) is a player's own message, no `oid`, never a verified badge (the SQL backfill
   mirrors it). Legacy actors are never `VERIFIED`. No actor name is stored: it is joined from
   `staff_actor` when read, so anonymize erases it everywhere.
 - **Payloads** are a sealed `CaseEventPayload`; free text only in note types (not in this release). A
@@ -52,3 +52,33 @@ SQL keyword).
   timeline order), page size default 50, max 200. `actor.name` is joined from `staff_actor`.
 - **Domain events** `case.<type>` (`CaseEvents`): ids, hashed owner, `seq`, trust, `from`/`to`, never text.
   Published after the write in a try/catch. Lifecycle facts are not republished as `case.*`.
+
+## Conversation, leak rule and transcript (`/case/{reference}/messages|ban-id|transcript`)
+
+Detail: `openspec/changes/add-appeal-portal/specs/case-conversation/spec.md` and design decisions 8, 10, 12.
+`CaseConversationController` (`CaseConversationApi`) is thin; `CaseConversationService` holds the rules, answers
+`CaseConversationDTO.Error` and lets an unexpected storage failure propagate (a message is never lost silently).
+
+- **Messages are case events**: `message.added|edited|deleted|redacted` (`subject_id` = message id, payload in
+  `CaseEventPayload`, author as `{kind, participantId?}`). `CaseEventDraft.visibility` is set by the server: staff
+  replies and player messages are `PLAYER`; a request body has no visibility, author or channel (ignored). Staff-internal
+  text is a note. `CaseEventPayload.PORTAL_VISIBLE_TYPES` is the allow-list a player-facing reader applies in SQL next to
+  `visibility = 'PLAYER'`. `appeal.filed|decided` are listed but still `STAFF` visibility until the public API change shows them.
+- **Current text** is the latest added/edited version (`MessageThread`); an edit is `message.edited:<id>:<n>`, a delete
+  `message.deleted:<id>`, never a row change. Only the verified author or an admin may correct a *staff* message; a
+  player's words are changed only by redaction. `Idempotency-Key` (header, 1-80 of `[A-Za-z0-9._:-]`) derives the message
+  id, so a repeat inserts nothing and answers `repeated: true`.
+- **One statement per change** (`CaseChanges`): `appendMessage` (message + `WAITING` to `IN_REVIEW` by `SYSTEM` for a
+  player message), `editMessage` (guarded against a redacted/deleted message), `markBanIdLeaked`, `reissueBanId`,
+  `erasePlayerMessages`. `postPlayerMessage` is the entry point for the public API (409 once the Ban ID is marked leaked).
+- **Redaction** keeps type, time, trust, visibility and the payload structure and removes `text`, `attachments` and
+  `embeds` (`CaseEventRepository.redact`, now also for messages); `message.redacted:<id>` is appended once. The repository
+  surface stays append / redact / deleteForPunishment; the player-side erase is a `CaseChanges` statement.
+- **Leak rule**: state is `punishment_case.ban_id_leaked_at|reason` (V13, no new migration). Marking is `MODERATOR`,
+  idempotent (`changed: false`); reissue is `ADMIN`, replaces hash/ciphertext, raises `ban_id_gen`, clears the leak,
+  payload has generations only. Deleting the punishment's player sessions belongs in the same two statements once
+  `player_session` exists (public API change); until then there is nothing to delete.
+- **Transcript** (`ADMIN`, `format=json|text`, `includeNotes`): `TranscriptRenderer`; redacted entries are markers;
+  `transcript.exported` (format, entry count, no content) is appended *before* the file is handed out; `no-store`, attachment.
+- **Decision message**: `AppealReviewDTO.playerMessage` is checked by `MessageRules` (422 on UUID/IP/Ban ID) before the
+  decision and recorded by `CaseTimeline.decisionMessage` (id derived from the appeal, never fails the decision). `decisionNote` stays internal.

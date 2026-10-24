@@ -18,3 +18,5 @@ paths:
 - A candidate equal to a legacy `short_id` is discarded. Legacy hex short ids stay staff-only.
 - Notes reject a `#` plus 8 alphabet characters (`PiiGuard.banIdCandidates`); a hex-only token is
   rejected only if it is an issued Ban ID, because staff name players by legacy short id.
+- Reissue and leak state live in `casetimeline/` (`CaseChanges.reissueBanId|markBanIdLeaked`, one CTE each); the service
+  draws the new value with `BanIdService.draw` (hash + ciphertext, never stored by it) and retries a hash collision.

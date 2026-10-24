@@ -49,3 +49,10 @@ request that already changed the evidence.
 occurredAt}` plus the non-content change (`from`/`to`, tag lists, `noteId`, redaction reason code). Never
 note text. Nothing binds to them yet (the future Discord sync). Lifecycle facts keep their
 `punishment.*`/`appeal.*`/`evidence.*` keys.
+
+`case.message_added`, `case.message_edited`, `case.message_deleted`, `case.message_redacted`, `case.ban_id_leak_marked`
+and `case.ban_id_reissued` are published by `CaseConversationService` (via `CaseEventPublisher`) with the same
+envelope plus `messageId`, `authorKind`, `channel`, `visibility` (messages), `reason`/`source`/`afterFiling` (leak) or
+`reason`/`fromGeneration`/`toGeneration` (reissue). Never message text, Ban IDs, file names or Discord identifiers; a player
+message that moves a `WAITING` case also publishes `case.status_changed` by `SYSTEM`. The decision message of an appeal
+publishes nothing (the existing `appeal.resolved` announces the decision). `transcript.exported` is not published.
