@@ -15,6 +15,7 @@ import net.onelitefeather.blackhole.client.model.PunishmentRevokeResponse;
 import net.onelitefeather.blackhole.velocity.evidence.ChatSnapshot;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -90,8 +91,9 @@ public interface BackendGateway {
      *
      * @param description the reporter's text, or null
      * @param evidence    the evidence items the report references
+     * @param metaData    the report metadata, e.g. the players' names
      */
-    ReportDTO submitReport(String reporter, String reported, ReportCategory category, String description, List<UUID> evidence) throws ApiException;
+    ReportDTO submitReport(String reporter, String reported, ReportCategory category, String description, List<UUID> evidence, Map<String, Object> metaData) throws ApiException;
 
     /**
      * @return the messages about the outcome of the owner's resolved reports that have not been shown

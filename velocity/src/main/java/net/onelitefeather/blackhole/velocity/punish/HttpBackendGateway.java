@@ -156,10 +156,10 @@ public final class HttpBackendGateway implements BackendGateway {
     }
 
     @Override
-    public ReportDTO submitReport(String reporter, String reported, ReportCategory category, String description, List<UUID> evidence) throws ApiException {
+    public ReportDTO submitReport(String reporter, String reported, ReportCategory category, String description, List<UUID> evidence, java.util.Map<String, Object> metaData) throws ApiException {
         return this.reportApi.submitReport(new ReportRequestDTO()
                 .reporterHash(reporter).reportedHash(reported).category(category).description(description)
-                .evidenceReferences(evidence).metaData(java.util.Map.of()));
+                .evidenceReferences(evidence).metaData(metaData));
     }
 
     @Override
