@@ -34,7 +34,7 @@ describe('visibleGroups', () => {
     expect(groups.map((group) => [group.key, group.items.map((item) => item.key)])).toEqual([
       ['overview', ['dashboard']],
       ['moderation', ['cases', 'appeals', 'reports', 'punished', 'players']],
-      ['rules', ['sections', 'templates', 'appealConditions']],
+      ['rules', ['sections', 'templates', 'appealConditions', 'clientRules']],
       ['system', ['admin']],
     ])
   })

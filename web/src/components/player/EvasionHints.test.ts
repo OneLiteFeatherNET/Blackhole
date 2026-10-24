@@ -7,14 +7,14 @@ const OWNER = 'ab'.repeat(64)
 const ALT = 'cd'.repeat(64)
 
 function sightings(overrides: Partial<EvasionSightings> = {}): EvasionSightings {
-  return { detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false, ...overrides }
+  return { detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false, clientFingerprintEnabled: false, clientWindowDays: 14, ...overrides }
 }
 
 function mountHints(evasionSightings: ReturnType<typeof vi.fn>) {
   return mountWithApp(EvasionHints, { api: mockApi({ evasionSightings }), props: { owner: OWNER } })
 }
 
-const linked = { owner: ALT, reason: 'SHARED_IP', sharedAddresses: 2, firstSeen: Date.UTC(2030, 0, 1), lastSeen: Date.UTC(2030, 0, 2) }
+const linked = { owner: ALT, reason: 'SHARED_IP', via: 'IP' as const, sharedAddresses: 2, firstSeen: Date.UTC(2030, 0, 1), lastSeen: Date.UTC(2030, 0, 2) }
 
 describe('EvasionHints', () => {
   it('says so when no other account shares an address', async () => {
@@ -32,7 +32,7 @@ describe('EvasionHints', () => {
     const link = wrapper.get('table a')
     expect(link.attributes('href')).toBe(`/players/${ALT}`)
     expect(link.text()).toBe('cdcdcdcd…')
-    expect(wrapper.get('table').text()).toContain('Shared network address')
+    expect(wrapper.get('table').text()).toContain('Same network address')
     expect(wrapper.get('table').text()).toContain('2')
 
     wrapper.unmount()
@@ -75,6 +75,36 @@ describe('EvasionHints', () => {
     const { wrapper } = await mountHints(vi.fn(async () => ok(sightings())))
 
     expect(wrapper.get('[aria-live="polite"]').text()).toContain('last 7 days')
+
+    wrapper.unmount()
+  })
+
+  it('labels a link by the client setup alone as a weak hint', async () => {
+    const clientOnly = { ...linked, reason: 'SHARED_CLIENT', via: 'CLIENT' as const, sharedAddresses: 0 }
+    const { wrapper } = await mountHints(vi.fn(async () => ok(sightings({ linkedOwners: [clientOnly], clientFingerprintEnabled: true }))))
+
+    expect(wrapper.get('table').text()).toContain('Same client setup')
+    expect(wrapper.get('[data-testid="weak-hint"]').text()).toContain('weak hint')
+    expect(wrapper.get('[data-testid="evasion-weak-note"]').text()).toContain('no proof')
+
+    wrapper.unmount()
+  })
+
+  it('shows a link by address and client setup as the strong one, without the weak label', async () => {
+    const both = { ...linked, via: 'BOTH' as const }
+    const { wrapper } = await mountHints(vi.fn(async () => ok(sightings({ linkedOwners: [both], clientFingerprintEnabled: true }))))
+
+    expect(wrapper.get('table').text()).toContain('Address and client setup')
+    expect(wrapper.find('[data-testid="weak-hint"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="evasion-weak-note"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('does not call detection off while the client signal still works', async () => {
+    const { wrapper } = await mountHints(vi.fn(async () => ok(sightings({ detectionEnabled: false, clientFingerprintEnabled: true }))))
+
+    expect(wrapper.find('[data-testid="evasion-disabled"]').exists()).toBe(false)
 
     wrapper.unmount()
   })

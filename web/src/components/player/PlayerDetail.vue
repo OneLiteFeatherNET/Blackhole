@@ -14,6 +14,7 @@ import ResourceState from '../ResourceState.vue'
 import ActivePunishments from './ActivePunishments.vue'
 import AdjustDialog from './AdjustDialog.vue'
 import ApplyTemplateDialog from './ApplyTemplateDialog.vue'
+import ClientRuleHits from '../clientrules/ClientRuleHits.vue'
 import EloHistory from './EloHistory.vue'
 import EvasionHints from './EvasionHints.vue'
 import PunishmentHistory from './PunishmentHistory.vue'
@@ -153,6 +154,11 @@ async function finished(done: string): Promise<void> {
       <section aria-labelledby="evasion-heading">
         <h2 id="evasion-heading" class="mb-3 text-title-large">{{ t('player.evasion.title') }}</h2>
         <EvasionHints :owner="owner" />
+      </section>
+
+      <section aria-labelledby="client-rules-heading">
+        <h2 id="client-rules-heading" class="mb-3 text-title-large">{{ t('clientRules.player.title') }}</h2>
+        <ClientRuleHits :owner="owner" />
       </section>
 
       <ApplyTemplateDialog :open="applyOpen" :owner="owner" @close="applyOpen = false" @done="finished" />

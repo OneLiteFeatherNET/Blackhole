@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Appeal, EloProfile, Punishment, PunishmentProfile, Report, Section, Template } from '../api/types'
 import EvidencePanel from '../components/evidence/EvidencePanel.vue'
+import { clientRule } from '../test/clientRules'
 import { evidenceItem, evidencePage } from '../test/evidence'
 import { mockApi, mountWithApp, ok } from '../test/mount'
 import AppealsView from './AppealsView.vue'
+import ClientRulesView from './ClientRulesView.vue'
 import PlayerDetailView from './PlayerDetailView.vue'
 import ReportsView from './ReportsView.vue'
 import SectionsView from './SectionsView.vue'
@@ -48,6 +50,7 @@ describe('role-aware controls', () => {
         eloProfile: vi.fn(async () => ok(elo)),
         eloHistory: vi.fn(async () => ok([])),
         evasionSightings: vi.fn(async () => ok({ detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false })),
+        clientRuleHitsOfOwner: vi.fn(async () => ok([])),
       })
 
       const offered = await controls(PlayerDetailView, api, roles, ['open-apply', 'open-adjust-network', 'open-revoke-network'], {
@@ -69,6 +72,22 @@ describe('role-aware controls', () => {
       const api = mockApi({ sections: vi.fn(async () => ok([section])), staffLinks: vi.fn(async () => ok([])), discordLinks: vi.fn(async () => ok([])) })
 
       const offered = await controls(SectionsView, api, roles, ['new-section', 'edit-network', 'disable-network'], { path: '/sections' })
+
+      expect(offered).toEqual(expected)
+    })
+  })
+
+  // Without any role the app shows the no-access page and never the view; the view itself only gates writes.
+  describe.each([
+    ['none', NONE, ['hits-meteor']],
+    ['viewer', VIEWER, ['hits-meteor']],
+    ['moderator', MODERATOR, ['hits-meteor']],
+    ['admin', ADMIN, ['new-client-rule', 'edit-meteor', 'delete-meteor', 'hits-meteor']],
+  ])('client rules for %s', (_label, roles, expected) => {
+    it('offers create, edit and delete only to admins while every team role reads the hits', async () => {
+      const api = mockApi({ clientRules: vi.fn(async () => ok([clientRule()])) })
+
+      const offered = await controls(ClientRulesView, api, roles, ['new-client-rule', 'edit-meteor', 'delete-meteor', 'hits-meteor'], { path: '/client-rules' })
 
       expect(offered).toEqual(expected)
     })

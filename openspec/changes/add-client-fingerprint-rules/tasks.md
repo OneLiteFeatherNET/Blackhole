@@ -51,10 +51,10 @@ here); client spec bumps use the next free number as well.
 
 ## 6. Panel (PR 6, `feat(web): manage client rules in the panel`)
 
-- [ ] 6.1 API types and client methods for rules, hits, catalogue and the sightings `via`; fake-client tests
-- [ ] 6.2 Failing tests first, then the `ClientRulesView`: list with hit counts, editor per kind, scope picker reusing the section target picker, action selector with deny message and template picker, acknowledgement checkbox and warning for BRAND/MOD/CHANNEL + TEMPLATE, hide option, server errors next to fields, read-only below `ADMIN`, catalogue suggestions with free-text fallback
-- [ ] 6.3 Hits list in the view and on the player page, weak-hint label for `CLIENT` origin in the evasion hints; no raw traits rendered
-- [ ] 6.4 de/en strings, `i18n.keys.test.ts` parity, nav entry gated by role (`rolePermissions.test.ts`), live regions; verify `npm test` and the type check
+- [x] 6.1 API types and client methods for rules, hits, catalogue and the sightings `via`; fake-client tests
+- [x] 6.2 Failing tests first, then the `ClientRulesView`: list with hit counts, editor per kind, scope picker reusing the section target picker, action selector with deny message and template picker, acknowledgement checkbox and warning for BRAND/MOD/CHANNEL + TEMPLATE, hide option, server errors next to fields, read-only below `ADMIN`, catalogue suggestions with free-text fallback
+- [x] 6.3 Hits list in the view and on the player page, weak-hint label for `CLIENT` origin in the evasion hints; no raw traits rendered
+- [x] 6.4 de/en strings, `i18n.keys.test.ts` parity, nav entry gated by role (`rolePermissions.test.ts`), live regions; verify `npm test` and the type check
 
 ## 7. Docs (PR 7, `docs(client-rules): document client rules and fingerprints`)
 

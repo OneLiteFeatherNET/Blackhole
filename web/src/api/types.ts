@@ -31,6 +31,18 @@ export type AppealConditions = Schemas['AppealConditions']
 /** The CloudNet tasks, groups and services the proxies report, merged; `available` is false when none is known. */
 export type CloudNetCatalogue = Schemas['CatalogueResponse']
 export type Report = Schemas['ReportDTO']
+export type ClientRuleKind = Schemas['ClientRuleKind']
+export type ClientRuleAction = Schemas['ClientRuleAction']
+export type ClientRuleScope = Schemas['ClientRuleScope']
+/** A client rule; the backend leaves empty lists out of its JSON, the API layer fills them in. */
+export type ClientRule = Schemas['ClientRuleResponse']
+/** One hit of a rule: the rule key, the hashed player, when, what the rule did and where. It never carries a client trait. */
+export type ClientRuleHit = Schemas['ClientRuleHit']
+/** The brands, channels, commands and protocol versions the proxies report, for the editor's suggestions. */
+export type ClientRuleCatalogue = Schemas['ClientRuleCatalogueResponse']
+export type ClientRuleCatalogueEntry = Schemas['ClientRuleCatalogueEntry']
+/** Which signal links two accounts: the IP, the client setup only (a weak hint) or both. */
+export type EvasionVia = Schemas['EvasionSightingDTO.Via']
 export type Appeal = Schemas['AppealDTO']
 export type CurrentCaller = Schemas['AuthMeResponse']
 export type Evidence = Schemas['EvidenceResponse']
@@ -129,6 +141,27 @@ export interface TemplateDraft {
   escalationGroup: string | null
   escalationWindow: string | null
   steps: TemplateStep[]
+}
+
+/** What the client rule form submits; the key is fixed once the rule exists. */
+export interface ClientRuleDraft {
+  key: string
+  displayName: string
+  kind: ClientRuleKind
+  enabled: boolean
+  patterns: string[]
+  protocolMin: number | null
+  protocolMax: number | null
+  negate: boolean
+  scope: ClientRuleScope
+  sectionKeys: string[]
+  targetKind: ServerTargetKind
+  servers: string[]
+  action: ClientRuleAction
+  denyMessage: string
+  templateKey: string
+  acknowledgedSpoofable: boolean
+  hideCommand: boolean
 }
 
 /** What the section form submits. */

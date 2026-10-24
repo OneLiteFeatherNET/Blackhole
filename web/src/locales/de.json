@@ -27,7 +27,8 @@
       "appeals": "{n} Einspruch wartet auf Prüfung | {n} Einsprüche warten auf Prüfung",
       "reports": "{n} ungelöste Meldung | {n} ungelöste Meldungen"
     },
-    "appealConditions": "Rahmenbedingungen"
+    "appealConditions": "Rahmenbedingungen",
+    "clientRules": "Client-Regeln"
   },
   "settings": {
     "theme": {
@@ -177,8 +178,17 @@
         "reason": "Grund",
         "shared": "Gemeinsame Adressen",
         "firstSeen": "Zuerst gesehen",
-        "lastSeen": "Zuletzt gesehen"
-      }
+        "lastSeen": "Zuletzt gesehen",
+        "via": "Signal"
+      },
+      "via": {
+        "IP": "Gleiche Netzwerkadresse",
+        "CLIENT": "Gleiches Client-Setup",
+        "BOTH": "Adresse und Client-Setup"
+      },
+      "weak": "(schwacher Hinweis)",
+      "weakNote": "Eine Verknüpfung nur über das Client-Setup ist ein schwacher Hinweis, kein Beweis: Spieler mit demselben Modpack oder Launcher sehen sich ähnlich. Adresse zusammen mit Client-Setup ist das stärkere Signal.",
+      "weakOnly": "Alle hier gelisteten Konten teilen mit diesem Spieler nur das Client-Setup. Das ist ein schwacher Hinweis, kein Beweis: Ein Modpack oder Launcher wird von vielen unabhängigen Spielern benutzt."
     }
   },
   "actions": {
@@ -1288,5 +1298,137 @@
     "conflict": "Die Bedingungen wurden währenddessen von jemand anderem geändert. Die aktuelle Version steht oben; prüfe sie und speichere erneut.",
     "history": "Frühere Versionen",
     "versionLine": "Version {version}, {when}"
+  },
+  "clientRules": {
+    "title": "Client-Regeln",
+    "intro": "Regeln über Client-Brand, Mods, Plugin-Kanäle, Protokollversion und Befehle. Der Proxy wendet sie an; jede Regel kann das Team benachrichtigen, die Verbindung oder den Befehl abweisen oder eine Strafvorlage anwenden.",
+    "honesty": "Brand, Mods und Kanäle wählt der Client selbst und kann sie fälschen: Ein Treffer ist ein Hinweis, kein Beweis, und kein Treffer beweist nichts. Regeln darauf sind Abschreckung und ein Hinweis für das Team. Beginne jede Regel mit Hinweis, lies die Trefferzahlen und stelle sie erst dann auf Abweisen oder Strafe. Nur Protokollversion und Befehle beobachtet der Proxy selbst.",
+    "readOnly": "Nur Administratoren ändern Regeln. Du kannst die Regeln und ihre Treffer lesen.",
+    "new": "Neue Regel",
+    "empty": "Es gibt noch keine Client-Regeln.",
+    "edit": "Bearbeiten",
+    "delete": {
+      "open": "Löschen",
+      "title": "Regel {key} löschen",
+      "body": "Die Regel und ihre erfassten Treffer werden entfernt. Spieler, die dadurch schon bestraft wurden, behalten ihre Strafe.",
+      "confirm": "Löschen"
+    },
+    "deleted": "Regel gelöscht.",
+    "saved": "Regel gespeichert.",
+    "disabledPill": "Deaktiviert",
+    "negated": "alles außer",
+    "hidden": "In der Tab-Vervollständigung versteckt",
+    "acknowledged": "Bestraft auf einen Wert, den der Client fälschen kann (bestätigt)",
+    "hitCount": "Treffer: {n}",
+    "columns": {
+      "rule": "Regel",
+      "match": "Trifft auf",
+      "scope": "Wo",
+      "action": "Aktion",
+      "hits": "Treffer",
+      "actions": "Aktionen"
+    },
+    "kind": {
+      "BRAND": "Brand",
+      "MOD": "Mod",
+      "CHANNEL": "Plugin-Kanal",
+      "PROTOCOL": "Protokollversion",
+      "COMMAND": "Befehl"
+    },
+    "kindHint": {
+      "BRAND": "Der minecraft:brand-Text, den der Client sendet. Er kann gefälscht werden.",
+      "MOD": "Eine Mod-ID aus der alten Forge-Modliste (nur Forge bis 1.12). Sie kann gefälscht werden.",
+      "CHANNEL": "Ein Plugin-Kanal, den der Client registriert hat. Er kann gefälscht werden.",
+      "PROTOCOL": "Die Protokollversion, die der Proxy beobachtet.",
+      "COMMAND": "Das erste Wort einer Befehlszeile, auch bei Befehlen, die an einen Server weitergeleitet werden."
+    },
+    "patternsHint": {
+      "BRAND": "Kommagetrennt. * und ? funktionieren, Groß- und Kleinschreibung ist egal.",
+      "MOD": "Kommagetrennte Mod-IDs oder id@version. * und ? funktionieren.",
+      "CHANNEL": "Kommagetrennte Kanal-IDs wie meteor-client:*.",
+      "COMMAND": "Kommagetrennte Befehlswörter ohne Slash, zum Beispiel op. Auch die Namensraum-Form wie minecraft:op wird erfasst."
+    },
+    "negateHint": {
+      "BRAND": "Trifft jede bekannte Brand außerhalb der Liste (Positivliste). Ein Client ohne Brand wird nicht getroffen.",
+      "PROTOCOL": "Trifft jede Version außerhalb des Bereichs (Positivliste)."
+    },
+    "action": {
+      "NOTIFY": "Team benachrichtigen",
+      "DENY": "Abweisen",
+      "TEMPLATE": "Strafe anwenden"
+    },
+    "actionHint": {
+      "NOTIFY": "Treffer erfassen und das Team informieren. Für den Spieler ändert sich nichts. Nimm das zuerst: Die Trefferzahlen zeigen, was die Regel täte.",
+      "DENY": "Zusätzlich die Verbindung oder den Befehl abweisen, mit der Nachricht unten.",
+      "TEMPLATE": "Zusätzlich eine Strafvorlage automatisch anwenden. Der Spieler kann Einspruch einlegen wie bei jeder automatischen Strafe."
+    },
+    "scope": {
+      "GLOBAL": "Ganzes Netzwerk",
+      "SERVERS": "Auf Server begrenzt"
+    },
+    "editor": {
+      "newTitle": "Neue Client-Regel",
+      "editTitle": "Regel {key} bearbeiten",
+      "key": "Schlüssel",
+      "keyHint": "Kleinbuchstaben, Ziffern und Bindestriche; nach dem Speichern fest. Die Wörter catalogue und hits sind reserviert.",
+      "name": "Name",
+      "kind": "Worauf die Regel trifft",
+      "spoofNote": "Der Client bestimmt diesen Wert und kann ihn fälschen. Ein Treffer ist ein Hinweis, kein Beweis. Einspruch ist bei jeder automatischen Strafe möglich.",
+      "patterns": "Muster",
+      "suggestions": "Im Netzwerk gesehen (Vorschläge)",
+      "noSuggestions": "Gerade gibt es keine Vorschläge. Gib die Werte selbst ein; die Regel funktioniert genauso.",
+      "moreSuggestions": "{shown} von {total} Vorschlägen werden angezeigt.",
+      "players": "{n} Spieler",
+      "protocolMin": "Niedrigste Protokollversion",
+      "protocolMax": "Höchste Protokollversion",
+      "protocolHint": "Protokollnummern, nicht Minecraft-Versionen. Eine Version: dieselbe Nummer zweimal.",
+      "supportedVersions": "Versionen, die dieses Netzwerk unterstützt (Protokoll, Minecraft):",
+      "invalidNumber": "Gib eine ganze Zahl ab 0 ein.",
+      "negate": "Alles außer dem Treffer erfassen",
+      "hideCommand": "Befehl in der Tab-Vervollständigung verstecken",
+      "hideCommandHint": "Nur kosmetisch: Der Befehl wird weiterhin durch die Aktion unten abgewiesen.",
+      "scope": "Wo sie gilt",
+      "sections": "Server-Sektionen",
+      "noSections": "Es gibt keine Server-Sektionen. Trage unten Server ein oder lege zuerst eine Server-Sektion an.",
+      "targetKind": "Eigene Server sind",
+      "targetKindHint": "Optional, zusätzlich zu den Sektionen. Muster passen auf den Servernamen; die anderen sind CloudNet-Namen.",
+      "servers": "Server",
+      "serversHint": "Kommagetrennte Servernamen-Muster, zum Beispiel lobby-*",
+      "action": "Was sie tut",
+      "denyMessage": "Nachricht an den Spieler",
+      "denyMessageHint": "Englisch, reiner Text, höchstens 200 Zeichen. Leer nimmt einen Standardtext.",
+      "template": "Strafvorlage",
+      "templateHint": "Wird einmal angewendet, solange der Spieler eine aktive Strafe dieser Regel hat.",
+      "punishWarning": "Das bestraft auf etwas, das der Client wählt. Jeder kann es fälschen, und ein falscher Treffer bestraft einen Unschuldigen. Nutze es nur, wenn du das in Kauf nimmst.",
+      "acknowledge": "Ich weiß, dass dieser Wert gefälscht werden kann",
+      "acknowledgeRequired": "Bestätige, dass du weißt, dass der Wert gefälscht werden kann.",
+      "enabled": "Aktiv",
+      "enabledHint": "Eine deaktivierte Regel wird nicht angewendet und erfasst keine Treffer.",
+      "save": "Speichern"
+    },
+    "hits": {
+      "title": "Treffer von {key}",
+      "hint": "Wer die Regel ausgelöst hat, wann und was die Regel getan hat. Die Werte, die der Client gesendet hat, werden nie gespeichert. Treffer werden nach einer Aufbewahrungszeit gelöscht; die Zahl oben bleibt.",
+      "empty": "Keine erfassten Treffer (sie laufen nach der Aufbewahrungszeit ab).",
+      "close": "Schließen",
+      "columns": {
+        "player": "Spieler",
+        "rule": "Regel",
+        "at": "Wann",
+        "action": "Aktion",
+        "status": "Ergebnis",
+        "server": "Server"
+      },
+      "status": {
+        "enforced": "Durchgesetzt",
+        "bypassed": "Ausgenommen (Team)",
+        "notified": "Team benachrichtigt"
+      }
+    },
+    "player": {
+      "title": "Client-Regel-Treffer",
+      "hint": "Regeln, die dieser Spieler zuletzt ausgelöst hat. Die Werte, die der Client gesendet hat, werden nicht gespeichert.",
+      "empty": "Keine Client-Regel-Treffer für diesen Spieler."
+    }
   }
 }
