@@ -20,21 +20,21 @@ Stacked PRs: `feat(discord): add the discord account link api` (V14, client spec
 
 ## 1. Entra role and backend facade foundation (PR 1, `feat(discord)`)
 
-- [ ] 1.1 Failing tests first: `Blackhole.Discord` maps to `Roles.DISCORD` from app-only tokens only, DISCORD allowed nowhere but `/discord/**`, staff and PROXY denied there
-- [ ] 1.2 `Roles.DISCORD`, `BlackholeRolesFinder`, `@Secured` constants, matrix rows in `PermissionMatrixIntegrationTest` and `RouteCoverageIntegrationTest`
-- [ ] 1.3 Migration `V16__discord_tickets.sql` (next free version): `case_participant`, `discord_ticket`, `discord_message_link` (the link table shipped in phase 0); migration test (constraints, cascade)
-- [ ] 1.4 Extend `docs/entra-setup.sh` (app role, `Blackhole Discord (<env>)` registration, assignment, secret, `BLACKHOLE_DISCORD_*` env lines; still idempotent) and `docs/entra-setup.md` (objects table, where each value goes); `bash -n` and a dry read-through
-- [ ] 1.5 Regenerate the client spec (`client/specs/blackhole-api-0.0.N.yml`, next free number, bump `inputSpec`) after PR 2; update `.claude/rules` (security matrix)
+- [x] 1.1 Failing tests first: `Blackhole.Discord` maps to `Roles.DISCORD` from app-only tokens only, DISCORD allowed nowhere but `/discord/**`, staff and PROXY denied there
+- [x] 1.2 `Roles.DISCORD`, `BlackholeRolesFinder`, `@Secured` constants, matrix rows in `PermissionMatrixIntegrationTest` and `RouteCoverageIntegrationTest`
+- [x] 1.3 Migration `V18__discord_tickets.sql` (V16 is the public API change's, V17 the protocol's): `case_participant`, `discord_ticket`, `discord_message_link` (phase 0 shipped `discord_link` only, not the message link table); migration test (constraints, cascade)
+- [x] 1.4 Extend `docs/entra-setup.sh` (app role, `Blackhole Discord (<env>)` registration, assignment, secret, `BLACKHOLE_DISCORD_*` env lines; still idempotent) and `docs/entra-setup.md` (objects table, where each value goes); `bash -n` and a dry read-through
+- [x] 1.5 Regenerate the client spec (`client/specs/blackhole-api-0.0.N.yml`, next free number, bump `inputSpec`) after PR 2; update `.claude/rules` (security matrix)
 
 ## 2. Ticket and ingest API (PR 2, `feat(discord)`)
 
-- [ ] 2.1 Failing tests first: open (uniform failure incl. bound-to-other and leaked, statement rules, `availableFrom`, bound participant), author resolution table, dedupe keys, edit only when text differs, delete incl. `contentUnavailable`, rescan insert/edit/delete detection, completeness 409 vs success, `close` stores a protocol and answers its version (503 when storing fails), archive and delete refused with 409 `PROTOCOL_REQUIRED` without a current protocol, `protocol/ensure` after a late edit, staff links list, outbox cursor, link advances `relayed_seq`, leak-check match and non-match, no Discord id or Ban ID in events or logs
-- [ ] 2.2 `discord/` backend package: `DiscordApi` + thin controllers (`@Version(ApiVersion.V1)`), sealed DTOs, `TicketService`, `DiscordIngestService` (CTE per batch item: event + link + cursor), `LeakCheckService` (reuses the portal change's leak CTE with source `DISCORD_BOT` and poster fields)
-- [ ] 2.3 New payloads `ticket.opened`, `ticket.transcript_complete`, `ticket.archived`, `ticket.channel_deleted`, attachment/embed metadata in `message.added`; portal allow-list gets opened/closed only; redaction covers attachment metadata
-- [ ] 2.4 Participant erasure route (`ADMIN`) and the player-side erase of the portal change clears the bound participant; staff-link confirm/unlink for Discord with the existing one-to-one rules
-- [ ] 2.4a Wire the portal change's protocol generator into `POST /discord/tickets/{id}/close` (same request as the completeness proof), `protocol/ensure` (forced), and the `ARCHIVED`/`DELETED` state gates; `GET /discord/staff-links`
-- [ ] 2.5 Domain events `discord.ticket_*` (no content) and a durable-queue note in `.claude/rules/events.md`; config `blackhole.discord.*` documented in `application.yml`
-- [ ] 2.6 Regenerate the client spec; verify `./gradlew :backend:test :client:compileJava`
+- [x] 2.1 Failing tests first: open (uniform failure incl. bound-to-other and leaked, statement rules, `availableFrom`, bound participant), author resolution table, dedupe keys, edit only when text differs, delete incl. `contentUnavailable`, rescan insert/edit/delete detection, completeness 409 vs success, `close` stores a protocol and answers its version (503 when storing fails), archive and delete refused with 409 `PROTOCOL_REQUIRED` without a current protocol, `protocol/ensure` after a late edit, staff links list, outbox cursor, link advances `relayed_seq`, leak-check match and non-match, no Discord id or Ban ID in events or logs
+- [x] 2.2 `discord/` backend package: `DiscordApi` + thin controllers (`@Version(ApiVersion.V1)`), sealed DTOs, `TicketService`, `DiscordIngestService` (CTE per batch item: event + link + cursor), `LeakCheckService` (reuses the portal change's leak CTE with source `DISCORD_BOT` and poster fields)
+- [x] 2.3 New payloads `ticket.opened`, `ticket.transcript_complete`, `ticket.archived`, `ticket.channel_deleted`, attachment/embed metadata in `message.added`; portal allow-list gets opened/closed only; redaction covers attachment metadata
+- [x] 2.4 Participant erasure route (`ADMIN`) and the player-side erase of the portal change clears the bound participant; staff-link confirm/unlink for Discord with the existing one-to-one rules
+- [x] 2.4a Wire the portal change's protocol generator into `POST /discord/tickets/{id}/close` (same request as the completeness proof), `protocol/ensure` (forced), and the `ARCHIVED`/`DELETED` state gates; `GET /discord/staff-links`
+- [x] 2.5 Domain events `discord.ticket_*` (no content) and a durable-queue note in `.claude/rules/events.md`; config `blackhole.discord.*` documented in `application.yml`
+- [x] 2.6 Regenerate the client spec; verify `./gradlew :backend:test :client:compileJava`
 
 ## 3. The `discord` module (PR 3, `feat(discord)`)
 
