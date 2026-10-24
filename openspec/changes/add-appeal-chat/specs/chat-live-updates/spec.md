@@ -73,7 +73,7 @@ A case change signal SHALL be raised after every append of a case event that a r
 - **THEN** the surface test fails
 
 ### Requirement: Fan-out across replicas
-The hub SHALL depend only on a `ChangeSignalTransport` port. An in-process transport MUST exist for a single replica and tests. A bus adapter MUST use a transient, non-durable subscription per replica on the event bus that is on `main` when the work is done, and the design dependency on `switch-event-bus-to-nats` MUST be resolved by writing the NATS adapter if that change has merged. Without a bus adapter the clients' safety poll MUST bound the delay to 30 seconds.
+The hub SHALL depend only on a `ChangeSignalTransport` port. An in-process transport MUST exist for a single replica and tests. The bus adapter MUST be a transient, non-durable core NATS subscription per replica (`micronaut-nats` 5.0.0 from the BOM, change `switch-event-bus-to-nats`) and ships in its own PR after the in-process transport. No RabbitMQ adapter is written. Without a bus adapter the clients' safety poll MUST bound the delay to 30 seconds.
 
 #### Scenario: Two replicas
 - **WHEN** replica A raises a signal for a case and replica B holds a stream for it

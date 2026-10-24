@@ -74,7 +74,7 @@ now show formatting.
 
 ### Modified Capabilities
 
-- `punishment-evidence`: provenance, the chat upload profile, counting, erasure of player files.
+- `punishment-evidence`: provenance, the chat upload profile, a separate player-supplied figure that is not part of the team evidence count, erasure of player files.
 - `admin-web-ui`: the conversation section as a chat, the share dialog, the provenance label.
 
 ## Impact

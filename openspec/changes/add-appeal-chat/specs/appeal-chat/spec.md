@@ -104,11 +104,11 @@ Every served chat file SHALL carry the detected `Content-Type`, `X-Content-Type-
 - **THEN** it is served `inline` with the same safety headers
 
 ### Requirement: Provenance and evidence
-A chat file SHALL be a case evidence item of kind `FILE`. A player's file MUST have provenance `PLAYER`, a staff member's `STAFF`. Player-supplied files MUST count toward the evidence of the case and MUST be labelled "player-supplied, unverified" wherever evidence is shown. Events and payloads MUST NOT carry file bytes, storage keys or hashes.
+A chat file SHALL be a case evidence item of kind `FILE`. A player's file MUST have provenance `PLAYER`, a staff member's `STAFF`. Player-supplied files MUST NOT count in the evidence number shown outside the panel and MUST be labelled "player-supplied, unverified" wherever evidence is shown. Events and payloads MUST NOT carry file bytes, storage keys or hashes.
 
-#### Scenario: Counted and labelled
+#### Scenario: Labelled, not counted
 - **WHEN** a player sends a message with two files
-- **THEN** the case evidence count rises by two, the count answer reports `playerSupplied: 2`, and the panel labels both
+- **THEN** the team evidence count is unchanged, the count answer reports `playerSupplied: 2`, and the panel labels both
 
 #### Scenario: Event content
 - **WHEN** the `case.message_added` event for that message is published

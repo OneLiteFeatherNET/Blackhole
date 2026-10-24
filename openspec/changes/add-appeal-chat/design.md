@@ -48,8 +48,8 @@ text nodes, so `noMarkup.test.ts` keeps passing and gains a rule that the render
 links the same module. The conformance corpus (`markdown/src/test/resources/corpus/*.json`: source, expected tree, expected
 Discord text, expected plain text) is the one spec of behaviour; the TS components have their own tests on hostile *trees*.
 
-Cost: no live preview in the composer (the client has no parser). Accepted for v1; a `POST /public/markdown/preview` route is
-a follow-up if wanted. Messages are re-parsed on each read; they are at most 2000 characters, parsing is linear, no cache.
+Cost: no live preview in the composer (the client has no parser). Decided 2026-10-24: none in v1, only a formatting hint under
+the composer; a `POST /public/markdown/preview` route can come later. Messages are re-parsed on each read; they are at most 2000 characters, parsing is linear, no cache.
 
 **The subset** (everything else is literal text, never an error):
 
@@ -73,8 +73,11 @@ source at most the existing message limit. The parser never throws and never loo
 space, backslash or `<>"`, parses as `java.net.URI` with scheme exactly `http` or `https` (case-insensitive), has a non-empty
 ASCII or punycode host, no user info (`user:pass@`), and a port in 1..65535. The tree carries the *normalised* absolute
 URL. Otherwise the whole `[text](target)` stays literal text. Nothing is ever fetched or unfurled by the server (so there is no
-SSRF surface; principle 5 stays satisfied). `external` is true unless the host is one of `blackhole.chat.links.trusted-hosts`
-(exact host match, default `onelitefeather.net`); the clients put every external link behind the interstitial.
+SSRF surface; principle 5 stays satisfied). `external` is false only when the host equals `onelitefeather.net` or is a true subdomain of it (the host ends with
+`.onelitefeather.net`, the dot included), decided 2026-10-24; `evilonelitefeather.net`, `onelitefeather.net.evil.example` and
+`onelitefeather.net@evil.example` are external. The host is compared after normalisation (lower case, no trailing dot). The list
+is `blackhole.chat.links.trusted-domains` (default `onelitefeather.net`, an empty list makes every link external). The clients put
+every external link behind the interstitial.
 Deceptive link text (the visible text looks like another URL): the clients always show the target host next to the link text.
 
 **Interstitial.** Portal and panel each have a route `/leave`. The link is `/leave#<base64url of the URL>`: the URL travels in
@@ -95,7 +98,7 @@ function; the JSON `schemaVersion` becomes 2 because entries gain fields.
 
 ### 2. Attachments: evidence items, staged then bound
 
-A chat file is an `evidence_item` of kind `FILE`, so it counts as evidence, follows the punishment's lifetime and uses the
+A chat file is an `evidence_item` of kind `FILE`, so it is case evidence, follows the punishment's lifetime and uses the
 existing store, audit and status handling. New column `provenance` (`STAFF` 0, `PLAYER` 1, ordinal, append-only enum; default
 0 so every existing row is staff evidence).
 
@@ -179,12 +182,13 @@ text ("do not upload files that show other people's personal data") and the file
 
 ### 5. Provenance, counting, labelling
 
-Player-supplied files count toward the evidence of the case (`countValid` includes them) and are labelled **player-supplied,
-unverified** wherever evidence is shown: the DTO gains `provenance` and the count answers gain `playerSupplied`, the panel
-shows a badge, the case header shows "5 (2 player-supplied)". A staff chat upload is `STAFF` provenance and, after the
-message is posted, is visible to the player; the panel warns before send. Because the count appears on the Velocity denial
-screen, a player can raise the number shown to themselves; it is a number, it reveals nothing, and the panel distinguishes
-(accepted, recorded under Risks). A revoke or a full-lift appeal marks these items like any other evidence.
+Player-supplied files are evidence of the case and are labelled **player-supplied, unverified** wherever evidence is shown:
+the DTO gains `provenance`, the panel shows a badge and lists them separately. **They do not count in the evidence number that
+leaves the panel** (decided 2026-10-24): `countValid` and `GET /punishment/{ref}/evidence/count`, which the Velocity ban
+screen reads, count `STAFF` provenance only, so a banned player cannot change the number on their own ban screen. The count
+answers gain `playerSupplied` (a separate figure), and the panel shows the breakdown, "3 team, 2 player-supplied". Punishment
+DTOs keep `evidenceCount` as the team figure. A staff chat upload is `STAFF` provenance and, after the message is posted, is
+visible to the player; the panel warns before send. A revoke or a full-lift appeal marks these items like any other evidence.
 
 **Erasure.** A redaction of a message also deletes the message's evidence items and blobs (reason `ERASURE`); the player-side
 erase (`erasePlayerMessages`) deletes every `PLAYER`-provenance chat file of the case; the cascade with the punishment is
@@ -290,10 +294,11 @@ fanout exchange; NATS: a core subscription, which is at-most-once and cheap). Du
 than the stream is useless.
 
 **Dependency on `switch-event-bus-to-nats`.** The domain code depends only on the port. At the start of the `feat(appeal)` PR
-check which bus is on `main`: if the NATS change has merged, write only the NATS adapter; if not, ship `InProcessTransport`
-(exact on one replica) and add the bus adapter as the PR's last task against the interface of that change, saying in the PR
-that multi-replica live updates need it (until then a signal raised on another replica is picked up by the client's safety
-poll, at most 30 s later). No RabbitMQ-specific adapter is written if NATS is about to replace it.
+ship `InProcessTransport` (exact on one replica) and say in the PR that multi-replica live updates need the bus adapter.
+Decided 2026-10-24: the adapter follows afterwards as its own small PR. `switch-event-bus-to-nats` (#314) is decided: the backend
+uses `micronaut-nats` 5.0.0 through the BOM, and the adapter is a core NATS subscription (not JetStream) on a subject such as
+`blackhole.live.case`, using whichever publisher abstraction that change introduces. Until it lands a signal raised on another
+replica is picked up by the client's safety poll, at most 30 s later. No RabbitMQ-specific adapter is written.
 
 **Resource bounds (state caps, not rate limits).** One stream per session (a new one closes the old with `event: replaced`),
 `blackhole.chat.live.max-streams` per replica (default 2000; beyond it 503 and the client polls), keep-alive every 15 s, and a
@@ -444,10 +449,11 @@ Events need no migration (`type` is text). The new case event types are added to
 - **Active content in a PDF or text file** is the main residual risk: mitigated by delivery (attachment, sandbox CSP, nosniff, a
   separate origin per app), ClamAV and the best-effort token refusal; not by parsing PDFs. Stated in the docs.
 - **Stale virus signatures:** a file clean today may be flagged tomorrow. A rescan job is not in this change.
-- **Player-supplied files in the denial-screen count** and audit noise (a thumbnail view writes a `VIEWED` row): accepted; a
-  dedupe window for chat thumbnails is a follow-up if the audit table grows.
+- **Audit noise** (a thumbnail view writes a `VIEWED` row): accepted; a dedupe window for chat thumbnails is a follow-up if the
+  audit table grows.
 - **Old messages are re-rendered as Markdown.** Rare; no migration.
-- **No live preview** because there is one parser. Mitigation: a short formatting hint under the composer; a preview route later.
+- **No live preview** (decided 2026-10-24) because there is one parser. Mitigation: a formatting hint under the composer; a
+  preview route later.
 - **Cross-replica latency until the bus adapter exists:** up to 30 s through the safety poll; a single replica is exact.
 - **A share the player already saw** cannot be recalled; the dialog says so.
 - **SSE and the Cloudflare timeout** values come from third-party reports; the first BFF task is a spike on the real tunnel.
@@ -473,3 +479,13 @@ by older code. Existing evidence rows keep `STAFF` provenance.
    event bus behind an abstract port (decisions 8 to 10).
 6. Discord relays attachments and Markdown both ways (decision 11).
 7. Player-facing strings are English only.
+
+Settled later on 2026-10-24 (the four open questions of the proposal PR):
+
+8. **Evidence count:** player-supplied files do not count in the evidence number on the Velocity ban screen or the proxy count
+   route; only team evidence counts. The panel shows the breakdown with player-supplied files separate (decision 5).
+9. **Markdown preview:** none in v1; only a formatting hint under the composer. The preview route can come later (decision 1).
+10. **Trusted link hosts:** only `onelitefeather.net` and its true subdomains skip the interstitial, never a suffix match such as
+    `evilonelitefeather.net`; this is tested (decision 1).
+11. **NATS adapter:** the in-process transport ships in PR 4 and the NATS adapter follows in its own PR. `switch-event-bus-to-nats`
+    (#314) is decided; the backend uses `micronaut-nats` 5.0.0 through the BOM (decision 9).

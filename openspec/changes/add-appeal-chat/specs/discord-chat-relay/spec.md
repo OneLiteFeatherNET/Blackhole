@@ -70,4 +70,4 @@ Accepted files of the bound player and of verified staff SHALL be evidence of pr
 
 #### Scenario: Count
 - **WHEN** the player posts two accepted files in the channel
-- **THEN** the case's player-supplied count rises by two
+- **THEN** the case's player-supplied figure rises by two and the team evidence count is unchanged

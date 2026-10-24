@@ -12,10 +12,10 @@ Migration versions and the client spec number are the next free ones on `main` r
 
 - [ ] 2.1 Failing tests first: the conformance corpus, the hostile corpus (every case: no non-http(s) link, no raw HTML, no throw,
   bounded output, step-counted linear time), the seeded random-input test, `DiscordRenderer` and `PlainTextRenderer` expectations,
-  the Discord round trip, `LinkRules` table, conversation entry carries `text` and `blocks`, `MessageRules` apply to link targets
+  the Discord round trip, `LinkRules` table, trusted-domain matching (`onelitefeather.net` and `appeal.onelitefeather.net` trusted; `evilonelitefeather.net`, `onelitefeather.net.evil.example`, `onelitefeather.net@evil.example` not), conversation entry carries `text` and `blocks`, `MessageRules` apply to link targets
 - [ ] 2.2 New Gradle module `markdown` (no dependencies): `MarkdownParser`, sealed `Node`, `LinkRules`, renderers; add to
   `settings.gradle.kts`, `backend` and `discord`
-- [ ] 2.3 Backend: `MessageContent` builds `blocks`; `blackhole.chat.links.trusted-hosts`; public and staff conversation DTOs gain
+- [ ] 2.3 Backend: `MessageContent` builds `blocks`; `blackhole.chat.links.trusted-domains`; public and staff conversation DTOs gain
   `blocks`; `ProtocolRenderer`/`TranscriptRenderer` keep the source, JSON `schemaVersion` 2 with `format: "markdown"` (adapt
   `ProtocolModel` tests and the digest test)
 - [ ] 2.4 Update `.claude/rules` (case-timeline, public-api), regenerate the client spec and bump `inputSpec`; verify
@@ -26,7 +26,7 @@ Migration versions and the client spec number are the next free ones on `main` r
 - [ ] 3.1 Failing tests first: pipeline profiles (every type, sniffing, polyglot, EXIF/XMP removal for JPEG and WebP, WebP trailing
   bytes and animation, PDF active content and `/Encrypt`, TXT UTF-8 and `<svg`, flagged 422, scanner down 503, size, name
   sanitising), staged items invisible, claim in `appendMessage` (idempotency, foreign id, six files, text-less message), quota,
-  provenance migration (existing rows `STAFF`), count breakdown, redaction and player erase delete files, share rules (kinds,
+  provenance migration (existing rows `STAFF`), count breakdown (team count and the proxy count route exclude player files; `playerSupplied` separate), redaction and player erase delete files, share rules (kinds,
   confirmation, relabelling, offsets, 20 lines, UUID/IP line, repeat, revoke twice, evidence deleted gives `UNAVAILABLE`), event
   payloads carry no content, route roles in `RouteCoverageIntegrationTest` and `PermissionMatrixIntegrationTest`, protocol markers
 - [ ] 3.2 Migration `V<next>__chat_attachments_and_shares.sql`: `evidence_item.provenance`, table `evidence_share` with the unique
@@ -50,10 +50,14 @@ Migration versions and the client spec number are the next free ones on `main` r
   `V<next>__player_seen.sql`
 - [ ] 4.3 `live/`: `LiveHub`, `ChangeSignalTransport`, `InProcessTransport`, `CaseChangeNotifier` hooked into the case writers;
   `GET /public/conversation/events` and `GET /case/{reference}/events`
-- [ ] 4.4 Check the state of `switch-event-bus-to-nats`: if merged write the NATS transient-subscription adapter, otherwise ship
-  the in-process transport and note the dependency in the PR; `blackhole.chat.live.*` config
+- [ ] 4.4 Ship the in-process transport only and note in the PR that multi-replica updates wait for the NATS adapter (task 4.6);
+  `blackhole.chat.live.*` config
 - [ ] 4.5 Update `.claude/rules` (public-api amended "own punishment only", events, security), regenerate the client spec; verify
   `./gradlew :backend:test :client:compileJava`
+
+- [ ] 4.6 Follow-up PR (`feat(appeal)`), after `switch-event-bus-to-nats` (#314) has merged: failing two-replica test with a real
+  NATS container, then `NatsChangeSignalTransport` on a core subscription with `micronaut-nats` 5.0.0 from the BOM; update
+  `.claude/rules/events.md`
 
 ## 5. Portal (PR 5, `feat(portal)`)
 
@@ -61,7 +65,7 @@ Migration versions and the client spec number are the next free ones on `main` r
   not reached with a 15 s keep-alive); record the result in the PR; adjust the design if it differs
 - [ ] 5.2 Failing tests first: BFF allow-list (multipart upload with size cap and CSRF, binary download streaming and headers,
   SSE pass-through and 401), error-code mapping, tree renderer with hostile trees, `safeHttpUrl` with the corpus, interstitial,
-  bubbles and grouping, composer (attach, drop, paste, chip states, counter, Send disabled), image lightbox, PDF/TXT cards, share
+  bubbles and grouping, formatting hint under the composer (no preview), composer (attach, drop, paste, chip states, counter, Send disabled), image lightbox, PDF/TXT cards, share
   cards, polling fallback timings with fake timers, `noMarkup.test.ts` still green, no browser storage
 - [ ] 5.3 Contract and BFF: routes, streaming helpers, CSP `img-src 'self' blob:`, English strings; chat components; `/leave`
 - [ ] 5.4 Verify `npm test` and the type check in `portal/`
@@ -100,5 +104,5 @@ Migration versions and the client spec number are the next free ones on `main` r
 - [ ] 9.2 Open the pull requests as small stacked PRs under these titles: `docs(openspec): propose the appeal chat`,
   `feat(case): add markdown rendering to case messages`, `feat(case): attach files to messages and share evidence`,
   `feat(appeal): add public chat files and live updates`, `feat(portal): turn the appeal conversation into a chat`,
-  `feat(web): add the chat view and evidence sharing to the case page`, `feat(discord): relay chat files and markdown`,
+  `feat(web): add the chat view and evidence sharing to the case page`, `feat(discord): relay chat files and markdown`, after the bus change `feat(appeal): relay live signals over nats`,
   `docs(appeal): document the appeal chat operations`

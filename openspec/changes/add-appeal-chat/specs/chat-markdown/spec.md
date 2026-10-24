@@ -39,9 +39,13 @@ A link SHALL be accepted only when its target, after trimming, has at most 2048 
 - **WHEN** a message contains `[docs](https://example.org/a?b=1)`, `<https://example.org>` or a bare `https://example.org/path`
 - **THEN** each becomes a `link` node with `href` set to the normalised URL
 
-#### Scenario: Trusted host
-- **WHEN** a link points to a host in `blackhole.chat.links.trusted-hosts`
-- **THEN** the node has `external: false`; every other link has `external: true`
+#### Scenario: Trusted domain
+- **WHEN** a link points to `onelitefeather.net` or a true subdomain such as `appeal.onelitefeather.net`
+- **THEN** the node has `external: false`
+
+#### Scenario: Look-alike hosts
+- **WHEN** a link points to `evilonelitefeather.net`, `onelitefeather.net.evil.example` or `https://onelitefeather.net@evil.example/`
+- **THEN** the node is not trusted: it has `external: true`, or is literal text when it has user info
 
 ### Requirement: Source is stored, output is derived
 The system SHALL store the message exactly as written and derive every rendering from it on read. A renderer or parser change MUST NOT change any stored row. The conversation answer MUST carry both the source `text` and the sanitised `blocks`.

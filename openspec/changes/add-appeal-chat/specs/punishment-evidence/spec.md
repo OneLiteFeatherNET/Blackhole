@@ -1,12 +1,12 @@
 # Spec Delta
 
 ## Purpose
-Adds provenance and a chat upload profile to evidence, and counts player-supplied files.
+Adds provenance and a chat upload profile to evidence, and reports player-supplied files separately from the team evidence count.
 
 ## ADDED Requirements
 
 ### Requirement: Evidence provenance
-Every evidence item SHALL have a provenance, `STAFF` or `PLAYER`, stored as an append-only ordinal with default `STAFF`. Existing items MUST become `STAFF`. Evidence responses MUST include the provenance and the count responses MUST include the number of player-supplied items. The count of valid evidence MUST include player-supplied items.
+Every evidence item SHALL have a provenance, `STAFF` or `PLAYER`, stored as an append-only ordinal with default `STAFF`. Existing items MUST become `STAFF`. Evidence responses MUST include the provenance and the count responses MUST include the number of player-supplied items. The count of valid evidence, including the proxy count route read by the ban screen, MUST count `STAFF` items only; player-supplied items MUST be reported separately.
 
 #### Scenario: Migration
 - **WHEN** the migration runs on a database with evidence
@@ -14,7 +14,7 @@ Every evidence item SHALL have a provenance, `STAFF` or `PLAYER`, stored as an a
 
 #### Scenario: Count breakdown
 - **WHEN** a case has three staff items and two player-supplied items
-- **THEN** the valid count is 5 and `playerSupplied` is 2
+- **THEN** the valid count is 3 and `playerSupplied` is 2
 
 ### Requirement: Upload profiles
 The upload pipeline SHALL have an `EVIDENCE` profile with today's behaviour and a `CHAT` profile with the chat types and limits. A profile MUST NOT change the other's allowed types, and both MUST scan first and fail closed.
