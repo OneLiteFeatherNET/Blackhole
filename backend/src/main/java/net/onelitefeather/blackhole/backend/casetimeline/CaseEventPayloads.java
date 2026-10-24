@@ -82,16 +82,18 @@ public final class CaseEventPayloads {
                     Map<String, Object> author = map(body, "author");
                     yield new CaseEventPayload.MessageAdded(required(text(body, "messageId")), text(body, "appealId"),
                             MessageAuthorKind.valueOf(required(text(author, "kind"))), text(author, "participantId"),
-                            MessageChannel.valueOf(required(text(body, "channel"))), text(body, "text"));
+                            MessageChannel.valueOf(required(text(body, "channel"))), text(body, "text"),
+                            attachments(body), embeds(body));
                 }
                 case CaseEventPayload.MESSAGE_EDITED -> new CaseEventPayload.MessageEdited(required(text(body, "messageId")), text(body, "text"));
                 case CaseEventPayload.MESSAGE_DELETED -> new CaseEventPayload.MessageDeleted(
-                        required(text(body, "messageId")), MessageAuthorKind.valueOf(required(text(body, "deletedBy"))));
+                        required(text(body, "messageId")), MessageAuthorKind.valueOf(required(text(body, "deletedBy"))),
+                        flag(body, "contentUnavailable"), flag(body, "detectedAtCatchup"));
                 case CaseEventPayload.MESSAGE_REDACTED -> new CaseEventPayload.MessageRedacted(
                         required(text(body, "messageId")), required(text(body, "reason")));
                 case CaseEventPayload.BAN_ID_LEAK_MARKED -> new CaseEventPayload.BanIdLeakMarked(
                         BanIdLeakReason.valueOf(required(text(body, "reason"))), BanIdLeakSource.valueOf(required(text(body, "source"))),
-                        flag(body, "afterFiling"));
+                        flag(body, "afterFiling"), text(body, "poster"), body.get("posterIsOwner") instanceof Boolean owner ? owner : null);
                 case CaseEventPayload.BAN_ID_REISSUED -> new CaseEventPayload.BanIdReissued(
                         BanIdReissueReason.valueOf(required(text(body, "reason"))), required(integer(body, "fromGeneration")),
                         required(integer(body, "toGeneration")));
@@ -100,12 +102,50 @@ public final class CaseEventPayloads {
                 case CaseEventPayload.PROTOCOL_STORED -> new CaseEventPayload.ProtocolStored(
                         required(text(body, "appealId")), required(integer(body, "version")), required(text(body, "evidenceId")),
                         required(integer(body, "entries")), required(text(body, "digest")));
+                case CaseEventPayload.TICKET_OPENED -> new CaseEventPayload.TicketOpened(
+                        required(text(body, "ticketId")), required(text(body, "appealId")), required(number(body, "ticketNo")));
+                case CaseEventPayload.TICKET_TRANSCRIPT_COMPLETE -> new CaseEventPayload.TicketTranscriptComplete(
+                        required(text(body, "ticketId")), required(text(body, "appealId")), required(integer(body, "count")),
+                        text(body, "lastMessageId"), required(integer(body, "edits")), required(integer(body, "deletes")));
+                case CaseEventPayload.TICKET_ARCHIVED -> new CaseEventPayload.TicketArchived(
+                        required(text(body, "ticketId")), required(text(body, "appealId")), required(integer(body, "protocolVersion")));
+                case CaseEventPayload.TICKET_CHANNEL_DELETED -> new CaseEventPayload.TicketChannelDeleted(
+                        required(text(body, "ticketId")), required(text(body, "appealId")), flag(body, "transcriptComplete"),
+                        number(body, "lastRecordedMessageAt"));
                 default -> null;
             };
             return typed != null ? typed : new CaseEventPayload.Unknown(type, version, body);
         } catch (IllegalArgumentException | ClassCastException e) {
             return new CaseEventPayload.Unknown(type, version, body);
         }
+    }
+
+    private static List<MessageAttachment> attachments(Map<String, Object> body) {
+        List<MessageAttachment> found = new java.util.ArrayList<>();
+        if (body.get("attachments") instanceof List<?> list) {
+            for (Object item : list) {
+                if (item instanceof Map<?, ?> raw) {
+                    @SuppressWarnings("unchecked") Map<String, Object> map = (Map<String, Object>) raw;
+                    String kind = text(map, "kind");
+                    found.add(new MessageAttachment(kind == null ? MessageAttachment.FILE : kind, text(map, "id"), text(map, "name"),
+                            text(map, "contentType"), number(map, "size"), integer(map, "width"), integer(map, "height")));
+                }
+            }
+        }
+        return found;
+    }
+
+    private static List<MessageEmbed> embeds(Map<String, Object> body) {
+        List<MessageEmbed> found = new java.util.ArrayList<>();
+        if (body.get("embeds") instanceof List<?> list) {
+            for (Object item : list) {
+                if (item instanceof Map<?, ?> raw) {
+                    @SuppressWarnings("unchecked") Map<String, Object> map = (Map<String, Object>) raw;
+                    found.add(new MessageEmbed(required(text(map, "type")), text(map, "host")));
+                }
+            }
+        }
+        return found;
     }
 
     private static <T> T required(@Nullable T value) {

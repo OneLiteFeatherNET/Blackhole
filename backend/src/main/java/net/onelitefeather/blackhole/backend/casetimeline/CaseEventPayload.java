@@ -44,16 +44,21 @@ public sealed interface CaseEventPayload {
     String BAN_ID_REISSUED = "ban_id.reissued";
     String TRANSCRIPT_EXPORTED = "transcript.exported";
     String PROTOCOL_STORED = "protocol.stored";
+    String TICKET_OPENED = "ticket.opened";
+    String TICKET_TRANSCRIPT_COMPLETE = "ticket.transcript_complete";
+    String TICKET_ARCHIVED = "ticket.archived";
+    String TICKET_CHANNEL_DELETED = "ticket.channel_deleted";
 
     /**
      * The only event types a player-facing reader may return, on top of the {@code PLAYER} visibility
      * filter. Both are applied in the query itself, so a type added later is invisible to players until
      * it is listed here. The lifecycle events {@code appeal.filed} and {@code appeal.decided} are listed but
      * written with {@code STAFF} visibility, so they pass through {@link #PORTAL_ANY_VISIBILITY_TYPES}
-     * instead (decision of the public API change).
+     * instead (decision of the public API change). Of the ticket markers only "opened" and "closed"
+     * ({@code ticket.transcript_complete}) are listed; archived and deleted are staff facts.
      */
     List<String> PORTAL_VISIBLE_TYPES = List.of(MESSAGE_ADDED, MESSAGE_EDITED, MESSAGE_DELETED, MESSAGE_REDACTED,
-            APPEAL_FILED, APPEAL_DECIDED, BAN_ID_LEAK_MARKED, BAN_ID_REISSUED);
+            APPEAL_FILED, APPEAL_DECIDED, BAN_ID_LEAK_MARKED, BAN_ID_REISSUED, TICKET_OPENED, TICKET_TRANSCRIPT_COMPLETE);
 
     /**
      * The lifecycle facts a player sees whatever the event's visibility: the player's own appeal was filed and
@@ -431,7 +436,20 @@ public sealed interface CaseEventPayload {
      * kind, channel and ids stay. The one payload (with the edit) that holds a player's words.
      */
     record MessageAdded(String messageId, @Nullable String appealId, MessageAuthorKind authorKind, @Nullable String participantId,
-                        MessageChannel channel, @Nullable String text) implements CaseEventPayload {
+                        MessageChannel channel, @Nullable String text, List<MessageAttachment> attachments, List<MessageEmbed> embeds)
+            implements CaseEventPayload {
+
+        public MessageAdded {
+            attachments = attachments == null ? List.of() : List.copyOf(attachments);
+            embeds = embeds == null ? List.of() : List.copyOf(embeds);
+        }
+
+        /** A message without attachments or embeds, which is every portal and panel message. */
+        public MessageAdded(String messageId, @Nullable String appealId, MessageAuthorKind authorKind, @Nullable String participantId,
+                            MessageChannel channel, @Nullable String text) {
+            this(messageId, appealId, authorKind, participantId, channel, text, List.of(), List.of());
+        }
+
         @Override
         public String type() {
             return MESSAGE_ADDED;
@@ -453,6 +471,12 @@ public sealed interface CaseEventPayload {
             map.put("author", author);
             map.put("channel", channel.name());
             put(map, "text", text);
+            if (!attachments.isEmpty()) {
+                map.put("attachments", attachments.stream().map(MessageAttachment::toMap).toList());
+            }
+            if (!embeds.isEmpty()) {
+                map.put("embeds", embeds.stream().map(MessageEmbed::toMap).toList());
+            }
             return map;
         }
     }
@@ -478,8 +502,18 @@ public sealed interface CaseEventPayload {
         }
     }
 
-    /** A message was deleted; the earlier versions stay. {@code deletedBy} is the kind of author who deleted it. */
-    record MessageDeleted(String messageId, MessageAuthorKind deletedBy) implements CaseEventPayload {
+    /**
+     * A message was deleted; the earlier versions stay. {@code deletedBy} is the kind of author who deleted it.
+     * {@code contentUnavailable}: the message was never recorded, so there is no text. {@code detectedAtCatchup}: the
+     * deletion was noticed by a full rescan, not seen when it happened.
+     */
+    record MessageDeleted(String messageId, MessageAuthorKind deletedBy, boolean contentUnavailable, boolean detectedAtCatchup)
+            implements CaseEventPayload {
+
+        public MessageDeleted(String messageId, MessageAuthorKind deletedBy) {
+            this(messageId, deletedBy, false, false);
+        }
+
         @Override
         public String type() {
             return MESSAGE_DELETED;
@@ -492,7 +526,16 @@ public sealed interface CaseEventPayload {
 
         @Override
         public Map<String, Object> toMap() {
-            return Map.of("messageId", messageId, "deletedBy", deletedBy.name());
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("messageId", messageId);
+            map.put("deletedBy", deletedBy.name());
+            if (contentUnavailable) {
+                map.put("contentUnavailable", true);
+            }
+            if (detectedAtCatchup) {
+                map.put("detectedAtCatchup", true);
+            }
+            return map;
         }
     }
 
@@ -514,8 +557,18 @@ public sealed interface CaseEventPayload {
         }
     }
 
-    /** The Ban ID was marked leaked. Never carries the Ban ID. {@code afterFiling}: an appeal had been filed. */
-    record BanIdLeakMarked(BanIdLeakReason reason, BanIdLeakSource source, boolean afterFiling) implements CaseEventPayload {
+    /**
+     * The Ban ID was marked leaked. Never carries the Ban ID. {@code afterFiling}: an appeal had been filed.
+     * {@code poster} is the opaque participant who posted it and {@code posterIsOwner} whether that was the
+     * ticket's bound player; both only for a leak the Discord bot found.
+     */
+    record BanIdLeakMarked(BanIdLeakReason reason, BanIdLeakSource source, boolean afterFiling, @Nullable String poster,
+                           @Nullable Boolean posterIsOwner) implements CaseEventPayload {
+
+        public BanIdLeakMarked(BanIdLeakReason reason, BanIdLeakSource source, boolean afterFiling) {
+            this(reason, source, afterFiling, null, null);
+        }
+
         @Override
         public String type() {
             return BAN_ID_LEAK_MARKED;
@@ -528,7 +581,13 @@ public sealed interface CaseEventPayload {
 
         @Override
         public Map<String, Object> toMap() {
-            return Map.of("reason", reason.name(), "source", source.name(), "afterFiling", afterFiling);
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("reason", reason.name());
+            map.put("source", source.name());
+            map.put("afterFiling", afterFiling);
+            put(map, "poster", poster);
+            put(map, "posterIsOwner", posterIsOwner);
+            return map;
         }
     }
 
@@ -591,6 +650,107 @@ public sealed interface CaseEventPayload {
             map.put("evidenceId", evidenceId);
             map.put("entries", entries);
             map.put("digest", digest);
+            return map;
+        }
+    }
+
+    /** A Discord ticket was opened for an appeal. {@code ticketNo} is the number in the channel name. */
+    record TicketOpened(String ticketId, String appealId, long ticketNo) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return TICKET_OPENED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("ticketId", ticketId);
+            map.put("appealId", appealId);
+            map.put("ticketNo", ticketNo);
+            return map;
+        }
+    }
+
+    /**
+     * The transcript of a ticket channel was verified complete: how many messages the channel held, the highest
+     * Discord message id (a string, snowflakes exceed what JSON numbers keep exactly) and how many edits and deletes
+     * the record holds. Never a message id list and never text.
+     */
+    record TicketTranscriptComplete(String ticketId, String appealId, int count, @Nullable String lastMessageId, int edits, int deletes)
+            implements CaseEventPayload {
+        @Override
+        public String type() {
+            return TICKET_TRANSCRIPT_COMPLETE;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("ticketId", ticketId);
+            map.put("appealId", appealId);
+            map.put("count", count);
+            put(map, "lastMessageId", lastMessageId);
+            map.put("edits", edits);
+            map.put("deletes", deletes);
+            return map;
+        }
+    }
+
+    /** The ticket channel was moved to the archive; the protocol version that made that allowed. */
+    record TicketArchived(String ticketId, String appealId, int protocolVersion) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return TICKET_ARCHIVED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("ticketId", ticketId);
+            map.put("appealId", appealId);
+            map.put("protocolVersion", protocolVersion);
+            return map;
+        }
+    }
+
+    /**
+     * The ticket channel is gone. {@code transcriptComplete} is false when a person deleted it before the transcript was
+     * verified; {@code lastRecordedMessageAt} then tells the panel where the record ends.
+     */
+    record TicketChannelDeleted(String ticketId, String appealId, boolean transcriptComplete, @Nullable Long lastRecordedMessageAt)
+            implements CaseEventPayload {
+        @Override
+        public String type() {
+            return TICKET_CHANNEL_DELETED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("ticketId", ticketId);
+            map.put("appealId", appealId);
+            map.put("transcriptComplete", transcriptComplete);
+            put(map, "lastRecordedMessageAt", lastRecordedMessageAt);
             return map;
         }
     }

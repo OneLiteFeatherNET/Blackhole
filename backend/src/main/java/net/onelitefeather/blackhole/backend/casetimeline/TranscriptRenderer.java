@@ -36,7 +36,7 @@ public final class TranscriptRenderer {
             return includeNotes;
         }
         return MessageThread.isMessageEvent(type) || type.startsWith("ban_id.") || type.startsWith("appeal.")
-                || type.startsWith("punishment.") || type.startsWith("evidence.") || type.equals(CaseEventPayload.STATUS_CHANGED);
+                || type.startsWith("punishment.") || type.startsWith("evidence.") || type.startsWith("ticket.") || type.equals(CaseEventPayload.STATUS_CHANGED);
     }
 
     /**

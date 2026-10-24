@@ -160,12 +160,14 @@ public final class FakeCaseStore implements CaseReader, CaseChanges {
     }
 
     @Override
-    public LeakMarked markBanIdLeaked(String punishmentIdentifier, BanIdLeakReason reason, BanIdLeakSource source, long now, CaseActor actor) {
+    public LeakMarked markBanIdLeaked(String punishmentIdentifier, BanIdLeakReason reason, BanIdLeakSource source, long now, CaseActor actor,
+                                      Poster poster) {
         if (this.leaks.containsKey(punishmentIdentifier)) {
             return null;
         }
         this.leaks.put(punishmentIdentifier, now);
-        this.log.append(new CaseEventDraft(punishmentIdentifier, new CaseEventPayload.BanIdLeakMarked(reason, source, false), now,
+        this.log.append(new CaseEventDraft(punishmentIdentifier, new CaseEventPayload.BanIdLeakMarked(reason, source, false,
+                poster == null ? null : poster.participantId(), poster == null ? null : poster.isOwner()), now,
                 CaseEventOrigin.LIVE, actor, null, null, CaseEventDraft.PLAYER));
         return new LeakMarked(last(), false);
     }

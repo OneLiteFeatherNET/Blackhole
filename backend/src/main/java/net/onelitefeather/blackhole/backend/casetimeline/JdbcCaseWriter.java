@@ -116,9 +116,10 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             INSERT INTO case_event (identifier, punishment_identifier, type, payload_version, occurred_at, origin, actor_trust,
                                     actor_oid, recorded_by_oid, actor_source, visibility, payload)
             SELECT ?::uuid, upd.punishment_identifier, 'ban_id.leak_marked', 1, ?::bigint, 'LIVE', ?::varchar, ?::uuid, ?::uuid, ?::uuid, 'PLAYER',
-                   jsonb_build_object('reason', ?::text, 'source', ?::text,
+                   jsonb_strip_nulls(jsonb_build_object('reason', ?::text, 'source', ?::text,
                                       'afterFiling', EXISTS (SELECT 1 FROM appeals a
-                                                             WHERE a.punishment_identifier = upd.punishment_identifier AND a.status <> 6))
+                                                             WHERE a.punishment_identifier = upd.punishment_identifier AND a.status <> 6),
+                                      'poster', ?::text, 'posterIsOwner', ?::boolean))
             FROM upd
             RETURNING identifier, seq, type, (payload ->> 'afterFiling')::boolean
             """;
@@ -300,7 +301,8 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
     }
 
     @Override
-    public LeakMarked markBanIdLeaked(String punishmentIdentifier, BanIdLeakReason reason, BanIdLeakSource source, long now, CaseActor actor) {
+    public LeakMarked markBanIdLeaked(String punishmentIdentifier, BanIdLeakReason reason, BanIdLeakSource source, long now, CaseActor actor,
+                                      Poster poster) {
         try (Connection connection = this.dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(MARK_LEAKED)) {
             int index = 0;
@@ -314,6 +316,8 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             index = bindActor(statement, index, actor);
             statement.setString(++index, reason.name());
             statement.setString(++index, source.name());
+            statement.setString(++index, poster == null ? null : poster.participantId());
+            statement.setObject(++index, poster == null ? null : poster.isOwner(), java.sql.Types.BOOLEAN);
             try (ResultSet rows = statement.executeQuery()) {
                 return rows.next()
                         ? new LeakMarked(new Appended(rows.getObject(1, UUID.class), rows.getLong(2), rows.getString(3)), rows.getBoolean(4))
