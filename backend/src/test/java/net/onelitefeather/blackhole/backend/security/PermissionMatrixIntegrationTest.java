@@ -160,6 +160,54 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void aViewerCannotReplyToThePlayer() {
+        assertEquals(403, post("/case/unknown-punishment/messages", Map.of("text", "x"), this.jwt.viewer()).status(), "viewer on a message");
+    }
+
+    @Test
+    void aModeratorMayReplyToThePlayer() {
+        assertAuthorized(post("/case/unknown-punishment/messages", Map.of("text", "x"), this.jwt.moderator()), "moderator on a message");
+    }
+
+    @Test
+    void aViewerCannotMarkALeakButAModeratorMay() {
+        assertEquals(403, post("/case/unknown-punishment/ban-id/leak", Map.of("reason", "OTHER"), this.jwt.viewer()).status(), "viewer on a leak mark");
+        assertAuthorized(post("/case/unknown-punishment/ban-id/leak", Map.of("reason", "OTHER"), this.jwt.moderator()), "moderator on a leak mark");
+    }
+
+    @Test
+    void onlyAnAdminMayReissueABanId() {
+        assertEquals(403, post("/case/unknown-punishment/ban-id/reissue", Map.of("reason", "OTHER"), this.jwt.moderator()).status(), "moderator on a reissue");
+        assertAuthorized(post("/case/unknown-punishment/ban-id/reissue", Map.of("reason", "OTHER"), this.jwt.admin()), "admin on a reissue");
+    }
+
+    @Test
+    void onlyAnAdminMayRedactAMessageOrErasethePlayerSide() {
+        assertEquals(403, post("/case/unknown-punishment/messages/" + EVIDENCE + "/redact", Map.of("reason", "OTHER"), this.jwt.moderator()).status(),
+                "moderator on a message redaction");
+        assertAuthorized(post("/case/unknown-punishment/messages/" + EVIDENCE + "/redact", Map.of("reason", "OTHER"), this.jwt.admin()),
+                "admin on a message redaction");
+        assertEquals(403, post("/case/unknown-punishment/transcript/erase-player", Map.of("reason", "OTHER"), this.jwt.moderator()).status(),
+                "moderator on an erase");
+        assertAuthorized(post("/case/unknown-punishment/transcript/erase-player", Map.of("reason", "OTHER"), this.jwt.admin()), "admin on an erase");
+    }
+
+    @Test
+    void onlyAnAdminMayExportATranscript() {
+        assertEquals(403, get("/case/unknown-punishment/transcript", this.jwt.moderator()).status(), "moderator on an export");
+        assertEquals(403, get("/case/unknown-punishment/transcript", this.jwt.viewer()).status(), "viewer on an export");
+        assertAuthorized(get("/case/unknown-punishment/transcript", this.jwt.admin()), "admin on an export");
+    }
+
+    @Test
+    void theProxyHasNoRuleOnTheConversationRoutes() {
+        assertEquals(403, post("/case/unknown-punishment/messages", Map.of("text", "x"), this.jwt.proxy()).status());
+        assertEquals(403, post("/case/unknown-punishment/ban-id/leak", Map.of("reason", "OTHER"), this.jwt.proxy()).status());
+        assertEquals(403, post("/case/unknown-punishment/ban-id/reissue", Map.of("reason", "OTHER"), this.jwt.proxy()).status());
+        assertEquals(403, get("/case/unknown-punishment/transcript", this.jwt.proxy()).status());
+    }
+
+    @Test
     void theProxyCannotReadACase() {
         assertEquals(403, get("/case/unknown-punishment", this.jwt.proxy()).status(), "proxy has no case rule");
     }

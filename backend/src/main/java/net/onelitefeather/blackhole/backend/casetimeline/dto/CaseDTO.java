@@ -91,6 +91,8 @@ public sealed interface CaseDTO {
      * @param assigneeName    the assignee's display name; null when none or anonymized
      * @param version         the optimistic version to send as {@code expectedVersion}; 0 for a case that has no row yet
      * @param related         up to 20 other punishments of the same player, newest first
+     * @param banIdLeakedAt   when the Ban ID of the current generation was marked leaked; null when it was not (a reissue clears it)
+     * @param banIdLeakReason the leak reason code; null when not leaked
      */
     @Schema(name = "CaseResponse")
     @Serdeable
@@ -109,7 +111,9 @@ public sealed interface CaseDTO {
             @NonNull CasePriority priority,
             @NonNull @JsonInclude(JsonInclude.Include.ALWAYS) List<String> tags,
             long version,
-            @NonNull @JsonInclude(JsonInclude.Include.ALWAYS) List<Related> related
+            @NonNull @JsonInclude(JsonInclude.Include.ALWAYS) List<Related> related,
+            @Nullable Long banIdLeakedAt,
+            @Nullable String banIdLeakReason
     ) implements CaseDTO {
     }
 
@@ -118,7 +122,7 @@ public sealed interface CaseDTO {
      *
      * @param oid   the person, if known
      * @param name  the display name from the staff actor; null when unknown or anonymized
-     * @param trust {@code VERIFIED}, {@code UNVERIFIED} or {@code SYSTEM}; an unverified actor must not be shown as verified
+     * @param trust {@code VERIFIED}, {@code UNVERIFIED}, {@code SYSTEM} or {@code PLAYER}; an unverified actor must not be shown as verified, and a player never carries a badge
      */
     @Schema(name = "CaseActorInfo")
     @Serdeable
