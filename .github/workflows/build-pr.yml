@@ -79,3 +79,37 @@ jobs:
           test "$code" -eq 2
           echo "$out" | grep -q "DISCORD_TOKEN is missing"
           test "$(docker run --rm --entrypoint id blackhole-discord:pr -u)" != "0"
+
+  chart:
+    if: github.repository_owner == 'OneLiteFeatherNET'
+    name: Lint and render the Helm chart
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+      - name: Install the pinned chart tools
+        # Helm, yq and kubeconform with exact versions and checksums (one place: the script). They go into
+        # RUNNER_TEMP and onto PATH, not into /usr/local/bin: no sudo, nothing outside the job is touched.
+        run: |
+          .github/scripts/install-chart-tools.sh "${RUNNER_TEMP}/chart-tools"
+          echo "${RUNNER_TEMP}/chart-tools" >> "${GITHUB_PATH}"
+      - name: Lint the chart
+        run: |
+          for values in deploy/charts/blackhole/ci/*-values.yaml; do
+            helm lint deploy/charts/blackhole -f "${values}"
+          done
+      - name: Render the chart and check the values schema
+        # render.sh renders every ci/*-values.yaml and runs the negative checks: the schema must reject unknown
+        # keys, missing required values, literal secrets and RabbitMQ settings, and each failure message has
+        # to name the value it guards. workloads.sh, exposure.sh and psa.sh assert the rendered manifests
+        # (secret wiring, probes, the API host route table with the cloudflared path semantics, the
+        # restricted Pod Security fields).
+        run: deploy/charts/blackhole/tests/run-all.sh
+      - name: Validate the rendered manifests with kubeconform
+        # -strict, no -ignore-missing-schemas: a kind without a schema fails the run. The three CRDs
+        # (ServiceMonitor, PodMonitor, HTTPRoute) use the Datree catalog pinned to a commit.
+        run: deploy/charts/blackhole/tests/kubeconform.sh
+      - name: Test the version script
+        run: .github/scripts/chart-version.test.sh
+      - name: The chart packages
+        run: helm package deploy/charts/blackhole --destination "${RUNNER_TEMP}/chart-package"

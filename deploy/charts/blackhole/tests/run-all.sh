@@ -8,6 +8,8 @@ status=0
 for script in "${dir}"/*.sh; do
   case "$(basename "${script}")" in
     lib.sh | run-all.sh) continue ;;
+    # The one test that needs the network (kubeconform downloads schemas): opt in with RUN_KUBECONFORM=1.
+    kubeconform.sh) [[ "${RUN_KUBECONFORM:-0}" == "1" ]] || continue ;;
   esac
   echo "== $(basename "${script}")"
   bash "${script}" || status=1

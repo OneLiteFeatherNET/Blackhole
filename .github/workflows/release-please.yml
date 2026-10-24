@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       docker_version:
-        description: "Version to (re)build & push the Docker image for, e.g. 1.13.2 (no leading v). Runs only the docker job."
+        description: "Version to (re)build & push for, e.g. 1.13.2 (no leading v): the four images (backend, web, portal, discord) and the Helm chart. Runs only the image and chart jobs."
         required: true
         type: string
 
@@ -28,6 +28,32 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  # The dev tags of this commit, computed once so all four images and the chart agree. The commit time (not the
+  # clock) makes the number reproducible: every component built from one commit gets the same
+  # main-<unix time>-<sha7>, which Flux image automation orders numerically (see chart-version.sh). Only pushes
+  # to main get the tag; a manual re-publish of a version must not look like a new main commit.
+  meta:
+    name: Resolve the dev tags
+    runs-on: ubuntu-latest
+    outputs:
+      extra_tags: ${{ steps.tags.outputs.extra_tags }}
+      dev_chart_version: ${{ steps.tags.outputs.dev_version }}
+      dev_image_tag: ${{ steps.tags.outputs.image_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+      - name: Compute the tags
+        id: tags
+        shell: bash
+        run: |
+          VERSION="$(grep -E '^version' gradle.properties | head -n1 | cut -d= -f2 | cut -d'#' -f1 | xargs)"
+          TIMESTAMP="$(git show -s --format=%ct "${GITHUB_SHA}")"
+          .github/scripts/chart-version.sh "${VERSION}" "${TIMESTAMP}" "${GITHUB_SHA}" | tee -a "${GITHUB_OUTPUT}"
+          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            IMAGE_TAG="$(.github/scripts/chart-version.sh "${VERSION}" "${TIMESTAMP}" "${GITHUB_SHA}" | sed -n 's/^image_tag=//p')"
+            echo "extra_tags=type=raw,value=${IMAGE_TAG}" >> "${GITHUB_OUTPUT}"
+          fi
 
   # Resolves the current project version from gradle.properties for non-release
   # pushes, so the snapshot jobs below know whether (and at which version) to run.
@@ -92,14 +118,81 @@ jobs:
       artifact-name: "docker-context-release"
     secrets: inherit
 
+  # ---- Images of the other three components (release, manual re-publish and every snapshot push) ----
+  # The shared docker-publish workflow scopes its concurrency group to the image name, so these run in parallel.
+  # Their Dockerfiles build everything inside Docker from the repository root, so no prebuilt context artifact is
+  # needed. The backend jobs below `need` all three: the dev tag the Flux ImagePolicy watches is the backend's, so
+  # it appears only after the other images of the same commit exist.
+  publish-web:
+    name: Build web image
+    needs: [release-please, version, meta]
+    permissions:
+      contents: read
+      id-token: write   # keyless cosign signing via GitHub OIDC
+    if: |
+      always() && needs.meta.result == 'success' &&
+      (github.event_name == 'workflow_dispatch' ||
+       needs.release-please.outputs.release_created == 'true' ||
+       needs.version.outputs.is_snapshot == 'true')
+    uses: OneLiteFeatherNET/workflows/.github/workflows/docker-publish.yml@v2.9.0
+    with:
+      image-name: "onelitefeather/blackhole-web"
+      version: ${{ github.event_name == 'workflow_dispatch' && inputs.docker_version || needs.release-please.outputs.release_created == 'true' && needs.release-please.outputs.version || needs.version.outputs.version }}
+      context: "."
+      dockerfile: "web/Dockerfile"
+      extra-tags: ${{ needs.meta.outputs.extra_tags }}
+    secrets: inherit
+
+  publish-portal:
+    name: Build portal image
+    needs: [release-please, version, meta]
+    permissions:
+      contents: read
+      id-token: write   # keyless cosign signing via GitHub OIDC
+    if: |
+      always() && needs.meta.result == 'success' &&
+      (github.event_name == 'workflow_dispatch' ||
+       needs.release-please.outputs.release_created == 'true' ||
+       needs.version.outputs.is_snapshot == 'true')
+    uses: OneLiteFeatherNET/workflows/.github/workflows/docker-publish.yml@v2.9.0
+    with:
+      image-name: "onelitefeather/blackhole-portal"
+      version: ${{ github.event_name == 'workflow_dispatch' && inputs.docker_version || needs.release-please.outputs.release_created == 'true' && needs.release-please.outputs.version || needs.version.outputs.version }}
+      context: "."
+      dockerfile: "portal/Dockerfile"
+      extra-tags: ${{ needs.meta.outputs.extra_tags }}
+    secrets: inherit
+
+  publish-discord:
+    name: Build Discord bot image
+    needs: [release-please, version, meta]
+    permissions:
+      contents: read
+      id-token: write   # keyless cosign signing via GitHub OIDC
+    if: |
+      always() && needs.meta.result == 'success' &&
+      (github.event_name == 'workflow_dispatch' ||
+       needs.release-please.outputs.release_created == 'true' ||
+       needs.version.outputs.is_snapshot == 'true')
+    uses: OneLiteFeatherNET/workflows/.github/workflows/docker-publish.yml@v2.9.0
+    with:
+      image-name: "onelitefeather/blackhole-discord"
+      version: ${{ github.event_name == 'workflow_dispatch' && inputs.docker_version || needs.release-please.outputs.release_created == 'true' && needs.release-please.outputs.version || needs.version.outputs.version }}
+      context: "."
+      dockerfile: "discord/Dockerfile"
+      extra-tags: ${{ needs.meta.outputs.extra_tags }}
+    secrets: inherit
+
   docker:
     name: Build Docker Artifacts
-    needs: [release-please, build-context]
+    needs: [release-please, build-context, meta, publish-web, publish-portal, publish-discord]
     permissions:
       contents: read
       id-token: write   # keyless cosign signing via GitHub OIDC
     if: |
       always() && needs.build-context.result == 'success' &&
+      needs.meta.result == 'success' && needs.publish-web.result == 'success' &&
+      needs.publish-portal.result == 'success' && needs.publish-discord.result == 'success' &&
       ((github.event_name == 'push' && needs.release-please.outputs.release_created == 'true') ||
        github.event_name == 'workflow_dispatch')
     uses: OneLiteFeatherNET/workflows/.github/workflows/docker-publish.yml@v2.9.0
@@ -108,6 +201,7 @@ jobs:
       version: ${{ github.event_name == 'workflow_dispatch' && inputs.docker_version || needs.release-please.outputs.version }}
       context: "backend/build/docker/optimized"
       artifact-name: "docker-context-release"
+      extra-tags: ${{ needs.meta.outputs.extra_tags }}
       blob-chunk: "90000000"   # ~90 MB, under the 100 MB Cloudflare cap
       req-concurrent: "4"
     secrets: inherit
@@ -127,7 +221,7 @@ jobs:
 
   docker-snapshot:
     name: Build Docker Artifacts (snapshot)
-    needs: [version, build-context-snapshot]
+    needs: [version, build-context-snapshot, meta, publish-web, publish-portal, publish-discord]
     permissions:
       contents: read
       id-token: write   # keyless cosign signing via GitHub OIDC
@@ -138,6 +232,54 @@ jobs:
       version: ${{ needs.version.outputs.version }}
       context: "backend/build/docker/optimized"
       artifact-name: "docker-context-snapshot"
+      extra-tags: ${{ needs.meta.outputs.extra_tags }}
       blob-chunk: "90000000"   # ~90 MB, under the 100 MB Cloudflare cap
       req-concurrent: "4"
     secrets: inherit
+
+  # ---- The Helm chart, after every image of the same version exists ----
+  # Release: the chart `version` is the release (release-please keeps Chart.yaml in step), so chart and images
+  # of one release share a version. main: a unique, semver-ordered pre-release (X.Y.Z-main.<commit time>) whose
+  # appVersion is the dev image tag, because Flux caches charts by version. Manual run: the given version.
+  publish-charts:
+    name: Publish the Helm chart
+    needs: [release-please, meta, docker, docker-snapshot]
+    if: |
+      always() && needs.meta.result == 'success' &&
+      (needs.docker.result == 'success' || needs.docker-snapshot.result == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+      - name: Install the pinned Helm
+        # The chart that ships is packaged by the exact Helm that linted and rendered it in the PR job.
+        run: |
+          .github/scripts/install-chart-tools.sh "${RUNNER_TEMP}/chart-tools" helm
+          echo "${RUNNER_TEMP}/chart-tools" >> "${GITHUB_PATH}"
+      - name: Package and push the chart
+        env:
+          HARBOR_REGISTRY: ${{ secrets.HARBOR_REGISTRY }}
+          HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}
+          HARBOR_PASSWORD: ${{ secrets.HARBOR_PASSWORD }}
+          CHART_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.docker_version || needs.release-please.outputs.release_created == 'true' && needs.release-please.outputs.version || needs.meta.outputs.dev_chart_version }}
+          APP_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.docker_version || needs.release-please.outputs.release_created == 'true' && needs.release-please.outputs.version || needs.meta.outputs.dev_image_tag }}
+        run: |
+          # Deliberately no `helm registry login`. Like regctl's login it starts with an anonymous connectivity
+          # ping, and this Harbor answers that with a 401 without a WWW-Authenticate header (the `empty
+          # challenge header` failure the image push hit until docker-publish.yml switched to
+          # `regctl registry login --skip-check`). Helm has no --skip-check, so the credential file that
+          # `helm registry login` would have written is written here and handed to `helm push`, which
+          # authenticates on the push request itself (docker config.json format, which Helm's own client reads).
+          config="${RUNNER_TEMP}/helm-registry-config.json"
+          umask 077
+          printf '{"auths":{"%s":{"auth":"%s"}}}' \
+            "${HARBOR_REGISTRY}" \
+            "$(printf '%s:%s' "${HARBOR_USERNAME}" "${HARBOR_PASSWORD}" | base64 -w0)" \
+            > "${config}"
+          trap 'rm -f "${config}"' EXIT
+          helm package deploy/charts/blackhole --version "${CHART_VERSION}" --app-version "${APP_VERSION}" \
+            --destination "${RUNNER_TEMP}/chart-package"
+          helm push "${RUNNER_TEMP}/chart-package/blackhole-${CHART_VERSION}.tgz" \
+            "oci://${HARBOR_REGISTRY}/onelitefeather/charts" --registry-config "${config}"

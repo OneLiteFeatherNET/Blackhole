@@ -131,6 +131,23 @@ the portal. The Velocity proxies use the separate host of `backend.externalApi`:
 A tunnel backend is always a normal ClusterIP Service, never a headless one. For the dev environment
 `web.httpRoute` / `portal.httpRoute` (Gateway API) replace the Ingress; the schema refuses both at once.
 
+## Versions and publishing
+
+`.github/workflows/release-please.yml` publishes the four images (`onelitefeather/blackhole`,
+`blackhole-web`, `blackhole-portal`, `blackhole-discord`) and then the chart to
+`oci://<registry>/onelitefeather/charts`:
+
+| Event | Images | Chart `version` / `appVersion` |
+|-------|--------|--------------------------------|
+| release | `X.Y.Z`, `X.Y`, `X`, `sha-<7>` and `main-<unix>-<sha7>` | `X.Y.Z` / `X.Y.Z` |
+| push to `main` (SNAPSHOT) | `X.Y.Z-SNAPSHOT`, `sha-<7>` and `main-<unix>-<sha7>` | `X.Y.Z-main.<unix>` / `main-<unix>-<sha7>` |
+| manual run with a version | that version, without the `main-` tag | that version |
+
+`<unix>` is the commit time, so all four images of a commit share one tag; Flux image automation orders
+`^main-(?P<ts>[0-9]+)-[0-9a-f]{7}$` numerically. The backend image is published last, after the other three
+exist. The dev chart version is unique per commit (Flux caches charts by version) and sorts as semver
+(`main.9` below `main.10`, below the release it leads to). `.github/scripts/chart-version.sh` computes them.
+
 ## Tests
 
 All tests are shell scripts around `helm template` and `yq`, with the fixed value files in `ci/`; they need
