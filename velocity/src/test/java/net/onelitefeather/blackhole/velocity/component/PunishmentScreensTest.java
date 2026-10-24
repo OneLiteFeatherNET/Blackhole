@@ -566,4 +566,50 @@ class PunishmentScreensTest {
         }
         component.children().forEach(child -> collect(child, color, out));
     }
+
+    private static com.velocitypowered.api.proxy.Player playerWithLocale(Locale locale) {
+        return (com.velocitypowered.api.proxy.Player) java.lang.reflect.Proxy.newProxyInstance(
+                PunishmentScreensTest.class.getClassLoader(), new Class<?>[]{com.velocitypowered.api.proxy.Player.class},
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "getEffectiveLocale" -> locale;
+                    case "hashCode" -> 1;
+                    case "equals" -> proxy == args[0];
+                    case "toString" -> "player";
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
+    }
+
+    @Test
+    void aGermanPlayerGetsTheEnglishBanScreen() {
+        Locale locale = PunishmentScreens.localeOf(playerWithLocale(Locale.GERMAN));
+        PunishmentSyncMessage ban = punishment("chat", EnforcementKind.BAN, null, "Spam");
+
+        String text = plain(screen(screens(config(null, null)), ban, locale, Surface.DISCONNECT, false));
+
+        assertEquals(Locale.ENGLISH, locale, "locale used for a german client");
+        assertTrue(text.contains("Reason"), "english label expected but was: " + text);
+        assertFalse(text.contains("Grund"), "no german label expected but was: " + text);
+    }
+
+    @Test
+    void aGermanPlayerGetsTheEnglishMuteNotice() {
+        Locale locale = PunishmentScreens.localeOf(playerWithLocale(Locale.GERMAN));
+        PunishmentSyncMessage mute = punishment("chat", EnforcementKind.MUTE, null, "Spam");
+        PunishmentScreens screens = screens(config(null, null));
+
+        String text = plain(screens.muteReminder(mute, locale));
+
+        assertFalse(text.isBlank(), "reminder text");
+        assertEquals(plain(screens.muteReminder(mute, Locale.ENGLISH)), text, "reminder equals the english one");
+    }
+
+    @Test
+    void staffMessagesStayLocalisedForAGermanLocale() {
+        var outcome = new net.onelitefeather.blackhole.velocity.punish.StaffLinkService.WhoamiOutcome.Linked("Alex Admin");
+
+        String german = Rendered.german(StaffMessages.whoami(outcome)).text();
+
+        assertFalse(german.equals(Rendered.english(StaffMessages.whoami(outcome)).text()),
+                "staff text must differ between german and english, was: " + german);
+    }
 }

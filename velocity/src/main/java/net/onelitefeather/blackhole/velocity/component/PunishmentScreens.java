@@ -82,8 +82,11 @@ public final class PunishmentScreens {
      * default locale - the same fallback Velocity itself uses to translate a message.
      */
     public static @NotNull Locale localeOf(@NotNull Player player) {
-        Locale locale = player.getEffectiveLocale();
-        return locale == null ? Locale.getDefault() : locale;
+        // Player-facing punishment messages are English only for now. The German bundle stays, so
+        // re-enabling i18n is just returning the player's locale again:
+        //   Locale locale = player.getEffectiveLocale();
+        //   return locale == null ? Locale.getDefault() : locale;
+        return Locale.ENGLISH;
     }
 
     /**
