@@ -127,7 +127,9 @@
       "TOO_LARGE": "Your message is too long.",
       "FORBIDDEN": "This Ban ID cannot be used to write messages.",
       "UNAVAILABLE": "Your message could not be sent. Please try again."
-    }
+    },
+    "downloadText": "Download a copy (text)",
+    "downloadJson": "Download a copy (JSON)"
   },
   "notice": {
     "forfeited": "The right to appeal this punishment was lost because the Ban ID was shared publicly. The punishment still runs out on its own, and the team can review it on its own initiative.",

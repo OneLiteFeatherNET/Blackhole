@@ -320,7 +320,8 @@ describe('states', () => {
 
     expect(wrapper.find('textarea').exists(), 'the backend answers NO_APPEAL after a decision').toBe(false)
     expect(wrapper.text()).toContain('Your appeal was denied.')
-    expect(wrapper.find('a[download]').exists(), 'the backend has no protocol route').toBe(false)
+    const links = wrapper.findAll('a[download]').map((a) => a.attributes('href'))
+    expect(links).toEqual(['/api/appeal/protocol?format=text', '/api/appeal/protocol?format=json'])
   })
 
   it('shows the new expiry of a grant', async () => {
@@ -331,6 +332,20 @@ describe('states', () => {
 
     expect(wrapper.text()).toContain('shortened')
     expect(wrapper.text()).toMatch(/now runs until .*2026/)
+  })
+})
+
+describe('protocol copy', () => {
+  it('is not offered before a decision', async () => {
+    const { wrapper } = await openConversation()
+
+    expect(wrapper.find('a[download]').exists()).toBe(false)
+  })
+
+  it('is not offered to a limited session', async () => {
+    const { wrapper } = await openConversation({ conversation: async () => fail('FORBIDDEN', 403), appeal: async () => ok({ ...APPEAL_OPEN, decision: 'DENIED' }) }, { appealState: 'DECIDED' })
+
+    expect(wrapper.find('a[download]').exists()).toBe(false)
   })
 })
 

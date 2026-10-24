@@ -127,7 +127,9 @@
       "TOO_LARGE": "Deine Nachricht ist zu lang.",
       "FORBIDDEN": "Mit dieser Ban-ID können keine Nachrichten geschrieben werden.",
       "UNAVAILABLE": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut."
-    }
+    },
+    "downloadText": "Kopie herunterladen (Text)",
+    "downloadJson": "Kopie herunterladen (JSON)"
   },
   "notice": {
     "forfeited": "Das Recht auf Einspruch gegen diese Strafe ist verfallen, weil die Ban-ID öffentlich geteilt wurde. Die Strafe läuft trotzdem von selbst aus, und das Team kann sie von sich aus überprüfen.",

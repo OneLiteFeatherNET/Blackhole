@@ -61,7 +61,7 @@ const LOGIN_OK = { token: TOKEN, csrf: CSRF, expiresAt: '2099-01-01T00:00:00Z', 
 afterEach(() => vi.restoreAllMocks())
 
 describe('allow-list', () => {
-  it.each(['/api/case', '/api/punishment/lookup', '/api/', '/api', '/api/session/extra', '/api/%2e%2e/case', '/api/appeal/protocol', '/api/public/session', '/api//session'])(
+  it.each(['/api/case', '/api/punishment/lookup', '/api/', '/api', '/api/session/extra', '/api/%2e%2e/case', '/api/public/session', '/api//session'])(
     'answers 404 for %s without calling the backend',
     async (path) => {
       const { send, calls } = bff()
@@ -105,7 +105,7 @@ describe('allow-list', () => {
     expect(calls[0]?.url).toBe('http://backend.test:8080/public/conversation?cursor=42')
   })
 
-  it.each(['/api/conversation?cursor=abc', '/api/conversation?cursor=1&cursor=2'])('rejects the query of %s', async (path) => {
+  it.each(['/api/conversation?cursor=abc', '/api/conversation?cursor=1&cursor=2', '/api/appeal/protocol?format=xml'])('rejects the query of %s', async (path) => {
     const { send, calls } = bff()
 
     const response = await send(path, { headers: { cookie: session } })
@@ -414,7 +414,8 @@ describe('error mapping', () => {
     [400, { code: 'VALIDATION' }, 400, { code: 'VALIDATION' }],
     [409, { code: 'NO_APPEAL' }, 409, { code: 'NO_APPEAL' }],
     [409, { code: 'NOT_ELIGIBLE' }, 409, { code: 'NOT_ELIGIBLE' }],
-    [409, { code: 'NOT_DECIDED' }, 409, { code: 'CONFLICT' }],
+    [409, { code: 'NOT_DECIDED' }, 409, { code: 'NOT_DECIDED' }],
+    [409, { code: 'SOMETHING_ELSE' }, 409, { code: 'CONFLICT' }],
     [413, {}, 413, { code: 'TOO_LARGE' }],
     [422, { message: 'ip found' }, 422, { code: 'PII_REJECTED' }],
     [400, { message: 'too long' }, 400, { code: 'VALIDATION' }],
@@ -487,5 +488,44 @@ describe('responses', () => {
     expect(response.headers.get('x-content-type-options')).toBe('nosniff')
     expect(response.headers.get('referrer-policy')).toBe('no-referrer')
     expect(response.headers.get('content-security-policy')).toContain("frame-ancestors 'none'")
+  })
+
+  it('relays the player copy of the protocol as an attachment', async () => {
+    const { send, calls } = bff([{ text: 'You: hello', headers: { 'content-type': 'text/plain; charset=utf-8', 'set-cookie': 'evil=1' } }])
+
+    const response = await send('/api/appeal/protocol?format=text', { headers: { cookie: session } })
+
+    expect(calls[0]?.url).toBe('http://backend.test:8080/public/appeal/protocol?format=text')
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toContain('text/plain')
+    expect(response.headers.get('content-disposition')).toBe('attachment; filename="appeal-protocol.txt"')
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(response.headers.getSetCookie()).toEqual([])
+    expect(await response.text()).toBe('You: hello')
+  })
+
+  it('names a JSON copy accordingly', async () => {
+    const { send } = bff([{ text: '{"entries":[]}', headers: { 'content-type': 'application/json' } }])
+
+    const response = await send('/api/appeal/protocol?format=json', { headers: { cookie: session } })
+
+    expect(response.headers.get('content-disposition')).toBe('attachment; filename="appeal-protocol.json"')
+  })
+
+  it('refuses a protocol of a type it does not relay', async () => {
+    const { send } = bff([{ text: '<script>', headers: { 'content-type': 'text/html' } }])
+
+    const response = await send('/api/appeal/protocol?format=text', { headers: { cookie: session } })
+
+    expect(response.status).toBe(503)
+  })
+
+  it('tells an undecided appeal apart from a missing session', async () => {
+    const { send } = bff([{ status: 409, body: { code: 'NOT_DECIDED' } }])
+
+    const response = await send('/api/appeal/protocol?format=text', { headers: { cookie: session } })
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({ code: 'NOT_DECIDED' })
   })
 })

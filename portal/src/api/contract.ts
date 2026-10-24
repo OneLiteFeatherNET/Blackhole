@@ -3,8 +3,7 @@
  * backend `/public/**` routes each one maps to, and the payload shapes of both sides.
  *
  * Source: openspec/changes/add-appeal-portal and the backend `publicapi` package (API spec 0.0.30,
- * `.claude/rules/public-api.md`). There is no `/public/appeal/protocol` route in that API, so the
- * portal has none. Everything the backend sends is validated or whitelisted by the BFF.
+ * `.claude/rules/public-api.md`; the player copy of the protocol is spec 0.0.31). Everything the backend sends is validated or whitelisted by the BFF.
  *
  * The BFF is the mirror of the backend: `/api/<name>` maps one to one onto `/public/<name>`.
  * Pure data and types, so the browser bundle and the server bundle can both import it.
@@ -108,6 +107,7 @@ export type ErrorCode =
   | 'FROZEN'
   | 'NOT_ELIGIBLE'
   | 'NO_APPEAL'
+  | 'NOT_DECIDED'
   | 'CONFLICT'
   | 'TOO_LARGE'
   | 'UNAVAILABLE'
@@ -122,7 +122,7 @@ export interface ErrorBody {
 }
 
 /** Backend 409 `code` values the BFF passes through; anything else becomes `CONFLICT`. */
-export const CONFLICT_CODES = ['FORFEITED', 'FROZEN', 'NOT_ELIGIBLE', 'NO_APPEAL'] as const
+export const CONFLICT_CODES = ['FORFEITED', 'FROZEN', 'NOT_ELIGIBLE', 'NO_APPEAL', 'NOT_DECIDED'] as const
 
 export interface RouteSpec {
   /** Browser-facing path on the BFF. */
@@ -147,6 +147,7 @@ export const ROUTES: readonly RouteSpec[] = [
   { path: '/api/punishment', method: 'GET', backend: '/public/punishment', session: true },
   { path: '/api/appeal', method: 'POST', backend: '/public/appeal', session: true, body: ['statement'] },
   { path: '/api/appeal', method: 'GET', backend: '/public/appeal', session: true },
+  { path: '/api/appeal/protocol', method: 'GET', backend: '/public/appeal/protocol', session: true, query: { format: /^(text|json)$/ } },
   { path: '/api/conversation', method: 'GET', backend: '/public/conversation', session: true, query: { cursor: CURSOR } },
   { path: '/api/messages', method: 'POST', backend: '/public/messages', session: true, body: ['text'] },
 ]
