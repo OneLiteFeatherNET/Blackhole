@@ -81,7 +81,7 @@ describe('StaffLinksPanel', () => {
 
 describe('StaffLinksPanel: role gating on the sections page', () => {
   function sectionsApi() {
-    return { sections: vi.fn(async () => ok([])), staffLinks: vi.fn(async () => ok([ada])) }
+    return { sections: vi.fn(async () => ok([])), staffLinks: vi.fn(async () => ok([ada])), discordLinks: vi.fn(async () => ok([])) }
   }
 
   it.each([['MODERATOR'], ['VIEWER']])('is hidden from a %s and never requests the list', async (role) => {

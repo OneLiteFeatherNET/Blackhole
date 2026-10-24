@@ -66,7 +66,7 @@ describe('role-aware controls', () => {
     ['admin', ADMIN, ['new-section', 'edit-network', 'disable-network']],
   ])('sections for %s', (_label, roles, expected) => {
     it('offers create, edit and disable only to admins', async () => {
-      const api = mockApi({ sections: vi.fn(async () => ok([section])), staffLinks: vi.fn(async () => ok([])) })
+      const api = mockApi({ sections: vi.fn(async () => ok([section])), staffLinks: vi.fn(async () => ok([])), discordLinks: vi.fn(async () => ok([])) })
 
       const offered = await controls(SectionsView, api, roles, ['new-section', 'edit-network', 'disable-network'], { path: '/sections' })
 

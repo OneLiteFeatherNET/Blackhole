@@ -33,6 +33,7 @@ function setup(overrides: Record<string, unknown> = {}) {
     updateSection: vi.fn(async () => ok(section())),
     disableSection: vi.fn(async () => ok(section())),
     staffLinks: vi.fn(async () => ok([])),
+    discordLinks: vi.fn(async () => ok([])),
     ...overrides,
   }
   return { api, mount: () => mountWithApp(SectionsView, { api: mockApi(api), path: '/sections' }) }

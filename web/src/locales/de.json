@@ -643,7 +643,26 @@
       "unlinked": "Verknüpfung entfernt.",
       "close": "Schließen"
     },
-    "menu": "Kontomenü"
+    "menu": "Kontomenü",
+    "discord": {
+      "heading": "Discord",
+      "linked": "Discord-Konto verknüpft",
+      "unlinkedStatus": "Discord nicht verknüpft",
+      "issue": "Discord verknüpfen",
+      "reissue": "Neuen Code erzeugen",
+      "copyCode": "Code kopieren",
+      "copyCommand": "Befehl kopieren",
+      "copied": "In die Zwischenablage kopiert.",
+      "copyFailed": "Kopieren fehlgeschlagen. Markiere den Text und kopiere ihn von Hand.",
+      "validFor": "Noch gültig: {time}",
+      "expired": "Der Code ist abgelaufen.",
+      "instructions": "Gib in Discord ein:",
+      "unlink": "Discord-Verknüpfung entfernen",
+      "unlinkTitle": "Discord-Verknüpfung entfernen?",
+      "unlinkBody": "Dein Discord-Konto wird dir nicht mehr zugeordnet. Du kannst es mit einem neuen Code erneut verknüpfen.",
+      "unlinkConfirm": "Verknüpfung entfernen",
+      "unlinked": "Discord-Verknüpfung entfernt."
+    }
   },
   "staffLinks": {
     "title": "Verknüpfte Minecraft-Konten",
@@ -659,6 +678,27 @@
     "unlink": "Verknüpfung entfernen",
     "unlinkTitle": "Verknüpfung von {name} entfernen?",
     "unlinkBody": "Die Person kann sich mit einem neuen Code erneut verknüpfen. Frühere Einträge behalten ihre Zuordnung.",
+    "unlinkConfirm": "Verknüpfung entfernen",
+    "removed": "Verknüpfung entfernt."
+  },
+  "discordLinks": {
+    "title": "Verknüpfte Discord-Konten",
+    "intro": "Welche Teammitglieder und Spieler ein Discord-Konto verknüpft haben. Discord-Nutzer-IDs werden nie angezeigt.",
+    "empty": "Keine Discord-Konten verknüpft.",
+    "unnamed": "(kein Name)",
+    "columns": {
+      "kind": "Art",
+      "who": "Verknüpft mit",
+      "linkedAt": "Verknüpft",
+      "actions": "Aktionen"
+    },
+    "kind": {
+      "STAFF": "Team",
+      "PLAYER": "Spieler"
+    },
+    "unlink": "Verknüpfung entfernen",
+    "unlinkTitle": "Discord-Verknüpfung von {name} entfernen?",
+    "unlinkBody": "Die Person kann sich mit einem neuen Code erneut verknüpfen.",
     "unlinkConfirm": "Verknüpfung entfernen",
     "removed": "Verknüpfung entfernt."
   },

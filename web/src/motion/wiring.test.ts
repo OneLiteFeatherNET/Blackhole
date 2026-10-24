@@ -122,7 +122,7 @@ describe('motion wiring', () => {
       mount(App, {
         global: {
           plugins: [piniaWithRoles(), i18n, router],
-          provide: { [AUTH_KEY as symbol]: fakeAuthService().service, [API_KEY as symbol]: mockApi({ staffLinkStatus: async () => ok({ linked: false }) }) },
+          provide: { [AUTH_KEY as symbol]: fakeAuthService().service, [API_KEY as symbol]: mockApi({ staffLinkStatus: async () => ok({ linked: false }), discordLinkStatus: async () => ok({ linked: false }) }) },
         },
         attachTo: document.body,
       }),

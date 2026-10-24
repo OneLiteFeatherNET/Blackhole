@@ -643,7 +643,26 @@
       "unlinked": "Link removed.",
       "close": "Close"
     },
-    "menu": "Account menu"
+    "menu": "Account menu",
+    "discord": {
+      "heading": "Discord",
+      "linked": "Discord account linked",
+      "unlinkedStatus": "Discord not linked",
+      "issue": "Link Discord",
+      "reissue": "Generate a new code",
+      "copyCode": "Copy code",
+      "copyCommand": "Copy command",
+      "copied": "Copied to the clipboard.",
+      "copyFailed": "Copying failed. Select the text and copy it by hand.",
+      "validFor": "Valid for {time}",
+      "expired": "The code has expired.",
+      "instructions": "Type this in Discord:",
+      "unlink": "Remove Discord link",
+      "unlinkTitle": "Remove the Discord link?",
+      "unlinkBody": "Your Discord account is no longer attributed to you. You can link it again with a new code.",
+      "unlinkConfirm": "Remove link",
+      "unlinked": "Discord link removed."
+    }
   },
   "staffLinks": {
     "title": "Linked Minecraft accounts",
@@ -659,6 +678,27 @@
     "unlink": "Remove link",
     "unlinkTitle": "Remove the link of {name}?",
     "unlinkBody": "The person can link again with a new code. Earlier entries keep their attribution.",
+    "unlinkConfirm": "Remove link",
+    "removed": "Link removed."
+  },
+  "discordLinks": {
+    "title": "Linked Discord accounts",
+    "intro": "Which staff members and players have linked a Discord account. Discord user ids are never shown.",
+    "empty": "No Discord accounts are linked.",
+    "unnamed": "(no name)",
+    "columns": {
+      "kind": "Type",
+      "who": "Linked to",
+      "linkedAt": "Linked",
+      "actions": "Actions"
+    },
+    "kind": {
+      "STAFF": "Staff",
+      "PLAYER": "Player"
+    },
+    "unlink": "Remove link",
+    "unlinkTitle": "Remove the Discord link of {name}?",
+    "unlinkBody": "The person can link again with a new code.",
     "unlinkConfirm": "Remove link",
     "removed": "Link removed."
   },

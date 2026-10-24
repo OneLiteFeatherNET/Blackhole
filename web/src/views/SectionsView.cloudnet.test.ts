@@ -50,6 +50,7 @@ function setup(options: { sections?: Section[]; catalogue?: unknown; roles?: str
     updateSection: vi.fn(async () => ok(section())),
     disableSection: vi.fn(async () => ok(section())),
     staffLinks: vi.fn(async () => ok([])),
+    discordLinks: vi.fn(async () => ok([])),
   }
   return { api, mount: () => mountWithApp(SectionsView, { api: mockApi(api), path: '/sections', roles: options.roles }) }
 }

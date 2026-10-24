@@ -34,6 +34,9 @@ import type {
   RevokeResult,
   Section,
   StaffActor,
+  DiscordLink,
+  DiscordLinkCode,
+  DiscordLinkStatus,
   StaffLink,
   StaffLinkCode,
   StaffLinkStatus,
@@ -126,6 +129,16 @@ export interface BlackholeApi {
   staffLinks(): Promise<ApiResult<StaffLink[]>>
   /** Removes anyone's link (ADMIN only). */
   unlinkStaffLink(oid: string): Promise<ApiResult<void>>
+  /** Issues a one-time code (shown as `ABCD-EFGH`) that links the caller's Discord account when typed as /link in Discord; replaces an earlier code. */
+  issueDiscordLinkCode(): Promise<ApiResult<DiscordLinkCode>>
+  /** Whether the caller has a linked Discord account (never a Discord id). */
+  discordLinkStatus(): Promise<ApiResult<DiscordLinkStatus>>
+  /** Removes the caller's own Discord link. */
+  unlinkOwnDiscordLink(): Promise<ApiResult<void>>
+  /** Every staff and player Discord link, without Discord ids (ADMIN only). */
+  discordLinks(): Promise<ApiResult<DiscordLink[]>>
+  /** Removes one Discord link (ADMIN only). */
+  removeDiscordLink(id: string): Promise<ApiResult<void>>
   /** Every known staff principal, most recently seen first (ADMIN only). */
   staffActors(): Promise<ApiResult<StaffActor[]>>
   /** Removes the principal's display name and Minecraft link; the `oid` and all history stay (ADMIN only, irreversible). */
@@ -485,6 +498,13 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     staffLinks: async () => map(await toResult(http.GET('/admin/staff-link')), (body) => body.items),
     unlinkStaffLink: async (oid) =>
       map(await toResult(http.DELETE('/admin/staff-link/{oid}', { params: { path: { oid } } })), () => undefined),
+
+    issueDiscordLinkCode: () => toResult(http.POST('/staff-discord-link/code')),
+    discordLinkStatus: () => toResult(http.GET('/staff-discord-link/me')),
+    unlinkOwnDiscordLink: async () => map(await toResult(http.DELETE('/staff-discord-link/me')), () => undefined),
+    discordLinks: async () => map(await toResult(http.GET('/admin/discord-link')), (body) => body.items),
+    removeDiscordLink: async (id) =>
+      map(await toResult(http.DELETE('/admin/discord-link/{id}', { params: { path: { id } } })), () => undefined),
 
     async importVanillaBans(request) {
       // Hidden from the published spec, so it cannot go through the typed client.
