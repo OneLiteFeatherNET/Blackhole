@@ -9,10 +9,17 @@ stack (each based on the previous one) with a single Conventional Commits type. 
 each PR. This change does not touch the HTTP API, so no client spec regeneration and no Flyway
 migration is needed.
 
-## 0. Prerequisites outside this repository
+## 0. NATS account in Kubernetes-FLUX (PR 0, in that repository: `feat(nats): add the blackhole account and users`)
 
-- [ ] 0.1 In Kubernetes-FLUX: create the NATS account `BLACKHOLE` (JetStream limits) and users `blackhole-backend`, `blackhole-discord` and `blackhole-velocity` (WebSocket-only, subscribe-only) with the permissions of `design.md` D6, add the account JWT to `resolver_preload`, deliver `.creds` as SOPS secrets; verify with `nats --creds` that a forbidden publish is rejected
-- [ ] 0.2 Confirm the answers to the open questions in `design.md` and the NATS server version of chart `=2.15.1` (pins the test and compose image tag)
+Claude prepares the pull request; the user generates all nkeys, seeds and credentials with `nsc`
+(commands and permissions in `design.md` D6). No secret in chat, in a PR description or in a plain
+file.
+
+- [ ] 0.1 User: run the `nsc` commands of D6 (account `BLACKHOLE` with JetStream limits, users `blackhole-backend`, `blackhole-discord`, `blackhole-velocity`) and hand Claude only the public account key and the account JWT; the keystore and seeds stay in the team password manager
+- [ ] 0.2 Claude: in `foundation/messaging/clusters/feather-core/nats/` add the `BLACKHOLE` public key and account JWT to `resolver_preload` of the SOPS-encrypted `nats-auth.sops.conf` (user runs `sops` on it; the `.TEMPLATE` is updated to show the extra entry); verify with `nats-server -t` / the config reloader log that the config loads and `nats account info` shows JetStream enabled for `BLACKHOLE`
+- [ ] 0.3 User: SOPS-encrypt the `.creds` of `blackhole-backend` and `blackhole-discord` as Kubernetes Secrets (`blackhole-nats-backend`, `blackhole-nats-discord`) in the Blackhole namespace of Kubernetes-FLUX; Claude adds the Secret manifests and the mounts (`NATS_CREDS_FILE=/etc/nats/creds/blackhole.creds`) only after the encrypted files exist; the Velocity creds are handed to the proxy operator out of band, never committed
+- [ ] 0.4 Confirm in the PR that the Velocity user is WebSocket-only and subscribe-only, and that the WebSocket route (`wss://nats.onelitefeather.dev`) is unchanged; verify with `nats sub` and `nats pub` using the Velocity creds over `wss://` that subscribing to `blackhole.events.punishment.created` works and publishing is rejected
+- [ ] 0.5 Confirm the NATS server version of chart `=2.15.1` (pins the test and compose image tag); record it in this change
 
 ## 1. Transport port (PR 1: `refactor(events): put the event bus behind a transport port`)
 
@@ -26,6 +33,7 @@ migration is needed.
 
 ## 3. NATS transport in the backend (PR 3: `feat(events): move the domain event bus to nats jetstream`)
 
+- [ ] 3.0 First, the compatibility gate (`design.md` D2): `NatsCompatibilityTest` boots `micronaut-nats` 5.0.0 (managed by the platform 5.0.2 BOM) against a NATS container, creates a stream, publishes twice with one `Nats-Msg-Id` (one stored), pulls from a named durable with a filter and acks, and reads a `nats.default.credentials` file; if it fails, implement the same ports with plain `jnats` instead and record why
 - [ ] 3.1 Failing tests first: subject builder (all published event types legal, hostile types rejected, no payload value in a subject), stream/consumer config builder (D4 values), `Nats-Msg-Id` equals `eventId`, publish failure is logged via a captured appender and not thrown; integration tests per `design.md` D11 (delivery, shared durable, dedupe, restart catch-up, permission denial)
 - [ ] 3.2 `jnats` dependency (version catalog entry, version re-checked on Maven Central), `NatsSettings` bound from `blackhole.events.nats.*`, `Connection` factory (reconnect forever, creds file), `NatsEventTransport` (`publishAsync`, header, fire-and-forget), `StreamProvisioner` (create-or-update `BLACKHOLE_EVENTS`)
 - [ ] 3.3 `NatsEventSubscription` for `blackhole-redis-sync` (pull, explicit ack, ack after one attempt); `RedisSyncConsumer` switched to it; verify two instances share one durable
@@ -41,9 +49,9 @@ migration is needed.
 ## 5. Velocity receives changes over NATS (PR 5: `feat(velocity): receive punishment changes over nats`)
 
 - [ ] 5.1 Failing tests first (fake NATS connection, fixed `Clock`, no sleeps): a punishment event updates or evicts the cached player; `appeal.resolved` evicts; a BAN event for a connected owner triggers the profile fetch and kick; `section.changed` refreshes the section list; a disconnect event empties the cache and makes every check go over HTTP; reconnect empties it again; an entry older than `cacheMaxAge` is re-read over HTTP; a missing or unreadable creds file leaves HTTP-only checks and does not throw; the connect never blocks login or chat
-- [ ] 5.2 jnats in `velocity/build.gradle.kts` (version catalog, relocated in the shadow jar), `NatsSyncService` next to the existing Redis service (both active in this PR, Redis still read as before), `nats` section in `config.json` (`url`, `credsFile`, `cacheMaxAge`), `NATS_URL`/`NATS_CREDS_FILE` overrides; subscribe-only core subscriptions on the five subject groups of D7; verify `./gradlew :velocity:test`
+- [ ] 5.2 plain jnats 2.26.4 in `velocity/build.gradle.kts` (version catalog, relocated in the shadow jar), `NatsSyncService` next to the existing Redis service (both active in this PR, Redis still read as before), `nats` section in `config.json` (`url`, `credsFile`, `cacheMaxAge`), `NATS_URL`/`NATS_CREDS_FILE` overrides; subscribe-only core subscriptions on the five subject groups of D7; verify `./gradlew :velocity:test`
 - [ ] 5.3 Integration test against the NATS container with a subscribe-only user: receives a published `punishment.created`, a publish attempt is rejected with a permissions violation, a forbidden subscription (`blackhole.events.case.>`) is rejected
-- [ ] 5.4 Report notices (open question 3): render the staff notice from `report.created` plus an HTTP lookup of display facts, or keep it local; if an endpoint is needed it is its own `feat(report)` PR before this one and regenerates `client/specs`
+- [ ] 5.4 Report notices (decision 3): render the staff notice from `report.created` plus `GET /report/{identifier}` and names from the proxy's own online players; this needs the PR `feat(report): let the proxy read a single report` first (add `Roles.PROXY` to `ReportController.get`, a controller test that PROXY gets 200 and an unauthenticated call is rejected; the generated client spec only changes if the OpenAPI security note does, regenerate `client/specs` if so)
 
 ## 6. Remove Redis/Dragonfly from Velocity (PR 6: `refactor(velocity)!: remove redis from the proxy`)
 
@@ -62,7 +70,7 @@ BREAKING (plugin config): `redisUri` disappears; the backend keeps writing Redis
 - [ ] 8.1 README (stack, compose, env table), `docs/discord-bot.md`, `discord/README.md` (variables, queue names become consumer names), the Velocity plugin docs (`nats` config, no Redis), `openspec/config.yaml` stack line, RabbitMQ wording in in-flight changes; add the `nsc` account/user snippet and the exposure notes from `design.md` D6; verify `openspec validate --all --strict`
 - [ ] 8.2 Run the manual check against a real stack (Docker PostgreSQL, Dragonfly, NATS) with a Velocity instance behind the WebSocket route: ban a player on one proxy and see the other kick, stop NATS and see HTTP checks take over, restart it and see the cache refill; record the result in the last PR
 
-## 9. Remove the backend Redis punishment mirror (PR 9, follow-up after PR 6 is deployed, only if open question 2 is "yes": `refactor(punishment): remove the redis punishment mirror`)
+## 9. Remove the backend Redis punishment mirror (PR 9, follow-up after PR 6 is deployed, decision 2: `refactor(punishment): remove the redis punishment mirror`)
 
 - [ ] 9.1 Failing tests first, then delete `PunishmentMirror`, `RedisTopology`, `PunishmentSyncHandler`'s Redis writes, `RedisSyncConsumer` and the `blackhole-redis-sync` consumer; Dragonfly stays for the shared cache; update the `proxy-enforcement` "Redis punishment mirror" requirement (REMOVED) and `.claude/rules/events.md`
 

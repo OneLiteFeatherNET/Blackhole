@@ -80,15 +80,53 @@ event type that contains whitespace, `*` or `>` or an empty token (a test enumer
 published in the code base). Wildcards replace the topic patterns (`blackhole.events.punishment.*`).
 Nothing but the event type is allowed in a subject (GDPR).
 
-### D2. Client library: plain `jnats`, not `micronaut-nats`
+### D2. Client libraries (decided 2026-10-24): `micronaut-nats` in the backend, plain `jnats` in the bot and Velocity
 
-Recommended. The existing consumers already use the raw broker client on purpose (`RedisSyncConsumer`
-comment), the bot is not a Micronaut app, and the needed semantics (named durable pull consumer,
-`nakWithDelay`, explicit stream management, `Nats-Msg-Id`) are first-class in `jnats`. One
-`io.nats.client.Connection` `@Singleton` factory in the backend (reconnect forever, connection
-name `blackhole-backend`, credentials from `NATS_CREDS_FILE`) keeps the dependency to one small
-library, identical in backend and bot (version catalog entry `nats-jnats` = 2.26.4; re-check Maven
-Central and the two-week rule when applying). Alternative: `micronaut-nats`. Open question 1.
+Backend: `micronaut-nats`. The bot (not a Micronaut app) and the Velocity plugin (a Guice plugin)
+use `io.nats:jnats` directly, each with one small connection factory.
+
+**Version research (Maven Central and the module guide, 2026-10-24):**
+
+- The repo's catalog is the Micronaut platform catalog **5.0.2** (`settings.gradle.kts`,
+  `version("micronaut", "5.0.2")`; `gradle.properties` still says `micronautVersion=4.10.2`, unused by
+  the build). The platform BOM 5.0.2 manages `micronaut.nats.version` = **5.0.0** (core 5.0.2).
+- `micronaut-nats` **5.0.0** is built on `micronaut-core-bom` 5.0.0 and `jnats` 2.25.3: this is the
+  matching version and the one to use (`mn.micronaut.nats`, version taken from the BOM, not pinned;
+  verify the alias exists in the catalog).
+- `micronaut-nats` 5.1.0 (latest) is built on `micronaut-core-bom` 5.1.6 and `jnats` 2.26.0; it is
+  newer than platform 5.0.2, so it is **not** used until the platform catalog moves to a 5.1 line.
+- The backend therefore runs `jnats` 2.25.3 (transitive); the bot and Velocity pin `jnats` 2.26.4
+  (current). Same wire protocol; re-check Maven Central and the two-week rule when applying.
+
+**How its JetStream support works (module guide):**
+
+- Connection: `nats.default.addresses` (list of `nats://` or `tls://` URLs, failover),
+  `nats.default.credentials` (path of a `.creds` file), `username`/`password`/`token`,
+  `max-reconnect`, `reconnect-wait`, `connection-timeout`, `ping-interval`, `tls.*`, and
+  `nats.enabled: false` to switch it off.
+- Streams: `nats.default.jetstream.streams.<name>.subjects` and `.create-or-update` create or update a
+  stream at startup. The guide does not list retention, max age, replicas or duplicate window, so those
+  stay in a small `StreamProvisioner` using `JetStreamManagement` (idempotent) with the module's
+  connection injected.
+- Producer: an interface with `@JetStreamClient` (extends `@NatsClient`) using `@Subject` and
+  `@MessageHeader`; a method may take `PublishOptions` and return `PublishAck`. The guide does not say
+  whether `PublishOptions.messageId` is honoured, so the transport sets the `Nats-Msg-Id` header
+  explicitly with `@MessageHeader` and the compatibility test asserts dedupe. Publish methods return
+  an async/reactive type (same rule as the current RabbitMQ client: a blocking publish is refused on
+  the Netty event loop).
+- Consumers: `@JetStreamListener` classes with `@PushConsumer(value = "<stream>", subject = "...")`
+  (durable via the subscribe options), or `PullConsumerRegistry.newPullConsumer(subject,
+  PullSubscribeOptions)` with `fetch(batch, timeout)`. The backend uses the pull registry for
+  `blackhole-redis-sync` (a named durable shared by all replicas, explicit ack, filter subjects),
+  because sharing work on a push consumer needs a deliver group the guide does not document.
+  Acknowledgement is the plain jnats `Message.ack()`/`nak()`.
+
+**Compatibility gate (first task of the backend PR):** a small test (`NatsCompatibilityTest`) boots a
+Micronaut `ApplicationContext` with `micronaut-nats` 5.0.0 against a NATS container, creates a stream,
+publishes twice with the same `Nats-Msg-Id` (one stored), pulls from a named durable with a filter
+subject and acks, and checks that a `nats.default.credentials` file is read. **If it fails, the
+fallback is plain `jnats` behind the same `EventTransport`/`EventSubscription` ports (D3); only the
+adapter classes change, the ports, settings and tests do not.**
 
 ### D3. Ports in the backend
 
@@ -175,6 +213,72 @@ Exposure options for a client outside feather-core (Velocity, or a bot hosted el
 
 Decided by the user: option 1 for Velocity.
 
+#### Provisioning the `BLACKHOLE` account (decided 2026-10-24)
+
+Claude prepares a pull request in Kubernetes-FLUX (`foundation/messaging/clusters/feather-core/nats/`).
+**The user generates every nkey, seed and credential with `nsc` on a workstation.** No seed, no
+`.creds` content and no password is pasted into chat, a pull request description or a plain file; only
+public keys, signed account JWTs (public claims) and SOPS-encrypted files go into git. The operator
+signing key is already in the team password manager (see the Corvus setup). Commands:
+
+```shell
+nsc add account BLACKHOLE
+nsc edit account BLACKHOLE --js-mem-storage 0 --js-disk-storage 5G --js-streams 1 --js-consumer 8
+
+# backend: the only publisher; manages stream BLACKHOLE_EVENTS and the durable blackhole-redis-sync
+nsc add user blackhole-backend --account BLACKHOLE \
+  --allow-pub 'blackhole.events.>' \
+  --allow-pub '$JS.API.STREAM.CREATE.BLACKHOLE_EVENTS' --allow-pub '$JS.API.STREAM.UPDATE.BLACKHOLE_EVENTS' \
+  --allow-pub '$JS.API.STREAM.INFO.BLACKHOLE_EVENTS' \
+  --allow-pub '$JS.API.CONSUMER.CREATE.BLACKHOLE_EVENTS.blackhole-redis-sync' \
+  --allow-pub '$JS.API.CONSUMER.CREATE.BLACKHOLE_EVENTS.blackhole-redis-sync.>' \
+  --allow-pub '$JS.API.CONSUMER.DURABLE.CREATE.BLACKHOLE_EVENTS.blackhole-redis-sync' \
+  --allow-pub '$JS.API.CONSUMER.INFO.BLACKHOLE_EVENTS.blackhole-redis-sync' \
+  --allow-pub '$JS.API.CONSUMER.MSG.NEXT.BLACKHOLE_EVENTS.blackhole-redis-sync' \
+  --allow-pub '$JS.ACK.BLACKHOLE_EVENTS.blackhole-redis-sync.>' \
+  --allow-sub '_INBOX.>'
+
+# discord bot: never publishes events, owns two durables
+nsc add user blackhole-discord --account BLACKHOLE \
+  --allow-pub '$JS.API.STREAM.INFO.BLACKHOLE_EVENTS' \
+  --allow-pub '$JS.API.CONSUMER.CREATE.BLACKHOLE_EVENTS.blackhole-discord-notify' \
+  --allow-pub '$JS.API.CONSUMER.CREATE.BLACKHOLE_EVENTS.blackhole-discord-notify.>' \
+  --allow-pub '$JS.API.CONSUMER.DURABLE.CREATE.BLACKHOLE_EVENTS.blackhole-discord-notify' \
+  --allow-pub '$JS.API.CONSUMER.INFO.BLACKHOLE_EVENTS.blackhole-discord-notify' \
+  --allow-pub '$JS.API.CONSUMER.MSG.NEXT.BLACKHOLE_EVENTS.blackhole-discord-notify' \
+  --allow-pub '$JS.ACK.BLACKHOLE_EVENTS.blackhole-discord-notify.>' \
+  --allow-pub '$JS.API.CONSUMER.CREATE.BLACKHOLE_EVENTS.blackhole-discord-case' \
+  --allow-pub '$JS.API.CONSUMER.CREATE.BLACKHOLE_EVENTS.blackhole-discord-case.>' \
+  --allow-pub '$JS.API.CONSUMER.DURABLE.CREATE.BLACKHOLE_EVENTS.blackhole-discord-case' \
+  --allow-pub '$JS.API.CONSUMER.INFO.BLACKHOLE_EVENTS.blackhole-discord-case' \
+  --allow-pub '$JS.API.CONSUMER.MSG.NEXT.BLACKHOLE_EVENTS.blackhole-discord-case' \
+  --allow-pub '$JS.ACK.BLACKHOLE_EVENTS.blackhole-discord-case.>' \
+  --allow-sub '_INBOX.>'
+
+# velocity: subscribe-only, WebSocket-only, no publishing at all
+nsc add user blackhole-velocity --account BLACKHOLE \
+  --deny-pub '>' \
+  --allow-sub 'blackhole.events.punishment.*' --allow-sub 'blackhole.events.appeal.resolved' \
+  --allow-sub 'blackhole.events.section.changed' --allow-sub 'blackhole.events.report.created' \
+  --allow-sub 'blackhole.events.report.feedback'
+nsc edit user blackhole-velocity --account BLACKHOLE --conn-type WEBSOCKET
+nsc edit user blackhole-backend  --account BLACKHOLE --conn-type STANDARD
+nsc edit user blackhole-discord  --account BLACKHOLE --conn-type STANDARD
+
+# creds files stay on the workstation; the two in-cluster ones are SOPS-encrypted before they touch git
+nsc generate creds --account BLACKHOLE --name blackhole-backend  > blackhole-backend.creds
+nsc generate creds --account BLACKHOLE --name blackhole-discord  > blackhole-discord.creds
+nsc generate creds --account BLACKHOLE --name blackhole-velocity > blackhole-velocity.creds   # handed to the proxy operator
+# for resolver_preload copy ONLY the account public key and JWT:
+nsc describe account BLACKHOLE --raw
+```
+
+Notes: the `CONSUMER.CREATE.<stream>.<consumer>.<filter>` form is used when a filter subject is set,
+hence the `.>` entries. The integration test (backend task 3.1) runs this exact permission set against
+a real server so a missing subject fails in CI as a permissions violation, not in production. The
+Velocity creds file leaves the cluster and is a long-lived secret: rotate by creating a new user,
+deploying it, then revoking the old one with `nsc revocations add-user`.
+
 ### D7. Velocity: drops Redis/Dragonfly, uses the API plus NATS over WebSocket
 
 User decision (2026-10-24): Velocity runs outside feather-core, gets no direct Dragonfly access, and
@@ -193,7 +297,7 @@ invalidate local caches):
 | `blackhole.punishment.sync` pub/sub | Core subscription `blackhole.events.punishment.*` and `blackhole.events.appeal.resolved`: update or evict the cached player, trigger the cross-proxy ban kick (fetch profile, disconnect if banned) |
 | `blackhole.section.changed` | `blackhole.events.section.changed`: refresh the section list over HTTP |
 | Shared-cache lists for tab completion | HTTP with a short local TTL cache |
-| `blackhole.report.created` (written by the proxy that took the report, with player names) | `blackhole.events.report.created` (hashes only, written by the backend): each proxy renders the staff notice from an HTTP lookup of the report. Needs a read endpoint that returns display facts; if none exists the notice stays local to the receiving proxy (Question 3) |
+| `blackhole.report.created` (written by the proxy that took the report, with player names) | `blackhole.events.report.created` (hashes only, written by the backend): each proxy renders the staff notice from an HTTP lookup of the report. Uses `GET /report/{identifier}`, which needs the PROXY role added in its own PR (decision 3) |
 | `blackhole.report.feedback` | `blackhole.events.report.feedback` |
 
 The proxy never publishes, so the report notice cannot be proxy-originated any more.
@@ -212,7 +316,7 @@ Velocity config (`config.json`) loses `redisUri` (BREAKING for the plugin config
 ignored with one warning) and gains `nats.url`, `nats.credsFile`, `cacheMaxAge`. Lettuce is removed from
 `velocity/build.gradle.kts`; jnats (version catalog) is added and shaded/relocated per the plugin's
 existing packaging. The backend's Redis punishment mirror and its `blackhole-redis-sync` consumer lose
-their only reader with this change; removing them is a separate follow-up PR (Question 2) so the
+their only reader with this change; removing them is a separate follow-up PR (decision 2) so the
 transport swap and the proxy move stay independent. Discord and the backend stay in-cluster
 (`nats://nats.nats.svc:4222`, STANDARD connection type).
 
@@ -227,25 +331,31 @@ port (D3) lands first on RabbitMQ so each step is independently revertible.
 
 ### D9. Configuration (env-driven, documented in `application.yml`)
 
+Backend (`micronaut-nats` keys plus one block of our own):
+
 ```yaml
-# NATS JetStream backs the domain event bus (subjects blackhole.events.<type>, stream BLACKHOLE_EVENTS)
+# NATS JetStream backs the domain event bus (subjects blackhole.events.<type>, stream BLACKHOLE_EVENTS).
+nats:
+  default:
+    addresses:
+      - ${NATS_URL:`nats://localhost:4222`}          # in feather-core: nats://nats.nats.svc:4222
+    credentials: ${NATS_CREDS_FILE:}                 # path of the .creds file; empty = no auth (local dev only)
+    connection-name: ${NATS_CONNECTION_NAME:blackhole-backend}
+    max-reconnect: -1                                # reconnect forever
+    connection-timeout: ${NATS_CONNECT_TIMEOUT:5s}
 blackhole:
   events:
     nats:
-      url: ${NATS_URL:`nats://localhost:4222`}       # wss://... for a client outside the cluster
-      creds-file: ${NATS_CREDS_FILE:}                # empty = no credentials (local dev only)
-      connection-name: ${NATS_CONNECTION_NAME:blackhole-backend}
       stream-replicas: ${NATS_STREAM_REPLICAS:1}     # 3 in feather-core
       stream-max-age: ${NATS_EVENTS_MAX_AGE:P7D}
       stream-max-bytes: ${NATS_EVENTS_MAX_BYTES:2147483648}
-      connect-timeout: ${NATS_CONNECT_TIMEOUT:5s}
 ```
 
-An unreadable `NATS_CREDS_FILE` is logged at startup and the app keeps running (same posture as
-today: the bus is an additive side channel). The bot makes `NATS_URL` required and `NATS_CREDS_FILE`
-optional (fail-fast message like its other variables) and relies on jnats' own reconnect instead of
-the 30 s loop. `RABBITMQ_HOST/PORT/USER/PASSWORD/VHOST` are removed. No Flyway migration (no schema
-change).
+An unreadable `NATS_CREDS_FILE` is logged and the app keeps running (the bus is an additive side
+channel). The bot reads `NATS_URL` (required) and `NATS_CREDS_FILE` (optional) in `BotConfig` with its
+fail-fast messages; Velocity reads `nats.url`/`nats.credsFile` from `config.json` with `NATS_URL`/
+`NATS_CREDS_FILE` overrides. `RABBITMQ_HOST/PORT/USER/PASSWORD/VHOST` are removed. No Flyway
+migration (no schema change).
 
 ### D10. Docker and build
 
@@ -253,8 +363,8 @@ change).
 command `-js -sd /data -m 8222`, ports `4222` and `8222`, volume `./nats/data/`, network
 `blackhole_go_net`); the `discord` service gets `NATS_URL: nats://nats:4222` and `depends_on: nats`.
 Local dev runs without auth; the credential path is covered by the integration test. Gradle:
-`mn.micronaut.rabbitmq` and `mn.testcontainers.rabbitmq` out, `io.nats:jnats` in (catalog entry
-replaces `rabbitmq-amqp-client`). Docs updated: README, `docs/discord-bot.md`, `discord/README.md`,
+`mn.micronaut.rabbitmq` and `mn.testcontainers.rabbitmq` out, `mn.micronaut.nats` in (backend); a
+`nats-jnats` catalog entry (2.26.4) replaces `rabbitmq-amqp-client` for the bot and Velocity. Docs updated: README, `docs/discord-bot.md`, `discord/README.md`,
 `.claude/rules/events.md`, the `openspec/config.yaml` stack line, and the RabbitMQ wording in
 in-flight changes.
 
@@ -283,24 +393,26 @@ in-flight changes.
 - A shared JetStream account quota can be exhausted: `max_bytes` and `max_age` bound it; the account
   limit is set by the operator.
 - Cloudflare WebSocket idle closure: mitigated server side (30 s pings); jnats reconnects.
-- `micronaut-nats` not chosen: if preferred, only the adapter classes change (D3).
+- `micronaut-nats` 5.0.0 may prove incompatible or incomplete: the compatibility gate (D2) decides, and the fallback is plain `jnats` behind the same ports.
 - In-flight changes (`add-discord-appeal-tickets`, and others) mention RabbitMQ; wording only.
 
-## Open Questions (for the user, each with a default)
+## Decisions of 2026-10-24 (open questions closed)
 
-Decided already (2026-10-24): Velocity moves to NATS over `wss://nats.onelitefeather.dev` and drops
-Dragonfly; exposure is the existing Cloudflare Tunnel WebSocket route; Discord and backend stay
+1. **Client libraries:** the backend uses `micronaut-nats` (managed by the Micronaut platform 5.0.2
+   BOM as 5.0.0, which uses jnats 2.25.3); the bot and Velocity use plain `jnats` 2.26.4. The first
+   task of the backend PR is a compatibility test; if it fails the backend falls back to plain
+   `jnats` behind the same transport ports (D2).
+2. **Backend Redis punishment mirror:** removed in its own PR (PR 9) after Velocity has moved.
+   Dragonfly stays for the shared cache.
+3. **Cross-proxy report notices:** the backend `report.created` event plus an HTTP lookup. The read
+   endpoint exists (`GET /report/{identifier}`, `ReportController.get`) but is `@Secured(VIEWER)` and
+   the proxy has role PROXY, so a small `feat(report)` PR before the Velocity PR lets PROXY read one
+   report (no response-shape change). The proxy resolves names locally from the hashes of its own
+   online players.
+4. **NATS account:** the `BLACKHOLE` account and users come from a pull request in Kubernetes-FLUX
+   that Claude prepares; the user generates nkeys and secrets with `nsc` (commands and permissions in
+   D6). No secret appears in chat or in plain files.
+
+Earlier decisions (2026-10-24): Velocity moves to NATS over `wss://nats.onelitefeather.dev` and drops
+Dragonfly; exposure is the existing Cloudflare Tunnel WebSocket route; Discord and the backend stay
 in-cluster.
-
-1. **Client library.** Default: **plain `io.nats:jnats` 2.26.4** in backend, bot and plugin.
-   Alternative: `micronaut-nats` 5.1.0 in the backend only.
-2. **Remove the backend Redis punishment mirror (and the `blackhole-redis-sync` consumer) once
-   Velocity has moved?** Default: **yes, as a separate follow-up PR** after the Velocity PR is
-   deployed. Dragonfly stays for the shared cache.
-3. **Cross-proxy report notices.** Default: each proxy renders the notice from the backend
-   `report.created` event plus an HTTP lookup of display facts (add a read endpoint if missing, which
-   would be an API change in its own PR). Fallback: the notice stays local to the proxy that took the
-   report.
-4. **Who creates the `BLACKHOLE` account and users in Kubernetes-FLUX, and when?** Default: the user,
-   with `nsc`, before the first deploy, following D6; `docs` ships the permission list and an `nsc`
-   snippet.

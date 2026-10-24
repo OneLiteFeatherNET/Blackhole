@@ -1,6 +1,6 @@
 # Proposal
 
-**Ships as:** `refactor(events)`, `feat(events)`, `feat(discord)`, `feat(velocity)`, `refactor(velocity)!`,
+**Ships as:** `refactor(events)`, `feat(events)`, `feat(discord)`, `feat(report)`, `feat(velocity)`, `refactor(velocity)!`,
 `build`, `docs` and an optional `refactor(punishment)`, as a stack of small pull requests, one Conventional Commits type each (see
 `tasks.md`). The change as a whole is a transport swap: the event envelope, the event types and the
 GDPR rules for payloads do not change.
@@ -56,7 +56,7 @@ The bus is small and loosely coupled, which makes the move cheap now and expensi
 - **BREAKING (operational and plugin config, not HTTP API):** deployments must provide NATS and the
   `BLACKHOLE` account and drop `RABBITMQ_*`; the Velocity `config.json` loses `redisUri` and gains
   `nats.url` and `nats.credsFile`. No HTTP API, OpenAPI spec, generated client or database schema
-  changes (unless open question 3 adds a report read endpoint, in its own PR), so no Flyway migration.
+  changes (the report read endpoint exists; a small `feat(report)` PR lets the proxy role call it), so no Flyway migration.
 
 ## Findings that differ from the brief
 
