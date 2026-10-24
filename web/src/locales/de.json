@@ -419,6 +419,37 @@
       "note": "Notiz",
       "noteHint": "Optional; wird mit der Entscheidung gespeichert",
       "confirm": "Entscheidung speichern"
+    },
+    "detail": {
+      "back": "Zurück zu den Meldungen",
+      "open": "Details",
+      "title": "Meldung",
+      "summary": "Übersicht",
+      "reportedPlayer": "Gemeldeter Spieler",
+      "reporter": "Meldender",
+      "pseudonymous": "(pseudonymisiert)",
+      "reason": "Angegebener Grund",
+      "noReason": "Kein Grund angegeben.",
+      "resolutionNote": "Notiz zur Entscheidung",
+      "noNote": "Keine Notiz.",
+      "actions": "Aktionen zu dieser Meldung",
+      "applyTemplate": "Vorlage anwenden",
+      "dismiss": "Abweisen",
+      "evidence": "Beweise",
+      "evidenceMissing": "{n} Beweis konnte nicht geladen werden. Er wurde möglicherweise gelöscht. | {n} Beweise konnten nicht geladen werden. Sie wurden möglicherweise gelöscht.",
+      "others": "Weitere Meldungen gegen diesen Spieler",
+      "othersEmpty": "Es gibt keine weiteren Meldungen gegen diesen Spieler.",
+      "active": "Aktive Strafen",
+      "loadFailed": "Dieser Abschnitt konnte nicht geladen werden.",
+      "allTemplates": "Alle Vorlagen anzeigen",
+      "allTemplatesHint": "Standardmäßig werden nur Vorlagen angeboten, die zur Kategorie der Meldung passen.",
+      "actioned": "Meldung bearbeitet: Strafe in {section} verhängt.",
+      "dismissed": "Meldung abgewiesen.",
+      "dismissTitle": "Meldung abweisen",
+      "dismissHint": "Der Meldende erfährt, dass nicht eingegriffen wurde. Deine Notiz sieht er nicht.",
+      "dismissNote": "Notiz",
+      "dismissNoteHint": "Pflichtfeld; warum wird nicht eingegriffen?",
+      "dismissConfirm": "Meldung abweisen"
     }
   },
   "appeals": {
@@ -997,8 +1028,9 @@
     "results": "Suchergebnisse",
     "player": "Spieler „{name}“ öffnen",
     "case": "Fall {id} öffnen",
-    "hint": "Gib einen Spielernamen (3 bis 16 Zeichen) oder eine Fall-ID wie #A1B2C3D4 ein.",
+    "hint": "Gib einen Spielernamen (3 bis 16 Zeichen), eine Fall-ID wie #A1B2C3D4 oder report: und eine Meldungs-ID ein.",
     "caseNotFound": "Zur Fall-ID {id} wurde nichts gefunden.",
-    "ambiguous": "Die ID {id} passt zu {n} Fällen. Wähle einen aus."
+    "ambiguous": "Die ID {id} passt zu {n} Fällen. Wähle einen aus.",
+    "report": "Meldung {id} öffnen"
   }
 }

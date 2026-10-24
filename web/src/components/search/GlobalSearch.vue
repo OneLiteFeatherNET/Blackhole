@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Global search of the top bar: a player name opens the player, `#A1B2C3D4` (the id players quote) or a
-// full punishment id opens the case. A short id that matches several punishments lists them to pick from.
+// full punishment id opens the case, `report:` and a report id opens the report. A short id that matches several punishments lists them to pick from.
 // ARIA combobox with a listbox; "/" focuses the field from anywhere outside a text field.
 import { computed, onBeforeUnmount, onMounted, ref, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -46,6 +46,11 @@ function openCase(reference: string): void {
   finish()
 }
 
+function openReport(identifier: string): void {
+  void router.push({ name: 'report', params: { id: identifier } })
+  finish()
+}
+
 const choices = computed<Choice[]>(() => {
   if (matches.value) {
     return matches.value.items.map((punishment) => ({
@@ -58,6 +63,7 @@ const choices = computed<Choice[]>(() => {
   const found = intent.value
   if (found.kind === 'player') return [{ id: 'player', label: t('search.player', { name: found.name }), run: () => openPlayer(found.name) }]
   if (found.kind === 'shortId') return [{ id: 'case', label: t('search.case', { id: found.shortId }), run: () => lookUpShortId(found.shortId) }]
+  if (found.kind === 'report') return [{ id: 'report', label: t('search.report', { id: found.identifier.slice(0, 8) }), run: () => openReport(found.identifier) }]
   if (found.kind === 'reference') return [{ id: 'case', label: t('search.case', { id: found.reference.slice(0, 8) }), run: () => openCase(found.reference) }]
   return []
 })

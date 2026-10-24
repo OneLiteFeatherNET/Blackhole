@@ -31,12 +31,16 @@ the type-check) and `openspec validate --all --strict` before each PR.
 
 ## 4. Report detail page (PR 4: `feat(web): add a report detail page`)
 
-- [ ] 4.1 Route `/reports/:id`, linked from the list and the global search; verify router and search tests
-- [ ] 4.2 Detail sections (report, evidence, other reports, active punishments and case links); verify Vitest tests with `fakeFetch`
-- [ ] 4.3 "Apply template" (existing apply dialog, resolves as actioned) and "Dismiss" with a note through the existing resolve route; verify tests for both and for the 409 case
-- [ ] 4.4 English and German texts, keyboard and screen reader behaviour; verify the i18n parity test
-- [ ] 4.5 `admin-web-ui` delta; verify `openspec validate --all --strict`
+- [x] 4.1 Route `/reports/:id`, linked from the list and the global search; verify router and search tests
+- [x] 4.2 Detail sections (report, evidence, other reports, active punishments and case links); verify Vitest tests with `fakeFetch`
+- [x] 4.3 "Apply template" (existing apply dialog, resolves as actioned) and "Dismiss" with a note through the existing resolve route; verify tests for both and for the 409 case
+- [x] 4.4 English and German texts, keyboard and screen reader behaviour; verify the i18n parity test
+- [x] 4.5 `admin-web-ui` delta; verify `openspec validate --all --strict`
 
 ## 5. Pull requests
 
-- [ ] 5.1 Open the four pull requests, each stacked on the previous one, under the titles above and watch their checks
+- [x] 5.1 Open the four pull requests, each stacked on the previous one, under the titles above and watch their checks
+
+## Notes
+
+- Recording the resolution on the case timeline is not done: the timeline's event types are a fixed set owned by the backend (`CaseEvents`), so a report event needs its own backend change and a new client spec version. The punishment a resolution applies already appears on its case through the usual `punishment.created` event, and its evidence follows it.

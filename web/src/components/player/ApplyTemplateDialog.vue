@@ -2,14 +2,18 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../../api/inject'
-import type { ApplyPreview, Template } from '../../api/types'
+import type { ApplyPreview, EnforcementKind, Report, ReportCategory, Section, Template } from '../../api/types'
 import { formatDuration } from '../../format'
 import MdButton from '../md/MdButton.vue'
+import MdCheckbox from '../md/MdCheckbox.vue'
 import MdDialog from '../md/MdDialog.vue'
 import MdProgress from '../md/MdProgress.vue'
 import MdSelect from '../md/MdSelect.vue'
 
-const props = defineProps<{ open: boolean; owner: string }>()
+// With `report` the dialog resolves that report as actioned with the chosen template (one call to the
+// resolve route, which applies the template and links it to the report) instead of applying it alone,
+// and offers the templates whose section fits the report's category first.
+const props = defineProps<{ open: boolean; owner: string; report?: Report }>()
 const emit = defineEmits<{ close: []; done: [message: string] }>()
 
 const { t, locale } = useI18n()
@@ -21,9 +25,26 @@ const preview = ref<ApplyPreview | null>(null)
 const previewing = ref(false)
 const applying = ref(false)
 const error = ref('')
+const sections = ref<Section[]>([])
+const showAll = ref(false)
+
+/** The kinds of section a report category is usually punished in; undefined means every kind fits. */
+const FITTING: Partial<Record<ReportCategory, EnforcementKind[]>> = {
+  CHAT_ABUSE: ['MUTE'],
+  CHEATING: ['BAN', 'SERVER'],
+  GRIEFING: ['BAN', 'SERVER'],
+}
+
+const fitting = computed(() => {
+  const kinds = props.report ? FITTING[props.report.category] : undefined
+  if (!kinds || showAll.value) return templates.value
+  const sectionKeys = new Set(sections.value.filter((section) => kinds.includes(section.enforcement)).map((section) => section.key))
+  return templates.value.filter((template) => sectionKeys.has(template.section))
+})
+const filtered = computed(() => props.report !== undefined && fitting.value.length < templates.value.length)
 
 const options = computed(() => [
-  ...templates.value.map((template) => ({
+  ...fitting.value.map((template) => ({
     value: template.key,
     label: template.key,
     description: `${template.reason} \u00b7 ${template.section}`,
@@ -37,9 +58,14 @@ watch(
     selected.value = ''
     preview.value = null
     error.value = ''
+    showAll.value = false
     const result = await api.templates()
     if (result.ok) templates.value = result.data
     else error.value = result.error.message
+    if (props.report) {
+      const known = await api.sections()
+      if (known.ok) sections.value = known.data
+    }
   },
   { immediate: true },
 )
@@ -60,6 +86,17 @@ async function confirm(): Promise<void> {
   if (!preview.value || applying.value) return
   applying.value = true
   error.value = ''
+  if (props.report?.identifier) {
+    const template = templates.value.find((entry) => entry.key === selected.value)
+    const resolved = await api.resolveReport(props.report.identifier, { status: 'ACTIONED', templateId: template?.identifier })
+    applying.value = false
+    if (!resolved.ok) {
+      error.value = resolved.error.message
+      return
+    }
+    emit('done', t('reports.detail.actioned', { section: preview.value.section }))
+    return
+  }
   const result = await api.applyTemplate(props.owner, selected.value)
   applying.value = false
   if (!result.ok) {
@@ -79,6 +116,13 @@ async function confirm(): Promise<void> {
 <template>
   <MdDialog :open="open" :headline="t('actions.apply.title')" @close="emit('close')">
     <div class="flex min-h-64 flex-col gap-4">
+      <MdCheckbox
+        v-if="filtered || (report && showAll)"
+        v-model="showAll"
+        data-testid="show-all-templates"
+        :label="t('reports.detail.allTemplates')"
+        :supporting-text="t('reports.detail.allTemplatesHint')"
+      />
       <MdSelect v-model="selected" required :placeholder="t('actions.apply.choose')" :label="t('actions.apply.template')" :options="options" />
       <MdProgress v-if="previewing" :label="t('actions.apply.loadingPreview')" />
       <div v-if="preview" data-testid="preview" class="flex flex-col gap-1 text-on-surface">

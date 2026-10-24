@@ -82,6 +82,14 @@ async function done(text: string): Promise<void> {
             :tone="isOpen(row) ? 'tertiary' : 'neutral'"
           />
           <template v-else-if="column.key === 'identifier'">
+            <RouterLink
+              v-if="row.identifier"
+              :to="`/reports/${row.identifier}`"
+              :data-testid="`details-${row.identifier}`"
+              class="md-state inline-flex h-10 items-center rounded-md-full px-4 text-label-large text-primary"
+            >
+              {{ t('reports.detail.open') }}
+            </RouterLink>
             <MdButton v-if="session.moderator && isOpen(row) && row.identifier" variant="outlined" :data-testid="`resolve-${row.identifier}`" @click="resolving = row">
               {{ t('reports.resolve.open') }}
             </MdButton>
