@@ -12,6 +12,7 @@ import io.micronaut.core.annotation.Nullable;
  * @param actor                who caused it
  * @param subjectId            what it is about (appeal id, evidence id), if anything
  * @param dedupeKey            the deterministic key that makes recording it twice a no-op, or {@code null} for an event that may repeat
+ * @param visibility           {@value #STAFF} (default) or {@value #PLAYER}; set by the server, never by a request
  */
 public record CaseEventDraft(
         String punishmentIdentifier,
@@ -20,8 +21,20 @@ public record CaseEventDraft(
         CaseEventOrigin origin,
         CaseActor actor,
         @Nullable String subjectId,
-        @Nullable String dedupeKey
+        @Nullable String dedupeKey,
+        String visibility
 ) {
+
+    public static final String STAFF = "STAFF";
+    public static final String PLAYER = "PLAYER";
+
+    /** A staff-only event, which is what every lifecycle and note event is. */
+    public CaseEventDraft(
+            String punishmentIdentifier, CaseEventPayload payload, long occurredAt, CaseEventOrigin origin, CaseActor actor,
+            @Nullable String subjectId, @Nullable String dedupeKey
+    ) {
+        this(punishmentIdentifier, payload, occurredAt, origin, actor, subjectId, dedupeKey, STAFF);
+    }
 
     public String type() {
         return this.payload.type();

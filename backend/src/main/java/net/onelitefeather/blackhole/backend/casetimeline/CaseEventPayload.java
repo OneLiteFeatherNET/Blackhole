@@ -36,6 +36,22 @@ public sealed interface CaseEventPayload {
     String NOTE_ADDED = "note.added";
     String NOTE_EDITED = "note.edited";
     String NOTE_REDACTED = "note.redacted";
+    String MESSAGE_ADDED = "message.added";
+    String MESSAGE_EDITED = "message.edited";
+    String MESSAGE_DELETED = "message.deleted";
+    String MESSAGE_REDACTED = "message.redacted";
+    String BAN_ID_LEAK_MARKED = "ban_id.leak_marked";
+    String BAN_ID_REISSUED = "ban_id.reissued";
+    String TRANSCRIPT_EXPORTED = "transcript.exported";
+
+    /**
+     * The only event types a player-facing reader may return, on top of the {@code PLAYER} visibility
+     * filter. Both are applied in the query itself, so a type added later is invisible to players until
+     * it is listed here. The lifecycle events {@code appeal.filed} and {@code appeal.decided} are listed
+     * but stay {@code STAFF} visibility until the public API change decides to show them.
+     */
+    List<String> PORTAL_VISIBLE_TYPES = List.of(MESSAGE_ADDED, MESSAGE_EDITED, MESSAGE_DELETED, MESSAGE_REDACTED,
+            APPEAL_FILED, APPEAL_DECIDED, BAN_ID_LEAK_MARKED, BAN_ID_REISSUED);
 
     /** The dotted lower case type, such as {@code punishment.applied}. */
     String type();
@@ -396,6 +412,148 @@ public sealed interface CaseEventPayload {
         @Override
         public Map<String, Object> toMap() {
             return Map.of("noteId", noteId, "reason", reason);
+        }
+    }
+
+    /**
+     * A conversation message. {@code text} is {@code null} once the message was redacted; the author
+     * kind, channel and ids stay. The one payload (with the edit) that holds a player's words.
+     */
+    record MessageAdded(String messageId, @Nullable String appealId, MessageAuthorKind authorKind, @Nullable String participantId,
+                        MessageChannel channel, @Nullable String text) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return MESSAGE_ADDED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("messageId", messageId);
+            put(map, "appealId", appealId);
+            Map<String, Object> author = new LinkedHashMap<>();
+            author.put("kind", authorKind.name());
+            put(author, "participantId", participantId);
+            map.put("author", author);
+            map.put("channel", channel.name());
+            put(map, "text", text);
+            return map;
+        }
+    }
+
+    /** A message was edited; {@code text} is the new full text ({@code null} after a redaction). */
+    record MessageEdited(String messageId, @Nullable String text) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return MESSAGE_EDITED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("messageId", messageId);
+            put(map, "text", text);
+            return map;
+        }
+    }
+
+    /** A message was deleted; the earlier versions stay. {@code deletedBy} is the kind of author who deleted it. */
+    record MessageDeleted(String messageId, MessageAuthorKind deletedBy) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return MESSAGE_DELETED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            return Map.of("messageId", messageId, "deletedBy", deletedBy.name());
+        }
+    }
+
+    /** Every version of a message was redacted; carries the reason code and never the text. */
+    record MessageRedacted(String messageId, String reason) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return MESSAGE_REDACTED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            return Map.of("messageId", messageId, "reason", reason);
+        }
+    }
+
+    /** The Ban ID was marked leaked. Never carries the Ban ID. {@code afterFiling}: an appeal had been filed. */
+    record BanIdLeakMarked(BanIdLeakReason reason, BanIdLeakSource source, boolean afterFiling) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return BAN_ID_LEAK_MARKED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            return Map.of("reason", reason.name(), "source", source.name(), "afterFiling", afterFiling);
+        }
+    }
+
+    /** A new Ban ID was issued; generation numbers only, never either Ban ID. */
+    record BanIdReissued(BanIdReissueReason reason, int fromGeneration, int toGeneration) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return BAN_ID_REISSUED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            return Map.of("reason", reason.name(), "fromGeneration", fromGeneration, "toGeneration", toGeneration);
+        }
+    }
+
+    /** The conversation was exported: format and entry count, never content. */
+    record TranscriptExported(String format, int entries, boolean includeNotes) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return TRANSCRIPT_EXPORTED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            return Map.of("format", format, "entries", entries, "includeNotes", includeNotes);
         }
     }
 

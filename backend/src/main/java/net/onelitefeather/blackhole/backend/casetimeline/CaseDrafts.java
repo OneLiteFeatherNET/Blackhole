@@ -80,4 +80,59 @@ public final class CaseDrafts {
             case VALID -> throw new IllegalArgumentException("a valid evidence item has no status change");
         };
     }
+
+    /** The id a message gets when the caller sent an {@code Idempotency-Key}: the same key names the same message. */
+    public static String idempotentMessageId(String punishmentIdentifier, String authorKey, String idempotencyKey) {
+        return java.util.UUID.nameUUIDFromBytes(("message|" + punishmentIdentifier + "|" + authorKey + "|" + idempotencyKey)
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+    }
+
+    /** The id of the player message that comes with the decision of an appeal: one per appeal, so recording it twice inserts once. */
+    public static String decisionMessageId(String appealId) {
+        return java.util.UUID.nameUUIDFromBytes(("appeal.decided|" + appealId).getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+    }
+
+    /** {@code message.added} by a staff member: visible to the player, whichever way the request was shaped. */
+    public static CaseEventDraft staffMessage(String punishmentIdentifier, String messageId, @Nullable String appealId, String text,
+                                              MessageChannel channel, CaseActor actor, CaseEventOrigin origin, long occurredAt) {
+        return new CaseEventDraft(punishmentIdentifier,
+                new CaseEventPayload.MessageAdded(messageId, appealId, MessageAuthorKind.STAFF, null, channel, text),
+                occurredAt, origin, actor, messageId, "message:" + messageId, CaseEventDraft.PLAYER);
+    }
+
+    /** {@code message.added} by the player, from the portal: trust {@code PLAYER}, no {@code oid}. */
+    public static CaseEventDraft playerMessage(String punishmentIdentifier, String messageId, @Nullable String appealId, String text,
+                                               long occurredAt) {
+        return new CaseEventDraft(punishmentIdentifier,
+                new CaseEventPayload.MessageAdded(messageId, appealId, MessageAuthorKind.PLAYER, null, MessageChannel.PORTAL, text),
+                occurredAt, CaseEventOrigin.LIVE, CaseActor.player(), messageId, "message:" + messageId, CaseEventDraft.PLAYER);
+    }
+
+    /** {@code message.edited}, the {@code version}-th edit (1 for the first); visibility is the original's. */
+    public static CaseEventDraft messageEdited(String punishmentIdentifier, String messageId, int version, String text, String visibility,
+                                               CaseActor actor, long occurredAt) {
+        return new CaseEventDraft(punishmentIdentifier, new CaseEventPayload.MessageEdited(messageId, text), occurredAt, CaseEventOrigin.LIVE,
+                actor, messageId, "message.edited:" + messageId + ":" + version, visibility);
+    }
+
+    /** {@code message.deleted}; the text of the earlier versions stays. */
+    public static CaseEventDraft messageDeleted(String punishmentIdentifier, String messageId, MessageAuthorKind deletedBy, String visibility,
+                                                CaseActor actor, long occurredAt) {
+        return new CaseEventDraft(punishmentIdentifier, new CaseEventPayload.MessageDeleted(messageId, deletedBy), occurredAt,
+                CaseEventOrigin.LIVE, actor, messageId, "message.deleted:" + messageId, visibility);
+    }
+
+    /** {@code message.redacted}, once per message however often it is asked. */
+    public static CaseEventDraft messageRedacted(String punishmentIdentifier, String messageId, String reason, String visibility,
+                                                 CaseActor actor, long occurredAt) {
+        return new CaseEventDraft(punishmentIdentifier, new CaseEventPayload.MessageRedacted(messageId, reason), occurredAt,
+                CaseEventOrigin.LIVE, actor, messageId, "message.redacted:" + messageId, visibility);
+    }
+
+    /** {@code transcript.exported}: who exported, in which format and how many entries; never content. */
+    public static CaseEventDraft transcriptExported(String punishmentIdentifier, String format, int entries, boolean includeNotes,
+                                                    CaseActor actor, long occurredAt) {
+        return new CaseEventDraft(punishmentIdentifier, new CaseEventPayload.TranscriptExported(format, entries, includeNotes), occurredAt,
+                CaseEventOrigin.LIVE, actor, null, null);
+    }
 }

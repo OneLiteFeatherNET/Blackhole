@@ -11,5 +11,10 @@ public enum ActorTrust {
     /** Only an attributed source UUID (legacy rows, unlinked in-game staff) or no actor is known. */
     UNVERIFIED,
     /** The system itself: escalation, the expiry sweeper, the reconciler, an automatic reopen. */
-    SYSTEM
+    SYSTEM,
+    /**
+     * A player wrote it (portal, later Discord): no {@code oid}, claimed through the Ban ID only. Not
+     * {@link #UNVERIFIED}, which means a legacy or unlinked staff actor. Never shown with a verified badge.
+     */
+    PLAYER
 }
