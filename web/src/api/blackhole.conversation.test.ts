@@ -156,7 +156,7 @@ describe('case conversation', () => {
 
     const urls = calls.map((call) => new URL(call.url))
     expect(urls[0]!.pathname).toBe('/api/case/p-1/timeline')
-    expect(urls[0]!.searchParams.getAll('type')).toEqual(['message', 'ban_id.leak_marked', 'ticket', 'protocol.stored', 'appeal.decided'])
+    expect(urls[0]!.searchParams.getAll('type')).toEqual(['message', 'ban_id.leak_marked', 'ticket', 'protocol.stored', 'appeal.decided', 'evidence.shared', 'evidence.share_revoked'])
     expect(urls[0]!.searchParams.get('order')).toBe('asc')
     expect(urls[1]!.searchParams.get('cursor')).toBe('1700:1')
     expect(result.ok && result.data).toEqual([first, second])

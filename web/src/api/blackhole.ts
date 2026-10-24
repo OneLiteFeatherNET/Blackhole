@@ -1,3 +1,4 @@
+import { openCaseEvents, type CaseEvents, type CaseEventsState } from './caseEvents'
 import { API_VERSION, API_VERSION_HEADER, authenticatedFetch, createHttp, errorFromBody, map, toResult, type HttpAuth } from './http'
 import type { components } from './schema'
 import { EVIDENCE_SOURCE_SYSTEM, uploadEvidence, type Upload } from './uploadEvidence'
@@ -16,6 +17,13 @@ import type {
   BanIdReissueReason,
   CaseBanIdLeakResult,
   CaseBanIdReissueResult,
+  ChatAttachment,
+  EvidenceCounts,
+  EvidenceShare,
+  EvidenceSharePreview,
+  EvidenceSharePreviewRequest,
+  EvidenceShareRequest,
+  ShareRevokeReason,
   CaseMessageRedactResult,
   CaseMessageResult,
   CaseTimelineItem,
@@ -222,7 +230,27 @@ export interface BlackholeApi {
    * Replies to the player (1 to 2000 characters, no UUID, IP or Ban ID; the server rejects those). The same
    * `idempotencyKey` makes a retry a no-op that answers with the first message.
    */
-  postCaseMessage(reference: string, text: string, idempotencyKey?: string): Promise<ApiResult<CaseMessageResult>>
+  postCaseMessage(reference: string, text: string, idempotencyKey?: string, attachmentIds?: string[]): Promise<ApiResult<CaseMessageResult>>
+  /**
+   * Stages one file (PNG, JPEG, WebP, PDF or text, 10 MiB at most) for the case's next message. The
+   * player sees it once that message is posted. Nothing is staged for a file the server refuses.
+   */
+  uploadCaseAttachment(reference: string, file: File): Promise<ApiResult<ChatAttachment>>
+  /** The team count and the player-supplied count of a punishment's valid evidence. */
+  evidenceCounts(punishment: string): Promise<ApiResult<EvidenceCounts>>
+  /** Every share of the case, oldest first, with its state. */
+  evidenceShares(reference: string): Promise<ApiResult<EvidenceShare[]>>
+  /** What the player would see for a selection; changes nothing. */
+  previewEvidenceShare(reference: string, request: EvidenceSharePreviewRequest): Promise<ApiResult<EvidenceSharePreview>>
+  /** Shows evidence to the player; `confirmedMinimised` must be true. An identical active share answers the existing one. */
+  shareEvidence(reference: string, request: EvidenceShareRequest): Promise<ApiResult<EvidenceShare>>
+  /** Withdraws a share at once; the player's next read shows it as withdrawn. */
+  revokeEvidenceShare(reference: string, shareId: string, reason: ShareRevokeReason): Promise<ApiResult<EvidenceShare>>
+  /**
+   * Live updates of one case: `onChanged` gets the seq of every change the reader may see, then the case is read again.
+   * The stream reconnects by itself until it is closed; a missing or refused stream leaves polling to the caller.
+   */
+  openCaseEvents(reference: string, handlers: { onChanged: (seq: number) => void; onState?: (state: CaseEventsState) => void }): CaseEvents
   /** Corrects a staff message (its author or an admin); earlier versions stay in the timeline. */
   editCaseMessage(reference: string, messageId: string, text: string): Promise<ApiResult<CaseMessageResult>>
   /** Deletes a staff message (its author or an admin); staff still see the last text marked deleted. */
@@ -259,7 +287,7 @@ const EVIDENCE_PAGE_SIZE = 20
 const PAGE_SIZE = 200
 /** What the conversation reads of the timeline: a type group and an exact type. */
 /** `ticket` is the Discord ticket lifecycle, `protocol.stored` the stored protocol versions, `appeal.decided` closes a ticket. */
-const CONVERSATION_TYPES = ['message', 'ban_id.leak_marked', 'ticket', 'protocol.stored', 'appeal.decided']
+const CONVERSATION_TYPES = ['message', 'ban_id.leak_marked', 'ticket', 'protocol.stored', 'appeal.decided', 'evidence.shared', 'evidence.share_revoked']
 const CONVERSATION_PAGE_SIZE = 200
 const CONVERSATION_MAX_PAGES = 10
 const MAX_PAGES = 25
@@ -768,13 +796,42 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     redactCaseNote: (reference, noteId, reason) =>
       toResult(http.POST('/case/{reference}/notes/{noteId}/redact', { params: { path: { reference, noteId } }, body: { reason } })),
  
-    postCaseMessage: (reference, text, idempotencyKey) =>
+    postCaseMessage: (reference, text, idempotencyKey, attachmentIds) =>
       toResult(
         http.POST('/case/{reference}/messages', {
           params: { path: { reference }, header: { 'Idempotency-Key': idempotencyKey ?? null } },
-          body: { text },
+          body: attachmentIds?.length ? { text, attachmentIds } : { text },
         }),
       ),
+
+    uploadCaseAttachment: (reference, file) => {
+      // Sent as multipart form data; openapi-fetch passes a FormData body through unchanged.
+      const form = new FormData()
+      form.append('file', file, file.name)
+      return toResult(
+        http.POST('/case/{reference}/attachments', {
+          params: { path: { reference } },
+          body: form as unknown as { file?: string },
+        }),
+      )
+    },
+
+    evidenceCounts: (punishment) => toResult(http.GET('/punishment/{reference}/evidence/count', { params: { path: { reference: punishment } } })),
+
+    evidenceShares: async (reference) =>
+      map(await toResult(http.GET('/case/{reference}/evidence-shares', { params: { path: { reference } } })), (body) => body.items),
+
+    previewEvidenceShare: (reference, request) =>
+      toResult(http.POST('/case/{reference}/evidence-shares/preview', { params: { path: { reference } }, body: request })),
+
+    shareEvidence: (reference, request) =>
+      toResult(http.POST('/case/{reference}/evidence-shares', { params: { path: { reference } }, body: request })),
+
+    openCaseEvents: (reference, handlers) =>
+      openCaseEvents({ baseUrl: options.baseUrl, auth: options.auth, reference, fetch: options.fetch, ...handlers }),
+
+    revokeEvidenceShare: (reference, shareId, reason) =>
+      toResult(http.POST('/case/{reference}/evidence-shares/{shareId}/revoke', { params: { path: { reference, shareId } }, body: { reason } })),
 
     editCaseMessage: (reference, messageId, text) =>
       toResult(http.PUT('/case/{reference}/messages/{messageId}', { params: { path: { reference, messageId } }, body: { text } })),
