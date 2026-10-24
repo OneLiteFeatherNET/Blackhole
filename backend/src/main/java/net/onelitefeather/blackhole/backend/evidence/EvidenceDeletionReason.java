@@ -16,5 +16,8 @@ public enum EvidenceDeletionReason {
     CASCADE,
 
     /** Pending evidence was not claimed by a punishment within the pending TTL. */
-    UNCLAIMED_EXPIRED
+    UNCLAIMED_EXPIRED,
+
+    /** A generated item lost the race for its version to a concurrent identical generation and was dropped. */
+    DUPLICATE
 }

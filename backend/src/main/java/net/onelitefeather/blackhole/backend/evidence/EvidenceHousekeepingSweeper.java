@@ -73,7 +73,7 @@ public class EvidenceHousekeepingSweeper {
         int deleted = 0;
         try {
             for (BlobStore.StoredBlob blob : this.blobs.listOlderThan(this.clock.instant().minus(ORPHAN_GRACE))) {
-                if (this.items.existsByFileKey(blob.key())) {
+                if (this.items.existsByFileKey(blob.key()) || this.items.existsByJsonFileKey(blob.key())) {
                     continue;
                 }
                 try {

@@ -119,7 +119,7 @@ class EvidenceRepositoryIntegrationTest extends PostgresIntegrationTest {
         givenItem(punishment, OWNER, null, EvidenceStatus.LIFTED, 2L);
         givenItem(punishment, OWNER, null, EvidenceStatus.REVOKED, 3L);
 
-        assertEquals(1, this.items.countByPunishmentIdentifierAndStatus(punishment, EvidenceStatus.VALID),
+        assertEquals(1, this.items.countByPunishmentIdentifierAndStatusAndKindNotEqual(punishment, EvidenceStatus.VALID, EvidenceKind.TRANSCRIPT),
                 "lifted and revoked evidence is not counted");
         assertEquals(1, this.items.findByPunishmentIdentifierAndStatusOrderByCreatedAt(punishment, EvidenceStatus.LIFTED, Pageable.from(0, 10))
                 .getContent().size());

@@ -18,8 +18,11 @@ public interface EvidenceItemRepository extends PageableRepository<EvidenceItemE
     Page<EvidenceItemEntity> findByPunishmentIdentifierAndStatusOrderByCreatedAt(
             String punishmentIdentifier, EvidenceStatus status, Pageable pageable);
 
-    /** How many items of the punishment have the status; the player-visible evidence count. */
-    long countByPunishmentIdentifierAndStatus(String punishmentIdentifier, EvidenceStatus status);
+    /**
+     * How many items of the punishment have the status and are not of the given kind; the player-visible
+     * evidence count passes {@link EvidenceKind#TRANSCRIPT}, which is not evidence a player is told about.
+     */
+    long countByPunishmentIdentifierAndStatusAndKindNotEqual(String punishmentIdentifier, EvidenceStatus status, EvidenceKind kind);
 
     /** All items of a punishment, for lifecycle changes and cascades. */
     List<EvidenceItemEntity> findByPunishmentIdentifier(String punishmentIdentifier);
@@ -41,4 +44,7 @@ public interface EvidenceItemRepository extends PageableRepository<EvidenceItemE
 
     /** Whether a row references the blob; the reconcile sweep deletes blobs nobody references. */
     boolean existsByFileKey(String fileKey);
+
+    /** Whether a transcript row references the blob as its JSON file. */
+    boolean existsByJsonFileKey(String jsonFileKey);
 }

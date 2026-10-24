@@ -83,6 +83,16 @@ public class EvidenceItemEntity {
     @Column(name = "file_sha256", length = 64)
     private String fileSha256;
 
+    /** The second file of a {@link EvidenceKind#TRANSCRIPT} item (the JSON rendering); {@code null} for every other kind. */
+    @Column(name = "json_file_key")
+    private String jsonFileKey;
+
+    @Column(name = "json_file_size")
+    private Long jsonFileSize;
+
+    @Column(name = "json_file_sha256", length = 64)
+    private String jsonFileSha256;
+
     private EvidenceStatus status = EvidenceStatus.VALID;
 
     @Column(name = "status_changed_at")
@@ -132,6 +142,13 @@ public class EvidenceItemEntity {
         this.fileContentType = contentType;
         this.fileSize = size;
         this.fileSha256 = sha256;
+    }
+
+    /** Stores the second file of a transcript item. */
+    public void setJsonFile(String key, long size, String sha256) {
+        this.jsonFileKey = key;
+        this.jsonFileSize = size;
+        this.jsonFileSha256 = sha256;
     }
 
     /** Attaches a pending item to the punishment that claimed it; the correlation id is spent. */
@@ -237,6 +254,18 @@ public class EvidenceItemEntity {
 
     public String getFileSha256() {
         return fileSha256;
+    }
+
+    public String getJsonFileKey() {
+        return jsonFileKey;
+    }
+
+    public Long getJsonFileSize() {
+        return jsonFileSize;
+    }
+
+    public String getJsonFileSha256() {
+        return jsonFileSha256;
     }
 
     public EvidenceStatus getStatus() {
