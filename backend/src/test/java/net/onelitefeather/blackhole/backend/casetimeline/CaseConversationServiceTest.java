@@ -372,7 +372,7 @@ class CaseConversationServiceTest {
     @Test
     void aBrokenBrokerDoesNotFailAStoredMessage() {
         givenPunishment();
-        net.onelitefeather.blackhole.backend.events.DomainEventPublisher broken = new net.onelitefeather.blackhole.backend.events.DomainEventPublisher(null) {
+        net.onelitefeather.blackhole.backend.events.DomainEventPublisher broken = new net.onelitefeather.blackhole.backend.events.DomainEventPublisher(null, java.time.Clock.systemUTC()) {
             @Override
             public void publish(String eventType, java.util.Map<String, Object> payload) {
                 throw new IllegalStateException("broker down");
