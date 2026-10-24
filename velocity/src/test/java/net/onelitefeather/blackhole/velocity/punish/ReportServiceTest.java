@@ -147,4 +147,15 @@ class ReportServiceTest {
 
         assertEquals(2, backend.reports.size(), "only the backend's limiter may refuse a report");
     }
+
+    @Test
+    void reportEvidenceIsMarkedWithTheReportCorrelationPrefix() {
+        buffer.record(REPORTED_HASH, "lobby", "bad words");
+        ReportService real = new ReportService(backend, ReportEvidence.create(new ChatSnapshotBuilder(buffer, config), backend, config));
+
+        real.submit(REPORTER, REPORTED, false, ReportCategory.CHAT_ABUSE, null);
+
+        assertTrue(backend.reportEvidenceCorrelationIds.getFirst().startsWith("report:"),
+                "the backend keeps evidence with this prefix until the report is resolved");
+    }
 }

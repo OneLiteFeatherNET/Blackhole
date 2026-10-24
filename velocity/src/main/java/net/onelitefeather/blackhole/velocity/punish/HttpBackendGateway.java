@@ -21,6 +21,7 @@ import net.onelitefeather.blackhole.client.model.PunishmentRevokeRequest;
 import net.onelitefeather.blackhole.client.model.PunishmentRevokeResponse;
 import net.onelitefeather.blackhole.client.model.ReportCategory;
 import net.onelitefeather.blackhole.client.model.ReportDTO;
+import net.onelitefeather.blackhole.client.model.ReportFeedbackResponse;
 import net.onelitefeather.blackhole.client.model.ReportRequestDTO;
 import net.onelitefeather.blackhole.client.model.StaffLinkConfirmRequest;
 import net.onelitefeather.blackhole.client.model.StaffLinkConfirmResponse;
@@ -154,5 +155,16 @@ public final class HttpBackendGateway implements BackendGateway {
         return this.reportApi.submitReport(new ReportRequestDTO()
                 .reporterHash(reporter).reportedHash(reported).category(category).description(description)
                 .evidenceReferences(evidence).metaData(java.util.Map.of()));
+    }
+
+    @Override
+    public List<ReportFeedbackResponse> reportFeedback(String owner) throws ApiException {
+        List<ReportFeedbackResponse> items = this.reportApi.getPendingReportFeedback(owner).getItems();
+        return items == null ? List.of() : items;
+    }
+
+    @Override
+    public void acknowledgeReportFeedback(UUID identifier) throws ApiException {
+        this.reportApi.acknowledgeReportFeedback(identifier);
     }
 }

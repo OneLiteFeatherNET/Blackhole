@@ -5,6 +5,8 @@ import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.onelitefeather.blackhole.client.model.ReportCategory;
+import net.onelitefeather.blackhole.client.model.ReportFeedbackResponse;
+import net.onelitefeather.blackhole.client.model.ReportStatus;
 import net.onelitefeather.blackhole.velocity.report.ReportCategories;
 import net.onelitefeather.blackhole.velocity.report.ReportEvidence;
 import net.onelitefeather.blackhole.velocity.report.ReportNotice;
@@ -12,6 +14,9 @@ import net.onelitefeather.blackhole.velocity.report.ReportService.Outcome;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -90,6 +95,16 @@ public final class ReportMessages {
         }
         lines.add(Component.translatable("report.notice.buttons", buttons));
         return Component.join(JoinConfiguration.newlines(), lines);
+    }
+
+    /**
+     * What a reporter is told about the outcome of a report: its reason and date, and whether action was
+     * taken. It never names the punishment, the player or the staff member.
+     */
+    public static @NotNull Component feedback(@NotNull ReportFeedbackResponse message, @NotNull ZoneId zone) {
+        String key = message.getOutcome() == ReportStatus.ACTIONED ? "report.feedback.actioned" : "report.feedback.dismissed";
+        String date = DateTimeFormatter.ISO_LOCAL_DATE.withZone(zone).format(Instant.ofEpochMilli(message.getCreatedAt()));
+        return Component.translatable(key, Component.translatable(ReportCategories.nameKey(message.getCategory())), Component.text(date));
     }
 
     private static String categoryKey(String category) {

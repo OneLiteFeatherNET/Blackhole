@@ -69,11 +69,17 @@ public final class ReportEvidence {
         this.correlationIds = correlationIds;
     }
 
-    /** Evidence with a random UUID as correlation id. */
+    /**
+     * The prefix of the correlation id of report evidence. The backend keeps pending evidence with this prefix
+     * much longer than other pending evidence, because a report can stay open for weeks.
+     */
+    public static final String CORRELATION_PREFIX = "report:";
+
+    /** Evidence with {@value #CORRELATION_PREFIX} and a random UUID as correlation id. */
     public static @NotNull ReportEvidence create(
             @NotNull ChatSnapshotBuilder snapshots, @NotNull BackendGateway backend, @NotNull ChatCaptureConfig config
     ) {
-        return new ReportEvidence(snapshots, backend, config, () -> UUID.randomUUID().toString());
+        return new ReportEvidence(snapshots, backend, config, () -> CORRELATION_PREFIX + UUID.randomUUID());
     }
 
     /**

@@ -15,6 +15,7 @@ import net.onelitefeather.blackhole.velocity.evidence.ChatBuffer;
 import net.onelitefeather.blackhole.velocity.evidence.EvidenceCounts;
 import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
 import net.onelitefeather.blackhole.velocity.punish.PunishService;
+import net.onelitefeather.blackhole.velocity.report.ReportFeedbackDelivery;
 import net.onelitefeather.blackhole.velocity.report.ReportNotifier;
 import net.onelitefeather.blackhole.velocity.report.ReportService;
 import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
@@ -46,6 +47,7 @@ import java.time.Clock;
  * @param servers     resolves what CloudNet knows about a backend server
  * @param reports     the decisions behind {@code /report}
  * @param reportNotifier tells online staff about new reports
+ * @param reportFeedback tells reporters what became of their reports
  */
 public record BlackholeClientModule(
         @NotNull ApiClient apiClient,
@@ -66,7 +68,8 @@ public record BlackholeClientModule(
         @NotNull MuteNotices muteNotices,
         @NotNull ServerResolver servers,
         @NotNull ReportService reports,
-        @NotNull ReportNotifier reportNotifier
+        @NotNull ReportNotifier reportNotifier,
+        @NotNull ReportFeedbackDelivery reportFeedback
 ) {
 
     /**
@@ -95,6 +98,7 @@ public record BlackholeClientModule(
                 bind(ServerResolver.class).toInstance(servers);
                 bind(ReportService.class).toInstance(reports);
                 bind(ReportNotifier.class).toInstance(reportNotifier);
+                bind(ReportFeedbackDelivery.class).toInstance(reportFeedback);
             }
         };
     }

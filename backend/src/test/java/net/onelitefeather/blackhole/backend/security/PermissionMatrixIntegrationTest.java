@@ -71,6 +71,24 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void theProxyMayReadAndAcknowledgeReportFeedback() {
+        assertEquals(200, get("/report/feedback/" + "ab".repeat(64), this.jwt.proxy()).status(), "proxy on GET /report/feedback/{owner}");
+        assertEquals(204, post("/report/feedback/" + UUID.randomUUID() + "/ack", Map.of(), this.jwt.proxy()).status(), "proxy on the acknowledgement");
+    }
+
+    @Test
+    void humansCannotReadOrAcknowledgeReportFeedback() {
+        assertEquals(403, get("/report/feedback/" + "ab".repeat(64), this.jwt.admin()).status(), "admin on a proxy-only route");
+        assertEquals(403, post("/report/feedback/" + UUID.randomUUID() + "/ack", Map.of(), this.jwt.moderator()).status(), "moderator on a proxy-only route");
+    }
+
+    @Test
+    void aViewerMayReadOneReportButTheProxyMayNot() {
+        assertEquals(404, get("/report/" + UUID.randomUUID(), this.jwt.viewer()).status(), "viewer on GET /report/{identifier}");
+        assertEquals(403, get("/report/" + UUID.randomUUID(), this.jwt.proxy()).status(), "proxy on a staff read");
+    }
+
+    @Test
     void theProxyMayApplyAPunishment() {
         assertAuthorized(post("/punishment/apply", Map.of(), this.jwt.proxy()), "proxy on /punishment/apply");
     }

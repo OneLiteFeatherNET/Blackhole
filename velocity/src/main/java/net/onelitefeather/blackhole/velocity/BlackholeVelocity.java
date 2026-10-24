@@ -26,6 +26,8 @@ import net.onelitefeather.blackhole.velocity.command.PunishInfoCommand;
 import net.onelitefeather.blackhole.velocity.command.EloCommand;
 import net.onelitefeather.blackhole.velocity.command.ReportCommand;
 import net.onelitefeather.blackhole.velocity.report.ReportEvidence;
+import net.onelitefeather.blackhole.velocity.report.ReportFeedbackDelivery;
+import net.onelitefeather.blackhole.velocity.listener.ReportFeedbackListener;
 import net.onelitefeather.blackhole.velocity.report.ReportNotifier;
 import net.onelitefeather.blackhole.velocity.report.ReportService;
 import net.onelitefeather.blackhole.velocity.command.TargetParser;
@@ -156,6 +158,9 @@ public class BlackholeVelocity {
         // Registers its listener on the Redis service, so it must exist before connect().
         ReportNotifier reportNotifier = new ReportNotifier(this.server::getAllPlayers, this.redisSyncService, this.config::getPanelUrl);
 
+        ReportFeedbackDelivery reportFeedback = new ReportFeedbackDelivery(backend, this.config::getZone, CompletableFuture::runAsync);
+        this.redisSyncService.onReportFeedback(owner -> reportFeedback.poked(owner, this.server.getAllPlayers()));
+
         this.redisSyncService.onPunishmentSync(syncHandler::accept);
         // The reload calls the backend, so it must not run on the Redis callback thread.
         this.redisSyncService.onSectionChanged(changed -> CompletableFuture.runAsync(sections::reload));
@@ -171,7 +176,7 @@ public class BlackholeVelocity {
         Injector childInjector = this.injector.createChildInjector(
                 new BlackholeClientModule(this.client, this.config, this.redisSyncService, sections, mirror, state,
                         syncHandler, actions, backend, punishService, clock, screens, chatBuffer, evidenceCounts, chatDenial,
-                        new MuteNotices(screens, new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN)), servers, reportService, reportNotifier).asModule(),
+                        new MuteNotices(screens, new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN)), servers, reportService, reportNotifier, reportFeedback).asModule(),
                 new CloudInjectionModule<>(
                         CommandSource.class,
                         ExecutionCoordinator.simpleCoordinator(),
@@ -195,6 +200,7 @@ public class BlackholeVelocity {
         annotationParser.parse(childInjector.getInstance(ReportCommand.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerLoginListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerChatListener.class));
+        server.getEventManager().register(this, childInjector.getInstance(ReportFeedbackListener.class));
         if (chatBuffer.enabled()) {
             this.logger.info("Chat capture is enabled: recent public chat is kept in memory for punishment evidence");
             server.getEventManager().register(this, childInjector.getInstance(ChatCaptureListener.class));

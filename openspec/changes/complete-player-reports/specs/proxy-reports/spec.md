@@ -74,3 +74,25 @@ The proxy that took the report SHALL publish one notice on the Redis channel `bl
 #### Scenario: Redis unavailable
 - **WHEN** the notice cannot be published
 - **THEN** the staff of the proxy that took the report still receive it
+
+### Requirement: Outcome message for the reporter
+When a report the player filed is resolved, the proxy SHALL tell the reporter its reason, its date in the configured time zone and whether action was taken or not, in English or German, and MUST NOT name a punishment, the reported player or the staff member. An online reporter SHALL hear it at once (the backend announces it on `blackhole.report.feedback`), an offline one after their next login. The proxy SHALL acknowledge each shown message and MUST NOT show a recently shown message again.
+
+#### Scenario: Online reporter
+- **WHEN** a report of an online player is resolved as `ACTIONED`
+- **THEN** that player is told that action was taken, and the message is acknowledged
+
+#### Scenario: Offline reporter
+- **WHEN** a report of an offline player is resolved and the player joins later
+- **THEN** the player is told after joining
+
+#### Scenario: Backend unavailable
+- **WHEN** the waiting messages cannot be fetched
+- **THEN** the login is not affected and the messages stay for the next time
+
+### Requirement: Report evidence marker
+The correlation id of pending chat evidence posted for a report SHALL start with `report:`.
+
+#### Scenario: Prefix
+- **WHEN** the proxy attaches chat evidence to a report
+- **THEN** the evidence is posted under a correlation id starting with `report:`

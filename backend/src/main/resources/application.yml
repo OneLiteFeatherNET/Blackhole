@@ -126,6 +126,12 @@ blackhole:
       max-reports: ${BLACKHOLE_REPORT_RATE_LIMIT_MAX:5}
       max-reports-network-wide: ${BLACKHOLE_REPORT_RATE_LIMIT_MAX_NETWORK_WIDE:50}
       window: ${BLACKHOLE_REPORT_RATE_LIMIT_WINDOW:PT10M}
+    # Feedback to the reporter: resolving a report queues a short message (action taken / no action,
+    # never the punishment) that the proxy shows at once or at the reporter's next login. A message
+    # nobody picks up is deleted after ttl; the sweeper runs every sweep-interval.
+    feedback:
+      ttl: ${BLACKHOLE_REPORT_FEEDBACK_TTL:P14D}
+      sweep-interval: ${BLACKHOLE_REPORT_FEEDBACK_SWEEP_INTERVAL:PT1H}
   # PunishmentExpirySweeper periodically moves expired active bans/mutes into a profile's
   # history, so expiry is an active background process rather than something only noticed the
   # next time a profile happens to be read. sweep-interval controls how often that scan runs -
@@ -229,6 +235,10 @@ blackhole:
     # Evidence posted with an owner + correlationId before its punishment exists is deleted
     # (reason UNCLAIMED_EXPIRED) when no punishment claims it within this ISO-8601 duration.
     pending-ttl: ${BLACKHOLE_EVIDENCE_PENDING_TTL:P1D}
+    # Pending evidence that belongs to a report (correlation id starting with "report:") waits this long
+    # instead, because a report can stay open for weeks. Resolving the report with a template attaches
+    # it to the punishment; after a dismissal it expires like other unclaimed evidence.
+    report-pending-ttl: ${BLACKHOLE_EVIDENCE_REPORT_PENDING_TTL:P30D}
     # Audit rows are kept indefinitely unless the operator sets a retention (ISO-8601 duration).
     # Leave empty to keep them.
     audit-retention: ${BLACKHOLE_EVIDENCE_AUDIT_RETENTION:}

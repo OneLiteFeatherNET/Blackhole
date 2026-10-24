@@ -4,6 +4,7 @@ import net.onelitefeather.blackhole.backend.evidence.service.PunishmentEvidenceG
 import net.onelitefeather.blackhole.backend.security.Attribution;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +61,25 @@ public final class RecordingEvidenceGateway implements PunishmentEvidenceGateway
         }
         this.claims.add(new Claim(owner, correlationId, punishmentIdentifier));
         return 1;
+    }
+
+    /** One claim of pending evidence by item ids. */
+    public record IdClaim(String owner, List<UUID> evidenceIds, String punishmentIdentifier) {
+    }
+
+    private final List<IdClaim> idClaims = new ArrayList<>();
+
+    public List<IdClaim> idClaims() {
+        return this.idClaims;
+    }
+
+    @Override
+    public int claimPendingByIds(String owner, Collection<UUID> evidenceIds, String punishmentIdentifier) {
+        if (this.failure != null) {
+            throw this.failure;
+        }
+        this.idClaims.add(new IdClaim(owner, List.copyOf(evidenceIds), punishmentIdentifier));
+        return evidenceIds.size();
     }
 
     @Override

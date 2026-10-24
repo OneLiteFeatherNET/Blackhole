@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.backend.evidence.service;
 
 import net.onelitefeather.blackhole.backend.security.Attribution;
 
+import java.util.Collection;
 import java.util.UUID;
 
 /**
@@ -17,6 +18,14 @@ public interface PunishmentEvidenceGateway {
      * @return how many items were claimed
      */
     int claimPending(String owner, String correlationId, String punishmentIdentifier);
+
+    /**
+     * Attaches the owner's pending evidence items with these ids (the evidence a report references) to a
+     * punishment that was just created. Items that are not pending or belong to someone else are skipped.
+     *
+     * @return how many items were claimed
+     */
+    int claimPendingByIds(String owner, Collection<UUID> evidenceIds, String punishmentIdentifier);
 
     /** The number of valid evidence items of the punishment; lifted and revoked ones are not counted. */
     long countValid(String punishmentIdentifier);

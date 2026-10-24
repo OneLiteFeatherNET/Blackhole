@@ -18,6 +18,9 @@ public final class RedisTopology {
      */
     static final String REPORT_CREATED_CHANNEL = "blackhole.report.created";
 
+    /** Announces that a reporter has report feedback waiting; the message is the reporter's owner hash. */
+    static final String REPORT_FEEDBACK_CHANNEL = "blackhole.report.feedback";
+
     /**
      * The backend's full punishment template list in the shared cache, which the backend
      * refreshes whenever it lists templates. Read here for tab completion only.

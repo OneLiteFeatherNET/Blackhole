@@ -60,6 +60,33 @@ class EvidenceHousekeepingSweeperTest {
         assertEquals(1, this.bed.items.all().size(), "the evidence may still be claimed");
     }
 
+    private EvidenceItemEntity givenReportItem() {
+        EvidenceItemEntity item = new EvidenceItemEntity(UUID.randomUUID(), null, OWNER, "report:" + UUID.randomUUID(),
+                EvidenceKind.CHAT_LOG, "test", this.bed.clock.millis());
+        this.bed.items.given(item, item.getIdentifier());
+        return item;
+    }
+
+    @Test
+    void pendingEvidenceOfAReportOutlivesTheNormalTtl() {
+        givenReportItem();
+        this.bed.clock.advance(this.bed.config.getPendingTtl().plusSeconds(1));
+
+        this.bed.sweeper.sweep();
+
+        assertEquals(1, this.bed.items.all().size(), "an open report may still lead to a punishment that claims it");
+    }
+
+    @Test
+    void pendingEvidenceOfAReportExpiresAfterItsOwnTtl() {
+        givenReportItem();
+        this.bed.clock.advance(this.bed.config.getReportPendingTtl().plusSeconds(1));
+
+        this.bed.sweeper.sweep();
+
+        assertTrue(this.bed.items.all().isEmpty(), "evidence of a report that never led to a punishment is dropped eventually");
+    }
+
     @Test
     void claimedEvidenceIsNeverDeletedHoweverOld() {
         givenItem("p-1", "key-1");
