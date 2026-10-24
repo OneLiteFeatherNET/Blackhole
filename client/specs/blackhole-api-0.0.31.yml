@@ -2191,6 +2191,290 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PunishProfileResponse"
+  /public/appeal:
+    get:
+      tags:
+      - Public
+      summary: The appeal
+      description: "The open appeal, else the latest: status, decision and, for a\
+        \ shortened punishment, the new expiry. The internal decision note is never\
+        \ returned. Not for a leaked Ban ID (403)."
+      operationId: publicAppeal
+      responses:
+        "200":
+          description: The appeal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicAppeal"
+        "401":
+          description: The session is missing or expired
+        "403":
+          description: The Ban ID is marked leaked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
+        "409":
+          description: NO_APPEAL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
+    post:
+      tags:
+      - Public
+      summary: File the appeal
+      description: "Files the appeal with a statement of 1 to 2000 characters through\
+        \ the eligibility checklist. An appeal that is not eligible is not recorded:\
+        \ 409 NOT_ELIGIBLE (with availableFrom when the player only has to wait),\
+        \ FORFEITED or FROZEN after a leak. At most one appeal is open."
+      operationId: publicFileAppeal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicAppealRequest"
+        required: true
+      responses:
+        "200":
+          description: The filed appeal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicAppeal"
+        "400":
+          description: "The statement is empty, too long or has control characters"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
+        "401":
+          description: The session is missing or expired
+        "409":
+          description: "FORFEITED, FROZEN or NOT_ELIGIBLE"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
+        "422":
+          description: "The statement looks like a UUID, an IP address or a Ban ID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
+  /public/appeal/protocol:
+    get:
+      tags:
+      - Public
+      summary: The appeal protocol
+      description: "The player's own copy of the conversation of a decided appeal,\
+        \ rendered on demand from the same player-visible entries as the conversation\
+        \ (you, the moderation team, the system; no staff names, no staff-only entries),\
+        \ as a text or JSON attachment. Not for a leaked Ban ID (403); 409 NOT_DECIDED\
+        \ while no appeal is decided."
+      operationId: publicAppealProtocol
+      parameters:
+      - name: format
+        in: query
+        explode: false
+        schema:
+          type: string
+          nullable: true
+      responses:
+        "200":
+          description: "The file (Content-Disposition: attachment, Cache-Control:\
+            \ no-store)"
+          content:
+            text/plain:
+              schema:
+                type: string
+            application/json:
+              schema:
+                type: string
+        "400":
+          description: Unknown format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
+        "401":
+          description: The session is missing or expired
+        "403":
+          description: The Ban ID is marked leaked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
+        "409":
+          description: NOT_DECIDED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
+  /public/conversation:
+    get:
+      tags:
+      - Public
+      summary: The conversation
+      description: "The entries the player may see, after the seq cursor: player-visible\
+        \ messages (edits folded into the current text, deleted ones marked removed)\
+        \ and the markers APPEAL_FILED, APPEAL_DECIDED, FROZEN and FORFEITED. No staff\
+        \ names and no staff-only entries. Not for a leaked Ban ID (403)."
+      operationId: publicConversation
+      parameters:
+      - name: cursor
+        in: query
+        explode: false
+        schema:
+          type: integer
+          format: int64
+          nullable: true
+      responses:
+        "200":
+          description: A page of entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicConversation"
+        "401":
+          description: The session is missing or expired
+        "403":
+          description: The Ban ID is marked leaked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
+  /public/messages:
+    post:
+      tags:
+      - Public
+      summary: Post a message
+      description: Adds a message of 1 to 2000 characters to the open appeal. The
+        optional Idempotency-Key makes a double submit a no-op. 409 NO_APPEAL (nothing
+        is open) or FROZEN (the Ban ID is marked leaked).
+      operationId: publicPostMessage
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        schema:
+          type: string
+          nullable: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicMessageRequest"
+        required: true
+      responses:
+        "200":
+          description: "The message was stored (repeated: true when the key had posted\
+            \ it before)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicMessage"
+        "400":
+          description: "The text is empty, too long or has control characters, or\
+            \ the key is malformed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
+        "401":
+          description: The session is missing or expired
+        "409":
+          description: NO_APPEAL or FROZEN
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
+        "422":
+          description: "The text looks like a UUID, an IP address or a Ban ID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
+  /public/punishment:
+    get:
+      tags:
+      - Public
+      summary: The facts of the punishment
+      description: "An allow-list: reference, type, reason, section, times, state,\
+        \ evidence count and the appeal summary. Never an owner hash, a staff name,\
+        \ an ELO value, a note or evidence content. Works for every scope."
+      operationId: publicPunishment
+      responses:
+        "200":
+          description: The facts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicPunishment"
+        "401":
+          description: The session is missing or expired
+  /public/session:
+    get:
+      tags:
+      - Public
+      summary: Read the session
+      description: "The CSRF value, the absolute expiry and the scope of the session\
+        \ behind the token."
+      operationId: publicSession
+      responses:
+        "200":
+          description: The session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicSession"
+        "401":
+          description: The session is missing or expired
+    post:
+      tags:
+      - Public
+      summary: Log in with the Ban ID
+      description: "Creates a player session for the Ban ID in the body. A wrong,\
+        \ unknown, malformed or not yet issued Ban ID all answer 401 INVALID_BAN_ID\
+        \ with the same body. A Ban ID that staff marked leaked logs in with scope\
+        \ LIMITED. The token is returned once and only its hash is stored."
+      operationId: publicLogin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicLoginRequest"
+        required: true
+      responses:
+        "200":
+          description: The session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicLogin"
+        "401":
+          description: "INVALID_BAN_ID, always the same"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
+    delete:
+      tags:
+      - Public
+      summary: Log out
+      description: Deletes the session; the token stops working at once.
+      operationId: publicLogout
+      responses:
+        "204":
+          description: The session is gone
+        "401":
+          description: The session is missing or expired
+        "200":
+          description: publicLogout 200 response
+          content:
+            application/json:
+              schema:
+                type: object
   /punishment:
     get:
       tags:
@@ -5354,6 +5638,276 @@ components:
           type: string
           description: SHA-512 hash of the UUID exactly as proxies compute it; use
             it for all owner-keyed calls
+    PlayerScope:
+      type: string
+      description: What a player session may do.
+      enum:
+      - FULL
+      - LIMITED
+      x-enum-descriptions:
+      - Everything the portal offers.
+      - "A leaked Ban ID: the facts and the notice only; no filing, no messages, no\
+        \ conversation, no decision."
+    PublicAppeal:
+      required:
+      - decision
+      - filedAt
+      - newExpiresAt
+      - status
+      type: object
+      properties:
+        status:
+          type: string
+          description: "`SUBMITTED`, `ELIGIBLE_PENDING_REVIEW`, `IN_REVIEW`, `GRANTED_LIFT`,\
+            \ `GRANTED_REDUCTION` or `DENIED`"
+        decision:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/PublicAppealDTO.Decision"
+        newExpiresAt:
+          type: string
+          description: "the new end of a shortened punishment, an ISO instant"
+          nullable: true
+        filedAt:
+          type: string
+          description: an ISO instant
+          nullable: true
+      description: The state of the appeal.
+    PublicAppealDTO.Decision:
+      type: string
+      description: How an appeal was decided.
+      enum:
+      - DENIED
+      - GRANTED_LIFT
+      - GRANTED_REDUCTION
+    PublicAppealRequest:
+      type: object
+      properties:
+        statement:
+          type: string
+          description: "1 to 2000 characters, plain text, without a UUID, an IP address\
+            \ or a Ban ID"
+          nullable: true
+      description: Files the appeal of the session's punishment.
+    PublicAppealSummary:
+      required:
+      - availableFrom
+      - state
+      type: object
+      properties:
+        state:
+          $ref: "#/components/schemas/PublicPunishmentDTO.AppealState"
+        availableFrom:
+          type: string
+          description: "when filing opens, an ISO instant; only for `NOT_YET` and\
+            \ `COOLDOWN`"
+          nullable: true
+    PublicConversation:
+      required:
+      - cursor
+      - entries
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicConversationEntry"
+        cursor:
+          type: integer
+          description: the `seq` to pass as `cursor` next time; null while the conversation
+            is empty
+          format: int64
+          nullable: true
+    PublicConversationDTO.Author:
+      type: string
+      description: Who wrote an entry. Staff are never named.
+      enum:
+      - PLAYER
+      - STAFF
+      - SYSTEM
+    PublicConversationEntry:
+      required:
+      - author
+      - kind
+      - messageId
+      - occurredAt
+      - removed
+      - seq
+      - text
+      type: object
+      properties:
+        seq:
+          type: integer
+          description: the order and the paging cursor
+          format: int64
+        occurredAt:
+          type: string
+          description: an ISO instant
+        kind:
+          type: string
+          description: "`MESSAGE`, or a marker: `APPEAL_FILED`, `APPEAL_DECIDED`,\
+            \ `FROZEN`, `FORFEITED`"
+        author:
+          $ref: "#/components/schemas/PublicConversationDTO.Author"
+        messageId:
+          type: string
+          description: "the message, the same across its edits; null for a marker"
+          nullable: true
+        text:
+          type: string
+          description: the current text with every edit folded in; null for a marker
+            and for a removed message
+          nullable: true
+        removed:
+          type: boolean
+          description: whether the message was deleted or redacted
+    PublicError:
+      required:
+      - code
+      type: object
+      properties:
+        code:
+          type: string
+        availableFrom:
+          type: string
+          description: "an ISO instant, absent unless the player only has to wait"
+          nullable: true
+      description: A code the portal maps to a message
+    PublicLogin:
+      required:
+      - csrf
+      - expiresAt
+      - scope
+      - token
+      type: object
+      properties:
+        token:
+          type: string
+        csrf:
+          type: string
+          description: sent back as `X-CSRF-Token` on every state-changing request
+        expiresAt:
+          type: string
+          description: "the absolute end of the session, an ISO instant"
+        scope:
+          $ref: "#/components/schemas/PlayerScope"
+      description: "A good login: the token is shown once, the portal keeps it in\
+        \ a cookie."
+    PublicLoginRequest:
+      type: object
+      properties:
+        banId:
+          type: string
+          description: "the eight characters, as typed"
+          nullable: true
+      description: Logs in. The Ban ID travels in this body and nowhere else.
+    PublicMessage:
+      required:
+      - messageId
+      - repeated
+      type: object
+      properties:
+        messageId:
+          type: string
+        repeated:
+          type: boolean
+          description: whether the same `Idempotency-Key` had posted this message
+            before and nothing was added
+    PublicMessageRequest:
+      type: object
+      properties:
+        text:
+          type: string
+          description: "1 to 2000 characters, plain text, without a UUID, an IP address\
+            \ or a Ban ID"
+          nullable: true
+      description: Posts a message to the team.
+    PublicPunishment:
+      required:
+      - appeal
+      - createdAt
+      - evidenceCount
+      - expiresAt
+      - permanent
+      - reason
+      - reference
+      - section
+      - state
+      - type
+      type: object
+      properties:
+        reference:
+          type: string
+          description: "the pseudonymous label of the case (the punishment identifier),\
+            \ what the player may quote to the team"
+        type:
+          type: string
+          description: "the kind of enforcement of the section, such as `BAN` or `MUTE`"
+        reason:
+          type: string
+          description: the reason text of the template
+        section:
+          type: string
+          description: the display name of the section
+        createdAt:
+          type: string
+          description: an ISO instant
+        permanent:
+          type: boolean
+        expiresAt:
+          type: string
+          description: "an ISO instant, null for a permanent punishment"
+          nullable: true
+        state:
+          $ref: "#/components/schemas/PublicPunishmentDTO.State"
+        evidenceCount:
+          type: integer
+          description: how many valid evidence items the team holds; the count only
+          format: int64
+        appeal:
+          $ref: "#/components/schemas/PublicAppealSummary"
+    PublicPunishmentDTO.AppealState:
+      type: string
+      description: Where the player's right to appeal stands.
+      enum:
+      - NOT_YET
+      - AVAILABLE
+      - OPEN
+      - DECIDED
+      - COOLDOWN
+      - FORFEITED
+      - FROZEN
+      x-enum-descriptions:
+      - The minimum waiting time has not passed.
+      - The player may file now.
+      - An appeal is open.
+      - The right is used up or the punishment is over.
+      - A repeat appeal has to wait.
+      - "The Ban ID was marked leaked before any appeal: the right is gone."
+      - "The Ban ID was marked leaked while an appeal is open: the player side can\
+        \ no longer write."
+    PublicPunishmentDTO.State:
+      type: string
+      description: Where the punishment stands.
+      enum:
+      - ACTIVE
+      - EXPIRED
+      - LIFTED
+      - REVOKED
+    PublicSession:
+      required:
+      - csrf
+      - expiresAt
+      - scope
+      type: object
+      properties:
+        csrf:
+          type: string
+        expiresAt:
+          type: string
+        scope:
+          $ref: "#/components/schemas/PlayerScope"
+      description: "The session behind the request, for the portal's bootstrap."
     PunishEntryDTO:
       required:
       - identifier
