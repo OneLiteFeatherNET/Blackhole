@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { MAX_TEXT_LENGTH, type AppealStatus, type ConversationEntry, type ErrorCode } from '../api/contract'
+import { MAX_TEXT_LENGTH, PAGE_SIZE, type AppealStatus, type ConversationEntry, type ErrorCode } from '../api/contract'
 import { formatDate, formatDateTime } from '../format'
 import { SESSION_KEY } from '../session'
 
@@ -20,6 +20,8 @@ const appeal = ref<AppealStatus | null>(null)
 const cursor = ref<number | null>(null)
 const loaded = ref(false)
 const loadFailed = ref(false)
+/** A limited session is refused the conversation (403): shown as a notice, not as an error. */
+const forbidden = ref(false)
 const sending = ref(false)
 const failure = ref<ErrorCode | null>(null)
 let polling = false
@@ -28,7 +30,8 @@ let timer: ReturnType<typeof setInterval> | undefined
 let attempt: { text: string; key: string } | null = null
 
 const appealState = computed(() => state.punishment?.appeal.state)
-const canPost = computed(() => state.scope === 'FULL' && appealState.value === 'OPEN')
+// Once the appeal is decided (or the punishment is over) the backend refuses new messages with NO_APPEAL.
+const canPost = computed(() => state.scope === 'FULL' && !forbidden.value && appealState.value === 'OPEN')
 const length = computed(() => drafts.message.trim().length)
 const tooLong = computed(() => length.value > MAX_TEXT_LENGTH)
 const blank = computed(() => length.value === 0)
@@ -45,20 +48,29 @@ function merge(incoming: ConversationEntry[]) {
   entries.value = next.sort((a, b) => a.seq - b.seq)
 }
 
+/** Reads from the cursor; a full page means there may be more, so the next page is read at once. */
 async function fetchPage() {
-  const result = await session.api.conversation(cursor.value)
-  if (!session.alive(result)) return
-  if (!result.ok) {
-    // 403: a limited session never reads the conversation.
-    loadFailed.value = true
+  if (state.scope === 'LIMITED') {
+    forbidden.value = true
     return
   }
-  loadFailed.value = false
-  merge(result.data.entries)
-  if (result.data.cursor !== null) cursor.value = result.data.cursor
+  for (let pages = 0; pages < 25; pages++) {
+    const result = await session.api.conversation(cursor.value)
+    if (!session.alive(result)) return
+    if (!result.ok) {
+      if (result.error.code === 'FORBIDDEN') forbidden.value = true
+      else loadFailed.value = true
+      return
+    }
+    loadFailed.value = false
+    merge(result.data.entries)
+    if (result.data.cursor !== null) cursor.value = result.data.cursor
+    if (result.data.entries.length < PAGE_SIZE) return
+  }
 }
 
 async function refreshAppeal() {
+  if (state.scope === 'LIMITED' || forbidden.value) return
   const result = await session.api.appeal()
   if (!session.alive(result)) return
   appeal.value = result.ok ? result.data : null
@@ -188,11 +200,14 @@ const failureText = computed(() => {
     </p>
 
     <p v-if="!loaded" role="status" class="text-body-large text-on-surface-variant">{{ t('app.loading') }}</p>
+    <p v-else-if="forbidden" class="rounded-md-sm bg-tertiary-container px-4 py-3 text-body-medium text-on-tertiary-container">
+      {{ t('notice.limited') }}
+    </p>
     <p v-else-if="loadFailed" role="alert" class="rounded-md-sm bg-error-container px-4 py-3 text-body-medium text-on-error-container">
       {{ t('conversation.loadFailed') }}
     </p>
 
-    <div role="log" aria-live="polite" aria-relevant="additions" :aria-label="t('conversation.thread')">
+    <div v-if="!forbidden" role="log" aria-live="polite" aria-relevant="additions" :aria-label="t('conversation.thread')">
       <p v-if="loaded && !loadFailed && entries.length === 0" class="text-body-large text-on-surface-variant">{{ t('conversation.empty') }}</p>
       <ol v-else class="flex list-none flex-col gap-3 p-0">
         <li
@@ -241,24 +256,6 @@ const failureText = computed(() => {
         </button>
       </div>
     </form>
-    <p v-else-if="loaded && appealState !== 'FROZEN'" class="text-body-medium text-on-surface-variant">{{ t('conversation.readOnly') }}</p>
-
-    <p v-if="appeal?.decision" class="text-body-medium">
-      <a
-        href="/api/appeal/protocol?format=text"
-        download
-        class="text-primary underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-      >
-        {{ t('conversation.downloadText') }}
-      </a>
-      <span aria-hidden="true"> · </span>
-      <a
-        href="/api/appeal/protocol?format=json"
-        download
-        class="text-primary underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-      >
-        {{ t('conversation.downloadJson') }}
-      </a>
-    </p>
+    <p v-else-if="loaded && !forbidden && appealState !== 'FROZEN'" class="text-body-medium text-on-surface-variant">{{ t('conversation.readOnly') }}</p>
   </section>
 </template>

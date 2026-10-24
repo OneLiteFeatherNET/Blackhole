@@ -3,6 +3,7 @@ import type {
   ConversationPage,
   ErrorBody,
   ErrorCode,
+  MessagePosted,
   PunishmentFacts,
   SessionInfo,
 } from './contract'
@@ -30,7 +31,7 @@ export interface PortalApi {
   fileAppeal(statement: string): Promise<ApiResult<AppealStatus>>
   appeal(): Promise<ApiResult<AppealStatus>>
   conversation(cursor: number | null): Promise<ApiResult<ConversationPage>>
-  postMessage(text: string, idempotencyKey: string): Promise<ApiResult<null>>
+  postMessage(text: string, idempotencyKey: string): Promise<ApiResult<MessagePosted>>
 }
 
 export interface PortalApiOptions {

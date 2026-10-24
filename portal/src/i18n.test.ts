@@ -63,7 +63,7 @@ describe('translation keys built from values', () => {
     ['conversation.marker', ['APPEAL_FILED', 'APPEAL_DECIDED', 'FROZEN', 'TICKET_OPENED', 'TICKET_CLOSED', 'OTHER']],
     ['conversation.decision', ['DENIED', 'GRANTED_LIFT', 'GRANTED_REDUCTION', 'OTHER']],
     ['conversation.errors', ['FROZEN', 'NO_APPEAL', 'CONFLICT', 'PII_REJECTED', 'VALIDATION', 'TOO_LARGE', 'UNAVAILABLE']],
-    ['appealForm.errors', ['NOT_ELIGIBLE', 'FORFEITED', 'FROZEN', 'CONFLICT', 'PII_REJECTED', 'VALIDATION', 'TOO_LARGE', 'UNAVAILABLE']],
+    ['appealForm.errors', ['NOT_ELIGIBLE', 'NOT_ELIGIBLE_NOW', 'FORFEITED', 'FROZEN', 'CONFLICT', 'PII_REJECTED', 'VALIDATION', 'TOO_LARGE', 'UNAVAILABLE']],
   ]
 
   it.each(dynamic)('%s is defined for every value', (prefix, values) => {

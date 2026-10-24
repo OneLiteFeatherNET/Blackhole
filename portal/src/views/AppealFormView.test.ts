@@ -62,6 +62,16 @@ describe('appeal form', () => {
     expect(mounted!.session.state.drafts.statement).toBe('early')
   })
 
+  it('says there is nothing to wait for when no date is given', async () => {
+    const wrapper = await openForm({ fileAppeal: async () => fail('NOT_ELIGIBLE', 409) })
+
+    await wrapper.get('textarea').setValue('again')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.get('[role="alert"]').text()).toBe('You cannot file an appeal for this punishment right now.')
+  })
+
   it('explains a text the guard rejected', async () => {
     const wrapper = await openForm({ fileAppeal: async () => fail('PII_REJECTED', 422) })
 

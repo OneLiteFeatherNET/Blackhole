@@ -4,12 +4,17 @@
     "tagline": "Living Life Lite",
     "skip": "Zum Inhalt springen",
     "tools": "Sprache und Konto",
-    "language": { "en": "English", "de": "Deutsch" },
+    "language": {
+      "en": "English",
+      "de": "Deutsch"
+    },
     "logout": "Abmelden",
     "loading": "Wird geladen ...",
     "footer": "Diese Seite ist nur für Spielerinnen und Spieler mit einer Ban-ID. Deine Sitzung endet nach 30 Minuten ohne Aktivität."
   },
-  "common": { "back": "Zurück" },
+  "common": {
+    "back": "Zurück"
+  },
   "login": {
     "title": "Einspruch gegen deine Strafe",
     "intro": "Gib die Ban-ID ein, die dir beim Beitrittsversuch zum Netzwerk angezeigt wurde. Damit siehst du die Fakten zu deiner Strafe, kannst Einspruch einlegen und mit dem Team schreiben.",
@@ -29,7 +34,6 @@
   },
   "case": {
     "title": "Deine Strafe",
-    "reference": "Referenz",
     "type": "Art",
     "reason": "Grund",
     "section": "Bereich",
@@ -52,7 +56,7 @@
     "notYetUnknown": "Für einen Einspruch ist es noch zu früh.",
     "available": "Du kannst einen Einspruch gegen diese Strafe einlegen.",
     "open": "Dein Einspruch ist offen. Das Team antwortet im Gespräch.",
-    "decided": "Über deinen Einspruch wurde entschieden. Du kannst das Gespräch und die Entscheidung lesen.",
+    "decided": "Hier gibt es nichts weiter einzulegen: Dein Einspruch wurde entschieden oder die Strafe ist vorbei. Du kannst das Gespräch und, falls vorhanden, die Entscheidung lesen.",
     "cooldown": "Dein letzter Einspruch wurde abgelehnt. Ab dem {date} kannst du einen neuen einlegen.",
     "cooldownUnknown": "Dein letzter Einspruch wurde abgelehnt. Nach einer Wartezeit kannst du einen neuen einlegen.",
     "file": "Einspruch einlegen",
@@ -75,7 +79,8 @@
       "VALIDATION": "Deine Stellungnahme muss zwischen 1 und 2000 Zeichen lang sein.",
       "TOO_LARGE": "Deine Stellungnahme ist zu lang.",
       "FORBIDDEN": "Mit dieser Ban-ID kann kein Einspruch eingelegt werden.",
-      "UNAVAILABLE": "Dein Einspruch konnte nicht gesendet werden. Bitte versuche es erneut."
+      "UNAVAILABLE": "Dein Einspruch konnte nicht gesendet werden. Bitte versuche es erneut.",
+      "NOT_ELIGIBLE_NOW": "Für diese Strafe kannst du gerade keinen Einspruch einlegen."
     }
   },
   "conversation": {
@@ -93,9 +98,11 @@
     "decisionTitle": "Entscheidung",
     "decisionHint": "Die Nachricht des Teams zur Entscheidung steht im Gespräch unten.",
     "newExpiry": "Die Strafe läuft jetzt bis zum {date}.",
-    "downloadText": "Kopie herunterladen (Text)",
-    "downloadJson": "Kopie herunterladen (JSON)",
-    "author": { "PLAYER": "Du", "STAFF": "Moderationsteam", "SYSTEM": "System" },
+    "author": {
+      "PLAYER": "Du",
+      "STAFF": "Moderationsteam",
+      "SYSTEM": "System"
+    },
     "marker": {
       "APPEAL_FILED": "Einspruch eingelegt",
       "APPEAL_DECIDED": "Einspruch entschieden",

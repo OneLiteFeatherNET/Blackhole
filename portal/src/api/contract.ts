@@ -2,9 +2,9 @@
  * The whole contract of the portal in one place: the routes the browser may call on the BFF, the
  * backend `/public/**` routes each one maps to, and the payload shapes of both sides.
  *
- * Source: openspec/changes/add-appeal-portal (design decisions 4, 6, 7, 10; specs appeal-portal and
- * ban-id). The backend side is built in a separate change, so everything the backend sends is
- * validated or whitelisted by the BFF and everything that may need adjusting lives here.
+ * Source: openspec/changes/add-appeal-portal and the backend `publicapi` package (API spec 0.0.30,
+ * `.claude/rules/public-api.md`). There is no `/public/appeal/protocol` route in that API, so the
+ * portal has none. Everything the backend sends is validated or whitelisted by the BFF.
  *
  * The BFF is the mirror of the backend: `/api/<name>` maps one to one onto `/public/<name>`.
  * Pure data and types, so the browser bundle and the server bundle can both import it.
@@ -36,7 +36,7 @@ export interface BackendLogin extends SessionInfo {
 }
 
 export interface PunishmentFacts {
-  /** Pseudonymous label of the case, never a hash or short id. */
+  /** The punishment's internal identifier (a UUID). Part of the payload, but never shown to the player. */
   reference: string
   type: string
   reason: string
@@ -46,7 +46,8 @@ export interface PunishmentFacts {
   expiresAt: string | null
   state: PunishmentState
   evidenceCount: number
-  appeal: { state: AppealState; availableFrom: string | null }
+  /** `availableFrom` is omitted by the backend unless waiting helps (`NOT_YET`, `COOLDOWN`). */
+  appeal: { state: AppealState; availableFrom?: string | null }
 }
 
 export interface AppealStatus {
@@ -69,7 +70,7 @@ export type ConversationAuthor = 'PLAYER' | 'STAFF' | 'SYSTEM'
 export interface ConversationEntry {
   seq: number
   occurredAt: string
-  /** `MESSAGE` for a text, or a marker such as `APPEAL_FILED`, `APPEAL_DECIDED`, `FROZEN`, `TICKET_OPENED`, `TICKET_CLOSED`. */
+  /** `MESSAGE` for a text, or a marker: `APPEAL_FILED`, `APPEAL_DECIDED`, `FROZEN`, `FORFEITED`. Others are tolerated and shown generically. */
   kind: string
   author: ConversationAuthor
   messageId: string | null
@@ -81,12 +82,18 @@ export interface ConversationEntry {
 
 export interface ConversationPage {
   entries: ConversationEntry[]
-  /** The `seq` to pass as `cursor` next time; null when there is nothing yet. */
+  /** The last `seq` of the page, passed as `cursor` next time; null while empty. A page holds at most `PAGE_SIZE` entries. */
   cursor: number | null
 }
 
 export interface MessageRequest {
   text: string
+}
+
+/** `POST /public/messages` answers 200 with this; `repeated` is true when the same Idempotency-Key had posted it before. */
+export interface MessagePosted {
+  messageId: string
+  repeated: boolean
 }
 
 /** Fixed set of error codes the BFF answers; the browser never sees a raw backend error. */
@@ -101,7 +108,6 @@ export type ErrorCode =
   | 'FROZEN'
   | 'NOT_ELIGIBLE'
   | 'NO_APPEAL'
-  | 'NOT_DECIDED'
   | 'CONFLICT'
   | 'TOO_LARGE'
   | 'UNAVAILABLE'
@@ -111,12 +117,12 @@ export type ErrorCode =
 
 export interface ErrorBody {
   code: ErrorCode
-  /** Only on `NOT_ELIGIBLE`: when the player may file (ISO instant). */
+  /** Only on `NOT_ELIGIBLE`, and only when waiting helps: when the player may file (ISO instant). */
   availableFrom?: string
 }
 
 /** Backend 409 `code` values the BFF passes through; anything else becomes `CONFLICT`. */
-export const CONFLICT_CODES = ['FORFEITED', 'FROZEN', 'NOT_ELIGIBLE', 'NO_APPEAL', 'NOT_DECIDED'] as const
+export const CONFLICT_CODES = ['FORFEITED', 'FROZEN', 'NOT_ELIGIBLE', 'NO_APPEAL'] as const
 
 export interface RouteSpec {
   /** Browser-facing path on the BFF. */
@@ -141,10 +147,12 @@ export const ROUTES: readonly RouteSpec[] = [
   { path: '/api/punishment', method: 'GET', backend: '/public/punishment', session: true },
   { path: '/api/appeal', method: 'POST', backend: '/public/appeal', session: true, body: ['statement'] },
   { path: '/api/appeal', method: 'GET', backend: '/public/appeal', session: true },
-  { path: '/api/appeal/protocol', method: 'GET', backend: '/public/appeal/protocol', session: true, query: { format: /^(text|json)$/ } },
   { path: '/api/conversation', method: 'GET', backend: '/public/conversation', session: true, query: { cursor: CURSOR } },
   { path: '/api/messages', method: 'POST', backend: '/public/messages', session: true, body: ['text'] },
 ]
+
+/** The backend returns at most this many entries per page. */
+export const PAGE_SIZE = 200
 
 export const SESSION_COOKIE = '__Host-bh_portal'
 export const CSRF_COOKIE = '__Host-bh_csrf'

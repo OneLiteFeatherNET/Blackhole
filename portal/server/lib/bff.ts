@@ -41,7 +41,6 @@ const ABSOLUTE_SESSION_SECONDS = 4 * 60 * 60
 const TOKEN_SHAPE = /^[A-Za-z0-9._~+/=-]{16,512}$/
 const CSRF_SHAPE = /^[A-Za-z0-9._~+/=-]{8,256}$/
 const IDEMPOTENCY_SHAPE = /^[A-Za-z0-9-]{8,64}$/
-const FORWARDED_TYPES = /^(application\/json|text\/plain)(;|$)/i
 
 interface Declared {
   config: PortalConfig
@@ -186,7 +185,7 @@ export function createBffHandler({ config, fetchImpl }: Declared) {
     const body = await readBody(event, route)
     if (!body.ok) return fail(event, body.status, body.code)
 
-    const headers = new Headers({ accept: route.path === '/api/appeal/protocol' ? 'text/plain, application/json' : 'application/json' })
+    const headers = new Headers({ accept: 'application/json' })
     if (body.json !== undefined) headers.set('content-type', 'application/json')
     if (route.session && token) headers.set('authorization', `Bearer ${token}`)
     const client = getRequestIP(event, { xForwardedFor: true })
@@ -219,7 +218,6 @@ export function createBffHandler({ config, fetchImpl }: Declared) {
       if (mapped.status === 401) clearSession(event)
       return respond(event, mapped.status, mapped.error)
     }
-    if (route.path === '/api/appeal/protocol') return relayFile(event, upstream)
     if (upstream.status === 204) return respond(event, 204)
     const json = await parseJson(upstream)
     if (json === undefined) return fail(event, 503, 'UNAVAILABLE')
@@ -245,16 +243,4 @@ async function finishLogin(event: H3Event, upstream: Response) {
   setCookie(event, SESSION_COOKIE, login.token!, cookieOptions(maxAge))
   setCookie(event, CSRF_COOKIE, login.csrf!, cookieOptions(maxAge))
   return respond(event, 200, { csrf: login.csrf, expiresAt: login.expiresAt, scope: login.scope })
-}
-
-/** The player copy of the protocol: relayed as an attachment, only the headers that matter. */
-async function relayFile(event: H3Event, upstream: Response) {
-  const type = upstream.headers.get('content-type') ?? ''
-  if (!FORWARDED_TYPES.test(type)) return fail(event, 503, 'UNAVAILABLE')
-  const text = await upstream.text()
-  setResponseHeader(event, 'Cache-Control', 'no-store')
-  setResponseHeader(event, 'Content-Type', type)
-  setResponseHeader(event, 'Content-Disposition', 'attachment; filename="appeal-protocol.' + (type.startsWith('application/json') ? 'json' : 'txt') + '"')
-  setResponseStatus(event, 200)
-  return send(event, text)
 }

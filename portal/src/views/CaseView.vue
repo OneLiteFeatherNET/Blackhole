@@ -26,8 +26,6 @@ function stateLabel(value: string) {
     <section v-if="facts" aria-labelledby="facts-title" class="rounded-md-lg bg-surface-container p-6">
       <h1 id="facts-title" class="text-headline-small text-on-surface">{{ t('case.title') }}</h1>
       <dl class="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-[max-content_1fr]">
-        <dt class="text-label-large text-on-surface-variant">{{ t('case.reference') }}</dt>
-        <dd class="text-body-large text-on-surface">{{ facts.reference }}</dd>
         <dt class="text-label-large text-on-surface-variant">{{ t('case.type') }}</dt>
         <dd class="text-body-large text-on-surface">{{ facts.type }}</dd>
         <dt class="text-label-large text-on-surface-variant">{{ t('case.reason') }}</dt>

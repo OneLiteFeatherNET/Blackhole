@@ -13,7 +13,9 @@ describe('punishment page', () => {
     mounted = await mountPortal(signedInApi())
 
     const text = mounted.wrapper.get('dl').text()
-    expect(text).toContain('Case #7')
+    expect(text).not.toContain('7d1f0c52')
+    expect(text, 'the internal id is not shown').not.toContain('Reference')
+    expect(document.body.textContent).not.toContain('7d1f0c52')
     expect(text).toContain('Hacked client')
     expect(text).toContain('Survival')
     expect(text).toContain('2 items on file')
@@ -66,6 +68,14 @@ describe('punishment page', () => {
     const section = mounted.wrapper.get('[aria-labelledby="appeal-title"]')
     expect(section.text()).toContain('shared publicly')
     expect(section.findAll('button'), 'no conversation, no appeal').toHaveLength(0)
+  })
+
+  it('omits the date for a punishment that is over', async () => {
+    mounted = await mountPortal(signedInApi({}, facts({ appealState: 'DECIDED', state: 'EXPIRED', availableFrom: undefined })))
+
+    const section = mounted.wrapper.get('[aria-labelledby="appeal-title"]')
+    expect(section.text()).toContain('nothing further to appeal')
+    expect(section.findAll('button').map((b) => b.text())).toEqual(['Open conversation'])
   })
 
   it('shows the cooldown after a denial', async () => {

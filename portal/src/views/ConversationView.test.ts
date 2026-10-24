@@ -1,7 +1,8 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { MessagePosted } from '../api/contract'
 import type { PortalApi } from '../api/portal'
-import { APPEAL_OPEN, entry, fail, facts, mountPortal, ok, page, signedInApi } from '../test/helpers'
+import { APPEAL_OPEN, entry, fail, facts, mountPortal, ok, page, POSTED, signedInApi } from '../test/helpers'
 
 let mounted: Awaited<ReturnType<typeof mountPortal>> | undefined
 
@@ -196,7 +197,7 @@ describe('polling', () => {
 
 describe('composer', () => {
   it('is labelled, counts characters and sends with the button', async () => {
-    const postMessage = vi.fn(async () => ok(null))
+    const postMessage = vi.fn(async () => ok(POSTED))
     const { wrapper } = await openConversation({ postMessage })
 
     expect(wrapper.get('label[for="message"]').text()).toBe('Your message')
@@ -209,7 +210,7 @@ describe('composer', () => {
   })
 
   it('sends with Ctrl+Enter from the keyboard', async () => {
-    const postMessage = vi.fn(async () => ok(null))
+    const postMessage = vi.fn(async () => ok(POSTED))
     const { wrapper } = await openConversation({ postMessage })
 
     await wrapper.get('textarea#message').setValue('keyboard only')
@@ -220,7 +221,7 @@ describe('composer', () => {
   })
 
   it('does not send on a plain Enter, which is a new line', async () => {
-    const postMessage = vi.fn(async () => ok(null))
+    const postMessage = vi.fn(async () => ok(POSTED))
     const { wrapper } = await openConversation({ postMessage })
 
     await wrapper.get('textarea#message').setValue('line')
@@ -230,7 +231,7 @@ describe('composer', () => {
   })
 
   it('does not send an empty or too long message', async () => {
-    const postMessage = vi.fn(async () => ok(null))
+    const postMessage = vi.fn(async () => ok(POSTED))
     const { wrapper } = await openConversation({ postMessage })
 
     await wrapper.get('textarea#message').setValue('   ')
@@ -245,7 +246,7 @@ describe('composer', () => {
 
   it('clears the draft and reads the new message after sending', async () => {
     const replies = [page([entry(1)]), page([entry(2, { author: 'PLAYER', text: 'hello team' })])]
-    const { wrapper, session } = await openConversation({ conversation: async () => ok(replies.shift()!), postMessage: async () => ok(null) })
+    const { wrapper, session } = await openConversation({ conversation: async () => ok(replies.shift()!), postMessage: async () => ok(POSTED) })
 
     await wrapper.get('textarea#message').setValue('hello team')
     await wrapper.get('form').trigger('submit')
@@ -257,7 +258,7 @@ describe('composer', () => {
 
   it('keeps the draft in memory only when sending fails, and reuses the idempotency key for the same text', async () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem')
-    const postMessage = vi.fn(async () => fail<null>('UNAVAILABLE', 503))
+    const postMessage = vi.fn(async () => fail<MessagePosted>('UNAVAILABLE', 503))
     const { wrapper, session } = await openConversation({ postMessage })
 
     await wrapper.get('textarea#message').setValue('important')
@@ -282,7 +283,7 @@ describe('composer', () => {
     ['VALIDATION', 'between 1 and 2000'],
     ['FROZEN', 'frozen'],
   ] as const)('explains %s in the alert region', async (code, text) => {
-    const { wrapper } = await openConversation({ postMessage: async () => fail<null>(code, 409) })
+    const { wrapper } = await openConversation({ postMessage: async () => fail<MessagePosted>(code, 409) })
 
     await wrapper.get('textarea#message').setValue('x')
     await wrapper.get('form').trigger('submit')
@@ -292,7 +293,7 @@ describe('composer', () => {
   })
 
   it('shows the expiry page and keeps the unsent text when sending finds the session ended', async () => {
-    const { wrapper, session } = await openConversation({ postMessage: async () => fail<null>('SESSION_EXPIRED', 401) })
+    const { wrapper, session } = await openConversation({ postMessage: async () => fail<MessagePosted>('SESSION_EXPIRED', 401) })
 
     await wrapper.get('textarea#message').setValue('long thoughts')
     await wrapper.get('form').trigger('submit')
@@ -311,16 +312,15 @@ describe('states', () => {
     expect(wrapper.text()).toContain('Your appeal is frozen')
   })
 
-  it('is read-only once the appeal is decided, with the decision and the copy download', async () => {
+  it('is read-only once the appeal is decided, with the decision', async () => {
     const { wrapper } = await openConversation(
       { appeal: async () => ok({ ...APPEAL_OPEN, status: 'DENIED', decision: 'DENIED' }) },
       { appealState: 'DECIDED' },
     )
 
-    expect(wrapper.find('textarea').exists()).toBe(false)
+    expect(wrapper.find('textarea').exists(), 'the backend answers NO_APPEAL after a decision').toBe(false)
     expect(wrapper.text()).toContain('Your appeal was denied.')
-    const links = wrapper.findAll('a[download]').map((a) => a.attributes('href'))
-    expect(links).toEqual(['/api/appeal/protocol?format=text', '/api/appeal/protocol?format=json'])
+    expect(wrapper.find('a[download]').exists(), 'the backend has no protocol route').toBe(false)
   })
 
   it('shows the new expiry of a grant', async () => {
@@ -332,11 +332,70 @@ describe('states', () => {
     expect(wrapper.text()).toContain('shortened')
     expect(wrapper.text()).toMatch(/now runs until .*2026/)
   })
+})
 
-  it('offers no download before a decision', async () => {
-    const { wrapper } = await openConversation()
+describe('limited session', () => {
+  const limited = { session: async () => ok({ csrf: 'c', expiresAt: '2099-01-01T00:00:00Z', scope: 'LIMITED' as const }) }
 
-    expect(wrapper.find('a[download]').exists()).toBe(false)
+  it('never asks for the conversation or the appeal', async () => {
+    const conversation = vi.fn()
+    const appeal = vi.fn()
+    mounted = await mountPortal(signedInApi({ ...limited, conversation, appeal }, facts({ appealState: 'OPEN' })))
+    await flushPromises()
+
+    expect(conversation).not.toHaveBeenCalled()
+    expect(appeal).not.toHaveBeenCalled()
+  })
+
+  it('shows the notice instead of an error when the backend refuses with 403', async () => {
+    const { wrapper } = await openConversation({ conversation: async () => fail('FORBIDDEN', 403) })
+
+    expect(wrapper.text()).toContain('shared publicly')
+    expect(wrapper.find('[role="alert"]').exists(), 'not an error').toBe(false)
+    expect(wrapper.find('textarea').exists()).toBe(false)
+  })
+
+  it('does not keep polling a refused conversation into an error', async () => {
+    const { wrapper } = await openConversation({ conversation: async () => fail('FORBIDDEN', 403) })
+
+    await tick(30_000)
+
+    expect(wrapper.text()).not.toContain('could not be loaded')
+  })
+})
+
+describe('paging', () => {
+  it('reads the next page at once when a page is full, using the last seq as the cursor', async () => {
+    const full = Array.from({ length: 200 }, (_, i) => entry(i + 1))
+    const replies = [page(full), page([entry(201)])]
+    const { conversation, wrapper } = await openConversation({ conversation: async () => ok(replies.shift()!) })
+
+    expect(conversation).toHaveBeenCalledTimes(2)
+    expect(conversation).toHaveBeenNthCalledWith(2, 200)
+    expect(wrapper.findAll('ol > li')).toHaveLength(201)
+  })
+
+  it('keeps the cursor when the conversation is still empty', async () => {
+    const { conversation } = await openConversation({ conversation: async () => ok({ entries: [], cursor: null }) })
+
+    await tick(15_000)
+
+    expect(conversation).toHaveBeenNthCalledWith(2, null)
+  })
+})
+
+describe('posting after the state changed', () => {
+  it('hides the composer when the backend says there is no open appeal any more', async () => {
+    const replies = [facts({ appealState: 'OPEN' }), facts({ appealState: 'DECIDED' })]
+    const { wrapper } = await openConversation(
+      { postMessage: async () => fail<MessagePosted>('NO_APPEAL', 409), punishment: async () => ok(replies.length > 1 ? replies.shift()! : replies[0]!) },
+    )
+
+    await wrapper.get('textarea#message').setValue('late')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.find('textarea').exists()).toBe(false)
   })
 })
 

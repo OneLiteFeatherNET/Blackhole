@@ -4,12 +4,17 @@
     "tagline": "Living Life Lite",
     "skip": "Skip to content",
     "tools": "Language and account",
-    "language": { "en": "English", "de": "Deutsch" },
+    "language": {
+      "en": "English",
+      "de": "Deutsch"
+    },
     "logout": "Sign out",
     "loading": "Loading...",
     "footer": "This page is only for players who received a Ban ID. Your session ends after 30 minutes without activity."
   },
-  "common": { "back": "Back" },
+  "common": {
+    "back": "Back"
+  },
   "login": {
     "title": "Appeal your punishment",
     "intro": "Enter the Ban ID you were shown when you tried to join the network. It lets you see the facts of your punishment, appeal it and talk to the team.",
@@ -29,7 +34,6 @@
   },
   "case": {
     "title": "Your punishment",
-    "reference": "Reference",
     "type": "Type",
     "reason": "Reason",
     "section": "Area",
@@ -52,7 +56,7 @@
     "notYetUnknown": "It is too early to file an appeal.",
     "available": "You can file one appeal for this punishment.",
     "open": "Your appeal is open. The team will answer in the conversation.",
-    "decided": "Your appeal has been decided. You can read the conversation and the decision.",
+    "decided": "There is nothing further to appeal here: your appeal has been decided or the punishment is over. You can read the conversation and the decision if there is one.",
     "cooldown": "Your last appeal was denied. You can file a new one from {date}.",
     "cooldownUnknown": "Your last appeal was denied. You can file a new one after a waiting period.",
     "file": "File an appeal",
@@ -75,7 +79,8 @@
       "VALIDATION": "Your statement must be between 1 and 2000 characters.",
       "TOO_LARGE": "Your statement is too long.",
       "FORBIDDEN": "This Ban ID cannot be used to file an appeal.",
-      "UNAVAILABLE": "Your appeal could not be sent. Please try again."
+      "UNAVAILABLE": "Your appeal could not be sent. Please try again.",
+      "NOT_ELIGIBLE_NOW": "You cannot file an appeal for this punishment right now."
     }
   },
   "conversation": {
@@ -93,9 +98,11 @@
     "decisionTitle": "Decision",
     "decisionHint": "The team's message about the decision is part of the conversation below.",
     "newExpiry": "The punishment now runs until {date}.",
-    "downloadText": "Download a copy (text)",
-    "downloadJson": "Download a copy (JSON)",
-    "author": { "PLAYER": "You", "STAFF": "Moderation team", "SYSTEM": "System" },
+    "author": {
+      "PLAYER": "You",
+      "STAFF": "Moderation team",
+      "SYSTEM": "System"
+    },
     "marker": {
       "APPEAL_FILED": "Appeal filed",
       "APPEAL_DECIDED": "Appeal decided",

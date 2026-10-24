@@ -20,7 +20,10 @@ const blank = computed(() => length.value === 0)
 const failureText = computed(() => {
   const current = failure.value
   if (!current) return ''
-  if (current.code === 'NOT_ELIGIBLE' && current.availableFrom) return t('appealForm.errors.NOT_ELIGIBLE', { date: formatDate(current.availableFrom, locale.value) })
+  if (current.code === 'NOT_ELIGIBLE') {
+    // Only a plain wait has a date; an open appeal or a punishment that is over has none.
+    return current.availableFrom ? t('appealForm.errors.NOT_ELIGIBLE', { date: formatDate(current.availableFrom, locale.value) }) : t('appealForm.errors.NOT_ELIGIBLE_NOW')
+  }
   return te(`appealForm.errors.${current.code}`) ? t(`appealForm.errors.${current.code}`) : t('appealForm.errors.UNAVAILABLE')
 })
 

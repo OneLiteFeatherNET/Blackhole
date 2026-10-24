@@ -61,7 +61,7 @@ const LOGIN_OK = { token: TOKEN, csrf: CSRF, expiresAt: '2099-01-01T00:00:00Z', 
 afterEach(() => vi.restoreAllMocks())
 
 describe('allow-list', () => {
-  it.each(['/api/case', '/api/punishment/lookup', '/api/', '/api', '/api/session/extra', '/api/%2e%2e/case', '/api/public/session', '/api//session'])(
+  it.each(['/api/case', '/api/punishment/lookup', '/api/', '/api', '/api/session/extra', '/api/%2e%2e/case', '/api/appeal/protocol', '/api/public/session', '/api//session'])(
     'answers 404 for %s without calling the backend',
     async (path) => {
       const { send, calls } = bff()
@@ -105,7 +105,7 @@ describe('allow-list', () => {
     expect(calls[0]?.url).toBe('http://backend.test:8080/public/conversation?cursor=42')
   })
 
-  it.each(['/api/conversation?cursor=abc', '/api/conversation?cursor=1&cursor=2', '/api/appeal/protocol?format=xml'])('rejects the query of %s', async (path) => {
+  it.each(['/api/conversation?cursor=abc', '/api/conversation?cursor=1&cursor=2'])('rejects the query of %s', async (path) => {
     const { send, calls } = bff()
 
     const response = await send(path, { headers: { cookie: session } })
@@ -411,6 +411,10 @@ describe('error mapping', () => {
     [409, { code: 'NOT_ELIGIBLE', availableFrom: '2026-11-01T00:00:00Z' }, 409, { code: 'NOT_ELIGIBLE', availableFrom: '2026-11-01T00:00:00Z' }],
     [409, { code: 'SOMETHING_NEW', stack: 'trace' }, 409, { code: 'CONFLICT' }],
     [409, { code: 'NOT_ELIGIBLE', availableFrom: 'tomorrow' }, 409, { code: 'NOT_ELIGIBLE' }],
+    [400, { code: 'VALIDATION' }, 400, { code: 'VALIDATION' }],
+    [409, { code: 'NO_APPEAL' }, 409, { code: 'NO_APPEAL' }],
+    [409, { code: 'NOT_ELIGIBLE' }, 409, { code: 'NOT_ELIGIBLE' }],
+    [409, { code: 'NOT_DECIDED' }, 409, { code: 'CONFLICT' }],
     [413, {}, 413, { code: 'TOO_LARGE' }],
     [422, { message: 'ip found' }, 422, { code: 'PII_REJECTED' }],
     [400, { message: 'too long' }, 400, { code: 'VALIDATION' }],
@@ -419,6 +423,33 @@ describe('error mapping', () => {
     [502, {}, 503, { code: 'UNAVAILABLE' }],
   ])('maps backend %i %j to %i %j', (status, body, expectedStatus, expectedError) => {
     expect(mapBackendError(status, body)).toEqual({ status: expectedStatus, error: expectedError })
+  })
+
+  it('relays a too long text, which the backend answers with 400, as a validation error', async () => {
+    const { send } = bff([{ status: 400, body: { code: 'VALIDATION' } }])
+
+    const response = await send(...post('/api/messages', { text: 'x'.repeat(2001) }, { cookie: session, 'x-csrf-token': CSRF }))
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ code: 'VALIDATION' })
+  })
+
+  it('maps a limited session reading the conversation to forbidden, without clearing the session', async () => {
+    const { send } = bff([{ status: 403, body: { code: 'FORBIDDEN' } }])
+
+    const response = await send('/api/conversation', { headers: { cookie: session } })
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ code: 'FORBIDDEN' })
+    expect(response.headers.getSetCookie()).toEqual([])
+  })
+
+  it('passes the posted message answer on', async () => {
+    const { send } = bff([{ body: { messageId: 'm-1', repeated: false } }])
+
+    const response = await send(...post('/api/messages', { text: 'a' }, { cookie: session, 'x-csrf-token': CSRF }))
+
+    expect(await response.json()).toEqual({ messageId: 'm-1', repeated: false })
   })
 
   it('maps a thrown backend failure to 503 without detail', async () => {
@@ -456,25 +487,5 @@ describe('responses', () => {
     expect(response.headers.get('x-content-type-options')).toBe('nosniff')
     expect(response.headers.get('referrer-policy')).toBe('no-referrer')
     expect(response.headers.get('content-security-policy')).toContain("frame-ancestors 'none'")
-  })
-
-  it('relays the player copy of the protocol as an attachment', async () => {
-    const { send } = bff([{ text: 'You: hello', headers: { 'content-type': 'text/plain; charset=utf-8', 'set-cookie': 'evil=1' } }])
-
-    const response = await send('/api/appeal/protocol?format=text', { headers: { cookie: session } })
-
-    expect(response.status).toBe(200)
-    expect(response.headers.get('content-disposition')).toContain('attachment')
-    expect(response.headers.get('cache-control')).toBe('no-store')
-    expect(response.headers.getSetCookie()).toEqual([])
-    expect(await response.text()).toBe('You: hello')
-  })
-
-  it('refuses a protocol of a type it does not relay', async () => {
-    const { send } = bff([{ text: '<script>', headers: { 'content-type': 'text/html' } }])
-
-    const response = await send('/api/appeal/protocol?format=text', { headers: { cookie: session } })
-
-    expect(response.status).toBe(503)
   })
 })

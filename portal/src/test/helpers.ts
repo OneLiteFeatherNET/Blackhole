@@ -14,12 +14,14 @@ export function fail<T = never>(code: import('../api/contract').ErrorCode, statu
   return { ok: false, error: { status, code, ...(availableFrom ? { availableFrom } : {}) } }
 }
 
+export const POSTED = { messageId: 'm-posted', repeated: false }
+
 export const SESSION: SessionInfo = { csrf: 'csrf-token-123', expiresAt: '2099-01-01T00:00:00Z', scope: 'FULL' }
 
 export function facts(overrides: Partial<PunishmentFacts> & { appealState?: PunishmentFacts['appeal']['state']; availableFrom?: string | null } = {}): PunishmentFacts {
   const { appealState = 'AVAILABLE', availableFrom = null, ...rest } = overrides
   return {
-    reference: 'Case #7',
+    reference: '7d1f0c52-3c1e-4c43-9a5e-0b7a1f6a9e11',
     type: 'BAN',
     reason: 'Hacked client',
     section: 'Survival',
