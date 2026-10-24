@@ -56,5 +56,23 @@ function sort(message: string, rules: Rule[]): FieldErrors {
   return result
 }
 
+// ClientRuleValidator and ClientRuleService phrase theirs the same way: every sentence starts with its field.
+const CLIENT_RULE_RULES: Rule[] = [
+  { pattern: /^key |^a rule with key /, field: () => 'key' },
+  { pattern: /^displayName /, field: () => 'displayName' },
+  { pattern: /^kind /, field: () => 'kind' },
+  { pattern: /^patterns/, field: () => 'patterns' },
+  { pattern: /^protocolM(in|ax)/, field: (m) => (m[0] === 'protocolMax' ? 'protocolMax' : 'protocolMin') },
+  { pattern: /^negate /, field: () => 'negate' },
+  { pattern: /^hideCommand /, field: () => 'hideCommand' },
+  { pattern: /^scope /, field: () => 'scope' },
+  { pattern: /^sectionKeys/, field: () => 'sectionKeys' },
+  { pattern: /^servers/, field: () => 'servers' },
+  { pattern: /^denyMessage /, field: () => 'denyMessage' },
+  { pattern: /^templateKey/, field: () => 'templateKey' },
+  { pattern: /^acknowledgedSpoofable /, field: () => 'acknowledgedSpoofable' },
+]
+
 export const templateFieldErrors = (message: string): FieldErrors => sort(message, TEMPLATE_RULES)
 export const sectionFieldErrors = (message: string): FieldErrors => sort(message, SECTION_RULES)
+export const clientRuleFieldErrors = (message: string): FieldErrors => sort(message, CLIENT_RULE_RULES)

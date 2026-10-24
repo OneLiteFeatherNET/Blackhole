@@ -30,6 +30,7 @@ async function mountApp(path = '/', options: { roles?: string[]; auth?: ReturnTy
           eloProfile: async () => ok({ owner: '', sections: [] }),
           eloHistory: async () => ok([]),
           evasionSightings: async () => ok({ detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false }),
+          clientRuleHitsOfOwner: async () => ok([]),
           staffLinkStatus: async () => ok({ linked: false }),
           discordLinkStatus: async () => ok({ linked: false }),
           cases: async () => ok({ items: [], page: 0, size: 20, totalSize: 0, totalPages: 0 }),
@@ -181,7 +182,7 @@ describe('App shell', () => {
 
     expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text()), 'headings').toEqual(['Moderation', 'Regelwerk', 'System'])
     expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual([
-      'Übersicht', 'Fälle', 'Einsprüche', 'Meldungen', 'Gesperrte Spieler', 'Spieler', 'Bereiche', 'Vorlagen', 'Rahmenbedingungen', 'Verwaltung',
+      'Übersicht', 'Fälle', 'Einsprüche', 'Meldungen', 'Gesperrte Spieler', 'Spieler', 'Bereiche', 'Vorlagen', 'Rahmenbedingungen', 'Client-Regeln', 'Verwaltung',
     ])
 
     wrapper.unmount()

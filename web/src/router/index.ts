@@ -3,6 +3,7 @@ import AdminView from '../views/AdminView.vue'
 import AuthCallbackView from '../views/AuthCallbackView.vue'
 import AuthErrorView from '../views/AuthErrorView.vue'
 import CasesView from '../views/CasesView.vue'
+import ClientRulesView from '../views/ClientRulesView.vue'
 import CaseView from '../views/CaseView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
@@ -23,6 +24,7 @@ export const routes: RouteRecordRaw[] = [
   { path: '/players', name: 'players', component: PlayersView, meta: { titleKey: 'nav.players' } },
   { path: '/players/:owner', name: 'player', component: PlayerDetailView, props: true, meta: { titleKey: 'nav.players' } },
   { path: '/templates', name: 'templates', component: TemplatesView, meta: { titleKey: 'nav.templates' } },
+  { path: '/client-rules', name: 'client-rules', component: ClientRulesView, meta: { titleKey: 'nav.clientRules' } },
   { path: '/sections', name: 'sections', component: SectionsView, meta: { titleKey: 'nav.sections' } },
   { path: '/appeal-conditions', name: 'appeal-conditions', component: AppealConditionsView, meta: { titleKey: 'nav.appealConditions' } },
   { path: '/reports', name: 'reports', component: ReportsView, meta: { titleKey: 'nav.reports' } },

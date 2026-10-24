@@ -30,6 +30,10 @@ import type {
   AppealConditions,
   AppealDecision,
   CloudNetCatalogue,
+  ClientRule,
+  ClientRuleCatalogue,
+  ClientRuleDraft,
+  ClientRuleHit,
   CurrentCaller,
   ApplyResult,
   DashboardSummary,
@@ -100,6 +104,20 @@ export interface BlackholeApi {
   disableSection(key: string): Promise<ApiResult<Section>>
   /** What the proxies report from CloudNet; any signed-in role may read it. Never required to save a section. */
   cloudnetCatalogue(): Promise<ApiResult<CloudNetCatalogue>>
+  /** Every client rule, enabled or not, with its hit count; any signed-in role may read them. */
+  clientRules(): Promise<ApiResult<ClientRule[]>>
+  /** ADMIN only. */
+  createClientRule(draft: ClientRuleDraft): Promise<ApiResult<ClientRule>>
+  /** ADMIN only; replaces the rule's definition including whether it is enabled. */
+  updateClientRule(draft: ClientRuleDraft): Promise<ApiResult<ClientRule>>
+  /** ADMIN only. */
+  deleteClientRule(key: string): Promise<ApiResult<ClientRule>>
+  /** The newest hits of one rule; the proxy token is refused, staff roles may read. */
+  clientRuleHits(key: string): Promise<ApiResult<ClientRuleHit[]>>
+  /** The newest rule hits of one player across all rules. */
+  clientRuleHitsOfOwner(owner: string): Promise<ApiResult<ClientRuleHit[]>>
+  /** What the proxies saw (brands and channels from at least three players, commands, protocols); only suggests, never required. */
+  clientRuleCatalogue(): Promise<ApiResult<ClientRuleCatalogue>>
   /** All reports, newest first. */
   reports(): Promise<ApiResult<Report[]>>
   resolveReport(identifier: string, resolution: ReportResolution): Promise<ApiResult<Report>>
@@ -325,6 +343,42 @@ function templateBody(draft: TemplateDraft) {
   }
 }
 
+/**
+ * Only the fields that belong to the kind and the action are sent, so the backend never has to reject a leftover:
+ * a range for PROTOCOL, patterns for the others, negate for BRAND and PROTOCOL, hiding for COMMAND, the scope's
+ * sections and servers for SERVERS, a message for DENY, a template (and the spoofable acknowledgement, which is
+ * only asked for brand, mod and channel rules) for TEMPLATE.
+ */
+function clientRuleBody(draft: ClientRuleDraft) {
+  const trimmed = (values: string[]) => values.map((value) => value.trim()).filter(Boolean)
+  const protocol = draft.kind === 'PROTOCOL'
+  const spoofable = draft.kind === 'BRAND' || draft.kind === 'MOD' || draft.kind === 'CHANNEL'
+  const servers = draft.scope === 'SERVERS'
+  return {
+    key: draft.key.trim(),
+    displayName: draft.displayName.trim(),
+    kind: draft.kind,
+    patterns: protocol ? [] : trimmed(draft.patterns),
+    protocolMin: protocol ? draft.protocolMin : null,
+    protocolMax: protocol ? draft.protocolMax : null,
+    negate: (draft.kind === 'BRAND' || protocol) && draft.negate,
+    scope: draft.scope,
+    sectionKeys: servers ? trimmed(draft.sectionKeys) : [],
+    targetKind: servers ? draft.targetKind : ('PATTERN' as const),
+    servers: servers ? trimmed(draft.servers) : [],
+    action: draft.action,
+    denyMessage: draft.action === 'DENY' ? draft.denyMessage.trim() || null : null,
+    templateKey: draft.action === 'TEMPLATE' ? draft.templateKey.trim() || null : null,
+    acknowledgedSpoofable: draft.action === 'TEMPLATE' && spoofable && draft.acknowledgedSpoofable,
+    hideCommand: draft.kind === 'COMMAND' && draft.hideCommand,
+  }
+}
+
+/** The backend leaves empty lists out of its JSON. */
+function withLists(rule: ClientRule): ClientRule {
+  return { ...rule, patterns: rule.patterns ?? [], sectionKeys: rule.sectionKeys ?? [], servers: rule.servers ?? [], hitCount: rule.hitCount ?? 0 }
+}
+
 /** Server targets only exist for SERVER sections (other sections save as PATTERN with none); a blank soft threshold means the section has none. */
 function sectionBody(draft: SectionDraft) {
   const hasSoft = draft.softThreshold !== null
@@ -424,6 +478,47 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
         tasks: catalogue.tasks ?? [],
         groups: catalogue.groups ?? [],
         services: catalogue.services ?? [],
+        proxies: catalogue.proxies ?? [],
+      }))
+    },
+
+    async clientRules() {
+      const result = await toResult(http.GET('/client-rule'))
+      return map(result, (all) => (all ?? []).map(withLists))
+    },
+
+    async createClientRule(draft) {
+      return map(await toResult(http.POST('/client-rule', { body: clientRuleBody(draft) })), withLists)
+    },
+
+    async updateClientRule(draft) {
+      const body = { ...clientRuleBody(draft), enabled: draft.enabled }
+      return map(await toResult(http.PUT('/client-rule/{key}', { params: { path: { key: body.key } }, body })), withLists)
+    },
+
+    async deleteClientRule(key) {
+      return map(await toResult(http.DELETE('/client-rule/{key}', { params: { path: { key } } })), withLists)
+    },
+
+    async clientRuleHits(key) {
+      const result = await toResult(http.GET('/client-rule/{key}/hits', { params: { path: { key } } }))
+      return map(result, (found) => found.hits ?? [])
+    },
+
+    async clientRuleHitsOfOwner(owner) {
+      const result = await toResult(http.GET('/client-rule/hits', { params: { query: { owner } } }))
+      return map(result, (found) => found.hits ?? [])
+    },
+
+    async clientRuleCatalogue() {
+      const result = await toResult(http.GET('/client-rule/catalogue'))
+      // The backend leaves empty lists out of its JSON.
+      return map(result, (catalogue) => ({
+        ...catalogue,
+        brands: catalogue.brands ?? [],
+        channels: catalogue.channels ?? [],
+        commands: catalogue.commands ?? [],
+        protocols: catalogue.protocols ?? [],
         proxies: catalogue.proxies ?? [],
       }))
     },

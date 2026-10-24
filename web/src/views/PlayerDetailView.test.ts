@@ -52,6 +52,7 @@ function api(overrides: Record<string, unknown> = {}) {
     eloProfile: vi.fn(async () => ok(elo)),
     eloHistory: vi.fn(async () => ok(events)),
     evasionSightings: vi.fn(async () => ok({ detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false })),
+    clientRuleHitsOfOwner: vi.fn(async () => ok([])),
     ...overrides,
   })
 }

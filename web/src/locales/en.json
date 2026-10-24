@@ -27,7 +27,8 @@
       "appeals": "{n} appeal awaiting review | {n} appeals awaiting review",
       "reports": "{n} unresolved report | {n} unresolved reports"
     },
-    "appealConditions": "Appeal conditions"
+    "appealConditions": "Appeal conditions",
+    "clientRules": "Client rules"
   },
   "settings": {
     "theme": {
@@ -177,8 +178,17 @@
         "reason": "Reason",
         "shared": "Shared addresses",
         "firstSeen": "First seen",
-        "lastSeen": "Last seen"
-      }
+        "lastSeen": "Last seen",
+        "via": "Signal"
+      },
+      "via": {
+        "IP": "Same network address",
+        "CLIENT": "Same client setup",
+        "BOTH": "Address and client setup"
+      },
+      "weak": "(weak hint)",
+      "weakNote": "A link by the client setup alone is a weak hint, not proof: players who use the same modpack or launcher look alike. An address together with the client setup is the stronger signal.",
+      "weakOnly": "Every account listed here shares only the client setup with this player. That is a weak hint, no proof: a modpack or launcher is used by many unrelated players."
     }
   },
   "actions": {
@@ -1288,5 +1298,137 @@
     "conflict": "The conditions were changed by someone else while you were editing. The current version is shown above; review it and save again.",
     "history": "Earlier versions",
     "versionLine": "Version {version}, {when}"
+  },
+  "clientRules": {
+    "title": "Client rules",
+    "intro": "Rules over the client brand, mods, plugin channels, protocol version and commands. The proxy applies them; each rule can notify the team, deny the connection or the command, or apply a punishment template.",
+    "honesty": "Brand, mods and channels are chosen by the client and can be faked: a hit is a signal, not proof, and a miss proves nothing. Rules on them are a deterrent and a hint for the team. Start every rule with Notify, read the hit counts, and only then switch it to Deny or Punishment. Only the protocol version and commands are observed by the proxy itself.",
+    "readOnly": "Only administrators change rules. You can read the rules and their hits.",
+    "new": "New rule",
+    "empty": "There are no client rules yet.",
+    "edit": "Edit",
+    "delete": {
+      "open": "Delete",
+      "title": "Delete rule {key}",
+      "body": "The rule and its recorded hits are removed. Players already punished by it keep their punishment.",
+      "confirm": "Delete"
+    },
+    "deleted": "Rule deleted.",
+    "saved": "Rule saved.",
+    "disabledPill": "Disabled",
+    "negated": "everything except",
+    "hidden": "Hidden from tab completion",
+    "acknowledged": "Punishes on a value the client can fake (acknowledged)",
+    "hitCount": "Hits: {n}",
+    "columns": {
+      "rule": "Rule",
+      "match": "Matches",
+      "scope": "Where",
+      "action": "Action",
+      "hits": "Hits",
+      "actions": "Actions"
+    },
+    "kind": {
+      "BRAND": "Brand",
+      "MOD": "Mod",
+      "CHANNEL": "Plugin channel",
+      "PROTOCOL": "Protocol version",
+      "COMMAND": "Command"
+    },
+    "kindHint": {
+      "BRAND": "The minecraft:brand text the client sends. It can be faked.",
+      "MOD": "A mod id from the legacy Forge mod list (Forge up to 1.12 only). It can be faked.",
+      "CHANNEL": "A plugin channel the client registered. It can be faked.",
+      "PROTOCOL": "The protocol version the proxy observes.",
+      "COMMAND": "The first word of a command line, also for commands that are forwarded to a server."
+    },
+    "patternsHint": {
+      "BRAND": "Comma separated. * and ? work, case does not matter.",
+      "MOD": "Comma separated mod ids, or id@version. * and ? work.",
+      "CHANNEL": "Comma separated channel ids such as meteor-client:*.",
+      "COMMAND": "Comma separated command words without the slash, for example op. A namespaced form such as minecraft:op is caught too."
+    },
+    "negateHint": {
+      "BRAND": "Hit every known brand outside the list (an allowlist). A client that sends no brand is not hit.",
+      "PROTOCOL": "Hit every version outside the range (an allowlist)."
+    },
+    "action": {
+      "NOTIFY": "Notify the team",
+      "DENY": "Deny",
+      "TEMPLATE": "Apply a punishment"
+    },
+    "actionHint": {
+      "NOTIFY": "Record the hit and tell the team. Nothing changes for the player. Use it first: the hit counts show what the rule would do.",
+      "DENY": "Also refuse the connection or the command, with the message below.",
+      "TEMPLATE": "Also apply a punishment template automatically. The player can appeal it like every automatic punishment."
+    },
+    "scope": {
+      "GLOBAL": "Whole network",
+      "SERVERS": "Limited to servers"
+    },
+    "editor": {
+      "newTitle": "New client rule",
+      "editTitle": "Edit rule {key}",
+      "key": "Key",
+      "keyHint": "Lower case letters, digits and hyphens; fixed once saved. The words catalogue and hits are reserved.",
+      "name": "Name",
+      "kind": "What the rule matches",
+      "spoofNote": "The client controls this value and can fake it. A hit is a signal, not proof. Appeals are open for every automatic punishment.",
+      "patterns": "Patterns",
+      "suggestions": "Seen on the network (suggestions)",
+      "noSuggestions": "No suggestions are available right now. Type the values yourself; the rule works the same.",
+      "moreSuggestions": "Showing {shown} of {total} suggestions.",
+      "players": "{n} players",
+      "protocolMin": "Lowest protocol version",
+      "protocolMax": "Highest protocol version",
+      "protocolHint": "Protocol numbers, not Minecraft versions. One version: use the same number twice.",
+      "supportedVersions": "Versions this network supports (protocol, Minecraft):",
+      "invalidNumber": "Enter a whole number, 0 or more.",
+      "negate": "Hit everything except the match",
+      "hideCommand": "Hide the command from tab completion",
+      "hideCommandHint": "Cosmetic only: the command is still denied by the action below.",
+      "scope": "Where it applies",
+      "sections": "Server sections",
+      "noSections": "There are no server sections. Add servers below, or create a server section first.",
+      "targetKind": "Own servers are",
+      "targetKindHint": "Optional, in addition to the sections. Patterns match the server name; the others are CloudNet names.",
+      "servers": "Servers",
+      "serversHint": "Comma separated server name patterns, for example lobby-*",
+      "action": "What it does",
+      "denyMessage": "Message for the player",
+      "denyMessageHint": "English, plain text, at most 200 characters. Empty uses a default.",
+      "template": "Punishment template",
+      "templateHint": "Applied once while the player has an active punishment from this rule.",
+      "punishWarning": "This punishes on something the client chooses. Anybody can fake it, and a false hit punishes an innocent player. Use it only if you accept that.",
+      "acknowledge": "I know this value can be faked",
+      "acknowledgeRequired": "Confirm that you know the value can be faked.",
+      "enabled": "Enabled",
+      "enabledHint": "A disabled rule is not applied and takes no hits.",
+      "save": "Save"
+    },
+    "hits": {
+      "title": "Hits of {key}",
+      "hint": "Who triggered the rule, when and what the rule did. The values the client sent are never stored. Hits are deleted after a retention period; the count above stays.",
+      "empty": "No recorded hits (they expire after the retention period).",
+      "close": "Close",
+      "columns": {
+        "player": "Player",
+        "rule": "Rule",
+        "at": "When",
+        "action": "Action",
+        "status": "Result",
+        "server": "Server"
+      },
+      "status": {
+        "enforced": "Enforced",
+        "bypassed": "Bypassed (staff)",
+        "notified": "Team notified"
+      }
+    },
+    "player": {
+      "title": "Client rule hits",
+      "hint": "Rules this player triggered recently. The values the client sent are not stored.",
+      "empty": "No client rule hits for this player."
+    }
   }
 }

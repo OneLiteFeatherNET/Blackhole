@@ -9,6 +9,7 @@ import { formatDateTime, shortHash } from '../../format'
 import { useLookupStore } from '../../stores/lookup'
 import MdDataTable from '../md/MdDataTable.vue'
 import MdProgress from '../md/MdProgress.vue'
+import StatusPill from '../StatusPill.vue'
 
 const props = defineProps<{ owner: string }>()
 
@@ -21,7 +22,7 @@ const sightings = useResource(() => api.evasionSightings(props.owner))
 
 const columns = computed(() => [
   { key: 'owner' as const, label: t('player.evasion.columns.owner') },
-  { key: 'reason' as const, label: t('player.evasion.columns.reason') },
+  { key: 'via' as const, label: t('player.evasion.columns.via') },
   { key: 'sharedAddresses' as const, label: t('player.evasion.columns.shared') },
   { key: 'firstSeen' as const, label: t('player.evasion.columns.firstSeen') },
   { key: 'lastSeen' as const, label: t('player.evasion.columns.lastSeen') },
@@ -29,7 +30,10 @@ const columns = computed(() => [
 
 const rows = computed<EvasionLinkedOwner[]>(() => sightings.data.value?.linkedOwners ?? [])
 const nameOf = (owner: string) => lookup.nameOf(owner) ?? shortHash(owner)
-const reasonText = (reason: string) => (reason === 'SHARED_IP' ? t('player.evasion.reason.SHARED_IP') : reason)
+// IP and BOTH are the strong signals; the client setup alone is shared by a modpack or a launcher too, so it is only a weak hint.
+const weakOnly = computed(() => rows.value.length > 0 && rows.value.every((row) => row.via === 'CLIENT'))
+const hasWeak = computed(() => rows.value.some((row) => row.via === 'CLIENT'))
+const bothOff = computed(() => sightings.data.value?.detectionEnabled === false && sightings.data.value?.clientFingerprintEnabled !== true)
 </script>
 
 <template>
@@ -46,7 +50,7 @@ const reasonText = (reason: string) => (reason === 'SHARED_IP' ? t('player.evasi
         {{ sightings.error.value.message }}
       </p>
       <p
-        v-else-if="sightings.data.value && sightings.data.value.detectionEnabled === false"
+        v-else-if="sightings.data.value && bothOff"
         data-testid="evasion-disabled"
         class="rounded-md-md bg-surface-container-high p-3 text-on-surface"
       >
@@ -66,11 +70,17 @@ const reasonText = (reason: string) => (reason === 'SHARED_IP' ? t('player.evasi
             >
               {{ nameOf(row.owner) }}
             </RouterLink>
-            <template v-else-if="column.key === 'reason'">{{ reasonText(row.reason) }}</template>
+            <template v-else-if="column.key === 'via'">
+              <StatusPill :label="t(`player.evasion.via.${row.via}`)" :tone="row.via === 'CLIENT' ? 'tertiary' : 'primary'" />
+              <span v-if="row.via === 'CLIENT'" class="ml-2 text-body-small text-on-surface-variant" data-testid="weak-hint">{{ t('player.evasion.weak') }}</span>
+            </template>
             <template v-else-if="column.key === 'sharedAddresses'">{{ row.sharedAddresses ?? 0 }}</template>
-            <template v-else>{{ formatDateTime(row[column.key] ?? 0, locale) }}</template>
+            <template v-else>{{ formatDateTime((column.key === 'firstSeen' ? row.firstSeen : row.lastSeen) ?? 0, locale) }}</template>
           </template>
         </MdDataTable>
+        <p v-if="hasWeak" data-testid="evasion-weak-note" class="text-body-medium text-on-surface-variant">
+          {{ weakOnly ? t('player.evasion.weakOnly') : t('player.evasion.weakNote') }}
+        </p>
         <p v-if="sightings.data.value.truncated" data-testid="evasion-truncated" class="text-body-medium text-on-surface-variant">
           {{ t('player.evasion.truncated', { count: rows.length }) }}
         </p>
