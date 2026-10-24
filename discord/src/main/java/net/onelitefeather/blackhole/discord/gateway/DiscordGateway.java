@@ -60,8 +60,16 @@ public interface DiscordGateway extends AutoCloseable {
     record NewChannel(@NotNull String name, @NotNull String topic, long categoryId, @NotNull List<MemberAccess> members) {
     }
 
-    /** A file or sticker of a message: metadata only. */
-    record IncomingAttachment(@NotNull String kind, String id, String name, String contentType, Long size, Integer width, Integer height) {
+    /**
+     * A file or sticker of a message. The {@code url} is the Discord CDN link the bot may download from; it is never stored or
+     * logged, and a sticker has none.
+     */
+    record IncomingAttachment(@NotNull String kind, String id, String name, String contentType, Long size, Integer width, Integer height,
+                              String url) {
+
+        public IncomingAttachment(@NotNull String kind, String id, String name, String contentType, Long size, Integer width, Integer height) {
+            this(kind, id, name, contentType, size, width, height, null);
+        }
     }
 
     /** An embed of a message: the type and host only. */
@@ -196,6 +204,19 @@ public interface DiscordGateway extends AutoCloseable {
 
     /** Posts a plain text notice (no mentions of users or roles). */
     void notice(long channelId, @NotNull String text) throws GatewayException;
+
+    /** Posts plain text (no mentions of anything) and returns where it landed. */
+    @NotNull MessageRef postPlain(long channelId, @NotNull String text) throws GatewayException;
+
+    /**
+     * Uploads a file to the channel with an optional caption (no mentions of anything).
+     *
+     * @param text the caption, or null for none
+     */
+    @NotNull MessageRef postFile(long channelId, @Nullable String text, @NotNull String fileName, byte @NotNull [] data) throws GatewayException;
+
+    /** Adds a reaction (a Unicode emoji) to a message; one that is already gone is not an error. */
+    void react(@NotNull MessageRef message, @NotNull String emoji) throws GatewayException;
 
     /**
      * Reads messages after {@code afterId} (0 for the very first) in ascending order, at most {@code limit}. Includes the bot's own

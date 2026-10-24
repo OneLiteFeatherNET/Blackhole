@@ -2,12 +2,16 @@ package net.onelitefeather.blackhole.backend.discord.controller;
 
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MediaType;
 import io.micronaut.http.annotation.Body;
+import io.micronaut.http.annotation.Consumes;
 import io.micronaut.http.annotation.Get;
+import io.micronaut.http.annotation.Part;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Patch;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.QueryValue;
+import io.micronaut.http.multipart.StreamingFileUpload;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -175,4 +179,46 @@ public interface DiscordTicketApi {
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = DiscordTicketDTO.Error.class)))
     @Post("/{id}/protocol/ensure")
     HttpResponse<DiscordTicketDTO> ensureProtocol(@PathVariable UUID id);
+
+    @Operation(
+            summary = "Store a file the channel sent",
+            description = "Only the bound player and verified staff may send a file; anyone else gets 403 FILE_NOT_ACCEPTED. The file goes through the chat "
+                    + "pipeline (scan, type, size, sanitising) and is stored bound to the case, idempotent per Discord attachment id: a replay answers the "
+                    + "same attachmentId. The bot then ingests the message naming that attachmentId. The Discord id is not stored.",
+            operationId = "uploadDiscordTicketAttachment",
+            tags = {"Discord tickets"}
+    )
+    @ApiResponse(responseCode = "200", description = "The stored file",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = DiscordTicketDTO.Attachment.class)))
+    @ApiResponse(responseCode = "400", description = "A file the pipeline refused (TOO_LARGE, UNSUPPORTED_TYPE, INVALID_FILE, FILE_FLAGGED, FILE_ACTIVE_CONTENT) or a malformed request",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = DiscordTicketDTO.Error.class)))
+    @ApiResponse(responseCode = "403", description = "FILE_NOT_ACCEPTED: the author is neither the bound player nor verified staff",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = DiscordTicketDTO.Error.class)))
+    @ApiResponse(responseCode = "404", description = "Unknown ticket",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = DiscordTicketDTO.Error.class)))
+    @ApiResponse(responseCode = "409", description = "QUOTA, or the channel is deleted",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = DiscordTicketDTO.Error.class)))
+    @ApiResponse(responseCode = "503", description = "The scanner or the store is unavailable: nothing was stored, retry later",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = DiscordTicketDTO.Error.class)))
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Post("/{id}/attachments")
+    HttpResponse<DiscordTicketDTO> uploadAttachment(@PathVariable UUID id, @Nullable StreamingFileUpload file,
+                                                    @Part("discordAttachmentId") String discordAttachmentId,
+                                                    @Part("authorDiscordUserId") String authorDiscordUserId, @Parameter(hidden = true) Actor actor);
+
+    @Operation(
+            summary = "Fetch a file of the ticket's case",
+            description = "A file of a message the player can see, or the image of an active share, of this ticket's case. Served with the chat "
+                    + "headers (inline only for PNG, JPEG and WebP; nosniff; sandbox; no-store). Anything else is 404.",
+            operationId = "getDiscordTicketAttachment",
+            tags = {"Discord tickets"}
+    )
+    @ApiResponse(responseCode = "200", description = "The file",
+            content = @Content(mediaType = "application/octet-stream", schema = @Schema(type = "string", format = "binary")))
+    @ApiResponse(responseCode = "404", description = "Unknown ticket or file",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = DiscordTicketDTO.Error.class)))
+    @ApiResponse(responseCode = "503", description = "The file could not be read",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = DiscordTicketDTO.Error.class)))
+    @Get("/{id}/attachments/{attachmentId}")
+    HttpResponse<?> attachment(@PathVariable UUID id, @PathVariable UUID attachmentId);
 }

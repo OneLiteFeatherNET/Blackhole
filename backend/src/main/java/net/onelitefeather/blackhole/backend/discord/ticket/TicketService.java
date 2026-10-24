@@ -67,12 +67,14 @@ public class TicketService {
     private final DomainEventPublisher events;
     private final Clock clock;
     private final DiscordTicketProperties properties;
+    private final SharePosts shares;
 
     public TicketService(
             DiscordTicketStore store, BanIdService banIds, PunishmentRepository punishments, TicketAppeals appeals, CaseReader reader,
             CaseChanges changes, ProtocolStore protocols, AppealProtocolGenerator generator, DomainEventPublisher events, Clock clock,
-            DiscordTicketProperties properties
+            DiscordTicketProperties properties, SharePosts shares
     ) {
+        this.shares = shares;
         this.store = store;
         this.banIds = banIds;
         this.punishments = punishments;
@@ -374,10 +376,23 @@ public class TicketService {
         int page = limit == null ? this.properties.outboxPageSize() : Math.max(1, Math.min(limit, this.properties.outboxMaxPageSize()));
         long after = afterSeq == null ? ticket.relayedSeq() : Math.max(0, afterSeq);
         List<DiscordTicketDTO.OutboxItem> items = this.store.outbox(id, after, page).stream()
-                .map(item -> new DiscordTicketDTO.OutboxItem(item.seq(), item.kind(), item.messageId(), item.authorKind(), item.channel(),
-                        item.text(), item.discordMessageId() == null ? null : Long.toString(item.discordMessageId()), item.occurredAt()))
+                .map(item -> outboxItem(ticket, item))
                 .toList();
         return new DiscordTicketDTO.Outbox(items, ticket.relayedSeq());
+    }
+
+    private DiscordTicketDTO.OutboxItem outboxItem(DiscordTicket ticket, DiscordTicketStore.OutboxItem item) {
+        String discordMessageId = item.discordMessageId() == null ? null : Long.toString(item.discordMessageId());
+        if (item.kind() == DiscordTicketStore.OutboxItem.Kind.SHARE) {
+            SharePosts.Post post = this.shares.describe(ticket.punishmentIdentifier(), UUID.fromString(item.messageId()));
+            return new DiscordTicketDTO.OutboxItem(item.seq(), item.kind(), item.messageId(), item.authorKind(), item.channel(), post.text(),
+                    null, item.occurredAt(), post.files());
+        }
+        List<DiscordTicketDTO.OutboxFile> files = item.files().stream()
+                .map(file -> new DiscordTicketDTO.OutboxFile(file.attachmentId(), file.name(), file.contentType(), file.size()))
+                .toList();
+        return new DiscordTicketDTO.OutboxItem(item.seq(), item.kind(), item.messageId(), item.authorKind(), item.channel(), item.text(),
+                discordMessageId, item.occurredAt(), files);
     }
 
     /**

@@ -148,6 +148,20 @@ public interface BackendGateway {
      */
     @NotNull Result<Long> linkRelay(@NotNull String id, long seq, @Nullable String messageId, @Nullable String discordMessageId);
 
+    /**
+     * Downloads a file of a visible message or share of the ticket's appeal.
+     *
+     * @return the bytes; a 404 means the file is not visible, a 5xx or 0 that the store or scanner is down (hold and retry)
+     */
+    @NotNull Result<byte[]> fetchAttachment(@NotNull String id, @NotNull String attachmentId);
+
+    /**
+     * Uploads a file a Discord participant posted. Idempotent per Discord attachment id. A refusal carries the backend's reject
+     * code in {@link Result.Failed#code()}.
+     */
+    @NotNull Result<Uploaded> uploadAttachment(@NotNull String id, @NotNull byte[] data, @NotNull String name,
+                                               @NotNull String discordAttachmentId, @NotNull String authorDiscordUserId);
+
     /** Records messages in their current state (idempotent), or deletes. */
     @NotNull Result<Ingested> ingest(@NotNull String id, @NotNull IngestBatch batch);
 

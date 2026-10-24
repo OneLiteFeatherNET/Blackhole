@@ -18,15 +18,23 @@ import java.util.Map;
  * @param height      pixels, for images
  * @param attachmentId the evidence item id of a file sent through the chat (the id the readers fetch it by); {@code null} for Discord metadata
  * @param provenance  {@code STAFF} or {@code PLAYER} for a chat file, {@code null} for Discord metadata
+ * @param rejected    for a Discord file the backend did not accept: the reason code ({@code TOO_LARGE}, ...); {@code null} otherwise
  */
 public record MessageAttachment(String kind, @Nullable String id, @Nullable String name, @Nullable String contentType,
                                 @Nullable Long size, @Nullable Integer width, @Nullable Integer height,
-                                @Nullable String attachmentId, @Nullable String provenance) {
+                                @Nullable String attachmentId, @Nullable String provenance, @Nullable String rejected) {
 
     /** Metadata of a Discord file or sticker, which has no chat file behind it. */
     public MessageAttachment(String kind, @Nullable String id, @Nullable String name, @Nullable String contentType,
                              @Nullable Long size, @Nullable Integer width, @Nullable Integer height) {
-        this(kind, id, name, contentType, size, width, height, null, null);
+        this(kind, id, name, contentType, size, width, height, null, null, null);
+    }
+
+    /** A chat file, as a message names it: its evidence id and who uploaded it. */
+    public MessageAttachment(String kind, @Nullable String id, @Nullable String name, @Nullable String contentType,
+                             @Nullable Long size, @Nullable Integer width, @Nullable Integer height,
+                             @Nullable String attachmentId, @Nullable String provenance) {
+        this(kind, id, name, contentType, size, width, height, attachmentId, provenance, null);
     }
 
     public static final String FILE = "file";
@@ -44,6 +52,7 @@ public record MessageAttachment(String kind, @Nullable String id, @Nullable Stri
         put(map, "height", this.height);
         put(map, "attachmentId", this.attachmentId);
         put(map, "provenance", this.provenance);
+        put(map, "rejected", this.rejected);
         return map;
     }
 

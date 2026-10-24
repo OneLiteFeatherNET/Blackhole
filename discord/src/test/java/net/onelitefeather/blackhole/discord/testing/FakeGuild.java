@@ -34,6 +34,7 @@ public final class FakeGuild extends UnsupportedDiscord {
         public Instant editedAt;
         public final String footer;
         public final String label;
+        public java.util.List<IncomingAttachment> attachments = java.util.List.of();
 
         Msg(long id, long channelId, long authorId, boolean bot, String text, Instant createdAt, String footer, String label) {
             this.id = id;
@@ -45,6 +46,14 @@ public final class FakeGuild extends UnsupportedDiscord {
             this.footer = footer;
             this.label = label;
         }
+    }
+
+    /** A file the bot uploaded. */
+    public record Upload(long channelId, long messageId, String caption, String name, byte[] data) {
+    }
+
+    /** A reaction the bot added. */
+    public record Reaction(long channelId, long messageId, String emoji) {
     }
 
     /** A channel. */
@@ -76,6 +85,8 @@ public final class FakeGuild extends UnsupportedDiscord {
     public final Set<Long> categoriesStaffRoleCanView = new HashSet<>();
     public final List<String> calls = new ArrayList<>();
     public final List<String> panels = new ArrayList<>();
+    public final List<Upload> uploads = new ArrayList<>();
+    public final List<Reaction> reactions = new ArrayList<>();
     public boolean connected = true;
     private Listener listener;
     private long nextId = 1000;
@@ -138,6 +149,14 @@ public final class FakeGuild extends UnsupportedDiscord {
         return msg.id;
     }
 
+    /** A user writes a message with files; the listener hears of it. */
+    public long sayWithFiles(long channelId, long author, String text, List<IncomingAttachment> attachments) {
+        Msg msg = addMessage(channelId, author, text, null, null);
+        msg.attachments = attachments;
+        this.listener.onMessage(incoming(msg));
+        return msg.id;
+    }
+
     /** A user writes a message while the bot is not listening (it was down). */
     public long sayWhileBotDown(long channelId, long author, String text) {
         return addMessage(channelId, author, text, null, null).id;
@@ -184,7 +203,7 @@ public final class FakeGuild extends UnsupportedDiscord {
         Chan chan = this.channels.get(m.channelId);
         boolean self = m.authorId == SELF;
         return new IncomingMessage(m.id, m.channelId, chan.category, chan.publicView, m.authorId, "user-" + m.authorId, m.bot, self,
-                this.roleMembers.getOrDefault(this.staffRole, Set.of()).contains(m.authorId), m.createdAt, m.editedAt, m.text, List.of(), List.of(),
+                this.roleMembers.getOrDefault(this.staffRole, Set.of()).contains(m.authorId), m.createdAt, m.editedAt, m.text, m.attachments, List.of(),
                 self ? m.footer : null);
     }
 
@@ -330,6 +349,26 @@ public final class FakeGuild extends UnsupportedDiscord {
     public void notice(long channelId, @NotNull String text) throws GatewayException {
         check("notice");
         addMessage(channelId, SELF, text, null, null);
+    }
+
+    @Override
+    public @NotNull MessageRef postPlain(long channelId, @NotNull String text) throws GatewayException {
+        check("postPlain");
+        return new MessageRef(channelId, addMessage(channelId, SELF, text, null, null).id);
+    }
+
+    @Override
+    public @NotNull MessageRef postFile(long channelId, String text, @NotNull String fileName, byte @NotNull [] data) throws GatewayException {
+        check("postFile");
+        Msg msg = addMessage(channelId, SELF, text == null ? "" : text, null, null);
+        this.uploads.add(new Upload(channelId, msg.id, text, fileName, data));
+        return new MessageRef(channelId, msg.id);
+    }
+
+    @Override
+    public void react(@NotNull MessageRef message, @NotNull String emoji) throws GatewayException {
+        check("react");
+        this.reactions.add(new Reaction(message.channelId(), message.messageId(), emoji));
     }
 
     @Override

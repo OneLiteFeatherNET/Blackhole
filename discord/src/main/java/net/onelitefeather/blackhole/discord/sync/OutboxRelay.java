@@ -11,9 +11,14 @@ import net.onelitefeather.blackhole.discord.gateway.DiscordGateway.GatewayExcept
 import net.onelitefeather.blackhole.discord.gateway.DiscordGateway.MessageRef;
 import net.onelitefeather.blackhole.discord.metrics.Metrics;
 import net.onelitefeather.blackhole.discord.metrics.Metrics.Counter;
+import net.onelitefeather.blackhole.discord.backend.Tickets.OutboxFile;
+import net.onelitefeather.blackhole.discord.text.OutboundText;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Backend to Discord: posts what the portal and the panel wrote into the ticket channel, in case order, and
@@ -27,6 +32,9 @@ public final class OutboxRelay {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OutboxRelay.class);
     static final int PAGE = 100;
+    static final String SHARE_UNAVAILABLE = "Evidence share unavailable";
+    static final String SHARE_WITHDRAWN = "Evidence share withdrawn";
+    static final String FILE_UNAVAILABLE = "File unavailable";
     private static final int MAX_PAGES = 20;
 
     private final BackendGateway backend;
@@ -79,15 +87,37 @@ public final class OutboxRelay {
                     String ref = ref(item.messageId());
                     MessageRef posted = this.discord.find(channel, ref).orElse(null);
                     if (posted == null) {
-                        posted = this.discord.postRelay(channel, label(item.authorKind()), item.text() == null ? "" : item.text(), ref);
+                        // The bytes come first: when the store or scanner is down nothing is posted, and the next pass starts clean.
+                        List<File> files = fetch(ticket, item.files());
+                        if (files == null) {
+                            return false;
+                        }
+                        posted = postMessage(channel, label(item.authorKind()), item.text(), ref, item.messageId());
+                        for (File file : files) {
+                            if (file.data() == null) {
+                                this.discord.notice(channel, FILE_UNAVAILABLE);
+                            } else {
+                                this.discord.postFile(channel, null, file.name(), file.data());
+                            }
+                        }
                     }
                     return acknowledge(ticket, item, item.messageId(), Long.toString(posted.messageId()));
                 }
                 case EDIT -> {
                     if (item.discordMessageId() != null) {
                         this.discord.editRelay(new MessageRef(channel, Long.parseUnsignedLong(item.discordMessageId())),
-                                item.text() == null ? "" : item.text());
+                                String.join("\n\n", OutboundText.chunks(item.text())));
                     }
+                    return acknowledge(ticket, item, null, null);
+                }
+                case SHARE -> {
+                    return share(ticket, channel, item);
+                }
+                case SHARE_REVOKED -> {
+                    if (item.discordMessageId() != null) {
+                        this.discord.deleteMessage(new MessageRef(channel, Long.parseUnsignedLong(item.discordMessageId())));
+                    }
+                    this.discord.notice(channel, SHARE_WITHDRAWN);
                     return acknowledge(ticket, item, null, null);
                 }
                 case DELETE, REDACT -> {
@@ -105,6 +135,68 @@ public final class OutboxRelay {
             LOGGER.warn("Relaying into a ticket channel failed (permanent={})", e.permanent());
             return false;
         }
+    }
+
+    /** The message as labelled posts of at most 2000 characters; the first carries the reference by which a restart finds it again. */
+    private MessageRef postMessage(long channel, String label, String text, String ref, String messageId) throws GatewayException {
+        List<String> chunks = OutboundText.chunks(text);
+        if (chunks.isEmpty()) {
+            chunks = List.of("");
+        }
+        MessageRef first = this.discord.postRelay(channel, label, chunks.getFirst(), ref);
+        for (int i = 1; i < chunks.size(); i++) {
+            this.discord.postRelay(channel, label, chunks.get(i), "more " + messageId.substring(0, Math.min(8, messageId.length())) + " #" + i);
+        }
+        return first;
+    }
+
+    /** A share: an image as a labelled file, an excerpt as a code block, else the line that says it is unavailable. */
+    private boolean share(Ticket ticket, long channel, OutboxItem item) throws GatewayException {
+        MessageRef posted;
+        if (!item.files().isEmpty()) {
+            List<File> files = fetch(ticket, item.files().subList(0, 1));
+            if (files == null) {
+                return false;
+            }
+            File file = files.getFirst();
+            posted = file.data() == null
+                    ? this.discord.postPlain(channel, SHARE_UNAVAILABLE)
+                    : this.discord.postFile(channel, "Evidence shared: " + OutboundText.literal(file.name()), file.name(), file.data());
+        } else if (item.text() != null && !item.text().isBlank()) {
+            List<String> blocks = OutboundText.codeBlocks(item.text());
+            posted = this.discord.postPlain(channel, blocks.getFirst());
+            for (int i = 1; i < blocks.size(); i++) {
+                this.discord.postPlain(channel, blocks.get(i));
+            }
+        } else {
+            posted = this.discord.postPlain(channel, SHARE_UNAVAILABLE);
+        }
+        return acknowledge(ticket, item, item.messageId(), Long.toString(posted.messageId()));
+    }
+
+    /** A file fetched for the channel; {@code data} is null when the backend says it is not visible. */
+    private record File(String name, byte[] data) {
+    }
+
+    /** @return the files in order, or null when the backend is down (the caller holds the item and retries on the next pass) */
+    private List<File> fetch(Ticket ticket, List<OutboxFile> wanted) {
+        List<File> files = new ArrayList<>();
+        for (OutboxFile file : wanted) {
+            String name = file.name() == null || file.name().isBlank() ? "file" : file.name();
+            Result<byte[]> result = this.backend.fetchAttachment(ticket.id(), file.attachmentId());
+            if (result instanceof Result.Ok<byte[]> ok) {
+                files.add(new File(name, ok.value()));
+                continue;
+            }
+            Result.Failed<byte[]> failed = (Result.Failed<byte[]>) result;
+            if (failed.unavailable() || failed.status() == 503) {
+                this.metrics.increment(Counter.BACKEND_UNAVAILABLE);
+                LOGGER.warn("Fetching a file for a ticket channel failed with status {}; holding", failed.status());
+                return null;
+            }
+            files.add(new File(name, null));
+        }
+        return files;
     }
 
     private boolean acknowledge(Ticket ticket, OutboxItem item, String messageId, String discordMessageId) {

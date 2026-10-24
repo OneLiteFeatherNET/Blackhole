@@ -162,6 +162,8 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /discord/tickets/{id}/links", D),
             Map.entry("POST /discord/tickets/{id}/close", D),
             Map.entry("POST /discord/tickets/{id}/protocol/ensure", D),
+            Map.entry("GET /discord/tickets/{id}/attachments/{attachmentId}", D),
+            Map.entry("POST /discord/tickets/{id}/attachments", D),
             Map.entry("GET /discord/staff-links", D),
             Map.entry("POST /discord/leak-check", D),
             Map.entry("POST /case/{reference}/participants/{participantId}/erase", A),

@@ -8,7 +8,10 @@ import net.onelitefeather.blackhole.backend.casetimeline.CaseEventDraft;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventOrigin;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventPayload;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventPublisher;
+import net.onelitefeather.blackhole.backend.casetimeline.ChatFiles;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageAttachment;
+import net.onelitefeather.blackhole.backend.discord.attachment.DiscordAttachmentService;
+import net.onelitefeather.blackhole.backend.evidence.EvidenceProvenance;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageAuthorKind;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageChannel;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageEmbed;
@@ -69,11 +72,15 @@ public class DiscordIngestService {
     private final DomainEventPublisher events;
     private final Clock clock;
     private final DiscordTicketProperties properties;
+    private final DiscordAttachmentService files;
+    private final ChatFiles chatFiles;
 
     public DiscordIngestService(
             DiscordTicketStore tickets, DiscordIngestStore ingest, DiscordLinkRepository links, PunishmentRepository punishments,
-            DomainEventPublisher events, Clock clock, DiscordTicketProperties properties
+            DomainEventPublisher events, Clock clock, DiscordTicketProperties properties, DiscordAttachmentService files, ChatFiles chatFiles
     ) {
+        this.files = files;
+        this.chatFiles = chatFiles;
         this.tickets = tickets;
         this.ingest = ingest;
         this.links = links;
@@ -164,8 +171,11 @@ public class DiscordIngestService {
         }
         UUID messageId = messageId(ticket, item.messageId());
         CaseActor actor = new CaseActor(who.trust(), who.staffOid(), bot.oid(), null);
+        EvidenceProvenance expected = who.kind() == MessageAuthorKind.PLAYER ? EvidenceProvenance.PLAYER
+                : who.kind() == MessageAuthorKind.STAFF ? EvidenceProvenance.STAFF : null;
+        List<MessageAttachment> attachments = attachments(ticket, item.attachments(), expected);
         CaseEventPayload.MessageAdded payload = new CaseEventPayload.MessageAdded(messageId.toString(), ticket.appealId().toString(), who.kind(),
-                participantId, MessageChannel.DISCORD, text, item.attachments(), item.embeds());
+                participantId, MessageChannel.DISCORD, text, attachments, item.embeds());
         CaseEventDraft draft = new CaseEventDraft(ticket.punishmentIdentifier(), payload, item.createdAt(), CaseEventOrigin.LIVE, actor,
                 messageId.toString(), "discord:" + ticket.channelKey() + ":" + item.messageId(), who.visibility());
         List<CaseChanges.Appended> appended = this.ingest.add(ticket.id(), item.messageId(), hash, draft, who.kind() == MessageAuthorKind.PLAYER, now);
@@ -174,6 +184,10 @@ public class DiscordIngestService {
             return;
         }
         counts.added++;
+        List<UUID> acceptedIds = attachments.stream().filter(a -> a.attachmentId() != null).map(a -> UUID.fromString(a.attachmentId())).toList();
+        if (!acceptedIds.isEmpty()) {
+            this.chatFiles.bound(ticket.punishmentIdentifier(), acceptedIds);
+        }
         Map<String, Object> change = new HashMap<>();
         change.put("messageId", messageId.toString());
         change.put("authorKind", who.kind().name());
@@ -226,7 +240,7 @@ public class DiscordIngestService {
     // ---- validation and mapping ----
 
     private record Parsed(long messageId, String authorId, @Nullable String authorName, boolean bot, boolean staffRole, long createdAt,
-                          @Nullable Long editedAt, String text, List<MessageAttachment> attachments, List<MessageEmbed> embeds) {
+                          @Nullable Long editedAt, String text, List<DiscordTicketDTO.IngestAttachment> attachments, List<MessageEmbed> embeds) {
     }
 
     private record Valid(List<Parsed> items, long[] deletes, long[] present) {
@@ -245,7 +259,7 @@ public class DiscordIngestService {
             }
             String name = item.authorName() == null || item.authorName().isBlank() ? null : cut(item.authorName().strip(), MAX_NAME);
             parsed.add(new Parsed(Long.parseLong(item.discordMessageId()), item.authorDiscordUserId(), name, item.bot(), item.hasStaffRole(),
-                    item.createdAt(), item.editedAt(), text, attachments(item.attachments()), embeds(item.embeds())));
+                    item.createdAt(), item.editedAt(), text, item.attachments() == null ? List.of() : item.attachments(), embeds(item.embeds())));
         }
         parsed.sort(Comparator.comparingLong(Parsed::messageId));
         long[] deleteIds = new long[deletes.size()];
@@ -276,20 +290,53 @@ public class DiscordIngestService {
         }
     }
 
-    private static List<MessageAttachment> attachments(@Nullable List<DiscordTicketDTO.IngestAttachment> raw) {
-        if (raw == null) {
-            return List.of();
-        }
+    /**
+     * The attachments of a message as they are stored. A file that names an accepted chat file of this ticket, with the provenance the
+     * author has ({@code expected}), is stored as that file; anything else is metadata only. The Discord attachment id is never stored.
+     */
+    private List<MessageAttachment> attachments(DiscordTicket ticket, List<DiscordTicketDTO.IngestAttachment> raw,
+                                                @Nullable EvidenceProvenance expected) {
         List<MessageAttachment> found = new ArrayList<>();
         for (DiscordTicketDTO.IngestAttachment attachment : raw) {
             if (attachment == null || found.size() >= MAX_ATTACHMENTS) {
                 continue;
             }
             String kind = MessageAttachment.STICKER.equals(attachment.kind()) ? MessageAttachment.STICKER : MessageAttachment.FILE;
-            found.add(new MessageAttachment(kind, cutOrNull(attachment.id(), 32), cutOrNull(attachment.name(), MAX_FIELD),
-                    cutOrNull(attachment.contentType(), MAX_FIELD), attachment.size(), attachment.width(), attachment.height()));
+            String rejected = rejectedCode(attachment.rejected());
+            Optional<DiscordTicketDTO.Attachment> accepted = attachment.attachmentId() == null || expected == null
+                    || !MessageAttachment.FILE.equals(kind) || rejected != null ? Optional.empty()
+                    : parseUuid(attachment.attachmentId()).flatMap(id -> this.files.accepted(ticket.id(), ticket.punishmentIdentifier(), id, expected));
+            if (accepted.isPresent()) {
+                DiscordTicketDTO.Attachment file = accepted.get();
+                found.add(new MessageAttachment(MessageAttachment.FILE, null, file.name(), file.contentType(), file.size(), file.width(),
+                        file.height(), file.attachmentId(), file.provenance()));
+            } else {
+                found.add(new MessageAttachment(kind, null, cutOrNull(attachment.name(), MAX_FIELD), cutOrNull(attachment.contentType(), MAX_FIELD),
+                        attachment.size(), attachment.width(), attachment.height(), null, null, rejected));
+            }
         }
         return found;
+    }
+
+    private static Optional<UUID> parseUuid(String text) {
+        try {
+            return Optional.of(UUID.fromString(text));
+        } catch (IllegalArgumentException malformed) {
+            return Optional.empty();
+        }
+    }
+
+    /** The reason a file was not accepted, when it is one of the codes the upload answers; {@code null} otherwise. */
+    private static @Nullable String rejectedCode(@Nullable String code) {
+        if (code == null) {
+            return null;
+        }
+        for (DiscordTicketDTO.Code known : DiscordTicketDTO.Code.values()) {
+            if (known.name().equals(code)) {
+                return code;
+            }
+        }
+        return null;
     }
 
     private static List<MessageEmbed> embeds(@Nullable List<DiscordTicketDTO.IngestEmbed> raw) {

@@ -84,13 +84,13 @@ Migration versions and the client spec number are the next free ones on `main` r
 
 ## 7. Discord (PR 7, `feat(discord)`)
 
-- [ ] 7.1 Failing tests first: `DiscordMarkdown.toSource` and round trip against the corpus, mention escaping and empty allowed
+- [x] 7.1 Failing tests first: `DiscordMarkdown.toSource` and round trip against the corpus, mention escaping and empty allowed
   mentions, message splitting, attachment fetcher (host allow-list, no redirect, size and count caps, rejected file recorded),
   outbound file post, share post and revoke delete, hold-and-retry on a 503, backend ticket attachment routes (roles, visibility,
   idempotency per Discord attachment id, chat profile applied)
-- [ ] 7.2 Backend: `GET|POST /discord/tickets/{id}/attachments`, outbox items for attachments and shares, ingest of `attachmentIds`
+- [x] 7.2 Backend: `GET|POST /discord/tickets/{id}/attachments`, outbox items for attachments and shares, ingest of `attachmentIds`
   and `rejected`; amend `evidence.md`; regenerate the client spec
-- [ ] 7.3 Bot: `DiscordMarkdown`, attachment fetcher and uploader, relay of files and shares, warning reaction; verify
+- [x] 7.3 Bot: `DiscordMarkdown`, attachment fetcher and uploader, relay of files and shares, warning reaction; verify
   `./gradlew :discord:test :backend:test`
 
 ## 8. Documentation (PR 8, `docs`)

@@ -85,7 +85,7 @@ public final class Tickets {
 
     /** What an outbox item asks the bot to do. */
     public enum OutboxKind {
-        ADD, EDIT, DELETE, REDACT
+        ADD, EDIT, DELETE, REDACT, SHARE, SHARE_REVOKED
     }
 
     /** Who wrote a relayed message, which decides the label in the channel. */
@@ -94,24 +94,56 @@ public final class Tickets {
     }
 
     /**
+     * A file the bot fetches from the backend and uploads to the channel.
+     *
+     * @param attachmentId the backend's attachment (for a share of an image, the share id)
+     * @param name         the file name
+     * @param contentType  the media type
+     * @param size         the size in bytes
+     */
+    public record OutboxFile(@NotNull String attachmentId, @Nullable String name, @Nullable String contentType, @Nullable Long size) {
+    }
+
+    /**
      * @param seq              the case event sequence
-     * @param kind             add, edit, delete or redact
-     * @param messageId        the case message
+     * @param kind             add, edit, delete, redact, share or share revoked
+     * @param messageId        the case message (for a share: the share id)
      * @param authorKind       the author for an add
-     * @param text             the text for an add or an edit
-     * @param discordMessageId the Discord copy for an edit, delete or redact
+     * @param text             the text for an add or an edit (for an excerpt share: the lines)
+     * @param discordMessageId the Discord copy for an edit, delete, redact or share revoked
+     * @param files            the files of an add, or the image of a share; empty for none
      */
     public record OutboxItem(long seq, @NotNull OutboxKind kind, @NotNull String messageId, @Nullable AuthorKind authorKind,
-                             @Nullable String text, @Nullable String discordMessageId) {
+                             @Nullable String text, @Nullable String discordMessageId, @NotNull List<OutboxFile> files) {
+
+        public OutboxItem(long seq, @NotNull OutboxKind kind, @NotNull String messageId, @Nullable AuthorKind authorKind,
+                          @Nullable String text, @Nullable String discordMessageId) {
+            this(seq, kind, messageId, authorKind, text, discordMessageId, List.of());
+        }
     }
 
     /** @param relayedSeq the ticket's cursor */
     public record Outbox(@NotNull List<OutboxItem> items, long relayedSeq) {
     }
 
-    /** A file or sticker of a message: metadata only. */
+    /**
+     * A file or sticker of a message. The Discord id is metadata only.
+     *
+     * @param attachmentId the backend's attachment, only for a file the backend accepted
+     * @param rejected     the reject code when the file was not accepted (such as {@code TOO_LARGE}), else null
+     */
     public record Attachment(@NotNull String kind, @Nullable String id, @Nullable String name, @Nullable String contentType,
-                             @Nullable Long size, @Nullable Integer width, @Nullable Integer height) {
+                             @Nullable Long size, @Nullable Integer width, @Nullable Integer height, @Nullable String attachmentId,
+                             @Nullable String rejected) {
+
+        public Attachment(@NotNull String kind, @Nullable String id, @Nullable String name, @Nullable String contentType,
+                          @Nullable Long size, @Nullable Integer width, @Nullable Integer height) {
+            this(kind, id, name, contentType, size, width, height, null, null);
+        }
+    }
+
+    /** What the backend stored for an uploaded file. */
+    public record Uploaded(@NotNull String attachmentId, @Nullable String name, @Nullable String contentType, @Nullable Long size) {
     }
 
     /** An embed of a message: its type and host only. */

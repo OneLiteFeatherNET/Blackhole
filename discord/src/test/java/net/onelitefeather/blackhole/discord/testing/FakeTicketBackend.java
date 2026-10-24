@@ -13,6 +13,7 @@ import net.onelitefeather.blackhole.discord.backend.Tickets.Patch;
 import net.onelitefeather.blackhole.discord.backend.Tickets.ProtocolEnsured;
 import net.onelitefeather.blackhole.discord.backend.Tickets.State;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Ticket;
+import net.onelitefeather.blackhole.discord.backend.Tickets.Uploaded;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -55,6 +56,7 @@ public final class FakeTicketBackend extends UnsupportedBackend {
         public final Set<Long> deleted = new HashSet<>();
         public final Map<Long, Integer> edits = new HashMap<>();
         public final List<OutboxItem> outbox = new ArrayList<>();
+        public final List<IngestItem> ingestedItems = new ArrayList<>();
         public final Map<String, String> relayed = new LinkedHashMap<>();
     }
 
@@ -242,6 +244,44 @@ public final class FakeTicketBackend extends UnsupportedBackend {
         return new Result.Ok<>(r.relayedSeq);
     }
 
+    /** A file the bot uploaded to the backend. */
+    public record Upload(String ticketId, String name, byte[] data, String discordAttachmentId, String author) {
+    }
+
+    /** Files the outbox points at, by attachment id. */
+    public final Map<String, byte[]> files = new HashMap<>();
+    public final List<Upload> uploads = new ArrayList<>();
+    /** Answers for an upload by Discord attachment id; others are accepted. */
+    public final Map<String, Result<Uploaded>> uploadAnswers = new HashMap<>();
+    public final List<String> fetches = new ArrayList<>();
+
+    @Override
+    public @NotNull Result<byte[]> fetchAttachment(@NotNull String id, @NotNull String attachmentId) {
+        this.fetches.add(attachmentId);
+        Result<byte[]> gate = gate("fetch");
+        if (gate != null) {
+            return gate;
+        }
+        byte[] data = this.files.get(attachmentId);
+        return data == null ? Result.Failed.of(404, null) : new Result.Ok<>(data);
+    }
+
+    @Override
+    public @NotNull Result<Uploaded> uploadAttachment(@NotNull String id, @NotNull byte[] data, @NotNull String name,
+                                                      @NotNull String discordAttachmentId, @NotNull String authorDiscordUserId) {
+        this.calls.add("upload");
+        this.uploads.add(new Upload(id, name, data, discordAttachmentId, authorDiscordUserId));
+        Result<Uploaded> gate = gate("upload");
+        if (gate != null) {
+            return gate;
+        }
+        Result<Uploaded> answer = this.uploadAnswers.get(discordAttachmentId);
+        if (answer != null) {
+            return answer;
+        }
+        return new Result.Ok<>(new Uploaded(UUID.nameUUIDFromBytes(discordAttachmentId.getBytes()).toString(), name, null, (long) data.length));
+    }
+
     @Override
     public @NotNull Result<Ingested> ingest(@NotNull String id, @NotNull IngestBatch batch) {
         this.calls.add("ingest");
@@ -255,6 +295,7 @@ public final class FakeTicketBackend extends UnsupportedBackend {
         int edited = 0;
         int removed = 0;
         for (IngestItem item : batch.items()) {
+            r.ingestedItems.add(item);
             long messageId = Long.parseLong(item.discordMessageId());
             this.ingestedLive.add(item.discordMessageId());
             String known = r.inbound.get(messageId);

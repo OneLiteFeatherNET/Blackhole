@@ -4,18 +4,25 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.version.annotation.Version;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.multipart.StreamingFileUpload;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.security.annotation.Secured;
 import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
+import net.onelitefeather.blackhole.backend.discord.attachment.DiscordAttachmentService;
 import net.onelitefeather.blackhole.backend.discord.dto.DiscordTicketDTO;
 import net.onelitefeather.blackhole.backend.discord.ingest.DiscordIngestService;
 import net.onelitefeather.blackhole.backend.discord.ticket.TicketService;
 import net.onelitefeather.blackhole.backend.discord.ticket.TicketState;
+import net.onelitefeather.blackhole.backend.evidence.controller.SafeFileResponse;
+import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.Roles;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,11 +37,37 @@ public class DiscordTicketController implements DiscordTicketApi {
 
     private final TicketService tickets;
     private final DiscordIngestService ingest;
+    private final DiscordAttachmentService attachments;
 
     @Inject
-    public DiscordTicketController(TicketService tickets, DiscordIngestService ingest) {
+    public DiscordTicketController(TicketService tickets, DiscordIngestService ingest, DiscordAttachmentService attachments) {
         this.tickets = tickets;
         this.ingest = ingest;
+        this.attachments = attachments;
+    }
+
+    @Override
+    @Secured(Roles.DISCORD)
+    public HttpResponse<DiscordTicketDTO> uploadAttachment(UUID id, @Nullable StreamingFileUpload file, String discordAttachmentId,
+                                                           String authorDiscordUserId, Actor actor) {
+        if (file == null) {
+            return respond(DiscordTicketDTO.Error.of("a file is required", ErrorKind.VALIDATION));
+        }
+        try (InputStream content = file.asInputStream()) {
+            return respond(this.attachments.upload(id, file.getFilename(), discordAttachmentId, authorDiscordUserId, content, actor));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    @Override
+    @Secured(Roles.DISCORD)
+    public HttpResponse<?> attachment(UUID id, UUID attachmentId) {
+        DiscordAttachmentService.Reply reply = this.attachments.download(id, attachmentId);
+        return switch (reply) {
+            case DiscordAttachmentService.Reply.Content content -> SafeFileResponse.of(content.download(), false);
+            case DiscordAttachmentService.Reply.Failure failure -> HttpResponse.status(failure.error().kind().status()).body(failure.error());
+        };
     }
 
     @Override

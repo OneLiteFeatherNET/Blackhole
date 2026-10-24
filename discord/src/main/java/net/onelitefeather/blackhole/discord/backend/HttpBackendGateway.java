@@ -37,7 +37,9 @@ import net.onelitefeather.blackhole.discord.backend.Tickets.LeakResult;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Opened;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Outbox;
 import net.onelitefeather.blackhole.discord.backend.Tickets.OutboxItem;
+import net.onelitefeather.blackhole.discord.backend.Tickets.OutboxFile;
 import net.onelitefeather.blackhole.discord.backend.Tickets.OutboxKind;
+import net.onelitefeather.blackhole.discord.backend.Tickets.Uploaded;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Patch;
 import net.onelitefeather.blackhole.discord.backend.Tickets.ProtocolEnsured;
 import net.onelitefeather.blackhole.discord.backend.Tickets.State;
@@ -48,6 +50,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -246,13 +250,67 @@ public final class HttpBackendGateway implements BackendGateway {
     private static OutboxItem outboxItem(DiscordOutboxItem item) {
         MessageAuthorKind author = item.getAuthorKind();
         return new OutboxItem(item.getSeq(), OutboxKind.valueOf(item.getKind().getValue()), item.getMessageId(),
-                author == null ? null : AuthorKind.valueOf(author.getValue()), item.getText(), item.getDiscordMessageId());
+                author == null ? null : AuthorKind.valueOf(author.getValue()), item.getText(), item.getDiscordMessageId(),
+                item.getFiles() == null ? List.of() : item.getFiles().stream()
+                        .map(f -> new OutboxFile(f.getAttachmentId(), f.getName(), f.getContentType(), f.getSize())).toList());
     }
 
     @Override
     public @NotNull Result<Long> linkRelay(@NotNull String id, long seq, @Nullable String messageId, @Nullable String discordMessageId) {
         return invoke("acknowledging a relay", () -> this.ticketApi.linkDiscordTicketMessage(UUID.fromString(id), new DiscordTicketLinkRequest()
                 .seq(seq).messageId(messageId == null ? null : UUID.fromString(messageId)).discordMessageId(discordMessageId)).getRelayedSeq());
+    }
+
+    @Override
+    public @NotNull Result<byte[]> fetchAttachment(@NotNull String id, @NotNull String attachmentId) {
+        return invoke("fetching an attachment", () -> {
+            java.io.File file = this.ticketApi.getDiscordTicketAttachment(UUID.fromString(id), UUID.fromString(attachmentId));
+            try {
+                return file == null ? new byte[0] : Files.readAllBytes(file.toPath());
+            } catch (IOException e) {
+                throw new ApiException(e);
+            } finally {
+                if (file != null) {
+                    file.delete();
+                }
+            }
+        });
+    }
+
+    @Override
+    public @NotNull Result<Uploaded> uploadAttachment(@NotNull String id, @NotNull byte[] data, @NotNull String name,
+                                                      @NotNull String discordAttachmentId, @NotNull String authorDiscordUserId) {
+        return invoke("uploading an attachment", () -> {
+            Path dir = null;
+            Path file = null;
+            try {
+                dir = Files.createTempDirectory("blackhole-upload");
+                file = dir.resolve(safeName(name));
+                Files.write(file, data);
+                var stored = this.ticketApi.uploadDiscordTicketAttachment(UUID.fromString(id), file.toFile(), discordAttachmentId, authorDiscordUserId);
+                return new Uploaded(stored.getAttachmentId().toString(), stored.getName(), stored.getContentType(), stored.getSize());
+            } catch (IOException e) {
+                throw new ApiException(e);
+            } finally {
+                try {
+                    if (file != null) {
+                        Files.deleteIfExists(file);
+                    }
+                    if (dir != null) {
+                        Files.deleteIfExists(dir);
+                    }
+                } catch (IOException ignored) {
+                    // A temp file left behind is the operating system's to clean.
+                }
+            }
+        });
+    }
+
+    /** The last path segment of a name from Discord, with nothing that could leave the temp directory. */
+    static String safeName(String name) {
+        String last = name == null ? "" : name.replace('\\', '/');
+        last = last.substring(last.lastIndexOf('/') + 1).replaceAll("\\p{Cntrl}", "").trim();
+        return last.isEmpty() || last.equals(".") || last.equals("..") ? "file" : last;
     }
 
     @Override
@@ -270,7 +328,8 @@ public final class HttpBackendGateway implements BackendGateway {
                 .authorName(item.authorName()).bot(item.bot()).hasStaffRole(item.hasStaffRole()).createdAt(item.createdAt())
                 .editedAt(item.editedAt()).text(item.text())
                 .attachments(item.attachments().stream().map(a -> new DiscordIngestAttachment().kind(a.kind()).id(a.id()).name(a.name())
-                        .contentType(a.contentType()).size(a.size()).width(a.width()).height(a.height())).toList())
+                        .contentType(a.contentType()).size(a.size()).width(a.width()).height(a.height())
+                        .attachmentId(a.attachmentId()).rejected(a.rejected())).toList())
                 .embeds(item.embeds().stream().map(e -> new DiscordIngestEmbed().type(e.type()).host(e.host())).toList());
     }
 
