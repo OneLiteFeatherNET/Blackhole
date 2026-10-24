@@ -31,6 +31,7 @@ import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
+import net.onelitefeather.blackhole.backend.discord.DiscordLinkService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.ActivePunishmentExpirer;
 
@@ -50,6 +51,7 @@ public class ProfileController {
     private final ProfileSlots slots;
     private final Clock clock;
     private final ProfileAttributionGuard attributionGuard;
+    private final DiscordLinkService discordLinks;
 
     /**
      * Create a new ProfileController.
@@ -61,6 +63,7 @@ public class ProfileController {
      * @param slots          row-level profile writes (session telemetry)
      * @param clock          source of the last-seen timestamp
      * @param attributionGuard discards client-supplied {@code recordedByOid} on whole-profile writes
+     * @param discordLinks   removes the player's Discord link when the profile is erased
      */
     @Inject
     public ProfileController(
@@ -70,7 +73,8 @@ public class ProfileController {
             ActivePunishmentExpirer expirer,
             ProfileSlots slots,
             Clock clock,
-            ProfileAttributionGuard attributionGuard
+            ProfileAttributionGuard attributionGuard,
+            DiscordLinkService discordLinks
     ) {
         this.repository = repository;
         this.eventPublisher = eventPublisher;
@@ -79,6 +83,7 @@ public class ProfileController {
         this.slots = slots;
         this.clock = clock;
         this.attributionGuard = attributionGuard;
+        this.discordLinks = discordLinks;
     }
 
     /**
@@ -208,6 +213,7 @@ public class ProfileController {
             return HttpResponse.badRequest(new PunishProfileResponse.ErrorResponse("There is no profile linked to the given owner"));
         }
         this.repository.delete(entity);
+        this.discordLinks.removeOnErase(owner);
         this.profileCache.evict(owner);
         this.eventPublisher.publish("profile.deleted", Map.of(
                 "owner", owner

@@ -1,0 +1,5520 @@
+openapi: 3.0.1
+info:
+  title: Blackhole API
+  description: Simple ban management system
+  contact:
+    name: Management
+    url: https://onelitefeather.net
+    email: admin@onelitefeather.net
+  license:
+    name: Close Source
+  version: 0.0.26
+security:
+- bearerAuth: []
+paths:
+  /admin/discord-link:
+    get:
+      tags:
+      - Discord link
+      summary: List Discord links
+      description: Every staff and player link with the staff members' names. A Discord
+        user id is never returned.
+      operationId: listDiscordLinks
+      responses:
+        "200":
+          description: "The links, oldest first"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscordLinkListResponse"
+  /admin/discord-link/{id}:
+    delete:
+      tags:
+      - Discord link
+      summary: Remove a Discord link
+      description: Removes one link and with it the stored Discord user id.
+      operationId: removeDiscordLink
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: The link was removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscordLinkRemovedResponse"
+        "404":
+          description: There is no such link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscordLinkError"
+  /admin/import/punishments:
+    get:
+      tags:
+      - Import
+      summary: List imported punishments without a template
+      description: "Groups the punishments imported from a vanilla ban list that are\
+        \ linked to no template by their original reason, the largest group first."
+      operationId: listImportedPunishmentGroups
+      responses:
+        "200":
+          description: The groups
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportedPunishmentGroups"
+  /admin/import/punishments/retemplate:
+    post:
+      tags:
+      - Import
+      summary: Link imported punishments to a template
+      description: "Links imported punishments that have no template to a template,\
+        \ either every one with an original reason or an explicit selection. Only\
+        \ the template changes: no score, step, duration or section. Each change is\
+        \ recorded on the case as punishment.retemplated with the caller as actor.\
+        \ A punishment that already has a template is never overwritten, so repeating\
+        \ a request changes nothing."
+      operationId: retemplateImportedPunishments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportedPunishmentRetemplateRequest"
+        required: true
+      responses:
+        "200":
+          description: What was linked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportedPunishmentRetemplateResponse"
+        "400":
+          description: "Neither or both of reason and identifiers, or the template\
+            \ is in a mute section"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportedPunishmentError"
+        "404":
+          description: Unknown template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportedPunishmentError"
+        "409":
+          description: The template's section is disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportedPunishmentError"
+  /admin/staff-actor:
+    get:
+      tags:
+      - Auth
+      summary: List staff actors
+      description: "Every verified staff principal the backend has seen, with the\
+        \ display name kept for it (absent once anonymized), its kind and when it\
+        \ was first and last seen. Most recently seen first."
+      operationId: listStaffActors
+      responses:
+        "200":
+          description: The known staff principals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffActorListResponse"
+  /admin/staff-actor/{oid}/anonymize:
+    post:
+      tags:
+      - Auth
+      summary: Anonymize a staff actor
+      description: "Clears the stored display name of a staff principal (leaving staff,\
+        \ erasure request). The object id and every record that references it stay.\
+        \ The action is audited with the admin's own object id."
+      operationId: anonymizeStaffActor
+      parameters:
+      - name: oid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: The display name was cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffActorAnonymizeResponse"
+        "404":
+          description: Unknown staff actor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffActorError"
+  /admin/staff-link:
+    get:
+      tags:
+      - Staff link
+      summary: List staff links
+      description: "Every staff member's linked Minecraft account, with the staff\
+        \ member's display name."
+      operationId: listStaffLinks
+      responses:
+        "200":
+          description: "The links, oldest first"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffLinkListResponse"
+  /admin/staff-link/{oid}:
+    delete:
+      tags:
+      - Staff link
+      summary: Unlink a staff member
+      description: Removes the link of any staff member. Actions already attributed
+        to them stay attributed. Audited with the admin's own object id.
+      operationId: unlinkStaffLink
+      parameters:
+      - name: oid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: The link was removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffLinkRemovedResponse"
+        "404":
+          description: That staff member has no link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffLinkError"
+  /appeal:
+    get:
+      tags:
+      - Appeal
+      summary: Get all appeals
+      description: Retrieves a paginated list of appeals
+      operationId: getAppeals
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: Successfully retrieved appeals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AppealDTO"
+    post:
+      tags:
+      - Appeal
+      summary: Submit an appeal
+      description: Submits an appeal against a punishment. Immediately evaluated against
+        the eligibility checklist.
+      operationId: submitAppeal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppealSubmissionDTO"
+        required: true
+      responses:
+        "200":
+          description: Appeal submitted (status reflects whether it passed the eligibility
+            checklist)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppealDTO"
+        "404":
+          description: Punishment not found
+  /appeal/{identifier}/review:
+    post:
+      tags:
+      - Appeal
+      summary: Review an appeal
+      description: Decides an eligible appeal. Rejects self-review (the caller's oid
+        matching the punishment's source or the principal that recorded it) and full
+        lifts of SEVERE punishments (duration reduction only).
+      operationId: reviewAppeal
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppealReviewDTO"
+        required: true
+      responses:
+        "200":
+          description: Appeal decided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppealDTO"
+        "404":
+          description: Appeal not found
+        "400":
+          description: "Invalid decision, or a full lift was attempted on a SEVERE\
+            \ punishment"
+        "403":
+          description: The caller issued the punishment (self-review)
+        "409":
+          description: "Appeal is not awaiting review, or the punishment is no longer\
+            \ active"
+  /auth/me:
+    get:
+      tags:
+      - Auth
+      summary: Who am I
+      description: "The object id, display name and internal roles of the caller.\
+        \ Answers 200 with an empty role list when the token is valid but maps to\
+        \ no role, so a client can show a no-access page."
+      operationId: getCurrentCaller
+      responses:
+        "200":
+          description: The caller
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMeResponse"
+        "401":
+          description: "No valid token, or the token has no object id"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthError"
+  /case:
+    get:
+      tags:
+      - Case
+      summary: List cases
+      description: "Lists cases, newest activity first. Every filter is optional.\
+        \ punishmentState is ACTIVE, EXPIRED or LIFTED."
+      operationId: listCases
+      parameters:
+      - name: status
+        in: query
+        explode: false
+        schema:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/CaseStatus"
+      - name: assignee
+        in: query
+        explode: false
+        schema:
+          type: string
+          format: uuid
+          nullable: true
+      - name: tag
+        in: query
+        explode: false
+        schema:
+          type: string
+          nullable: true
+      - name: priority
+        in: query
+        explode: false
+        schema:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/CasePriority"
+      - name: section
+        in: query
+        explode: false
+        schema:
+          type: string
+          nullable: true
+      - name: punishmentState
+        in: query
+        explode: false
+        schema:
+          type: string
+          nullable: true
+      - name: page
+        in: query
+        explode: false
+        schema:
+          type: integer
+          format: int32
+          nullable: true
+      - name: size
+        in: query
+        explode: false
+        schema:
+          type: integer
+          format: int32
+          nullable: true
+      responses:
+        "200":
+          description: One page of cases
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseListPage"
+        "400":
+          description: A filter is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+  /case/{reference}:
+    get:
+      tags:
+      - Case
+      summary: Get a case
+      description: The case of a punishment with its metadata and up to 20 other punishments
+        of the same player. A punishment without a case row reads as the default case
+        (version 0); a read never creates one.
+      operationId: getCase
+      parameters:
+      - name: reference
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseResponse"
+        "404":
+          description: Unknown punishment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+        "409":
+          description: The short id matches several punishments; the message lists
+            them
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+    patch:
+      tags:
+      - Case
+      summary: Change a case
+      description: "Sets status, assignee, priority and tags. expectedVersion must\
+        \ be the version that was read; a value equal to the current one changes nothing\
+        \ and appends no event. Each change appends its event in the same statement."
+      operationId: updateCase
+      parameters:
+      - name: reference
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaseUpdateRequest"
+        required: true
+      responses:
+        "200":
+          description: The case after the change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseResponse"
+        "400":
+          description: Invalid tags or no expectedVersion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+        "404":
+          description: Unknown punishment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+        "409":
+          description: "The case was changed since expectedVersion, or the short id\
+            \ is ambiguous"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+        "422":
+          description: The assignee is not a known human staff member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+  /case/{reference}/notes:
+    post:
+      tags:
+      - Case
+      summary: Add a note
+      description: Adds an internal staff note of 1 to 4000 characters. It must not
+        contain a UUID or an IP address.
+      operationId: addCaseNote
+      parameters:
+      - name: reference
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaseNoteRequest"
+        required: true
+      responses:
+        "200":
+          description: The note was added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseNoteResponse"
+        "400":
+          description: Invalid text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+        "404":
+          description: Unknown punishment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+  /case/{reference}/notes/{noteId}:
+    put:
+      tags:
+      - Case
+      summary: Edit a note
+      description: Appends a new version of the note; the earlier versions stay. Only
+        the verified author or an admin may edit.
+      operationId: editCaseNote
+      parameters:
+      - name: reference
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: noteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaseNoteRequest"
+        required: true
+      responses:
+        "200":
+          description: The note was edited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseNoteResponse"
+        "400":
+          description: Invalid text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+        "403":
+          description: The caller is neither the author nor an admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+        "404":
+          description: Unknown punishment or note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+        "409":
+          description: The note was redacted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+  /case/{reference}/notes/{noteId}/redact:
+    post:
+      tags:
+      - Case
+      summary: Redact a note
+      description: "Removes the text of every version of a note for data protection,\
+        \ keeping type, time and actor, and appends a note.redacted event. The reason\
+        \ is a code. Repeating it is harmless."
+      operationId: redactCaseNote
+      parameters:
+      - name: reference
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: noteId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaseRedactRequest"
+        required: true
+      responses:
+        "200":
+          description: The note was redacted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseRedactResponse"
+        "400":
+          description: No reason
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+        "404":
+          description: Unknown punishment or note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+  /case/{reference}/timeline:
+    get:
+      tags:
+      - Case
+      summary: Read the timeline of a case
+      description: "Events in timeline order (occurredAt, then seq), 50 per page by\
+        \ default and at most 200. Follow nextCursor for the next page. type may repeat\
+        \ and takes exact types or the groups note, appeal, evidence, case and punishment."
+      operationId: getCaseTimeline
+      parameters:
+      - name: reference
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: cursor
+        in: query
+        explode: false
+        schema:
+          type: string
+          nullable: true
+      - name: size
+        in: query
+        explode: false
+        schema:
+          type: integer
+          format: int32
+          nullable: true
+      - name: type
+        in: query
+        explode: false
+        schema:
+          type: array
+          nullable: true
+          items:
+            type: string
+      - name: actorTrust
+        in: query
+        explode: false
+        schema:
+          type: string
+          nullable: true
+      - name: from
+        in: query
+        explode: false
+        schema:
+          type: integer
+          format: int64
+          nullable: true
+      - name: to
+        in: query
+        explode: false
+        schema:
+          type: integer
+          format: int64
+          nullable: true
+      - name: order
+        in: query
+        explode: false
+        schema:
+          type: string
+          nullable: true
+      responses:
+        "200":
+          description: One page of events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseTimelinePage"
+        "400":
+          description: A filter or the cursor is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+        "404":
+          description: Unknown punishment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+        "409":
+          description: The short id matches several punishments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaseError"
+  /cloudnet/catalogue:
+    get:
+      tags:
+      - CloudNet
+      summary: Get the CloudNet catalogue
+      description: The merged view of all live proxy snapshots. available is false
+        when none is known or the cache is down.
+      operationId: getCloudNetCatalogue
+      responses:
+        "200":
+          description: The merged catalogue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogueResponse"
+    put:
+      tags:
+      - CloudNet
+      summary: Report a proxy's CloudNet catalogue
+      description: "Replaces the calling proxy's snapshot of CloudNet tasks, groups\
+        \ and services. It expires after 15 minutes unless the proxy reports again.\
+        \ Proxy tokens only."
+      operationId: reportCloudNetCatalogue
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CatalogueReportRequest"
+        required: true
+      responses:
+        "200":
+          description: Snapshot stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogueStored"
+        "400":
+          description: Invalid name or snapshot too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogueError"
+        "503":
+          description: "The shared cache is unavailable, retry later"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogueError"
+  /dashboard/summary:
+    get:
+      tags:
+      - Dashboard
+      summary: Dashboard summary
+      description: "Active punishments per section, open reports, pending appeals,\
+        \ escalations of the last 7 days and the latest automatic permanent punishments"
+      operationId: getDashboardSummary
+      responses:
+        "200":
+          description: The current summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummaryResponse"
+  /discord/link/confirm:
+    post:
+      tags:
+      - Discord link
+      summary: Confirm a Discord link code
+      description: "Called by the Discord bot only. Binds the Discord user (the one\
+        \ who typed /link) to the staff member or player the code was issued to, replacing\
+        \ any earlier link of either side. A wrong, expired or already used code is\
+        \ answered identically with INVALID_CODE."
+      operationId: confirmDiscordLink
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiscordLinkConfirmRequest"
+        required: true
+      responses:
+        "200":
+          description: The link now exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscordLinkConfirmResponse"
+        "400":
+          description: "The Discord user id is malformed, or the code is invalid,\
+            \ expired or used (kind INVALID_CODE)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscordLinkError"
+        "409":
+          description: A concurrent confirmation took the account; try again
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscordLinkError"
+  /discord/link/{discordUserId}:
+    get:
+      tags:
+      - Discord link
+      summary: What a Discord user is linked to
+      description: "Called by the Discord bot for /whoami: the kinds of link this\
+        \ Discord user has and, for a staff link, the staff member's name."
+      operationId: lookupDiscordLink
+      parameters:
+      - name: discordUserId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "The links of the Discord user, possibly none"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscordLinkWhoamiResponse"
+    delete:
+      tags:
+      - Discord link
+      summary: Unlink a Discord user
+      description: "Called by the Discord bot for /unlink: removes every link of the\
+        \ Discord user and with it the stored Discord user id."
+      operationId: unlinkDiscordUser
+      parameters:
+      - name: discordUserId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The links were removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscordLinkRemovedResponse"
+        "404":
+          description: The Discord user has no link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscordLinkError"
+  /elo/chat:
+    post:
+      tags:
+      - Elo
+      summary: Score a chat message for toxicity
+      description: "Scores a chat message; if flagged, records evidence (a hash, never\
+        \ the raw text) and applies a delta in the configured chat section"
+      operationId: submitChatSignal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EloChatSignalRequest"
+        required: true
+      responses:
+        "200":
+          description: Scoring result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EloChatSignalResponse"
+  /elo/{owner}:
+    get:
+      tags:
+      - Elo
+      summary: Get a player's current ELO standing
+      description: The player's score in every enabled section with that section's
+        thresholds. A section the player was never scored in reports its base score.
+      operationId: getEloProfile
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Current ELO standing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EloProfileResponse"
+  /elo/{owner}/adjust:
+    post:
+      tags:
+      - Elo
+      summary: Adjust a player's score by hand
+      description: "Applies a signed delta to the player's score in one section, recorded\
+        \ as a MANUAL_ADJUSTMENT and subject to the same soft and permanent threshold\
+        \ rules as any other delta. The adjusting staff member is the caller of the\
+        \ token."
+      operationId: adjustElo
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EloAdjustRequest"
+        required: true
+      responses:
+        "200":
+          description: The score change and any automatic punishment it caused
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EloAdjustResponse"
+        "400":
+          description: Invalid adjustment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EloError"
+        "404":
+          description: Unknown section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EloError"
+        "409":
+          description: The section is disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EloError"
+  /elo/{owner}/history:
+    get:
+      tags:
+      - Elo
+      summary: Get a player's ELO history
+      description: "The audit trail of ELO changes for this owner, optionally restricted\
+        \ to one section"
+      operationId: getEloHistory
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: section
+        in: query
+        required: true
+        explode: false
+        schema:
+          type: string
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: Paginated ELO event history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EloEventResponse"
+  /evasion/record:
+    post:
+      tags:
+      - Evasion
+      summary: Record a login sighting for ban-evasion detection
+      description: Computes a keyed hash of the IP (never stores it raw) and checks
+        whether multiple distinct owners share it recently
+      operationId: recordEvasionSighting
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvasionRecordDTO"
+        required: true
+      responses:
+        "200":
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                type: object
+        "503":
+          description: blackhole.evasion.ip-salt is not configured - evasion detection
+            is disabled
+  /evasion/{owner}/sightings:
+    get:
+      tags:
+      - Evasion
+      summary: List evasion sightings for a player
+      description: "The other owners that shared a hashed network address with this\
+        \ owner inside the detection window. Only owner hashes are returned, never\
+        \ an IP or its token."
+      operationId: listEvasionSightings
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "The linked owners, possibly none"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvasionSightingsResponse"
+        "400":
+          description: The owner is not a 128 character hex hash
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvasionSightingsError"
+  /evidence:
+    get:
+      tags:
+      - Evidence
+      summary: List the evidence of an owner
+      description: "Lists every evidence item of an owner hash, for data-subject access\
+        \ requests. Lifted and revoked evidence is hidden unless includeInactive is\
+        \ true; asking for it is audited."
+      operationId: listOwnerEvidence
+      parameters:
+      - name: owner
+        in: query
+        required: true
+        explode: false
+        schema:
+          type: string
+      - name: includeInactive
+        in: query
+        required: true
+        explode: false
+        schema:
+          type: boolean
+          default: false
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: One page of evidence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidencePage"
+        "400":
+          description: The owner is not a SHA-512 hash
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+    post:
+      tags:
+      - Evidence
+      summary: Attach evidence
+      description: "Attaches an anticheat record, chat excerpt, replay link or other\
+        \ link to a punishment, given by its identifier or short id, or sent ahead\
+        \ of the punishment under an owner hash and a correlation id (pass the same\
+        \ id as evidenceCorrelationId when applying the punishment). Files go through\
+        \ /evidence/file."
+      operationId: attachEvidence
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvidenceCreateRequest"
+        required: true
+      responses:
+        "200":
+          description: Evidence attached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceResponse"
+        "400":
+          description: "Invalid request, target or payload"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+        "404":
+          description: Unknown punishment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+        "409":
+          description: The short id matches several punishments; the message lists
+            them
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+        "413":
+          description: The payload is larger than the configured limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+        "422":
+          description: The payload contains personal data (a UUID or IP address)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+  /evidence/file:
+    post:
+      tags:
+      - Evidence
+      summary: Upload an evidence file
+      description: "Uploads a screenshot (PNG, JPEG) or video (MP4, WebM) as multipart\
+        \ form data. Send the text fields (punishment, or owner and correlationId;\
+        \ sourceSystem; capturedAt; description; onBehalfOf) before the file part.\
+        \ The type is detected from the file's bytes, images are re-encoded without\
+        \ metadata, and the file is virus scanned before it is stored."
+      operationId: uploadEvidenceFile
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                punishment:
+                  type: string
+                  nullable: true
+                owner:
+                  type: string
+                  nullable: true
+                correlationId:
+                  type: string
+                  nullable: true
+                sourceSystem:
+                  type: string
+                  nullable: true
+                capturedAt:
+                  type: integer
+                  format: int64
+                  nullable: true
+                description:
+                  type: string
+                  nullable: true
+                onBehalfOf:
+                  type: string
+                  format: uuid
+                  nullable: true
+            encoding:
+              file:
+                contentType: application/octet-stream
+                explode: false
+        required: true
+      responses:
+        "200":
+          description: File stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceResponse"
+        "400":
+          description: Invalid request or target
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+        "404":
+          description: Unknown punishment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+        "409":
+          description: The short id matches several punishments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+        "413":
+          description: "The file is larger than the limit for its type, or has too\
+            \ many pixels"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+        "415":
+          description: The file's detected type is not allowed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+        "422":
+          description: "The virus scanner flagged the file, or it is not a valid image"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+        "503":
+          description: The virus scanner or the file store is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+  /evidence/owner/{owner}:
+    delete:
+      tags:
+      - Evidence
+      summary: Delete all evidence of an owner
+      description: Deletes every evidence item and file of an owner hash (data-subject
+        erasure). Same required reason and per-item audit as deleting one item.
+      operationId: deleteOwnerEvidence
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: reason
+        in: query
+        explode: false
+        schema:
+          type: string
+          nullable: true
+      - name: note
+        in: query
+        explode: false
+        schema:
+          type: string
+          nullable: true
+      responses:
+        "200":
+          description: Deleted; the count may be zero
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceDeleteResponse"
+        "400":
+          description: "The reason is missing or invalid, or the owner is not a hash;\
+            \ nothing was deleted"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+        "503":
+          description: The file store is unavailable; deletion stopped at the first
+            file it could not delete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+  /evidence/{identifier}:
+    get:
+      tags:
+      - Evidence
+      summary: Get one evidence item
+      description: "The metadata and payload of one evidence item, whatever its status."
+      operationId: getEvidence
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: The evidence item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceResponse"
+        "404":
+          description: Unknown evidence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+    delete:
+      tags:
+      - Evidence
+      summary: Delete an evidence item
+      description: "Deletes one item and its file. A reason (ERASURE_REQUEST, WRONG_EVIDENCE,\
+        \ OTHER) is required and recorded, with the optional note, in the audit trail.\
+        \ Nothing is erased automatically for data-subject requests: the operator\
+        \ decides each one."
+      operationId: deleteEvidence
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: reason
+        in: query
+        explode: false
+        schema:
+          type: string
+          nullable: true
+      - name: note
+        in: query
+        explode: false
+        schema:
+          type: string
+          nullable: true
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceDeleteResponse"
+        "400":
+          description: The reason is missing or invalid; nothing was deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+        "404":
+          description: Unknown evidence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+        "503":
+          description: The file store is unavailable; the item was not deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+  /evidence/{identifier}/content:
+    get:
+      tags:
+      - Evidence
+      summary: Download an evidence file
+      description: "Streams the stored file through the backend (there are no presigned\
+        \ links). Supports a single HTTP Range so videos can be scrubbed. Sent with\
+        \ nosniff, a sandboxing Content-Security-Policy and no-store; images and videos\
+        \ are served inline, so the type is the detected one."
+      operationId: downloadEvidenceFile
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: Range
+        in: header
+        schema:
+          type: string
+          nullable: true
+      responses:
+        "200":
+          description: The whole file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: The requested byte range
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: "Unknown evidence, or it has no file"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+        "416":
+          description: The range starts behind the end of the file
+        "503":
+          description: The file store is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+  /player-discord-link/code:
+    post:
+      tags:
+      - Discord link
+      summary: Issue a Discord link code for a player
+      description: "Called by the Velocity proxy only. Issues a short-lived, single-use\
+        \ code for the player identified by the hashed owner, to type as /link in\
+        \ Discord. A new code replaces the player's previous one. The code is stored\
+        \ only as a hash."
+      operationId: issuePlayerDiscordLinkCode
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiscordLinkPlayerCodeRequest"
+        required: true
+      responses:
+        "200":
+          description: The code and when it expires
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscordLinkCodeResponse"
+        "400":
+          description: The owner is missing or not a sha-512 hash
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscordLinkError"
+  /player/resolve/{name}:
+    get:
+      tags:
+      - Player
+      description: "Resolve a player name to a UUID via the configured resolver chain\
+        \ (Otis, Mojang, NameMC)"
+      operationId: resolvePlayer
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The player was resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerResolveResponse"
+        "404":
+          description: No resolver could find a player with that name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerResolveError"
+  /profile:
+    get:
+      tags:
+      - PunishProfile
+      summary: Get all punishment profiles.
+      description: Get all existing punishment profiles
+      operationId: getProfiles
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: The updated profile
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PunishProfileResponse"
+    post:
+      tags:
+      - PunishProfile
+      summary: Add a new punishment profile.
+      description: Add a new profile for punishments
+      operationId: addProfile
+      requestBody:
+        description: the profile to add
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishProfileRequestDTO"
+        required: true
+      responses:
+        "200":
+          description: The profile which was added to the service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileResponse"
+  /profile/delete/{owner}:
+    delete:
+      tags:
+      - PunishProfile
+      summary: Delete a punishment profile by the owner.
+      description: Delete a punish profile via uuid
+      operationId: removeProfile
+      parameters:
+      - name: owner
+        in: path
+        description: the owner of the profile
+        required: true
+        schema:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+      responses:
+        "200":
+          description: The deleted profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileResponse"
+        "400":
+          description: Error message when there is no profile linked to the given
+            id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /profile/update/{owner}:
+    post:
+      tags:
+      - PunishProfile
+      summary: Get a punishment profile by the owner.
+      description: Update a punishment profile
+      operationId: updateProfile
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+      requestBody:
+        description: the profile to get
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishProfileRequestDTO"
+        required: true
+      responses:
+        "200":
+          description: The updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileResponse"
+        "400":
+          description: Error message when there is no profile linked to the given
+            id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /profile/{owner}:
+    get:
+      tags:
+      - PunishProfile
+      summary: Get a punishment profile by the owner.
+      description: Get a profile by id
+      operationId: getById
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+      responses:
+        "200":
+          description: The profile which matches with the given id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileDTO"
+        "404":
+          description: Error message when there is no profile linked to the given
+            id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /profile/{owner}/session:
+    post:
+      tags:
+      - PunishProfile
+      summary: "Records session telemetry (Phase 7's dashboard enrichment: Java/Bedrock\
+        \ protocol version and client brand) into the profile's existing metaData,\
+        \ so the already-existing profile listing/get endpoints surface it without\
+        \ a separate dashboard endpoint."
+      description: Records session telemetry (protocol version / client brand) for
+        the dashboard
+      operationId: updateSessionInfo
+      parameters:
+      - name: owner
+        in: path
+        required: true
+        schema:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SessionInfoDTO"
+        required: true
+      responses:
+        "200":
+          description: Session info recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishProfileResponse"
+  /punishment:
+    get:
+      tags:
+      - Punishment
+      summary: Get all punishments
+      description: Retrieves a paginated list of all punishment entries in the system
+      operationId: getPunishments
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: Successfully retrieved punishment entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PunishEntryDTO"
+  /punishment/active:
+    get:
+      tags:
+      - Punishment
+      summary: List active punishments across players
+      description: "Lists every punishment that currently holds a player's active\
+        \ slot and has not ended, newest first by default. Every filter is optional.\
+        \ kind is MUTE, BAN or SERVER; section is a section key (a CloudNet target\
+        \ section is a SERVER section whose targetKind is CLOUDNET_TASK, CLOUDNET_GROUP\
+        \ or CLOUDNET_SERVICE); permanent selects permanent or temporary punishments;\
+        \ expiresBefore (epoch milliseconds) keeps temporary punishments that end\
+        \ before it; automatic selects those the ELO system applied; actor is the\
+        \ staff member's oid. sort is CREATED or EXPIRES (a permanent punishment sorts\
+        \ as the latest), direction ASC or DESC. Players appear as their hashed owner\
+        \ only; no raw UUID, IP address or ban ID is returned."
+      operationId: listActivePunishments
+      parameters:
+      - name: kind
+        in: query
+        explode: false
+        schema:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/EnforcementKind"
+      - name: section
+        in: query
+        explode: false
+        schema:
+          type: string
+          nullable: true
+      - name: targetKind
+        in: query
+        explode: false
+        schema:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/ServerTargetKind"
+      - name: permanent
+        in: query
+        explode: false
+        schema:
+          type: boolean
+          nullable: true
+      - name: expiresBefore
+        in: query
+        explode: false
+        schema:
+          type: integer
+          format: int64
+          nullable: true
+      - name: automatic
+        in: query
+        explode: false
+        schema:
+          type: boolean
+          nullable: true
+      - name: actor
+        in: query
+        explode: false
+        schema:
+          type: string
+          format: uuid
+          nullable: true
+      - name: sort
+        in: query
+        explode: false
+        schema:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/ActivePunishmentSort"
+      - name: direction
+        in: query
+        explode: false
+        schema:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/SortDirection"
+      - name: page
+        in: query
+        explode: false
+        schema:
+          type: integer
+          format: int32
+          nullable: true
+      - name: size
+        in: query
+        explode: false
+        schema:
+          type: integer
+          format: int32
+          nullable: true
+      responses:
+        "200":
+          description: One page of active punishments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivePunishmentPage"
+        "400":
+          description: A filter or the page is invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivePunishmentError"
+  /punishment/apply:
+    post:
+      tags:
+      - Punishment
+      summary: Apply a punishment template
+      description: "Applies a template to a player: creates a temporary punishment\
+        \ in the template's section with the duration and ELO cost of the escalation\
+        \ step the player has reached, deducts the cost, and reports the step, the\
+        \ score before and after, and any permanent escalation it caused. The staff\
+        \ member is the caller of the token; only the proxy may send onBehalfOf (the\
+        \ in-game staff member's UUID)."
+      operationId: applyPunishment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishmentApplyRequest"
+        required: true
+      responses:
+        "200":
+          description: Punishment applied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentApplyResponse"
+        "400":
+          description: "Invalid request (owner must be a SHA-512 hash, exactly one\
+            \ of templateKey and templateId, onBehalfOf from a caller that is not\
+            \ the proxy)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+        "404":
+          description: Unknown template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+        "409":
+          description: "The template's section is disabled, or the player is already\
+            \ permanently punished in it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+  /punishment/lookup:
+    post:
+      tags:
+      - Punishment
+      summary: Find a punishment by Ban ID
+      description: "Finds the punishment a Ban ID belongs to. The Ban ID is a credential,\
+        \ so it goes in the request body and never in a URL or query. Anything that\
+        \ matches nothing, malformed or unknown, answers the same 404 without the\
+        \ input in it. The response is never cacheable (Cache-Control: no-store)."
+      operationId: findPunishmentByBanId
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishmentLookupRequest"
+        required: true
+      responses:
+        "200":
+          description: The punishment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentLookupResponse"
+        "404":
+          description: No punishment has this Ban ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+  /punishment/preview:
+    post:
+      tags:
+      - Punishment
+      summary: Preview applying a template
+      description: "Answers what applying the template would do right now - the escalation\
+        \ step, its cost, the resulting score and whether the player would be punished\
+        \ permanently - without changing anything. Takes the same request as /punishment/apply\
+        \ and fails with the same errors."
+      operationId: previewPunishment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishmentApplyRequest"
+        required: true
+      responses:
+        "200":
+          description: What applying the template would do
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentPreviewResponse"
+        "400":
+          description: "Invalid request (owner must be a SHA-512 hash, exactly one\
+            \ of templateKey and templateId, onBehalfOf from a caller that is not\
+            \ the proxy)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+        "404":
+          description: Unknown template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+        "409":
+          description: "The template's section is disabled, or the player is already\
+            \ permanently punished in it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+  /punishment/revoke:
+    post:
+      tags:
+      - Punishment
+      summary: Revoke the active punishment of a section
+      description: Moves the player's active punishment in the section into history.
+        Revoking a permanent punishment resets the player's score in that section
+        to the section's pardon score.
+      operationId: revokePunishment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishmentRevokeRequest"
+        required: true
+      responses:
+        "200":
+          description: Punishment revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentRevokeResponse"
+        "400":
+          description: "Invalid request (owner must be a SHA-512 hash, onBehalfOf\
+            \ from a caller that is not the proxy)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+        "404":
+          description: The player has no active punishment in that section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+  /punishment/short/{shortId}:
+    get:
+      tags:
+      - Punishment
+      summary: Find punishments by short ID
+      description: "Finds the punishments whose short ID (the # and eight hex characters\
+        \ players are shown, e.g. #A1B2C3D4) matches. The # is optional and the case\
+        \ is ignored. Short IDs are four bytes and can collide, so the result is a\
+        \ list: empty if nothing matches, several if they collide."
+      operationId: findPunishmentsByShortId
+      parameters:
+      - name: shortId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "The matching punishments, possibly none"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PunishEntryDTO"
+        "400":
+          description: "Not a short ID (exactly eight hex characters, optionally after\
+            \ #)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+  /punishment/{reference}/ban-id:
+    get:
+      tags:
+      - Punishment
+      summary: Reveal the Ban ID of a punishment
+      description: "Returns the current Ban ID of a punishment: the eight character\
+        \ credential the player uses for the appeal portal. For moderators and the\
+        \ proxy (it shows the value on the ban screen); never cacheable (Cache-Control:\
+        \ no-store). The reference is the full identifier, or a legacy short id when\
+        \ it is unambiguous. The Ban ID is part of no other response."
+      operationId: revealBanId
+      parameters:
+      - name: reference
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The current Ban ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BanIdResponse"
+        "404":
+          description: "Unknown punishment, or its Ban ID has not been issued yet"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BanIdError"
+        "409":
+          description: The short id matches several punishments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BanIdError"
+        "503":
+          description: The stored Ban ID cannot be read with the configured key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BanIdError"
+  /punishment/{reference}/evidence:
+    get:
+      tags:
+      - Evidence
+      summary: List the evidence of a punishment
+      description: "Lists the evidence of a punishment (identifier or short id), oldest\
+        \ first. Lifted and revoked evidence is hidden unless includeInactive is true;\
+        \ asking for it is audited."
+      operationId: listPunishmentEvidence
+      parameters:
+      - name: reference
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: includeInactive
+        in: query
+        required: true
+        explode: false
+        schema:
+          type: boolean
+          default: false
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: One page of evidence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidencePage"
+        "404":
+          description: Unknown punishment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+        "409":
+          description: The short id matches several punishments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+  /punishment/{reference}/evidence/count:
+    get:
+      tags:
+      - Evidence
+      summary: Count the valid evidence of a punishment
+      description: "The number of valid evidence items of a punishment: the only thing\
+        \ a player may be told. Lifted and revoked evidence is not counted."
+      operationId: countPunishmentEvidence
+      parameters:
+      - name: reference
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceCount"
+        "404":
+          description: Unknown punishment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+        "409":
+          description: The short id matches several punishments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceError"
+  /report:
+    get:
+      tags:
+      - Report
+      summary: Get all reports
+      description: Retrieves a paginated list of reports
+      operationId: getReports
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: Successfully retrieved reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReportDTO"
+    post:
+      tags:
+      - Report
+      summary: Submit a report
+      description: Submits a player report. Rate-limited per reporterHash within a
+        configurable time window.
+      operationId: submitReport
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportRequestDTO"
+        required: true
+      responses:
+        "200":
+          description: Report successfully submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportDTO"
+        "429":
+          description: Rate limit exceeded for this reporter
+  /report/{identifier}/resolve:
+    post:
+      tags:
+      - Report
+      summary: Resolve a report
+      description: "Resolves a report, optionally applying a punishment template to\
+        \ the reported player. The resolver and the punishment source are the caller\
+        \ of the token."
+      operationId: resolveReport
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportResolutionDTO"
+        required: true
+      responses:
+        "200":
+          description: Report successfully resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportDTO"
+        "404":
+          description: There is no report with this identifier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportErrorDTO"
+        "400":
+          description: "A template was given for a report that is not ACTIONED, or\
+            \ the template or its section does not exist"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportErrorDTO"
+        "409":
+          description: "The report is already resolved, the template's section is\
+            \ disabled, or the player is already permanently punished there"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportErrorDTO"
+  /section:
+    get:
+      tags:
+      - Section
+      summary: List punishment sections
+      description: "All sections, enabled or not, sorted by key."
+      operationId: listSections
+      responses:
+        "200":
+          description: The sections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SectionResponse"
+    post:
+      tags:
+      - Section
+      summary: Create a punishment section
+      description: "Creates an enabled section with its own ELO score, thresholds\
+        \ and enforcement kind. A SERVER section lists glob patterns (targetKind PATTERN,\
+        \ the default) or exact CloudNet task, group or service names."
+      operationId: createSection
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SectionCreateRequest"
+        required: true
+      responses:
+        "200":
+          description: Section created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SectionResponse"
+        "400":
+          description: Invalid section definition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SectionError"
+        "409":
+          description: A section with this key already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SectionError"
+  /section/update:
+    post:
+      tags:
+      - Section
+      summary: Update a punishment section
+      description: "Replaces every editable field of an existing section, including\
+        \ whether it is enabled."
+      operationId: updateSection
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SectionUpdateRequest"
+        required: true
+      responses:
+        "200":
+          description: Section updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SectionResponse"
+        "400":
+          description: Invalid section definition
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SectionError"
+        "404":
+          description: Section not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SectionError"
+  /section/{key}:
+    get:
+      tags:
+      - Section
+      summary: Get a punishment section
+      operationId: getSection
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The section
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SectionResponse"
+        "404":
+          description: Section not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SectionError"
+  /section/{key}/disable:
+    post:
+      tags:
+      - Section
+      summary: Disable a punishment section
+      description: Rejects new template applications and score deltas for the section.
+        Existing active punishments stay enforced until they expire or are lifted.
+      operationId: disableSection
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Section disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SectionResponse"
+        "404":
+          description: Section not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SectionError"
+  /staff-discord-link/code:
+    post:
+      tags:
+      - Discord link
+      summary: Issue a Discord link code
+      description: "Issues the signed-in staff member a short-lived, single-use code\
+        \ (8 characters, shown as ABCD-EFGH) to type as /link in Discord. A new code\
+        \ replaces the caller's previous one. Only a signed-in person can link; a\
+        \ service principal gets 403. The code is returned only here and stored only\
+        \ as a hash."
+      operationId: issueStaffDiscordLinkCode
+      responses:
+        "200":
+          description: The code and when it expires
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscordLinkCodeResponse"
+        "403":
+          description: The caller is not a signed-in person
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscordLinkError"
+  /staff-discord-link/me:
+    get:
+      tags:
+      - Discord link
+      summary: Own Discord link status
+      description: Whether the caller has a linked Discord account. Never contains
+        a code or a Discord id.
+      operationId: getOwnStaffDiscordLink
+      responses:
+        "200":
+          description: The link status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscordLinkStatusResponse"
+    delete:
+      tags:
+      - Discord link
+      summary: Unlink own Discord account
+      description: Removes the caller's Discord link and with it the stored Discord
+        user id.
+      operationId: unlinkOwnStaffDiscordLink
+      responses:
+        "200":
+          description: The link was removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscordLinkRemovedResponse"
+        "404":
+          description: The caller has no link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscordLinkError"
+  /staff-link/by-minecraft/{uuid}:
+    get:
+      tags:
+      - Staff link
+      summary: Who is a Minecraft account
+      description: "Called by the Velocity proxy for /blackhole whoami: whether the\
+        \ account is linked and to which staff member."
+      operationId: lookupStaffLinkByMinecraft
+      parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: The link status of the account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffLinkLookupResponse"
+  /staff-link/code:
+    post:
+      tags:
+      - Staff link
+      summary: Issue a Minecraft link code
+      description: "Issues the signed-in staff member a short-lived, single-use code\
+        \ (8 characters, shown as ABCD-EFGH) to type in game with /blackhole link.\
+        \ A new code replaces the caller's previous one. Only a signed-in person can\
+        \ link; a service principal gets 403. The code is returned only here and stored\
+        \ only as a hash."
+      operationId: issueStaffLinkCode
+      responses:
+        "200":
+          description: The code and when it expires
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffLinkCodeResponse"
+        "403":
+          description: The caller is not a signed-in person
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffLinkError"
+  /staff-link/confirm:
+    post:
+      tags:
+      - Staff link
+      summary: Confirm a link code
+      description: "Called by the Velocity proxy only. Binds the Minecraft UUID in\
+        \ onBehalfOf (the player who typed the code) to the staff member the code\
+        \ was issued to, replacing any earlier link of either side. A wrong, expired\
+        \ or already used code is answered identically with INVALID_CODE."
+      operationId: confirmStaffLink
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffLinkConfirmRequest"
+        required: true
+      responses:
+        "200":
+          description: The link now exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffLinkConfirmResponse"
+        "400":
+          description: "onBehalfOf is missing, or the code is invalid, expired or\
+            \ used (kind INVALID_CODE)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffLinkError"
+        "409":
+          description: A concurrent confirmation took the account; try again
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffLinkError"
+  /staff-link/me:
+    get:
+      tags:
+      - Staff link
+      summary: Own Minecraft link status
+      description: Whether the caller has a linked Minecraft account. Never contains
+        a code.
+      operationId: getOwnStaffLink
+      responses:
+        "200":
+          description: The link status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffLinkStatusResponse"
+    delete:
+      tags:
+      - Staff link
+      summary: Unlink own Minecraft account
+      description: Removes the caller's link. Actions already attributed to the caller
+        stay attributed.
+      operationId: unlinkOwnStaffLink
+      responses:
+        "200":
+          description: The link was removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffLinkRemovedResponse"
+        "404":
+          description: The caller has no link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffLinkError"
+  /template:
+    get:
+      tags:
+      - Punishment Templates
+      summary: Get all punishment templates
+      description: Retrieves a paginated list of all punishment templates in the system
+      operationId: getAllTemplates
+      parameters:
+      - name: pageable
+        in: query
+        required: true
+        explode: false
+        schema:
+          $ref: "#/components/schemas/Pageable"
+      responses:
+        "200":
+          description: Successfully retrieved punishment templates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplatePage"
+    post:
+      tags:
+      - Punishment Templates
+      summary: Create punishment template
+      description: Creates a temporary punishment template in a section. The escalation
+        group defaults to the key.
+      operationId: addTemplate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishTemplateCreateRequest"
+        required: true
+      responses:
+        "200":
+          description: Template successfully created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateResponse"
+        "400":
+          description: "Invalid template (also when an identifier is supplied, or\
+            \ the section is unknown)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateError"
+        "409":
+          description: A template with this key already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateError"
+  /template/delete/{identifier}:
+    delete:
+      tags:
+      - Punishment Templates
+      summary: Delete punishment template
+      description: Deletes a punishment template by its identifier
+      operationId: deleteTemplate
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Template successfully deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateResponse"
+        "404":
+          description: Template not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateError"
+        "409":
+          description: At least one punishment still references this template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateError"
+  /template/update:
+    post:
+      tags:
+      - Punishment Templates
+      summary: Update punishment template
+      description: Replaces every editable field of an existing template.
+      operationId: updateTemplate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PunishTemplateUpdateRequest"
+        required: true
+      responses:
+        "200":
+          description: Template successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateResponse"
+        "400":
+          description: Invalid template (also when the identifier is missing)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateError"
+        "404":
+          description: Template not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateError"
+        "409":
+          description: Another template already uses this key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateError"
+  /template/{identifier}:
+    get:
+      tags:
+      - Punishment Templates
+      summary: Get punishment template by ID
+      description: Retrieves a specific punishment template by its identifier
+      operationId: getTemplateById
+      parameters:
+      - name: identifier
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Template successfully retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateResponse"
+        "404":
+          description: Template not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishTemplateError"
+components:
+  schemas:
+    ActivePunishmentError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+    ActivePunishmentItem:
+      required:
+      - automatic
+      - createdAt
+      - owner
+      - permanent
+      - punishmentId
+      - section
+      - shortId
+      type: object
+      properties:
+        owner:
+          type: string
+          description: the player's SHA-512 owner hash; the key of the player page
+        punishmentId:
+          type: string
+          description: "the punishment's identifier, which addresses its case"
+        shortId:
+          type: string
+          description: the `#` and eight hex characters players quote
+        section:
+          type: string
+          description: the section key
+        sectionName:
+          type: string
+          description: the section's display name; null if the section was deleted
+          nullable: true
+        kind:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/EnforcementKind"
+        targetKind:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/ServerTargetKind"
+        templateKey:
+          type: string
+          description: the template the punishment came from; null for automatic punishments
+          nullable: true
+        reason:
+          type: string
+          description: the template's reason or the stored reason; for an automatic
+            punishment an English placeholder
+          nullable: true
+        automatic:
+          type: boolean
+          description: whether the ELO system applied it
+        createdAt:
+          type: integer
+          format: int64
+        expiresAt:
+          type: integer
+          description: when it ends (epoch millis); null for a permanent punishment
+          format: int64
+          nullable: true
+        permanent:
+          type: boolean
+        caseStatus:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/CaseStatus"
+        actorName:
+          type: string
+          description: "the display name of the verified staff member who applied\
+            \ it; null when unverified, unknown, anonymized or automatic"
+          nullable: true
+      description: One active punishment.
+    ActivePunishmentPage:
+      required:
+      - items
+      - page
+      - size
+      - totalPages
+      - totalSize
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivePunishmentItem"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalSize:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+      description: One page of the overview.
+    ActivePunishmentSort:
+      type: string
+      description: What the list of active punishments is ordered by.
+      enum:
+      - CREATED
+      - EXPIRES
+      x-enum-descriptions:
+      - When the punishment was applied.
+      - "When it ends; a permanent punishment never ends, so it sorts as the latest."
+    ActorKind:
+      type: string
+      description: Whether a verified principal is a signed-in person or an application
+        using the client credentials flow.
+      enum:
+      - HUMAN
+      - SERVICE
+      x-enum-descriptions:
+      - "A delegated token: a staff member signed in (the token carries `scp`)."
+      - "An app-only token, such as the Velocity proxy."
+    ActorTrust:
+      type: string
+      description: "How far an event's actor can be trusted. A reader must never present\
+        \ #UNVERIFIED like #VERIFIED."
+      enum:
+      - VERIFIED
+      - UNVERIFIED
+      - SYSTEM
+      x-enum-descriptions:
+      - The actor's `oid` came from a human token or a live staff link.
+      - "Only an attributed source UUID (legacy rows, unlinked in-game staff) or no\
+        \ actor is known."
+      - "The system itself: escalation, the expiry sweeper, the reconciler, an automatic\
+        \ reopen."
+    AppealDTO:
+      required:
+      - appellantHash
+      - createdAt
+      - eligibilityCheckResult
+      - evidenceCount
+      - identifier
+      - metaData
+      - punishmentIdentifier
+      - statement
+      - status
+      - updatedAt
+      - verified
+      type: object
+      properties:
+        identifier:
+          type: string
+          format: uuid
+        punishmentIdentifier:
+          type: string
+        appellantHash:
+          type: string
+        statement:
+          type: string
+        status:
+          $ref: "#/components/schemas/AppealStatus"
+        eligibilityCheckResult:
+          type: object
+          additionalProperties:
+            type: object
+        decidedBy:
+          type: string
+          format: uuid
+          nullable: true
+        recordedByOid:
+          type: string
+          format: uuid
+          nullable: true
+        verified:
+          type: boolean
+        decisionNote:
+          type: string
+          nullable: true
+        createdAt:
+          type: integer
+          format: int64
+        updatedAt:
+          type: integer
+          format: int64
+        evidenceCount:
+          type: integer
+          description: "how many valid evidence items the appealed punishment has:\
+            \ the only thing about evidence an appeal response carries, never its\
+            \ content, references or files"
+          format: int64
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+      description: An appeal as it appears in responses.
+    AppealReviewDTO:
+      required:
+      - decision
+      type: object
+      properties:
+        decision:
+          $ref: "#/components/schemas/AppealStatus"
+        decisionNote:
+          maxLength: 2000
+          type: string
+          description: an optional note explaining the decision
+          nullable: true
+        newExpirationAt:
+          type: integer
+          description: "required when `decision` is `GRANTED_DURATION_REDUCTION` -\
+            \ the new, sooner expiration timestamp (epoch millis)"
+          format: int64
+          nullable: true
+    AppealStatus:
+      type: string
+      description: The lifecycle state of an appeal.
+      enum:
+      - SUBMITTED
+      - ELIGIBLE_PENDING_REVIEW
+      - IN_REVIEW
+      - GRANTED_FULL_LIFT
+      - GRANTED_DURATION_REDUCTION
+      - DENIED
+      - INELIGIBLE
+    AppealSubmissionDTO:
+      required:
+      - appellantHash
+      - punishmentIdentifier
+      - statement
+      type: object
+      properties:
+        punishmentIdentifier:
+          minLength: 1
+          type: string
+        appellantHash:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: appellantHash must be a sha-512 hash
+        statement:
+          maxLength: 2000
+          minLength: 1
+          type: string
+    AuthError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+    AuthMeResponse:
+      required:
+      - oid
+      - roles
+      type: object
+      properties:
+        oid:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+          nullable: true
+        roles:
+          type: array
+          items:
+            type: string
+    BanIdError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+    BanIdResponse:
+      required:
+      - banId
+      type: object
+      properties:
+        banId:
+          type: string
+          description: "the current Ban ID, eight Crockford base32 characters; a credential,\
+            \ never to be logged"
+    CaseActorInfo:
+      required:
+      - trust
+      type: object
+      properties:
+        oid:
+          type: string
+          description: "the person, if known"
+          format: uuid
+          nullable: true
+        name:
+          type: string
+          description: the display name from the staff actor; null when unknown or
+            anonymized
+          nullable: true
+        trust:
+          $ref: "#/components/schemas/ActorTrust"
+      description: Who caused an event.
+    CaseError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/CaseErrorKind"
+    CaseErrorKind:
+      type: string
+      description: "Why a case request failed in an expected way, so the controller\
+        \ maps it 1:1 to a status. The case API needs 403 and 422 next to the shared\
+        \ `ErrorKind` statuses, and keeping them here leaves every other resource's\
+        \ error schema untouched."
+      enum:
+      - VALIDATION
+      - FORBIDDEN
+      - NOT_FOUND
+      - CONFLICT
+      - UNPROCESSABLE
+      x-enum-descriptions:
+      - The request is malformed or breaks a rule of its own (400).
+      - The caller may not do this to this note (403).
+      - "The punishment, case or note does not exist (404)."
+      - "The case changed since the caller read it, a short id is ambiguous, or the\
+        \ note is redacted (409)."
+      - "The request is understood but names something unknown, such as an assignee\
+        \ who is no staff member (422)."
+    CaseEventOrigin:
+      type: string
+      description: "How a case event came to be: written when it happened, backfilled\
+        \ by the migration, or repaired by the reconciler."
+      enum:
+      - LIVE
+      - BACKFILLED
+      - RECONSTRUCTED
+    CaseListItem:
+      required:
+      - lastActivityAt
+      - priority
+      - punishmentCreatedAt
+      - punishmentIdentifier
+      - punishmentState
+      - shortId
+      - status
+      - tags
+      type: object
+      properties:
+        punishmentIdentifier:
+          type: string
+        shortId:
+          type: string
+        section:
+          type: string
+          nullable: true
+        punishmentState:
+          type: string
+        status:
+          $ref: "#/components/schemas/CaseStatus"
+        assigneeOid:
+          type: string
+          format: uuid
+          nullable: true
+        assigneeName:
+          type: string
+          nullable: true
+        priority:
+          $ref: "#/components/schemas/CasePriority"
+        tags:
+          type: array
+          items:
+            type: string
+        punishmentCreatedAt:
+          type: integer
+          format: int64
+        lastActivityAt:
+          type: integer
+          format: int64
+      description: One row of the case list.
+    CaseListPage:
+      required:
+      - items
+      - page
+      - size
+      - totalPages
+      - totalSize
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CaseListItem"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalSize:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+      description: One page of the case list.
+    CaseNoteRequest:
+      required:
+      - text
+      type: object
+      properties:
+        text:
+          type: string
+          description: "1 to 4000 characters, without a UUID or IP address"
+      description: "Adds or edits a note. Any visibility in the body is ignored: notes\
+        \ are staff only."
+    CaseNoteResponse:
+      required:
+      - noteId
+      - seq
+      type: object
+      properties:
+        noteId:
+          type: string
+          description: the id of the note; the same across its edits
+        seq:
+          type: integer
+          description: the sequence number of the event that was appended
+          format: int64
+      description: The result of adding or editing a note.
+    CasePriority:
+      type: string
+      description: How soon staff should look at a case.
+      enum:
+      - LOW
+      - NORMAL
+      - HIGH
+      - URGENT
+    CaseRedactRequest:
+      required:
+      - reason
+      type: object
+      properties:
+        reason:
+          $ref: "#/components/schemas/NoteRedactionReason"
+      description: Redacts every version of a note.
+    CaseRedactResponse:
+      required:
+      - noteId
+      - redactedVersions
+      type: object
+      properties:
+        noteId:
+          type: string
+        redactedVersions:
+          type: integer
+          format: int32
+      description: The result of a redaction.
+    CaseRelated:
+      required:
+      - caseStatus
+      - createdAt
+      - identifier
+      - punishmentState
+      - shortId
+      type: object
+      properties:
+        identifier:
+          type: string
+        shortId:
+          type: string
+        section:
+          type: string
+          nullable: true
+        punishmentState:
+          type: string
+        caseStatus:
+          type: string
+        createdAt:
+          type: integer
+          format: int64
+      description: Another punishment of the same player.
+    CaseResponse:
+      required:
+      - ownerPrefix
+      - permanent
+      - priority
+      - punishmentCreatedAt
+      - punishmentIdentifier
+      - punishmentState
+      - related
+      - shortId
+      - status
+      - tags
+      - version
+      type: object
+      properties:
+        punishmentIdentifier:
+          type: string
+        shortId:
+          type: string
+        ownerPrefix:
+          type: string
+          description: "the first characters of the player's hash, never the whole\
+            \ hash"
+        section:
+          type: string
+          nullable: true
+        punishmentState:
+          type: string
+          description: "`ACTIVE`, `EXPIRED` or `LIFTED` (revoked or lifted by an appeal)"
+        permanent:
+          type: boolean
+        punishmentCreatedAt:
+          type: integer
+          format: int64
+        status:
+          $ref: "#/components/schemas/CaseStatus"
+        assigneeOid:
+          type: string
+          format: uuid
+          nullable: true
+        assigneeName:
+          type: string
+          description: the assignee's display name; null when none or anonymized
+          nullable: true
+        priority:
+          $ref: "#/components/schemas/CasePriority"
+        tags:
+          type: array
+          items:
+            type: string
+        version:
+          type: integer
+          description: the optimistic version to send as `expectedVersion`; 0 for
+            a case that has no row yet
+          format: int64
+        related:
+          type: array
+          description: "up to 20 other punishments of the same player, newest first"
+          items:
+            $ref: "#/components/schemas/CaseRelated"
+      description: A case.
+    CaseStatus:
+      type: string
+      description: The staff workflow state of a case; not the state of the punishment.
+      enum:
+      - OPEN
+      - IN_REVIEW
+      - WAITING
+      - CLOSED
+    CaseTimelineItem:
+      required:
+      - actor
+      - identifier
+      - occurredAt
+      - origin
+      - payload
+      - payloadVersion
+      - seq
+      - type
+      - visibility
+      type: object
+      properties:
+        seq:
+          type: integer
+          description: the order within the case and part of the cursor
+          format: int64
+        identifier:
+          type: string
+          format: uuid
+        type:
+          type: string
+          description: the dotted type such as `note.added`; unknown types are returned
+            as they are
+        payloadVersion:
+          type: integer
+          format: int32
+        occurredAt:
+          type: integer
+          format: int64
+        origin:
+          $ref: "#/components/schemas/CaseEventOrigin"
+        visibility:
+          type: string
+        actor:
+          $ref: "#/components/schemas/CaseActorInfo"
+        subjectId:
+          type: string
+          nullable: true
+        payload:
+          type: object
+          additionalProperties:
+            type: object
+          description: the type's body; empty after a redaction
+        redactedAt:
+          type: integer
+          description: set when a note version was redacted
+          format: int64
+          nullable: true
+      description: One timeline event.
+    CaseTimelinePage:
+      required:
+      - items
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CaseTimelineItem"
+        nextCursor:
+          type: string
+          description: pass it as `cursor` for the next page; null on the last page
+          nullable: true
+      description: A page of the timeline.
+    CaseUpdateRequest:
+      required:
+      - clearAssignee
+      - expectedVersion
+      type: object
+      properties:
+        expectedVersion:
+          type: integer
+          description: the `version` the caller read; a newer case answers 409
+          format: int64
+        status:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/CaseStatus"
+        assigneeOid:
+          type: string
+          description: "the staff member to assign: a known human `staff_actor`"
+          format: uuid
+          nullable: true
+        clearAssignee:
+          type: boolean
+          description: removes the assignee (an absent `assigneeOid` cannot say that)
+        priority:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/CasePriority"
+        tags:
+          type: array
+          description: "the full new tag list: at most 10 slugs of `[a-z0-9-]{1,32}`"
+          nullable: true
+          items:
+            type: string
+      description: Changes the staff metadata. Every field but `expectedVersion` is
+        optional; a field that is absent or equals the current value changes nothing.
+    CatalogueError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+    CatalogueReportRequest:
+      required:
+      - proxyId
+      type: object
+      properties:
+        proxyId:
+          minLength: 1
+          type: string
+        tasks:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/CatalogueTask"
+        groups:
+          type: array
+          nullable: true
+          items:
+            type: string
+        services:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/CatalogueServiceReport"
+      description: "A full snapshot, never a delta"
+    CatalogueResponse:
+      required:
+      - available
+      - groups
+      - proxies
+      - services
+      - tasks
+      type: object
+      properties:
+        available:
+          type: boolean
+        reportedAt:
+          type: string
+          format: date-time
+          nullable: true
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/CatalogueTask"
+        groups:
+          type: array
+          items:
+            type: string
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/CatalogueService"
+        proxies:
+          type: array
+          items:
+            type: string
+      description: The merged view of every live proxy snapshot; available is false
+        when none exists
+    CatalogueService:
+      required:
+      - name
+      - running
+      type: object
+      properties:
+        name:
+          type: string
+        task:
+          type: string
+          nullable: true
+        running:
+          type: boolean
+    CatalogueServiceReport:
+      required:
+      - name
+      - running
+      type: object
+      properties:
+        name:
+          type: string
+        task:
+          type: string
+          nullable: true
+        groups:
+          type: array
+          nullable: true
+          items:
+            type: string
+        running:
+          type: boolean
+    CatalogueStored:
+      required:
+      - proxyId
+      - reportedAt
+      type: object
+      properties:
+        proxyId:
+          type: string
+        reportedAt:
+          type: string
+          format: date-time
+    CatalogueTask:
+      required:
+      - name
+      type: object
+      properties:
+        name:
+          type: string
+        groups:
+          type: array
+          nullable: true
+          items:
+            type: string
+    DashboardEscalation:
+      required:
+      - identifier
+      - owner
+      - section
+      type: object
+      properties:
+        identifier:
+          type: string
+        owner:
+          type: string
+          description: Hashed owner; open the player detail with it
+        section:
+          type: string
+        createdAt:
+          type: integer
+          description: Creation time in epoch millis
+          format: int64
+        lifted:
+          type: boolean
+          description: Whether it has been revoked or lifted since
+      description: An automatic permanent punishment
+    DashboardSectionCount:
+      required:
+      - active
+      - section
+      type: object
+      properties:
+        section:
+          type: string
+        active:
+          type: integer
+          format: int64
+      description: Active punishments held in one section
+    DashboardSummaryResponse:
+      required:
+      - activePunishmentsBySection
+      - latestEscalations
+      type: object
+      properties:
+        activePunishmentsBySection:
+          type: array
+          description: Active punishments per section sorted by key; enabled sections
+            are zero-filled
+          items:
+            $ref: "#/components/schemas/DashboardSectionCount"
+        openReports:
+          type: integer
+          description: Reports that are OPEN or UNDER_REVIEW
+          format: int64
+        pendingAppeals:
+          type: integer
+          description: "Appeals that are submitted, eligible or in review"
+          format: int64
+        escalationsLast7Days:
+          type: integer
+          description: Automatic permanent punishments created in the last 7 days
+          format: int64
+        latestEscalations:
+          type: array
+          description: "Most recent automatic permanent punishments, newest first"
+          items:
+            $ref: "#/components/schemas/DashboardEscalation"
+    DiscordLinkCodeResponse:
+      required:
+      - code
+      - expiresAt
+      type: object
+      properties:
+        code:
+          type: string
+          description: "the code as shown to a person, `ABCD-EFGH`; only ever returned\
+            \ here"
+        expiresAt:
+          type: integer
+          description: "when it stops working, epoch millis"
+          format: int64
+      description: A freshly issued code.
+    DiscordLinkConfirmRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          description: "the code the person typed with `/link`, with or without dash,\
+            \ in any case"
+          nullable: true
+        discordUserId:
+          type: string
+          description: the Discord user (snowflake) who typed it
+          nullable: true
+      description: What the Discord bot sends to confirm a code.
+    DiscordLinkConfirmResponse:
+      required:
+      - kind
+      - linkedAt
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/DiscordLinkKind"
+        displayName:
+          type: string
+          description: "the staff member's name, only for DiscordLinkKind#STAFF and\
+            \ if known"
+          nullable: true
+        linkedAt:
+          type: integer
+          description: "when, epoch millis"
+          format: int64
+      description: The link a confirmation created.
+    DiscordLinkError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+    DiscordLinkItem:
+      required:
+      - id
+      - kind
+      - linkedAt
+      - subject
+      type: object
+      properties:
+        id:
+          type: string
+          description: "the link, for removal"
+          format: uuid
+        kind:
+          $ref: "#/components/schemas/DiscordLinkKind"
+        subject:
+          type: string
+          description: the staff `oid` or the hashed player owner
+        displayName:
+          type: string
+          description: "the staff member's name, if known"
+          nullable: true
+        linkedAt:
+          type: integer
+          description: "when, epoch millis"
+          format: int64
+      description: One link in the admin list. The Discord user id is deliberately
+        not part of it.
+    DiscordLinkKind:
+      type: string
+      description: Whose Discord account a link belongs to.
+      enum:
+      - STAFF
+      - PLAYER
+      x-enum-descriptions:
+      - "A staff member, identified by their Entra object id."
+      - "A player, identified by the hashed owner (never the raw Minecraft UUID)."
+    DiscordLinkListResponse:
+      required:
+      - items
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiscordLinkItem"
+      description: "All links, oldest first, for admins."
+    DiscordLinkPlayerCodeRequest:
+      type: object
+      properties:
+        owner:
+          type: string
+          description: "the player's hashed owner (SHA-512 hex, never the raw UUID)"
+          nullable: true
+      description: What the Velocity proxy sends to get a code for a player.
+    DiscordLinkRemovedResponse:
+      required:
+      - removed
+      type: object
+      properties:
+        removed:
+          type: integer
+          description: how many
+          format: int32
+      description: Links that were removed.
+    DiscordLinkStatusResponse:
+      required:
+      - linked
+      type: object
+      properties:
+        linked:
+          type: boolean
+          description: whether a Discord account is linked
+        linkedAt:
+          type: integer
+          description: "when it was linked, epoch millis, only when linked"
+          format: int64
+          nullable: true
+      description: The caller's own link status.
+    DiscordLinkWhoamiEntry:
+      required:
+      - kind
+      - linkedAt
+      type: object
+      properties:
+        kind:
+          $ref: "#/components/schemas/DiscordLinkKind"
+        displayName:
+          type: string
+          nullable: true
+        linkedAt:
+          type: integer
+          format: int64
+      description: "One link of a Discord user, as the bot's `/whoami` shows it."
+    DiscordLinkWhoamiResponse:
+      required:
+      - links
+      type: object
+      properties:
+        links:
+          type: array
+          description: up to one entry per kind
+          items:
+            $ref: "#/components/schemas/DiscordLinkWhoamiEntry"
+      description: What a Discord user is linked to; empty when nothing is.
+    EloAdjustRequest:
+      required:
+      - delta
+      - section
+      type: object
+      properties:
+        section:
+          minLength: 1
+          type: string
+        delta:
+          type: integer
+          format: int32
+        note:
+          maxLength: 500
+          type: string
+          nullable: true
+    EloAdjustResponse:
+      required:
+      - scoreAfter
+      - scoreBefore
+      - section
+      type: object
+      properties:
+        section:
+          type: string
+        scoreBefore:
+          type: integer
+          format: int32
+        scoreAfter:
+          type: integer
+          format: int32
+        escalation:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/EloEscalationInfo"
+      description: "Result of an adjustment: the score change and the punishment the\
+        \ system applied because of it."
+    EloChatSignalRequest:
+      required:
+      - message
+      - owner
+      type: object
+      properties:
+        owner:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: owner must be a sha-512 hash
+        message:
+          maxLength: 512
+          minLength: 1
+          type: string
+    EloChatSignalResponse:
+      required:
+      - flagged
+      - score
+      type: object
+      properties:
+        flagged:
+          type: boolean
+        score:
+          type: number
+          format: double
+    EloError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+    EloEscalationInfo:
+      required:
+      - punishmentIdentifier
+      - tier
+      type: object
+      properties:
+        tier:
+          type: string
+          description: '`SOFT` (temporary) or `PERMANENT`'
+        punishmentIdentifier:
+          type: string
+          description: the created punishment
+      description: An automatic punishment caused by a score change.
+    EloEventResponse:
+      required:
+      - createdAt
+      - delta
+      - identifier
+      - metaData
+      - owner
+      - reasonCode
+      - resultingScore
+      type: object
+      properties:
+        identifier:
+          type: string
+          format: uuid
+        owner:
+          type: string
+        section:
+          type: string
+          nullable: true
+        delta:
+          type: integer
+          format: int32
+        reasonCode:
+          $ref: "#/components/schemas/EloReasonCode"
+        sourceEvidenceId:
+          type: string
+          format: uuid
+          nullable: true
+        resultingScore:
+          type: integer
+          format: int32
+        createdAt:
+          type: integer
+          format: int64
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    EloProfileResponse:
+      required:
+      - owner
+      - sections
+      type: object
+      properties:
+        owner:
+          type: string
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/EloSectionScore"
+    EloReasonCode:
+      type: string
+      description: |-
+        Why an `EloEventEntity` happened. This is the audit trail that lets a reviewer (or a future Phase 6 appeal) tell an algorithmic decision apart from a human one.
+
+        Stored by ordinal: only ever append new codes at the end.
+      enum:
+      - TOXICITY_FLAG
+      - ANTICHEAT_FLAG
+      - REPORT_ACTIONED
+      - MANUAL_ADJUSTMENT
+      - DECAY_RECOVERY
+      - THRESHOLD_BAN
+      - PUNISHMENT_APPLIED
+      - REPORT_REWARDED
+      - PARDON_RESET
+      - APPEAL_REFUND
+      x-enum-descriptions:
+      - ""
+      - ""
+      - ""
+      - ""
+      - ""
+      - ""
+      - ""
+      - ""
+      - A permanent punishment was lifted and the section score reset to the section's
+        pardon score.
+      - A granted appeal gave back the ELO cost of a staff temporary punishment.
+    EloSectionScore:
+      required:
+      - baseScore
+      - displayName
+      - enforcement
+      - pardonScore
+      - permanentThreshold
+      - score
+      - section
+      type: object
+      properties:
+        section:
+          type: string
+        displayName:
+          type: string
+        enforcement:
+          $ref: "#/components/schemas/EnforcementKind"
+        score:
+          type: integer
+          format: int32
+        baseScore:
+          type: integer
+          format: int32
+        softThreshold:
+          type: integer
+          format: int32
+          nullable: true
+        permanentThreshold:
+          type: integer
+          format: int32
+        pardonScore:
+          type: integer
+          format: int32
+      description: "One section's score of a player, with the thresholds that decide\
+        \ what happens when it drops."
+    EnforcementKind:
+      type: string
+      description: "How a section's punishments are enforced. The kinds are an enum,\
+        \ not data, because the proxy has to implement each of them: a new section\
+        \ of an existing kind needs no code change, a new kind does."
+      enum:
+      - MUTE
+      - BAN
+      - SERVER
+      x-enum-descriptions:
+      - The player cannot chat.
+      - The player cannot join the network.
+      - The player cannot connect to backend servers matching the section's patterns.
+    ErrorKind:
+      type: string
+      description: "Why an expected failure happened, carried by a resource's `Error`\
+        \ variant so a controller can map it 1:1 to a status without re-deriving the\
+        \ cause."
+      enum:
+      - VALIDATION
+      - NOT_FOUND
+      - CONFLICT
+      - UNAUTHORIZED
+      - FORBIDDEN
+      - INVALID_CODE
+      - UNAVAILABLE
+      x-enum-descriptions:
+      - The request is malformed or breaks a business rule of its own (400).
+      - The addressed resource does not exist (404).
+      - The request is valid but conflicts with current state (409).
+      - The caller's credentials do not identify them well enough for this request
+        (401).
+      - The caller is identified but may not do this (403).
+      - "A staff link code is wrong, expired or already used; deliberately one answer\
+        \ for all three (400)."
+      - "A dependency the request needs, such as the shared cache, is down; the caller\
+        \ may retry (503)."
+    ErrorResponse:
+      type: object
+      properties:
+        The error message:
+          type: string
+          description: the error message
+      description: The error response when something went wrong on profile requests
+    EvasionLinkedOwner:
+      required:
+      - owner
+      - reason
+      type: object
+      properties:
+        owner:
+          type: string
+          description: Hashed owner; open the player detail with it
+        reason:
+          type: string
+          description: "Why the owners are linked, currently always SHARED_IP"
+        sharedAddresses:
+          type: integer
+          description: How many distinct hashed addresses both owners were seen on;
+            more is a stronger link
+          format: int32
+        firstSeen:
+          type: integer
+          description: "Earliest sighting of the other owner on a shared address,\
+            \ epoch millis"
+          format: int64
+        lastSeen:
+          type: integer
+          description: "Latest sighting of the other owner on a shared address, epoch\
+            \ millis"
+          format: int64
+      description: One other owner seen on a shared hashed network address
+    EvasionRecordDTO:
+      required:
+      - ip
+      - owner
+      type: object
+      properties:
+        owner:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: owner must be a sha-512 hash
+        ip:
+          minLength: 1
+          type: string
+    EvasionSightingsError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+    EvasionSightingsResponse:
+      required:
+      - linkedOwners
+      type: object
+      properties:
+        detectionEnabled:
+          type: boolean
+          description: "False when blackhole.evasion.ip-salt is unset: nothing is\
+            \ recorded, so an empty list means nothing"
+        windowDays:
+          type: integer
+          description: Length of the detection window in days; only sightings inside
+            it are correlated
+          format: int32
+        linkedOwners:
+          type: array
+          description: "Linked owners, most recently seen first, at most 50"
+          items:
+            $ref: "#/components/schemas/EvasionLinkedOwner"
+        truncated:
+          type: boolean
+          description: True when more owners matched than are listed
+    EvidenceCount:
+      required:
+      - count
+      type: object
+      properties:
+        count:
+          type: integer
+          format: int64
+      description: "The number of valid evidence items: the only thing a player may\
+        \ learn."
+    EvidenceCreateRequest:
+      required:
+      - kind
+      - sourceSystem
+      type: object
+      properties:
+        punishment:
+          type: string
+          description: "the punishment's identifier or short id, e.g. `#A1B2C3D4`"
+          nullable: true
+        owner:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          description: "the hashed owner, for evidence that precedes its punishment"
+          nullable: true
+          x-pattern-message: Owner must be a sha-512 hash
+        correlationId:
+          maxLength: 64
+          minLength: 1
+          type: string
+          description: the client-chosen key the punishment claims the evidence with
+          nullable: true
+        kind:
+          $ref: "#/components/schemas/EvidenceKind"
+        sourceSystem:
+          maxLength: 64
+          minLength: 1
+          type: string
+          description: the (unverified) system that sends the evidence
+        capturedAt:
+          type: integer
+          description: "when the evidence was captured, epoch millis"
+          format: int64
+          nullable: true
+        reference:
+          type: string
+          description: the absolute http(s) URL of a REPLAY or LINK
+          nullable: true
+        payload:
+          type: object
+          additionalProperties:
+            type: object
+          description: the kind's structured content; a REPLAY or LINK takes only
+            a `description`
+          nullable: true
+        onBehalfOf:
+          type: string
+          description: the Minecraft UUID of the in-game staff member attaching the
+            evidence; accepted only from the `PROXY` role (HTTP 400 otherwise). The
+            caller of the token is always recorded.
+          format: uuid
+          nullable: true
+      description: Attaches structured or link evidence. The target is either `punishment`
+        (full identifier or short id) or `owner` together with `correlationId` (evidence
+        sent before the punishment exists); exactly one form is valid.
+    EvidenceDeleteResponse:
+      required:
+      - deleted
+      type: object
+      properties:
+        deleted:
+          type: integer
+          format: int32
+      description: The result of an admin delete.
+    EvidenceError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/EvidenceErrorKind"
+    EvidenceErrorKind:
+      type: string
+      description: "Why an evidence request failed in an expected way, so the controller\
+        \ maps it 1:1 to a status. Evidence needs more statuses than the shared `ErrorKind`\
+        \ offers (413, 415, 422, 503), and keeping them here leaves every other resource's\
+        \ error schema untouched."
+      enum:
+      - VALIDATION
+      - NOT_FOUND
+      - CONFLICT
+      - PAYLOAD_TOO_LARGE
+      - UNSUPPORTED_MEDIA_TYPE
+      - UNPROCESSABLE
+      - UNAVAILABLE
+      x-enum-descriptions:
+      - The request is malformed or breaks a rule of its own (400).
+      - "The punishment, evidence item or file does not exist (404)."
+      - "The request conflicts with current state, for example an ambiguous short\
+        \ id (409)."
+      - The payload or the file is larger than the configured limit (413).
+      - The detected file type is not on the allow-list (415).
+      - "The content is understood but must not be stored: personal data in a payload,\
+        \ malware (422)."
+      - "A dependency evidence needs (the virus scanner, the file store) is not available\
+        \ (503)."
+    EvidenceFile:
+      required:
+      - contentType
+      - name
+      - sha256
+      - size
+      type: object
+      properties:
+        name:
+          type: string
+          description: the sanitised display name
+        contentType:
+          type: string
+          description: the content type detected from the file's magic bytes
+        size:
+          type: integer
+          description: the stored size in bytes
+          format: int64
+        sha256:
+          type: string
+          description: the SHA-256 of the stored bytes
+      description: Metadata of a stored file.
+    EvidenceKind:
+      type: string
+      description: "What an evidence item is. Stored as the ordinal in a `smallint`\
+        \ column, so new kinds are only ever appended."
+      enum:
+      - ANTICHEAT
+      - REPLAY
+      - CHAT_LOG
+      - LINK
+      - FILE
+      x-enum-descriptions:
+      - A structured record of the check an anticheat flagged.
+      - A link to a replay recording held by another system.
+      - An excerpt of chat lines.
+      - "Any other link, for example a message in a staff chat."
+      - A screenshot or video uploaded to and stored by Blackhole.
+    EvidencePage:
+      required:
+      - items
+      - page
+      - size
+      - totalPages
+      - totalSize
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/EvidenceResponse"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalSize:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+      description: One page of evidence items.
+    EvidenceResponse:
+      required:
+      - createdAt
+      - identifier
+      - kind
+      - owner
+      - sourceSystem
+      - status
+      - verified
+      type: object
+      properties:
+        identifier:
+          type: string
+          description: the evidence id
+          format: uuid
+        punishmentIdentifier:
+          type: string
+          description: "the punishment, or `null` while the item waits for one"
+          nullable: true
+        owner:
+          type: string
+          description: the hashed owner
+        correlationId:
+          type: string
+          description: "the pending claim key, while pending"
+          nullable: true
+        kind:
+          $ref: "#/components/schemas/EvidenceKind"
+        sourceSystem:
+          type: string
+          description: the (unverified) system that sent it
+        capturedAt:
+          type: integer
+          description: "when it was captured, epoch millis"
+          format: int64
+          nullable: true
+        createdAt:
+          type: integer
+          description: "when it was attached, epoch millis"
+          format: int64
+        createdBy:
+          type: string
+          description: "the attributed actor: the caller's `oid`, the in-game staff\
+            \ UUID the proxy vouched for, or whatever was stored before SSO"
+          format: uuid
+          nullable: true
+        recordedByOid:
+          type: string
+          description: "the `oid` of the verified principal that attached it, `null`\
+            \ before SSO"
+          format: uuid
+          nullable: true
+        verified:
+          type: boolean
+          description: whether `recordedByOid` is present
+        actorOid:
+          type: string
+          description: "the staff member the in-game `createdBy` was linked to when\
+            \ it was attached, `null` for web writes and unlinked UUIDs"
+          format: uuid
+          nullable: true
+        reference:
+          type: string
+          description: the URL of a REPLAY or LINK
+          nullable: true
+        payload:
+          type: object
+          additionalProperties:
+            type: object
+          description: the structured content
+          nullable: true
+        file:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/EvidenceFile"
+        status:
+          $ref: "#/components/schemas/EvidenceStatus"
+        statusChangedAt:
+          type: integer
+          description: when it became REVOKED or LIFTED
+          format: int64
+          nullable: true
+        liftedByAppeal:
+          type: string
+          description: the appeal that lifted the punishment
+          format: uuid
+          nullable: true
+      description: One evidence item.
+    EvidenceStatus:
+      type: string
+      description: "Whether an evidence item still supports a current punishment.\
+        \ Stored as the ordinal in a `smallint` column. Only #VALID items are counted\
+        \ and listed by default."
+      enum:
+      - VALID
+      - REVOKED
+      - LIFTED
+      x-enum-descriptions:
+      - The punishment it belongs to stands (or the item is still pending a punishment).
+      - The punishment was revoked by staff. The evidence is kept.
+      - The punishment was lifted by a granted full-lift appeal. The evidence is kept.
+    ImportedPunishmentError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+      description: The request was refused and nothing changed.
+    ImportedPunishmentGroup:
+      required:
+      - count
+      - reason
+      type: object
+      properties:
+        reason:
+          type: string
+          description: the original vanilla reason (`Imported vanilla ban` when it
+            was blank)
+        count:
+          type: integer
+          description: how many punishments
+          format: int32
+      description: Imported punishments that share an original reason.
+    ImportedPunishmentGroups:
+      required:
+      - groups
+      - total
+      type: object
+      properties:
+        total:
+          type: integer
+          description: how many imported punishments have no template
+          format: int32
+        groups:
+          type: array
+          description: "the groups, the largest first"
+          items:
+            $ref: "#/components/schemas/ImportedPunishmentGroup"
+      description: "Imported punishments without a template, grouped by their original\
+        \ reason."
+    ImportedPunishmentRetemplateRequest:
+      required:
+      - templateKey
+      type: object
+      properties:
+        templateKey:
+          minLength: 1
+          type: string
+          description: the template to link them to; it must not be in a mute section
+        reason:
+          maxLength: 1000
+          type: string
+          description: link every imported punishment without a template whose original
+            reason is this text
+          nullable: true
+        identifiers:
+          maxItems: 500
+          type: array
+          description: |-
+            link exactly these punishments (at most
+
+            ```
+            #MAX_SELECTION
+            ```
+
+            )
+          nullable: true
+          items:
+            type: string
+      description: Links imported punishments to a template. Exactly one of `reason`
+        and `identifiers` is required.
+    ImportedPunishmentRetemplateResponse:
+      required:
+      - matched
+      - retemplated
+      - skipped
+      - templateKey
+      - unchanged
+      type: object
+      properties:
+        templateKey:
+          type: string
+          description: the template they were linked to
+        matched:
+          type: integer
+          description: the punishments the request selected
+          format: int32
+        retemplated:
+          type: integer
+          description: linked to the template now
+          format: int32
+        unchanged:
+          type: integer
+          description: already linked to this template
+          format: int32
+        skipped:
+          type: integer
+          description: "left alone: not an imported punishment, linked to another\
+            \ template, or in another section than the template"
+          format: int32
+      description: "What a bulk link did. Running the same request again links nothing:\
+        \ those already linked are `unchanged`."
+    NoteRedactionReason:
+      type: string
+      description: "Why an admin redacted a note: a code, never free text (the reason\
+        \ is kept in the timeline)."
+      enum:
+      - PERSONAL_DATA
+      - ERASURE_REQUEST
+      - INAPPROPRIATE
+      - OTHER
+      x-enum-descriptions:
+      - The note holds personal data that must not be kept.
+      - A data subject asked for erasure.
+      - The note is wrong or abusive.
+      - ""
+    Pageable:
+      required:
+      - size
+      - sort
+      type: object
+      allOf:
+      - $ref: "#/components/schemas/Sort"
+      - type: object
+        properties:
+          number:
+            type: integer
+            format: int32
+          size:
+            type: integer
+            format: int32
+          mode:
+            $ref: "#/components/schemas/Pageable.Mode"
+          sort:
+            $ref: "#/components/schemas/Sort"
+    Pageable.Mode:
+      type: string
+      enum:
+      - CURSOR_NEXT
+      - CURSOR_PREVIOUS
+      - OFFSET
+    PlayerResolveError:
+      required:
+      - errorMessage
+      type: object
+      properties:
+        errorMessage:
+          type: string
+    PlayerResolveResponse:
+      required:
+      - name
+      - source
+      - uuid
+      type: object
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+        source:
+          type: string
+        owner:
+          type: string
+          description: SHA-512 hash of the UUID exactly as proxies compute it; use
+            it for all owner-keyed calls
+    PunishEntryDTO:
+      required:
+      - identifier
+      - lifted
+      - metaData
+      - permanent
+      - section
+      - shortId
+      - source
+      - verified
+      type: object
+      properties:
+        identifier:
+          type: string
+          description: the identifier of the punishment
+        shortId:
+          type: string
+          description: "the short ID players quote, `#` and eight upper case hex characters"
+        source:
+          type: string
+          description: "the source of the punishment: the staff member's `oid` for\
+            \ punishments written with a token, the delegated in-game UUID for the\
+            \ proxy's, or whatever was stored before SSO"
+          format: uuid
+        recordedByOid:
+          type: string
+          description: "the `oid` of the verified principal that wrote it, `null`\
+            \ for punishments written before SSO"
+          format: uuid
+          nullable: true
+        verified:
+          type: boolean
+          description: "whether `recordedByOid` is present: `false` marks a legacy,\
+            \ unverified attribution"
+        actorOid:
+          type: string
+          description: "the staff member the in-game `source` was linked to when it\
+            \ was written, `null` for web writes, unlinked UUIDs and punishments from\
+            \ before the link existed"
+          format: uuid
+          nullable: true
+        actorName:
+          type: string
+          description: "the display name of `actorOid`, `null` when unknown, anonymized\
+            \ or not looked up (profile listings carry only the `actorOid`)"
+          nullable: true
+        section:
+          type: string
+          description: the section it belongs to
+        scope:
+          type: string
+          description: "the optional scope (e.g. event/community) it is restricted\
+            \ to, or `null`"
+          nullable: true
+        permanent:
+          type: boolean
+          description: whether it is a permanent punishment issued by the system's
+            escalation
+        lifted:
+          type: boolean
+          description: whether it was revoked or lifted by a granted appeal
+        createdAt:
+          type: integer
+          description: creation time in epoch millis
+          format: int64
+          nullable: true
+        escalationGroup:
+          type: string
+          description: "the escalation group a template punishment counted towards,\
+            \ else `null`"
+          nullable: true
+        stepIndex:
+          type: integer
+          description: "the zero-based escalation step that was applied, else `null`"
+          format: int32
+          nullable: true
+        stepCount:
+          type: integer
+          description: "how many steps the template had when it was applied, else\
+            \ `null`"
+          format: int32
+          nullable: true
+        eloCost:
+          type: integer
+          description: "the ELO deducted when it was applied, else `null`"
+          format: int32
+          nullable: true
+        template:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/PunishTemplateResponse"
+        evidenceCount:
+          type: integer
+          description: "how many valid evidence items the punishment has - the only\
+            \ thing about evidence a player may learn; `null` where it was not computed\
+            \ (profile listings), use `GET /punishment/{reference}/evidence/count`\
+            \ there"
+          format: int64
+          nullable: true
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+          description: the metadata of the punishment
+      description: An applied punishment as it appears in profiles and apply results.
+    PunishProfileDTO:
+      required:
+      - active
+      - metaData
+      - owner
+      type: object
+      properties:
+        owner:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+        active:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/PunishEntryDTO"
+        history:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/PunishEntryDTO"
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    PunishProfileRequestDTO:
+      required:
+      - metaData
+      - owner
+      type: object
+      properties:
+        owner:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+        active:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/PunishEntryDTO"
+          nullable: true
+        history:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/PunishEntryDTO"
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+      description: Request body for creating/updating a punishment profile.
+    PunishProfileResponse:
+      type: object
+    PunishTemplateCreateRequest:
+      required:
+      - key
+      - reason
+      - section
+      - steps
+      type: object
+      properties:
+        key:
+          minLength: 1
+          type: string
+        reason:
+          minLength: 1
+          type: string
+        section:
+          minLength: 1
+          type: string
+        escalationGroup:
+          type: string
+          nullable: true
+        escalationWindow:
+          type: string
+          nullable: true
+        steps:
+          minItems: 1
+          type: array
+          items:
+            $ref: "#/components/schemas/PunishTemplateStep"
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+          nullable: true
+      description: "Unknown properties are rejected, so a client that sends an `identifier`\
+        \ on create gets a 400 instead of having it silently ignored."
+    PunishTemplateError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+    PunishTemplatePage:
+      required:
+      - content
+      - empty
+      - numberOfElements
+      - offset
+      - pageNumber
+      - size
+      - totalPages
+      - totalSize
+      type: object
+      properties:
+        content:
+          type: array
+          description: the templates of this page
+          items:
+            $ref: "#/components/schemas/PunishTemplateResponse"
+        totalSize:
+          type: integer
+          description: the number of templates across all pages
+          format: int64
+        totalPages:
+          type: integer
+          description: the number of pages
+          format: int32
+        pageNumber:
+          type: integer
+          description: the zero-based number of this page
+          format: int32
+        size:
+          type: integer
+          description: the requested page size
+          format: int32
+        offset:
+          type: integer
+          description: the index of the first template of this page
+          format: int64
+        numberOfElements:
+          type: integer
+          description: the number of templates on this page
+          format: int32
+        empty:
+          type: boolean
+          description: whether this page has no templates
+      description: "Documents the body of `GET /template`: the JSON Micronaut Data's\
+        \ `Page` serialises to, with the templates under `content`. Never instantiated\
+        \ - the controller returns the `Page` itself, so this exists only to give\
+        \ the published spec the real shape instead of a bare array."
+    PunishTemplateResponse:
+      required:
+      - escalationGroup
+      - identifier
+      - key
+      - metaData
+      - reason
+      - section
+      - steps
+      type: object
+      properties:
+        identifier:
+          type: string
+          format: uuid
+        key:
+          type: string
+        reason:
+          type: string
+        section:
+          type: string
+        escalationGroup:
+          type: string
+        escalationWindow:
+          type: string
+          nullable: true
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/PunishTemplateStep"
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+    PunishTemplateStep:
+      required:
+      - duration
+      - eloCost
+      type: object
+      properties:
+        duration:
+          minLength: 1
+          type: string
+        eloCost:
+          type: integer
+          format: int32
+    PunishTemplateUpdateRequest:
+      required:
+      - identifier
+      - key
+      - reason
+      - section
+      - steps
+      type: object
+      properties:
+        identifier:
+          type: string
+          format: uuid
+        key:
+          minLength: 1
+          type: string
+        reason:
+          minLength: 1
+          type: string
+        section:
+          minLength: 1
+          type: string
+        escalationGroup:
+          type: string
+          nullable: true
+        escalationWindow:
+          type: string
+          nullable: true
+        steps:
+          minItems: 1
+          type: array
+          items:
+            $ref: "#/components/schemas/PunishTemplateStep"
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+          nullable: true
+    PunishmentApplyRequest:
+      required:
+      - owner
+      type: object
+      properties:
+        owner:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+        templateKey:
+          type: string
+          nullable: true
+        templateId:
+          type: string
+          format: uuid
+          nullable: true
+        onBehalfOf:
+          type: string
+          description: the Minecraft UUID of the in-game staff member the proxy acts
+            for; accepted only from the `PROXY` role (HTTP 400 otherwise)
+          format: uuid
+          nullable: true
+        evidenceCorrelationId:
+          maxLength: 64
+          type: string
+          description: the key evidence was sent under before this punishment existed;
+            the pending evidence of this owner with that key is attached to the new
+            punishment
+          nullable: true
+      description: Apply a template to a player. Exactly one of `templateKey` and
+        `templateId` is required. The staff member is the caller of the verified token;
+        there is no client-supplied source.
+    PunishmentApplyResponse:
+      required:
+      - enforcement
+      - punishment
+      - scoreAfter
+      - scoreBefore
+      - section
+      - step
+      - stepCount
+      type: object
+      properties:
+        punishment:
+          $ref: "#/components/schemas/PunishEntryDTO"
+        section:
+          type: string
+          description: the section it belongs to
+        enforcement:
+          $ref: "#/components/schemas/EnforcementKind"
+        step:
+          type: integer
+          description: "the escalation step that was applied, starting at 1"
+          format: int32
+        stepCount:
+          type: integer
+          description: how many steps the template has
+          format: int32
+        scoreBefore:
+          type: integer
+          description: the section score before the ELO cost
+          format: int32
+        scoreAfter:
+          type: integer
+          description: the section score after the ELO cost
+          format: int32
+        escalation:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/PunishmentEscalation"
+      description: The result of applying a template.
+    PunishmentError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+    PunishmentEscalation:
+      required:
+      - punishment
+      - resultingScore
+      type: object
+      properties:
+        punishment:
+          $ref: "#/components/schemas/PunishEntryDTO"
+        resultingScore:
+          type: integer
+          description: the section score that triggered it
+          format: int32
+      description: A permanent punishment the system applied because a deduction left
+        the score too low.
+    PunishmentLookupRequest:
+      type: object
+      properties:
+        banId:
+          type: string
+          description: "the Ban ID as typed, with or without `#`, in any case; a credential,\
+            \ so it is a body field and is never printed"
+          nullable: true
+      description: Staff look up a punishment by the Ban ID a player quotes.
+    PunishmentLookupResponse:
+      required:
+      - punishment
+      type: object
+      properties:
+        punishment:
+          $ref: "#/components/schemas/PunishEntryDTO"
+    PunishmentPreviewResponse:
+      required:
+      - duration
+      - eloCost
+      - enforcement
+      - escalatesToPermanent
+      - permanentThreshold
+      - scoreAfter
+      - scoreBefore
+      - section
+      - step
+      - stepCount
+      type: object
+      properties:
+        section:
+          type: string
+          description: the section the template belongs to
+        enforcement:
+          $ref: "#/components/schemas/EnforcementKind"
+        step:
+          type: integer
+          description: "the escalation step that would apply, starting at 1"
+          format: int32
+        stepCount:
+          type: integer
+          description: how many steps the template has
+          format: int32
+        duration:
+          type: string
+          description: the ISO-8601 duration of the step
+        eloCost:
+          type: integer
+          description: the ELO the step would deduct
+          format: int32
+        scoreBefore:
+          type: integer
+          description: the section score now
+          format: int32
+        scoreAfter:
+          type: integer
+          description: the section score after the deduction
+          format: int32
+        permanentThreshold:
+          type: integer
+          description: the section's permanent threshold
+          format: int32
+        escalatesToPermanent:
+          type: boolean
+          description: whether the deduction would leave the score below that threshold
+      description: "What applying a template would do right now, without doing it:\
+        \ the escalation step the server selects, its cost and whether the cost would\
+        \ push the player into a permanent punishment."
+    PunishmentRevokeRequest:
+      required:
+      - owner
+      - section
+      type: object
+      properties:
+        owner:
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: Owner must be a sha-512 hash
+        section:
+          minLength: 1
+          type: string
+        onBehalfOf:
+          type: string
+          description: the Minecraft UUID of the in-game staff member the proxy acts
+            for; accepted only from the `PROXY` role (HTTP 400 otherwise)
+          format: uuid
+          nullable: true
+      description: Revoke the active punishment of a section. The revoking staff member
+        is the caller of the verified token.
+    PunishmentRevokeResponse:
+      required:
+      - punishment
+      - section
+      type: object
+      properties:
+        punishment:
+          $ref: "#/components/schemas/PunishEntryDTO"
+        section:
+          type: string
+          description: the section it belonged to
+        scoreReset:
+          type: integer
+          description: "the section score after a permanent punishment was pardoned,\
+            \ else `null`"
+          format: int32
+          nullable: true
+      description: The result of revoking a section's active punishment.
+    ReportCategory:
+      type: string
+      description: What kind of behavior a report is about.
+      enum:
+      - CHAT_ABUSE
+      - CHEATING
+      - GRIEFING
+      - OTHER
+    ReportDTO:
+      required:
+      - category
+      - createdAt
+      - metaData
+      - reportedHash
+      - reporterHash
+      - updatedAt
+      - verified
+      type: object
+      properties:
+        identifier:
+          type: string
+          description: "the identifier of the report, `null` when submitting"
+          format: uuid
+          nullable: true
+        reporterHash:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          description: SHA-512 hash of the reporting player
+          x-pattern-message: reporterHash must be a sha-512 hash
+        reportedHash:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          description: SHA-512 hash of the reported player
+          x-pattern-message: reportedHash must be a sha-512 hash
+        category:
+          $ref: "#/components/schemas/ReportCategory"
+        description:
+          maxLength: 1000
+          type: string
+          description: a bounded free-text description
+          nullable: true
+        evidenceReferences:
+          type: array
+          description: optional references to `PunishmentEvidenceEntity` entries
+          nullable: true
+          items:
+            type: string
+            format: uuid
+        status:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/ReportStatus"
+        createdAt:
+          type: integer
+          description: epoch millis when the report was submitted
+          format: int64
+        updatedAt:
+          type: integer
+          description: epoch millis of the last status change
+          format: int64
+        resolvedBy:
+          type: string
+          description: "the staff identity that resolved this report, if resolved:\
+            \ the resolver's `oid` for reports resolved with a token, whatever was\
+            \ stored before SSO otherwise"
+          format: uuid
+          nullable: true
+        recordedByOid:
+          type: string
+          description: "the `oid` of the verified principal that resolved it, `null`\
+            \ while open and for reports resolved before SSO"
+          format: uuid
+          nullable: true
+        verified:
+          type: boolean
+          description: whether the resolution is attributed to a verified principal;
+            `false` for an open report and for one resolved before SSO
+        resolutionNote:
+          maxLength: 1000
+          type: string
+          description: "a note explaining the resolution, if resolved"
+          nullable: true
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+          description: extensible metadata
+      description: A player report. `status`/`createdAt`/`updatedAt`/`resolvedBy`/
+        `resolutionNote` are server-controlled - a submission simply leaves them unset/default.
+    ReportErrorDTO:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+          description: what went wrong
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+      description: "The body of a failed report resolution, so every expected failure\
+        \ is distinguishable by its message and kind instead of a bare status code."
+    ReportRequestDTO:
+      required:
+      - category
+      - metaData
+      - reportedHash
+      - reporterHash
+      type: object
+      properties:
+        reporterHash:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          description: SHA-512 hash of the reporting player
+          x-pattern-message: reporterHash must be a sha-512 hash
+        reportedHash:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          description: SHA-512 hash of the reported player
+          x-pattern-message: reportedHash must be a sha-512 hash
+        category:
+          $ref: "#/components/schemas/ReportCategory"
+        description:
+          maxLength: 1000
+          type: string
+          description: a bounded free-text description
+          nullable: true
+        evidenceReferences:
+          type: array
+          description: optional references to `PunishmentEvidenceEntity` entries
+          nullable: true
+          items:
+            type: string
+            format: uuid
+        metaData:
+          type: object
+          additionalProperties:
+            type: object
+          description: extensible metadata
+      description: "Request body for submitting a player report. `status`/`createdAt`/\
+        \ `updatedAt`/`resolvedBy`/`resolutionNote` are server-controlled and have\
+        \ no place here - see ReportDTO, the response type, for those."
+    ReportResolutionDTO:
+      required:
+      - status
+      type: object
+      properties:
+        status:
+          $ref: "#/components/schemas/ReportStatus"
+        resolutionNote:
+          maxLength: 1000
+          type: string
+          description: an optional note explaining the decision
+          nullable: true
+        punishmentTemplateId:
+          type: string
+          description: an optional template to apply to the reported player
+          format: uuid
+          nullable: true
+      description: "Request body for resolving a report. Providing `punishmentTemplateId`\
+        \ applies that template to the reported player as part of the same resolution\
+        \ - the report system's actual integration point with punishments. The resolver,\
+        \ and the source of an applied punishment, is the caller of the verified token;\
+        \ the request carries no actor."
+    ReportStatus:
+      type: string
+      description: The lifecycle state of a report.
+      enum:
+      - OPEN
+      - UNDER_REVIEW
+      - ACTIONED
+      - DISMISSED
+    SectionCreateRequest:
+      required:
+      - baseScore
+      - displayName
+      - enforcement
+      - key
+      - pardonScore
+      - permanentReason
+      - permanentThreshold
+      type: object
+      properties:
+        key:
+          minLength: 1
+          type: string
+        displayName:
+          minLength: 1
+          type: string
+        enforcement:
+          $ref: "#/components/schemas/EnforcementKind"
+        targetKind:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/ServerTargetKind"
+        servers:
+          type: array
+          nullable: true
+          items:
+            type: string
+        baseScore:
+          type: integer
+          format: int32
+        softThreshold:
+          type: integer
+          format: int32
+          nullable: true
+        softDuration:
+          type: string
+          nullable: true
+        permanentThreshold:
+          type: integer
+          format: int32
+        pardonScore:
+          type: integer
+          format: int32
+        permanentReason:
+          minLength: 1
+          type: string
+        decayPerDay:
+          type: integer
+          format: int32
+          nullable: true
+    SectionError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+    SectionResponse:
+      required:
+      - baseScore
+      - decayPerDay
+      - displayName
+      - enabled
+      - enforcement
+      - key
+      - pardonScore
+      - permanentReason
+      - permanentThreshold
+      - servers
+      - targetKind
+      type: object
+      properties:
+        key:
+          type: string
+        displayName:
+          type: string
+        enforcement:
+          $ref: "#/components/schemas/EnforcementKind"
+        targetKind:
+          $ref: "#/components/schemas/ServerTargetKind"
+        servers:
+          type: array
+          items:
+            type: string
+        baseScore:
+          type: integer
+          format: int32
+        softThreshold:
+          type: integer
+          format: int32
+          nullable: true
+        softDuration:
+          type: string
+          nullable: true
+        permanentThreshold:
+          type: integer
+          format: int32
+        pardonScore:
+          type: integer
+          format: int32
+        permanentReason:
+          type: string
+        decayPerDay:
+          type: integer
+          format: int32
+        enabled:
+          type: boolean
+    SectionUpdateRequest:
+      required:
+      - baseScore
+      - decayPerDay
+      - displayName
+      - enabled
+      - enforcement
+      - key
+      - pardonScore
+      - permanentReason
+      - permanentThreshold
+      type: object
+      properties:
+        key:
+          minLength: 1
+          type: string
+        displayName:
+          minLength: 1
+          type: string
+        enforcement:
+          $ref: "#/components/schemas/EnforcementKind"
+        targetKind:
+          nullable: true
+          allOf:
+          - $ref: "#/components/schemas/ServerTargetKind"
+        servers:
+          type: array
+          nullable: true
+          items:
+            type: string
+        baseScore:
+          type: integer
+          format: int32
+        softThreshold:
+          type: integer
+          format: int32
+          nullable: true
+        softDuration:
+          type: string
+          nullable: true
+        permanentThreshold:
+          type: integer
+          format: int32
+        pardonScore:
+          type: integer
+          format: int32
+        permanentReason:
+          minLength: 1
+          type: string
+        decayPerDay:
+          type: integer
+          format: int32
+        enabled:
+          type: boolean
+    ServerTargetKind:
+      type: string
+      description: "What the entries of a SERVER section's `servers` list mean. Stored\
+        \ as a string; the allowed values are enforced here, not by the database."
+      enum:
+      - PATTERN
+      - CLOUDNET_TASK
+      - CLOUDNET_GROUP
+      - CLOUDNET_SERVICE
+      x-enum-descriptions:
+      - "Glob patterns over the Velocity server name (the default, and what every\
+        \ older section is)."
+      - Exact names of CloudNet tasks.
+      - Exact names of CloudNet groups.
+      - Exact names of CloudNet services (a service name can belong to another instance
+        after a restart).
+    SessionInfoDTO:
+      required:
+      - owner
+      type: object
+      properties:
+        owner:
+          minLength: 1
+          pattern: "^[a-fA-F0-9]{128}$"
+          type: string
+          x-pattern-message: owner must be a sha-512 hash
+        protocolVersion:
+          type: integer
+          format: int32
+          nullable: true
+        clientBrand:
+          maxLength: 64
+          type: string
+          nullable: true
+      description: "Session telemetry captured at login/brand-negotiation time (Phase\
+        \ 7's dashboard enrichment). Both fields are optional and merged, not overwritten,\
+        \ into the profile's existing session info - `protocolVersion` arrives at\
+        \ login, `clientBrand` arrives slightly later as a separate plugin-channel\
+        \ negotiation, so a single caller rarely has both at once."
+    Sort:
+      required:
+      - orderBy
+      type: object
+      properties:
+        orderBy:
+          type: array
+          items:
+            $ref: "#/components/schemas/Sort.Order"
+    Sort.Order:
+      required:
+      - direction
+      - ignoreCase
+      - property
+      type: object
+      properties:
+        ignoreCase:
+          type: boolean
+        direction:
+          $ref: "#/components/schemas/Sort.Order.Direction"
+        property:
+          type: string
+        ascending:
+          type: boolean
+    Sort.Order.Direction:
+      type: string
+      enum:
+      - ASC
+      - DESC
+    SortDirection:
+      type: string
+      description: The direction of a sorted list.
+      enum:
+      - ASC
+      - DESC
+    StaffActorAnonymizeResponse:
+      required:
+      - oid
+      type: object
+      properties:
+        oid:
+          type: string
+          format: uuid
+      description: The principal whose display name was cleared; the `oid` and all
+        history stay.
+    StaffActorError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+    StaffActorItem:
+      required:
+      - firstSeenAt
+      - kind
+      - lastSeenAt
+      - oid
+      type: object
+      properties:
+        oid:
+          type: string
+          description: the Entra object id
+          format: uuid
+        kind:
+          $ref: "#/components/schemas/ActorKind"
+        displayName:
+          type: string
+          description: the name from the sign-in; absent once anonymized
+          nullable: true
+        firstSeenAt:
+          type: integer
+          description: epoch millis of the first verified request
+          format: int64
+        lastSeenAt:
+          type: integer
+          description: epoch millis of the latest verified request
+          format: int64
+      description: One known staff principal.
+    StaffActorListResponse:
+      required:
+      - items
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StaffActorItem"
+      description: "Every known staff principal, most recently seen first."
+    StaffLinkCodeResponse:
+      required:
+      - code
+      - expiresAt
+      type: object
+      properties:
+        code:
+          type: string
+          description: "the code as shown to a person, `ABCD-EFGH`; only ever returned\
+            \ here"
+        expiresAt:
+          type: integer
+          description: "when it stops working, epoch millis"
+          format: int64
+      description: A freshly issued code.
+    StaffLinkConfirmRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          description: "the code the player typed in game, with or without dash, in\
+            \ any case"
+          nullable: true
+        onBehalfOf:
+          type: string
+          description: the Minecraft UUID of the player who typed it; required
+          format: uuid
+          nullable: true
+      description: What the Velocity proxy sends to confirm a code.
+    StaffLinkConfirmResponse:
+      required:
+      - linkedAt
+      - minecraftUuid
+      - oid
+      type: object
+      properties:
+        oid:
+          type: string
+          description: the staff member
+          format: uuid
+        displayName:
+          type: string
+          description: "their name from the sign-in, if known"
+          nullable: true
+        minecraftUuid:
+          type: string
+          description: the linked Minecraft account
+          format: uuid
+        linkedAt:
+          type: integer
+          description: "when, epoch millis"
+          format: int64
+      description: The link a confirmation created.
+    StaffLinkError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+    StaffLinkItem:
+      required:
+      - linkedAt
+      - minecraftUuid
+      - oid
+      type: object
+      properties:
+        oid:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+          nullable: true
+        minecraftUuid:
+          type: string
+          format: uuid
+        linkedAt:
+          type: integer
+          format: int64
+      description: One link in the admin list.
+    StaffLinkListResponse:
+      required:
+      - items
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StaffLinkItem"
+      description: "All links, for admins."
+    StaffLinkLookupResponse:
+      required:
+      - linked
+      type: object
+      properties:
+        linked:
+          type: boolean
+          description: whether the account is linked
+        displayName:
+          type: string
+          description: "the linked staff member's name, if known; absent once anonymized"
+          nullable: true
+      description: "Who a Minecraft account belongs to, for the in-game status command."
+    StaffLinkRemovedResponse:
+      required:
+      - oid
+      type: object
+      properties:
+        oid:
+          type: string
+          format: uuid
+      description: The staff member whose link was removed.
+    StaffLinkStatusResponse:
+      required:
+      - linked
+      type: object
+      properties:
+        linked:
+          type: boolean
+          description: whether a Minecraft account is linked
+        minecraftUuid:
+          type: string
+          description: "the linked account, only when linked"
+          format: uuid
+          nullable: true
+        linkedAt:
+          type: integer
+          description: "when it was linked, epoch millis, only when linked"
+          format: int64
+          nullable: true
+      description: The caller's own link status.
+  securitySchemes:
+    bearerAuth:
+      type: http
+      description: Microsoft Entra ID access token for this API
+      scheme: bearer
+      bearerFormat: JWT

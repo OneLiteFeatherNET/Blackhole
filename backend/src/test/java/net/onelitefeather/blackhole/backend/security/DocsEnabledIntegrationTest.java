@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class DocsEnabledIntegrationTest extends ApiIntegrationTest {
 
     /** The generated spec, named after the OpenAPI version of BlackholeApplication: bump it with that. */
-    private static final String PAGE = "/swagger/blackhole-api-0.0.25.yml";
+    private static final String PAGE = "/swagger/blackhole-api-0.0.26.yml";
 
     @Override
     protected Map<String, Object> extraProperties() {

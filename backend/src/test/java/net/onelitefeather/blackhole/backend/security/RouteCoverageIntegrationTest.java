@@ -29,6 +29,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
     private static final Set<String> M = Set.of("MODERATOR");
     private static final Set<String> MP = Set.of("MODERATOR", "PROXY");
     private static final Set<String> A = Set.of("ADMIN");
+    private static final Set<String> D = Set.of("DISCORD");
     private static final Set<String> AUTHENTICATED = Set.of("isAuthenticated()");
 
     /** The matrix: route -> roles that may call it (any one of them). */
@@ -107,6 +108,16 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /staff-link/by-minecraft/{uuid}", P),
             Map.entry("GET /admin/staff-link", A),
             Map.entry("DELETE /admin/staff-link/{oid}", A),
+            // discord account link: own (any staff role), the proxy's player code, the bot's facade, admin
+            Map.entry("POST /staff-discord-link/code", V),
+            Map.entry("GET /staff-discord-link/me", V),
+            Map.entry("DELETE /staff-discord-link/me", V),
+            Map.entry("POST /player-discord-link/code", P),
+            Map.entry("POST /discord/link/confirm", D),
+            Map.entry("GET /discord/link/{discordUserId}", D),
+            Map.entry("DELETE /discord/link/{discordUserId}", D),
+            Map.entry("GET /admin/discord-link", A),
+            Map.entry("DELETE /admin/discord-link/{id}", A),
             // identity
             Map.entry("GET /auth/me", AUTHENTICATED)
     );

@@ -22,13 +22,13 @@ class BlackholeRolesFinderTest {
 
     private static final RoleMappingProperties GROUPS = new RoleMappingProperties(
             "groups", "roles", List.of(ADMIN), List.of(MODERATOR), List.of(VIEWER), List.of(METRICS),
-            List.of("Blackhole.Proxy"), List.of("Blackhole.Metrics"));
+            List.of("Blackhole.Proxy"), List.of("Blackhole.Metrics"), List.of("Blackhole.Discord"));
 
     /** The upgrade path: the human claim switched to app roles by configuration only. */
     private static final RoleMappingProperties APP_ROLES = new RoleMappingProperties(
             "roles", "roles", List.of("Blackhole.Admin"), List.of("Blackhole.Moderator"),
             List.of("Blackhole.Viewer"), List.of("Blackhole.Ops"),
-            List.of("Blackhole.Proxy"), List.of("Blackhole.Metrics"));
+            List.of("Blackhole.Proxy"), List.of("Blackhole.Metrics"), List.of("Blackhole.Discord"));
 
     private static Arguments scenario(String name, RoleMappingProperties mapping, Map<String, Object> claims, String... expected) {
         return Arguments.of(Named.of(name, mapping), claims, Set.of(expected));
@@ -64,6 +64,12 @@ class BlackholeRolesFinderTest {
                         Map.of("roles", List.of("Blackhole.Proxy")), "PROXY"),
                 scenario("app-only metrics role grants metrics", GROUPS,
                         Map.of("roles", List.of("Blackhole.Metrics")), "METRICS"),
+                scenario("app-only discord role grants discord and nothing implied", GROUPS,
+                        Map.of("roles", List.of("Blackhole.Discord")), "DISCORD"),
+                scenario("delegated token with the discord value in roles grants nothing", GROUPS,
+                        Map.of("scp", "access_as_user", "roles", List.of("Blackhole.Discord"))),
+                scenario("delegated token with the discord value in groups grants nothing", GROUPS,
+                        delegated("groups", List.of("Blackhole.Discord"))),
                 scenario("app-only token with a human role value in roles grants nothing", GROUPS,
                         Map.of("roles", List.of(MODERATOR, ADMIN))),
                 scenario("app-only token with a human group in groups grants nothing", GROUPS,

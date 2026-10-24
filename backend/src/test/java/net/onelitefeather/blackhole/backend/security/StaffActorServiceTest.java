@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.backend.security;
 
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.security.dto.StaffActorDTO;
+import net.onelitefeather.blackhole.backend.support.DiscordLinkTestBed;
 import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.RecordingEventPublisher;
 import net.onelitefeather.blackhole.backend.support.StaffLinkTestBed;
@@ -25,7 +26,8 @@ class StaffActorServiceTest {
     private final RecordingEventPublisher events = new RecordingEventPublisher();
     private final TestClock clock = new TestClock();
     private final StaffLinkTestBed links = new StaffLinkTestBed(this.events, this.clock);
-    private final StaffActorService service = new StaffActorService(this.store.repository(), this.events, this.links.service);
+    private final DiscordLinkTestBed discord = new DiscordLinkTestBed(this.events, this.clock);
+    private final StaffActorService service = new StaffActorService(this.store.repository(), this.events, this.links.service, this.discord.service);
 
     @Test
     void anonymizingClearsTheDisplayNameAndKeepsTheOidAndKind() {
@@ -70,6 +72,16 @@ class StaffActorServiceTest {
         var removed = this.events.eventsOfType(StaffLinkService.REMOVED_EVENT).getFirst();
         assertEquals("ANONYMIZED", removed.payload().get("reason"), "audited with its reason");
         assertEquals(LEAVER.toString(), removed.payload().get("oid"), "identified by oid");
+    }
+
+    @Test
+    void anonymizingAlsoRemovesTheDiscordLink() {
+        this.store.given(new StaffActorEntity(LEAVER, ActorKind.HUMAN, "Lea Leaver", 1L), LEAVER);
+        this.discord.givenLink(net.onelitefeather.blackhole.backend.discord.DiscordLinkKind.STAFF, LEAVER.toString(), "123456789012345678");
+
+        this.service.anonymize(LEAVER, ADMIN);
+
+        assertTrue(this.discord.allLinks().isEmpty(), "the Discord user id is erased with the person");
     }
 
     @Test

@@ -40,6 +40,7 @@ public final class TestJwtIssuer {
 
     public static final String PROXY_ROLE = "Blackhole.Proxy";
     public static final String METRICS_ROLE = "Blackhole.Metrics";
+    public static final String DISCORD_ROLE = "Blackhole.Discord";
 
     private static final Duration LIFETIME = Duration.ofHours(1);
 
@@ -91,6 +92,10 @@ public final class TestJwtIssuer {
 
     public String proxy() {
         return appOnly().roles(PROXY_ROLE).sign();
+    }
+
+    public String discord() {
+        return appOnly().roles(DISCORD_ROLE).sign();
     }
 
     public String metrics() {

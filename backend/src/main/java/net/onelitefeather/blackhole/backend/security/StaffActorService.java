@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.security;
 
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.discord.DiscordLinkService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.security.dto.StaffActorDTO;
@@ -13,7 +14,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Erasure of staff identity data. Anonymizing clears the display name, removes the person's Minecraft link (a leaving person must not stay attributable by UUID) and keeps the {@code oid}, so
+ * Erasure of staff identity data. Anonymizing clears the display name, removes the person's Minecraft link and Discord link (a leaving person must not stay attributable by UUID) and keeps the {@code oid}, so
  * history still points at the same principal; once the Entra account is deleted the oid no longer
  * resolves to a person. The action is audited with the admin's own verified {@code oid}.
  */
@@ -27,11 +28,13 @@ public class StaffActorService {
     private final StaffActorRepository actors;
     private final DomainEventPublisher events;
     private final StaffLinkService links;
+    private final DiscordLinkService discordLinks;
 
-    public StaffActorService(StaffActorRepository actors, DomainEventPublisher events, StaffLinkService links) {
+    public StaffActorService(StaffActorRepository actors, DomainEventPublisher events, StaffLinkService links, DiscordLinkService discordLinks) {
         this.actors = actors;
         this.events = events;
         this.links = links;
+        this.discordLinks = discordLinks;
     }
 
     /** Every known principal, most recently seen first. */
@@ -58,6 +61,7 @@ public class StaffActorService {
         actor.setDisplayName(null);
         this.actors.update(actor);
         this.links.removeOnAnonymize(oid, admin);
+        this.discordLinks.removeOnAnonymize(oid);
         LOG.info("Staff actor {} anonymized by {}", oid, admin.oid());
         this.events.publish(ANONYMIZED_EVENT, Map.of("oid", oid.toString(), "anonymizedBy", admin.oid().toString()));
         return new StaffActorDTO.Response(oid);

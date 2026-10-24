@@ -21,7 +21,7 @@ The `DISCORD` role SHALL be granted by the app role `Blackhole.Discord` in app-o
 - **THEN** the response is HTTP 403, because the role is read only from app-only tokens
 
 ### Requirement: Discord routes
-The `DISCORD` role MUST be allowed exactly the `/discord/**` routes: open and list tickets, update a ticket, read the outbox, ingest messages, record relay links, close a ticket (which stores its protocol), ensure its protocol, list staff links, leak check, and staff link confirm and removal.
+The `DISCORD` role MUST be allowed exactly the `/discord/**` routes: link confirm, whoami and unlink (phase 0), and later open and list tickets, update a ticket, read the outbox, ingest messages, record relay links, close a ticket (which stores its protocol), ensure its protocol, list staff links, leak check and the notification reads.
 
 #### Scenario: Bot token on a case route
 - **WHEN** a token with `Blackhole.Discord` calls `GET /case`

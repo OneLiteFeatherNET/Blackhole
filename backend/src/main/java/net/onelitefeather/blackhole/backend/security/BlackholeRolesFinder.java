@@ -18,7 +18,7 @@ import java.util.Set;
  *
  * <p>The token kind selects the claim: a delegated token (it carries {@code scp}) is read from the
  * human claim and can only be granted ADMIN, MODERATOR, VIEWER or METRICS; an app-only token is read
- * from the machine claim and can only be granted PROXY or METRICS. A value in the claim of the
+ * from the machine claim and can only be granted PROXY, METRICS or DISCORD. A value in the claim of the
  * other kind grants nothing. ADMIN implies MODERATOR implies VIEWER.
  *
  * <p>A delegated token whose group list was replaced by an overage marker has no role: the groups
@@ -63,6 +63,7 @@ public class BlackholeRolesFinder implements RolesFinder {
         Set<String> roles = new LinkedHashSet<>();
         grant(roles, claimValues, this.mapping.machineProxy(), Roles.PROXY);
         grant(roles, claimValues, this.mapping.machineMetrics(), Roles.METRICS);
+        grant(roles, claimValues, this.mapping.machineDiscord(), Roles.DISCORD);
         return List.copyOf(roles);
     }
 
