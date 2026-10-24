@@ -190,6 +190,15 @@ public final class FakeCaseStore implements CaseReader, CaseChanges {
     }
 
     @Override
+    public Reissued reissueBanIdAtGeneration(String punishmentIdentifier, int expectedGeneration, byte[] hash, byte[] encrypted,
+                                             BanIdReissueReason reason, long now, CaseActor actor) {
+        if (generation(punishmentIdentifier) != expectedGeneration) {
+            return null;
+        }
+        return reissueBanId(punishmentIdentifier, hash, encrypted, reason, now, actor);
+    }
+
+    @Override
     public List<Erased> erasePlayerMessages(String punishmentIdentifier, String reason, long now, java.util.UUID redactedByOid, CaseActor actor) {
         List<Erased> erased = new ArrayList<>();
         for (CaseEventRecord row : this.log.timeline(punishmentIdentifier)) {

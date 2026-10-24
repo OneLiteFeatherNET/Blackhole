@@ -1156,7 +1156,8 @@
       "reissueDone": "Ban-ID neu ausgestellt.",
       "reissueReason": {
         "NOT_PLAYERS_FAULT": "Nicht die Schuld des Spielers",
-        "OTHER": "Sonstiges"
+        "OTHER": "Sonstiges",
+        "KEY_ROTATION": "Schlüsselwechsel"
       }
     },
     "transcript": {

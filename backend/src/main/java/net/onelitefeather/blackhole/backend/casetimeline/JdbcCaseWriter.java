@@ -124,10 +124,10 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             RETURNING identifier, seq, type, (payload ->> 'afterFiling')::boolean
             """;
 
-    private static final String REISSUE = """
+    private static final String REISSUE_TEMPLATE = """
             WITH upd AS (
                 UPDATE punishments SET ban_id_hash = ?, ban_id_enc = ?, ban_id_gen = ban_id_gen + 1
-                WHERE identifier = ? AND ban_id_hash IS NOT NULL
+                WHERE identifier = ? AND ban_id_hash IS NOT NULL{{GUARD}}
                 RETURNING identifier, ban_id_gen
             ), cleared AS (
                 UPDATE punishment_case SET ban_id_leaked_at = NULL, ban_id_leak_reason = NULL, updated_at = ?
@@ -143,6 +143,11 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             FROM upd
             RETURNING identifier, seq, type, (payload ->> 'fromGeneration')::int, (payload ->> 'toGeneration')::int
             """;
+
+    private static final String REISSUE = REISSUE_TEMPLATE.replace("{{GUARD}}", "");
+
+    /** The reissue only while the punishment is at the generation the caller saw. */
+    private static final String REISSUE_AT_GENERATION = REISSUE_TEMPLATE.replace("{{GUARD}}", " AND ban_id_gen = ?");
 
     private static final String ERASE_PLAYER = """
             WITH player_messages AS (
@@ -330,12 +335,26 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
 
     @Override
     public Reissued reissueBanId(String punishmentIdentifier, byte[] hash, byte[] encrypted, BanIdReissueReason reason, long now, CaseActor actor) {
+        return reissue(REISSUE, null, punishmentIdentifier, hash, encrypted, reason, now, actor);
+    }
+
+    @Override
+    public Reissued reissueBanIdAtGeneration(String punishmentIdentifier, int expectedGeneration, byte[] hash, byte[] encrypted,
+                                             BanIdReissueReason reason, long now, CaseActor actor) {
+        return reissue(REISSUE_AT_GENERATION, expectedGeneration, punishmentIdentifier, hash, encrypted, reason, now, actor);
+    }
+
+    private Reissued reissue(String sql, Integer expectedGeneration, String punishmentIdentifier, byte[] hash, byte[] encrypted,
+                             BanIdReissueReason reason, long now, CaseActor actor) {
         try (Connection connection = this.dataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement(REISSUE)) {
+             PreparedStatement statement = connection.prepareStatement(sql)) {
             int index = 0;
             statement.setBytes(++index, hash);
             statement.setBytes(++index, encrypted);
             statement.setString(++index, punishmentIdentifier);
+            if (expectedGeneration != null) {
+                statement.setInt(++index, expectedGeneration);
+            }
             statement.setLong(++index, now);
             statement.setString(++index, punishmentIdentifier);
             statement.setString(++index, punishmentIdentifier);

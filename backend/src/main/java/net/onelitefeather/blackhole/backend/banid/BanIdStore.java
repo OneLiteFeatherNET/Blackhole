@@ -31,6 +31,13 @@ public interface BanIdStore {
     /** Up to {@code limit} punishments without a Ban ID. */
     List<String> withoutBanId(int limit);
 
+    /** A punishment that has a Ban ID: its ciphertext and generation, never the plain value. */
+    record Held(String identifier, byte[] encrypted, int generation) {
+    }
+
+    /** Up to {@code limit} punishments with a Ban ID whose identifier sorts after {@code after} ({@code null} for the first page), in identifier order. */
+    List<Held> heldAfter(String after, int limit);
+
     /** How many punishments still have no Ban ID. */
     long countWithoutBanId();
 }

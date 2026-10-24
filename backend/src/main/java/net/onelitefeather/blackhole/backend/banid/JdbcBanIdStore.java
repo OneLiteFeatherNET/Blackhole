@@ -88,6 +88,26 @@ public class JdbcBanIdStore implements BanIdStore {
     }
 
     @Override
+    public List<Held> heldAfter(String after, int limit) {
+        List<Held> held = new ArrayList<>();
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "SELECT identifier, ban_id_enc, ban_id_gen FROM punishments WHERE ban_id_hash IS NOT NULL AND ban_id_enc IS NOT NULL "
+                             + "AND identifier > ? ORDER BY identifier LIMIT ?")) {
+            statement.setString(1, after == null ? "" : after);
+            statement.setInt(2, limit);
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    held.add(new Held(rows.getString(1), rows.getBytes(2), rows.getInt(3)));
+                }
+            }
+            return held;
+        } catch (SQLException e) {
+            throw failure(e);
+        }
+    }
+
+    @Override
     public long countWithoutBanId() {
         return queryOne("SELECT count(*) FROM punishments WHERE ban_id_hash IS NULL", statement -> { }, row -> row.getLong(1)).orElse(0L);
     }

@@ -1156,7 +1156,8 @@
       "reissueDone": "Ban ID reissued.",
       "reissueReason": {
         "NOT_PLAYERS_FAULT": "Not the player's fault",
-        "OTHER": "Other"
+        "OTHER": "Other",
+        "KEY_ROTATION": "Key rotation"
       }
     },
     "transcript": {
