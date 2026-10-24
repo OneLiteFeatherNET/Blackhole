@@ -15,12 +15,20 @@ import java.util.UUID;
  * @param decisionNote   an optional note explaining the decision
  * @param newExpirationAt required when {@code decision} is {@code GRANTED_DURATION_REDUCTION} -
  *                        the new, sooner expiration timestamp (epoch millis)
+ * @param playerMessage  an optional message to the player, 1 to 2000 characters without a UUID, an IP address or a Ban ID; it is
+ *                        recorded on the case as a staff message the player can read, while {@code decisionNote} stays internal
  */
 @Serdeable
 @ReflectiveAccess
 public record AppealReviewDTO(
         @NonNull AppealStatus decision,
         @Nullable @Size(max = 2000) String decisionNote,
-        @Nullable Long newExpirationAt
+        @Nullable Long newExpirationAt,
+        @Nullable @Size(min = 1, max = 2000) String playerMessage
 ) {
+
+    /** A review without a message to the player. */
+    public static AppealReviewDTO withoutMessage(AppealStatus decision, @Nullable String decisionNote, @Nullable Long newExpirationAt) {
+        return new AppealReviewDTO(decision, decisionNote, newExpirationAt, null);
+    }
 }
