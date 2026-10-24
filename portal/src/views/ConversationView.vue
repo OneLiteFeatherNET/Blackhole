@@ -2,14 +2,21 @@
 import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { MAX_TEXT_LENGTH, PAGE_SIZE, type AppealConditions, type AppealStatus, type ConversationEntry, type ErrorCode } from '../api/contract'
+import { EVENTS_URL } from '../api/portal'
+import ChatComposer from '../components/ChatComposer.vue'
+import ChatLightbox from '../components/ChatLightbox.vue'
 import ConditionsText from '../components/ConditionsText.vue'
+import MessageBubble from '../components/MessageBubble.vue'
+import { releasePreview } from '../chat/files'
+import { openLive, type LiveHandle, type LiveState } from '../chat/live'
 import { formatDate, formatDateTime } from '../format'
 import { SESSION_KEY } from '../session'
 
 defineEmits<{ back: [] }>()
 
-/** The conversation is polled, not pushed (design decision 10). */
+/** Polling cadence: 15 s without a live stream, 30 s as a safety net beside one (design decision 10). */
 const POLL_MS = 15_000
+const STREAM_POLL_MS = 30_000
 
 const { t, te, locale } = useI18n()
 const session = inject(SESSION_KEY)!
@@ -27,19 +34,19 @@ const loadFailed = ref(false)
 const forbidden = ref(false)
 const sending = ref(false)
 const failure = ref<ErrorCode | null>(null)
+const streamState = ref<LiveState>('closed')
+const image = ref<{ src: string; name: string } | null>(null)
 let polling = false
 let timer: ReturnType<typeof setInterval> | undefined
-// One key per attempt: a retry after a lost answer is a no-op on the backend, a new text gets a new key.
-let attempt: { text: string; key: string } | null = null
+let live: LiveHandle | undefined
+// One key per attempt: a retry after a lost answer is a no-op on the backend, a new text or new files get a new key.
+let attempt: { signature: string; key: string } | null = null
 
 const appealState = computed(() => state.punishment?.appeal.state)
 // Once the appeal is decided (or the punishment is over) the backend refuses new messages with NO_APPEAL.
 // The copy is offered once the appeal is decided; the backend refuses it (NOT_DECIDED) before and for a limited session.
 const canDownload = computed(() => state.scope === 'FULL' && !forbidden.value && appeal.value?.decision != null)
 const canPost = computed(() => state.scope === 'FULL' && !forbidden.value && appealState.value === 'OPEN')
-const length = computed(() => drafts.message.trim().length)
-const tooLong = computed(() => length.value > MAX_TEXT_LENGTH)
-const blank = computed(() => length.value === 0)
 
 function merge(incoming: ConversationEntry[]) {
   const next = [...entries.value]
@@ -104,9 +111,13 @@ function isVisible() {
   return !document.hidden
 }
 
+function pollInterval() {
+  return streamState.value === 'open' ? STREAM_POLL_MS : POLL_MS
+}
+
 function startPolling() {
   stopPolling()
-  if (isVisible()) timer = setInterval(() => void poll(), POLL_MS)
+  if (isVisible()) timer = setInterval(() => void poll(), pollInterval())
 }
 
 function stopPolling() {
@@ -123,9 +134,26 @@ function onVisibility() {
   }
 }
 
+/** The live signal says only that something changed: the page reads it with its cursor. */
+function openStream() {
+  if (state.scope !== 'FULL' || typeof EventSource === 'undefined') return
+  live = openLive({
+    url: EVENTS_URL,
+    createSource: (url) => new EventSource(url),
+    onChanged: () => void poll(),
+    onExpired: () => session.expire(),
+    onState: (next) => {
+      streamState.value = next
+      // The cadence follows the stream: a 30 s safety poll while it is open, 15 s otherwise.
+      if (isVisible() && timer !== undefined) startPolling()
+    },
+  })
+}
+
 onMounted(async () => {
   document.addEventListener('visibilitychange', onVisibility)
   startPolling()
+  openStream()
   await Promise.all([fetchPage(), refreshAppeal(), loadConditions()])
   loaded.value = true
 })
@@ -133,19 +161,36 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', onVisibility)
   stopPolling()
+  live?.close()
+  live = undefined
 })
 
-async function send() {
+/** The text and the staged files a send would carry; nothing is sent while a file is still uploading. */
+function payload() {
   const text = drafts.message.trim()
-  if (blank.value || tooLong.value || sending.value || !canPost.value) return
-  if (attempt?.text !== text) attempt = { text, key: crypto.randomUUID() }
+  const files = drafts.files.filter((file) => file.state === 'staged').map((file) => file.attachmentId!)
+  return { text, files }
+}
+
+async function send() {
+  const { text, files } = payload()
+  const pending = drafts.files.some((file) => file.state === 'uploading')
+  if ((text.length === 0 && files.length === 0) || text.length > MAX_TEXT_LENGTH || pending || sending.value || !canPost.value) return
+  const signature = JSON.stringify([text, files])
+  if (attempt?.signature !== signature) attempt = { signature, key: crypto.randomUUID() }
   sending.value = true
   failure.value = null
   try {
-    const result = await session.api.postMessage(text, attempt.key)
+    // A text-only message is sent exactly as before; files add their ids, and the text may then be absent.
+    const result =
+      files.length > 0
+        ? await session.api.postMessage(text.length > 0 ? text : undefined, attempt.key, files)
+        : await session.api.postMessage(text, attempt.key)
     if (!session.alive(result)) return
     if (result.ok) {
       drafts.message = ''
+      for (const file of drafts.files) releasePreview(file)
+      drafts.files = []
       attempt = null
       await fetchPage()
       return
@@ -157,12 +202,39 @@ async function send() {
   }
 }
 
-function onKeydown(event: KeyboardEvent) {
-  if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-    event.preventDefault()
-    void send()
-  }
+/** Rows of the thread: a bubble per message (grouped under the same author), markers, and a line per day. */
+interface Row {
+  key: string
+  kind: 'day' | 'bubble' | 'marker'
+  entry?: ConversationEntry
+  grouped?: boolean
+  label?: string
 }
+
+const rows = computed<Row[]>(() => {
+  const out: Row[] = []
+  let day = ''
+  let previous: ConversationEntry | undefined
+  for (const entry of entries.value) {
+    const current = entry.occurredAt.slice(0, 10)
+    const newDay = current !== day
+    if (newDay) {
+      day = current
+      out.push({ key: `day-${entry.seq}`, kind: 'day', label: formatDate(entry.occurredAt, locale.value) })
+      previous = undefined
+    }
+    const bubble = entry.kind === 'MESSAGE' || entry.share != null || (entry.attachments?.length ?? 0) > 0
+    if (bubble) {
+      const grouped = !newDay && previous !== undefined && previous.author === entry.author && previous.kind === 'MESSAGE' && entry.kind === 'MESSAGE'
+      out.push({ key: `seq-${entry.seq}`, kind: 'bubble', entry, grouped })
+      previous = entry
+    } else {
+      out.push({ key: `seq-${entry.seq}`, kind: 'marker', entry, label: markerLabel(entry) })
+      previous = undefined
+    }
+  }
+  return out
+})
 
 function authorLabel(entry: ConversationEntry) {
   return t(`conversation.author.${entry.author}`)
@@ -180,6 +252,7 @@ const decisionLabel = computed(() => {
 
 const failureText = computed(() => {
   if (!failure.value) return ''
+  if (failure.value === 'FILES_UNAVAILABLE') return t('chat.errors.FILES_UNAVAILABLE')
   return te(`conversation.errors.${failure.value}`) ? t(`conversation.errors.${failure.value}`) : t('conversation.errors.UNAVAILABLE')
 })
 </script>
@@ -222,56 +295,37 @@ const failureText = computed(() => {
     <p v-else-if="loadFailed" role="alert" class="rounded-md-sm bg-error-container px-4 py-3 text-body-medium text-on-error-container">
       {{ t('conversation.loadFailed') }}
     </p>
+    <p v-else-if="streamState === 'reconnecting'" role="status" class="text-body-small text-on-surface-variant">{{ t('chat.live.reconnecting') }}</p>
 
     <div v-if="!forbidden" role="log" aria-live="polite" aria-relevant="additions" :aria-label="t('conversation.thread')">
       <p v-if="loaded && !loadFailed && entries.length === 0" class="text-body-large text-on-surface-variant">{{ t('conversation.empty') }}</p>
       <ol v-else class="flex list-none flex-col gap-3 p-0">
-        <li
-          v-for="entry in entries"
-          :key="entry.seq"
-          :data-author="entry.author"
-          :class="entry.author === 'PLAYER' ? 'self-end bg-secondary-container text-on-secondary-container' : 'self-start bg-surface-container-high text-on-surface'"
-          class="max-w-[85%] rounded-md-lg px-4 py-3"
-        >
-          <template v-if="entry.kind === 'MESSAGE'">
-            <p class="text-label-large">{{ authorLabel(entry) }}</p>
-            <p v-if="entry.removed || entry.text === null" class="text-body-large italic">{{ t('conversation.removed') }}</p>
-            <p v-else class="plain-text text-body-large">{{ entry.text }}</p>
-          </template>
-          <p v-else class="text-body-medium italic">{{ markerLabel(entry) }}</p>
-          <p class="mt-1 text-body-small opacity-80"><time :datetime="entry.occurredAt">{{ formatDateTime(entry.occurredAt, locale) }}</time></p>
-        </li>
+        <template v-for="row in rows" :key="row.key">
+          <li v-if="row.kind === 'day'" role="presentation" class="self-center text-label-medium text-on-surface-variant">
+            <p>{{ row.label }}</p>
+          </li>
+          <li v-else-if="row.kind === 'marker'" role="presentation" class="self-center text-body-medium italic text-on-surface-variant">
+            <p>{{ row.label }} · <time :datetime="row.entry!.occurredAt">{{ formatDateTime(row.entry!.occurredAt, locale) }}</time></p>
+          </li>
+          <li
+            v-else
+            :data-author="row.entry!.author"
+            :class="row.entry!.author === 'PLAYER' ? 'self-end' : 'self-start'"
+            class="max-w-[85%]"
+          >
+            <MessageBubble
+              :entry="row.entry!"
+              :author-label="authorLabel(row.entry!)"
+              :own="row.entry!.author === 'PLAYER'"
+              :grouped="row.grouped === true"
+              @image="(src, name) => (image = { src, name })"
+            />
+          </li>
+        </template>
       </ol>
     </div>
 
-    <form v-if="canPost" class="flex flex-col gap-3 rounded-md-lg bg-surface-container p-6" novalidate @submit.prevent="send">
-      <label for="message" class="text-label-large text-on-surface">{{ t('conversation.composer') }}</label>
-      <textarea
-        id="message"
-        v-model="drafts.message"
-        rows="4"
-        aria-describedby="message-hint message-count"
-        :aria-invalid="tooLong"
-        class="plain-text rounded-md-xs border border-outline bg-surface p-4 text-body-large text-on-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        @keydown="onKeydown"
-      />
-      <p id="message-hint" class="text-body-small text-on-surface-variant">{{ t('conversation.hint') }}</p>
-      <p id="message-count" :class="tooLong ? 'text-error' : 'text-on-surface-variant'" class="text-body-small">
-        {{ t('conversation.counter', { count: length, max: MAX_TEXT_LENGTH }) }}
-      </p>
-      <div role="alert" aria-live="assertive">
-        <p v-if="failure" class="rounded-md-sm bg-error-container px-4 py-3 text-body-medium text-on-error-container">{{ failureText }}</p>
-      </div>
-      <div>
-        <button
-          type="submit"
-          :disabled="blank || tooLong || sending"
-          class="md-state inline-flex h-10 items-center justify-center rounded-md-full bg-primary px-6 text-label-large text-on-primary disabled:opacity-60"
-        >
-          {{ sending ? t('conversation.sending') : t('conversation.send') }}
-        </button>
-      </div>
-    </form>
+    <ChatComposer v-if="canPost" :sending="sending" :failure="failureText" @send="send" />
     <p v-else-if="loaded && !forbidden && appealState !== 'FROZEN'" class="text-body-medium text-on-surface-variant">{{ t('conversation.readOnly') }}</p>
 
     <p v-if="canDownload" class="text-body-medium">
@@ -291,5 +345,7 @@ const failureText = computed(() => {
         {{ t('conversation.downloadJson') }}
       </a>
     </p>
+
+    <ChatLightbox :src="image?.src ?? null" :name="image?.name ?? ''" @close="image = null" />
   </section>
 </template>

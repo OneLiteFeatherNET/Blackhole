@@ -85,14 +85,16 @@ describe('allow-list', () => {
   it('maps every allowed route one to one onto /public', async () => {
     for (const route of ROUTES) {
       const { send, calls } = bff([{ body: route.path === '/api/session' && route.method === 'POST' ? LOGIN_OK : {} }])
-      const init: RequestInit =
-        route.method === 'GET'
+      const path = route.path.replace(':id', 'abc123')
+      const init: RequestInit = route.upload
+        ? { method: 'POST', headers: { origin: ORIGIN, 'x-csrf-token': CSRF, cookie: session, 'content-type': 'multipart/form-data; boundary=x', 'content-length': '4' }, body: 'test' }
+        : route.method === 'GET'
           ? { headers: { cookie: session } }
           : { method: route.method, headers: { origin: ORIGIN, 'x-csrf-token': CSRF, cookie: session, 'content-type': 'application/json' }, body: JSON.stringify({ banId: BAN_ID, statement: 's', text: 't', conditionsVersion: 1 }) }
 
-      await send(route.path, init)
+      await send(path, init)
 
-      expect(calls[0]?.url, `${route.method} ${route.path}`).toBe(`http://backend.test:8080${route.backend}`)
+      expect(calls[0]?.url, `${route.method} ${route.path}`).toBe(`http://backend.test:8080${route.backend.replace(':id', 'abc123')}`)
       expect(calls[0]?.method).toBe(route.method)
     }
   })

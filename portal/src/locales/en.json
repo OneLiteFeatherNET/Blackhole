@@ -142,5 +142,66 @@
     "forfeited": "The right to appeal this punishment was lost because the Ban ID was shared publicly. The punishment still runs out on its own, and the team can review it on its own initiative.",
     "frozen": "Your appeal is frozen because the Ban ID was shared publicly. You can no longer write messages here. The team can still answer and decide, and will contact you another way.",
     "limited": "This Ban ID was shared publicly, so only the facts of the punishment are shown. Conversations and decisions are not visible. Contact the team in game if you are the affected player."
+  },
+  "chat": {
+    "attach": "Attach files",
+    "attached": "Attached files",
+    "files": "Attached files",
+    "fileCount": "{count} of {max} files",
+    "dropHere": "Drop the files to attach them",
+    "formatHint": "Formatting: **bold**, *italic*, `code`, lists starting with - or 1., quotes starting with >, and links like [text](https://example.org). There is no preview.",
+    "uploading": "Uploading...",
+    "remove": "Remove {name}",
+    "removeShort": "Remove",
+    "download": "Download {name}",
+    "state": {
+      "uploading": "Uploading",
+      "staged": "Ready to send"
+    },
+    "file": {
+      "pdf": "PDF document",
+      "text": "Text file",
+      "image": "Image"
+    },
+    "share": {
+      "title": "Shared by the moderation team",
+      "noLonger": "No longer shared",
+      "unavailable": "This evidence is no longer available",
+      "excerpt": "Excerpt from the chat",
+      "image": "Shared image"
+    },
+    "lightbox": {
+      "title": "Image",
+      "open": "Open {name}",
+      "close": "Close"
+    },
+    "live": {
+      "reconnecting": "Reconnecting. New messages may take a moment to appear."
+    },
+    "errors": {
+      "TOO_MANY": "You can attach at most {max} files to a message.",
+      "UNSUPPORTED_TYPE": "This file type is not allowed. Use PNG, JPEG, WebP, PDF or plain text.",
+      "TOO_LARGE": "The file is larger than 10 MB.",
+      "FILE_FLAGGED": "The file could not be accepted.",
+      "FILE_ACTIVE_CONTENT": "The file could not be accepted because it contains active content.",
+      "INVALID_FILE": "The file could not be accepted.",
+      "QUOTA": "You have reached the limit of files for this appeal.",
+      "NO_APPEAL": "File an appeal before attaching files.",
+      "FILES_UNAVAILABLE": "One of the files is no longer available. Remove it and try again.",
+      "FORBIDDEN": "Files cannot be added to this conversation.",
+      "CONFLICT": "The file could not be added right now.",
+      "UNAVAILABLE": "Uploads are unavailable right now. Please try again."
+    }
+  },
+  "leave": {
+    "title": "You are leaving OneLiteFeather",
+    "explain": "The next page is not run by OneLiteFeather, and we cannot check what it contains.",
+    "address": "Address",
+    "host": "Website: {host}",
+    "trusted": "This is a OneLiteFeather website.",
+    "warning": "Check the address before you continue. Never enter your Ban ID or a password on a page you did not expect.",
+    "back": "Go back",
+    "continue": "Continue to the website",
+    "invalid": "This link is not valid. Go back and try again."
   }
 }

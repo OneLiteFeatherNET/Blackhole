@@ -64,6 +64,24 @@ describe('translation keys built from values', () => {
     ['conversation.decision', ['DENIED', 'GRANTED_LIFT', 'GRANTED_REDUCTION', 'OTHER']],
     ['conversation.errors', ['FROZEN', 'NO_APPEAL', 'CONFLICT', 'PII_REJECTED', 'VALIDATION', 'TOO_LARGE', 'UNAVAILABLE']],
     ['appealForm.errors', ['NOT_ELIGIBLE', 'NOT_ELIGIBLE_NOW', 'FORFEITED', 'FROZEN', 'CONFLICT', 'PII_REJECTED', 'VALIDATION', 'TOO_LARGE', 'UNAVAILABLE']],
+    [
+      'chat.errors',
+      [
+        'TOO_MANY',
+        'UNSUPPORTED_TYPE',
+        'TOO_LARGE',
+        'FILE_FLAGGED',
+        'FILE_ACTIVE_CONTENT',
+        'INVALID_FILE',
+        'QUOTA',
+        'NO_APPEAL',
+        'FILES_UNAVAILABLE',
+        'FORBIDDEN',
+        'CONFLICT',
+        'UNAVAILABLE',
+      ],
+    ],
+    ['chat.state', ['uploading', 'staged']],
   ]
 
   it.each(dynamic)('%s is defined for every value', (prefix, values) => {

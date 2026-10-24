@@ -7,8 +7,9 @@ import type {
   MessagePosted,
   PunishmentFacts,
   SessionInfo,
+  StagedAttachment,
 } from './contract'
-import { CSRF_HEADER, IDEMPOTENCY_HEADER } from './contract'
+import { CHAT_ID, CSRF_HEADER, IDEMPOTENCY_HEADER } from './contract'
 
 /**
  * The typed client of the browser for the BFF (`/api/**`, see contract.ts). Nothing here touches
@@ -34,8 +35,21 @@ export interface PortalApi {
   appealConditions(): Promise<ApiResult<AppealConditions>>
   appeal(): Promise<ApiResult<AppealStatus>>
   conversation(cursor: number | null): Promise<ApiResult<ConversationPage>>
-  postMessage(text: string, idempotencyKey: string): Promise<ApiResult<MessagePosted>>
+  /** Sends a message: text (optional when files are attached), the staged file ids, and an Idempotency-Key. */
+  postMessage(text: string | undefined, idempotencyKey: string, attachmentIds?: string[]): Promise<ApiResult<MessagePosted>>
+  /** Stages one chat file for the open appeal. Nothing is visible until a message sends it. */
+  uploadAttachment(file: File): Promise<ApiResult<StagedAttachment>>
+  /** Removes a staged file that no message has sent. */
+  deleteAttachment(attachmentId: string): Promise<ApiResult<null>>
 }
+
+/** The URL a chat file is shown or downloaded from (same origin, through the BFF); null for an id that is not a plain token. */
+export function attachmentUrl(id: string): string | null {
+  return CHAT_ID.test(id) ? `/api/attachments/${id}` : null
+}
+
+/** The live stream of the conversation, on the BFF. */
+export const EVENTS_URL = '/api/conversation/events'
 
 export interface PortalApiOptions {
   fetch: typeof fetch
@@ -48,9 +62,10 @@ function unavailable(status = 0): ApiResult<never> {
 }
 
 export function createPortalApi({ fetch: fetchImpl, csrf }: PortalApiOptions): PortalApi {
-  async function call<T>(method: string, path: string, body?: unknown, extra: Record<string, string> = {}): Promise<ApiResult<T>> {
+  async function call<T>(method: string, path: string, body?: unknown, extra: Record<string, string> = {}, form?: FormData): Promise<ApiResult<T>> {
     const headers: Record<string, string> = { accept: 'application/json', ...extra }
-    if (body !== undefined) headers['content-type'] = 'application/json'
+    // A form is sent as it is: the browser sets its multipart type and boundary.
+    if (body !== undefined && form === undefined) headers['content-type'] = 'application/json'
     if (method !== 'GET') {
       const token = csrf()
       if (token) headers[CSRF_HEADER] = token
@@ -60,7 +75,7 @@ export function createPortalApi({ fetch: fetchImpl, csrf }: PortalApiOptions): P
       response = await fetchImpl(path, {
         method,
         headers,
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: form ?? (body === undefined ? undefined : JSON.stringify(body)),
         credentials: 'same-origin',
         cache: 'no-store',
         redirect: 'error',
@@ -96,6 +111,20 @@ export function createPortalApi({ fetch: fetchImpl, csrf }: PortalApiOptions): P
     appealConditions: () => call('GET', '/api/appeal/conditions'),
     appeal: () => call('GET', '/api/appeal'),
     conversation: (cursor) => call('GET', cursor === null ? '/api/conversation' : `/api/conversation?cursor=${cursor}`),
-    postMessage: (text, key) => call('POST', '/api/messages', { text }, { [IDEMPOTENCY_HEADER]: key }),
+    postMessage: (text, key, attachmentIds) => {
+      const body: { text?: string; attachmentIds?: string[] } = {}
+      if (text !== undefined) body.text = text
+      if (attachmentIds !== undefined && attachmentIds.length > 0) body.attachmentIds = attachmentIds
+      return call('POST', '/api/messages', body, { [IDEMPOTENCY_HEADER]: key })
+    },
+    uploadAttachment: (file) => {
+      const form = new FormData()
+      form.append('file', file, file.name)
+      return call('POST', '/api/attachments', undefined, {}, form)
+    },
+    deleteAttachment: (attachmentId) => {
+      if (!CHAT_ID.test(attachmentId)) return Promise.resolve({ ok: false, error: { status: 404, code: 'NOT_FOUND' } })
+      return call('DELETE', `/api/attachments/${attachmentId}`)
+    },
   }
 }
