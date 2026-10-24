@@ -3,7 +3,7 @@ package net.onelitefeather.blackhole.backend.casetimeline;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
+import net.onelitefeather.blackhole.backend.support.SnapshotLogAppender;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseConversationDTO;
 import net.onelitefeather.blackhole.backend.casetimeline.service.CaseConversationService;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
@@ -46,7 +46,7 @@ class CaseConversationNoLeakTest {
     private final CaseConversationService service = new CaseConversationService(
             this.punishments.repository(), this.store, this.store, this.log, this.events, this.clock, this.banIds.service, new net.onelitefeather.blackhole.backend.support.RecordingProtocols());
     private final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    private final SnapshotLogAppender appender = new SnapshotLogAppender();
     private Level previousLevel;
 
     @BeforeEach
@@ -78,8 +78,8 @@ class CaseConversationNoLeakTest {
         CaseConversationDTO.Transcript text = assertInstanceOf(CaseConversationDTO.Transcript.class, this.service.exportTranscript(ID, "text", true, ADMIN));
 
         assertInstanceOf(CaseConversationDTO.ReissueResponse.class, reissued);
-        assertFalse(this.appender.list.isEmpty(), "precondition: the flows log something (the collision retry)");
-        for (ILoggingEvent line : this.appender.list) {
+        assertFalse(this.appender.snapshot().isEmpty(), "precondition: the flows log something (the collision retry)");
+        for (ILoggingEvent line : this.appender.snapshot()) {
             assertNoBanId(banId, line.getFormattedMessage());
             assertNoBanId(banId, String.valueOf(line.getThrowableProxy()));
         }

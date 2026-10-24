@@ -3,7 +3,7 @@ package net.onelitefeather.blackhole.backend.banid;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
+import net.onelitefeather.blackhole.backend.support.SnapshotLogAppender;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import net.onelitefeather.blackhole.backend.PostgresIntegrationTest;
@@ -46,7 +46,7 @@ class BanIdReissueAllIntegrationTest extends PostgresIntegrationTest {
             " FROM case_event WHERE punishment_identifier = 'p001' AND type = 'ban_id.reissued'";
 
     private final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    private final SnapshotLogAppender appender = new SnapshotLogAppender();
     private Level previousLevel;
 
     private CaseDatabase db;
@@ -242,7 +242,7 @@ class BanIdReissueAllIntegrationTest extends PostgresIntegrationTest {
         List<String> secrets = new ArrayList<>(old.values());
         old.keySet().forEach(id -> secrets.add(currentBanId(id)));
         StringBuilder observed = new StringBuilder();
-        appender.list.forEach(e -> observed.append(e.getFormattedMessage()).append('\n'));
+        appender.snapshot().forEach(e -> observed.append(e.getFormattedMessage()).append('\n'));
         for (Meter meter : meters.getMeters()) {
             observed.append(meter.getId()).append('\n');
         }

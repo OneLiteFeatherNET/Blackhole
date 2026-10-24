@@ -3,9 +3,9 @@ package net.onelitefeather.blackhole.backend.support;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 
 import java.time.Clock;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * A {@link DomainEventPublisher} over an in-memory {@link RecordingEventTransport}: it records
@@ -20,7 +20,7 @@ public class RecordingEventPublisher extends DomainEventPublisher {
     private final List<Event> events;
 
     public RecordingEventPublisher() {
-        this(new ArrayList<>());
+        this(new CopyOnWriteArrayList<>());
     }
 
     private RecordingEventPublisher(List<Event> events) {

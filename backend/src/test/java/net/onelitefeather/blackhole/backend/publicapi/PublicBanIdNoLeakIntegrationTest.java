@@ -3,14 +3,15 @@ package net.onelitefeather.blackhole.backend.publicapi;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micronaut.http.HttpMethod;
+import net.onelitefeather.blackhole.backend.support.SnapshotLogAppender;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PublicBanIdNoLeakIntegrationTest extends PublicApiTestBase {
 
     private final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
-    private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    private final SnapshotLogAppender appender = new SnapshotLogAppender();
     private Level previousLevel;
 
     @AfterEach
@@ -69,8 +70,9 @@ class PublicBanIdNoLeakIntegrationTest extends PublicApiTestBase {
         for (Raw response : new Raw[]{login, failedWithBanIdInBrokenBody, filed, rejected, posted, facts, conversation, appeal, session, limited}) {
             assertNoBanId(banId, "a response", response.body());
         }
-        assertFalse(this.appender.list.isEmpty(), "precondition: the flow logs something");
-        for (ILoggingEvent line : this.appender.list) {
+        List<ILoggingEvent> lines = this.appender.snapshot();
+        assertFalse(lines.isEmpty(), "precondition: the flow logs something");
+        for (ILoggingEvent line : lines) {
             assertNoBanId(banId, "a log line of " + line.getLoggerName(), line.getFormattedMessage());
             assertNoBanId(banId, "a log throwable", String.valueOf(line.getThrowableProxy()));
             assertNoBanId(banId, "a log argument", String.valueOf(java.util.Arrays.toString(line.getArgumentArray())));

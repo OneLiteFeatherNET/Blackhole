@@ -3,7 +3,7 @@ package net.onelitefeather.blackhole.backend.punishment;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
+import net.onelitefeather.blackhole.backend.support.SnapshotLogAppender;
 import net.onelitefeather.blackhole.backend.events.DomainEvent;
 import net.onelitefeather.blackhole.backend.events.EventConsumers;
 import net.onelitefeather.blackhole.backend.support.FakeEventSubscriptions;
@@ -25,7 +25,7 @@ class RedisSyncConsumerTest {
     private final FakeEventSubscriptions subscriptions = new FakeEventSubscriptions();
     private final List<DomainEvent> handled = new ArrayList<>();
     private boolean failing;
-    private final ListAppender<ILoggingEvent> log = new ListAppender<>();
+    private final SnapshotLogAppender log = new SnapshotLogAppender();
     private final Logger logger = (Logger) LoggerFactory.getLogger(RedisSyncConsumer.class);
 
     private final PunishmentSyncHandler handler = new PunishmentSyncHandler(null) {
@@ -79,8 +79,8 @@ class RedisSyncConsumerTest {
         assertDoesNotThrow(() -> this.subscriptions.deliver(event()),
                 "the handler must not throw: the adapter acks when it returns");
 
-        assertTrue(this.log.list.stream().anyMatch(e -> e.getLevel() == Level.ERROR),
-                "the failure must be logged, got " + this.log.list);
+        assertTrue(this.log.snapshot().stream().anyMatch(e -> e.getLevel() == Level.ERROR),
+                "the failure must be logged, got " + this.log.snapshot());
     }
 
     @Test
