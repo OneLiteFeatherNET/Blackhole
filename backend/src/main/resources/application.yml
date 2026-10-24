@@ -197,6 +197,17 @@ blackhole:
     share:
       # Most lines of a chat capture one share may show to the player; there is no "share all".
       max-lines: ${BLACKHOLE_CHAT_SHARE_MAX_LINES:20}
+    # Live updates of the chat over Server-Sent Events (the player's stream and the case's stream). A stream holds state on this
+    # replica, so these bound that state; none of them is a rate limit. Until the bus adapter exists, a change raised on another
+    # replica reaches a stream here only through the client's 30 second safety poll.
+    live:
+      # Most open live streams on this replica, players and staff together. Beyond it a new stream answers 503 and the client polls.
+      max-streams: ${BLACKHOLE_CHAT_LIVE_MAX_STREAMS:2000}
+      # How often a keep-alive comment is sent on an open stream, and how often a player's session is checked. Keep it well below the
+      # idle timeout of the tunnel and the proxies (about 100 seconds on Cloudflare).
+      keep-alive: ${BLACKHOLE_CHAT_LIVE_KEEP_ALIVE:PT15S}
+      # How long a stream may stay open before the server ends it and the client reconnects with its Last-Event-ID.
+      max-lifetime: ${BLACKHOLE_CHAT_LIVE_MAX_LIFETIME:PT30M}
   # Swagger / OpenAPI views are only served when enabled (default off; on in the dev profile) and
   # then need the VIEWER role.
   docs:

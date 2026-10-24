@@ -29,6 +29,9 @@ public class JdbcPlayerSessionStore implements PlayerSessionStore {
                               WHERE c.punishment_identifier = s.punishment_identifier AND c.ban_id_leaked_at IS NOT NULL)
             """;
 
+    /** Reads only: the same liveness test as {@link #TOUCH}, without moving the idle timer. */
+    private static final String ALIVE = "SELECT 1 FROM player_session WHERE token_hash = ? AND expires_at > ? AND last_seen_at + ? > ?";
+
     private static final String DELETE = "DELETE FROM player_session WHERE token_hash = ?";
     private static final String SWEEP = "DELETE FROM player_session WHERE expires_at <= ? OR last_seen_at + ? <= ?";
 
@@ -76,6 +79,21 @@ public class JdbcPlayerSessionStore implements PlayerSessionStore {
                 }
                 PlayerScope scope = rows.getBoolean(5) ? PlayerScope.LIMITED : PlayerScope.valueOf(rows.getString(2));
                 return Optional.of(new Live(rows.getString(1), scope, rows.getString(3), rows.getLong(4)));
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("could not read a player session", e);
+        }
+    }
+
+    @Override
+    public boolean alive(String tokenHash, long now, long idleMillis) {
+        try (Connection connection = this.dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(ALIVE)) {
+            statement.setString(1, tokenHash);
+            statement.setLong(2, now);
+            statement.setLong(3, idleMillis);
+            statement.setLong(4, now);
+            try (ResultSet rows = statement.executeQuery()) {
+                return rows.next();
             }
         } catch (SQLException e) {
             throw new IllegalStateException("could not read a player session", e);

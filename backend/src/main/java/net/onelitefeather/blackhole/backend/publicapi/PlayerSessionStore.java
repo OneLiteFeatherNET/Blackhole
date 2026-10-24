@@ -25,6 +25,12 @@ public interface PlayerSessionStore {
      */
     Optional<Live> touch(String tokenHash, long now, long idleMillis);
 
+    /**
+     * Whether a session is neither idle nor past its absolute limit. It is a read: it never slides the idle timer, so a live stream's
+     * keep-alive cannot keep the session open.
+     */
+    boolean alive(String tokenHash, long now, long idleMillis);
+
     /** Deletes one session; whether there was one. */
     boolean delete(String tokenHash);
 

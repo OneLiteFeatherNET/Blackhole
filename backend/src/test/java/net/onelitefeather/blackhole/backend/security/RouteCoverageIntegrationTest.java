@@ -182,7 +182,14 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /appeal-conditions", V),
             Map.entry("GET /appeal-conditions/versions", V),
             Map.entry("POST /appeal-conditions", A),
-            Map.entry("POST /public/messages", PLAYER)
+            Map.entry("POST /public/messages", PLAYER),
+            // chat files and the live signal: a player's own staged file, download and removal, and the conversation's stream
+            Map.entry("POST /public/attachments", PLAYER),
+            Map.entry("GET /public/attachments/{id}", PLAYER),
+            Map.entry("DELETE /public/attachments/{id}", PLAYER),
+            Map.entry("GET /public/conversation/events", PLAYER),
+            // the case's live signal: viewers and above (the proxy and the Discord bot are denied)
+            Map.entry("GET /case/{reference}/events", V)
     );
 
     /** Routes without @Secured, protected by the intercept-url-map or public (see application.yml). */
