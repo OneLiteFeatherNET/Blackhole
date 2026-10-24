@@ -22,6 +22,10 @@ public final class Permissions {
     public static final String REPORT_BYPASS = "blackhole.report.bypass";
     /** Staff holding it are told about new reports in game. */
     public static final String REPORT_NOTIFY = "blackhole.report.notify";
+    /** Staff holding it are told about client rule hits in game. */
+    public static final String CLIENT_RULES_NOTIFY = "blackhole.clientrules.notify";
+    /** Staff holding it are never refused or punished by a client rule; their hits are still recorded as bypassed. */
+    public static final String CLIENT_RULES_BYPASS = "blackhole.clientrules.bypass";
 
     private final Predicate<String> granted;
 

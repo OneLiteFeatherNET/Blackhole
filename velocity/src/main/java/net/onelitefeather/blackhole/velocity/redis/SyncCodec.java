@@ -5,7 +5,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
+import net.onelitefeather.blackhole.client.model.ClientRuleResponse;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
+import net.onelitefeather.blackhole.velocity.clientrule.ClientRule;
 import net.onelitefeather.blackhole.velocity.section.SectionInfo;
 import net.onelitefeather.blackhole.client.model.SectionResponse;
 
@@ -51,6 +53,19 @@ public final class SyncCodec {
             List<SectionResponse> sections = this.models.readValue(json, new TypeReference<List<SectionResponse>>() {
             });
             return Optional.of(sections.stream().map(SectionInfo::of).toList());
+        } catch (JsonProcessingException | RuntimeException e) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * @return the enabled client rules of a shared-cache entry, empty if it is not a rule list
+     */
+    public Optional<List<ClientRule>> clientRules(String json) {
+        try {
+            List<ClientRuleResponse> rules = this.models.readValue(json, new TypeReference<List<ClientRuleResponse>>() {
+            });
+            return Optional.of(rules.stream().filter(rule -> !Boolean.FALSE.equals(rule.getEnabled())).map(ClientRule::of).toList());
         } catch (JsonProcessingException | RuntimeException e) {
             return Optional.empty();
         }

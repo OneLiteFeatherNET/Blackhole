@@ -75,6 +75,12 @@ public class BlackholeConfig {
     private CloudNetConfig cloudnet;
 
     /**
+     * The client rules (collection, enforcement, fingerprint submission and the editor catalogue). Absent in configs
+     * written before this setting existed, which {@link #getClientRules()} treats as the defaults.
+     */
+    private ClientRulesConfig clientRules;
+
+    /**
      * Creates a new configuration with default values.
      */
     public BlackholeConfig() {
@@ -88,6 +94,14 @@ public class BlackholeConfig {
         this.evidence = new EvidenceConfig();
         this.auth = new AuthConfig();
         this.cloudnet = new CloudNetConfig();
+        this.clientRules = new ClientRulesConfig();
+    }
+
+    /**
+     * @return the client rule settings; the defaults for configs written before they existed
+     */
+    public @NotNull ClientRulesConfig getClientRules() {
+        return clientRules == null ? new ClientRulesConfig() : clientRules;
     }
 
     /**
