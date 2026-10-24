@@ -315,7 +315,7 @@ public class ProfileController {
      * not overwritten - {@code protocolVersion} arrives at login, {@code clientBrand} arrives
      * slightly later as a separate plugin-channel negotiation, so a single call rarely has both.
      * Not cache-invalidated deliberately - this is telemetry, not a punishment action, so a
-     * brief staleness window is an acceptable tradeoff against extra RabbitMQ chatter on every
+     * brief staleness window is an acceptable tradeoff against extra event bus chatter on every
      * single login.
      */
     @Operation(

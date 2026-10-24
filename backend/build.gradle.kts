@@ -34,7 +34,7 @@ dependencies {
     implementation(mn.micronaut.hibernate.jpa)
     implementation(mn.micronaut.flyway)
     runtimeOnly("org.flywaydb:flyway-database-postgresql")
-    implementation(mn.micronaut.rabbitmq)
+    implementation(libs.nats.jnats)
     implementation(mn.micronaut.redis.lettuce)
     implementation(mn.micronaut.hibernate.validator)
     implementation(mn.micronaut.data.tx.hibernate)
@@ -70,9 +70,8 @@ dependencies {
     testImplementation(mn.junit.jupiter.params)
     testRuntimeOnly(mn.junit.jupiter.engine)
     testImplementation(mn.micronaut.test.junit5)
-    // Integration tests run against real PostgreSQL/RabbitMQ/Redis containers (Testcontainers).
+    // Integration tests run against real PostgreSQL/NATS/Redis containers (Testcontainers).
     testImplementation(mn.testcontainers.postgres)
-    testImplementation(mn.testcontainers.rabbitmq)
     testImplementation(mn.testcontainers.redis)
     testImplementation("org.testcontainers:junit-jupiter")
 }
