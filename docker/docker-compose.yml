@@ -14,17 +14,7 @@ services:
       - ./postgres/data/:/var/lib/postgresql/data
     networks:
       - blackhole_go_net
-  rabbitmq:
-    image: rabbitmq:4-management
-    container_name: 'rabbitmq_blackhole'
-    networks:
-      - blackhole_go_net
-    shm_size: 128mb
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-      - "15692:15692"
-  # NATS with JetStream will carry the domain event bus (subjects blackhole.events.<type>, stream
+  # NATS with JetStream carries the domain event bus (subjects blackhole.events.<type>, stream
   # BLACKHOLE_EVENTS). The tag matches the server of the feather-core NATS chart (2.15.1). Local
   # development runs without authentication. 4222 is the client port, 8222 the monitoring port
   # (http://localhost:8222/jsz reports the JetStream state).
@@ -172,7 +162,7 @@ services:
       dockerfile: discord/Dockerfile
     container_name: 'discord_blackhole'
     depends_on:
-      - rabbitmq
+      - nats
     environment:
       DISCORD_TOKEN: ${DISCORD_TOKEN:-}
       DISCORD_GUILD_ID: ${DISCORD_GUILD_ID:-}
@@ -189,9 +179,9 @@ services:
       DISCORD_LEAK_SCAN_CHANNELS: ${DISCORD_LEAK_SCAN_CHANNELS:-}
       BLACKHOLE_BACKEND_URL: ${BLACKHOLE_BACKEND_URL:-http://host.docker.internal:8080}
       BLACKHOLE_PANEL_URL: ${BLACKHOLE_PANEL_URL:-http://localhost:8081}
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      # Local NATS has no authentication; set NATS_CREDS_FILE (and mount the file) for a server that needs it.
+      NATS_URL: ${NATS_URL:-nats://nats:4222}
+      NATS_CREDS_FILE: ${NATS_CREDS_FILE:-}
       BLACKHOLE_DISCORD_TENANT_ID: ${BLACKHOLE_DISCORD_TENANT_ID:-}
       BLACKHOLE_DISCORD_CLIENT_ID: ${BLACKHOLE_DISCORD_CLIENT_ID:-}
       BLACKHOLE_DISCORD_CLIENT_SECRET: ${BLACKHOLE_DISCORD_CLIENT_SECRET:-}
