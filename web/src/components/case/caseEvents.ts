@@ -58,6 +58,11 @@ const KNOWN: Record<string, EventInfo> = {
   'ban_id.leak_marked': { key: 'banIdLeakMarked', icon: 'lock' },
   'ban_id.reissued': { key: 'banIdReissued', icon: 'lock' },
   'transcript.exported': { key: 'transcriptExported', icon: 'download' },
+  'protocol.stored': { key: 'protocolStored', icon: 'download' },
+  'ticket.opened': { key: 'ticketOpened', icon: 'chat' },
+  'ticket.transcript_complete': { key: 'ticketTranscriptComplete', icon: 'verified' },
+  'ticket.archived': { key: 'ticketArchived', icon: 'lock' },
+  'ticket.channel_deleted': { key: 'ticketChannelDeleted', icon: 'delete' },
 }
 
 /** Unknown types (a newer backend, a reserved portal type) are shown generically, never dropped. */
@@ -71,7 +76,7 @@ export function eventInfo(type: string): EventInfo & { known: boolean } {
 export const isNoteVersion = (event: CaseTimelineItem): boolean => event.type === 'note.added' || event.type === 'note.edited'
 
 /** The timeline groups the backend accepts as a type filter. */
-export const TYPE_GROUPS = ['punishment', 'appeal', 'evidence', 'case', 'note', 'message', 'ban_id', 'transcript'] as const
+export const TYPE_GROUPS = ['punishment', 'appeal', 'evidence', 'case', 'note', 'message', 'ban_id', 'transcript', 'ticket'] as const
 
 /** Payload values by key; the payload is typed loosely because unknown types carry anything. */
 export function field(event: CaseTimelineItem, key: string): unknown {

@@ -54,10 +54,10 @@ Stacked PRs: `feat(discord): add the discord account link api` (V14, client spec
 
 ## 5. Panel (PR 5, `feat(web)`)
 
-- [ ] 5.1 API types and client methods; fake-client tests
-- [ ] 5.2 Case page: ticket status block, Discord/author-trust labels, missing-transcript banner, poster info on the leak entry, participant erasure dialog; no Discord ids rendered
-- [ ] 5.3 Account-link dialog: Discord `/link` hint, state and unlink
-- [ ] 5.4 de/en strings, `i18n.keys.test.ts` parity, live regions, role gating tests; verify `npm test` and the type check
+- [x] 5.1 API types and client methods; fake-client tests
+- [x] 5.2 Case page: ticket status block, Discord/author-trust labels, missing-transcript banner, poster info on the leak entry, participant erasure dialog; no Discord ids rendered
+- [x] 5.3 Account-link dialog: Discord `/link` hint, state and unlink
+- [x] 5.4 de/en strings, `i18n.keys.test.ts` parity, live regions, role gating tests; verify `npm test` and the type check
 
 ## 6. Deployment and docs (PR 6, `docs(discord)`, plus `ci(discord)` for the workflow lines)
 

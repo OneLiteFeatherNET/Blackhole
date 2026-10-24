@@ -13,7 +13,7 @@
     "test": "vitest run",
     "pretest": "npm run generate",
     "test:watch": "vitest",
-    "generate:api": "openapi-typescript ../client/specs/blackhole-api-0.0.29.yml -o src/api/schema.d.ts",
+    "generate:api": "openapi-typescript ../client/specs/blackhole-api-0.0.32.yml -o src/api/schema.d.ts",
     "generate": "node scripts/generate-md3-tokens.mjs && npm run generate:api",
     "typecheck": "vue-tsc --noEmit"
   },

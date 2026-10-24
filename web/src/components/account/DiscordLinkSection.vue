@@ -111,6 +111,8 @@ onBeforeUnmount(stopTimer)
       <span v-else>{{ t('account.discord.unlinkedStatus') }}</span>
     </p>
 
+    <p class="text-body-medium text-on-surface-variant" data-testid="discord-access-hint">{{ t('account.discord.accessHint') }}</p>
+
     <div v-if="code" class="flex flex-col gap-3 rounded-md-md bg-surface-container-highest p-4">
       <div class="flex flex-wrap items-center gap-3">
         <p data-testid="discord-code" class="font-mono text-headline-large tracking-widest text-on-surface">{{ code }}</p>

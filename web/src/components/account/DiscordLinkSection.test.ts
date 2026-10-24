@@ -28,6 +28,17 @@ beforeEach(() => {
 })
 afterEach(() => vi.useRealTimers())
 
+describe('DiscordLinkSection: ticket channel access', () => {
+  it('tells staff that only linked accounts can open the ticket channels', async () => {
+    const { wrapper } = await setup().mount()
+
+    expect(byId(wrapper, 'discord-access-hint').text()).toContain('Only staff with a linked Discord account')
+    expect(byId(wrapper, 'discord-access-hint').text()).toContain('/link')
+
+    wrapper.unmount()
+  })
+})
+
 describe('DiscordLinkSection: status', () => {
   it('says "Discord not linked" in words and with an icon', async () => {
     const { wrapper } = await setup().mount()

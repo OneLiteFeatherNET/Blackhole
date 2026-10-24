@@ -20,6 +20,8 @@ import type {
   CaseMessageResult,
   CaseTimelineItem,
   CaseTranscriptEraseResult,
+  CaseParticipantErasure,
+  CaseProtocolVersion,
   TranscriptFormat,
   TranscriptFile,
   ApplyPreview,
@@ -203,6 +205,13 @@ export interface BlackholeApi {
   redactCaseMessage(reference: string, messageId: string, reason: NoteRedactionReason): Promise<ApiResult<CaseMessageRedactResult>>
   /** Redacts every message the player wrote in this case (ADMIN only); staff messages stay. */
   eraseCasePlayerMessages(reference: string, reason: NoteRedactionReason): Promise<ApiResult<CaseTranscriptEraseResult>>
+  /**
+   * Erases a Discord participant of the case (ADMIN only): the stored Discord id and name go, the timeline
+   * keeps an anonymous author. The participant id comes from a message's author, never a Discord id.
+   */
+  eraseCaseParticipant(reference: string, participantId: string): Promise<ApiResult<CaseParticipantErasure>>
+  /** The readable protocol versions of every appeal of the case, newest first. */
+  caseProtocols(reference: string): Promise<ApiResult<CaseProtocolVersion[]>>
   /** Marks the Ban ID leaked (MODERATOR and above). The Ban ID is in neither request nor response. */
   markBanIdLeaked(reference: string, reason: BanIdLeakReason): Promise<ApiResult<CaseBanIdLeakResult>>
   /** Replaces a leaked Ban ID (ADMIN only). The new one is not returned: {@link revealBanId} shows it. */
@@ -217,7 +226,8 @@ const EVIDENCE_PAGE_SIZE = 20
 
 const PAGE_SIZE = 200
 /** What the conversation reads of the timeline: a type group and an exact type. */
-const CONVERSATION_TYPES = ['message', 'ban_id.leak_marked']
+/** `ticket` is the Discord ticket lifecycle, `protocol.stored` the stored protocol versions, `appeal.decided` closes a ticket. */
+const CONVERSATION_TYPES = ['message', 'ban_id.leak_marked', 'ticket', 'protocol.stored', 'appeal.decided']
 const CONVERSATION_PAGE_SIZE = 200
 const CONVERSATION_MAX_PAGES = 10
 const MAX_PAGES = 25
@@ -664,6 +674,12 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     eraseCasePlayerMessages: (reference, reason) =>
       toResult(http.POST('/case/{reference}/transcript/erase-player', { params: { path: { reference } }, body: { reason } })),
+
+    eraseCaseParticipant: (reference, participantId) =>
+      toResult(http.POST('/case/{reference}/participants/{participantId}/erase', { params: { path: { reference, participantId } } })),
+
+    caseProtocols: async (reference) =>
+      map(await toResult(http.GET('/case/{reference}/protocol', { params: { path: { reference } } })), (body) => body.items),
 
     markBanIdLeaked: (reference, reason) =>
       toResult(http.POST('/case/{reference}/ban-id/leak', { params: { path: { reference } }, body: { reason } })),
