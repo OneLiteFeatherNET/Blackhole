@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.velocity.punish;
 
 import net.onelitefeather.blackhole.client.invoker.ApiException;
+import net.onelitefeather.blackhole.client.model.DiscordLinkCodeResponse;
 import net.onelitefeather.blackhole.client.model.EloProfileResponse;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.ReportCategory;
@@ -100,4 +101,10 @@ public interface BackendGateway {
 
     /** Tells the backend that a feedback message was shown, so it is not delivered again. */
     void acknowledgeReportFeedback(UUID identifier) throws ApiException;
+
+    /**
+     * @param owner the player's hashed owner, never the raw UUID
+     * @return a one-time code to link the player's Discord account
+     */
+    DiscordLinkCodeResponse issueDiscordLinkCode(String owner) throws ApiException;
 }
