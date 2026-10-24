@@ -1,0 +1,172 @@
+{{- if include "blackhole.clamavWorkload" . }}
+{{- $v := .Values.clamav }}
+{{- $d := dict "ctx" . "component" "clamav" "values" $v }}
+{{- $name := include "blackhole.fullname" $d }}
+{{- /*
+ClamAV (clamd) for the evidence upload scan. It runs in the release's namespace because feather-core has no
+shared scanner. The signature database (about 300 MB) lives on a PVC, so a restart does not download it
+again; freshclam keeps it current inside the pod, which needs egress to the ClamAV mirror.
+
+clamav.unprivileged (default): the image ships /init-unprivileged, which skips the chown and the privilege
+drop of /init. clamd.conf is then mounted from the ConfigMap, because /init rewrites it from CLAMD_CONF_*
+at start and a read-only root file system cannot allow that. The CLAMD_CONF_* variables stay set for the
+root entrypoint and for anyone comparing with docker-compose.
+*/ -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- with $v.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $v.persistence.size }}
+{{- if $v.unprivileged }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+data:
+  clamd.conf: |
+    # Rendered by the Blackhole chart for the unprivileged start (/init-unprivileged).
+    # The entrypoint waits for the socket below, so it must stay at /tmp/clamd.sock.
+    LocalSocket /tmp/clamd.sock
+    TCPSocket 3310
+    LogTime yes
+    StreamMaxLength {{ $v.limits.streamMaxLength }}
+    MaxFileSize {{ $v.limits.maxFileSize }}
+    MaxScanSize {{ $v.limits.maxScanSize }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+spec:
+  # One scanner; Recreate because the PVC is ReadWriteOnce and two clamd would share one database.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "blackhole.selectorLabels" $d | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "blackhole.podLabels" $d | nindent 8 }}
+      annotations:
+        {{- include "blackhole.podAnnotations" (dict "values" $v) | nindent 8 }}
+    spec:
+      serviceAccountName: {{ $name }}
+      {{- include "blackhole.podDefaults" . | nindent 6 }}
+      securityContext:
+        {{- if $v.unprivileged }}
+        {{- toYaml $v.podSecurityContext | nindent 8 }}
+        {{- else }}
+        # The image's root entrypoint chowns the database and drops to the clamav user itself. This is the
+        # one place the chart leaves the restricted Pod Security profile; the namespace must be baseline.
+        seccompProfile:
+          type: RuntimeDefault
+        {{- end }}
+      containers:
+        - name: clamav
+          image: {{ include "blackhole.image" (dict "ctx" . "image" $v.image "app" false) }}
+          imagePullPolicy: {{ $v.image.pullPolicy }}
+          {{- if $v.unprivileged }}
+          command: ["/init-unprivileged"]
+          {{- end }}
+          securityContext:
+            {{- if $v.unprivileged }}
+            {{- toYaml $v.securityContext | nindent 12 }}
+            {{- else }}
+            allowPrivilegeEscalation: false
+            {{- end }}
+          ports:
+            - name: clamd
+              containerPort: 3310
+              protocol: TCP
+          env:
+            {{- $env := dict
+                  "CLAMD_CONF_StreamMaxLength" $v.limits.streamMaxLength
+                  "CLAMD_CONF_MaxFileSize" $v.limits.maxFileSize
+                  "CLAMD_CONF_MaxScanSize" $v.limits.maxScanSize }}
+            {{- range $key, $value := $v.env }}{{- $_ := set $env $key $value }}{{- end }}
+            {{- include "blackhole.env" $env | nindent 12 }}
+          startupProbe:
+            {{- toYaml $v.startupProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml $v.readinessProbe | nindent 12 }}
+          livenessProbe:
+            {{- toYaml $v.livenessProbe | nindent 12 }}
+          resources:
+            {{- toYaml $v.resources | nindent 12 }}
+          volumeMounts:
+            - name: signatures
+              mountPath: /var/lib/clamav
+            {{- if $v.unprivileged }}
+            - name: tmp
+              mountPath: /tmp
+            - name: logs
+              mountPath: /var/log/clamav
+            - name: config
+              mountPath: /etc/clamav/clamd.conf
+              subPath: clamd.conf
+              readOnly: true
+            {{- end }}
+      volumes:
+        - name: signatures
+          persistentVolumeClaim:
+            claimName: {{ $name }}
+        {{- if $v.unprivileged }}
+        - name: tmp
+          emptyDir:
+            sizeLimit: 512Mi
+        - name: logs
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: config
+          configMap:
+            name: {{ $name }}
+        {{- end }}
+      {{- include "blackhole.scheduling" (dict "ctx" . "component" "clamav" "values" $v) | nindent 6 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "blackhole.selectorLabels" $d | nindent 4 }}
+  ports:
+    - name: clamd
+      port: 3310
+      targetPort: clamd
+      protocol: TCP
+{{- end }}

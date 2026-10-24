@@ -11,7 +11,7 @@ Order: 1 -> 2 -> 3/4/5 (independent after 2) -> 6 -> 7 -> 8. Group 9 starts when
 
 ## 1. Chart skeleton and images (PR 1, `build(deploy)`)
 
-- [ ] 1.1 Failing tests first: `deploy/charts/blackhole/tests/render.sh` (plain shell, runs `helm lint` and `helm template` over `ci/*-values.yaml`, asserts with `grep`/`yq`): default values render, unknown top-level key fails the schema, `scan.enabled` without a scanner fails, every Deployment sets `runAsNonRoot`, `seccompProfile`, dropped capabilities and a memory limit
+- [x] 1.1 Failing tests first: `deploy/charts/blackhole/tests/render.sh` (plain shell, runs `helm lint` and `helm template` over `ci/*-values.yaml`, asserts with `grep`/`yq`): default values render, unknown top-level key fails the schema, `scan.enabled` without a scanner fails, every Deployment sets `runAsNonRoot`, `seccompProfile`, dropped capabilities and a memory limit
 - [x] 1.2 `Chart.yaml` (`version`/`appVersion` with `# x-release-please-version`), `values.yaml`, `values.schema.json`, `_helpers.tpl` (names, labels, image reference with the `appVersion` fallback, env-map rendering, `secretRevision` annotation), `.helmignore`, `README.md` with the values table
 - [x] 1.3 Add `deploy/charts/blackhole/Chart.yaml` to `release-please-config.json` `extra-files` (generic)
 - [x] 1.4 Check which user the generated `optimizedDockerfile` image runs as; if root, add the `USER`/`runAsUser` handling (Gradle `dockerfile` customisation) so `runAsNonRoot` can be enforced; record the uid in the chart README
@@ -20,37 +20,37 @@ Order: 1 -> 2 -> 3/4/5 (independent after 2) -> 6 -> 7 -> 8. Group 9 starts when
 
 ## 2. Application workloads (PR 2, `feat(deploy)`)
 
-- [ ] 2.1 Failing tests first (`tests/workloads.sh`): backend env map renders `JDBC_*`, `REDIS_URI`, `BLACKHOLE_BANID_KEY` and `BLACKHOLE_EVASION_IP_SALT` only through `secretKeyRef`/`envFrom` (no literal secret value in any render); `secretRevision` appears as a pod annotation; `JAVA_TOOL_OPTIONS` survives an overlay that adds one env variable (maps merge, lists do not); backend `startupProbe` allows 10 minutes; discord has `Recreate` and 1 replica; PDB exists only with more than one replica; web/portal env equals the table in `design.md`
-- [ ] 2.2 Backend: Deployment (`RollingUpdate`, `maxUnavailable: 0`), Service (ClusterIP), ConfigMap from `backend.config`, PDB, ServiceAccount (`automountServiceAccountToken: false`), probes on `/health/liveness` and `/health/readiness`, JVM flags, `logs.onelitefeather.net/*` labels, `OTEL_*` env
-- [ ] 2.3 Web and portal: Deployments, Services, PDBs, probes on `/healthz`, runtime env from `oidc.*` / `origin` / `backendUrl`; the portal schema requires an https origin outside `local` values
-- [ ] 2.4 Discord: Deployment, ConfigMap for the ids and intervals, Secret references for the token and client secret, the NATS credentials mount (variable names from `switch-event-bus-to-nats`, kept in one values block), health on 8082
-- [ ] 2.5 Evidence limits: values keep `BLACKHOLE_EVIDENCE_FILES_MAX_VIDEO_BYTES` and `BLACKHOLE_UI_EVIDENCE_MAX_VIDEO_BYTES` equal (schema check) and at most 94371840 when an Ingress for the panel is enabled
-- [ ] 2.6 Verify: `tests/workloads.sh` and `tests/render.sh` green; kubeconform (group 6 wires it into CI)
+- [x] 2.1 Failing tests first (`tests/workloads.sh`): backend env map renders `JDBC_*`, `REDIS_URI`, `BLACKHOLE_BANID_KEY` and `BLACKHOLE_EVASION_IP_SALT` only through `secretKeyRef`/`envFrom` (no literal secret value in any render); `secretRevision` appears as a pod annotation; `JAVA_TOOL_OPTIONS` survives an overlay that adds one env variable (maps merge, lists do not); backend `startupProbe` allows 10 minutes; discord has `Recreate` and 1 replica; PDB exists only with more than one replica; web/portal env equals the table in `design.md`
+- [x] 2.2 Backend: Deployment (`RollingUpdate`, `maxUnavailable: 0`), Service (ClusterIP), ConfigMap from `backend.config`, PDB, ServiceAccount (`automountServiceAccountToken: false`), probes on `/health/liveness` and `/health/readiness`, JVM flags, `logs.onelitefeather.net/*` labels, `OTEL_*` env
+- [x] 2.3 Web and portal: Deployments, Services, PDBs, probes on `/healthz`, runtime env from `oidc.*` / `origin` / `backendUrl`; the portal schema requires an https origin outside `local` values
+- [x] 2.4 Discord: Deployment, ConfigMap for the ids and intervals, Secret references for the token and client secret, the NATS credentials mount (variable names from `switch-event-bus-to-nats`, kept in one values block), health on 8082
+- [x] 2.5 Evidence limits: values keep `BLACKHOLE_EVIDENCE_FILES_MAX_VIDEO_BYTES` and `BLACKHOLE_UI_EVIDENCE_MAX_VIDEO_BYTES` equal (schema check) and at most 94371840 when an Ingress for the panel is enabled
+- [x] 2.6 Verify: `tests/workloads.sh` and `tests/render.sh` green; kubeconform (group 6 wires it into CI)
 
 ## 3. ClamAV (PR 3, `feat(deploy)`)
 
-- [ ] 3.1 Failing tests first: clamav Deployment with `Recreate`, a PVC at `/var/lib/clamav`, `CLAMD_CONF_*` env equal to compose, Service `3310`, memory limit at least 3Gi; the backend scan host resolves to that Service; with `clamav.externalHost` set no ClamAV workload is rendered and the backend uses the external host
-- [ ] 3.2 Templates: Deployment, Service, PVC (`persistence.size`, `storageClass`), probes with `clamdcheck.sh` and a 10-minute `startupProbe`
-- [ ] 3.3 Schema: scan on requires `clamav.enabled` or `clamav.externalHost`
-- [ ] 3.4 Document the egress needed (ClamAV mirror) and the signature-update behaviour in the chart README
+- [x] 3.1 Failing tests first: clamav Deployment with `Recreate`, a PVC at `/var/lib/clamav`, `CLAMD_CONF_*` env equal to compose, Service `3310`, memory limit at least 3Gi; the backend scan host resolves to that Service; with `clamav.externalHost` set no ClamAV workload is rendered and the backend uses the external host
+- [x] 3.2 Templates: Deployment, Service, PVC (`persistence.size`, `storageClass`), probes with `clamdcheck.sh` and a 10-minute `startupProbe`
+- [x] 3.3 Schema: scan on requires `clamav.enabled` or `clamav.externalHost`
+- [x] 3.4 Document the egress needed (ClamAV mirror) and the signature-update behaviour in the chart README
 - [ ] 3.5 Verify against a `restricted` namespace with a server-side dry-run on a test cluster or document the exception: can `clamav/clamav:1.5.4` run non-root with `readOnlyRootFilesystem` and the PVC? If not, set the narrowest possible security context and say so in the design
-- [ ] 3.6 Verify: tests green
+- [x] 3.6 Verify: tests green
 
 ## 4. Exposure (PR 4, `feat(deploy)`)
 
-- [ ] 4.1 Failing tests first (`tests/exposure.sh`): panel Ingress host `blackhole.onelitefeather.net` and portal host `appeal.onelitefeather.net`, `ingressClassName: cloudflare-tunnel`, annotation `backend-protocol: http`, backends are ClusterIP Services (never `clusterIP: None`); the external API Ingress exists only with `backend.externalApi.enabled`; a route table (every proxy prefix allowed, `/public`, `/public/session`, `/public/appeal...`, `/discord`, `/prometheus`, `/swagger`, `/health`, `/auth`, `/admin` blocked) is evaluated against the rendered paths using the cloudflared semantics (unanchored regular expression, longest rule first); no two rules of that host have the same length
+- [x] 4.1 Failing tests first (`tests/exposure.sh`): panel Ingress host `blackhole.onelitefeather.net` and portal host `appeal.onelitefeather.net`, `ingressClassName: cloudflare-tunnel`, annotation `backend-protocol: http`, backends are ClusterIP Services (never `clusterIP: None`); the external API Ingress exists only with `backend.externalApi.enabled`; a route table (every proxy prefix allowed, `/public`, `/public/session`, `/public/appeal...`, `/discord`, `/prometheus`, `/swagger`, `/health`, `/auth`, `/admin` blocked) is evaluated against the rendered paths using the cloudflared semantics (unanchored regular expression, longest rule first); no two rules of that host have the same length
 - [ ] 4.2 Verify the tunnel controller's behaviour before relying on anchors: read `cloudflare-tunnel-ingress-controller` v0.0.23 `pkg/cloudflare-controller/tunnel-client.go`, then check on dev with `curl` against the table that blocked paths get 404 from the edge; if anchored regular expressions do not pass through, implement the nginx allow-list component of design section 3 instead and re-run 4.1 against it
-- [ ] 4.3 Templates: `ingress.yaml` for panel and portal, `ingress-api.yaml` for the proxy host, `httproute.yaml` (Envoy Gateway, `parentRefs: eg/envoy`, `sectionName: https`) for the internal dev hosts; values choose Ingress or HTTPRoute per component, never both
-- [ ] 4.4 Per-path rules use distinct lengths (padding by ordering the rules, not by changing paths); document the collision rule in the template comment with a link to the Outline page
-- [ ] 4.5 Verify: `tests/exposure.sh` green
+- [x] 4.3 Templates: `ingress.yaml` for panel and portal, `ingress-api.yaml` for the proxy host, `httproute.yaml` (Envoy Gateway, `parentRefs: eg/envoy`, `sectionName: https`) for the internal dev hosts; values choose Ingress or HTTPRoute per component, never both
+- [x] 4.4 Per-path rules use distinct lengths (padding by ordering the rules, not by changing paths); document the collision rule in the template comment with a link to the Outline page
+- [x] 4.5 Verify: `tests/exposure.sh` green
 
 ## 5. Observability and dependency checks (PR 5, `feat(deploy)`)
 
-- [ ] 5.1 Failing tests first (`tests/observability.sh`): pod labels `logs.onelitefeather.net/format` and `/env` on all workloads; `OTEL_*` env on the backend; backend `ServiceMonitor` only when enabled and with an `oauth2` block referencing a Secret, never a literal; discord `PodMonitor` on port 8082
-- [ ] 5.2 Templates: `servicemonitor.yaml` (backend, `/prometheus`), `podmonitor.yaml` (discord)
+- [x] 5.1 Failing tests first (`tests/observability.sh`): pod labels `logs.onelitefeather.net/format` and `/env` on all workloads; `OTEL_*` env on the backend; backend `ServiceMonitor` only when enabled and with an `oauth2` block referencing a Secret, never a literal; discord `PodMonitor` on port 8082
+- [x] 5.2 Templates: `servicemonitor.yaml` (backend, `/prometheus`), `podmonitor.yaml` (discord)
 - [ ] 5.3 Verify Alloy (`prometheus.operator.servicemonitors`) honours `oauth2` for the Entra client credentials; if not, remove the oauth2 block from the chart and describe the `prometheus.scrape` fallback in the Kubernetes-FLUX tasks (9.11)
 - [ ] 5.4 Verify against the real stack (docker compose): after a Dragonfly `FLUSHALL` the backend rebuilds or tolerates the missing punishment mirror, and a Dragonfly outage does not make `/health/readiness` DOWN; if it does, add a config switch for the Redis health indicator to `backend.config` and a test for it (backend change only if unavoidable, as its own `fix` PR)
-- [ ] 5.5 Verify: tests green
+- [x] 5.5 Verify: tests green
 
 ## 6. Chart checks in CI (PR 6, `ci(deploy)`)
 

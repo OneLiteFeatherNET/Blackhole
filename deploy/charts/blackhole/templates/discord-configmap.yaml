@@ -1,0 +1,39 @@
+{{- if .Values.discord.enabled }}
+{{- $v := .Values.discord }}
+{{- $d := dict "ctx" . "component" "discord" "values" $v }}
+{{- $name := include "blackhole.fullname" $d }}
+{{- /*
+The non-secret settings of the bot: ids (not secrets, but personal to the guild), URLs, the Entra client and
+the NATS connection. The bot token and the Entra client secret are Secret references in the Deployment.
+*/ -}}
+{{- $c := dict
+      "BLACKHOLE_BACKEND_URL" (include "blackhole.backendUrl" (dict "ctx" . "url" $v.backendUrl))
+      "BLACKHOLE_PANEL_URL" $v.panelUrl
+      "BLACKHOLE_DISCORD_TENANT_ID" .Values.auth.tenantId
+      "BLACKHOLE_DISCORD_CLIENT_ID" $v.clientId
+      "BLACKHOLE_DISCORD_AUTH_SCOPE" ($v.authScope | default (printf "api://%s/.default" .Values.auth.apiClientId))
+      "DISCORD_GUILD_ID" $v.ids.guildId
+      "DISCORD_TEAM_CHANNEL_ID" $v.ids.teamChannelId
+      "DISCORD_STAFF_ROLE_ID" $v.ids.staffRoleId
+      "DISCORD_TICKET_CATEGORY_ID" $v.ids.ticketCategoryId
+      "DISCORD_ARCHIVE_CATEGORY_ID" $v.ids.archiveCategoryId
+      "DISCORD_HEALTH_PORT" 8082
+      "NATS_URL" .Values.nats.url
+      "NATS_CREDS_FILE" (printf "%s/%s" (.Values.nats.credsMountPath | trimSuffix "/") .Values.nats.credsKey)
+-}}
+{{- if $v.ids.appealChannelId }}{{- $_ := set $c "DISCORD_APPEAL_CHANNEL_ID" $v.ids.appealChannelId }}{{- end }}
+{{- range $key, $value := $v.config }}{{- $_ := set $c $key $value }}{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+data:
+  {{- range $key, $value := $c }}
+  {{- if not (kindIs "invalid" $value) }}
+  {{ $key }}: {{ include "blackhole.str" $value | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}

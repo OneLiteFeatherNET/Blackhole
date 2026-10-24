@@ -1,0 +1,65 @@
+{{- if .Values.backend.enabled }}
+{{- $v := .Values.backend }}
+{{- $d := dict "ctx" . "component" "backend" "values" $v }}
+{{- /*
+The non-secret settings of the backend, as environment. Typed values come first, `backend.config` is merged
+on top so an overlay can set any BLACKHOLE_* tunable of application.yml. Secrets are never here: they are
+secretKeyRef entries in the Deployment.
+*/ -}}
+{{- $c := dict
+      "PORT" (int $v.service.port)
+      "JDBC_DRIVER" .Values.database.driver
+      "BLACKHOLE_AUTH_TENANT_ID" .Values.auth.tenantId
+      "BLACKHOLE_AUTH_ISSUER" (include "blackhole.issuer" .)
+      "BLACKHOLE_AUTH_JWKS_URL" (include "blackhole.jwksUrl" .)
+      "BLACKHOLE_AUTH_AUDIENCE" .Values.auth.apiClientId
+      "BLACKHOLE_AUTH_ALLOW_INSECURE_ISSUER" .Values.auth.allowInsecureIssuer
+      "BLACKHOLE_AUTH_ROLES_CLAIM_HUMAN" .Values.auth.rolesClaimHuman
+      "BLACKHOLE_AUTH_ROLES_CLAIM_MACHINE" .Values.auth.rolesClaimMachine
+      "BLACKHOLE_AUTH_ROLE_ADMIN" .Values.auth.roles.admin
+      "BLACKHOLE_AUTH_ROLE_MODERATOR" .Values.auth.roles.moderator
+      "BLACKHOLE_AUTH_ROLE_VIEWER" .Values.auth.roles.viewer
+      "BLACKHOLE_AUTH_ROLE_METRICS" .Values.auth.roles.metrics
+      "BLACKHOLE_AUTH_MACHINE_ROLE_PROXY" .Values.auth.machineRoles.proxy
+      "BLACKHOLE_AUTH_MACHINE_ROLE_METRICS" .Values.auth.machineRoles.metrics
+      "BLACKHOLE_AUTH_MACHINE_ROLE_DISCORD" .Values.auth.machineRoles.discord
+      "BLACKHOLE_EVIDENCE_FILES_STORAGE" "s3"
+      "BLACKHOLE_EVIDENCE_FILES_MAX_VIDEO_BYTES" $v.evidence.maxVideoBytes
+      "BLACKHOLE_EVIDENCE_S3_ENDPOINT" .Values.s3.endpoint
+      "BLACKHOLE_EVIDENCE_S3_BUCKET" .Values.s3.bucket
+      "BLACKHOLE_EVIDENCE_S3_REGION" .Values.s3.region
+      "BLACKHOLE_EVIDENCE_S3_PATH_STYLE" .Values.s3.pathStyle
+      "BLACKHOLE_EVIDENCE_SCAN_ENABLED" $v.evidence.scan.enabled
+      "NATS_URL" .Values.nats.url
+      "NATS_CREDS_FILE" (printf "%s/%s" (.Values.nats.credsMountPath | trimSuffix "/") .Values.nats.credsKey)
+      "NATS_STREAM_REPLICAS" .Values.nats.stream.replicas
+      "NATS_EVENTS_MAX_AGE" .Values.nats.stream.maxAge
+      "NATS_EVENTS_MAX_BYTES" .Values.nats.stream.maxBytes
+-}}
+{{- if $v.evidence.scan.enabled }}
+{{- $_ := set $c "BLACKHOLE_EVIDENCE_SCAN_CLAMD_HOST" (include "blackhole.clamdHost" .) }}
+{{- $_ := set $c "BLACKHOLE_EVIDENCE_SCAN_CLAMD_PORT" (int .Values.clamav.externalPort) }}
+{{- $_ := set $c "BLACKHOLE_EVIDENCE_SCAN_CLAMD_TIMEOUT" $v.evidence.scan.timeout }}
+{{- end }}
+{{- if $v.tracing.enabled }}
+{{- $_ := set $c "OTEL_TRACES_EXPORTER" "otlp" }}
+{{- $_ := set $c "OTEL_EXPORTER_OTLP_ENDPOINT" $v.tracing.endpoint }}
+{{- $_ := set $c "OTEL_SERVICE_NAME" $v.tracing.serviceName }}
+{{- end }}
+{{- range $key, $value := $v.config }}
+{{- $_ := set $c $key $value }}
+{{- end }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "blackhole.fullname" $d }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+data:
+  {{- range $key, $value := $c }}
+  {{- if not (kindIs "invalid" $value) }}
+  {{ $key }}: {{ include "blackhole.str" $value | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}

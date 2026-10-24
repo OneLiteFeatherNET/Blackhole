@@ -1,0 +1,3 @@
+{{- if .Values.portal.enabled }}
+{{- include "blackhole.exposure" (dict "ctx" . "component" "portal" "values" .Values.portal) }}
+{{- end }}

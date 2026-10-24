@@ -24,7 +24,7 @@ check_restricted() { # <label> <manifests>
   assert_eq "${label}: CPU request on every container" "0" "$(y "${file}" "[${pods} | ${containers} | select(.resources.requests.cpu == null)] | length")"
   assert_eq "${label}: memory request on every container" "0" "$(y "${file}" "[${pods} | ${containers} | select(.resources.requests.memory == null)] | length")"
   assert_eq "${label}: memory limit on every container" "0" "$(y "${file}" "[${pods} | ${containers} | select(.resources.limits.memory == null)] | length")"
-  assert_eq "${label}: no image uses the latest tag or none" "0" "$(y "${file}" "[${pods} | ${containers} | select(.image | test(\":latest\$\") or (test(\":\") | not))] | length")"
+  assert_eq "${label}: no image uses the latest tag or none" "0" "$(y "${file}" "[${pods} | ${containers} | select((.image | test(\":latest\$\")) or ((.image | test(\":\")) | not))] | length")"
   assert_eq "${label}: the JVM workloads have a startupProbe" "0" "$(y "${file}" "[select(.kind == \"Deployment\" and (.metadata.name | test(\"-(backend|discord)\$\"))) | .spec.template.spec.containers[0] | select(.startupProbe == null)] | length")"
   assert_eq "${label}: /tmp is writable through an emptyDir" "0" "$(y "${file}" "[select(.kind == \"Deployment\") | .spec.template.spec | select([.volumes[]? | select(.emptyDir != null)] | length == 0)] | length")"
 }

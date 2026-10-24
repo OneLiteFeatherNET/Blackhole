@@ -1,0 +1,36 @@
+{{- if and .Values.backend.enabled .Values.backend.metrics.serviceMonitor.enabled }}
+{{- $v := .Values.backend }}
+{{- $m := $v.metrics.serviceMonitor }}
+{{- $d := dict "ctx" . "component" "backend" "values" $v }}
+{{- /*
+/prometheus is not anonymous: it needs a bearer token with the Blackhole.Metrics app role. The scraper asks
+Entra for it with the client credentials of the Secret named in oauth2.existingSecret (client id and secret
+are Secret references, never values).
+*/ -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "blackhole.fullname" $d }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "blackhole.selectorLabels" $d | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /prometheus
+      interval: {{ $m.interval }}
+      oauth2:
+        clientId:
+          secret:
+            name: {{ $m.oauth2.existingSecret }}
+            key: {{ $m.oauth2.clientIdKey }}
+        clientSecret:
+          name: {{ $m.oauth2.existingSecret }}
+          key: {{ $m.oauth2.clientSecretKey }}
+        tokenUrl: {{ $m.oauth2.tokenUrl | default (printf "https://login.microsoftonline.com/%s/oauth2/v2.0/token" .Values.auth.tenantId) | quote }}
+        scopes:
+          - {{ $m.oauth2.scope | default (printf "api://%s/.default" .Values.auth.apiClientId) | quote }}
+{{- end }}

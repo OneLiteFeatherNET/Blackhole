@@ -1,0 +1,48 @@
+{{- if and .Values.backend.enabled .Values.backend.externalApi.enabled (eq .Values.backend.externalApi.mode "nginx") }}
+{{- $v := .Values.backend }}
+{{- $proxy := dict "ctx" . "component" "api-proxy" }}
+{{- $name := include "blackhole.fullname" (dict "ctx" . "component" "backend") }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "blackhole.fullname" $proxy }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $proxy | nindent 4 }}
+data:
+  nginx.conf: |
+    # Allow-list in front of the backend for the Velocity proxies. Written for the unprivileged nginx image
+    # with a read-only root file system: every path nginx writes is under /tmp.
+    worker_processes 1;
+    pid /tmp/nginx.pid;
+    error_log /dev/stderr warn;
+    events {
+      worker_connections 1024;
+    }
+    http {
+      # No access log: it would hold client IP addresses.
+      access_log off;
+      client_body_temp_path /tmp/client_temp;
+      proxy_temp_path /tmp/proxy_temp;
+      fastcgi_temp_path /tmp/fastcgi_temp;
+      uwsgi_temp_path /tmp/uwsgi_temp;
+      scgi_temp_path /tmp/scgi_temp;
+      # Evidence uploads stream through; the backend enforces the real limits.
+      client_max_body_size 110m;
+      proxy_request_buffering off;
+      server {
+        listen 8080;
+        location = /nginx-health {
+          return 200 "ok";
+        }
+        location ~ {{ include "blackhole.apiPathRegex" . }} {
+          proxy_pass http://{{ $name }}.{{ .Release.Namespace }}.svc:{{ $v.service.port }};
+          proxy_set_header Host $host;
+          proxy_set_header X-Forwarded-Proto https;
+        }
+        location / {
+          return 404;
+        }
+      }
+    }
+{{- end }}

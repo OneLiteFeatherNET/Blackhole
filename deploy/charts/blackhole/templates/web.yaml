@@ -1,0 +1,115 @@
+{{- if .Values.web.enabled }}
+{{- $v := .Values.web }}
+{{- $d := dict "ctx" . "component" "web" "values" $v }}
+{{- $name := include "blackhole.fullname" $d }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+spec:
+  replicas: {{ $v.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "blackhole.selectorLabels" $d | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "blackhole.podLabels" $d | nindent 8 }}
+      annotations:
+        {{- include "blackhole.podAnnotations" (dict "values" $v) | nindent 8 }}
+    spec:
+      serviceAccountName: {{ $name }}
+      {{- include "blackhole.podDefaults" . | nindent 6 }}
+      securityContext:
+        {{- toYaml $v.podSecurityContext | nindent 8 }}
+      containers:
+        - name: web
+          image: {{ include "blackhole.image" (dict "ctx" . "image" $v.image "app" true) }}
+          imagePullPolicy: {{ $v.image.pullPolicy }}
+          securityContext:
+            {{- toYaml $v.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          # The panel is a public OIDC client (PKCE): nothing here is a secret. The three BLACKHOLE_UI_*
+          # identity values are required by the image at start.
+          env:
+            {{- $env := dict
+                  "BLACKHOLE_BACKEND_URL" (include "blackhole.backendUrl" (dict "ctx" . "url" $v.backendUrl))
+                  "BLACKHOLE_UI_OIDC_AUTHORITY" ($v.oidc.authority | default (include "blackhole.issuer" .))
+                  "BLACKHOLE_UI_OIDC_CLIENT_ID" $v.oidc.clientId
+                  "BLACKHOLE_UI_API_SCOPE" $v.oidc.apiScope
+                  "BLACKHOLE_UI_EVIDENCE_MAX_VIDEO_BYTES" $v.evidence.maxVideoBytes }}
+            {{- if $v.evidence.maxImageBytes }}{{- $_ := set $env "BLACKHOLE_UI_EVIDENCE_MAX_IMAGE_BYTES" $v.evidence.maxImageBytes }}{{- end }}
+            {{- if $v.evidence.allowedTypes }}{{- $_ := set $env "BLACKHOLE_UI_EVIDENCE_ALLOWED_TYPES" $v.evidence.allowedTypes }}{{- end }}
+            {{- range $key, $value := $v.env }}{{- $_ := set $env $key $value }}{{- end }}
+            {{- include "blackhole.env" $env | nindent 12 }}
+          {{- if $v.envFrom }}
+          envFrom:
+            {{- include "blackhole.envFrom" $v.envFrom | nindent 12 }}
+          {{- end }}
+          readinessProbe:
+            {{- toYaml $v.readinessProbe | nindent 12 }}
+          livenessProbe:
+            {{- toYaml $v.livenessProbe | nindent 12 }}
+          resources:
+            {{- toYaml $v.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+      {{- include "blackhole.scheduling" (dict "ctx" . "component" "web" "values" $v "spread" true) | nindent 6 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "blackhole.selectorLabels" $d | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ $v.service.port }}
+      targetPort: http
+      protocol: TCP
+{{- if and $v.pdb.enabled (gt (int $v.replicaCount) 1) }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+spec:
+  maxUnavailable: {{ $v.pdb.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "blackhole.selectorLabels" $d | nindent 6 }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,100 @@
+{{- if .Values.discord.enabled }}
+{{- $v := .Values.discord }}
+{{- $d := dict "ctx" . "component" "discord" "values" $v }}
+{{- $name := include "blackhole.fullname" $d }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+spec:
+  # Exactly one bot (the schema enforces it) and Recreate: during a rolling update two bots would run side
+  # by side and post everything twice.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "blackhole.selectorLabels" $d | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "blackhole.podLabels" $d | nindent 8 }}
+      annotations:
+        {{- include "blackhole.podAnnotations" (dict "values" $v "extra" (dict "checksum/config" (include (print $.Template.BasePath "/discord-configmap.yaml") . | sha256sum))) | nindent 8 }}
+    spec:
+      serviceAccountName: {{ $name }}
+      {{- include "blackhole.podDefaults" . | nindent 6 }}
+      securityContext:
+        {{- toYaml $v.podSecurityContext | nindent 8 }}
+      containers:
+        - name: discord
+          image: {{ include "blackhole.image" (dict "ctx" . "image" $v.image "app" true) }}
+          imagePullPolicy: {{ $v.image.pullPolicy }}
+          securityContext:
+            {{- toYaml $v.securityContext | nindent 12 }}
+          ports:
+            - name: health
+              containerPort: 8082
+              protocol: TCP
+          env:
+            {{- include "blackhole.secretEnv" (dict "name" "DISCORD_TOKEN" "secret" $v.existingSecret "key" "DISCORD_TOKEN") | nindent 12 }}
+            {{- include "blackhole.secretEnv" (dict "name" "BLACKHOLE_DISCORD_CLIENT_SECRET" "secret" $v.existingSecret "key" "BLACKHOLE_DISCORD_CLIENT_SECRET") | nindent 12 }}
+            {{- include "blackhole.env" $v.env | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ $name }}
+            {{- include "blackhole.envFrom" $v.envFrom | nindent 12 }}
+          startupProbe:
+            {{- toYaml $v.startupProbe | nindent 12 }}
+          livenessProbe:
+            {{- toYaml $v.livenessProbe | nindent 12 }}
+          resources:
+            {{- toYaml $v.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: nats
+              mountPath: {{ .Values.nats.credsMountPath }}
+              readOnly: true
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: nats
+          secret:
+            secretName: {{ .Values.nats.existingSecret }}
+            items:
+              - key: {{ .Values.nats.credsKey }}
+                path: {{ .Values.nats.credsKey }}
+      {{- include "blackhole.scheduling" (dict "ctx" . "component" "discord" "values" $v) | nindent 6 }}
+{{- if $v.metrics.podMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "blackhole.selectorLabels" $d | nindent 6 }}
+  podMetricsEndpoints:
+    - port: health
+      path: /metrics
+      interval: {{ $v.metrics.podMonitor.interval }}
+{{- end }}
+{{- end }}
