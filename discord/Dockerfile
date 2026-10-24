@@ -20,8 +20,9 @@ WORKDIR /src
 COPY gradlew settings.gradle.kts build.gradle.kts gradle.properties ./
 COPY gradle ./gradle
 COPY client ./client
+COPY markdown ./markdown
 COPY discord ./discord
-# Only the bot and the generated client are built here; the other modules need nothing of this image.
+# Only the bot, the generated client and the markdown module are built here; the other modules need nothing of this image.
 RUN sed -i -E '/^include\("(backend|velocity|phoca|web|portal)"\)/d' settings.gradle.kts \
  && ./gradlew --no-daemon :discord:shadowJar -x test
 
