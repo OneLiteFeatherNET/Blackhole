@@ -51,7 +51,7 @@ docs/entra-setup.sh prod https://blackhole.example.org ~/.config/blackhole/entra
 It adds the signed-in admin to the `-admin` group, grants tenant-wide consent for the SPA, assigns
 `Blackhole.Proxy` to the Velocity registration and `Blackhole.Discord` to the Discord bot
 registration, and creates a one-year secret for each when the env file has none. The env file (mode 600) contains tenant, client and group ids and the secret: it
-is a secret file, keep it out of git and out of chat. Add staff to the three role groups afterwards
+is a secret file, keep it out of git and out of chat. A rerun rewrites the lines the script manages and keeps every other line of the file (for example `BLACKHOLE_BANID_KEY` or `DISCORD_TOKEN`). Add staff to the three role groups afterwards
 (group membership is not scripted).
 
 ### Where each value goes
