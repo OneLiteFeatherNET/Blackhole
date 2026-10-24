@@ -59,5 +59,9 @@ paths:
   `/discord/leak-check` only and never echoed, logged or published; a Discord user id is returned to the bot (ticket DTO, `/discord/staff-links`),
   stored only on `case_participant` and `discord_link`, and appears in no event, log, export or timeline payload. No app-level rate limit: the edge
   limits `POST /discord/tickets` and `POST /discord/leak-check` globally.
+- Client rules (`/client-rule`, `clientrule/`): `GET` rules needs `VIEWER` or `PROXY`, `POST`, `PUT /{key}` and `DELETE /{key}` need `ADMIN`;
+  `POST /client-rule/hit` and `PUT /client-rule/catalogue` are `PROXY` only; `GET /client-rule/{key}/hits`, `GET /client-rule/hits?owner=` and
+  `GET /client-rule/catalogue` need `VIEWER` and refuse `PROXY`. `POST /evasion/fingerprint` is `PROXY` only. The saving admin's `oid` is
+  stored as `recorded_by_oid` and never returned; hits and fingerprints hold hashes only (see `client-rules.md`).
 - Appeal conditions (`/appeal-conditions`, `appealconditions/`): `GET` current and `GET /versions` need `VIEWER`, `POST` (a new version, append-only) needs `ADMIN`;
   `PROXY`, `DISCORD` and player sessions are denied. The saving admin's `oid` is stored as `recorded_by_oid` and never returned.
