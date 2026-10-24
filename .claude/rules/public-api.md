@@ -21,7 +21,26 @@ Detail: `openspec/changes/add-appeal-portal/` (design decisions 4 to 9, specs `a
   `scope` is `LIMITED` for a leaked Ban ID, read live from `punishment_case` on every request, so a mark takes effect at once
   even for a row the mark's delete missed. The leak mark and the reissue delete the punishment's sessions in their own CTE
   (`JdbcCaseWriter`).
-- **Own punishment only.** Routes take the punishment from `PlayerSession`; there is no path, query or body identifier.
+- **Own punishment only.** Routes take the punishment from `PlayerSession`; there is no path, query or body identifier. The one
+  identifier a public route takes is a chat file id (`GET|DELETE /public/attachments/{id}`): it is the file of a message of this
+  conversation (the `attachmentId`) or the image of an active share of this punishment (the `shareId`). Another punishment's id,
+  an unknown or malformed id, a removed message and a withdrawn share all answer the same 404 (`JdbcPublicAttachmentReader`).
+- **Chat files.** `POST /public/attachments` (multipart) stages a file for the open appeal (409 `NO_APPEAL`, 409 `QUOTA`, 413, 415,
+  422 `FILE_FLAGGED`/`FILE_ACTIVE_CONTENT`/`INVALID_FILE`, 503); a staged file is in no listing and no read route until
+  `POST /public/messages` names it in `attachmentIds` (at most five, each once, all of this appeal's; a foreign or used id is 400).
+  A message may have no text when it has files. `DELETE` removes a staged file only. A download is `inline` for PNG, JPEG and WebP
+  only, always with `nosniff`, `CSP: sandbox`, `Cache-Control: private, no-store`; `LIMITED` is 403 on every file route. The
+  conversation entry carries `attachments` (id, name, type, size, provenance) and, for `SHARE` and `SHARE_WITHDRAWN`, a `share`
+  card (`FILE` or `EXCERPT`, `ACTIVE`/`WITHDRAWN`/`UNAVAILABLE`, the excerpt lines relabelled by `ExcerptRenderer`, rendered when read).
+- **Live stream.** `GET /public/conversation/events` (`PlayerLiveSessions`, `live/`): `FULL` session only, `text/event-stream` of
+  `retry`, `ready {seq}`, `changed {seq}` (id = seq), `expired {}` and `replaced {}`, and a keep-alive comment every
+  `blackhole.chat.live.keep-alive`. A frame never carries content, a name or an id other than the seq. The session is checked
+  without sliding at open and at every keep-alive; a leak or reissue ends the stream through a `SESSIONS_ENDED` signal. Opening
+  answers 503 when `blackhole.chat.live.max-streams` is reached on this replica. `Last-Event-ID` below the current seq gets a
+  `changed` right after `ready`. Cross-replica delivery waits for the bus adapter (task 4.6); until then the client's safety poll
+  bounds the delay.
+- **Seen marker.** A conversation read moves `punishment_case.player_seen_seq` to the highest seq it returned, in one statement that
+  never moves back (`JdbcPlayerSeenStore`). No timestamp. Staff read it as `playerSeenSeq` on the case response.
 - **Uniform login failure.** Unknown, malformed, legacy hex, empty or unreadable body: one 401 `INVALID_BAN_ID`, one body
   (`PlayerSessionService.INVALID_BAN_ID`). `blackhole.public.login{result=success|limited|failure}` is the only metric and
   has no other tag. The Ban ID appears in no URL, log, event, meter or response (`PublicBanIdNoLeakIntegrationTest`).
@@ -40,8 +59,9 @@ Detail: `openspec/changes/add-appeal-portal/` (design decisions 4 to 9, specs `a
 - **Filing** never records an ineligible attempt: `PublicAppealService` reads `AppealEligibilityService.availability` first and
   answers 409 `NOT_ELIGIBLE` (+ `availableFrom`), `FORFEITED` or `FROZEN`; `fileIfEligible` re-evaluates and saves. One open appeal
   is held by the unique partial index; a losing concurrent request is a 409, never a 500.
-- **Messages** go through `CaseConversationService.postPlayerMessage` (open appeal required: 409 `NO_APPEAL`; leaked: 409 `FROZEN`).
-  Text is trimmed, 1 to `blackhole.public.message.max-length` (400), no control character but newline (400), `PiiGuard` (422).
+- **Messages** go through `CaseConversationService.postPlayerMessage` (open appeal required: 409 `NO_APPEAL`; leaked: 409 `FROZEN`;
+  a file that was sent already or is gone: 409 `FILES_UNAVAILABLE`). Text is trimmed, 1 to `blackhole.public.message.max-length` (400),
+  no control character but newline (400), `PiiGuard` (422). Text may be absent when the message carries files.
 - **Leaked (`LIMITED`)**: facts only; filing 409 `FORFEITED`, posting 409 `FROZEN`/`NO_APPEAL`, conversation and appeal reads 403.
 - **No rate limiting here** (the edge owns it); no `X-Forwarded-For` is read or stored; request bodies are never logged
   (`logback.xml` pins the HTTP loggers). Controllers are thin (`PublicController` implements `PublicApi`), DTOs sealed per resource,
