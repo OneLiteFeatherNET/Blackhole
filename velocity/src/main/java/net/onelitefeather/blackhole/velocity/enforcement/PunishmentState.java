@@ -3,29 +3,32 @@ package net.onelitefeather.blackhole.velocity.enforcement;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.velocity.cloudnet.ServerFacts;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
-import net.onelitefeather.blackhole.velocity.section.SectionInfo;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
-import java.util.ArrayList;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
 /**
  * Answers the enforcement questions of the proxy for a player: is there a ban that denies the login,
- * a mute that denies chat, a server ban that denies a connect. The player's state is read from Redis
- * (one key per known section), falling back to the backend profile when Redis is unavailable, and kept
- * in the {@link PunishmentMirror} so later checks need no network call.
+ * a mute that denies chat, a server ban that denies a connect. The player's state is read from the
+ * backend profile and kept in the {@link PunishmentMirror} so later checks need no network call - but
+ * only while the cache is {@linkplain CacheTrust trusted} (the event bus is connected) and the entry is
+ * younger than the maximum age; otherwise every check reads the backend again. A cache is never a
+ * reason to allow anything: if the backend cannot answer either, {@link Unavailable} is thrown and the
+ * callers apply their existing backend-unreachable rule.
  */
 public final class PunishmentState {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PunishmentState.class);
 
-    /** Reads one mirrored key; throws a runtime exception if Redis is not available. */
-    public interface KeyReader {
-        Optional<PunishmentSyncMessage> read(String section, String owner);
+    /** Whether events keep the mirror current: true only while the event bus is connected. */
+    @FunctionalInterface
+    public interface CacheTrust {
+        boolean trusted();
     }
 
     /** Reads the backend profile; empty if the owner has none. */
@@ -33,7 +36,7 @@ public final class PunishmentState {
         Optional<PunishProfileDTO> read(String owner) throws Exception;
     }
 
-    /** Neither Redis nor the backend could tell what is active for the player. */
+    /** The backend could not tell what is active for the player. */
     public static final class Unavailable extends RuntimeException {
         public Unavailable(String message, Throwable cause) {
             super(message, cause);
@@ -42,22 +45,25 @@ public final class PunishmentState {
 
     private final SectionRegistry sections;
     private final PunishmentMirror mirror;
-    private final KeyReader keys;
     private final ProfileReader profiles;
     private final Clock clock;
+    private final CacheTrust trust;
+    private final Duration maxAge;
 
-    public PunishmentState(SectionRegistry sections, PunishmentMirror mirror, KeyReader keys, ProfileReader profiles, Clock clock) {
+    public PunishmentState(SectionRegistry sections, PunishmentMirror mirror, ProfileReader profiles, Clock clock,
+                           CacheTrust trust, Duration maxAge) {
         this.sections = sections;
         this.mirror = mirror;
-        this.keys = keys;
         this.profiles = profiles;
         this.clock = clock;
+        this.trust = trust;
+        this.maxAge = maxAge;
     }
 
     /**
      * Reads the player's state afresh (at login) and returns the active punishment in a BAN section.
      *
-     * @throws Unavailable if neither Redis nor the backend answered
+     * @throws Unavailable if the backend did not answer
      */
     public Optional<PunishmentSyncMessage> onLogin(String owner) {
         load(owner);
@@ -66,7 +72,7 @@ public final class PunishmentState {
 
     /**
      * @return the active punishment in a MUTE section; the state is loaded once if it is not known yet
-     * @throws Unavailable if the state is unknown and neither Redis nor the backend answered
+     * @throws Unavailable if the state is not known (or not trusted) and the backend did not answer
      */
     public Optional<PunishmentSyncMessage> activeMute(String owner) {
         ensureLoaded(owner);
@@ -89,7 +95,7 @@ public final class PunishmentState {
     }
 
     private void ensureLoaded(String owner) {
-        if (!this.mirror.isLoaded(owner)) {
+        if (!this.trust.trusted() || !this.mirror.isFresh(owner, this.maxAge)) {
             load(owner);
         }
     }
@@ -98,16 +104,6 @@ public final class PunishmentState {
         if (this.sections.all().isEmpty()) {
             // Started while the backend was unreachable: try again now rather than enforcing nothing.
             this.sections.reload();
-        }
-        try {
-            List<PunishmentSyncMessage> active = new ArrayList<>();
-            for (SectionInfo section : this.sections.all()) {
-                this.keys.read(section.key(), owner).ifPresent(active::add);
-            }
-            this.mirror.load(owner, active);
-            return;
-        } catch (RuntimeException e) {
-            LOGGER.debug("Redis unavailable for {}, falling back to the backend profile: {}", owner, e.getMessage());
         }
         try {
             List<PunishmentSyncMessage> active = this.profiles.read(owner)

@@ -13,6 +13,8 @@ dependencies {
     implementation(libs.cloud.annotations)
     implementation(libs.cloud.velocity)
     implementation(libs.lettuce.core)
+    // Receives the backend's events (subscribe-only, no publishing); relocated in the shadow jar.
+    implementation(libs.nats.jnats)
 
     // client's jackson-databind is `implementation`-scoped there, so it isn't exposed
     // transitively - needed here directly to (de)serialize RedisSyncService's wire messages.
@@ -29,9 +31,15 @@ dependencies {
     testImplementation(mn.junit.jupiter.api)
     testRuntimeOnly(mn.junit.jupiter.engine)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    // The NATS integration tests run against a real server (Testcontainers has no NATS module: a plain container).
+    testImplementation(mn.testcontainers.core)
 }
 
 tasks {
+    shadowJar {
+        // Other plugins on the proxy may ship their own NATS client.
+        relocate("io.nats", "net.onelitefeather.blackhole.velocity.libs.nats")
+    }
     runVelocity {
         // Configure the Velocity version for our task.
         // This is the only required configuration besides applying the plugin.

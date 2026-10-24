@@ -85,6 +85,10 @@ import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
 import net.onelitefeather.blackhole.velocity.component.theme.BlackholeTheme;
 import net.onelitefeather.blackhole.velocity.punish.HttpBackendGateway;
 import net.onelitefeather.blackhole.velocity.punish.PunishService;
+import net.onelitefeather.blackhole.velocity.config.NatsConfig;
+import net.onelitefeather.blackhole.velocity.nats.BusClient;
+import net.onelitefeather.blackhole.velocity.nats.JnatsBusClient;
+import net.onelitefeather.blackhole.velocity.nats.NatsSyncService;
 import net.onelitefeather.blackhole.velocity.redis.CachedTemplates;
 import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
 import net.onelitefeather.blackhole.velocity.section.BackendSectionSource;
@@ -106,6 +110,9 @@ import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
@@ -129,6 +136,8 @@ public class BlackholeVelocity {
     private ApiClient client;
     private BlackholeConfig config;
     private RedisSyncService redisSyncService;
+    private BusClient busClient;
+    private ExecutorService eventThread;
     private volatile boolean authReady;
     private CommandRuleListener commandRuleListener;
 
@@ -157,9 +166,19 @@ public class BlackholeVelocity {
 
         this.redisSyncService = new RedisSyncService(this.config);
         SectionRegistry sections = new SectionRegistry(new BackendSectionSource(this.redisSyncService, this.client));
-        PunishmentMirror mirror = new PunishmentMirror();
+        PunishmentMirror mirror = new PunishmentMirror(clock);
         BackendGateway backend = new HttpBackendGateway(this.client, new CachedTemplates(this.redisSyncService), clock);
-        PunishmentState state = new PunishmentState(sections, mirror, this.redisSyncService, owner -> backend.profile(owner), clock);
+        NatsConfig natsConfig = this.config.getNats().withEnvironment(System::getenv);
+        // The sync service is created first (it is the cache trust) and told about the bus once the reactions below exist.
+        ExecutorService eventThread = Executors.newSingleThreadExecutor(task -> {
+            Thread thread = new Thread(task, "blackhole-nats-events");
+            thread.setDaemon(true);
+            return thread;
+        });
+        this.eventThread = eventThread;
+        AtomicReference<NatsSyncService> sync = new AtomicReference<>();
+        PunishmentState state = new PunishmentState(sections, mirror, owner -> backend.profile(owner), clock,
+                () -> sync.get() != null && sync.get().trusted(), natsConfig.getCacheMaxAge());
         ChatCaptureConfig chatCapture = this.config.getEvidence().getChatCapture();
         PunishmentScreens screens = new PunishmentScreens(clock, this.config, sections, GlobalTranslator.renderer(),
                 new CachedBanIds(backend, clock, chatCapture.getTimeout()));
@@ -181,13 +200,18 @@ public class BlackholeVelocity {
         PunishService punishService = new PunishService(backend, sections, chatEvidence);
         ReportService reportService = new ReportService(backend, ReportEvidence.create(new ChatSnapshotBuilder(chatBuffer, chatCapture), backend, chatCapture));
 
-        // Registers its listener on the Redis service, so it must exist before connect().
-        ReportNotifier reportNotifier = new ReportNotifier(this.server::getAllPlayers, this.redisSyncService, this.config::getPanelUrl);
+        ReportNotifier reportNotifier = new ReportNotifier(this.server::getAllPlayers, this.config::getPanelUrl, backend,
+                () -> sync.get() != null && sync.get().trusted(), CompletableFuture::runAsync);
 
         ReportFeedbackDelivery reportFeedback = new ReportFeedbackDelivery(backend, this.config::getZone, CompletableFuture::runAsync);
-        this.redisSyncService.onReportFeedback(owner -> reportFeedback.poked(owner, this.server.getAllPlayers()));
 
-        this.redisSyncService.onPunishmentSync(syncHandler::accept);
+        NatsSyncService natsSync = new NatsSyncService(mirror, new NatsSyncService.Reactions(
+                syncHandler::accept, mirror::forget,
+                // The reload calls the backend, so it must not run on the NATS thread.
+                () -> CompletableFuture.runAsync(sections::reload),
+                reportNotifier::reportCreated,
+                owner -> reportFeedback.poked(owner, this.server.getAllPlayers())), eventThread);
+        sync.set(natsSync);
         // Registers its listener on the Redis service, so the notifier must exist before connect().
         ClientRulesConfig clientRulesConfig = this.config.getClientRules().withEnvironment(System::getenv);
         ClientRuleBackend ruleBackend = new HttpClientRuleBackend(this.client);
@@ -195,9 +219,12 @@ public class BlackholeVelocity {
         ClientRuleNotifier ruleNotifier = new ClientRuleNotifier(this.server::getAllPlayers, this.redisSyncService);
         // The reload calls the backend, so it must not run on the Redis callback thread.
         this.redisSyncService.onClientRuleChanged(changed -> CompletableFuture.runAsync(ruleRegistry::reload));
-        // The reload calls the backend, so it must not run on the Redis callback thread.
-        this.redisSyncService.onSectionChanged(changed -> CompletableFuture.runAsync(sections::reload));
         this.redisSyncService.connect();
+        // Never blocks: the connect runs on its own thread and the proxy enforces over HTTP until it succeeds.
+        this.busClient = new JnatsBusClient(natsConfig.getUrl(), natsConfig.getCredsFile(), Duration.ofSeconds(2), JnatsBusClient.daemonThread());
+        if (this.busClient.start(natsSync)) {
+            this.logger.info("Connecting to the event bus at {} in the background", natsConfig.getUrl());
+        }
         sections.reload();
         long cloudNetSections = sections.all().stream().filter(section -> section.targetKind() != ServerTargetKind.PATTERN).count();
         if (!cloudNet.available() && cloudNetSections > 0) {
@@ -325,6 +352,12 @@ public class BlackholeVelocity {
 
     @Subscribe
     public void onProxyShutdown(ProxyShutdownEvent event) {
+        if (this.busClient != null) {
+            this.busClient.close();
+        }
+        if (this.eventThread != null) {
+            this.eventThread.shutdownNow();
+        }
         if (this.redisSyncService != null) {
             this.redisSyncService.shutdown();
         }
@@ -333,14 +366,14 @@ public class BlackholeVelocity {
     /**
      * Builds the source of the backend tokens from the file and the environment. Without usable
      * credentials it logs an error and returns a source that has no token: staff commands then answer
-     * with a configuration message, while the Redis-based enforcement keeps running.
+     * with a configuration message, while the enforcement keeps running.
      */
     private TokenSource authenticate(Clock clock) {
         AuthConfig auth = this.config.getAuth().withEnvironment(System::getenv);
         try {
             if (!auth.isComplete()) {
                 this.logger.error("The backend credentials are incomplete, missing: {}. Backend calls and staff commands "
-                        + "are disabled until they are set in config.json or the environment; Redis enforcement continues.",
+                        + "are disabled until they are set in config.json or the environment; cached enforcement continues.",
                         auth.missing());
                 return TokenSource.unavailable("The backend credentials are incomplete, missing: " + auth.missing());
             }

@@ -5,6 +5,8 @@ import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
+import net.onelitefeather.blackhole.client.model.PunishEntryDTO;
+import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.ServerTargetKind;
 import net.onelitefeather.blackhole.velocity.RecordingProxy;
 import net.onelitefeather.blackhole.velocity.TestData;
@@ -42,7 +44,8 @@ class CloudNetEnforcementTest {
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-01-01T12:00:00Z"), ZoneOffset.UTC);
 
     private final List<String> warnings = new ArrayList<>();
-    private final Map<String, PunishmentSyncMessage> redis = new HashMap<>();
+    /** What the backend holds as active, per section and owner. */
+    private final Map<String, PunishmentSyncMessage> held = new HashMap<>();
     private final FakeCloudNetView cloudNet = new FakeCloudNetView(true)
             .service("lobby-1", "Lobby", "Global", "Minigames")
             .service("BedWars-3", "BedWars", "Global", "Minigames")
@@ -57,13 +60,22 @@ class CloudNetEnforcementTest {
         String owner = UUIDConverter.convertToSHA(fixture.uuid);
         PunishmentSyncMessage message = new PunishmentSyncMessage(owner, section, "SERVER", PunishmentSyncMessage.STATE_SET,
                 "a1b2c3d4-0000-4000-8000-000000000001", null, "Griefing", null, false);
-        this.redis.put(section + ":" + owner, message);
+        this.held.put(section + ":" + owner, message);
         return message;
     }
 
     private PunishmentState state(SectionRegistry sections) {
-        return new PunishmentState(sections, new PunishmentMirror(), (section, owner) -> Optional.ofNullable(this.redis.get(section + ":" + owner)),
-                owner -> Optional.empty(), CLOCK);
+        return new PunishmentState(sections, new PunishmentMirror(CLOCK), owner -> {
+            PunishProfileDTO profile = new PunishProfileDTO().owner(owner);
+            Map<String, PunishEntryDTO> active = new HashMap<>();
+            this.held.forEach((key, message) -> {
+                if (message.owner().equals(owner)) {
+                    active.put(message.section(), new PunishEntryDTO().identifier(message.punishmentIdentifier()).section(message.section())
+                            .permanent(true).lifted(false).metaData(new HashMap<>(Map.of("reason", "Griefing"))));
+                }
+            });
+            return Optional.of(profile.active(active));
+        }, CLOCK, () -> true, java.time.Duration.ofSeconds(60));
     }
 
     private ServerPreConnectEvent connect(CloudNetView view, SectionRegistry sections, RecordingProxy fixture, String target) {

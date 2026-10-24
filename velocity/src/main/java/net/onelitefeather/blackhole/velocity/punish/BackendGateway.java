@@ -104,6 +104,11 @@ public interface BackendGateway {
     ReportDTO submitReport(String reporter, String reported, ReportCategory category, String description, List<UUID> evidence, Map<String, Object> metaData) throws ApiException;
 
     /**
+     * Reads one report, to render the staff notice of a {@code report.created} event.
+     */
+    ReportDTO report(UUID identifier) throws ApiException;
+
+    /**
      * @return the messages about the outcome of the owner's resolved reports that have not been shown
      * yet, oldest first
      */

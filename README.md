@@ -150,7 +150,7 @@ order (between steps 2 and 4 the plugin and UI cannot reach the backend):
    Each key can be overridden by `BLACKHOLE_TENANT_ID`, `BLACKHOLE_CLIENT_ID`,
    `BLACKHOLE_CLIENT_SECRET` and `BLACKHOLE_AUTH_SCOPE`, which win over the file; prefer the environment
    for the secret. `auth.tokenUrl` (`BLACKHOLE_TOKEN_URL`) overrides the token endpoint for a mock server.
-   With incomplete credentials the plugin logs an error and keeps enforcing from Redis, but backend-bound
+   With incomplete credentials the plugin logs an error and keeps enforcing for players it already has cached, but backend-bound
    commands are refused. Grant the permission `blackhole.link` to the staff LuckPerms groups so that staff
    can [link their Minecraft account](#linking-a-minecraft-account); grant it to nobody else.
 4. **Admin UI.** Set `BLACKHOLE_UI_OIDC_AUTHORITY`, `BLACKHOLE_UI_OIDC_CLIENT_ID` and
@@ -159,6 +159,26 @@ order (between steps 2 and 4 the plugin and UI cannot reach the backend):
 5. **Other callers.** Any script that calls the API directly now needs a token. Regenerate clients from
    the current `client/specs/blackhole-api-*.yml`. Prometheus scrapes `/prometheus` with a
    `Blackhole.Metrics` token.
+
+### Velocity plugin: receiving events over NATS
+
+The proxy learns about punishments applied elsewhere from the backend's events, over NATS with a
+subscribe-only credential (`blackhole-velocity`, WebSocket-only; the commands to create it are in
+[docs/nats-event-bus.md](docs/nats-event-bus.md)). Add to `config.json`:
+
+```json
+{"nats": {"url": "wss://nats.onelitefeather.dev", "credsFile": "/path/to/blackhole-velocity.creds", "cacheMaxAge": "PT60S"}}
+```
+
+`NATS_URL` and `NATS_CREDS_FILE` override `url` and `credsFile`; keep the `.creds` file out of git.
+`cacheMaxAge` (ISO-8601, default 60 seconds) bounds how long a cached player state is trusted while
+connected. The connection is made in the background and never delays startup or a login. While the
+proxy is not connected, or when `credsFile` is missing or unreadable, the cache is discarded and every
+login and chat check asks the backend over HTTP; nothing is ever allowed merely because NATS is down,
+and if the backend cannot answer either, the existing backend-unreachable rule applies (login allowed,
+chat delivered). Staff notices for new reports arrive as `report.created` events: each proxy reads the
+report from the backend (the proxy's token needs the `PROXY` role, which may read a single report) and
+takes the player names from its online players.
 
 ## Staff workflow
 
