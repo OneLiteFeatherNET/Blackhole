@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { MAX_TEXT_LENGTH, PAGE_SIZE, type AppealStatus, type ConversationEntry, type ErrorCode } from '../api/contract'
+import { MAX_TEXT_LENGTH, PAGE_SIZE, type AppealConditions, type AppealStatus, type ConversationEntry, type ErrorCode } from '../api/contract'
+import ConditionsText from '../components/ConditionsText.vue'
 import { formatDate, formatDateTime } from '../format'
 import { SESSION_KEY } from '../session'
 
@@ -17,6 +18,8 @@ const drafts = state.drafts
 
 const entries = ref<ConversationEntry[]>([])
 const appeal = ref<AppealStatus | null>(null)
+/** The conditions stay readable here; if they cannot be loaded the block is simply left out. */
+const conditions = ref<AppealConditions | null>(null)
 const cursor = ref<number | null>(null)
 const loaded = ref(false)
 const loadFailed = ref(false)
@@ -78,6 +81,12 @@ async function refreshAppeal() {
   appeal.value = result.ok ? result.data : null
 }
 
+async function loadConditions() {
+  const result = await session.api.appealConditions()
+  if (!session.alive(result)) return
+  if (result.ok) conditions.value = result.data
+}
+
 async function poll() {
   if (polling) return
   polling = true
@@ -117,7 +126,7 @@ function onVisibility() {
 onMounted(async () => {
   document.addEventListener('visibilitychange', onVisibility)
   startPolling()
-  await Promise.all([fetchPage(), refreshAppeal()])
+  await Promise.all([fetchPage(), refreshAppeal(), loadConditions()])
   loaded.value = true
 })
 
@@ -187,6 +196,11 @@ const failureText = computed(() => {
         {{ t('common.back') }}
       </button>
     </div>
+
+    <details v-if="conditions" class="rounded-md-lg bg-surface-container px-6 py-4" data-testid="conditions-block">
+      <summary class="cursor-pointer text-title-medium text-on-surface">{{ t('conversation.conditions') }}</summary>
+      <div class="mt-3"><ConditionsText :text="conditions.text" /></div>
+    </details>
 
     <div v-if="appeal?.decision" class="rounded-md-lg bg-primary-container p-6 text-on-primary-container">
       <h2 class="text-title-large">{{ t('conversation.decisionTitle') }}</h2>

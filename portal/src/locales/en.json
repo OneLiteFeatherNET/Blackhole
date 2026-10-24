@@ -80,7 +80,13 @@
       "TOO_LARGE": "Your statement is too long.",
       "FORBIDDEN": "This Ban ID cannot be used to file an appeal.",
       "UNAVAILABLE": "Your appeal could not be sent. Please try again.",
-      "NOT_ELIGIBLE_NOW": "You cannot file an appeal for this punishment right now."
+      "NOT_ELIGIBLE_NOW": "You cannot file an appeal for this punishment right now.",
+      "CONDITIONS_CHANGED": "The appeal conditions changed while you were writing. Please read them again and confirm them to send your appeal."
+    },
+    "conditions": {
+      "title": "Appeal conditions",
+      "confirm": "I have read the appeal conditions and I accept them.",
+      "loadFailed": "The appeal conditions could not be loaded. Please reload the page."
     }
   },
   "conversation": {
@@ -129,7 +135,8 @@
       "UNAVAILABLE": "Your message could not be sent. Please try again."
     },
     "downloadText": "Download a copy (text)",
-    "downloadJson": "Download a copy (JSON)"
+    "downloadJson": "Download a copy (JSON)",
+    "conditions": "Appeal conditions"
   },
   "notice": {
     "forfeited": "The right to appeal this punishment was lost because the Ban ID was shared publicly. The punishment still runs out on its own, and the team can review it on its own initiative.",

@@ -18,8 +18,8 @@
 
 ## 4. Portal (PR 4, `feat(portal)`)
 
-- [ ] 4.1 Failing tests first: file button disabled until confirmed, request carries the version, `CONDITIONS_CHANGED` reload, markup rendered as text, collapsible block on the conversation page, BFF allow-list
-- [ ] 4.2 Contract, BFF allow-list, text renderer (paragraphs and bullets), `AppealFormView` and `ConversationView`, English strings; verify `npm test` and the type check
+- [x] 4.1 Failing tests first: file button disabled until confirmed, request carries the version, `CONDITIONS_CHANGED` reload, markup rendered as text, collapsible block on the conversation page, BFF allow-list
+- [x] 4.2 Contract, BFF allow-list, text renderer (paragraphs and bullets), `AppealFormView` and `ConversationView`, English strings; verify `npm test` and the type check
 
 ## 5. Wrap-up
 

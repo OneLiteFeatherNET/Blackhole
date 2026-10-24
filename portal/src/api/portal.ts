@@ -1,4 +1,5 @@
 import type {
+  AppealConditions,
   AppealStatus,
   ConversationPage,
   ErrorBody,
@@ -28,7 +29,9 @@ export interface PortalApi {
   session(): Promise<ApiResult<SessionInfo>>
   logout(): Promise<ApiResult<null>>
   punishment(): Promise<ApiResult<PunishmentFacts>>
-  fileAppeal(statement: string): Promise<ApiResult<AppealStatus>>
+  /** Files the appeal; `conditionsVersion` is the version of the conditions the player confirmed. */
+  fileAppeal(statement: string, conditionsVersion: number): Promise<ApiResult<AppealStatus>>
+  appealConditions(): Promise<ApiResult<AppealConditions>>
   appeal(): Promise<ApiResult<AppealStatus>>
   conversation(cursor: number | null): Promise<ApiResult<ConversationPage>>
   postMessage(text: string, idempotencyKey: string): Promise<ApiResult<MessagePosted>>
@@ -89,7 +92,8 @@ export function createPortalApi({ fetch: fetchImpl, csrf }: PortalApiOptions): P
     session: () => call('GET', '/api/session'),
     logout: () => call('DELETE', '/api/session'),
     punishment: () => call('GET', '/api/punishment'),
-    fileAppeal: (statement) => call('POST', '/api/appeal', { statement }),
+    fileAppeal: (statement, conditionsVersion) => call('POST', '/api/appeal', { statement, conditionsVersion }),
+    appealConditions: () => call('GET', '/api/appeal/conditions'),
     appeal: () => call('GET', '/api/appeal'),
     conversation: (cursor) => call('GET', cursor === null ? '/api/conversation' : `/api/conversation?cursor=${cursor}`),
     postMessage: (text, key) => call('POST', '/api/messages', { text }, { [IDEMPOTENCY_HEADER]: key }),
