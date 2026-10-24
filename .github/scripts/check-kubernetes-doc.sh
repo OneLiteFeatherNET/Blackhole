@@ -75,7 +75,7 @@ if grep -nE -- '-----BEGIN|eyJ[A-Za-z0-9_-]{10,}\.|AKIA[0-9A-Z]{16}|[0-9a-f]{8}-
 fi
 
 # --- 4. hostnames ------------------------------------------------------------------------------------------------------
-allowed_hosts='^(blackhole|appeal|blackhole-api)\.onelitefeather\.net$|^(harbor|nats)\.onelitefeather\.dev$|^(blackhole-dev|appeal-dev)\.apps\.onelite\.feather$|^login\.microsoftonline\.com$|^database\.clamav\.net$|^(github|raw\.githubusercontent|get\.helm)\.(com|sh)$|^example\.(com|net|org|invalid)$|^[a-z0-9-]+\.(md|sh|yml|yaml|json|txt|conf|java|kts|tpl)$'
+allowed_hosts='^(blackhole|appeal|blackhole-api)\.onelitefeather\.net$|^(harbor|nats)\.onelitefeather\.dev$|^(blackhole-dev|appeal-dev)\.apps\.onelite\.feather$|^login\.microsoftonline\.com$|^docker\.io$|^app\.kubernetes\.io$|^logs\.onelitefeather\.net$|^database\.clamav\.net$|^(github|raw\.githubusercontent|get\.helm)\.(com|sh)$|^example\.(com|net|org|invalid)$|^[a-z0-9-]+\.(md|sh|yml|yaml|json|txt|conf|java|kts|tpl)$'
 while IFS= read -r host; do
   [[ "${host}" =~ ${allowed_hosts} ]] || fail "hostname ${host} is not one of the decided hosts"
 done < <(grep -oE '[a-z0-9][a-z0-9.-]*\.(net|dev|feather|com|org|io|sh)\b' "${doc}" | sort -u)

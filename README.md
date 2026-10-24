@@ -36,6 +36,12 @@ Every route except `GET /health` needs a Microsoft Entra ID access token; see
 docker/docker-compose.yml up -d web` (http://localhost:8081). Staff sign in with Entra ID. See
 [web/README.md](web/README.md) for the container variables and development.
 
+### Deployment on Kubernetes
+
+The Helm chart in [`deploy/charts/blackhole`](deploy/charts/blackhole/README.md) runs the backend, the admin
+panel, the appeal portal, the Discord bot and a ClamAV scanner; the images and the chart are published to Harbor
+by the release workflow. The operator runbook is [docs/kubernetes.md](docs/kubernetes.md).
+
 ### Tech stack
 
 - **Backend**: Java 21+, [Micronaut](https://micronaut.io/), Hibernate/JPA, Flyway (PostgreSQL),

@@ -69,11 +69,11 @@ Order: 1 -> 2 -> 3/4/5 (independent after 2) -> 6 -> 7 -> 8. Group 9 starts when
 
 ## 8. Documentation (PR 8, `docs(deploy)`)
 
-- [ ] 8.1 Check first (links, tables): a `markdown-lint`-style check of `docs/kubernetes.md`, every environment variable in the tables of `design.md` exists in `application.yml`, the Dockerfiles or the discord/web/portal config (a script greps them; fails on a variable that does not exist)
-- [ ] 8.2 `docs/kubernetes.md`: reference (components, hosts, values, secrets table, ports), how-to (first deploy, upgrade, secret change with `secretRevision`, rotate Entra secrets, restore the database, Ban ID key backup and restore drill, add the Velocity host), explanation (why no Dragonfly for Velocity, why migrate on start), failure list from the Outline gotchas
-- [ ] 8.3 Operator tasks outside any repo: Cloudflare rate limits for `POST /public/session` and the portal write routes, WAF allow-list on the API host, Entra redirect URIs for `blackhole.onelitefeather.net`; list them with owners
+- [x] 8.1 Check first (links, tables): a `markdown-lint`-style check of `docs/kubernetes.md`, every environment variable in the tables of `design.md` exists in `application.yml`, the Dockerfiles or the discord/web/portal config (a script greps them; fails on a variable that does not exist)
+- [x] 8.2 `docs/kubernetes.md`: reference (components, hosts, values, secrets table, ports), how-to (first deploy, upgrade, secret change with `secretRevision`, rotate Entra secrets, restore the database, Ban ID key backup and restore drill, add the Velocity host), explanation (why no Dragonfly for Velocity, why migrate on start), failure list from the Outline gotchas
+- [x] 8.3 Operator tasks outside any repo: Cloudflare rate limits for `POST /public/session` and the portal write routes, WAF allow-list on the API host, Entra redirect URIs for `blackhole.onelitefeather.net`; list them with owners
 - [ ] 8.4 Link from `README.md`, `docs/discord-bot.md` (deployment section) and `CLAUDE.md` Commands (one line), and add an Outline page link in the runbook
-- [ ] 8.5 Verify: `openspec validate --all --strict`
+- [x] 8.5 Verify: `openspec validate --all --strict`
 
 ## 9. Kubernetes-FLUX pull request (separate repository, not part of this repository's PRs)
 

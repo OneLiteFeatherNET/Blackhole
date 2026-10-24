@@ -109,6 +109,10 @@ from the repository root: `docker build -f discord/Dockerfile -t blackhole-disco
 The bot is stateless and optional: the backend, the panel and the portal keep working while it is down, and
 what was written meanwhile reaches Discord when it is back.
 
+On Kubernetes the Helm chart runs the bot as one pod (strategy `Recreate`, never two bots): the ids and
+intervals are chart values, the token and the Entra client secret are read from a Secret, and the health
+endpoint on port 8082 is the startup and liveness probe. See [Run Blackhole on Kubernetes](kubernetes.md).
+
 ## 5. Rules for the edge (infrastructure only)
 
 Rate limiting stays out of the application: the operator sets it where the bot reaches the backend (reverse
