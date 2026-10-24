@@ -7,8 +7,10 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -28,6 +30,9 @@ import java.util.function.Function;
  * {@code DISCORD_ARCHIVE_DELETE_AFTER} (ISO-8601, default {@code P30D}, {@code PT0S} keeps archived channels),
  * {@code DISCORD_SYNC_INTERVAL} (default {@code PT30S}) and {@code DISCORD_STAFF_RECONCILE_INTERVAL} (default {@code PT5M}).</p>
  *
+ * <p>Leak scanning: {@code DISCORD_LEAK_SCAN} ({@code PUBLIC} by default, {@code LIST} or {@code OFF}) and, for {@code LIST},
+ * {@code DISCORD_LEAK_SCAN_CHANNELS}, a comma separated list of channel or category ids.</p>
+ *
  * @param discordToken   the bot token (a secret, never printed)
  * @param guildId        the one guild the bot serves
  * @param teamChannelId  the channel that receives the team notifications
@@ -38,6 +43,7 @@ import java.util.function.Function;
  * @param rabbit         the broker the report and appeal events come from
  * @param healthPort     the port of the local health endpoint, 0 for none
  * @param tickets        the appeal ticket channels
+ * @param leak           which channels are scanned for posted Ban IDs
  */
 public record BotConfig(
         @NotNull String discordToken,
@@ -49,7 +55,8 @@ public record BotConfig(
         @NotNull TokenSettings auth,
         @NotNull RabbitSettings rabbit,
         int healthPort,
-        @NotNull TicketSettings tickets
+        @NotNull TicketSettings tickets,
+        @NotNull LeakSettings leak
 ) {
 
     public static final String ENV_TOKEN = "DISCORD_TOKEN";
@@ -75,6 +82,25 @@ public record BotConfig(
     public static final String ENV_ARCHIVE_DELETE_AFTER = "DISCORD_ARCHIVE_DELETE_AFTER";
     public static final String ENV_SYNC_INTERVAL = "DISCORD_SYNC_INTERVAL";
     public static final String ENV_RECONCILE_INTERVAL = "DISCORD_STAFF_RECONCILE_INTERVAL";
+    public static final String ENV_LEAK_SCAN = "DISCORD_LEAK_SCAN";
+    public static final String ENV_LEAK_SCAN_CHANNELS = "DISCORD_LEAK_SCAN_CHANNELS";
+
+    /** Which channels are scanned for Ban IDs. */
+    public enum LeakMode {
+        /** Every channel and thread where {@code @everyone} can view, except the ticket and archive categories. */
+        PUBLIC,
+        /** Only the configured channels (or categories). */
+        LIST,
+        /** No scanning; no message content is sent to the backend. */
+        OFF
+    }
+
+    /**
+     * @param mode       what is scanned
+     * @param channelIds with {@link LeakMode#LIST}: the channels or categories to scan
+     */
+    public record LeakSettings(@NotNull LeakMode mode, @NotNull Set<Long> channelIds) {
+    }
 
     /**
      * @param ticketCategoryId  the category the ticket channels are created in
@@ -181,11 +207,12 @@ public record BotConfig(
         Duration deleteAfter = duration(env, ENV_ARCHIVE_DELETE_AFTER, Duration.ofDays(30), Duration.ZERO, problems);
         Duration syncInterval = duration(env, ENV_SYNC_INTERVAL, Duration.ofSeconds(30), Duration.ofSeconds(5), problems);
         Duration reconcileInterval = duration(env, ENV_RECONCILE_INTERVAL, Duration.ofMinutes(5), Duration.ofSeconds(30), problems);
+        LeakSettings leak = leak(env, problems);
         if (!problems.isEmpty()) {
             throw new ConfigException(problems);
         }
         return new BotConfig(token, guildId, teamChannelId, staffRoleId, backendUrl, panelUrl, auth, rabbit, healthPort,
-                new TicketSettings(ticketCategory, archiveCategory, appealChannel, deleteAfter, syncInterval, reconcileInterval));
+                new TicketSettings(ticketCategory, archiveCategory, appealChannel, deleteAfter, syncInterval, reconcileInterval), leak);
     }
 
     /** Never prints the bot token or the client secret. */
@@ -193,7 +220,43 @@ public record BotConfig(
     public String toString() {
         return "BotConfig{discordToken=<redacted>, guildId=" + this.guildId + ", teamChannelId=" + this.teamChannelId
                 + ", staffRoleId=" + this.staffRoleId + ", backendUrl=" + this.backendUrl + ", panelUrl=" + this.panelUrl
-                + ", auth=" + this.auth + ", rabbit=" + this.rabbit + ", healthPort=" + this.healthPort + ", tickets=" + this.tickets + "}";
+                + ", auth=" + this.auth + ", rabbit=" + this.rabbit + ", healthPort=" + this.healthPort + ", tickets=" + this.tickets + ", leak=" + this.leak + "}";
+    }
+
+    private static LeakSettings leak(Function<String, String> env, List<String> problems) {
+        String modeText = value(env, ENV_LEAK_SCAN);
+        LeakMode mode = LeakMode.PUBLIC;
+        if (!modeText.isEmpty()) {
+            try {
+                mode = LeakMode.valueOf(modeText.toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                problems.add(ENV_LEAK_SCAN + " must be PUBLIC, LIST or OFF");
+            }
+        }
+        Set<Long> channels = new LinkedHashSet<>();
+        String list = value(env, ENV_LEAK_SCAN_CHANNELS);
+        if (mode == LeakMode.LIST) {
+            if (list.isEmpty()) {
+                problems.add(ENV_LEAK_SCAN_CHANNELS + " is missing (" + ENV_LEAK_SCAN + "=LIST scans only the listed channels)");
+            }
+            for (String id : list.split(",")) {
+                String trimmed = id.strip();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                if (!trimmed.matches("\\d{15,20}")) {
+                    problems.add(ENV_LEAK_SCAN_CHANNELS + " must be a comma separated list of Discord ids (15 to 20 digits)");
+                    break;
+                }
+                try {
+                    channels.add(Long.parseUnsignedLong(trimmed));
+                } catch (NumberFormatException e) {
+                    problems.add(ENV_LEAK_SCAN_CHANNELS + " must be a comma separated list of Discord ids (15 to 20 digits)");
+                    break;
+                }
+            }
+        }
+        return new LeakSettings(mode, Set.copyOf(channels));
     }
 
     private static Duration duration(Function<String, String> env, String name, Duration fallback, Duration minimum, List<String> problems) {

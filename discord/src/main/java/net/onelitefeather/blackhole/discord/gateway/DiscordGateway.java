@@ -74,6 +74,7 @@ public interface DiscordGateway extends AutoCloseable {
      * @param messageId    the message
      * @param channelId    its channel (for a thread, the thread)
      * @param categoryId   the category of the channel (of the parent for a thread), 0 for none
+     * @param publicChannel whether {@code @everyone} can view the channel (the parent for a thread)
      * @param authorId     the author
      * @param authorName   the author's display name
      * @param bot          whether the author is a bot
@@ -87,7 +88,7 @@ public interface DiscordGateway extends AutoCloseable {
      * @param relayRef     for the bot's own relays: the reference in the footer, else null
      */
     record IncomingMessage(
-            long messageId, long channelId, long categoryId, long authorId, @Nullable String authorName, boolean bot, boolean self,
+            long messageId, long channelId, long categoryId, boolean publicChannel, long authorId, @Nullable String authorName, boolean bot, boolean self,
             boolean hasStaffRole, @NotNull Instant createdAt, @Nullable Instant editedAt, @NotNull String text,
             @NotNull List<IncomingAttachment> attachments, @NotNull List<IncomingEmbed> embeds, @Nullable String relayRef
     ) {

@@ -335,7 +335,7 @@ public final class JdaGateway extends ListenerAdapter implements DiscordGateway 
             String footer = message.getEmbeds().getFirst().getFooter().getText();
             relayRef = footer != null && footer.startsWith("ref ") ? footer : null;
         }
-        return new IncomingMessage(message.getIdLong(), message.getChannelIdLong(), categoryOf(message), author, name,
+        return new IncomingMessage(message.getIdLong(), message.getChannelIdLong(), categoryOf(message), publicView(message), author, name,
                 message.getAuthor().isBot(), isSelf, staffRole, message.getTimeCreated().toInstant(),
                 message.getTimeEdited() == null ? null : message.getTimeEdited().toInstant(), message.getContentDisplay(), attachments, embeds, relayRef);
     }
@@ -356,6 +356,16 @@ public final class JdaGateway extends ListenerAdapter implements DiscordGateway 
             return 0;
         }
         return categoryOf(message.getGuildChannel());
+    }
+
+    /** Whether {@code @everyone} can see the channel (its parent for a thread), taking the channel's overwrites into account. */
+    private static boolean publicView(Message message) {
+        if (!message.isFromGuild()) {
+            return false;
+        }
+        GuildChannel channel = message.getGuildChannel();
+        GuildChannel base = channel instanceof ThreadChannel thread ? thread.getParentChannel() : channel;
+        return message.getGuild().getPublicRole().hasPermission(base, net.dv8tion.jda.api.Permission.VIEW_CHANNEL);
     }
 
     private static long categoryOf(GuildChannel channel) {

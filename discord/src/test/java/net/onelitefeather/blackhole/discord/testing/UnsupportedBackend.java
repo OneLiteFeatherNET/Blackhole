@@ -5,6 +5,7 @@ import net.onelitefeather.blackhole.discord.backend.Result;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Closed;
 import net.onelitefeather.blackhole.discord.backend.Tickets.IngestBatch;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Ingested;
+import net.onelitefeather.blackhole.discord.backend.Tickets.LeakResult;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Opened;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Outbox;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Patch;
@@ -67,6 +68,11 @@ public abstract class UnsupportedBackend implements BackendGateway {
 
     @Override
     public @NotNull Result<List<String>> staffLinks() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public @NotNull Result<LeakResult> leakCheck(@NotNull List<String> candidates, boolean listed, @Nullable String posterDiscordUserId, boolean posterIsBot) {
         throw new UnsupportedOperationException();
     }
 }

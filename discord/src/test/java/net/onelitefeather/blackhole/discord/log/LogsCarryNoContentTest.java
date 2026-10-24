@@ -54,6 +54,19 @@ class LogsCarryNoContentTest {
             ticket.leaked = true;
             ticket.appealStatus = "DENIED";
             h.ticks(3);
+            // The leak scanner: a real code, a look-alike, an outage and a missing permission.
+            h.guild.addChannel(500L, "general", 0);
+            h.backend.banIds.put("K7M29QXA", ticket);
+            h.guild.say(500L, Harness.PLAYER, "oops #K7M2-9QXA " + SECRET_TEXT);
+            h.guild.say(500L, Harness.PLAYER, "#ABCD-EFGH " + SECRET_TEXT);
+            h.backend.down = 0;
+            h.guild.say(500L, Harness.PLAYER, "#K7M2-9QXA during outage " + SECRET_TEXT);
+            h.drain();
+            h.scheduler.advance(java.time.Duration.ofMinutes(10));
+            h.backend.down = null;
+            h.guild.failOn.put("deleteMessage", new GatewayException("Missing Permissions " + SECRET_TEXT, true, null));
+            h.guild.say(500L, Harness.PLAYER, "#K7M2-9QXA " + SECRET_TEXT);
+            h.drain();
         } finally {
             root.detachAppender(captured);
             root.setLevel(before);

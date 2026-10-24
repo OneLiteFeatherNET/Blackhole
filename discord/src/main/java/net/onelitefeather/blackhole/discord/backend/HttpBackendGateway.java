@@ -12,6 +12,8 @@ import net.onelitefeather.blackhole.client.model.DiscordIngestAttachment;
 import net.onelitefeather.blackhole.client.model.DiscordIngestEmbed;
 import net.onelitefeather.blackhole.client.model.DiscordIngestItem;
 import net.onelitefeather.blackhole.client.model.DiscordIngestRequest;
+import net.onelitefeather.blackhole.client.model.DiscordLeakChannelKind;
+import net.onelitefeather.blackhole.client.model.DiscordLeakCheckRequest;
 import net.onelitefeather.blackhole.client.model.DiscordLinkConfirmRequest;
 import net.onelitefeather.blackhole.client.model.DiscordLinkConfirmResponse;
 import net.onelitefeather.blackhole.client.model.DiscordLinkKind;
@@ -31,6 +33,7 @@ import net.onelitefeather.blackhole.discord.backend.Tickets.Closed;
 import net.onelitefeather.blackhole.discord.backend.Tickets.IngestBatch;
 import net.onelitefeather.blackhole.discord.backend.Tickets.IngestItem;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Ingested;
+import net.onelitefeather.blackhole.discord.backend.Tickets.LeakResult;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Opened;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Outbox;
 import net.onelitefeather.blackhole.discord.backend.Tickets.OutboxItem;
@@ -291,5 +294,15 @@ public final class HttpBackendGateway implements BackendGateway {
     public @NotNull Result<List<String>> staffLinks() {
         return invoke("listing staff links", () -> this.ticketApi.listDiscordStaffLinks().getLinks().stream()
                 .map(DiscordStaffLink::getDiscordUserId).toList());
+    }
+
+    @Override
+    public @NotNull Result<LeakResult> leakCheck(@NotNull List<String> candidates, boolean listed, @Nullable String posterDiscordUserId, boolean posterIsBot) {
+        return invoke("checking leak candidates", () -> {
+            var result = this.ticketApi.checkDiscordLeak(new DiscordLeakCheckRequest().candidates(candidates)
+                    .channelKind(listed ? DiscordLeakChannelKind.LISTED : DiscordLeakChannelKind.PUBLIC)
+                    .posterDiscordUserId(posterDiscordUserId).posterIsBot(posterIsBot));
+            return new LeakResult(result.getMatched(), result.getMarked());
+        });
     }
 }

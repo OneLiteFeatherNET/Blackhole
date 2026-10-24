@@ -11,6 +11,9 @@ import net.onelitefeather.blackhole.discord.config.BotConfig.TicketSettings;
 import net.onelitefeather.blackhole.discord.gateway.DiscordGateway.IncomingMessage;
 import net.onelitefeather.blackhole.discord.metrics.Health;
 import net.onelitefeather.blackhole.discord.metrics.Metrics;
+import net.onelitefeather.blackhole.discord.config.BotConfig.LeakMode;
+import net.onelitefeather.blackhole.discord.config.BotConfig.LeakSettings;
+import net.onelitefeather.blackhole.discord.leak.LeakScanner;
 import net.onelitefeather.blackhole.discord.sync.CaseEventHandler;
 import net.onelitefeather.blackhole.discord.sync.CatchUp;
 import net.onelitefeather.blackhole.discord.sync.OutboxRelay;
@@ -56,12 +59,18 @@ public final class Harness {
     public final ArchiveSweeper sweeper;
     public final AppealCommands appeals;
     public final CaseEventHandler caseEvents;
+    public final LeakScanner leakScanner;
     public final List<IncomingMessage> outsideMessages = new ArrayList<>();
     public final List<IncomingMessage> outsideEdits = new ArrayList<>();
 
     /** A fresh world. */
     public Harness() {
-        this(new MutableClock(), null, null, Duration.ofDays(30));
+        this(new LeakSettings(LeakMode.PUBLIC, java.util.Set.of()));
+    }
+
+    /** A fresh world with the given leak scan scope. */
+    public Harness(LeakSettings leak) {
+        this(new MutableClock(), null, null, Duration.ofDays(30), leak);
     }
 
     /** A fresh bot over an existing backend and guild, as after a restart. */
@@ -70,11 +79,10 @@ public final class Harness {
     }
 
     public Harness(MutableClock clock, FakeTicketBackend existingBackend, FakeGuild existingGuild, Duration deleteAfter) {
-        this(clock, existingBackend, existingGuild, deleteAfter, message -> { }, message -> { });
+        this(clock, existingBackend, existingGuild, deleteAfter, new LeakSettings(LeakMode.PUBLIC, java.util.Set.of()));
     }
 
-    private Harness(MutableClock clock, FakeTicketBackend existingBackend, FakeGuild existingGuild, Duration deleteAfter,
-                    Consumer<IncomingMessage> messages, Consumer<IncomingMessage> edits) {
+    public Harness(MutableClock clock, FakeTicketBackend existingBackend, FakeGuild existingGuild, Duration deleteAfter, LeakSettings leak) {
         this.clock = clock;
         this.scheduler = new ManualScheduler(clock);
         this.backend = existingBackend == null ? new FakeTicketBackend() : existingBackend;
@@ -86,8 +94,17 @@ public final class Harness {
         this.lifecycle = new TicketLifecycle(this.settings, GUILD, this.backend, this.guild, relay, catchUp, this.staff, this.registry, this.metrics, clock);
         this.sweeper = new ArchiveSweeper(this.backend, this.lifecycle, deleteAfter, this.metrics);
         this.selfCheck = new PermissionSelfCheck(this.guild, this.settings, STAFF_ROLE, this.health);
+        this.leakScanner = new LeakScanner(this.backend, this.guild, this.scheduler, clock, this.metrics, leak, this.settings);
+        Consumer<IncomingMessage> messages = message -> {
+            this.outsideMessages.add(message);
+            this.leakScanner.onMessage(message);
+        };
+        Consumer<IncomingMessage> edits = message -> {
+            this.outsideEdits.add(message);
+            this.leakScanner.onEdit(message);
+        };
         this.engine = new SyncEngine(this.settings, this.backend, this.guild, this.lifecycle, relay, catchUp, this.staff, this.sweeper, this.selfCheck,
-                this.registry, this.scheduler, this.metrics, this.outsideMessages::add, this.outsideEdits::add);
+                this.registry, this.scheduler, this.metrics, messages, edits);
         this.appeals = new AppealCommands(this.backend, this.lifecycle);
         this.caseEvents = new CaseEventHandler(this.engine);
         this.guild.listener(this.engine);

@@ -159,4 +159,17 @@ public interface BackendGateway {
 
     /** @return the Discord user ids of the live staff links, for the channel access reconcile */
     @NotNull Result<List<String>> staffLinks();
+
+    // ---- leak scanning (group 4) ----
+
+    /**
+     * Asks the backend which candidates are current Ban IDs and marks those leaked (reason posted public, source Discord bot). A
+     * candidate that is no Ban ID causes nothing. The candidates and the poster are never logged.
+     *
+     * @param candidates         up to five normalised candidates
+     * @param listed             whether the channel is on the configured list rather than public
+     * @param posterDiscordUserId the human who posted it, null for a bot
+     * @param posterIsBot        whether the poster is a bot
+     */
+    @NotNull Result<LeakResult> leakCheck(@NotNull List<String> candidates, boolean listed, @Nullable String posterDiscordUserId, boolean posterIsBot);
 }
