@@ -91,6 +91,21 @@ yq_count() {
   yq eval-all "$2" "$1" | grep -c . || true
 }
 
+# y <file> <yq expression>  -> the value(s) the expression selects over all documents ("null" if none)
+y() {
+  yq eval-all "$2" "$1"
+}
+
+# pod_env <file> <deployment> <variable>  -> the env entry of the first container as JSON, "" if missing
+pod_env() {
+  yq eval-all -o=json -I=0 "select(.kind == \"Deployment\" and .metadata.name == \"$2\") | .spec.template.spec.containers[0].env[] | select(.name == \"$3\")" "$1"
+}
+
+# configmap_value <file> <configmap> <key>
+configmap_value() {
+  yq eval-all "select(.kind == \"ConfigMap\" and .metadata.name == \"$2\") | .data.\"$3\"" "$1"
+}
+
 # select_doc <file> <kind> <name>  -> that one document on stdout
 select_doc() {
   yq eval "select(.kind == \"$2\" and .metadata.name == \"$3\")" "$1"
