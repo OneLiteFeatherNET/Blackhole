@@ -6,6 +6,9 @@ import type { VanillaImportResult } from '../../api/types'
 import MdButton from '../md/MdButton.vue'
 import MdDialog from '../md/MdDialog.vue'
 import MdProgress from '../md/MdProgress.vue'
+import MdSelect from '../md/MdSelect.vue'
+import MdTextField from '../md/MdTextField.vue'
+import { useImportTemplateOptions } from './importTemplates'
 
 // The UI server forwards request bodies up to 1 MiB on this route; larger files are refused here
 // with an explanation instead of failing later with a bare 413.
@@ -13,6 +16,12 @@ const MAX_BYTES = 1024 * 1024
 
 const { t } = useI18n()
 const api = useApi()
+
+const templates = useImportTemplateOptions()
+const templateKey = ref('')
+/** Optional: a reason of the file that is linked to another template than the default one. */
+const mappings = ref<Array<{ id: number; reason: string; templateKey: string }>>([])
+let nextMappingId = 0
 
 const playersFile = ref<File | null>(null)
 const ipsFile = ref<File | null>(null)
@@ -29,6 +38,26 @@ const pasteId = useId()
 const pasteHintId = useId()
 
 const hasPlayers = computed(() => pasted.value.trim() !== '' || playersFile.value !== null)
+const canRun = computed(() => hasPlayers.value && templateKey.value !== '' && !running.value)
+const templateLabel = computed(() => templates.options.value.find((option) => option.value === templateKey.value)?.label ?? templateKey.value)
+
+function addMapping(reason = ''): void {
+  if (reason !== '' && mappings.value.some((mapping) => mapping.reason === reason)) return
+  mappings.value.push({ id: nextMappingId++, reason, templateKey: '' })
+}
+
+function removeMapping(id: number): void {
+  mappings.value = mappings.value.filter((mapping) => mapping.id !== id)
+}
+
+/** Only complete rows count: a row with a reason and a template is sent. */
+function reasonTemplates(): Record<string, string> {
+  const result: Record<string, string> = {}
+  for (const mapping of mappings.value) {
+    if (mapping.reason.trim() !== '' && mapping.templateKey !== '') result[mapping.reason.trim()] = mapping.templateKey
+  }
+  return result
+}
 
 function pick(event: Event, target: 'players' | 'ips'): void {
   const file = (event.target as HTMLInputElement).files?.[0] ?? null
@@ -37,7 +66,7 @@ function pick(event: Event, target: 'players' | 'ips'): void {
 }
 
 async function run(dryRun: boolean): Promise<void> {
-  if (running.value) return
+  if (running.value || templateKey.value === '') return
   const players: Blob | null = pasted.value.trim() !== '' ? new Blob([pasted.value], { type: 'application/json' }) : playersFile.value
   if (!players) return
   problem.value = ''
@@ -49,7 +78,7 @@ async function run(dryRun: boolean): Promise<void> {
   running.value = true
   result.value = null
   announcement.value = ''
-  const response = await api.importVanillaBans({ players, ips: ipsFile.value, dryRun })
+  const response = await api.importVanillaBans({ players, ips: ipsFile.value, templateKey: templateKey.value, reasonTemplates: reasonTemplates(), dryRun })
   running.value = false
   confirming.value = false
   if (!response.ok) {
@@ -70,6 +99,35 @@ async function run(dryRun: boolean): Promise<void> {
   <section aria-labelledby="vanilla-import-title" class="flex flex-col gap-4" data-testid="vanilla-import">
     <h2 id="vanilla-import-title" class="text-title-large">{{ t('vanillaImport.title') }}</h2>
     <p class="text-body-large text-on-surface-variant">{{ t('vanillaImport.intro') }}</p>
+
+    <p v-if="templates.error.value" role="alert" data-testid="templates-problem" class="rounded-md-md bg-error-container p-3 text-on-error-container">{{ templates.error.value.message }}</p>
+    <div class="flex flex-col gap-1" data-testid="template-picker">
+      <MdSelect
+        v-model="templateKey"
+        :label="t('vanillaImport.template')"
+        :placeholder="t('vanillaImport.templatePlaceholder')"
+        :options="templates.options.value"
+        :supporting-text="t('vanillaImport.templateHint')"
+        required
+      />
+    </div>
+
+    <fieldset class="flex flex-col gap-3 rounded-md-md border border-outline-variant p-4" data-testid="mappings">
+      <legend class="px-1 text-label-large">{{ t('vanillaImport.mappingTitle') }}</legend>
+      <p class="text-body-small text-on-surface-variant">{{ t('vanillaImport.mappingHint') }}</p>
+      <div v-for="(mapping, index) in mappings" :key="mapping.id" class="flex flex-wrap items-start gap-3" :data-testid="`mapping-${index}`">
+        <div class="min-w-48 flex-1">
+          <MdTextField v-model="mapping.reason" :label="t('vanillaImport.mappingReason')" />
+        </div>
+        <div class="min-w-48 flex-1">
+          <MdSelect v-model="mapping.templateKey" :label="t('vanillaImport.mappingTemplate')" :options="templates.options.value" />
+        </div>
+        <MdButton variant="text" :data-testid="`remove-mapping-${index}`" @click="removeMapping(mapping.id)">{{ t('vanillaImport.mappingRemove') }}</MdButton>
+      </div>
+      <div>
+        <MdButton variant="outlined" data-testid="add-mapping" @click="addMapping()">{{ t('vanillaImport.mappingAdd') }}</MdButton>
+      </div>
+    </fieldset>
 
     <div class="flex flex-col gap-1">
       <label :for="playersFileId" class="text-label-large">{{ t('vanillaImport.playersFile') }}</label>
@@ -97,8 +155,8 @@ async function run(dryRun: boolean): Promise<void> {
     </div>
 
     <div class="flex flex-wrap gap-2">
-      <MdButton variant="outlined" data-testid="preview" :disabled="!hasPlayers || running" @click="run(true)">{{ t('vanillaImport.preview') }}</MdButton>
-      <MdButton data-testid="import" :disabled="!hasPlayers || running" @click="confirming = true">{{ t('vanillaImport.import') }}</MdButton>
+      <MdButton variant="outlined" data-testid="preview" :disabled="!canRun" @click="run(true)">{{ t('vanillaImport.preview') }}</MdButton>
+      <MdButton data-testid="import" :disabled="!canRun" @click="confirming = true">{{ t('vanillaImport.import') }}</MdButton>
     </div>
     <MdProgress v-if="running" :label="t('vanillaImport.running')" />
 
@@ -122,6 +180,32 @@ async function run(dryRun: boolean): Promise<void> {
           <dd data-testid="ips">{{ t('vanillaImport.ipsSkipped', { total: result.ipsTotal, skipped: result.ipsSkipped }) }}</dd>
         </template>
       </dl>
+      <div v-if="result.reasonGroups.length > 0">
+        <h4 class="text-title-small">{{ result.dryRun ? t('vanillaImport.groupsPreview') : t('vanillaImport.groupsImport') }}</h4>
+        <table class="mt-1 w-full text-left text-body-medium" data-testid="reason-groups">
+          <caption class="sr-only">{{ t('vanillaImport.groupsCaption') }}</caption>
+          <thead>
+            <tr>
+              <th scope="col" class="py-1 pr-4 text-label-large">{{ t('vanillaImport.groupReason') }}</th>
+              <th scope="col" class="py-1 pr-4 text-label-large">{{ t('vanillaImport.groupTemplate') }}</th>
+              <th scope="col" class="py-1 pr-4 text-label-large">{{ t('vanillaImport.groupCount') }}</th>
+              <th scope="col" class="py-1"><span class="sr-only">{{ t('vanillaImport.groupActions') }}</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="group in result.reasonGroups" :key="group.reason + '|' + group.templateKey">
+              <td class="py-1 pr-4 break-words">{{ group.reason }}</td>
+              <td class="py-1 pr-4"><code class="font-mono text-body-small">{{ group.templateKey }}</code></td>
+              <td class="py-1 pr-4">{{ group.count }}</td>
+              <td class="py-1">
+                <MdButton variant="text" data-testid="map-group" :aria-label="t('vanillaImport.mapGroupFor', { reason: group.reason })" @click="addMapping(group.reason)">
+                  {{ t('vanillaImport.mapGroup') }}
+                </MdButton>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <div v-if="result.invalidEntries.length > 0">
         <h4 class="text-title-small">{{ t('vanillaImport.invalidEntries') }}</h4>
         <ul class="list-disc pl-5 text-body-small" data-testid="invalid-entries">
@@ -132,7 +216,7 @@ async function run(dryRun: boolean): Promise<void> {
   </section>
 
   <MdDialog :open="confirming" :headline="t('vanillaImport.confirmTitle')" @close="confirming = false">
-    <p>{{ t('vanillaImport.confirmBody') }}</p>
+    <p>{{ t('vanillaImport.confirmBody', { template: templateLabel }) }}</p>
     <template #actions>
       <MdButton variant="text" data-testid="cancel" @click="confirming = false">{{ t('actions.cancel') }}</MdButton>
       <MdButton data-testid="confirm" :disabled="running" @click="run(false)">{{ t('vanillaImport.confirm') }}</MdButton>

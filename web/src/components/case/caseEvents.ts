@@ -33,6 +33,7 @@ const KNOWN: Record<string, EventInfo> = {
   'punishment.applied': { key: 'punishmentApplied', icon: 'gavel' },
   'punishment.revoked': { key: 'punishmentRevoked', icon: 'undo' },
   'punishment.lifted': { key: 'punishmentLifted', icon: 'undo' },
+  'punishment.retemplated': { key: 'punishmentRetemplated', icon: 'label' },
   'punishment.expired': { key: 'punishmentExpired', icon: 'hourglass' },
   'evidence.attached': { key: 'evidenceAttached', icon: 'attach' },
   'evidence.lifted': { key: 'evidenceLifted', icon: 'attach' },

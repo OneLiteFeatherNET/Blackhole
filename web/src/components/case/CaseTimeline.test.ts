@@ -27,6 +27,7 @@ describe('CaseTimeline: event types', () => {
     ['punishment.applied', { section: 'network', stepIndex: 0, stepCount: 3, eloCost: 40, escalated: true }, 'Punishment applied', 'Step 1 of 3'],
     ['punishment.revoked', {}, 'Punishment revoked', ''],
     ['punishment.lifted', { approximate: true }, 'Punishment lifted by appeal', 'time is approximate'],
+    ['punishment.retemplated', { templateId: 'tpl-1' }, 'Linked to a template', ''],
     ['punishment.expired', { expiredAt: Date.UTC(2026, 6, 2) }, 'Punishment expired', ''],
     ['evidence.attached', { evidenceId: 'e-1', kind: 'ANTICHEAT' }, 'Evidence attached', 'Anticheat record'],
     ['evidence.lifted', { evidenceId: 'e-1' }, 'Evidence lifted', ''],

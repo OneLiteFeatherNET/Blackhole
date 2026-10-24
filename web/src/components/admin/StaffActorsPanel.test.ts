@@ -128,11 +128,15 @@ describe('AdminView', () => {
     const api = mockApi({
       staffActors: vi.fn(async () => ok([ada])),
       cloudnetCatalogue: vi.fn(async () => ok({ available: false, tasks: [], groups: [], services: [], proxies: [] })),
+      templates: vi.fn(async () => ok([])),
+      sections: vi.fn(async () => ok([])),
+      importedPunishmentGroups: vi.fn(async () => ok({ total: 0, groups: [] })),
     })
     const { wrapper } = await mountWithApp(AdminView, { api, roles: ['ADMIN'], path: '/admin' })
 
     expect(wrapper.find('[data-testid="staff-actors"]').exists(), 'staff panel').toBe(true)
     expect(wrapper.find('[data-testid="vanilla-import"]').exists(), 'import panel').toBe(true)
+    expect(wrapper.find('[data-testid="imported-punishments"]').exists(), 'imported punishments panel').toBe(true)
     expect(wrapper.find('[data-testid="cloudnet-catalogue"]').exists(), 'catalogue panel').toBe(true)
 
     wrapper.unmount()

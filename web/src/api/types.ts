@@ -46,15 +46,25 @@ export interface VanillaImportResult {
   invalidEntries: string[]
   ipsTotal: number
   ipsSkipped: number
+  /** The imported entries by original reason, each with the template it is (or would be) linked to. */
+  reasonGroups: Array<{ reason: string; templateKey: string; count: number }>
 }
 
 /** What the import form submits; the players list is the file's text, pasted or read. */
 export interface VanillaImportRequest {
   players: Blob
   ips?: Blob | null
+  /** The template every ban is linked to, unless `reasonTemplates` maps its reason to another one. */
+  templateKey: string
+  /** Original reason text to template key, for a file with different reasons. */
+  reasonTemplates?: Record<string, string>
   /** Only report what would happen. */
   dryRun: boolean
 }
+
+export type ImportedPunishmentGroups = Schemas['ImportedPunishmentGroups']
+export type ImportedPunishmentGroup = Schemas['ImportedPunishmentGroup']
+export type ImportedPunishmentRetemplateResult = Schemas['ImportedPunishmentRetemplateResponse']
 
 /** A known staff principal (a person or an application) with the name kept for it. */
 export type StaffActor = Schemas['StaffActorItem']

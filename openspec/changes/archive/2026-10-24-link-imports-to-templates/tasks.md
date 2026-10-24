@@ -21,7 +21,7 @@ fetch and no sleeps).
 
 ## 3. Admin UI (PR 3, `feat(web)`)
 
-- [ ] 3.1 Failing tests first: picker required, mapping table, preview shows templates, imported punishments section groups, confirmation, German and English
-- [ ] 3.2 API client methods and types, import panel changes, "Importierte Strafen" section
-- [ ] 3.3 Archive this change (`docs(openspec): archive link-imports-to-templates`), shipped with PR 3
-- [ ] 3.4 Open the pull request titled `feat(web): pick templates when importing and re-template imported bans`
+- [x] 3.1 Failing tests first: picker required, mapping table, preview shows templates, imported punishments section groups, confirmation, German and English
+- [x] 3.2 API client methods and types, import panel changes, "Importierte Strafen" section
+- [x] 3.3 Archive this change (`docs(openspec): archive link-imports-to-templates`), shipped with PR 3
+- [x] 3.4 Open the pull request titled `feat(web): pick templates when importing and re-template imported bans`

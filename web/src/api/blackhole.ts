@@ -42,6 +42,8 @@ import type {
   TemplateDraft,
   VanillaImportRequest,
   VanillaImportResult,
+  ImportedPunishmentGroups,
+  ImportedPunishmentRetemplateResult,
 } from './types'
 
 export interface ApiOptions {
@@ -129,6 +131,13 @@ export interface BlackholeApi {
    * only reports what would happen (ADMIN only). Invalid entries are reported, not fatal.
    */
   importVanillaBans(request: VanillaImportRequest): Promise<ApiResult<VanillaImportResult>>
+  /** Imported punishments that have no template yet, grouped by original reason (ADMIN only). */
+  importedPunishmentGroups(): Promise<ApiResult<ImportedPunishmentGroups>>
+  /**
+   * Links the imported punishments that have no template and the original `reason` to a template
+   * (ADMIN only). Only the template changes; repeating it links nothing.
+   */
+  retemplateImportedPunishments(request: { templateKey: string; reason: string }): Promise<ApiResult<ImportedPunishmentRetemplateResult>>
 
   /** One page of the currently active punishments of all players, newest first unless sorted otherwise. */
   activePunishments(query?: ActivePunishmentQuery): Promise<ApiResult<ActivePunishmentPage>>
@@ -464,10 +473,13 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       const form = new FormData()
       form.append('bannedPlayers', request.players, 'banned-players.json')
       if (request.ips) form.append('bannedIps', request.ips, 'banned-ips.json')
+      if (request.reasonTemplates && Object.keys(request.reasonTemplates).length > 0) {
+        form.append('reasonTemplates', JSON.stringify(request.reasonTemplates))
+      }
       const send = authenticatedFetch(options.auth, (options.fetch ?? ((r: Request) => globalThis.fetch(r))) as typeof fetch)
       try {
         const response = await send(
-          new Request(`${options.baseUrl}/admin/import/vanilla?dryRun=${request.dryRun}`, {
+          new Request(`${options.baseUrl}/admin/import/vanilla?dryRun=${request.dryRun}&templateKey=${encodeURIComponent(request.templateKey)}`, {
             method: 'POST',
             headers: { [API_VERSION_HEADER]: API_VERSION },
             body: form,
@@ -482,11 +494,15 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
         }
         if (!response.ok) return { ok: false, error: errorFromBody(response.status, body) }
         const result = body as VanillaImportResult
-        return { ok: true, data: { ...result, invalidEntries: result.invalidEntries ?? [] } }
+        return { ok: true, data: { ...result, invalidEntries: result.invalidEntries ?? [], reasonGroups: result.reasonGroups ?? [] } }
       } catch (cause) {
         return { ok: false, error: { status: 0, message: cause instanceof Error ? cause.message : String(cause), kind: 'NETWORK' } }
       }
     },
+
+    importedPunishmentGroups: () => toResult(http.GET('/admin/import/punishments')),
+    retemplateImportedPunishments: ({ templateKey, reason }) =>
+      toResult(http.POST('/admin/import/punishments/retemplate', { body: { templateKey, reason } })),
 
     staffActors: async () => map(await toResult(http.GET('/admin/staff-actor')), (body) => body.items ?? []),
     anonymizeStaffActor: async (oid) =>

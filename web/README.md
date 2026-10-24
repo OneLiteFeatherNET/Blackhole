@@ -64,7 +64,11 @@ the backend verifies it; the UI only decides what to offer.
   (`POST /admin/import/vanilla`, multipart, behind a confirmation). The result shows entries found, imported (or
   "would be imported"), skipped (player already banned) and errors, with a description per invalid entry. The
   endpoint is hidden from the published API spec, so the UI calls it by hand; the UI server forwards at most
-  1 MiB per request on this route, so larger lists have to be split.
+  1 MiB per request on this route, so larger lists have to be split. A template is required: every imported ban is
+  linked to it (templates of mute sections are not offered), optionally with a table that maps a reason of the file
+  to another template, and the result lists the template of each reason. "Imported punishments" lists the bans
+  imported before this that still have no template, grouped by reason; pick a template per group and confirm to link
+  them (`GET /admin/import/punishments`, `POST /admin/import/punishments/retemplate`). Only the template changes.
   The page also shows the CloudNet catalogue the proxies report (`GET /cloudnet/catalogue`, read-only): tasks with
   their groups, groups, services (running or stopped), the reporting proxies and when the data was last reported,
   or a hint when no catalogue exists.

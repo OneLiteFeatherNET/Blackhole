@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import CloudNetCataloguePanel from '../components/admin/CloudNetCataloguePanel.vue'
 import StaffActorsPanel from '../components/admin/StaffActorsPanel.vue'
+import ImportedPunishmentsPanel from '../components/admin/ImportedPunishmentsPanel.vue'
 import VanillaImportPanel from '../components/admin/VanillaImportPanel.vue'
 
 // ADMIN only: the router guard keeps everyone else away, the backend enforces it per call.
@@ -13,6 +14,7 @@ const { t } = useI18n()
     <p class="text-body-large text-on-surface-variant">{{ t('admin.intro') }}</p>
     <StaffActorsPanel />
     <VanillaImportPanel />
+    <ImportedPunishmentsPanel />
     <CloudNetCataloguePanel />
   </div>
 </template>
