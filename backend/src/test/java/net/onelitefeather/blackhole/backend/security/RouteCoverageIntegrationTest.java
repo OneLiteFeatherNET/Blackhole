@@ -119,6 +119,8 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /discord/link/confirm", D),
             Map.entry("GET /discord/link/{discordUserId}", D),
             Map.entry("DELETE /discord/link/{discordUserId}", D),
+            Map.entry("GET /discord/notifications/report/{identifier}", D),
+            Map.entry("GET /discord/notifications/appeal/{identifier}", D),
             Map.entry("GET /admin/discord-link", A),
             Map.entry("DELETE /admin/discord-link/{id}", A),
             // identity

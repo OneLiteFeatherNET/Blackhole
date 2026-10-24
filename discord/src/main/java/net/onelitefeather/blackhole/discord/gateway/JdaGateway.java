@@ -1,7 +1,17 @@
 package net.onelitefeather.blackhole.discord.gateway;
 
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.components.actionrow.ActionRow;
+import net.dv8tion.jda.api.components.buttons.Button;
+import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.exceptions.ErrorResponseException;
+import net.dv8tion.jda.api.requests.ErrorResponse;
+import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
+import net.dv8tion.jda.api.utils.messages.MessageEditBuilder;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
@@ -23,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
@@ -111,6 +122,84 @@ public final class JdaGateway extends ListenerAdapter implements DiscordGateway 
             }
             hook.editOriginal(text).queue();
         }));
+    }
+
+    @Override
+    public @NotNull MessageRef post(long channelId, @NotNull MessageSpec spec) throws GatewayException {
+        TextChannel channel = channel(channelId);
+        try {
+            Message sent = channel.sendMessage(new MessageCreateBuilder()
+                    .setContent(spec.content())
+                    .setEmbeds(embed(spec))
+                    .setComponents(components(spec))
+                    // Only the staff role may be pinged, never @everyone or users.
+                    .setAllowedMentions(EnumSet.of(Message.MentionType.ROLE))
+                    .build()).complete();
+            return new MessageRef(channelId, sent.getIdLong());
+        } catch (RuntimeException e) {
+            throw failure("post a message", e);
+        }
+    }
+
+    @Override
+    public void edit(@NotNull MessageRef message, @NotNull MessageSpec spec) throws GatewayException {
+        TextChannel channel = channel(message.channelId());
+        try {
+            channel.editMessageById(message.messageId(), new MessageEditBuilder()
+                    .setContent(spec.content() == null ? "" : spec.content())
+                    .setEmbeds(embed(spec))
+                    .setComponents(components(spec))
+                    .build()).complete();
+        } catch (RuntimeException e) {
+            throw failure("edit a message", e);
+        }
+    }
+
+    @Override
+    public @NotNull Optional<MessageRef> find(long channelId, @NotNull String marker) throws GatewayException {
+        TextChannel channel = channel(channelId);
+        try {
+            long self = this.jda.getSelfUser().getIdLong();
+            return channel.getHistory().retrievePast(100).complete().stream()
+                    .filter(message -> message.getAuthor().getIdLong() == self)
+                    .filter(message -> message.getEmbeds().stream().anyMatch(embed ->
+                            embed.getFooter() != null && embed.getFooter().getText() != null && embed.getFooter().getText().endsWith(marker)))
+                    .findFirst()
+                    .map(message -> new MessageRef(channelId, message.getIdLong()));
+        } catch (RuntimeException e) {
+            throw failure("read the channel history", e);
+        }
+    }
+
+    private TextChannel channel(long channelId) throws GatewayException {
+        JDA current = this.jda;
+        TextChannel channel = current == null ? null : current.getTextChannelById(channelId);
+        if (channel == null) {
+            throw new GatewayException("Channel " + channelId + " is unknown or not visible to the bot", true, null);
+        }
+        return channel;
+    }
+
+    private static MessageEmbed embed(MessageSpec spec) {
+        EmbedBuilder builder = new EmbedBuilder().setTitle(spec.title()).setColor(spec.color())
+                .setFooter(spec.footer()).setTimestamp(spec.timestamp());
+        spec.fields().forEach(field -> builder.addField(field.name(), field.value(), field.inline()));
+        return builder.build();
+    }
+
+    private static List<ActionRow> components(MessageSpec spec) {
+        if (spec.linkUrl() == null || spec.linkLabel() == null) {
+            return List.of();
+        }
+        return List.of(ActionRow.of(Button.link(spec.linkUrl(), spec.linkLabel())));
+    }
+
+    private static GatewayException failure(String what, RuntimeException e) {
+        boolean permanent = e instanceof ErrorResponseException response
+                && (response.getErrorResponse() == ErrorResponse.MISSING_ACCESS
+                || response.getErrorResponse() == ErrorResponse.MISSING_PERMISSIONS
+                || response.getErrorResponse() == ErrorResponse.UNKNOWN_CHANNEL);
+        return new GatewayException("Could not " + what + ": " + e.getMessage(), permanent, e);
     }
 
     @Override

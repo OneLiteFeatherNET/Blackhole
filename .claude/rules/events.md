@@ -20,6 +20,11 @@ were removed 2026-07-09 to keep the API surface simpler) — external-system int
 need to be designed fresh if it comes back, including SSRF hardening for any caller-controlled
 URL a new design introduces (see CLAUDE.md's cross-cutting conventions).
 
+The Discord bot (`discord` module) declares its own durable queue `blackhole.discord.notify` (7 day TTL) on
+`blackhole.events` for `report.created`, `report.resolved`, `appeal.submitted` and `appeal.resolved`; the
+events carry only ids and hashes, the bot reads display facts from `GET /discord/notifications/**`. The
+`discord-link.created|removed` events carry kind and subject, never a Discord user id.
+
 Publishing must stay non-blocking: `DomainEventRabbitPublisher.publish` returns a `Publisher<Void>`
 and `DomainEventPublisher` subscribes fire-and-forget. A `void` `@RabbitClient` method blocks on a
 Mono, which Reactor refuses on Netty event-loop threads (where controllers and services run).

@@ -12,10 +12,16 @@ import net.onelitefeather.blackhole.discord.config.BotConfig;
 import net.onelitefeather.blackhole.discord.gateway.DiscordGateway;
 import net.onelitefeather.blackhole.discord.gateway.HealthServer;
 import net.onelitefeather.blackhole.discord.gateway.JdaGateway;
+import net.onelitefeather.blackhole.discord.notify.EmbedRenderer;
+import net.onelitefeather.blackhole.discord.notify.NotificationDispatcher;
+import net.onelitefeather.blackhole.discord.notify.NotificationHandler;
+import net.onelitefeather.blackhole.discord.notify.RabbitConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * Starts the Blackhole Discord bot: reads the environment, authenticates to the backend with the client
@@ -45,6 +51,11 @@ public final class Main {
         BackendGateway backend = new HttpBackendGateway(client);
         DiscordGateway discord = new JdaGateway(config, new AccountCommands(backend));
 
+        NotificationHandler handler = new NotificationHandler(backend, discord,
+                new EmbedRenderer(config.panelUrl(), config.staffRoleId()), config.teamChannelId());
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name("rabbit-retry").daemon(true).factory());
+        RabbitConsumer consumer = new RabbitConsumer(config.rabbit(), new NotificationDispatcher(handler), scheduler);
+
         HealthServer health = null;
         if (config.healthPort() > 0) {
             health = new HealthServer(config.healthPort(), discord::connected);
@@ -52,6 +63,8 @@ public final class Main {
         }
         HealthServer healthServer = health;
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            consumer.close();
+            scheduler.shutdownNow();
             discord.close();
             if (healthServer != null) {
                 healthServer.close();
@@ -60,6 +73,8 @@ public final class Main {
 
         try {
             discord.start();
+            // Events are only consumed once Discord is connected, so no notification is lost to a missing channel.
+            consumer.start();
         } catch (IllegalStateException e) {
             LOGGER.error("{}", e.getMessage());
             discord.close();

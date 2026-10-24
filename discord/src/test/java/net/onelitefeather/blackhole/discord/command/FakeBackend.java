@@ -14,6 +14,21 @@ final class FakeBackend implements BackendGateway {
     UnlinkResult unlinkResult = new UnlinkResult.NotLinked();
     final List<String> confirmed = new ArrayList<>();
     final List<String> unlinked = new ArrayList<>();
+    NotificationResult reportResult = new NotificationResult.NotFound();
+    NotificationResult appealResult = new NotificationResult.NotFound();
+    int notificationCalls;
+
+    @Override
+    public @NotNull NotificationResult report(@NotNull String identifier) {
+        this.notificationCalls++;
+        return this.reportResult;
+    }
+
+    @Override
+    public @NotNull NotificationResult appeal(@NotNull String identifier) {
+        this.notificationCalls++;
+        return this.appealResult;
+    }
 
     @Override
     public @NotNull LinkResult confirmLink(@NotNull String code, @NotNull String discordUserId) {
