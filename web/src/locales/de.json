@@ -26,7 +26,8 @@
       "cases": "{n} offener Fall | {n} offene Fälle",
       "appeals": "{n} Einspruch wartet auf Prüfung | {n} Einsprüche warten auf Prüfung",
       "reports": "{n} ungelöste Meldung | {n} ungelöste Meldungen"
-    }
+    },
+    "appealConditions": "Rahmenbedingungen"
   },
   "settings": {
     "theme": {
@@ -1249,5 +1250,17 @@
     "caseNotFound": "Zur Fall-ID {id} wurde nichts gefunden.",
     "ambiguous": "Die ID {id} passt zu {n} Fällen. Wähle einen aus.",
     "report": "Meldung {id} öffnen"
+  },
+  "appealConditions": {
+    "title": "Rahmenbedingungen",
+    "intro": "Spieler lesen diese Bedingungen und bestätigen sie, bevor sie einen Einspruch einreichen. Jedes Speichern erzeugt eine neue Version; frühere Versionen bleiben erhalten.",
+    "current": "Aktuelle Version {version}",
+    "editorLabel": "Text der nächsten Version",
+    "format": "Reiner Text. Eine Leerzeile beginnt einen neuen Absatz, eine Zeile mit \"- \" am Anfang ist ein Listenpunkt.",
+    "save": "Als neue Version speichern",
+    "saved": "Als Version {version} gespeichert.",
+    "conflict": "Die Bedingungen wurden währenddessen von jemand anderem geändert. Die aktuelle Version steht oben; prüfe sie und speichere erneut.",
+    "history": "Frühere Versionen",
+    "versionLine": "Version {version}, {when}"
   }
 }

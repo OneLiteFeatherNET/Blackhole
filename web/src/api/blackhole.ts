@@ -26,6 +26,7 @@ import type {
   TranscriptFile,
   ApplyPreview,
   Appeal,
+  AppealConditions,
   AppealDecision,
   CloudNetCatalogue,
   CurrentCaller,
@@ -133,6 +134,12 @@ export interface BlackholeApi {
   startEvidenceUpload(punishment: string, file: File, onProgress?: (fraction: number) => void): Upload
   /** Issues a one-time code (shown as `ABCD-EFGH`) that links the caller's Minecraft account when typed in game; replaces an earlier code. */
   issueStaffLinkCode(): Promise<ApiResult<StaffLinkCode>>
+  /** The current appeal conditions (any team role). */
+  appealConditions(): Promise<ApiResult<AppealConditions>>
+  /** Every version of the appeal conditions, newest first. */
+  appealConditionVersions(): Promise<ApiResult<AppealConditions[]>>
+  /** Saves the text as a new version (ADMIN); a version is never overwritten. */
+  saveAppealConditions(text: string): Promise<ApiResult<AppealConditions>>
   /** Whether the caller has a linked Minecraft account. */
   staffLinkStatus(): Promise<ApiResult<StaffLinkStatus>>
   /** Removes the caller's own link. */
@@ -543,6 +550,10 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     evidenceContent: (identifier) =>
       toResult(http.GET('/evidence/{identifier}/content', { params: { path: { identifier } }, parseAs: 'blob' })),
+
+    appealConditions: () => toResult(http.GET('/appeal-conditions')),
+    appealConditionVersions: async () => map(await toResult(http.GET('/appeal-conditions/versions')), (all) => all ?? []),
+    saveAppealConditions: (text) => toResult(http.POST('/appeal-conditions', { body: { text } })),
 
     issueStaffLinkCode: () => toResult(http.POST('/staff-link/code')),
     staffLinkStatus: () => toResult(http.GET('/staff-link/me')),
