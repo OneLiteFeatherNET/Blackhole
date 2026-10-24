@@ -3,6 +3,7 @@ package net.onelitefeather.blackhole.velocity.evidence;
 import net.onelitefeather.blackhole.client.model.EvidenceCreateRequest;
 import net.onelitefeather.blackhole.client.model.EvidenceKind;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -22,7 +23,7 @@ public final class ChatEvidenceRequests {
 
     public static @NotNull EvidenceCreateRequest create(
             @NotNull String owner, @NotNull String correlationId, @NotNull ChatSnapshot snapshot,
-            @NotNull String sourceSystem, @NotNull UUID source, long capturedAt
+            @NotNull String sourceSystem, @Nullable UUID source, long capturedAt
     ) {
         List<Map<String, Object>> lines = new ArrayList<>(snapshot.size());
         for (ChatSnapshot.Entry entry : snapshot.lines()) {

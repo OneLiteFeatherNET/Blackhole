@@ -6,6 +6,8 @@ import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentRevokeResponse;
+import net.onelitefeather.blackhole.client.model.ReportCategory;
+import net.onelitefeather.blackhole.client.model.ReportDTO;
 import net.onelitefeather.blackhole.client.model.StaffLinkConfirmResponse;
 import net.onelitefeather.blackhole.client.model.StaffLinkLookupResponse;
 import net.onelitefeather.blackhole.velocity.evidence.ChatSnapshot;
@@ -54,6 +56,34 @@ final class StubGateway implements BackendGateway {
     CompletableFuture<Void> evidenceResult = CompletableFuture.completedFuture(null);
     /** Thrown by the evidence post itself, as a broken client would. */
     RuntimeException evidenceFailure;
+
+    /** What each report evidence post answers; completes with {@link #reportEvidenceId} unless replaced. */
+    CompletableFuture<UUID> reportEvidenceResult;
+    UUID reportEvidenceId = UUID.fromString("00000000-0000-4000-8000-0000000000e1");
+    final List<ChatSnapshot> reportSnapshots = new ArrayList<>();
+    final List<String> reportEvidenceOwners = new ArrayList<>();
+    ReportDTO reportResponse = new ReportDTO().identifier(UUID.fromString("00000000-0000-4000-8000-0000000000a1"));
+    ApiException reportFailure;
+    /** The reporter, reported, category, description and evidence of each submitted report. */
+    final List<String> reports = new ArrayList<>();
+
+    @Override
+    public CompletableFuture<UUID> postReportChatEvidence(String reported, String correlationId, ChatSnapshot snapshot, String sourceSystem) {
+        this.calls.add("report-evidence");
+        this.reportSnapshots.add(snapshot);
+        this.reportEvidenceOwners.add(reported);
+        return this.reportEvidenceResult != null ? this.reportEvidenceResult : CompletableFuture.completedFuture(this.reportEvidenceId);
+    }
+
+    @Override
+    public ReportDTO submitReport(String reporter, String reported, ReportCategory category, String description, List<UUID> evidence) throws ApiException {
+        this.calls.add("report");
+        this.reports.add(reporter + "|" + reported + "|" + category + "|" + description + "|" + evidence);
+        if (this.reportFailure != null) {
+            throw this.reportFailure;
+        }
+        return this.reportResponse;
+    }
 
     @Override
     public List<PunishTemplateResponse> templates() throws ApiException {

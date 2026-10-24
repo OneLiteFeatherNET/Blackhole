@@ -15,6 +15,7 @@ import net.onelitefeather.blackhole.velocity.evidence.ChatBuffer;
 import net.onelitefeather.blackhole.velocity.evidence.EvidenceCounts;
 import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
 import net.onelitefeather.blackhole.velocity.punish.PunishService;
+import net.onelitefeather.blackhole.velocity.report.ReportService;
 import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import org.jetbrains.annotations.NotNull;
@@ -42,6 +43,7 @@ import java.time.Clock;
  * @param chatDenial  whether muted signed chat may be denied (SignedVelocity present)
  * @param muteNotices what a muted player is told, once per punishment
  * @param servers     resolves what CloudNet knows about a backend server
+ * @param reports     the decisions behind {@code /report}
  */
 public record BlackholeClientModule(
         @NotNull ApiClient apiClient,
@@ -60,7 +62,8 @@ public record BlackholeClientModule(
         @NotNull EvidenceCounts evidenceCounts,
         @NotNull MuteChatDenial chatDenial,
         @NotNull MuteNotices muteNotices,
-        @NotNull ServerResolver servers
+        @NotNull ServerResolver servers,
+        @NotNull ReportService reports
 ) {
 
     /**
@@ -87,6 +90,7 @@ public record BlackholeClientModule(
                 bind(MuteChatDenial.class).toInstance(chatDenial);
                 bind(MuteNotices.class).toInstance(muteNotices);
                 bind(ServerResolver.class).toInstance(servers);
+                bind(ReportService.class).toInstance(reports);
             }
         };
     }

@@ -24,6 +24,9 @@ import net.onelitefeather.blackhole.velocity.command.PardonCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishInfoCommand;
 import net.onelitefeather.blackhole.velocity.command.EloCommand;
+import net.onelitefeather.blackhole.velocity.command.ReportCommand;
+import net.onelitefeather.blackhole.velocity.report.ReportEvidence;
+import net.onelitefeather.blackhole.velocity.report.ReportService;
 import net.onelitefeather.blackhole.velocity.command.TargetParser;
 import net.onelitefeather.blackhole.velocity.cloudnet.CatalogueReporter;
 import net.onelitefeather.blackhole.velocity.cloudnet.CloudNetView;
@@ -147,6 +150,7 @@ public class BlackholeVelocity {
                     + "Install SignedVelocity on the proxy and on every backend server to enforce mutes.");
         }
         PunishService punishService = new PunishService(backend, sections, chatEvidence);
+        ReportService reportService = new ReportService(backend, ReportEvidence.create(new ChatSnapshotBuilder(chatBuffer, chatCapture), backend, chatCapture));
 
         this.redisSyncService.onPunishmentSync(syncHandler::accept);
         // The reload calls the backend, so it must not run on the Redis callback thread.
@@ -163,7 +167,7 @@ public class BlackholeVelocity {
         Injector childInjector = this.injector.createChildInjector(
                 new BlackholeClientModule(this.client, this.config, this.redisSyncService, sections, mirror, state,
                         syncHandler, actions, backend, punishService, clock, screens, chatBuffer, evidenceCounts, chatDenial,
-                        new MuteNotices(screens, new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN)), servers).asModule(),
+                        new MuteNotices(screens, new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN)), servers, reportService).asModule(),
                 new CloudInjectionModule<>(
                         CommandSource.class,
                         ExecutionCoordinator.simpleCoordinator(),
@@ -184,6 +188,7 @@ public class BlackholeVelocity {
         annotationParser.parse(childInjector.getInstance(PardonCommand.class));
         annotationParser.parse(childInjector.getInstance(EloCommand.class));
         annotationParser.parse(childInjector.getInstance(LinkCommand.class));
+        annotationParser.parse(childInjector.getInstance(ReportCommand.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerLoginListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerChatListener.class));
         if (chatBuffer.enabled()) {
