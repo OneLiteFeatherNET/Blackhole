@@ -29,7 +29,7 @@ the components are configured in a cluster, or how a release reaches it.
 - **Hosts:** the panel at `blackhole.onelitefeather.net` and the portal at `appeal.onelitefeather.net`,
   both through the Cloudflare Tunnel. The panel is protected by the Entra login only (no Cloudflare
   Access). The backend API stays internal, except one separate external API host for Velocity
-  (proposed `blackhole-api.onelitefeather.net`, an open question) that exposes only the routes the
+  (`blackhole-api.onelitefeather.net`) that exposes only the routes the
   proxy uses.
 - **Velocity (outside the cluster):** reaches the backend through that host with its Entra client
   credentials (`PROXY` role). It does **not** get direct Dragonfly access; see the design for the
@@ -49,7 +49,7 @@ deliberately on 2026-10-24.
 ## Out of scope
 
 - Editing Kubernetes-FLUX (a separate PR; this change only lists its tasks).
-- Changing the Velocity plugin to use NATS instead of Redis (follow-up change `velocity-use-nats`).
+- Changing the Velocity plugin to use NATS instead of Redis (planned together with `switch-event-bus-to-nats`).
 - Cloudflare WAF and rate-limit rules as code (operator tasks in the runbook).
 - Multi-tenancy, several networks per deployment, autoscaling (HPA), multi-cluster.
 - New application features or API changes; backend, web, portal and discord code stay as they are,

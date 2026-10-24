@@ -16,7 +16,7 @@ Flyway migrations appended by this change: **none** (no schema change).
 | `portal` | `onelitefeather/blackhole-portal` (new) | 8080 | `appeal.onelitefeather.net` via Cloudflare Tunnel | Nitro BFF; calls only `/public/**` of the backend |
 | `discord` | `onelitefeather/blackhole-discord` (new) | 8082 (health, metrics) | none | JDA, stateless, exactly 1 replica (two bots would double-post) |
 | `clamav` | `docker.io/clamav/clamav:1.5.4` (pinned like compose) | 3310 | internal Service | in-namespace scanner |
-| external API (Velocity) | routes to `backend` | | `blackhole-api.onelitefeather.net` via Cloudflare Tunnel (proposed, open question) | only proxy routes, see section 3 |
+| external API (Velocity) | routes to `backend` | | `blackhole-api.onelitefeather.net` via Cloudflare Tunnel (decided 2026-10-24) | only proxy routes, see section 3 |
 
 Dev (`blackhole-dev`): panel and portal are reached internally through the Envoy Gateway `HTTPRoute`
 (`blackhole-dev.apps.onelite.feather`, `appeal-dev.apps.onelite.feather`); no tunnel hosts, no external API
@@ -149,7 +149,7 @@ are not needed).
 ### Recommendation
 
 1. **API: a separate external host `blackhole-api.onelitefeather.net`** (the `.net` suffix follows the user's
-   host decision; the name is an open question) through a second Ingress (`cloudflare-tunnel`) to the normal
+   host decision; name decided 2026-10-24) through a second Ingress (`cloudflare-tunnel`) to the normal
    backend ClusterIP Service. The security boundary is the backend's JWT check: an Entra token for the API
    audience with the app role `Blackhole.Proxy`; no new auth is added. On top, the host is **restricted by path**
    so the anonymous `/public/session` and the operational routes are not exposed twice.
@@ -174,7 +174,7 @@ are not needed).
    restricted to WebSocket and to *subscribe* only on the Blackhole subjects, in a new `BLACKHOLE` account.
    The proxy's Redis pub/sub use (punishment sync, section changed, report feedback) is replaced by those
    subscriptions; the proxy-to-proxy report notice needs a publish permission on one subject or a backend relay.
-   That is a Velocity code change and therefore **a follow-up change `velocity-use-nats`**, not this one.
+   That is a Velocity code change and therefore coordinated with the parallel change `switch-event-bus-to-nats`, not done here.
 4. **Until the follow-up lands**, the production Velocity runs with Redis unreachable (its documented fallback):
    every login/chat check is an HTTP call and staff report notices stay per-proxy. This is correct but
    chattier; the API host must be able to carry it (backend sized for it; rate limits only at the edge for
@@ -344,8 +344,8 @@ The runbook has a yearly restore drill: decrypt a copy, compare its fingerprint 
   `valueFrom`. Endpoint is the **internal** RGW service (`advertiseEndpoint` lesson: no NAT hairpin to the public
   name), path-style on. Evidence has no time-based expiry and **no S3 lifecycle rules** may delete it
   (application rule). Backup of the bucket: the Ceph object store's own redundancy only; there is no off-cluster
-  copy. Whether one is needed is an operator decision recorded in the runbook (evidence is the record behind
-  punishments and appeals), and a bucket-level replication/`rclone` job is listed as a follow-up.
+  copy (decided 2026-10-24; the runbook documents this, since evidence is the record behind punishments and
+  appeals).
 - **ClamAV.** Own Deployment (strategy `Recreate`) in the namespace; the backend's scan is fail-closed, so a
   scanner outage rejects uploads with 503 (accepted, uploads are rare). Image `clamav/clamav:1.5.4`; env
   `CLAMD_CONF_StreamMaxLength=110M`, `CLAMD_CONF_MaxFileSize=110M`, `CLAMD_CONF_MaxScanSize=220M` (as in
@@ -357,7 +357,7 @@ The runbook has a yearly restore drill: decrypt a copy, compare its fingerprint 
   command. Needs egress to the ClamAV mirror (`database.clamav.net`). If the image cannot run under
   `restricted` (it starts as root and drops privileges), the pod gets a documented exception or a `USER`
   override verified in task 3.5; the namespace stays `baseline` for that reason.
-  Dev uses the prod namespace's ClamAV (open question) to save 1.5 GB.
+  Dev uses the prod namespace's ClamAV (decided 2026-10-24) to save 1.5 GB.
 - **PDB and spreading.** Backend and web/portal use `topologySpreadConstraints` on `kubernetes.io/hostname`
   (`ScheduleAnyway`), `priorityClassName: feather-standard` for prod, none for dev (dev yields under pressure,
   like Vulpes dev).
@@ -396,7 +396,7 @@ The runbook has a yearly restore drill: decrypt a copy, compare its fingerprint 
 | Risk | Mitigation |
 |------|------------|
 | Tunnel path rules route `/public/session` on the API host | anchored allow-list verified with a route table on dev; chart test; WAF rule; nginx fallback |
-| Velocity without Redis is chattier and loses cross-proxy sync | documented fallback in the plugin; follow-up `velocity-use-nats`; sizing in the chart |
+| Velocity without Redis is chattier and loses cross-proxy sync | documented fallback in the plugin; NATS move coordinated with `switch-event-bus-to-nats`; sizing in the chart |
 | Lost Ban ID key | SOPS plus offline copy plus a yearly restore drill |
 | Cloudflare 100 MB cap vs 100 MiB video limit | video cap 90 MiB in prod values; documented |
 | Rolling update and `hbm2ddl=validate` on old pods | expand/contract rule; `Recreate` for breaking releases |
@@ -404,15 +404,14 @@ The runbook has a yearly restore drill: decrypt a copy, compare its fingerprint 
 | Two sources of truth (chart in repo, overlay in FLUX) | overlay holds only environment values; schema rejects unknown keys |
 | NATS change slips | chart work proceeds; prod waits; NATS variable names isolated in one values block |
 
-## 9. Open questions
+## 9. Decisions (2026-10-24), no open questions remain
 
-1. **Velocity and Dragonfly.** Recommended default: no direct Dragonfly access; HTTP fallback now, NATS over
-   WebSocket in `velocity-use-nats`. Alternative: expose Dragonfly with a restricted ACL user (not recommended).
-2. **External API host name and filter.** Default `blackhole-api.onelitefeather.net` with anchored tunnel path
-   rules (verified on dev), nginx allow-list as fallback. Needs the user's name decision (the `.net` suffix
-   follows the panel host decision).
-3. **Dev ClamAV.** Default: dev uses the prod namespace's ClamAV Service. Alternative: its own pod (+1.5 GB).
-4. **Video upload limit.** Default 90 MiB in prod (below Cloudflare's cap). Alternative: keep 100 MiB and give
-   the panel a second, non-proxied S3 presigned upload path (a feature, out of scope here).
-5. **Evidence bucket backup.** Default: rely on Ceph redundancy and document it. Alternative: scheduled
-   off-cluster copy (needs a target and a retention decision).
+1. **Velocity and Dragonfly.** Velocity never gets direct Dragonfly access and Dragonfly is not exposed.
+   For now Velocity uses only the API through its HTTP fallback. Later it moves to NATS over WebSocket
+   (`wss://nats.onelitefeather.dev`); that move is coordinated with the parallel change
+   `switch-event-bus-to-nats`, not a separate change.
+2. **API host.** `blackhole-api.onelitefeather.net`, with anchored tunnel paths that cover only the proxy
+   prefixes; the nginx allow-list of section 3 is the fallback if anchoring does not pass through (task 4.2).
+3. **Evidence bucket.** Ceph redundancy is enough; there is no off-cluster copy. The runbook documents this.
+   `BLACKHOLE_BANID_KEY` keeps its separate offline backup (section 5).
+4. **Dev ClamAV and video limit.** Dev reuses the prod namespace ClamAV; the prod video limit is 90 MiB.
