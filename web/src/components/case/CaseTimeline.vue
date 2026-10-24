@@ -46,7 +46,7 @@ const groupOptions = computed(() => [
 ])
 const trustOptions = computed(() => [
   { value: ALL, label: t('case.timeline.allActors') },
-  ...(['VERIFIED', 'UNVERIFIED', 'SYSTEM'] as const).map((value) => ({ value, label: t(`case.trust.${value}`) })),
+  ...(['VERIFIED', 'UNVERIFIED', 'SYSTEM', 'PLAYER'] as const).map((value) => ({ value, label: t(`case.trust.${value}`) })),
 ])
 
 /** Every loaded version of each note, oldest first, so an entry knows whether it is the latest. */

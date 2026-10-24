@@ -111,7 +111,7 @@ describe('role-aware controls', () => {
     ['admin', ADMIN, ['decide-a-1']],
   ])('appeals for %s', (_label, roles, expected) => {
     it('offers to decide an appeal only to moderators and admins', async () => {
-      const api = mockApi({ appeals: vi.fn(async () => ok([appeal])) })
+      const api = mockApi({ appeals: vi.fn(async () => ok([appeal])), caseTimeline: vi.fn(async () => ok({ items: [], nextCursor: null })) })
 
       const offered = await controls(AppealsView, api, roles, ['decide-a-1'], { path: '/appeals' })
 

@@ -12,6 +12,16 @@ import type {
   CaseTimelineQuery,
   CaseUpdate,
   NoteRedactionReason,
+  BanIdLeakReason,
+  BanIdReissueReason,
+  CaseBanIdLeakResult,
+  CaseBanIdReissueResult,
+  CaseMessageRedactResult,
+  CaseMessageResult,
+  CaseTimelineItem,
+  CaseTranscriptEraseResult,
+  TranscriptFormat,
+  TranscriptFile,
   ApplyPreview,
   Appeal,
   AppealDecision,
@@ -167,6 +177,11 @@ export interface BlackholeApi {
   caseDetail(reference: string): Promise<ApiResult<Case>>
   /** One page of the case timeline; pass the previous page's `nextCursor` to continue. */
   caseTimeline(reference: string, query?: CaseTimelineQuery): Promise<ApiResult<CaseTimelinePage>>
+  /**
+   * Everything the conversation needs, oldest first: the messages with their edits, deletions and
+   * redactions, and the Ban ID leak events. Follows the cursor until the end (bounded).
+   */
+  caseConversation(reference: string): Promise<ApiResult<CaseTimelineItem[]>>
   /** Changes staff metadata; a stale `expectedVersion` answers 409 and changes nothing. */
   updateCase(reference: string, change: CaseUpdate): Promise<ApiResult<Case>>
   /** Adds a staff note (1 to 4000 characters, no UUID or IP); resolves to the new note id. */
@@ -174,11 +189,37 @@ export interface BlackholeApi {
   editCaseNote(reference: string, noteId: string, text: string): Promise<ApiResult<{ noteId: string; seq: number }>>
   /** Removes the text of every version of a note (ADMIN only). */
   redactCaseNote(reference: string, noteId: string, reason: NoteRedactionReason): Promise<ApiResult<{ noteId: string; redactedVersions: number }>>
+
+  /**
+   * Replies to the player (1 to 2000 characters, no UUID, IP or Ban ID; the server rejects those). The same
+   * `idempotencyKey` makes a retry a no-op that answers with the first message.
+   */
+  postCaseMessage(reference: string, text: string, idempotencyKey?: string): Promise<ApiResult<CaseMessageResult>>
+  /** Corrects a staff message (its author or an admin); earlier versions stay in the timeline. */
+  editCaseMessage(reference: string, messageId: string, text: string): Promise<ApiResult<CaseMessageResult>>
+  /** Deletes a staff message (its author or an admin); staff still see the last text marked deleted. */
+  deleteCaseMessage(reference: string, messageId: string): Promise<ApiResult<CaseMessageResult>>
+  /** Removes the text of every version of a message for data protection (ADMIN only). */
+  redactCaseMessage(reference: string, messageId: string, reason: NoteRedactionReason): Promise<ApiResult<CaseMessageRedactResult>>
+  /** Redacts every message the player wrote in this case (ADMIN only); staff messages stay. */
+  eraseCasePlayerMessages(reference: string, reason: NoteRedactionReason): Promise<ApiResult<CaseTranscriptEraseResult>>
+  /** Marks the Ban ID leaked (MODERATOR and above). The Ban ID is in neither request nor response. */
+  markBanIdLeaked(reference: string, reason: BanIdLeakReason): Promise<ApiResult<CaseBanIdLeakResult>>
+  /** Replaces a leaked Ban ID (ADMIN only). The new one is not returned: {@link revealBanId} shows it. */
+  reissueBanId(reference: string, reason: BanIdReissueReason): Promise<ApiResult<CaseBanIdReissueResult>>
+  /** The current Ban ID of a punishment (MODERATOR and above). A credential: show it, never store or log it. */
+  revealBanId(reference: string): Promise<ApiResult<string>>
+  /** The conversation and lifecycle of the case as a file (ADMIN only); notes only with `includeNotes`. */
+  exportCaseTranscript(reference: string, format: TranscriptFormat, includeNotes: boolean): Promise<ApiResult<TranscriptFile>>
 }
 
 const EVIDENCE_PAGE_SIZE = 20
 
 const PAGE_SIZE = 200
+/** What the conversation reads of the timeline: a type group and an exact type. */
+const CONVERSATION_TYPES = ['message', 'ban_id.leak_marked']
+const CONVERSATION_PAGE_SIZE = 200
+const CONVERSATION_MAX_PAGES = 10
 const MAX_PAGES = 25
 
 /**
@@ -411,6 +452,7 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
             decision: decision.decision,
             decisionNote: decision.note ?? null,
             newExpirationAt: decision.newExpirationAt ?? null,
+            playerMessage: decision.playerMessage,
           },
         }),
       ),
@@ -560,6 +602,24 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     caseTimeline: (reference, query = {}) =>
       toResult(http.GET('/case/{reference}/timeline', { params: { path: { reference } }, querySerializer: timelineQuery(query) })),
 
+    caseConversation: async (reference) => {
+      const items: CaseTimelineItem[] = []
+      let cursor: string | undefined
+      for (let page = 0; page < CONVERSATION_MAX_PAGES; page += 1) {
+        const result = await toResult(
+          http.GET('/case/{reference}/timeline', {
+            params: { path: { reference } },
+            querySerializer: timelineQuery({ types: CONVERSATION_TYPES, order: 'asc', size: CONVERSATION_PAGE_SIZE, cursor }),
+          }),
+        )
+        if (!result.ok) return result
+        items.push(...result.data.items)
+        if (!result.data.nextCursor) break
+        cursor = result.data.nextCursor
+      }
+      return { ok: true, data: items }
+    },
+
     updateCase: (reference, change) =>
       toResult(
         http.PATCH('/case/{reference}', {
@@ -584,5 +644,45 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     redactCaseNote: (reference, noteId, reason) =>
       toResult(http.POST('/case/{reference}/notes/{noteId}/redact', { params: { path: { reference, noteId } }, body: { reason } })),
+ 
+    postCaseMessage: (reference, text, idempotencyKey) =>
+      toResult(
+        http.POST('/case/{reference}/messages', {
+          params: { path: { reference }, header: { 'Idempotency-Key': idempotencyKey ?? null } },
+          body: { text },
+        }),
+      ),
+
+    editCaseMessage: (reference, messageId, text) =>
+      toResult(http.PUT('/case/{reference}/messages/{messageId}', { params: { path: { reference, messageId } }, body: { text } })),
+
+    deleteCaseMessage: (reference, messageId) =>
+      toResult(http.DELETE('/case/{reference}/messages/{messageId}', { params: { path: { reference, messageId } } })),
+
+    redactCaseMessage: (reference, messageId, reason) =>
+      toResult(http.POST('/case/{reference}/messages/{messageId}/redact', { params: { path: { reference, messageId } }, body: { reason } })),
+
+    eraseCasePlayerMessages: (reference, reason) =>
+      toResult(http.POST('/case/{reference}/transcript/erase-player', { params: { path: { reference } }, body: { reason } })),
+
+    markBanIdLeaked: (reference, reason) =>
+      toResult(http.POST('/case/{reference}/ban-id/leak', { params: { path: { reference } }, body: { reason } })),
+
+    reissueBanId: (reference, reason) =>
+      toResult(http.POST('/case/{reference}/ban-id/reissue', { params: { path: { reference } }, body: { reason } })),
+
+    revealBanId: async (reference) =>
+      map(await toResult(http.GET('/punishment/{reference}/ban-id', { params: { path: { reference } } })), (body) => body.banId),
+
+    exportCaseTranscript: async (reference, format, includeNotes) => {
+      const result = await toResult(
+        http.GET('/case/{reference}/transcript', {
+          params: { path: { reference } },
+          querySerializer: () => new URLSearchParams({ format, includeNotes: String(includeNotes) }).toString(),
+          parseAs: 'text',
+        }),
+      )
+      return map(result, (content) => ({ format, content: String(content), mediaType: format === 'json' ? 'application/json' : 'text/plain' }))
+    },
   }
 }

@@ -496,8 +496,14 @@
       "endRequired": "Choose when the punishment should end.",
       "note": "Note",
       "noteHint": "Optional; recorded with the decision",
-      "confirm": "Save decision"
-    }
+      "confirm": "Save decision",
+      "playerMessage": "Message to the player",
+      "playerMessageHint": "Optional; the player can read it in the appeal portal. 1 to 2000 characters, no UUIDs, IP addresses or Ban IDs. The note above stays internal."
+    },
+    "unanswered": "Unanswered",
+    "unansweredHint": "The player wrote last and has not been answered.",
+    "unansweredCount": "{count} appeal with an unanswered player message | {count} appeals with unanswered player messages",
+    "openCase": "Open case"
   },
   "evidence": {
     "title": "Evidence",
@@ -873,7 +879,8 @@
     "trust": {
       "VERIFIED": "Verified",
       "UNVERIFIED": "Unverified",
-      "SYSTEM": "System"
+      "SYSTEM": "System",
+      "PLAYER": "Player (unverified)"
     },
     "origin": {
       "BACKFILLED": "Reconstructed from earlier data",
@@ -900,7 +907,14 @@
       "noteAdded": "Note added",
       "noteEdited": "Note edited",
       "noteRedacted": "Note removed",
-      "unknown": "Other event"
+      "unknown": "Other event",
+      "messageAdded": "Message added",
+      "messageEdited": "Message edited",
+      "messageDeleted": "Message deleted",
+      "messageRedacted": "Message text removed",
+      "banIdLeakMarked": "Ban ID marked leaked",
+      "banIdReissued": "Ban ID reissued",
+      "transcriptExported": "Transcript exported"
     },
     "detail": {
       "step": "Step {step} of {count}",
@@ -911,7 +925,9 @@
       "unassigned": "no longer assigned",
       "tagsAdded": "added: {tags}",
       "tagsRemoved": "removed: {tags}",
-      "approximate": "time is approximate"
+      "approximate": "time is approximate",
+      "afterFiling": "after the appeal was filed",
+      "entries": "{count} entries"
     },
     "notes": {
       "title": "Notes",
@@ -964,7 +980,10 @@
         "appeal": "Appeal",
         "evidence": "Evidence",
         "case": "Case changes",
-        "note": "Notes"
+        "note": "Notes",
+        "message": "Messages",
+        "ban_id": "Ban ID",
+        "transcript": "Exports"
       },
       "count": "{count} events shown",
       "empty": "No events match.",
@@ -992,6 +1011,95 @@
         "priority": "Priority",
         "tags": "Tags",
         "activity": "Last activity"
+      }
+    },
+    "reason": {
+      "label": "Reason",
+      "choose": "Choose a reason"
+    },
+    "conversation": {
+      "title": "Conversation",
+      "thread": "{count} messages",
+      "empty": "No messages yet.",
+      "player": "Player",
+      "staff": "Staff",
+      "fromPlayer": "Written by the player, not verified",
+      "staffOnly": "Staff only",
+      "editedMark": "edited",
+      "deletedMark": "deleted",
+      "removed": "Removed (data protection)",
+      "newLabel": "Reply to the player",
+      "editLabel": "Edit message",
+      "send": "Send reply",
+      "save": "Save message",
+      "hint": "Ctrl+Enter sends. The player can read this. No UUIDs, IP addresses or Ban IDs.",
+      "tooLong": "A message has at most {max} characters.",
+      "readOnly": "Replying to the player needs the moderator role.",
+      "sent": "Reply sent.",
+      "edited": "Message saved.",
+      "deleted": "Message deleted.",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleteQuestion": "Delete this message?",
+      "redact": "Remove text",
+      "redactTitle": "Remove message text?",
+      "redactBody": "The text of every version of this message is removed for good. The entry, its time and its author stay.",
+      "redactConfirm": "Remove text",
+      "redactDone": "Message text removed.",
+      "erasePlayer": "Remove everything the player wrote",
+      "eraseTitle": "Remove the player's messages?",
+      "eraseBody": "The text of every message the player wrote in this case is removed for good. Staff messages stay.",
+      "eraseConfirm": "Remove player messages",
+      "eraseDone": "The player's messages were removed.",
+      "banner": {
+        "forfeited": "The Ban ID was marked leaked before an appeal was filed. The right to appeal is forfeited until the Ban ID is reissued.",
+        "frozen": "The Ban ID was marked leaked after the appeal was filed. The ticket is frozen: the player cannot write, staff still can."
+      },
+      "emptyInput": "Write a message first."
+    },
+    "banId": {
+      "title": "Ban ID",
+      "masked": "Ban ID hidden",
+      "reveal": "Reveal Ban ID",
+      "hide": "Hide Ban ID",
+      "shown": "Ban ID shown.",
+      "hidden": "Ban ID hidden.",
+      "notIssued": "This punishment has no Ban ID yet.",
+      "hint": "The Ban ID is the player's key to the appeal portal. It is shown only on request and is never stored in this browser.",
+      "readOnly": "Revealing the Ban ID needs the moderator role.",
+      "leaked": "Marked leaked: {reason}",
+      "markLeaked": "Mark as leaked",
+      "leakTitle": "Mark the Ban ID as leaked?",
+      "leakBody": "The player's portal sessions end, an unfiled right to appeal is forfeited and a filed ticket is frozen for the player. An administrator can reissue the Ban ID.",
+      "leakConfirm": "Mark as leaked",
+      "leakDone": "Ban ID marked as leaked.",
+      "leakReason": {
+        "POSTED_PUBLIC": "Posted in public",
+        "SHARED": "Shared with others",
+        "FOUND": "Found by someone else",
+        "OTHER": "Other"
+      },
+      "reissue": "Reissue Ban ID",
+      "reissueTitle": "Reissue the Ban ID?",
+      "reissueBody": "A new Ban ID replaces the old one, which stops working at once. The leak is cleared. Reveal the new Ban ID to pass it on to the player.",
+      "reissueConfirm": "Reissue",
+      "reissueDone": "Ban ID reissued.",
+      "reissueReason": {
+        "NOT_PLAYERS_FAULT": "Not the player's fault",
+        "OTHER": "Other"
+      }
+    },
+    "transcript": {
+      "title": "Transcript export",
+      "hint": "Downloads the conversation and the lifecycle of this case. Every export is recorded on the case.",
+      "formatLabel": "Format",
+      "includeNotes": "Include internal notes",
+      "includeNotesHint": "Notes are left out unless this is set.",
+      "download": "Download transcript",
+      "done": "Transcript exported.",
+      "format": {
+        "json": "JSON",
+        "text": "text"
       }
     }
   },

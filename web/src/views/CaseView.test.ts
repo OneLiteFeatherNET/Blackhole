@@ -9,6 +9,7 @@ function setup(options: { roles?: string[]; kase?: Parameters<typeof caseRespons
   const api = {
     caseDetail: vi.fn(async () => ok(caseResponse(options.kase))),
     caseTimeline: vi.fn(async () => ok(timelinePage([timelineItem()]))),
+    caseConversation: vi.fn(async () => ok([])),
     updateCase: vi.fn(async () => ok(caseResponse({ ...options.kase, version: 4, status: 'WAITING' }))),
     addCaseNote: vi.fn(async () => ok({ noteId: NOTE, seq: 9 })),
     ...options.extra,

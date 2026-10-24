@@ -496,8 +496,14 @@
       "endRequired": "Wähle, wann die Strafe enden soll.",
       "note": "Notiz",
       "noteHint": "Optional; wird mit der Entscheidung gespeichert",
-      "confirm": "Entscheidung speichern"
-    }
+      "confirm": "Entscheidung speichern",
+      "playerMessage": "Nachricht an den Spieler",
+      "playerMessageHint": "Optional; der Spieler kann sie im Einspruchsportal lesen. 1 bis 2000 Zeichen, keine UUIDs, IP-Adressen oder Ban-IDs. Die Notiz oben bleibt intern."
+    },
+    "unanswered": "Unbeantwortet",
+    "unansweredHint": "Der Spieler hat zuletzt geschrieben und wurde noch nicht beantwortet.",
+    "unansweredCount": "{count} Einspruch mit unbeantworteter Spielernachricht | {count} Einsprüche mit unbeantworteten Spielernachrichten",
+    "openCase": "Fall öffnen"
   },
   "evidence": {
     "title": "Beweise",
@@ -873,7 +879,8 @@
     "trust": {
       "VERIFIED": "Verifiziert",
       "UNVERIFIED": "Unverifiziert",
-      "SYSTEM": "System"
+      "SYSTEM": "System",
+      "PLAYER": "Spieler (nicht verifiziert)"
     },
     "origin": {
       "BACKFILLED": "Aus früheren Daten rekonstruiert",
@@ -900,7 +907,14 @@
       "noteAdded": "Notiz hinzugefügt",
       "noteEdited": "Notiz bearbeitet",
       "noteRedacted": "Notiz entfernt",
-      "unknown": "Anderes Ereignis"
+      "unknown": "Anderes Ereignis",
+      "messageAdded": "Nachricht hinzugefügt",
+      "messageEdited": "Nachricht bearbeitet",
+      "messageDeleted": "Nachricht gelöscht",
+      "messageRedacted": "Nachrichtentext entfernt",
+      "banIdLeakMarked": "Ban-ID als geleakt markiert",
+      "banIdReissued": "Ban-ID neu ausgestellt",
+      "transcriptExported": "Protokoll exportiert"
     },
     "detail": {
       "step": "Stufe {step} von {count}",
@@ -911,7 +925,9 @@
       "unassigned": "nicht mehr zugewiesen",
       "tagsAdded": "hinzugefügt: {tags}",
       "tagsRemoved": "entfernt: {tags}",
-      "approximate": "Zeit ist ungefähr"
+      "approximate": "Zeit ist ungefähr",
+      "afterFiling": "nach Einreichen des Einspruchs",
+      "entries": "{count} Einträge"
     },
     "notes": {
       "title": "Notizen",
@@ -964,7 +980,10 @@
         "appeal": "Einspruch",
         "evidence": "Beweise",
         "case": "Fall-Änderungen",
-        "note": "Notizen"
+        "note": "Notizen",
+        "message": "Nachrichten",
+        "ban_id": "Ban-ID",
+        "transcript": "Exporte"
       },
       "count": "{count} Ereignisse angezeigt",
       "empty": "Keine passenden Ereignisse.",
@@ -992,6 +1011,95 @@
         "priority": "Priorität",
         "tags": "Tags",
         "activity": "Letzte Aktivität"
+      }
+    },
+    "reason": {
+      "label": "Grund",
+      "choose": "Grund wählen"
+    },
+    "conversation": {
+      "title": "Unterhaltung",
+      "thread": "{count} Nachrichten",
+      "empty": "Noch keine Nachrichten.",
+      "player": "Spieler",
+      "staff": "Team",
+      "fromPlayer": "Vom Spieler geschrieben, nicht verifiziert",
+      "staffOnly": "Nur Team",
+      "editedMark": "bearbeitet",
+      "deletedMark": "gelöscht",
+      "removed": "Entfernt (Datenschutz)",
+      "newLabel": "Dem Spieler antworten",
+      "editLabel": "Nachricht bearbeiten",
+      "send": "Antwort senden",
+      "save": "Nachricht speichern",
+      "hint": "Strg+Eingabe sendet. Der Spieler kann das lesen. Keine UUIDs, IP-Adressen oder Ban-IDs.",
+      "tooLong": "Eine Nachricht hat höchstens {max} Zeichen.",
+      "readOnly": "Dem Spieler antworten braucht die Rolle Moderator.",
+      "sent": "Antwort gesendet.",
+      "edited": "Nachricht gespeichert.",
+      "deleted": "Nachricht gelöscht.",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "deleteQuestion": "Diese Nachricht löschen?",
+      "redact": "Text entfernen",
+      "redactTitle": "Nachrichtentext entfernen?",
+      "redactBody": "Der Text jeder Fassung dieser Nachricht wird endgültig entfernt. Der Eintrag, seine Zeit und sein Autor bleiben.",
+      "redactConfirm": "Text entfernen",
+      "redactDone": "Nachrichtentext entfernt.",
+      "erasePlayer": "Alles vom Spieler Geschriebene entfernen",
+      "eraseTitle": "Nachrichten des Spielers entfernen?",
+      "eraseBody": "Der Text jeder Nachricht, die der Spieler in diesem Fall geschrieben hat, wird endgültig entfernt. Nachrichten des Teams bleiben.",
+      "eraseConfirm": "Spielernachrichten entfernen",
+      "eraseDone": "Die Nachrichten des Spielers wurden entfernt.",
+      "banner": {
+        "forfeited": "Die Ban-ID wurde als geleakt markiert, bevor ein Einspruch eingereicht wurde. Das Einspruchsrecht ist verwirkt, bis die Ban-ID neu ausgestellt wird.",
+        "frozen": "Die Ban-ID wurde nach dem Einreichen des Einspruchs als geleakt markiert. Das Ticket ist eingefroren: Der Spieler kann nicht schreiben, das Team schon."
+      },
+      "emptyInput": "Schreibe zuerst eine Nachricht."
+    },
+    "banId": {
+      "title": "Ban-ID",
+      "masked": "Ban-ID verborgen",
+      "reveal": "Ban-ID anzeigen",
+      "hide": "Ban-ID verbergen",
+      "shown": "Ban-ID angezeigt.",
+      "hidden": "Ban-ID verborgen.",
+      "notIssued": "Diese Strafe hat noch keine Ban-ID.",
+      "hint": "Die Ban-ID ist der Schlüssel des Spielers zum Einspruchsportal. Sie wird nur auf Anforderung angezeigt und nie in diesem Browser gespeichert.",
+      "readOnly": "Die Ban-ID anzeigen braucht die Rolle Moderator.",
+      "leaked": "Als geleakt markiert: {reason}",
+      "markLeaked": "Als geleakt markieren",
+      "leakTitle": "Ban-ID als geleakt markieren?",
+      "leakBody": "Die Portal-Sitzungen des Spielers enden, ein noch nicht eingereichtes Einspruchsrecht verfällt und ein eingereichtes Ticket wird für den Spieler eingefroren. Ein Administrator kann die Ban-ID neu ausstellen.",
+      "leakConfirm": "Als geleakt markieren",
+      "leakDone": "Ban-ID als geleakt markiert.",
+      "leakReason": {
+        "POSTED_PUBLIC": "Öffentlich gepostet",
+        "SHARED": "Mit anderen geteilt",
+        "FOUND": "Von jemand anderem gefunden",
+        "OTHER": "Sonstiges"
+      },
+      "reissue": "Ban-ID neu ausstellen",
+      "reissueTitle": "Ban-ID neu ausstellen?",
+      "reissueBody": "Eine neue Ban-ID ersetzt die alte, die sofort nicht mehr funktioniert. Das Leak wird aufgehoben. Zeige die neue Ban-ID an, um sie dem Spieler weiterzugeben.",
+      "reissueConfirm": "Neu ausstellen",
+      "reissueDone": "Ban-ID neu ausgestellt.",
+      "reissueReason": {
+        "NOT_PLAYERS_FAULT": "Nicht die Schuld des Spielers",
+        "OTHER": "Sonstiges"
+      }
+    },
+    "transcript": {
+      "title": "Protokoll-Export",
+      "hint": "Lädt die Unterhaltung und den Verlauf dieses Falls herunter. Jeder Export wird am Fall vermerkt.",
+      "formatLabel": "Format",
+      "includeNotes": "Interne Notizen einschließen",
+      "includeNotesHint": "Notizen bleiben draußen, solange das nicht gesetzt ist.",
+      "download": "Protokoll herunterladen",
+      "done": "Protokoll exportiert.",
+      "format": {
+        "json": "JSON",
+        "text": "Text"
       }
     }
   },

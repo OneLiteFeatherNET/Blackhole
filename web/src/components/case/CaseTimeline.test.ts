@@ -54,11 +54,11 @@ describe('CaseTimeline: event types', () => {
   })
 
   it('shows an unknown type as a generic entry with its type name instead of dropping it', async () => {
-    const { mount } = setup([[timelineItem({ type: 'message.added', payload: { text: 'from the portal' } })]])
+    const { mount } = setup([[timelineItem({ type: 'portal.something_new', payload: { text: 'from the portal' } })]])
     const { wrapper } = await mount()
 
     expect(titles(wrapper)).toEqual(['Other event'])
-    expect(wrapper.get('[data-testid="event-type"]').text()).toBe('message.added')
+    expect(wrapper.get('[data-testid="event-type"]').text()).toBe('portal.something_new')
     expect(wrapper.get('[data-testid="event-icon"]').attributes('data-icon')).toBe('help')
 
     wrapper.unmount()

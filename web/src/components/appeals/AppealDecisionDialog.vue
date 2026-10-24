@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../../api/inject'
 import type { Appeal, AppealDecision } from '../../api/types'
+import { MAX_CASE_MESSAGE_LENGTH } from '../case/conversation'
 import EvidencePanel from '../evidence/EvidencePanel.vue'
 import MdButton from '../md/MdButton.vue'
 import MdDialog from '../md/MdDialog.vue'
@@ -17,6 +18,9 @@ const api = useApi()
 
 const decision = ref('')
 const note = ref('')
+const playerMessage = ref('')
+const messageError = ref('')
+const messageId = useId()
 const newEnd = ref('')
 const endError = ref('')
 const error = ref('')
@@ -35,6 +39,8 @@ watch(
     if (!open) return
     decision.value = ''
     note.value = ''
+    playerMessage.value = ''
+    messageError.value = ''
     newEnd.value = ''
     endError.value = ''
     error.value = ''
@@ -60,12 +66,20 @@ async function confirm(): Promise<void> {
     return
   }
 
+  const message = playerMessage.value.trim()
+  messageError.value = ''
+  if (message.length > MAX_CASE_MESSAGE_LENGTH) {
+    messageError.value = t('case.conversation.tooLong', { max: MAX_CASE_MESSAGE_LENGTH })
+    return
+  }
+
   saving.value = true
   error.value = ''
   const result = await api.reviewAppeal(props.appeal.identifier, {
     decision: decision.value as AppealDecision['decision'],
     note: note.value.trim() || undefined,
     newExpirationAt: end,
+    playerMessage: message || undefined,
   })
   saving.value = false
   if (!result.ok) {
@@ -93,6 +107,23 @@ async function confirm(): Promise<void> {
         :supporting-text="t('appeals.decide.newEndHint')"
       />
       <MdTextField v-model="note" :label="t('appeals.decide.note')" :supporting-text="t('appeals.decide.noteHint')" />
+      <div class="flex flex-col gap-1">
+        <label :for="messageId" class="text-label-large text-on-surface-variant">{{ t('appeals.decide.playerMessage') }}</label>
+        <textarea
+          :id="messageId"
+          v-model="playerMessage"
+          rows="3"
+          :aria-invalid="messageError ? 'true' : undefined"
+          :aria-describedby="`${messageId}-hint`"
+          class="w-full rounded-md-xs border bg-transparent p-3 text-body-large text-on-surface outline-none focus:border-2 focus:-outline-offset-2 focus:outline-2 focus:outline-primary"
+          :class="messageError ? 'border-error border-2' : 'border-outline hover:border-on-surface'"
+          data-testid="player-message"
+        />
+        <p :id="`${messageId}-hint`" class="text-body-small" :class="messageError ? 'text-error' : 'text-on-surface-variant'" :role="messageError ? 'alert' : undefined" data-testid="player-message-hint">
+          {{ messageError || t('appeals.decide.playerMessageHint') }}
+        </p>
+        <span class="text-body-small text-on-surface-variant" data-testid="player-message-counter">{{ playerMessage.length }} / {{ MAX_CASE_MESSAGE_LENGTH }}</span>
+      </div>
       <p v-if="error" data-testid="error" role="alert" class="rounded-md-md bg-error-container p-3 text-on-error-container">
         {{ error }}
       </p>
