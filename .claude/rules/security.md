@@ -43,3 +43,7 @@ paths:
   needs `ADMIN`; `PROXY` is denied. `Actor.admin` carries the ADMIN role for the author-or-admin note edit.
 - Active punishments (`GET /punishment/active`): the overview of currently punished players needs `VIEWER`;
   `PROXY` is denied. It returns the hashed owner, never a raw UUID, IP address or name.
+- Conversation routes (`/case/{reference}/...`): `POST messages`, `PUT|DELETE messages/{id}` and `POST ban-id/leak` need
+  `MODERATOR` (edit/delete: verified author or `Actor.admin`, staff messages only); `POST messages/{id}/redact`,
+  `POST transcript/erase-player`, `POST ban-id/reissue` and `GET transcript` need `ADMIN`; `PROXY` is denied everywhere.
+  No response, event or log carries a Ban ID (`CaseConversationNoLeakTest`).

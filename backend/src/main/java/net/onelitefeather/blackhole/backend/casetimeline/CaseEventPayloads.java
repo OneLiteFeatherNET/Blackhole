@@ -78,6 +78,25 @@ public final class CaseEventPayloads {
                 case CaseEventPayload.NOTE_EDITED -> new CaseEventPayload.NoteEdited(required(text(body, "noteId")), required(text(body, "text")));
                 case CaseEventPayload.NOTE_REDACTED -> new CaseEventPayload.NoteRedacted(
                         required(text(body, "noteId")), required(text(body, "reason")));
+                case CaseEventPayload.MESSAGE_ADDED -> {
+                    Map<String, Object> author = map(body, "author");
+                    yield new CaseEventPayload.MessageAdded(required(text(body, "messageId")), text(body, "appealId"),
+                            MessageAuthorKind.valueOf(required(text(author, "kind"))), text(author, "participantId"),
+                            MessageChannel.valueOf(required(text(body, "channel"))), text(body, "text"));
+                }
+                case CaseEventPayload.MESSAGE_EDITED -> new CaseEventPayload.MessageEdited(required(text(body, "messageId")), text(body, "text"));
+                case CaseEventPayload.MESSAGE_DELETED -> new CaseEventPayload.MessageDeleted(
+                        required(text(body, "messageId")), MessageAuthorKind.valueOf(required(text(body, "deletedBy"))));
+                case CaseEventPayload.MESSAGE_REDACTED -> new CaseEventPayload.MessageRedacted(
+                        required(text(body, "messageId")), required(text(body, "reason")));
+                case CaseEventPayload.BAN_ID_LEAK_MARKED -> new CaseEventPayload.BanIdLeakMarked(
+                        BanIdLeakReason.valueOf(required(text(body, "reason"))), BanIdLeakSource.valueOf(required(text(body, "source"))),
+                        flag(body, "afterFiling"));
+                case CaseEventPayload.BAN_ID_REISSUED -> new CaseEventPayload.BanIdReissued(
+                        BanIdReissueReason.valueOf(required(text(body, "reason"))), required(integer(body, "fromGeneration")),
+                        required(integer(body, "toGeneration")));
+                case CaseEventPayload.TRANSCRIPT_EXPORTED -> new CaseEventPayload.TranscriptExported(
+                        required(text(body, "format")), required(integer(body, "entries")), flag(body, "includeNotes"));
                 default -> null;
             };
             return typed != null ? typed : new CaseEventPayload.Unknown(type, version, body);
@@ -106,6 +125,11 @@ public final class CaseEventPayloads {
     private static @Nullable Integer integer(Map<String, Object> body, String key) {
         Object value = body.get(key);
         return value == null ? null : ((Number) value).intValue();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> map(Map<String, Object> body, String key) {
+        return body.get(key) instanceof Map<?, ?> value ? (Map<String, Object>) value : Map.of();
     }
 
     private static List<String> texts(Map<String, Object> body, String key) {

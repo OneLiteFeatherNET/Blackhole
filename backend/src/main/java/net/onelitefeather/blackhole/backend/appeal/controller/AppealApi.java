@@ -72,6 +72,7 @@ public interface AppealApi {
     @ApiResponse(responseCode = "400", description = "Invalid decision, or a full lift was attempted on a SEVERE punishment")
     @ApiResponse(responseCode = "403", description = "The caller issued the punishment (self-review)")
     @ApiResponse(responseCode = "409", description = "Appeal is not awaiting review, or the punishment is no longer active")
+    @ApiResponse(responseCode = "422", description = "The playerMessage contains a UUID, an IP address or a Ban ID; the appeal stays undecided")
     @Validated
     @Post("/{identifier}/review")
     HttpResponse<?> review(UUID identifier, @Body @Valid AppealReviewDTO review, @Parameter(hidden = true) Actor actor);

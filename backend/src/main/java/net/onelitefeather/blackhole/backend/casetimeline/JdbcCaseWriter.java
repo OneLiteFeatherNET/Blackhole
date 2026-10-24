@@ -58,6 +58,111 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             RETURNING identifier, seq, type
             """;
 
+    private static final String DRAFT_COLUMNS = "identifier, punishment_identifier, type, payload_version, occurred_at, origin, actor_trust, "
+            + "actor_oid, recorded_by_oid, actor_source, subject_id, visibility, payload, dedupe_key";
+    private static final String DRAFT_VALUES = "?::uuid, ?::varchar, ?::varchar, ?::smallint, ?::bigint, ?::varchar, ?::varchar, ?::uuid, ?::uuid, "
+            + "?::uuid, ?::varchar, ?::varchar, ?::jsonb, ?::varchar";
+
+    /**
+     * The message, and when the case waits for the player and a player wrote, the move to IN_REVIEW with
+     * its system event. The promotion reads the message's RETURNING rows, so it runs after the message.
+     */
+    private static final String APPEND_MESSAGE = """
+            WITH new_case AS (
+                INSERT INTO punishment_case (punishment_identifier, status, priority, tags, version, created_at, updated_at)
+                VALUES (?, 'OPEN', 'NORMAL', '[]'::jsonb, 0, ?, ?)
+                ON CONFLICT (punishment_identifier) DO NOTHING
+            ), msg AS (
+                INSERT INTO case_event (%s)
+                VALUES (%s)
+                ON CONFLICT (dedupe_key) DO NOTHING
+                RETURNING identifier, seq, type
+            ), promoted AS (
+                UPDATE punishment_case SET status = 'IN_REVIEW', version = version + 1, updated_at = ?
+                WHERE punishment_identifier = ? AND status = 'WAITING' AND ?::boolean AND EXISTS (SELECT 1 FROM msg)
+                RETURNING punishment_identifier
+            ), status_event AS (
+                INSERT INTO case_event (identifier, punishment_identifier, type, payload_version, occurred_at, origin, actor_trust,
+                                        visibility, payload)
+                SELECT ?::uuid, promoted.punishment_identifier, 'case.status_changed', 1, ?::bigint, 'LIVE', 'SYSTEM', 'STAFF',
+                       '{"from":"WAITING","to":"IN_REVIEW"}'::jsonb
+                FROM promoted
+                RETURNING identifier, seq, type
+            )
+            SELECT identifier, seq, type, 0 AS ord FROM msg
+            UNION ALL
+            SELECT identifier, seq, type, 1 AS ord FROM status_event
+            ORDER BY ord
+            """.formatted(DRAFT_COLUMNS, DRAFT_VALUES);
+
+    private static final String EDIT_MESSAGE = """
+            INSERT INTO case_event (%s)
+            SELECT %s
+            WHERE NOT EXISTS (SELECT 1 FROM case_event
+                              WHERE punishment_identifier = ? AND subject_id = ? AND (redacted_at IS NOT NULL OR type = 'message.deleted'))
+            ON CONFLICT (dedupe_key) DO NOTHING
+            RETURNING identifier, seq, type
+            """.formatted(DRAFT_COLUMNS, DRAFT_VALUES);
+
+    private static final String MARK_LEAKED = """
+            WITH upd AS (
+                UPDATE punishment_case SET ban_id_leaked_at = ?, ban_id_leak_reason = ?, updated_at = ?
+                WHERE punishment_identifier = ? AND ban_id_leaked_at IS NULL
+                RETURNING punishment_identifier
+            )
+            INSERT INTO case_event (identifier, punishment_identifier, type, payload_version, occurred_at, origin, actor_trust,
+                                    actor_oid, recorded_by_oid, actor_source, visibility, payload)
+            SELECT ?::uuid, upd.punishment_identifier, 'ban_id.leak_marked', 1, ?::bigint, 'LIVE', ?::varchar, ?::uuid, ?::uuid, ?::uuid, 'PLAYER',
+                   jsonb_build_object('reason', ?::text, 'source', ?::text,
+                                      'afterFiling', EXISTS (SELECT 1 FROM appeals a
+                                                             WHERE a.punishment_identifier = upd.punishment_identifier AND a.status <> 6))
+            FROM upd
+            RETURNING identifier, seq, type, (payload ->> 'afterFiling')::boolean
+            """;
+
+    private static final String REISSUE = """
+            WITH upd AS (
+                UPDATE punishments SET ban_id_hash = ?, ban_id_enc = ?, ban_id_gen = ban_id_gen + 1
+                WHERE identifier = ? AND ban_id_hash IS NOT NULL
+                RETURNING identifier, ban_id_gen
+            ), cleared AS (
+                UPDATE punishment_case SET ban_id_leaked_at = NULL, ban_id_leak_reason = NULL, updated_at = ?
+                WHERE punishment_identifier = ? AND EXISTS (SELECT 1 FROM upd)
+                RETURNING punishment_identifier
+            )
+            INSERT INTO case_event (identifier, punishment_identifier, type, payload_version, occurred_at, origin, actor_trust,
+                                    actor_oid, recorded_by_oid, actor_source, visibility, payload)
+            SELECT ?::uuid, upd.identifier, 'ban_id.reissued', 1, ?::bigint, 'LIVE', ?::varchar, ?::uuid, ?::uuid, ?::uuid, 'PLAYER',
+                   jsonb_build_object('reason', ?::text, 'fromGeneration', upd.ban_id_gen - 1, 'toGeneration', upd.ban_id_gen)
+            FROM upd
+            RETURNING identifier, seq, type, (payload ->> 'fromGeneration')::int, (payload ->> 'toGeneration')::int
+            """;
+
+    private static final String ERASE_PLAYER = """
+            WITH player_messages AS (
+                SELECT subject_id, visibility FROM case_event
+                WHERE punishment_identifier = ? AND type = 'message.added' AND actor_trust = 'PLAYER' AND subject_id IS NOT NULL
+            ), red AS (
+                UPDATE case_event SET payload = payload - 'text' - 'attachments' - 'embeds', redacted_at = ?, redacted_by_oid = ?
+                WHERE punishment_identifier = ? AND type IN ('message.added', 'message.edited') AND redacted_at IS NULL
+                  AND subject_id IN (SELECT subject_id FROM player_messages)
+                RETURNING subject_id
+            ), done AS (
+                INSERT INTO case_event (identifier, punishment_identifier, type, payload_version, occurred_at, origin, actor_trust,
+                                        actor_oid, recorded_by_oid, actor_source, subject_id, visibility, payload, dedupe_key)
+                SELECT gen_random_uuid(), ?::varchar, 'message.redacted', 1, ?::bigint, 'LIVE', ?::varchar, ?::uuid, ?::uuid, ?::uuid,
+                       pm.subject_id, pm.visibility, jsonb_build_object('messageId', pm.subject_id, 'reason', ?::text),
+                       'message.redacted:' || pm.subject_id
+                FROM player_messages pm
+                WHERE pm.subject_id IN (SELECT subject_id FROM red)
+                ON CONFLICT (dedupe_key) DO NOTHING
+                RETURNING identifier, seq, subject_id, visibility
+            )
+            SELECT identifier, seq, subject_id, visibility FROM done
+            """;
+
+    private static final String UNIQUE_VIOLATION = "23505";
+
     private final DataSource dataSource;
 
     @Inject
@@ -151,6 +256,144 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
         } catch (SQLException e) {
             throw new IllegalStateException("could not edit a note of " + punishmentIdentifier, e);
         }
+    }
+
+    @Override
+    public List<Appended> appendMessage(CaseEventDraft message, boolean promoteWaiting) {
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(APPEND_MESSAGE)) {
+            int index = 0;
+            statement.setString(++index, message.punishmentIdentifier());
+            statement.setLong(++index, message.occurredAt());
+            statement.setLong(++index, message.occurredAt());
+            index = bindDraft(statement, index, message);
+            statement.setLong(++index, message.occurredAt());
+            statement.setString(++index, message.punishmentIdentifier());
+            statement.setBoolean(++index, promoteWaiting);
+            statement.setObject(++index, UUID.randomUUID());
+            statement.setLong(++index, message.occurredAt());
+            return appended(statement);
+        } catch (SQLException e) {
+            throw new IllegalStateException("could not append a message to the case of " + message.punishmentIdentifier(), e);
+        }
+    }
+
+    @Override
+    public Appended editMessage(CaseEventDraft edit) {
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(EDIT_MESSAGE)) {
+            int index = bindDraft(statement, 0, edit);
+            statement.setString(++index, edit.punishmentIdentifier());
+            statement.setString(++index, edit.subjectId());
+            List<Appended> appended = appended(statement);
+            return appended.isEmpty() ? null : appended.getFirst();
+        } catch (SQLException e) {
+            throw new IllegalStateException("could not edit a message of " + edit.punishmentIdentifier(), e);
+        }
+    }
+
+    @Override
+    public LeakMarked markBanIdLeaked(String punishmentIdentifier, BanIdLeakReason reason, BanIdLeakSource source, long now, CaseActor actor) {
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(MARK_LEAKED)) {
+            int index = 0;
+            statement.setLong(++index, now);
+            statement.setString(++index, reason.name());
+            statement.setLong(++index, now);
+            statement.setString(++index, punishmentIdentifier);
+            statement.setObject(++index, UUID.randomUUID());
+            statement.setLong(++index, now);
+            index = bindActor(statement, index, actor);
+            statement.setString(++index, reason.name());
+            statement.setString(++index, source.name());
+            try (ResultSet rows = statement.executeQuery()) {
+                return rows.next()
+                        ? new LeakMarked(new Appended(rows.getObject(1, UUID.class), rows.getLong(2), rows.getString(3)), rows.getBoolean(4))
+                        : null;
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("could not mark the Ban ID of " + punishmentIdentifier + " leaked", e);
+        }
+    }
+
+    @Override
+    public Reissued reissueBanId(String punishmentIdentifier, byte[] hash, byte[] encrypted, BanIdReissueReason reason, long now, CaseActor actor) {
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(REISSUE)) {
+            int index = 0;
+            statement.setBytes(++index, hash);
+            statement.setBytes(++index, encrypted);
+            statement.setString(++index, punishmentIdentifier);
+            statement.setLong(++index, now);
+            statement.setString(++index, punishmentIdentifier);
+            statement.setObject(++index, UUID.randomUUID());
+            statement.setLong(++index, now);
+            index = bindActor(statement, index, actor);
+            statement.setString(++index, reason.name());
+            try (ResultSet rows = statement.executeQuery()) {
+                return rows.next()
+                        ? new Reissued(new Appended(rows.getObject(1, UUID.class), rows.getLong(2), rows.getString(3)), rows.getInt(4), rows.getInt(5))
+                        : null;
+            }
+        } catch (SQLException e) {
+            if (UNIQUE_VIOLATION.equals(e.getSQLState())) {
+                throw new BanIdCollisionException("a new Ban ID hash for " + punishmentIdentifier + " is already taken", e);
+            }
+            throw new IllegalStateException("could not reissue the Ban ID of " + punishmentIdentifier, e);
+        }
+    }
+
+    @Override
+    public List<Erased> erasePlayerMessages(String punishmentIdentifier, String reason, long now, UUID redactedByOid, CaseActor actor) {
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(ERASE_PLAYER)) {
+            int index = 0;
+            statement.setString(++index, punishmentIdentifier);
+            statement.setLong(++index, now);
+            statement.setObject(++index, redactedByOid);
+            statement.setString(++index, punishmentIdentifier);
+            statement.setString(++index, punishmentIdentifier);
+            statement.setLong(++index, now);
+            index = bindActor(statement, index, actor);
+            statement.setString(++index, reason);
+            try (ResultSet rows = statement.executeQuery()) {
+                List<Erased> erased = new ArrayList<>();
+                while (rows.next()) {
+                    erased.add(new Erased(rows.getString(3),
+                            new Appended(rows.getObject(1, UUID.class), rows.getLong(2), CaseEventPayload.MESSAGE_REDACTED), rows.getString(4)));
+                }
+                return erased;
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("could not erase the player messages of " + punishmentIdentifier, e);
+        }
+    }
+
+    /** Binds the fourteen columns of {@link #DRAFT_COLUMNS} from a draft; returns the last index used. */
+    private static int bindDraft(PreparedStatement statement, int last, CaseEventDraft draft) throws SQLException {
+        int index = last;
+        statement.setObject(++index, UUID.randomUUID());
+        statement.setString(++index, draft.punishmentIdentifier());
+        statement.setString(++index, draft.type());
+        statement.setShort(++index, (short) draft.payload().version());
+        statement.setLong(++index, draft.occurredAt());
+        statement.setString(++index, draft.origin().name());
+        index = bindActor(statement, index, draft.actor());
+        statement.setString(++index, draft.subjectId());
+        statement.setString(++index, draft.visibility());
+        statement.setString(++index, CaseEventPayloads.toJson(draft.payload()));
+        statement.setString(++index, draft.dedupeKey());
+        return index;
+    }
+
+    /** Binds trust, oid, recorded-by and source of an actor; returns the last index used. */
+    private static int bindActor(PreparedStatement statement, int last, CaseActor actor) throws SQLException {
+        int index = last;
+        statement.setString(++index, actor.trust().name());
+        JdbcCaseEventRepository.setUuid(statement, ++index, actor.actorOid());
+        JdbcCaseEventRepository.setUuid(statement, ++index, actor.recordedByOid());
+        JdbcCaseEventRepository.setUuid(statement, ++index, actor.actorSource());
+        return index;
     }
 
     private static List<Appended> appended(PreparedStatement statement) throws SQLException {

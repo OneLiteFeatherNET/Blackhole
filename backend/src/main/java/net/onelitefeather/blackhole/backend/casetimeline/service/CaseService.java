@@ -9,9 +9,9 @@ import net.onelitefeather.blackhole.backend.casetimeline.CaseChanges;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventDraft;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventOrigin;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventPayload;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseEventPublisher;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventRecord;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventRepository;
-import net.onelitefeather.blackhole.backend.casetimeline.CaseEvents;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseMeta;
 import net.onelitefeather.blackhole.backend.casetimeline.CasePriority;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseReader;
@@ -28,8 +28,6 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentShortId;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.ActorKind;
 import net.onelitefeather.blackhole.backend.security.StaffActorRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
 import java.util.ArrayList;
@@ -51,7 +49,6 @@ import java.util.regex.Pattern;
 @Singleton
 public class CaseService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(CaseService.class);
 
     /** The longest note, in characters. */
     public static final int MAX_NOTE = 4000;
@@ -70,9 +67,10 @@ public class CaseService {
     private final CaseReader reader;
     private final CaseChanges changes;
     private final CaseEventRepository events;
-    private final DomainEventPublisher publisher;
     private final Clock clock;
     private final BanIdService banIds;
+    private final CaseReference references;
+    private final CaseEventPublisher caseEvents;
 
     public CaseService(
             PunishmentRepository punishments, StaffActorRepository staff, CaseReader reader, CaseChanges changes,
@@ -83,9 +81,10 @@ public class CaseService {
         this.reader = reader;
         this.changes = changes;
         this.events = events;
-        this.publisher = publisher;
         this.clock = clock;
         this.banIds = banIds;
+        this.references = new CaseReference(punishments);
+        this.caseEvents = new CaseEventPublisher(publisher);
     }
 
     private record Found(PunishmentEntity punishment, CaseDTO.Error error) {
@@ -126,7 +125,7 @@ public class CaseService {
             try {
                 trust = ActorTrust.valueOf(actorTrust);
             } catch (IllegalArgumentException e) {
-                return error(CaseErrorKind.VALIDATION, "actorTrust is VERIFIED, UNVERIFIED or SYSTEM");
+                return error(CaseErrorKind.VALIDATION, "actorTrust is VERIFIED, UNVERIFIED, SYSTEM or PLAYER");
             }
         }
         if (order != null && !order.equals("asc") && !order.equals("desc")) {
@@ -332,7 +331,8 @@ public class CaseService {
                 owner.substring(0, Math.min(OWNER_PREFIX, owner.length())), punishment.getSectionKey(), state(punishment, now),
                 punishment.isPermanent(), punishment.getCreatedAt() == null ? 0 : punishment.getCreatedAt(),
                 CaseStatus.valueOf(meta.status()), meta.assignee(), row.map(CaseReader.CaseRow::assigneeName).orElse(null),
-                CasePriority.valueOf(meta.priority()), meta.tags(), row.map(CaseReader.CaseRow::version).orElse(0L), related);
+                CasePriority.valueOf(meta.priority()), meta.tags(), row.map(CaseReader.CaseRow::version).orElse(0L), related,
+                row.map(CaseReader.CaseRow::banIdLeakedAt).orElse(null), row.map(CaseReader.CaseRow::banIdLeakReason).orElse(null));
     }
 
     /** {@code LIFTED} (revoked or lifted by an appeal), {@code EXPIRED} or {@code ACTIVE}. */
@@ -367,12 +367,7 @@ public class CaseService {
 
     /** Publishes after the write; a broker problem never fails the request that already changed the case. */
     private void publish(PunishmentEntity punishment, CaseChanges.Appended event, CaseActor by, long now, Map<String, Object> change) {
-        try {
-            this.publisher.publish(CaseEvents.routingKey(event.type()),
-                    CaseEvents.payload(event.identifier(), punishment.getIdentifier(), punishment.getOwner(), event.seq(), by, now, change));
-        } catch (RuntimeException e) {
-            LOGGER.warn("Could not publish {} for punishment {}", event.type(), punishment.getIdentifier(), e);
-        }
+        this.caseEvents.publish(punishment, event, by, now, change);
     }
 
     private boolean isKnownHuman(UUID oid) {
@@ -414,26 +409,7 @@ public class CaseService {
 
     /** Finds a punishment by its full identifier, or by its short id when that matches exactly one. */
     private Found find(String reference) {
-        if (reference == null || reference.isBlank()) {
-            return new Found(null, error(CaseErrorKind.VALIDATION, "a punishment is required"));
-        }
-        Optional<PunishmentEntity> byId = this.punishments.findById(reference.strip());
-        if (byId.isPresent()) {
-            return new Found(byId.get(), null);
-        }
-        Optional<String> key = PunishmentShortId.parse(reference);
-        if (key.isEmpty()) {
-            return new Found(null, error(CaseErrorKind.NOT_FOUND, "there is no such punishment"));
-        }
-        List<PunishmentEntity> matches = this.punishments.findByShortId(key.get());
-        if (matches.isEmpty()) {
-            return new Found(null, error(CaseErrorKind.NOT_FOUND, "there is no punishment with the short id " + PunishmentShortId.display(key.get())));
-        }
-        if (matches.size() > 1) {
-            String candidates = String.join(", ", matches.stream().map(PunishmentEntity::getIdentifier).toList());
-            return new Found(null, error(CaseErrorKind.CONFLICT, "the short id " + PunishmentShortId.display(key.get())
-                    + " matches several punishments, use the full identifier: " + candidates));
-        }
-        return new Found(matches.getFirst(), null);
+        CaseReference.Found found = this.references.resolve(reference);
+        return found.failed() ? new Found(null, error(found.kind(), found.message())) : new Found(found.punishment(), null);
     }
 }

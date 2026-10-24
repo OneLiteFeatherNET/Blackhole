@@ -98,6 +98,7 @@ public class AppealController implements AppealApi {
                     DURATION_REDUCTION_NOT_SHORTER ->
                     HttpResponse.badRequest(result.message());
             case SELF_REVIEW -> HttpResponse.status(HttpStatus.FORBIDDEN, result.message());
+            case INVALID_PLAYER_MESSAGE -> HttpResponse.status(HttpStatus.UNPROCESSABLE_ENTITY, result.message());
             case DECIDED -> HttpResponse.ok(withEvidenceCount(result.appeal()));
         };
     }

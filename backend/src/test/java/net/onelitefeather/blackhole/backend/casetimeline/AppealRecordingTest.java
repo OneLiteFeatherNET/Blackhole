@@ -45,7 +45,7 @@ class AppealRecordingTest {
             appeals.repository(), bed.punishments.repository(), bed.elo, bed.eloBed.sections, bed.cases.timeline, bed.eloBed.clock, 14, 3, 7);
     private final AppealDecisionService deciding = new AppealDecisionService(
             appeals.repository(), bed.punishments.repository(), bed.profiles.repository(), bed.slots, bed.profileCache,
-            bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.evidence, bed.staffLinks.service, bed.cases.timeline, bed.eloBed.clock);
+            bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.evidence, bed.staffLinks.service, bed.cases.timeline, bed.banIds.service, bed.eloBed.clock);
 
     /** The database assigns the identifier of a saved appeal; the in-memory repository needs a hand. */
     private static AppealEntity withIdentifier(AppealEntity appeal) {
@@ -74,7 +74,7 @@ class AppealRecordingTest {
     }
 
     private AppealReviewResult review(AppealEntity appeal, AppealStatus decision, Long newExpiration) {
-        return deciding.reviewAppeal(appeal.getIdentifier(), new AppealReviewDTO(decision, "a note", newExpiration), REVIEWER_ACTOR);
+        return deciding.reviewAppeal(appeal.getIdentifier(), AppealReviewDTO.withoutMessage(decision, "a note", newExpiration), REVIEWER_ACTOR);
     }
 
     @Test
@@ -196,5 +196,63 @@ class AppealRecordingTest {
         assertEquals(AppealReviewResult.Kind.DECIDED, result.kind(), "the appeal is decided regardless");
         assertTrue(mute.isLifted(), "and the punishment is lifted");
         assertEquals(2.0, bed.cases.failures(), "the decision and the lift recordings failed and were counted");
+    }
+
+    private AppealReviewResult reviewWithMessage(AppealEntity appeal, String playerMessage) {
+        return deciding.reviewAppeal(appeal.getIdentifier(),
+                new AppealReviewDTO(AppealStatus.DENIED, "internal reasoning", null, playerMessage), REVIEWER_ACTOR);
+    }
+
+    @Test
+    void aDecisionWithAPlayerMessageRecordsAPlayerVisibleStaffMessageFromTheReviewer() {
+        PunishmentEntity mute = givenStaffMute();
+        AppealEntity appeal = givenAppealAwaitingReview(mute);
+
+        AppealReviewResult result = reviewWithMessage(appeal, "We looked at the logs and the mute stays.");
+
+        assertEquals(AppealReviewResult.Kind.DECIDED, result.kind());
+        assertEquals(1, bed.cases.log.ofType(mute.getIdentifier(), "appeal.decided").size());
+        CaseEventRecord message = bed.cases.log.ofType(mute.getIdentifier(), "message.added").getFirst();
+        assertEquals("PLAYER", message.visibility());
+        assertEquals(REVIEWER, message.actorOid());
+        assertEquals(ActorTrust.VERIFIED, message.actorTrust());
+        CaseEventPayload.MessageAdded payload = assertInstanceOf(CaseEventPayload.MessageAdded.class, message.payload());
+        assertEquals(MessageAuthorKind.STAFF, payload.authorKind());
+        assertEquals(appeal.getIdentifier().toString(), payload.appealId());
+        assertEquals("We looked at the logs and the mute stays.", payload.text());
+    }
+
+    @Test
+    void theInternalDecisionNoteNeverReachesThePlayerMessage() {
+        PunishmentEntity mute = givenStaffMute();
+        AppealEntity appeal = givenAppealAwaitingReview(mute);
+
+        reviewWithMessage(appeal, "Denied.");
+
+        assertFalse(bed.cases.log.all().stream().anyMatch(event -> event.body().toString().contains("internal reasoning")),
+                "the decision note stays in the appeal");
+    }
+
+    @Test
+    void aPlayerMessageWithAnIpRejectsTheReviewAndLeavesTheAppealUndecided() {
+        PunishmentEntity mute = givenStaffMute();
+        AppealEntity appeal = givenAppealAwaitingReview(mute);
+
+        AppealReviewResult result = reviewWithMessage(appeal, "Your ip 10.1.2.3 was seen");
+
+        assertEquals(AppealReviewResult.Kind.INVALID_PLAYER_MESSAGE, result.kind());
+        assertEquals(AppealStatus.ELIGIBLE_PENDING_REVIEW, appeals.all().getFirst().getStatus(), "undecided");
+        assertTrue(bed.cases.log.ofType(mute.getIdentifier(), "appeal.decided").isEmpty());
+        assertTrue(bed.cases.log.ofType(mute.getIdentifier(), "message.added").isEmpty());
+    }
+
+    @Test
+    void aDecisionWithoutAPlayerMessageRecordsNoMessage() {
+        PunishmentEntity mute = givenStaffMute();
+        AppealEntity appeal = givenAppealAwaitingReview(mute);
+
+        review(appeal, AppealStatus.DENIED, null);
+
+        assertTrue(bed.cases.log.ofType(mute.getIdentifier(), "message.added").isEmpty());
     }
 }

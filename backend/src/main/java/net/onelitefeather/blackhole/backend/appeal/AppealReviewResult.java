@@ -22,6 +22,7 @@ public record AppealReviewResult(Kind kind, String message, AppealEntity appeal)
         DURATION_REDUCTION_EXPIRY_NOT_FUTURE,
         DURATION_REDUCTION_NOT_SHORTER,
         PUNISHMENT_NOT_ACTIVE,
+        INVALID_PLAYER_MESSAGE,
         DECIDED
     }
 
@@ -61,6 +62,10 @@ public record AppealReviewResult(Kind kind, String message, AppealEntity appeal)
         return new AppealReviewResult(
                 Kind.DURATION_REDUCTION_NOT_SHORTER, "newExpirationAt must be strictly before the punishment's current expiry", null
         );
+    }
+
+    public static AppealReviewResult invalidPlayerMessage(String message) {
+        return new AppealReviewResult(Kind.INVALID_PLAYER_MESSAGE, message, null);
     }
 
     public static AppealReviewResult punishmentNotActive() {

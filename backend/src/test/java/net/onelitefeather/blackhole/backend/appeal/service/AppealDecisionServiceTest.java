@@ -39,7 +39,7 @@ class AppealDecisionServiceTest {
             InMemoryRepository.<AppealRepository, AppealEntity, UUID>of(AppealRepository.class, AppealEntity::getIdentifier).build();
     private final AppealDecisionService service = new AppealDecisionService(
             appeals.repository(), bed.punishments.repository(), bed.profiles.repository(), bed.slots, bed.profileCache,
-            bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.evidence, bed.staffLinks.service, bed.cases.timeline, bed.eloBed.clock);
+            bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.evidence, bed.staffLinks.service, bed.cases.timeline, bed.banIds.service, bed.eloBed.clock);
 
     /** A staff mute that cost 80 ELO; the chat score is 920 afterwards. */
     private PunishmentEntity givenStaffMute() {
@@ -164,7 +164,7 @@ class AppealDecisionServiceTest {
         PunishmentEntity mute = givenStaffMute();
         UUID appealId = givenAppeal(mute);
 
-        AppealReviewResult result = service.reviewAppeal(appealId, new AppealReviewDTO(AppealStatus.GRANTED_FULL_LIFT, "ok", null), REVIEWER_ACTOR);
+        AppealReviewResult result = service.reviewAppeal(appealId, AppealReviewDTO.withoutMessage(AppealStatus.GRANTED_FULL_LIFT, "ok", null), REVIEWER_ACTOR);
 
         assertEquals(AppealReviewResult.Kind.DECIDED, result.kind(), result.message());
         var event = bed.eloBed.events.eventsOfType("appeal.resolved").getFirst();
@@ -180,7 +180,7 @@ class AppealDecisionServiceTest {
         long newExpiration = bed.eloBed.clock.millis() + Duration.ofDays(7).toMillis();
 
         AppealReviewResult result = service.reviewAppeal(appealId,
-                new AppealReviewDTO(AppealStatus.GRANTED_DURATION_REDUCTION, "shorter", newExpiration), REVIEWER_ACTOR);
+                AppealReviewDTO.withoutMessage(AppealStatus.GRANTED_DURATION_REDUCTION, "shorter", newExpiration), REVIEWER_ACTOR);
 
         assertEquals(AppealReviewResult.Kind.DECIDED, result.kind(), result.message());
         var updated = bed.eloBed.events.eventsOfType("punishment.updated").getFirst();
@@ -193,7 +193,7 @@ class AppealDecisionServiceTest {
         PunishmentEntity mute = givenStaffMute();
         UUID appealId = givenAppeal(mute);
 
-        AppealReviewResult result = service.reviewAppeal(appealId, new AppealReviewDTO(AppealStatus.DENIED, "no", null), REVIEWER_ACTOR);
+        AppealReviewResult result = service.reviewAppeal(appealId, AppealReviewDTO.withoutMessage(AppealStatus.DENIED, "no", null), REVIEWER_ACTOR);
 
         assertEquals(AppealReviewResult.Kind.DECIDED, result.kind());
         assertEquals(920, bed.eloBed.storedScore(OWNER, "chat"));
@@ -206,7 +206,7 @@ class AppealDecisionServiceTest {
         long current = ((Number) mute.getMetaData().get("expiration_date")).longValue();
 
         AppealReviewResult result = service.reviewAppeal(appealId,
-                new AppealReviewDTO(AppealStatus.GRANTED_DURATION_REDUCTION, "longer?", current + 1000), REVIEWER_ACTOR);
+                AppealReviewDTO.withoutMessage(AppealStatus.GRANTED_DURATION_REDUCTION, "longer?", current + 1000), REVIEWER_ACTOR);
 
         assertEquals(AppealReviewResult.Kind.DURATION_REDUCTION_NOT_SHORTER, result.kind(), "extending is not a reduction");
         assertEquals(current, ((Number) mute.getMetaData().get("expiration_date")).longValue(), "the expiry is unchanged");
@@ -220,7 +220,7 @@ class AppealDecisionServiceTest {
         long current = ((Number) mute.getMetaData().get("expiration_date")).longValue();
 
         AppealReviewResult result = service.reviewAppeal(appealId,
-                new AppealReviewDTO(AppealStatus.GRANTED_DURATION_REDUCTION, "same", current), REVIEWER_ACTOR);
+                AppealReviewDTO.withoutMessage(AppealStatus.GRANTED_DURATION_REDUCTION, "same", current), REVIEWER_ACTOR);
 
         assertEquals(AppealReviewResult.Kind.DURATION_REDUCTION_NOT_SHORTER, result.kind(), "equal is not strictly before");
     }
@@ -232,7 +232,7 @@ class AppealDecisionServiceTest {
         long earlier = bed.eloBed.clock.millis() + 1000;
 
         AppealReviewResult result = service.reviewAppeal(appealId,
-                new AppealReviewDTO(AppealStatus.GRANTED_DURATION_REDUCTION, "shorter", earlier), REVIEWER_ACTOR);
+                AppealReviewDTO.withoutMessage(AppealStatus.GRANTED_DURATION_REDUCTION, "shorter", earlier), REVIEWER_ACTOR);
 
         assertEquals(AppealReviewResult.Kind.DECIDED, result.kind(), result.message());
         assertEquals(earlier, ((Number) mute.getMetaData().get("expiration_date")).longValue());
@@ -243,7 +243,7 @@ class AppealDecisionServiceTest {
         PunishmentEntity mute = givenStaffMute();
         UUID appealId = givenAppeal(mute);
 
-        service.reviewAppeal(appealId, new AppealReviewDTO(AppealStatus.GRANTED_FULL_LIFT, "ok", null), REVIEWER_ACTOR);
+        service.reviewAppeal(appealId, AppealReviewDTO.withoutMessage(AppealStatus.GRANTED_FULL_LIFT, "ok", null), REVIEWER_ACTOR);
 
         assertEquals(java.util.List.of(new RecordingEvidenceGateway.Lift(mute.getIdentifier(), appealId)), bed.evidence.lifted());
     }
@@ -252,7 +252,7 @@ class AppealDecisionServiceTest {
     void aDeniedAppealLeavesTheEvidenceAlone() {
         PunishmentEntity mute = givenStaffMute();
 
-        service.reviewAppeal(givenAppeal(mute), new AppealReviewDTO(AppealStatus.DENIED, "no", null), REVIEWER_ACTOR);
+        service.reviewAppeal(givenAppeal(mute), AppealReviewDTO.withoutMessage(AppealStatus.DENIED, "no", null), REVIEWER_ACTOR);
 
         assertTrue(bed.evidence.lifted().isEmpty(), "a denial lifts nothing");
         assertTrue(bed.evidence.revoked().isEmpty(), "a denial revokes nothing");
@@ -263,7 +263,7 @@ class AppealDecisionServiceTest {
         PunishmentEntity mute = givenStaffMute();
 
         service.reviewAppeal(givenAppeal(mute),
-                new AppealReviewDTO(AppealStatus.GRANTED_DURATION_REDUCTION, "shorter", bed.eloBed.clock.millis() + 1000), REVIEWER_ACTOR);
+                AppealReviewDTO.withoutMessage(AppealStatus.GRANTED_DURATION_REDUCTION, "shorter", bed.eloBed.clock.millis() + 1000), REVIEWER_ACTOR);
 
         assertTrue(bed.evidence.lifted().isEmpty(), "the punishment still stands, so its evidence stays valid");
     }
@@ -274,13 +274,13 @@ class AppealDecisionServiceTest {
         bed.evidence.failClaims(new IllegalStateException("database down"));
 
         AppealReviewResult result = service.reviewAppeal(givenAppeal(mute),
-                new AppealReviewDTO(AppealStatus.GRANTED_FULL_LIFT, "ok", null), REVIEWER_ACTOR);
+                AppealReviewDTO.withoutMessage(AppealStatus.GRANTED_FULL_LIFT, "ok", null), REVIEWER_ACTOR);
 
         assertEquals(AppealReviewResult.Kind.DECIDED, result.kind(), "the appeal is decided regardless");
     }
 
     private AppealReviewDTO fullLift() {
-        return new AppealReviewDTO(AppealStatus.GRANTED_FULL_LIFT, "ok", null);
+        return AppealReviewDTO.withoutMessage(AppealStatus.GRANTED_FULL_LIFT, "ok", null);
     }
 
     @Test
@@ -354,7 +354,7 @@ class AppealDecisionServiceTest {
         PunishmentEntity mute = givenInGameMute(true);
         UUID appealId = givenAppeal(mute);
 
-        AppealReviewResult result = service.reviewAppeal(appealId, new AppealReviewDTO(AppealStatus.DENIED, "no", null), REVIEWER_ACTOR);
+        AppealReviewResult result = service.reviewAppeal(appealId, AppealReviewDTO.withoutMessage(AppealStatus.DENIED, "no", null), REVIEWER_ACTOR);
 
         assertEquals(AppealReviewResult.Kind.SELF_REVIEW, result.kind(), "the stored actor_oid is the reviewer");
     }
@@ -366,7 +366,7 @@ class AppealDecisionServiceTest {
         bed.staffLinks.givenLink(REVIEWER, INGAME);
         UUID appealId = givenAppeal(mute);
 
-        AppealReviewResult result = service.reviewAppeal(appealId, new AppealReviewDTO(AppealStatus.DENIED, "no", null), REVIEWER_ACTOR);
+        AppealReviewResult result = service.reviewAppeal(appealId, AppealReviewDTO.withoutMessage(AppealStatus.DENIED, "no", null), REVIEWER_ACTOR);
 
         assertEquals(AppealReviewResult.Kind.SELF_REVIEW, result.kind(), "the source is currently linked to the reviewer");
     }
@@ -377,7 +377,7 @@ class AppealDecisionServiceTest {
         UUID appealId = givenAppeal(mute);
         Actor other = new Actor(UUID.nameUUIDFromBytes("other".getBytes()), "Other", ActorKind.HUMAN, false);
 
-        AppealReviewResult result = service.reviewAppeal(appealId, new AppealReviewDTO(AppealStatus.DENIED, "no", null), other);
+        AppealReviewResult result = service.reviewAppeal(appealId, AppealReviewDTO.withoutMessage(AppealStatus.DENIED, "no", null), other);
 
         assertEquals(AppealReviewResult.Kind.DECIDED, result.kind(), result.message());
         assertEquals(other.oid(), result.appeal().getDecidedBy(), "the decision is recorded for that moderator");

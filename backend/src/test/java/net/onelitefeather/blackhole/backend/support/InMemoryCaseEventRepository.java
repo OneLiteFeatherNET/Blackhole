@@ -42,7 +42,7 @@ public final class InMemoryCaseEventRepository implements CaseEventRepository, C
         }
         this.rows.add(new CaseEventRecord(UUID.randomUUID(), this.nextSeq++, draft.punishmentIdentifier(), draft.type(),
                 draft.payload().version(), draft.occurredAt(), draft.origin(), draft.actor().trust(), draft.actor().actorOid(),
-                draft.actor().recordedByOid(), draft.actor().actorSource(), draft.subjectId(), "STAFF",
+                draft.actor().recordedByOid(), draft.actor().actorSource(), draft.subjectId(), draft.visibility(),
                 CaseEventPayloads.parse(CaseEventPayloads.toJson(draft.payload())), null, draft.dedupeKey()));
         return true;
     }
@@ -53,10 +53,16 @@ public final class InMemoryCaseEventRepository implements CaseEventRepository, C
         for (int i = 0; i < this.rows.size(); i++) {
             CaseEventRecord row = this.rows.get(i);
             boolean note = row.type().equals("note.added") || row.type().equals("note.edited");
-            if (note && row.punishmentIdentifier().equals(punishmentIdentifier) && subjectId.equals(row.subjectId()) && row.redactedAt() == null) {
+            boolean message = row.type().equals("message.added") || row.type().equals("message.edited");
+            if ((note || message) && row.punishmentIdentifier().equals(punishmentIdentifier) && subjectId.equals(row.subjectId())
+                    && row.redactedAt() == null) {
+                java.util.Map<String, Object> body = new java.util.HashMap<>(row.body());
+                body.remove("text");
+                body.remove("attachments");
+                body.remove("embeds");
                 this.rows.set(i, new CaseEventRecord(row.identifier(), row.seq(), row.punishmentIdentifier(), row.type(), row.payloadVersion(),
                         row.occurredAt(), row.origin(), row.actorTrust(), row.actorOid(), row.recordedByOid(), row.actorSource(),
-                        row.subjectId(), row.visibility(), java.util.Map.of(), redactedAt, row.dedupeKey()));
+                        row.subjectId(), row.visibility(), note ? java.util.Map.of() : body, redactedAt, row.dedupeKey()));
                 redacted++;
             }
         }

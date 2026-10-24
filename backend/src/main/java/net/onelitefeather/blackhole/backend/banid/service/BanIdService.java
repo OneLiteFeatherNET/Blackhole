@@ -71,6 +71,26 @@ public class BanIdService {
         return false;
     }
 
+    /** The stored form of a new Ban ID: the lookup hash and the ciphertext bound to the punishment. Never the plain value. */
+    public record Material(byte[] hash, byte[] encrypted) {
+    }
+
+    /**
+     * Draws a fresh Ban ID for a punishment without storing it, for a reissue that stores it together
+     * with the rest of its change. A candidate equal to a legacy short id is discarded.
+     *
+     * @return the stored form, empty if no usable candidate was found
+     */
+    public Optional<Material> draw(String punishmentIdentifier) {
+        for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+            String candidate = this.generator.generate();
+            if (!this.store.legacyShortIdExists(candidate)) {
+                return Optional.of(new Material(this.crypto.hash(candidate), this.crypto.encrypt(candidate, punishmentIdentifier)));
+            }
+        }
+        return Optional.empty();
+    }
+
     /**
      * The punishment a typed Ban ID belongs to.
      *

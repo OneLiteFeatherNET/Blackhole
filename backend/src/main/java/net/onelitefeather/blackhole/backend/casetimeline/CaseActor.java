@@ -22,6 +22,11 @@ public record CaseActor(ActorTrust trust, @Nullable UUID actorOid, @Nullable UUI
         return new CaseActor(ActorTrust.SYSTEM, null, null, null);
     }
 
+    /** A player: no identity beyond the Ban ID they hold. */
+    public static CaseActor player() {
+        return new CaseActor(ActorTrust.PLAYER, null, null, null);
+    }
+
     /** Nobody is attributed (for example the filing of an appeal, which records no actor). */
     public static CaseActor unattributed() {
         return new CaseActor(ActorTrust.UNVERIFIED, null, null, null);

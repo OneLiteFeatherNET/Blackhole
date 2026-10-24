@@ -10,6 +10,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CaseEventPayloadsTest {
@@ -37,7 +38,16 @@ class CaseEventPayloadsTest {
                 new CaseEventPayload.TagsChanged(java.util.List.of("a", "b"), java.util.List.of()),
                 new CaseEventPayload.NoteAdded("n-1", "text"),
                 new CaseEventPayload.NoteEdited("n-1", "new text"),
-                new CaseEventPayload.NoteRedacted("n-1", "PERSONAL_DATA"));
+                new CaseEventPayload.NoteRedacted("n-1", "PERSONAL_DATA"),
+                new CaseEventPayload.MessageAdded("m-1", "appeal-1", MessageAuthorKind.PLAYER, null, MessageChannel.PORTAL, "hello"),
+                new CaseEventPayload.MessageAdded("m-2", null, MessageAuthorKind.EXTERNAL, "participant-1", MessageChannel.DISCORD, "hi"),
+                new CaseEventPayload.MessageAdded("m-3", null, MessageAuthorKind.STAFF, null, MessageChannel.PANEL, null),
+                new CaseEventPayload.MessageEdited("m-1", "new text"),
+                new CaseEventPayload.MessageDeleted("m-1", MessageAuthorKind.STAFF),
+                new CaseEventPayload.MessageRedacted("m-1", "PERSONAL_DATA"),
+                new CaseEventPayload.BanIdLeakMarked(BanIdLeakReason.POSTED_PUBLIC, BanIdLeakSource.STAFF, true),
+                new CaseEventPayload.BanIdReissued(BanIdReissueReason.NOT_PLAYERS_FAULT, 1, 2),
+                new CaseEventPayload.TranscriptExported("json", 12, false));
     }
 
     @ParameterizedTest
@@ -94,8 +104,42 @@ class CaseEventPayloadsTest {
     }
 
     @Test
-    void theReservedPortalTypesAreNotTypedByThisRelease() {
+    void aMessageBodyWithoutItsAuthorIsKeptOpaque() {
         assertInstanceOf(CaseEventPayload.Unknown.class, CaseEventPayloads.read("ban_id.leak_marked", 1, Map.of()));
-        assertFalse(CaseEventPayloads.read("message.added", 1, Map.of()) instanceof CaseEventPayload.Applied);
+        assertInstanceOf(CaseEventPayload.Unknown.class, CaseEventPayloads.read("message.added", 1, Map.of("messageId", "m-1")));
+    }
+
+    @Test
+    void aMessageOfAFutureVersionIsKeptOpaque() {
+        Map<String, Object> body = Map.of("messageId", "m-1", "author", Map.of("kind", "PLAYER"), "channel", "PORTAL", "text", "x");
+
+        assertInstanceOf(CaseEventPayload.Unknown.class, CaseEventPayloads.read(CaseEventPayload.MESSAGE_ADDED, 2, body));
+    }
+
+    @Test
+    void aRedactedMessageStillReadsAsAMessageWithoutText() {
+        Map<String, Object> body = Map.of("messageId", "m-1", "author", Map.of("kind", "PLAYER"), "channel", "PORTAL");
+
+        CaseEventPayload.MessageAdded read = assertInstanceOf(CaseEventPayload.MessageAdded.class,
+                CaseEventPayloads.read(CaseEventPayload.MESSAGE_ADDED, 1, body));
+
+        assertNull(read.text());
+        assertEquals(MessageAuthorKind.PLAYER, read.authorKind(), "the author kind stays after a redaction");
+    }
+
+    @Test
+    void theLeakAndReissuePayloadsHoldCodesAndNumbersOnly() {
+        assertEquals(Map.of("reason", "SHARED", "source", "STAFF", "afterFiling", false),
+                new CaseEventPayload.BanIdLeakMarked(BanIdLeakReason.SHARED, BanIdLeakSource.STAFF, false).toMap());
+        assertEquals(Map.of("reason", "OTHER", "fromGeneration", 3, "toGeneration", 4),
+                new CaseEventPayload.BanIdReissued(BanIdReissueReason.OTHER, 3, 4).toMap());
+    }
+
+    @Test
+    void thePortalAllowListNamesMessagesAndMarkersButNotNotes() {
+        assertTrue(CaseEventPayload.PORTAL_VISIBLE_TYPES.contains("message.added"));
+        assertTrue(CaseEventPayload.PORTAL_VISIBLE_TYPES.contains("ban_id.leak_marked"));
+        assertFalse(CaseEventPayload.PORTAL_VISIBLE_TYPES.contains("note.added"));
+        assertFalse(CaseEventPayload.PORTAL_VISIBLE_TYPES.contains("transcript.exported"));
     }
 }

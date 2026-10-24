@@ -16,14 +16,14 @@ implementing is reproduced by a failing test first.
 
 ## 2. Case conversation (PR 2, `feat(case)`)
 
-- [ ] 2.1 Failing tests first: payloads per type incl. unknown version, dedupe keys, visibility forced `PLAYER`, trust `PLAYER`, edit/delete as new events, current-text rule, `WAITING` to `IN_REVIEW`
-- [ ] 2.2 Sealed payloads `message.added|edited|deleted|redacted`, `ban_id.leak_marked`, `ban_id.reissued`, `transcript.exported`; `CaseDrafts`/`CaseTimeline` extended; the portal-visible type allow-list
-- [ ] 2.3 CTE writes: leak mark (case + sessions + event, idempotent), reissue (punishment + case + event); `CaseService` routes `POST /case/{ref}/messages`, `ban-id/leak`, `ban-id/reissue`
-- [ ] 2.4 Redaction: per-message chain, player-side erase, `message.redacted`; `CaseEventRepository` surface test still green
-- [ ] 2.5 Transcript export (`json|text`, `includeNotes`, `transcript.exported`, `no-store`, attachment)
-- [ ] 2.6 Domain events `case.message_*`, `case.ban_id_*` without content, captured-publisher tests
-- [ ] 2.7 Review request `playerMessage` (appeal decision) with `PiiGuard`
-- [ ] 2.8 Extend `PermissionMatrixIntegrationTest` / `RouteCoverageIntegrationTest`; regenerate client spec; update `.claude/rules` (case-timeline, events, security)
+- [x] 2.1 Failing tests first: payloads per type incl. unknown version, dedupe keys, visibility forced `PLAYER`, trust `PLAYER`, edit/delete as new events, current-text rule, `WAITING` to `IN_REVIEW`
+- [x] 2.2 Sealed payloads `message.added|edited|deleted|redacted`, `ban_id.leak_marked`, `ban_id.reissued`, `transcript.exported`; `CaseDrafts`/`CaseTimeline` extended; the portal-visible type allow-list
+- [x] 2.3 CTE writes: leak mark (case + sessions + event, idempotent), reissue (punishment + case + event); `CaseService` routes `POST /case/{ref}/messages`, `ban-id/leak`, `ban-id/reissue`
+- [x] 2.4 Redaction: per-message chain, player-side erase, `message.redacted`; `CaseEventRepository` surface test still green
+- [x] 2.5 Transcript export (`json|text`, `includeNotes`, `transcript.exported`, `no-store`, attachment)
+- [x] 2.6 Domain events `case.message_*`, `case.ban_id_*` without content, captured-publisher tests
+- [x] 2.7 Review request `playerMessage` (appeal decision) with `PiiGuard`
+- [x] 2.8 Extend `PermissionMatrixIntegrationTest` / `RouteCoverageIntegrationTest`; regenerate client spec; update `.claude/rules` (case-timeline, events, security)
 
 ## 3. Appeal protocol (PR 3, `feat(case)`)
 

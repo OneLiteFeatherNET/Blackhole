@@ -111,6 +111,18 @@ public class CaseTimeline {
     }
 
     /**
+     * The message that comes with the decision of an appeal, written by the reviewer and visible to the
+     * player. Recorded like the decision itself: after it, never failing it, once per appeal.
+     */
+    public void decisionMessage(AppealEntity decided, String text, CaseActor by) {
+        recordSafely(() -> {
+            String appealId = decided.getIdentifier().toString();
+            return CaseDrafts.staffMessage(decided.getPunishment().getIdentifier(), CaseDrafts.decisionMessageId(appealId), appealId, text,
+                    MessageChannel.PANEL, by, CaseEventOrigin.LIVE, this.clock.millis());
+        });
+    }
+
+    /**
      * Evidence was attached to a punishment, or claimed by one. The event is dated by the item's creation:
      * evidence sent before the punishment existed shows up before the punishment was applied, as it happened.
      */

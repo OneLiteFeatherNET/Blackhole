@@ -10,7 +10,10 @@ import net.onelitefeather.blackhole.backend.appeal.AppealStatus;
 import net.onelitefeather.blackhole.backend.appeal.DecisionOutcome;
 import net.onelitefeather.blackhole.backend.appeal.dto.AppealReviewDTO;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.banid.service.BanIdService;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseTimeline;
+import net.onelitefeather.blackhole.backend.casetimeline.MessageRules;
 import net.onelitefeather.blackhole.backend.elo.EloChange;
 import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.EloScoring;
@@ -73,6 +76,7 @@ public class AppealDecisionService {
     private final PunishmentEvidenceGateway evidence;
     private final StaffLinkService staffLinks;
     private final CaseTimeline caseTimeline;
+    private final BanIdService banIds;
     private final Clock clock;
 
     public AppealDecisionService(
@@ -87,6 +91,7 @@ public class AppealDecisionService {
             PunishmentEvidenceGateway evidence,
             StaffLinkService staffLinks,
             CaseTimeline caseTimeline,
+            BanIdService banIds,
             Clock clock
     ) {
         this.appealRepository = appealRepository;
@@ -100,6 +105,7 @@ public class AppealDecisionService {
         this.evidence = evidence;
         this.staffLinks = staffLinks;
         this.caseTimeline = caseTimeline;
+        this.banIds = banIds;
         this.clock = clock;
     }
 
@@ -120,6 +126,13 @@ public class AppealDecisionService {
         }
         if (!VALID_DECISIONS.contains(review.decision())) {
             return AppealReviewResult.invalidDecision("decision must be one of " + VALID_DECISIONS);
+        }
+
+        if (review.playerMessage() != null) {
+            String problem = MessageRules.check(review.playerMessage(), this.banIds);
+            if (problem != null) {
+                return AppealReviewResult.invalidPlayerMessage(problem);
+            }
         }
 
         PunishmentEntity punishment = appeal.getPunishment();
@@ -165,7 +178,7 @@ public class AppealDecisionService {
         appeal.setDecisionNote(review.decisionNote());
         appeal.setUpdatedAt(this.clock.millis());
         AppealEntity saved = this.appealRepository.update(appeal);
-        recordDecision(saved, punishment, review);
+        recordDecision(saved, punishment, review, reviewer);
         publishResolved(appealIdentifier, saved, punishment, review);
 
         return AppealReviewResult.decided(saved);
@@ -228,8 +241,11 @@ public class AppealDecisionService {
     }
 
     /** Records the decision, and the lift of a granted full-lift appeal, in the punishment's case. */
-    private void recordDecision(AppealEntity decided, PunishmentEntity punishment, AppealReviewDTO review) {
+    private void recordDecision(AppealEntity decided, PunishmentEntity punishment, AppealReviewDTO review, Actor reviewer) {
         this.caseTimeline.appealDecided(decided, review.newExpirationAt());
+        if (review.playerMessage() != null) {
+            this.caseTimeline.decisionMessage(decided, review.playerMessage(), CaseActor.of(reviewer.attribution()));
+        }
         if (review.decision() == AppealStatus.GRANTED_FULL_LIFT) {
             this.caseTimeline.lifted(punishment, decided.getIdentifier(), decided.getRecordedByOid());
         }

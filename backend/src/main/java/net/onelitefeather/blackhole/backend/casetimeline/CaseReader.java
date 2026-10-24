@@ -14,7 +14,13 @@ import java.util.UUID;
 public interface CaseReader {
 
     /** The stored case row; empty when the punishment has no case yet. */
-    record CaseRow(CaseMeta meta, @Nullable String assigneeName, long version, long createdAt, long updatedAt) {
+    record CaseRow(CaseMeta meta, @Nullable String assigneeName, long version, long createdAt, long updatedAt,
+                   @Nullable Long banIdLeakedAt, @Nullable String banIdLeakReason) {
+
+        /** Whether the Ban ID of the current generation is marked leaked. */
+        public boolean leaked() {
+            return this.banIdLeakedAt != null;
+        }
     }
 
     /** Another punishment of the same owner. {@code state} is {@code ACTIVE}, {@code EXPIRED} or {@code LIFTED}. */

@@ -24,7 +24,10 @@ public enum CaseErrorKind {
     CONFLICT(HttpStatus.CONFLICT),
 
     /** The request is understood but names something unknown, such as an assignee who is no staff member (422). */
-    UNPROCESSABLE(HttpStatus.UNPROCESSABLE_ENTITY);
+    UNPROCESSABLE(HttpStatus.UNPROCESSABLE_ENTITY),
+
+    /** Something the request needs cannot be produced right now, such as a free Ban ID candidate (503). */
+    UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE);
 
     private final HttpStatus status;
 
