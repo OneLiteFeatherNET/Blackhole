@@ -38,7 +38,7 @@ describe('thread', () => {
   it('lists messages as an ordered list with times, in order', async () => {
     const { wrapper } = await openConversation({ conversation: async () => ok(page([entry(2, { author: 'PLAYER', text: 'second' }), entry(1, { text: 'first' })])) })
 
-    const items = wrapper.findAll('ol > li')
+    const items = wrapper.findAll('ol > li[data-author]')
     expect(items.map((li) => li.get('p:nth-of-type(2)').text())).toEqual(['first', 'second'])
     expect(items[0]!.find('time').attributes('datetime')).toBe('2026-10-02T10:00:00Z')
     expect(items[0]!.text()).toContain('Moderation team')
@@ -74,7 +74,7 @@ describe('thread', () => {
     await tick(15_000)
 
     expect(conversation).toHaveBeenCalledTimes(2)
-    expect(wrapper.findAll('ol > li')).toHaveLength(1)
+    expect(wrapper.findAll('ol > li[data-author]')).toHaveLength(1)
     expect(wrapper.get('ol').text()).toContain('after')
   })
 })
@@ -85,7 +85,7 @@ describe('plain text', () => {
   it('renders message text literally: no elements, no links', async () => {
     const { wrapper } = await openConversation({ conversation: async () => ok(page([entry(1, { text: MARKUP })])) })
 
-    const item = wrapper.get('ol > li')
+    const item = wrapper.get('ol > li[data-author]')
     expect(item.text()).toContain('<b>bold</b>')
     expect(item.text()).toContain('[link](https://evil.example)')
     expect(item.find('b').exists()).toBe(false)
@@ -387,7 +387,7 @@ describe('paging', () => {
 
     expect(conversation).toHaveBeenCalledTimes(2)
     expect(conversation).toHaveBeenNthCalledWith(2, 200)
-    expect(wrapper.findAll('ol > li')).toHaveLength(201)
+    expect(wrapper.findAll('ol > li[data-author]')).toHaveLength(201)
   })
 
   it('keeps the cursor when the conversation is still empty', async () => {

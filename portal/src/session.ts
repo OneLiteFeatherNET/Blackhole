@@ -2,6 +2,7 @@ import { reactive, type InjectionKey } from 'vue'
 import type { ApiResult, PortalApi } from './api/portal'
 import type { PlayerScope, PunishmentFacts } from './api/contract'
 import { normaliseBanId } from './banId'
+import { releasePreview, type DraftFile } from './chat/files'
 
 export type Phase = 'loading' | 'login' | 'in' | 'expired'
 
@@ -29,7 +30,7 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
     loginError: null as 'INVALID_BAN_ID' | 'UNAVAILABLE' | null,
     busy: false,
     /** Unsent text. Survives the expiry page so a long statement is not lost; gone on logout or when the tab closes. */
-    drafts: { statement: '', message: '' },
+    drafts: { statement: '', message: '', files: [] as DraftFile[] },
   })
 
   function enter(info: { csrf: string; expiresAt: string; scope: PlayerScope }) {
@@ -101,6 +102,8 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
     state.expiresAt = null
     state.drafts.statement = ''
     state.drafts.message = ''
+    for (const file of state.drafts.files) releasePreview(file)
+    state.drafts.files = []
     state.loginError = null
     state.phase = 'login'
   }

@@ -104,7 +104,7 @@ describe('logout', () => {
 
     await mounted.session.logout()
 
-    expect(mounted.session.state.drafts).toEqual({ statement: '', message: '' })
+    expect(mounted.session.state.drafts).toEqual({ statement: '', message: '', files: [] })
   })
 })
 
