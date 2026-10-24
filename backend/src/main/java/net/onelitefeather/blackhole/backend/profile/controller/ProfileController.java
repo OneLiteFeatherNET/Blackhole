@@ -30,6 +30,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
+import net.onelitefeather.blackhole.backend.clientrule.ClientRuleHitStore;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.discord.DiscordLinkService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
@@ -52,6 +53,7 @@ public class ProfileController {
     private final Clock clock;
     private final ProfileAttributionGuard attributionGuard;
     private final DiscordLinkService discordLinks;
+    private final ClientRuleHitStore clientRuleHits;
 
     /**
      * Create a new ProfileController.
@@ -64,6 +66,7 @@ public class ProfileController {
      * @param clock          source of the last-seen timestamp
      * @param attributionGuard discards client-supplied {@code recordedByOid} on whole-profile writes
      * @param discordLinks   removes the player's Discord link when the profile is erased
+     * @param clientRuleHits deletes the player's client rule hits when the profile is erased
      */
     @Inject
     public ProfileController(
@@ -74,7 +77,8 @@ public class ProfileController {
             ProfileSlots slots,
             Clock clock,
             ProfileAttributionGuard attributionGuard,
-            DiscordLinkService discordLinks
+            DiscordLinkService discordLinks,
+            ClientRuleHitStore clientRuleHits
     ) {
         this.repository = repository;
         this.eventPublisher = eventPublisher;
@@ -84,6 +88,7 @@ public class ProfileController {
         this.clock = clock;
         this.attributionGuard = attributionGuard;
         this.discordLinks = discordLinks;
+        this.clientRuleHits = clientRuleHits;
     }
 
     /**
@@ -208,6 +213,8 @@ public class ProfileController {
     public HttpResponse<PunishProfileResponse> delete(
             @Valid @Pattern(regexp = "^[a-fA-F0-9]{128}$", message = "Owner must be a sha-512 hash") String owner
     ) {
+        // Erasure: the hits are personal data of the owner even when no punishment profile exists.
+        this.clientRuleHits.deleteByOwner(owner);
         PunishmentProfileEntity entity = this.repository.findById(owner).orElse(null);
         if (entity == null) {
             return HttpResponse.badRequest(new PunishProfileResponse.ErrorResponse("There is no profile linked to the given owner"));

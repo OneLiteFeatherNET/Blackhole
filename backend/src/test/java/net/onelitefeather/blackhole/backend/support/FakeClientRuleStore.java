@@ -34,6 +34,12 @@ public final class FakeClientRuleStore implements ClientRuleStore {
         this.rules.put(spec.key(), new Stored(spec, 0, 0, 0, null));
     }
 
+    /** Counts a hit on the rule, as the real store does in the statement that stores it. */
+    public void countHit(String key) {
+        Stored before = this.rules.get(key);
+        this.rules.put(key, new Stored(before.spec(), before.hitCount() + 1, before.createdAt(), before.updatedAt(), before.recordedByOid()));
+    }
+
     public List<Stored> all() {
         return new ArrayList<>(this.rules.values());
     }

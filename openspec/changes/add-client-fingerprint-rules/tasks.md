@@ -20,11 +20,11 @@ here); client spec bumps use the next free number as well.
 
 ## 2. Hits and actions (PR 2, `feat(client-rules): record rule hits and apply their action`)
 
-- [ ] 2.1 Failing tests first: hit stored without any trait, unknown/disabled rule 404, bypassed and not-enforced flags, rule counter incremented in the same statement, hit event content (no names, no traits), `TEMPLATE` applied once and not again while the same rule's punishment is active, step does not escalate, appealable and marked automatic with the rule source, backend failure applies nothing, retention sweep keeps the counter, erasure deletes the owner's hits, `ClientRuleNoLeakTest` scans logs, events, metrics
-- [ ] 2.2 Migration `V<next free>__client_rule_hit.sql` (`client_rule_hit`, indexes on `(rule_key, at)` and `(owner_hash)`)
-- [ ] 2.3 `ClientRuleHitService`, `POST /client-rule/hit` (`PROXY`), `GET /client-rule/{key}/hits` and `GET /client-rule/hits?owner=` (VIEWER+, PROXY denied), template application through the ELO automatic-punishment path with source `client-rule:<key>`
-- [ ] 2.4 Domain event `client-rule.hit` (non-blocking publisher), `ClientRuleHitRetentionSweeper` (`blackhole.clientrules.hit-retention-days`, default 30), erasure hook in the profile erasure path
-- [ ] 2.5 Matrix and route-coverage rows; regenerate the client spec; `.claude/rules/events.md` note
+- [x] 2.1 Failing tests first: hit stored without any trait, unknown/disabled rule 404, bypassed and not-enforced flags, rule counter incremented in the same statement, hit event content (no names, no traits), `TEMPLATE` applied once and not again while the same rule's punishment is active, step does not escalate, appealable and marked automatic with the rule source, backend failure applies nothing, retention sweep keeps the counter, erasure deletes the owner's hits, `ClientRuleNoLeakTest` scans logs, events, metrics
+- [x] 2.2 Migration `V<next free>__client_rule_hit.sql` (`client_rule_hit`, indexes on `(rule_key, at)` and `(owner_hash)`)
+- [x] 2.3 `ClientRuleHitService`, `POST /client-rule/hit` (`PROXY`), `GET /client-rule/{key}/hits` and `GET /client-rule/hits?owner=` (VIEWER+, PROXY denied), template application through the ELO automatic-punishment path with source `client-rule:<key>`
+- [x] 2.4 Domain event `client-rule.hit` (non-blocking publisher), `ClientRuleHitRetentionSweeper` (`blackhole.clientrules.hit-retention-days`, default 30), erasure hook in the profile erasure path
+- [x] 2.5 Matrix and route-coverage rows; regenerate the client spec; `.claude/rules/events.md` note
 
 ## 3. Fingerprint hashing and evasion correlation (PR 3, `feat(evasion): correlate hashed client fingerprints`)
 

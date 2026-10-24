@@ -128,4 +128,33 @@ class ClientRuleMigrationIntegrationTest extends PostgresIntegrationTest {
         assertThrows(SQLException.class, () -> this.statement.execute(
                 "INSERT INTO client_rule_pattern (rule_key, position, pattern) VALUES ('ghost', 0, 'x')"));
     }
+
+    @Test
+    void aHitCarriesNoTraitColumnAndItsActionIsChecked() throws SQLException {
+        rule("meteor", "CHANNEL", "", "");
+        this.statement.execute("INSERT INTO client_rule_hit (rule_key, owner_hash, at, action_taken, server_name) VALUES ('meteor', 'o', 1, 'DENY', 'lobby-1')");
+
+        try (ResultSet columns = this.statement.executeQuery("SELECT column_name FROM information_schema.columns WHERE table_name = 'client_rule_hit' AND table_schema = current_schema() ORDER BY column_name")) {
+            java.util.List<String> names = new java.util.ArrayList<>();
+            while (columns.next()) {
+                names.add(columns.getString(1));
+            }
+            assertEquals(java.util.List.of("action_taken", "at", "bypassed", "enforced", "identifier", "owner_hash", "rule_key", "server_name"), names,
+                    "rule key, owner hash, time, action, flags and server: nothing else");
+        }
+        assertThrows(SQLException.class, () -> this.statement.execute(
+                "INSERT INTO client_rule_hit (rule_key, owner_hash, at, action_taken) VALUES ('meteor', 'o', 1, 'BAN')"));
+        assertThrows(SQLException.class, () -> this.statement.execute(
+                "INSERT INTO client_rule_hit (rule_key, owner_hash, at, action_taken) VALUES ('ghost', 'o', 1, 'NOTIFY')"), "the rule must exist");
+    }
+
+    @Test
+    void deletingARuleDeletesItsHits() throws SQLException {
+        rule("meteor", "CHANNEL", "", "");
+        this.statement.execute("INSERT INTO client_rule_hit (rule_key, owner_hash, at, action_taken) VALUES ('meteor', 'o', 1, 'NOTIFY')");
+
+        this.statement.execute("DELETE FROM client_rule WHERE rule_key = 'meteor'");
+
+        assertEquals(0, count("client_rule_hit"));
+    }
 }
