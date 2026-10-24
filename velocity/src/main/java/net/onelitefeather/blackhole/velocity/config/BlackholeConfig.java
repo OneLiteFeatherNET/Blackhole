@@ -45,6 +45,12 @@ public class BlackholeConfig {
     private String appealText;
 
     /**
+     * The address of the admin panel, for the "panel" button of the new-report notice to staff (the report
+     * page is {@code <panelUrl>/reports/<id>}). Empty to show no button. Only http(s) links are used.
+     */
+    private String panelUrl;
+
+    /**
      * The time zone absolute punishment end times are shown in (an id like {@code Europe/Berlin});
      * the proxy's system zone if empty or invalid.
      */
@@ -77,6 +83,7 @@ public class BlackholeConfig {
         this.fallbackServer = "lobby";
         this.appealUrl = "";
         this.appealText = "";
+        this.panelUrl = "";
         this.timeZone = ZoneId.systemDefault().getId();
         this.evidence = new EvidenceConfig();
         this.auth = new AuthConfig();
@@ -121,6 +128,25 @@ public class BlackholeConfig {
      */
     public @Nullable String getAppealText() {
         return appealText == null || appealText.isBlank() ? null : appealText.strip();
+    }
+
+    /**
+     * @return the admin panel's address without a trailing slash, or null if none (or not an http/https
+     * link) is configured
+     */
+    public @Nullable String getPanelUrl() {
+        if (panelUrl == null) {
+            return null;
+        }
+        String url = panelUrl.strip();
+        while (url.endsWith("/")) {
+            url = url.substring(0, url.length() - 1);
+        }
+        return url.startsWith("https://") || url.startsWith("http://") ? url : null;
+    }
+
+    public void setPanelUrl(@NotNull String panelUrl) {
+        this.panelUrl = panelUrl;
     }
 
     public void setAppealUrl(@NotNull String appealUrl) {

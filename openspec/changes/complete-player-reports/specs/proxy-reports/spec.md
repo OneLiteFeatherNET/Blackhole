@@ -52,3 +52,25 @@ The plugin MUST NOT add a cooldown, quota or other rate limit to `/report`. When
 #### Scenario: Backend limit
 - **WHEN** the backend answers a report with HTTP 429
 - **THEN** the reporter sees a "please wait" message and nothing else is retried
+
+### Requirement: Staff notice for new reports
+When a report is recorded, every online player holding `blackhole.report.notify` on any proxy SHALL be told, once, the reporter, the reported player, the reason and a one-line excerpt of at most 80 characters of the text. The notice SHALL have an "open" button that suggests `/blackhole <player> info` (a click MUST NOT run a command) and, only when `panelUrl` is an http(s) address and the report has an identifier, a "panel" button that opens `<panelUrl>/reports/<id>`.
+
+#### Scenario: Player without the permission
+- **WHEN** a report is filed
+- **THEN** online players without `blackhole.report.notify` receive nothing
+
+#### Scenario: No panel address
+- **WHEN** `panelUrl` is empty or not an http(s) address
+- **THEN** the notice has the "open" button only
+
+### Requirement: Cross-proxy delivery of the notice
+The proxy that took the report SHALL publish one notice on the Redis channel `blackhole.report.created`, and every proxy, the publisher included, SHALL deliver it to its own staff, so no staff member is told twice. Names and text MUST NOT be stored or sent to the backend with the notice. If nobody receives the published notice, the publishing proxy SHALL deliver it to its own staff.
+
+#### Scenario: Staff on two proxies
+- **WHEN** a report is filed on proxy A while staff are online on proxies A and B
+- **THEN** each staff member receives exactly one notice
+
+#### Scenario: Redis unavailable
+- **WHEN** the notice cannot be published
+- **THEN** the staff of the proxy that took the report still receive it

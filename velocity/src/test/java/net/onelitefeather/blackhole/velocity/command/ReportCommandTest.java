@@ -12,6 +12,8 @@ import net.onelitefeather.blackhole.velocity.evidence.MutableClock;
 import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
 import net.onelitefeather.blackhole.velocity.punish.TargetResolver.ResolvedTarget;
 import net.onelitefeather.blackhole.velocity.report.ReportEvidence;
+import net.onelitefeather.blackhole.velocity.report.ReportNotice;
+import net.onelitefeather.blackhole.velocity.report.ReportNotifier;
 import net.onelitefeather.blackhole.velocity.report.ReportService;
 import org.junit.jupiter.api.Test;
 
@@ -44,8 +46,21 @@ class ReportCommandTest {
                 throw new UnsupportedOperationException(method.getName());
             });
     private final ChatCaptureConfig config = new ChatCaptureConfig();
+    private final List<ReportNotice> announced = new ArrayList<>();
+    private final ReportNotifier notifier = new ReportNotifier(List::of, new net.onelitefeather.blackhole.velocity.report.ReportNoticeChannel() {
+        @Override
+        public void onNotice(java.util.function.Consumer<ReportNotice> listener) {
+            // no listener needed: the test reads what is published
+        }
+
+        @Override
+        public boolean publish(ReportNotice notice) {
+            announced.add(notice);
+            return true;
+        }
+    }, () -> null);
     private final ReportCommand command = new ReportCommand(new ReportService(backend,
-            new ReportEvidence(new ChatSnapshotBuilder(new ChatBuffer(new MutableClock(), config), config), backend, config, () -> "c")));
+            new ReportEvidence(new ChatSnapshotBuilder(new ChatBuffer(new MutableClock(), config), config), backend, config, () -> "c")), notifier);
 
     /** A player that records what it is told. */
     private static Player player(UUID uuid, Tristate reportPermission, boolean bypass, List<String> received) {
@@ -77,6 +92,29 @@ class ReportCommandTest {
         assertEquals(List.of("CHEATING|flying"), submitted, "an undefined permission counts as granted");
         assertEquals(1, told.size());
         assertTrue(told.getFirst().contains("report.success"), "the reporter must get the confirmation: " + told);
+    }
+
+    @Test
+    void aFiledReportIsAnnouncedToStaffWithNamesAndExcerpt() {
+        Player sender = player(REPORTER, Tristate.TRUE, false, new ArrayList<>());
+
+        command.handle(sender, new ResolvedTarget(REPORTED, "Steve", null), "cheating", "flying around");
+
+        assertEquals(1, announced.size());
+        ReportNotice notice = announced.getFirst();
+        assertEquals("Name", notice.reporter());
+        assertEquals("Steve", notice.reported());
+        assertEquals("CHEATING", notice.category());
+        assertEquals("flying around", notice.excerpt());
+    }
+
+    @Test
+    void aRefusedReportIsNotAnnounced() {
+        failure = new ApiException(429, "limit", null, null);
+
+        command.handle(player(REPORTER, Tristate.TRUE, false, new ArrayList<>()), new ResolvedTarget(REPORTED, "Steve", null), "cheating", null);
+
+        assertTrue(announced.isEmpty(), "staff must only hear about reports the backend recorded");
     }
 
     @Test

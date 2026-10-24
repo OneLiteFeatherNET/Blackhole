@@ -15,16 +15,16 @@ the type-check) and `openspec validate --all --strict` before each PR.
 
 ## 2. Staff notification (PR 2: `feat(velocity): notify staff of new reports in game`)
 
-- [ ] 2.1 `ReportNotice` wire message and codec, Redis channel `blackhole:report:created`; verify codec round trip and tolerance of unknown fields
-- [ ] 2.2 `ReportNotifier` delivers a notice once to online players holding `blackhole.report.notify`, publishes via the channel and delivers locally if Redis is down; verify tests with a fake channel and fake audiences for "one delivery per proxy", "no permission, no message" and "Redis down"
-- [ ] 2.3 Notice message with reporter, reported player, reason, short excerpt, "open" (suggests `/blackhole <player> info`) and "panel" (opens `panelUrl` + `/reports/<id>`, only when configured); config key `panelUrl` (http(s) only); verify render tests in en/de
-- [ ] 2.4 `proxy-reports` delta extended; verify `openspec validate --all --strict`
+- [x] 2.1 `ReportNotice` wire message and codec, Redis channel `blackhole.report.created`; verify codec round trip and tolerance of unknown fields
+- [x] 2.2 `ReportNotifier` delivers a notice once to online players holding `blackhole.report.notify`, publishes via the channel and delivers locally if Redis is down; verify tests with a fake channel and fake audiences for "one delivery per proxy", "no permission, no message" and "Redis down"
+- [x] 2.3 Notice message with reporter, reported player, reason, short excerpt, "open" (suggests `/blackhole <player> info`) and "panel" (opens `panelUrl` + `/reports/<id>`, only when configured); config key `panelUrl` (http(s) only); verify render tests in en/de
+- [x] 2.4 `proxy-reports` delta extended; verify `openspec validate --all --strict`
 
 ## 3. Outcome for the reporter (PR 3: `feat(report): tell the reporter about the outcome`)
 
 - [ ] 3.1 Flyway migration for `report_feedback`, entity, repository and `ReportFeedbackService` (create on resolve, list pending per owner, acknowledge, expire); verify service tests with a fixed `Clock`
 - [ ] 3.2 `PROXY` routes `GET /report/feedback/{owner}` and `POST /report/feedback/{identifier}/ack`, sealed DTO, `*Api` interface, matrix row; verify controller tests with self-signed JWTs for allowed and refused roles
-- [ ] 3.3 `report.feedback` event relayed to Redis `blackhole:report:feedback`; verify the payload carries hashes and ids only
+- [ ] 3.3 `report.feedback` event relayed to Redis `blackhole.report.feedback`; verify the payload carries hashes and ids only
 - [ ] 3.4 Velocity delivers pending feedback on login and on the event, acknowledging each delivered row; verify tests with a fake gateway and players
 - [ ] 3.5 Next free client spec version, `inputSpec`, web `generate:api`, docs-test filename and `BlackholeApplication` version bumped together; verify the build
 - [ ] 3.6 Specs: `player-reports`, `proxy-reports`, `staff-authentication` (matrix) deltas

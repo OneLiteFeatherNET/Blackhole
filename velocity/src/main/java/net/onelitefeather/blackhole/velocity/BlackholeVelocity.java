@@ -26,6 +26,7 @@ import net.onelitefeather.blackhole.velocity.command.PunishInfoCommand;
 import net.onelitefeather.blackhole.velocity.command.EloCommand;
 import net.onelitefeather.blackhole.velocity.command.ReportCommand;
 import net.onelitefeather.blackhole.velocity.report.ReportEvidence;
+import net.onelitefeather.blackhole.velocity.report.ReportNotifier;
 import net.onelitefeather.blackhole.velocity.report.ReportService;
 import net.onelitefeather.blackhole.velocity.command.TargetParser;
 import net.onelitefeather.blackhole.velocity.cloudnet.CatalogueReporter;
@@ -152,6 +153,9 @@ public class BlackholeVelocity {
         PunishService punishService = new PunishService(backend, sections, chatEvidence);
         ReportService reportService = new ReportService(backend, ReportEvidence.create(new ChatSnapshotBuilder(chatBuffer, chatCapture), backend, chatCapture));
 
+        // Registers its listener on the Redis service, so it must exist before connect().
+        ReportNotifier reportNotifier = new ReportNotifier(this.server::getAllPlayers, this.redisSyncService, this.config::getPanelUrl);
+
         this.redisSyncService.onPunishmentSync(syncHandler::accept);
         // The reload calls the backend, so it must not run on the Redis callback thread.
         this.redisSyncService.onSectionChanged(changed -> CompletableFuture.runAsync(sections::reload));
@@ -167,7 +171,7 @@ public class BlackholeVelocity {
         Injector childInjector = this.injector.createChildInjector(
                 new BlackholeClientModule(this.client, this.config, this.redisSyncService, sections, mirror, state,
                         syncHandler, actions, backend, punishService, clock, screens, chatBuffer, evidenceCounts, chatDenial,
-                        new MuteNotices(screens, new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN)), servers, reportService).asModule(),
+                        new MuteNotices(screens, new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN)), servers, reportService, reportNotifier).asModule(),
                 new CloudInjectionModule<>(
                         CommandSource.class,
                         ExecutionCoordinator.simpleCoordinator(),
