@@ -17,6 +17,8 @@ import net.onelitefeather.blackhole.backend.casetimeline.CaseEventPublisher;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventRecord;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventRepository;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseReader;
+import net.onelitefeather.blackhole.backend.casetimeline.ChatFiles;
+import net.onelitefeather.blackhole.backend.casetimeline.MessageAttachment;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageAuthorKind;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageChannel;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageRules;
@@ -71,20 +73,31 @@ public class CaseConversationService {
     private final BanIdService banIds;
     private final ProtocolRedaction protocols;
     private final ParticipantErasure participants;
+    private final ChatFiles files;
 
-    /** Without Discord participants to erase. */
+    /** Without Discord participants to erase and without chat files. */
     public CaseConversationService(
             PunishmentRepository punishments, CaseReader reader, CaseChanges changes, CaseEventRepository events,
             DomainEventPublisher publisher, Clock clock, BanIdService banIds, ProtocolRedaction protocols
     ) {
-        this(punishments, reader, changes, events, publisher, clock, banIds, protocols, ParticipantErasure.NONE);
+        this(punishments, reader, changes, events, publisher, clock, banIds, protocols, ParticipantErasure.NONE, ChatFiles.NONE);
+    }
+
+    /** Without chat files. */
+    public CaseConversationService(
+            PunishmentRepository punishments, CaseReader reader, CaseChanges changes, CaseEventRepository events,
+            DomainEventPublisher publisher, Clock clock, BanIdService banIds, ProtocolRedaction protocols, ParticipantErasure participants
+    ) {
+        this(punishments, reader, changes, events, publisher, clock, banIds, protocols, participants, ChatFiles.NONE);
     }
 
     @Inject
     public CaseConversationService(
             PunishmentRepository punishments, CaseReader reader, CaseChanges changes, CaseEventRepository events,
-            DomainEventPublisher publisher, Clock clock, BanIdService banIds, ProtocolRedaction protocols, ParticipantErasure participants
+            DomainEventPublisher publisher, Clock clock, BanIdService banIds, ProtocolRedaction protocols, ParticipantErasure participants,
+            ChatFiles files
     ) {
+        this.files = files;
         this.references = new CaseReference(punishments);
         this.reader = reader;
         this.changes = changes;
@@ -97,17 +110,21 @@ public class CaseConversationService {
     }
 
     /**
-     * A staff reply from the panel. It is always visible to the player; the request cannot choose.
+     * A staff reply from the panel. It is always visible to the player; the request cannot choose. It may send files that were
+     * uploaded with {@code POST /case/{reference}/attachments} (at most {@link ChatFiles#maxPerMessage()}); a message may have no text
+     * when it has files. The files and the message are one statement.
      *
      * @param idempotencyKey makes a repeated post a no-op that answers with the first message
-     * @return the {@link CaseConversationDTO.MessageResponse}, or an error: 400 invalid text or key, 404, 409 ambiguous short id
+     * @return the {@link CaseConversationDTO.MessageResponse}, or an error: 400 invalid text, files or key, 404, 409 ambiguous short
+     *         id or files that are no longer available
      */
     public CaseConversationDTO postMessage(String reference, CaseConversationDTO.MessageRequest request, Actor actor, @Nullable String idempotencyKey) {
         CaseReference.Found found = this.references.resolve(reference);
         if (found.failed()) {
             return error(found);
         }
-        CaseConversationDTO.Error invalid = checkText(request.text());
+        List<UUID> attachmentIds = request.attachmentIds() == null ? List.of() : request.attachmentIds();
+        CaseConversationDTO.Error invalid = checkContent(request.text(), attachmentIds);
         if (invalid == null) {
             invalid = checkKey(idempotencyKey);
         }
@@ -120,8 +137,18 @@ public class CaseConversationService {
                 : CaseDrafts.idempotentMessageId(id, actor.oid().toString(), idempotencyKey);
         CaseActor by = CaseActor.of(actor.attribution());
         long now = this.clock.millis();
-        CaseEventDraft draft = CaseDrafts.staffMessage(id, messageId, null, request.text(), MessageChannel.PANEL, by, CaseEventOrigin.LIVE, now);
-        return store(punishment, draft, false, by, now);
+        CaseConversationDTO.MessageResponse repeat = repeatOf(id, messageId, idempotencyKey);
+        if (repeat != null) {
+            return repeat;
+        }
+        String text = request.text() == null ? "" : request.text();
+        String scope = ChatFiles.caseScope(id);
+        ChatFiles.Resolved resolved = attachmentIds.isEmpty() ? new ChatFiles.Resolved(List.of(), null) : this.files.resolve(id, scope, attachmentIds);
+        if (!resolved.ok()) {
+            return error(CaseErrorKind.VALIDATION, resolved.problem());
+        }
+        CaseEventDraft draft = CaseDrafts.staffMessage(id, messageId, null, text, attachmentsOf(resolved), MessageChannel.PANEL, by, CaseEventOrigin.LIVE, now);
+        return store(punishment, draft, false, by, now, claimOf(attachmentIds, scope));
     }
 
     /**
@@ -135,13 +162,29 @@ public class CaseConversationService {
     public CaseConversationDTO postPlayerMessage(
             String punishmentIdentifier, @Nullable UUID appealId, String text, @Nullable String idempotencyKey
     ) {
+        return postPlayerMessage(punishmentIdentifier, appealId, text, idempotencyKey, List.of());
+    }
+
+    /**
+     * The same, sending staged files (uploaded for this appeal). The files and the message are one statement; a repeat with the same
+     * {@code Idempotency-Key} changes nothing. A message may have no text when it has at least one file.
+     *
+     * @param attachmentIds the staged files of this appeal, at most {@link ChatFiles#maxPerMessage()}; foreign, unknown and used ids are 400
+     */
+    public CaseConversationDTO postPlayerMessage(
+            String punishmentIdentifier, @Nullable UUID appealId, @Nullable String text, @Nullable String idempotencyKey,
+            List<UUID> attachmentIds
+    ) {
         CaseReference.Found found = this.references.resolve(punishmentIdentifier);
         if (found.failed()) {
             return error(found);
         }
-        CaseConversationDTO.Error invalid = checkText(text);
+        CaseConversationDTO.Error invalid = checkContent(text, attachmentIds);
         if (invalid == null) {
             invalid = checkKey(idempotencyKey);
+        }
+        if (invalid == null && appealId == null && !attachmentIds.isEmpty()) {
+            invalid = error(CaseErrorKind.VALIDATION, "files can only be sent in an appeal");
         }
         if (invalid != null) {
             return invalid;
@@ -153,8 +196,18 @@ public class CaseConversationService {
         }
         String messageId = idempotencyKey == null ? UUID.randomUUID().toString() : CaseDrafts.idempotentMessageId(id, "player", idempotencyKey);
         long now = this.clock.millis();
-        CaseEventDraft draft = CaseDrafts.playerMessage(id, messageId, appealId == null ? null : appealId.toString(), text, now);
-        return store(punishment, draft, true, CaseActor.player(), now);
+        CaseConversationDTO.MessageResponse repeat = repeatOf(id, messageId, idempotencyKey);
+        if (repeat != null) {
+            return repeat;
+        }
+        String scope = appealId == null ? null : ChatFiles.appealScope(appealId);
+        ChatFiles.Resolved resolved = attachmentIds.isEmpty() ? new ChatFiles.Resolved(List.of(), null) : this.files.resolve(id, scope, attachmentIds);
+        if (!resolved.ok()) {
+            return error(CaseErrorKind.VALIDATION, resolved.problem());
+        }
+        CaseEventDraft draft = CaseDrafts.playerMessage(id, messageId, appealId == null ? null : appealId.toString(), text == null ? "" : text,
+                attachmentsOf(resolved), now);
+        return store(punishment, draft, true, CaseActor.player(), now, claimOf(attachmentIds, scope));
     }
 
     /**
@@ -240,6 +293,10 @@ public class CaseConversationService {
         MessageThread.Message message = thread.getFirst();
         long now = this.clock.millis();
         CaseActor by = CaseActor.of(actor.attribution());
+        // The files go first: a blob that cannot be deleted must not leave a redacted message behind with its file still stored.
+        if (!this.files.deleteFiles(id, chatFileIds(message), actor.attribution())) {
+            return error(CaseErrorKind.UNAVAILABLE, "the files of the message could not be deleted; nothing was redacted, try again");
+        }
         int redacted = this.events.redact(id, messageId.toString(), now, actor.oid());
         boolean appended = this.events.append(CaseDrafts.messageRedacted(id, messageId.toString(), request.reason().name(), message.visibility(), by, now));
         if (appended) {
@@ -271,6 +328,9 @@ public class CaseConversationService {
         PunishmentEntity punishment = found.punishment();
         long now = this.clock.millis();
         CaseActor by = CaseActor.of(actor.attribution());
+        if (!this.files.deletePlayerFiles(punishment.getIdentifier(), actor.attribution())) {
+            return error(CaseErrorKind.UNAVAILABLE, "the files of the player could not be deleted; nothing was erased, try again");
+        }
         List<CaseChanges.Erased> erased = this.changes.erasePlayerMessages(punishment.getIdentifier(), request.reason().name(), now, actor.oid(), by);
         for (CaseChanges.Erased message : erased) {
             Map<String, Object> change = new HashMap<>();
@@ -419,12 +479,17 @@ public class CaseConversationService {
         return new Checked(message, null);
     }
 
-    private CaseConversationDTO store(PunishmentEntity punishment, CaseEventDraft draft, boolean promoteWaiting, CaseActor by, long now) {
-        List<CaseChanges.Appended> appended = this.changes.appendMessage(draft, promoteWaiting);
+    private CaseConversationDTO store(PunishmentEntity punishment, CaseEventDraft draft, boolean promoteWaiting, CaseActor by, long now,
+                                      @Nullable CaseChanges.Claim claim) {
+        List<CaseChanges.Appended> appended = this.changes.appendMessage(draft, promoteWaiting, claim);
         String messageId = draft.subjectId();
         if (appended.isEmpty()) {
             long seq = this.reader.subject(punishment.getIdentifier(), messageId).stream()
                     .filter(event -> event.type().equals(CaseEventPayload.MESSAGE_ADDED)).mapToLong(CaseEventRecord::seq).findFirst().orElse(0L);
+            if (seq == 0L && claim != null) {
+                // The message does not exist, so it was not a repeat: another message took one of the files first.
+                return error(CaseErrorKind.CONFLICT, "the files of this message are no longer available; upload them again");
+            }
             return new CaseConversationDTO.MessageResponse(messageId, seq, true);
         }
         CaseEventPayload.MessageAdded added = (CaseEventPayload.MessageAdded) draft.payload();
@@ -433,11 +498,52 @@ public class CaseConversationService {
         change.put("authorKind", added.authorKind().name());
         change.put("channel", added.channel().name());
         change.put("visibility", draft.visibility());
+        if (claim != null) {
+            // A count, never a name, id or hash of a file.
+            change.put("attachments", claim.attachmentIds().size());
+            this.files.bound(punishment.getIdentifier(), claim.attachmentIds());
+        }
         this.publisher.publish(punishment, appended.getFirst(), by, now, change);
         for (CaseChanges.Appended status : appended.subList(1, appended.size())) {
             this.publisher.publish(punishment, status, CaseActor.system(), now, Map.of("from", "WAITING", "to", "IN_REVIEW"));
         }
         return new CaseConversationDTO.MessageResponse(messageId, appended.getFirst().seq(), false);
+    }
+
+    /** The answer for a message that exists already under this {@code Idempotency-Key}, or {@code null}. */
+    private @Nullable CaseConversationDTO.MessageResponse repeatOf(String punishmentIdentifier, String messageId, @Nullable String idempotencyKey) {
+        if (idempotencyKey == null) {
+            return null;
+        }
+        return this.reader.subject(punishmentIdentifier, messageId).stream()
+                .filter(event -> event.type().equals(CaseEventPayload.MESSAGE_ADDED)).mapToLong(CaseEventRecord::seq).findFirst()
+                .stream().mapToObj(seq -> new CaseConversationDTO.MessageResponse(messageId, seq, true)).findFirst().orElse(null);
+    }
+
+    private static List<MessageAttachment> attachmentsOf(ChatFiles.Resolved resolved) {
+        return resolved.files().stream().map(ChatFiles.File::toAttachment).toList();
+    }
+
+    private static @Nullable CaseChanges.Claim claimOf(List<UUID> attachmentIds, @Nullable String scope) {
+        return attachmentIds.isEmpty() ? null : new CaseChanges.Claim(List.copyOf(attachmentIds), scope);
+    }
+
+    /** The chat files a message sent, from the payload of its first version. */
+    private static List<UUID> chatFileIds(MessageThread.Message message) {
+        if (!(message.first().payload() instanceof CaseEventPayload.MessageAdded added)) {
+            return List.of();
+        }
+        List<UUID> ids = new java.util.ArrayList<>();
+        for (MessageAttachment attachment : added.attachments()) {
+            if (attachment.attachmentId() != null) {
+                try {
+                    ids.add(UUID.fromString(attachment.attachmentId()));
+                } catch (IllegalArgumentException ignored) {
+                    // not an id this release wrote
+                }
+            }
+        }
+        return ids;
     }
 
     private static Map<String, Object> messageChange(MessageThread.Message message, String visibility) {
@@ -456,6 +562,23 @@ public class CaseConversationService {
     private CaseEventRecord lastOfType(String punishmentIdentifier, String subjectId, String type) {
         return this.reader.subject(punishmentIdentifier, subjectId).stream().filter(event -> event.type().equals(type)).reduce((a, b) -> b)
                 .orElseThrow(() -> new IllegalStateException("the " + type + " event of " + subjectId + " was not stored"));
+    }
+
+    /**
+     * The text and files of a new message. A message may have no text when it has at least one file; with files the text is optional but
+     * still checked when given.
+     */
+    private CaseConversationDTO.Error checkContent(@Nullable String text, List<UUID> attachmentIds) {
+        if (attachmentIds.size() > this.files.maxPerMessage()) {
+            return error(CaseErrorKind.VALIDATION, "a message may carry at most " + this.files.maxPerMessage() + " files");
+        }
+        if (attachmentIds.stream().distinct().count() != attachmentIds.size()) {
+            return error(CaseErrorKind.VALIDATION, "a file may be named only once");
+        }
+        if (!attachmentIds.isEmpty() && (text == null || text.isBlank())) {
+            return null;
+        }
+        return checkText(text);
     }
 
     private CaseConversationDTO.Error checkText(@Nullable String text) {

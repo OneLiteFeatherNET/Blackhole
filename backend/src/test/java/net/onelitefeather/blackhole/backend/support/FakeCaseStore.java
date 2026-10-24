@@ -34,6 +34,8 @@ public final class FakeCaseStore implements CaseReader, CaseChanges {
     private final Map<String, Integer> generations = new HashMap<>();
     private final java.util.Set<String> noBanId = new java.util.HashSet<>();
     private int collisions;
+    private int conflictingClaims;
+    private final List<Claim> claims = new ArrayList<>();
 
     public FakeCaseStore(InMemoryCaseEventRepository log) {
         this.log = log;
@@ -111,6 +113,16 @@ public final class FakeCaseStore implements CaseReader, CaseChanges {
         return new Appended(stored.identifier(), stored.seq(), stored.type());
     }
 
+    /** The claims of the messages that were stored, in order. */
+    public List<Claim> claims() {
+        return this.claims;
+    }
+
+    /** The next {@code count} messages with files lose the race for their files: nothing is claimed and no message is stored. */
+    public void loseNextClaims(int count) {
+        this.conflictingClaims = count;
+    }
+
     /** A punishment that has no Ban ID, so a reissue finds nothing to replace. */
     public void givenNoBanId(String punishment) {
         this.noBanId.add(punishment);
@@ -131,9 +143,16 @@ public final class FakeCaseStore implements CaseReader, CaseChanges {
     }
 
     @Override
-    public List<Appended> appendMessage(CaseEventDraft message, boolean promoteWaiting) {
+    public List<Appended> appendMessage(CaseEventDraft message, boolean promoteWaiting, Claim claim) {
+        if (this.conflictingClaims > 0 && claim != null) {
+            this.conflictingClaims--;
+            return List.of();
+        }
         if (!this.log.append(message)) {
             return List.of();
+        }
+        if (claim != null) {
+            this.claims.add(claim);
         }
         List<Appended> appended = new ArrayList<>(List.of(last()));
         String id = message.punishmentIdentifier();

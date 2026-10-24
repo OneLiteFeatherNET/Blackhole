@@ -96,6 +96,55 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             ORDER BY ord
             """.formatted(DRAFT_COLUMNS, DRAFT_VALUES);
 
+    /**
+     * The same statement binding staged chat files. {@code locked} takes the row locks (a concurrent claim of the same file waits and
+     * then finds it gone) and sees only files that are still staged for this scope, of this punishment's owner, and only while the
+     * message does not exist yet; {@code claimed} binds them when all of them are there; the message is inserted only when every
+     * named file was claimed. A file keeps its chat scope as correlation id so the files of an appeal can be counted.
+     */
+    private static final String APPEND_MESSAGE_CLAIMING = """
+            WITH new_case AS (
+                INSERT INTO punishment_case (punishment_identifier, status, priority, tags, version, created_at, updated_at)
+                VALUES (?, 'OPEN', 'NORMAL', '[]'::jsonb, 0, ?, ?)
+                ON CONFLICT (punishment_identifier) DO NOTHING
+            ), locked AS (
+                SELECT identifier FROM evidence_items
+                WHERE identifier = ANY (?) AND punishment_identifier IS NULL AND correlation_id = ? AND kind = ?
+                  AND owner = (SELECT owner FROM punishments WHERE identifier = ?)
+                  AND NOT EXISTS (SELECT 1 FROM case_event WHERE dedupe_key = ?)
+                ORDER BY identifier
+                FOR UPDATE
+            ), claimed AS (
+                UPDATE evidence_items SET punishment_identifier = ?
+                WHERE identifier IN (SELECT identifier FROM locked) AND (SELECT count(*) FROM locked) = ?::int
+                RETURNING identifier
+            ), msg AS (
+                INSERT INTO case_event (%s)
+                SELECT %s
+                WHERE (SELECT count(*) FROM claimed) = ?::int
+                ON CONFLICT (dedupe_key) DO NOTHING
+                RETURNING identifier, seq, type
+            ), promoted AS (
+                UPDATE punishment_case SET status = 'IN_REVIEW', version = version + 1, updated_at = ?
+                WHERE punishment_identifier = ? AND status = 'WAITING' AND ?::boolean AND EXISTS (SELECT 1 FROM msg)
+                RETURNING punishment_identifier
+            ), status_event AS (
+                INSERT INTO case_event (identifier, punishment_identifier, type, payload_version, occurred_at, origin, actor_trust,
+                                        visibility, payload)
+                SELECT ?::uuid, promoted.punishment_identifier, 'case.status_changed', 1, ?::bigint, 'LIVE', 'SYSTEM', 'STAFF',
+                       '{"from":"WAITING","to":"IN_REVIEW"}'::jsonb
+                FROM promoted
+                RETURNING identifier, seq, type
+            )
+            SELECT identifier, seq, type, 0 AS ord FROM msg
+            UNION ALL
+            SELECT identifier, seq, type, 1 AS ord FROM status_event
+            ORDER BY ord
+            """.formatted(DRAFT_COLUMNS, DRAFT_VALUES);
+
+    /** {@code EvidenceKind.FILE}'s ordinal: kind is stored as a smallint ordinal. */
+    private static final short FILE_KIND = (short) net.onelitefeather.blackhole.backend.evidence.EvidenceKind.FILE.ordinal();
+
     private static final String EDIT_MESSAGE = """
             INSERT INTO case_event (%s)
             SELECT %s
@@ -272,14 +321,27 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
     }
 
     @Override
-    public List<Appended> appendMessage(CaseEventDraft message, boolean promoteWaiting) {
+    public List<Appended> appendMessage(CaseEventDraft message, boolean promoteWaiting, Claim claim) {
+        boolean claiming = claim != null && !claim.attachmentIds().isEmpty();
         try (Connection connection = this.dataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement(APPEND_MESSAGE)) {
+             PreparedStatement statement = connection.prepareStatement(claiming ? APPEND_MESSAGE_CLAIMING : APPEND_MESSAGE)) {
             int index = 0;
             statement.setString(++index, message.punishmentIdentifier());
             statement.setLong(++index, message.occurredAt());
             statement.setLong(++index, message.occurredAt());
+            if (claiming) {
+                statement.setArray(++index, connection.createArrayOf("uuid", claim.attachmentIds().toArray()));
+                statement.setString(++index, claim.scope());
+                statement.setShort(++index, FILE_KIND);
+                statement.setString(++index, message.punishmentIdentifier());
+                statement.setString(++index, message.dedupeKey());
+                statement.setString(++index, message.punishmentIdentifier());
+                statement.setInt(++index, claim.attachmentIds().size());
+            }
             index = bindDraft(statement, index, message);
+            if (claiming) {
+                statement.setInt(++index, claim.attachmentIds().size());
+            }
             statement.setLong(++index, message.occurredAt());
             statement.setString(++index, message.punishmentIdentifier());
             statement.setBoolean(++index, promoteWaiting);

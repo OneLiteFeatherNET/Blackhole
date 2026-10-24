@@ -54,7 +54,30 @@ public interface CaseChanges {
      *
      * @return the appended events, the message first; empty when the message already existed
      */
-    List<Appended> appendMessage(CaseEventDraft message, boolean promoteWaiting);
+    default List<Appended> appendMessage(CaseEventDraft message, boolean promoteWaiting) {
+        return appendMessage(message, promoteWaiting, null);
+    }
+
+    /**
+     * The staged chat files a message binds.
+     *
+     * @param attachmentIds the evidence items; each must be a staged chat file ({@code punishment_identifier} null) of this scope and of
+     *                      the punishment's owner
+     * @param scope         the staging scope ({@code chat:<appeal id>} for a player, {@code chat:<punishment>} for staff)
+     */
+    record Claim(List<UUID> attachmentIds, String scope) {
+    }
+
+    /**
+     * The same, binding staged chat files to the punishment in the same statement. The items are locked ({@code FOR UPDATE}) and claimed
+     * only when <b>every</b> named file is still staged for this scope; otherwise nothing is claimed and no message is appended, so a
+     * concurrent message that took one of them first leaves this one empty-handed (the caller then reports a conflict). A draft whose
+     * dedupe key exists claims nothing either: a repeat with the same {@code Idempotency-Key} changes nothing. The claimed items keep
+     * their chat scope, which is how the files of an appeal are counted for the quota.
+     *
+     * @param claim the files to bind, or {@code null} for a message without files
+     */
+    List<Appended> appendMessage(CaseEventDraft message, boolean promoteWaiting, @io.micronaut.core.annotation.Nullable Claim claim);
 
     /**
      * Appends a {@code message.edited} unless a version of the message was redacted in the meantime or

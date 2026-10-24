@@ -54,7 +54,7 @@ class CaseConversationServiceTest {
     }
 
     private static CaseConversationDTO.MessageRequest text(String text) {
-        return new CaseConversationDTO.MessageRequest(text);
+        return new CaseConversationDTO.MessageRequest(text, null);
     }
 
     private static CaseErrorKind kindOf(CaseConversationDTO result) {
@@ -469,7 +469,7 @@ class CaseConversationServiceTest {
         }
 
         @Override
-        public List<Appended> appendMessage(CaseEventDraft message, boolean promoteWaiting) {
+        public List<Appended> appendMessage(CaseEventDraft message, boolean promoteWaiting, Claim claim) {
             throw new IllegalStateException("database down");
         }
 
