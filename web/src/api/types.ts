@@ -126,11 +126,8 @@ export type EvidenceSharePreview = Schemas['EvidenceSharePreview']
 export type EvidenceSharePreviewRequest = Schemas['EvidenceSharePreviewRequest']
 export type EvidenceShareRequest = Schemas['EvidenceShareRequest']
 export type ShareRevokeReason = Schemas['ShareRevokeReason']
-/**
- * The case as the panel reads it. The backend sends `playerSeenSeq` (the highest seq the player's
- * conversation read returned) but the published spec does not list it yet, so it is added here.
- */
-export type CaseWithSeen = Case & { playerSeenSeq?: number }
+/** The case as the panel reads it; `playerSeenSeq` is part of the spec (the highest seq the player has read). */
+export type CaseWithSeen = Case
 export type TranscriptFormat = 'json' | 'text'
 /** A transcript file as the server sent it; the caller turns it into a download. */
 export interface TranscriptFile {

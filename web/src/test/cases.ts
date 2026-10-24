@@ -20,6 +20,7 @@ export function caseResponse(overrides: Partial<Case> = {}): Case {
     tags: [],
     version: 3,
     related: [],
+    playerSeenSeq: 0,
     ...overrides,
   }
 }
