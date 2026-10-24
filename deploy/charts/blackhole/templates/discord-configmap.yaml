@@ -19,7 +19,7 @@ the NATS connection. The bot token and the Entra client secret are Secret refere
       "DISCORD_ARCHIVE_CATEGORY_ID" $v.ids.archiveCategoryId
       "DISCORD_HEALTH_PORT" 8082
       "NATS_URL" .Values.nats.url
-      "NATS_CREDS_FILE" (printf "%s/%s" (.Values.nats.credsMountPath | trimSuffix "/") .Values.nats.credsKey)
+      "NATS_CREDS_FILE" (include "blackhole.natsCredsFile" (dict "ctx" . "values" $v))
 -}}
 {{- if $v.ids.appealChannelId }}{{- $_ := set $c "DISCORD_APPEAL_CHANNEL_ID" $v.ids.appealChannelId }}{{- end }}
 {{- range $key, $value := $v.config }}{{- $_ := set $c $key $value }}{{- end }}

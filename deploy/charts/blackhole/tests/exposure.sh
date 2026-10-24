@@ -112,8 +112,8 @@ assert_eq "no API proxy in paths mode" "0" "$(y "${prod}" '[select(.metadata.nam
 assert_eq "dev renders no Ingress" "0" "$(y "${dev}" '[select(.kind == "Ingress")] | length')"
 assert_eq "dev renders two HTTPRoutes" "2" "$(y "${dev}" '[select(.kind == "HTTPRoute")] | length')"
 route='select(.kind == "HTTPRoute" and .metadata.name == "t-web")'
-assert_eq "HTTPRoute parent gateway" "envoy" "$(y "${dev}" "${route} | .spec.parentRefs[0].name")"
-assert_eq "HTTPRoute parent namespace" "eg" "$(y "${dev}" "${route} | .spec.parentRefs[0].namespace")"
+assert_eq "HTTPRoute parent gateway" "eg" "$(y "${dev}" "${route} | .spec.parentRefs[0].name")"
+assert_eq "HTTPRoute parent namespace" "envoy" "$(y "${dev}" "${route} | .spec.parentRefs[0].namespace")"
 assert_eq "HTTPRoute listener" "https" "$(y "${dev}" "${route} | .spec.parentRefs[0].sectionName")"
 assert_eq "HTTPRoute host" "blackhole-dev.apps.onelite.feather" "$(y "${dev}" "${route} | .spec.hostnames[0]")"
 assert_eq "HTTPRoute backend" "t-web" "$(y "${dev}" "${route} | .spec.rules[0].backendRefs[0].name")"

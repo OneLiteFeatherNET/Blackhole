@@ -83,10 +83,10 @@ spec:
             sizeLimit: 512Mi
         - name: nats
           secret:
-            secretName: {{ .Values.nats.existingSecret }}
+            secretName: {{ include "blackhole.natsSecret" (dict "ctx" . "values" $v) }}
             items:
-              - key: {{ .Values.nats.credsKey }}
-                path: {{ .Values.nats.credsKey }}
+              - key: {{ include "blackhole.natsCredsKey" (dict "ctx" . "values" $v) }}
+                path: {{ include "blackhole.natsCredsKey" (dict "ctx" . "values" $v) }}
       {{- include "blackhole.scheduling" (dict "ctx" . "component" "backend" "values" $v "spread" true) | nindent 6 }}
 ---
 apiVersion: v1

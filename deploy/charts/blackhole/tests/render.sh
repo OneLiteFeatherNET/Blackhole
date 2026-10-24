@@ -80,4 +80,16 @@ expect_render_failure "a panel without a backend to talk to" "web.backendUrl is 
   --set backend.enabled=false --set portal.enabled=false --set discord.enabled=false --set clamav.enabled=false
 if render local-values.yaml >/dev/null 2>&1; then pass; else fail "local values with an http portal origin must render"; fi
 
+# --- NATS credentials: shared or per component --------------------------------------------------------------------------------
+expect_render_failure "no NATS secret at all for the backend" "existingSecret|nats" prod-values.yaml \
+  --set nats.existingSecret= --set discord.nats.existingSecret=blackhole-nats-bot
+expect_render_failure "no NATS secret for the bot when the shared one is empty" "existingSecret|nats" prod-values.yaml \
+  --set nats.existingSecret= --set backend.nats.existingSecret=blackhole-nats-backend
+expect_render_failure "an unknown key in a component nats block" "typo" prod-values.yaml --set backend.nats.typo=1
+if render prod-values.yaml --set nats.existingSecret= --set backend.nats.existingSecret=a --set discord.nats.existingSecret=b >/dev/null 2>&1; then
+  pass
+else
+  fail "per-component NATS secrets must satisfy the requirement without a shared one"
+fi
+
 finish
