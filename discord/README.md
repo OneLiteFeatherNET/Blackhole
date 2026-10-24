@@ -71,7 +71,7 @@ channel's last message, which is the bot's archive notice) the bot first has the
 channel; a delay of `PT0S` keeps archives. A channel is never archived or deleted without a verified transcript and a stored protocol. Attachments
 vanish with the channel; the record keeps their metadata.
 
-The RabbitMQ queue `blackhole.discord.case` (bound to the case message, leak, reissue and status events, `appeal.resolved`, `staff-link.removed`
+The durable NATS consumer `blackhole-discord-case` (on the stream `BLACKHOLE_EVENTS`; it filters the case message, leak, reissue and status events, `appeal.resolved`, `staff-link.removed`
 and `discord-link.removed`) is a **hint** only: the bot polls the backend's cursors every `DISCORD_SYNC_INTERVAL` anyway, so a lost or duplicated
 event, a broker outage or a restart delays but never loses anything. After a start the bot reads what was written while it was down.
 A message written and deleted while the bot itself was down cannot be recovered; the panel shows the gap.
@@ -138,7 +138,8 @@ It is safe to run again and keeps other lines of the env file, such as `DISCORD_
 | `DISCORD_LEAK_SCAN` | Optional: `PUBLIC` (default), `LIST` or `OFF`. |
 | `DISCORD_LEAK_SCAN_CHANNELS` | With `LIST` (required there): comma separated channel or category ids. |
 | `DISCORD_STAFF_RECONCILE_INTERVAL` | Optional, default `PT5M` (at least `PT30S`): how often channel access is reconciled with staff links and the role. |
-| `RABBITMQ_HOST`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD` | The broker the backend publishes its events to. Optional: `RABBITMQ_PORT` (5672), `RABBITMQ_VHOST` (`/`). |
+| `NATS_URL` | The NATS server the backend publishes its events to: `nats://`, `tls://`, `ws://` or `wss://`, comma separated for several. |
+| `NATS_CREDS_FILE` | Optional: path of the `.creds` file of the bot's NATS user (readable; empty for a server without authentication). |
 | `BLACKHOLE_DISCORD_TOKEN_URL` | Optional, development: a mock token endpoint instead of Entra. |
 | `DISCORD_HEALTH_PORT` | Optional, default `8082`, `0` turns the health endpoint off. |
 
@@ -159,7 +160,7 @@ bot is connected to Discord. `docker/docker-compose.yml` has a `discord` service
 
 `ticket` (channel lifecycle, staff access reconcile, archive sweeper, permission self-check), `sync` (Discord to backend and back: ingest, outbox relay,
 catch-up, the conductor, the broker hint handler), `leak` (the candidate format and the scanner), `sched` (the scheduler the tests advance by hand), `metrics`, `log` (the JSON layout),
-`notify` (event parsing, embed rendering, the handler, the RabbitMQ adapter), `config` (environment, fail-fast), `auth` (client credentials token, a copy of the Velocity plugin's
+`notify` (event parsing, embed rendering, the handler, the NATS adapter), `config` (environment, fail-fast), `auth` (client credentials token, a copy of the Velocity plugin's
 provider because that one depends on the plugin's config class), `backend` (`BackendGateway` interface
 and the adapter on the generated client), `command` (the command logic and texts, no Discord types),
 `gateway` (`DiscordGateway` interface, the JDA adapter and the health endpoint). Only `gateway` imports

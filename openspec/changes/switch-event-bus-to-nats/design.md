@@ -416,3 +416,18 @@ in-flight changes.
 Earlier decisions (2026-10-24): Velocity moves to NATS over `wss://nats.onelitefeather.dev` and drops
 Dragonfly; exposure is the existing Cloudflare Tunnel WebSocket route; Discord and the backend stay
 in-cluster.
+
+## Outcome of the compatibility gate (2026-10-24, applying the backend PR)
+
+- The build runs Micronaut 4.10 (`micronaut` plugin version from `gradle.properties`), so the BOM manages
+  `micronaut-nats` **4.9.0** on jnats 2.23.0, not the 5.0.0 assumed above. The alias `mn.micronaut.nats`
+  exists.
+- Booting it next to the application failed with a `NonUniqueBeanException` (two `consumer` executor
+  configurations); its `NatsConnectionFactory` calls a blocking `Nats.connect` and has no connection
+  name or reconnect-on-connect, so an unreachable NATS would stop the application. The decided
+  fallback was taken: plain `jnats` 2.26.4 behind `EventTransport` and `EventSubscriptionFactory`;
+  ports, settings and tests are as designed. The connection settings live under
+  `blackhole.events.nats.*` (`url`, `creds-file`, `connection-name`, `connect-timeout`) instead of
+  `nats.default.*`.
+- `Nats.connectReconnectOnConnect` blocks its caller while the server is down, so the connection is made
+  on a background thread and `NatsConnectionProvider.connection()` fails at once until it is up.

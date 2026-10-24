@@ -32,7 +32,7 @@ context: |
      @Transactional is currently unusable (bean ambiguity) - check before relying on it.
 
   Stack: Java 25 toolchain, Micronaut 5, Hibernate/JPA, Flyway, PostgreSQL, Dragonfly
-  (Redis protocol) for caching and proxy sync, RabbitMQ for domain events, Velocity +
+  (Redis protocol) for caching and proxy sync, NATS JetStream for domain events, Velocity +
   Cloud commands, Vue 3 + Tailwind CSS with Material Design 3 tokens for the admin UI.
   Config is env-var driven with local-dev defaults inline in application.yml
   (${ENV_VAR:default}), each tunable documented by a comment there.

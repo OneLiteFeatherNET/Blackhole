@@ -72,6 +72,6 @@ implementing is reproduced by a failing test first.
 
 ## 9. Verification and wrap-up
 
-- [ ] 9.1 Manual check against the real stack (Docker PostgreSQL + RabbitMQ + portal): backfill, log in, file, message both ways, mark leaked (frozen), reissue, redact (the protocol is purged and regenerated), export, decide an appeal (protocol version 1, player copy without staff entries); record the result in PR 6
+- [ ] 9.1 Manual check against the real stack (Docker PostgreSQL + NATS + portal): backfill, log in, file, message both ways, mark leaked (frozen), reissue, redact (the protocol is purged and regenerated), export, decide an appeal (protocol version 1, player copy without staff entries); record the result in PR 6
 - [ ] 9.2 `openspec validate --all --strict`; archive with `docs(openspec): archive add-appeal-portal` after the PRs merge
 - [ ] 9.3 Open the pull requests as small stacked PRs against `main` (each squash-merged, title is the Conventional Commit): `feat(appeal): add ban ids as the appeal credential`, `feat(case): add the case conversation, leak rule and transcript export`, `feat(case): store the appeal protocol as transcript evidence`, `feat(appeal): add the public player api with sessions`, `feat(portal): add the public appeal portal`, `feat(web): add the case conversation and ban id actions`, `feat(velocity): show the ban id on the ban screen`, `docs(appeal): document the appeal portal`

@@ -21,8 +21,8 @@ workflow lets players contest both automatic and manual punishments.
 | `phoca`    | Shared utility library used across modules.                                                  |
 | `web`      | The admin web UI (Vue 3, Material Design 3): dashboard, players, templates, sections, reports, appeals. |
 
-The backend is event-driven: RabbitMQ backs a domain event bus (`blackhole.events`) that other
-services can consume. Hot reads (punishment profiles, ELO profiles, templates and player
+The backend is event-driven: NATS JetStream backs a domain event bus (subjects `blackhole.events.<type>`,
+stream `BLACKHOLE_EVENTS`) that other services can consume, see [docs/nats-event-bus.md](docs/nats-event-bus.md). Hot reads (punishment profiles, ELO profiles, templates and player
 resolutions) are served from one shared Redis-protocol cache (Dragonfly in production), so every
 replica reads and evicts the same entries and the API can be scaled horizontally.
 
@@ -45,7 +45,7 @@ by the release workflow. The operator runbook is [docs/kubernetes.md](docs/kuber
 ### Tech stack
 
 - **Backend**: Java 21+, [Micronaut](https://micronaut.io/), Hibernate/JPA, Flyway (PostgreSQL),
-  RabbitMQ, Dragonfly (Redis protocol) as the shared cache, Micrometer + OpenTelemetry.
+  NATS JetStream, Dragonfly (Redis protocol) as the shared cache, Micrometer + OpenTelemetry.
 - **Proxy plugin**: [Velocity](https://velocitypowered.com/).
 - **Build**: Gradle (Kotlin DSL), multi-module.
 - **Releases**: [release-please](https://github.com/googleapis/release-please), driven by
@@ -481,7 +481,7 @@ needed (`contextLines: 0` switches it off). Evidence created from it follows the
 
 ## Local development
 
-A `docker-compose.yml` under `docker/` provides PostgreSQL, RabbitMQ and Dragonfly (Redis protocol,
+A `docker-compose.yml` under `docker/` provides PostgreSQL, NATS with JetStream and Dragonfly (Redis protocol,
 used for proxy sync and the shared cache), plus SeaweedFS and ClamAV for evidence uploads (ClamAV needs
 about 1 GB of RAM and a few minutes on its first start):
 
@@ -508,7 +508,10 @@ Key environment variables (all have local-dev defaults, see
 | Variable                          | Purpose                                                             |
 |------------------------------------|-----------------------------------------------------------------------|
 | `JDBC_URL` / `JDBC_USER` / `JDBC_PASSWORD` | PostgreSQL connection (defaults match `docker/docker-compose.yml`). |
-| `RABBITMQ_HOST` / `RABBITMQ_USER` / `RABBITMQ_PASSWORD` | RabbitMQ connection.                              |
+| `NATS_URL` / `NATS_CREDS_FILE` | NATS server and the `.creds` file of the backend user (empty locally). |
+| `NATS_CONNECTION_NAME` / `NATS_CONNECT_TIMEOUT` | Name shown on the server (`blackhole-backend`) and the connect timeout (`5s`). |
+| `NATS_STREAM_REPLICAS` | Replicas of the stream `BLACKHOLE_EVENTS`: `1` locally, `3` in feather-core. |
+| `NATS_EVENTS_MAX_AGE` / `NATS_EVENTS_MAX_BYTES` | How long (`P7D`) and how much (2 GiB) of the event history the stream keeps. |
 | `REDIS_URI`                       | Redis-protocol server (Dragonfly) for proxy sync and the shared cache. |
 | `BLACKHOLE_EVASION_IP_SALT`       | Required for ban-evasion detection; that feature returns `503` until it's set. |
 | `BLACKHOLE_AUTH_*`                | Entra ID sign-in, see [Authentication](#authentication). |
@@ -521,12 +524,18 @@ Swagger UI is served at `/swagger/views/swagger-ui` when `BLACKHOLE_DOCS_ENABLED
 ./gradlew clean build
 ```
 
+### Upgrading from RabbitMQ to NATS
+
+The event bus moved from RabbitMQ to NATS JetStream in one step (no dual-run). Provide NATS, set `NATS_URL`
+(and `NATS_CREDS_FILE` where the server needs authentication), and drop `RABBITMQ_*`: the variables are
+ignored. Queued RabbitMQ messages are discarded, which is safe because every consumer treats events as
+hints. Locally, stop the old container (`docker compose rm -sf rabbitmq`). Details: [docs/nats-event-bus.md](docs/nats-event-bus.md).
+
 ### Upgrading from the in-process cache
 
 - Run Dragonfly in place of Redis: the compose service now uses the Dragonfly image. `REDIS_URI`
   is unchanged, so proxies keep working. Deploy the backend and the proxies together.
-- The `blackhole.cache.invalidate` fanout exchange is no longer declared or used. Existing
-  RabbitMQ brokers keep it as an orphan exchange, which is harmless and can be deleted.
+- The `blackhole.cache.invalidate` fanout exchange is no longer declared or used.
 - Cache keys are versioned (`blackhole:cache:v1:`), so entries written by an older release are
   never read and expire on their own. Rolling back to the previous release is safe.
 

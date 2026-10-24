@@ -7,7 +7,7 @@
 - `PunishmentApplicationService.apply` is the single chokepoint for creating punishments;
   `punishment_profiles` has two FK slots (`active_ban_identifier`, `active_chat_ban_identifier`)
   plus a history join table. Every apply rotates both slots (bug).
-- Proxy sync: backend consumes domain events from RabbitMQ and writes Redis keys
+- Proxy sync: backend consumes domain events from NATS and writes Redis keys
   `blackhole:punish:{ban|chatban}:<owner>` + channel `blackhole.punishment.sync`.
 - Velocity commands parse templates by exact `reason` (spaces, NPE on miss) and the
   `@PunishTypeScope` filter never fires (no runtime retention).

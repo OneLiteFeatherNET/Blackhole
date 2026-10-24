@@ -19,7 +19,7 @@ as a record after the ticket and the channel are gone.
 
 - **A new Gradle module `discord`**: a JDA bot in its own container. It talks to the backend with
   **client credentials** (a new Entra app role `Blackhole.Discord`, like the proxy's), consumes the
-  `case.*` events from RabbitMQ and reads or writes through a small `/discord/**` facade. The bot is
+  `case.*` events from NATS and reads or writes through a small `/discord/**` facade. The bot is
   stateless: tickets, message links and cursors live in the backend. Panel and portal keep working
   when the bot is down.
 - **One private channel per ticket** (appeal), created in a ticket category after the player enters
