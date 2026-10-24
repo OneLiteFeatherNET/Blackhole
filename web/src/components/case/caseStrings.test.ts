@@ -15,6 +15,8 @@ const KNOWN_TYPES = [
   'appeal.filed', 'appeal.decided',
   'case.status_changed', 'case.assignee_changed', 'case.tags_changed', 'case.priority_changed',
   'note.added', 'note.edited', 'note.redacted',
+  'message.added', 'message.edited', 'message.deleted', 'message.redacted',
+  'ban_id.leak_marked', 'ban_id.reissued', 'transcript.exported',
 ]
 
 describe('case strings', () => {
@@ -44,6 +46,6 @@ describe('case strings', () => {
   })
 
   it('treats a type it does not know as generic', () => {
-    expect(eventInfo('message.added')).toMatchObject({ known: false, key: 'unknown', icon: 'help' })
+    expect(eventInfo('portal.something_new')).toMatchObject({ known: false, key: 'unknown', icon: 'help' })
   })
 })

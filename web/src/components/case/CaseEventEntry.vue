@@ -37,12 +37,13 @@ const iso = computed(() => new Date(props.event.occurredAt).toISOString())
 const when = computed(() => formatDateTime(props.event.occurredAt, locale.value))
 
 const trust = computed(() => props.event.actor.trust)
-const trustIcon = computed(() => iconPath(trust.value === 'VERIFIED' ? 'verified' : trust.value === 'SYSTEM' ? 'system' : 'warning'))
+// A player is neither verified nor a legacy actor: its own icon, never the verified badge.
+const trustIcon = computed(() => iconPath(trust.value === 'VERIFIED' ? 'verified' : trust.value === 'SYSTEM' ? 'system' : trust.value === 'PLAYER' ? 'person' : 'warning'))
 const actorName = computed(() => {
   const { name, oid } = props.event.actor
   if (name) return name
   if (oid) return `${oid.slice(0, 8)}…`
-  return trust.value === 'SYSTEM' ? '' : t('case.actor.unknown')
+  return trust.value === 'SYSTEM' || trust.value === 'PLAYER' ? '' : t('case.actor.unknown')
 })
 
 function lookup(prefix: string, value: string | null): string {
@@ -97,8 +98,22 @@ const detail = computed(() => {
       break
     }
     case 'note.redacted':
+    case 'message.redacted':
       parts.push(lookup('case.redact.reason', text(field(e, 'reason'))))
       break
+    case 'ban_id.leak_marked':
+      parts.push(lookup('case.banId.leakReason', text(field(e, 'reason'))))
+      if (field(e, 'afterFiling') === true) parts.push(t('case.detail.afterFiling'))
+      break
+    case 'ban_id.reissued':
+      parts.push(lookup('case.banId.reissueReason', text(field(e, 'reason'))))
+      break
+    case 'transcript.exported': {
+      const entries = num(field(e, 'entries'))
+      parts.push(lookup('case.transcript.format', text(field(e, 'format'))))
+      if (entries !== null) parts.push(t('case.detail.entries', { count: entries }))
+      break
+    }
     default:
       break
   }

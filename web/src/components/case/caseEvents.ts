@@ -17,6 +17,9 @@ const ICON = {
   help: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z',
   verified: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z',
   warning: 'M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z',
+  chat: 'M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z',
+  lock: 'M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z',
+  download: 'M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z',
   system: 'M15 9H9v6h6V9zm-2 4h-2v-2h2v2zm8-2V9h-2V7c0-1.1-.9-2-2-2h-2V3h-2v2h-2V3H9v2H7c-1.1 0-2 .9-2 2v2H3v2h2v2H3v2h2v2c0 1.1.9 2 2 2h2v2h2v-2h2v2h2v-2h2c1.1 0 2-.9 2-2v-2h2v-2h-2v-2h2zm-4 6H7V7h10v10z',
 } as const
 
@@ -47,6 +50,14 @@ const KNOWN: Record<string, EventInfo> = {
   'note.added': { key: 'noteAdded', icon: 'note' },
   'note.edited': { key: 'noteEdited', icon: 'edit' },
   'note.redacted': { key: 'noteRedacted', icon: 'delete' },
+  // The text of a message is shown in the conversation section only, never in the timeline.
+  'message.added': { key: 'messageAdded', icon: 'chat' },
+  'message.edited': { key: 'messageEdited', icon: 'edit' },
+  'message.deleted': { key: 'messageDeleted', icon: 'delete' },
+  'message.redacted': { key: 'messageRedacted', icon: 'delete' },
+  'ban_id.leak_marked': { key: 'banIdLeakMarked', icon: 'lock' },
+  'ban_id.reissued': { key: 'banIdReissued', icon: 'lock' },
+  'transcript.exported': { key: 'transcriptExported', icon: 'download' },
 }
 
 /** Unknown types (a newer backend, a reserved portal type) are shown generically, never dropped. */
@@ -60,7 +71,7 @@ export function eventInfo(type: string): EventInfo & { known: boolean } {
 export const isNoteVersion = (event: CaseTimelineItem): boolean => event.type === 'note.added' || event.type === 'note.edited'
 
 /** The timeline groups the backend accepts as a type filter. */
-export const TYPE_GROUPS = ['punishment', 'appeal', 'evidence', 'case', 'note'] as const
+export const TYPE_GROUPS = ['punishment', 'appeal', 'evidence', 'case', 'note', 'message', 'ban_id', 'transcript'] as const
 
 /** Payload values by key; the payload is typed loosely because unknown types carry anything. */
 export function field(event: CaseTimelineItem, key: string): unknown {
