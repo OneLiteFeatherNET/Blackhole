@@ -16,10 +16,10 @@ function backend(count = 1) {
   const evidence = vi.fn(async (_punishment: string, query?: { includeInactive?: boolean; page?: number }) =>
     ok(evidencePage(query?.includeInactive ? [valid, lifted, revoked] : [valid])),
   )
-  const evidenceCount = vi.fn(async () => ok(count))
+  const evidenceCounts = vi.fn(async () => ok({ count, playerSupplied: 0 }))
   const deleteEvidence = vi.fn(async () => ok(1))
-  const api = mockApi({ evidence, evidenceCount, deleteEvidence, evidenceContent: async () => ok(new Blob(['x'], { type: 'image/png' })) })
-  return { api, evidence, evidenceCount, deleteEvidence }
+  const api = mockApi({ evidence, evidenceCounts, deleteEvidence, evidenceContent: async () => ok(new Blob(['x'], { type: 'image/png' })) })
+  return { api, evidence, evidenceCounts, deleteEvidence }
 }
 
 describe('EvidencePanel', () => {
@@ -79,7 +79,7 @@ describe('EvidencePanel', () => {
   })
 
   it('counts only valid evidence, also with lifted items shown', async () => {
-    const { api, evidenceCount } = backend(1)
+    const { api, evidenceCounts } = backend(1)
     const { wrapper } = await mountWithApp(EvidencePanel, { api, props: { punishment: PUNISHMENT } })
 
     await wrapper.get('[data-testid="show-lifted"] input').setValue(true)
@@ -87,7 +87,7 @@ describe('EvidencePanel', () => {
 
     expect(wrapper.get('[data-testid="count"]').text()).toBe('1 valid')
     expect(wrapper.findAll('[data-testid="evidence-item"]')).toHaveLength(3)
-    expect(evidenceCount).toHaveBeenCalledWith(PUNISHMENT)
+    expect(evidenceCounts).toHaveBeenCalledWith(PUNISHMENT)
 
     wrapper.unmount()
   })
@@ -142,7 +142,7 @@ describe('EvidencePanel', () => {
   })
 
   it('deletes an item after the dialog is confirmed with a reason and reloads', async () => {
-    const { api, deleteEvidence, evidence, evidenceCount } = backend()
+    const { api, deleteEvidence, evidence, evidenceCounts } = backend()
     const { wrapper } = await mountWithApp(EvidencePanel, { api, props: { punishment: PUNISHMENT } })
 
     await wrapper.get('[data-testid="delete"]').trigger('click')
@@ -152,7 +152,7 @@ describe('EvidencePanel', () => {
 
     expect(deleteEvidence).toHaveBeenCalledWith(valid.identifier, { reason: 'WRONG_EVIDENCE', note: '' })
     expect(evidence).toHaveBeenCalledTimes(2)
-    expect(evidenceCount).toHaveBeenCalledTimes(2)
+    expect(evidenceCounts).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain('Evidence deleted.')
 
     wrapper.unmount()
@@ -162,7 +162,7 @@ describe('EvidencePanel', () => {
     const evidence = vi.fn(async (_p: string, query?: { page?: number }) =>
       ok(evidencePage([valid], { page: query?.page ?? 0, totalPages: 2 })),
     )
-    const api = mockApi({ evidence, evidenceCount: async () => ok(1), evidenceContent: async () => ok(new Blob(['x'], { type: 'image/png' })) })
+    const api = mockApi({ evidence, evidenceCounts: async () => ok({ count: 1, playerSupplied: 0 }), evidenceContent: async () => ok(new Blob(['x'], { type: 'image/png' })) })
     const { wrapper } = await mountWithApp(EvidencePanel, { api, props: { punishment: PUNISHMENT } })
 
     await wrapper.get('[data-testid="next"]').trigger('click')

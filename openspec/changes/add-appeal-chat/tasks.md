@@ -72,12 +72,12 @@ Migration versions and the client spec number are the next free ones on `main` r
 
 ## 6. Panel (PR 6, `feat(web)`)
 
-- [ ] 6.1 Failing tests first: API client methods, fetch-based SSE client (parsing, backoff, token per connection, abort), tree
+- [x] 6.1 Failing tests first: API client methods, fetch-based SSE client (parsing, backoff, token per connection, abort), tree
   renderer with hostile trees, interstitial, bubbles, composer and staff-upload warning, provenance label, share dialog
   (selection, appellant speaker, preview, confirmation, 20 line cap, role gating), revoke dialog, "Seen" marker, de/en parity
-- [ ] 6.2 Types, client methods, `ConversationSection` as a chat, `MessageComposer`, `EvidenceShareDialog`, evidence list labels,
+- [x] 6.2 Types, client methods, `ConversationSection` as a chat, `MessageComposer`, `EvidenceShareDialog`, evidence list labels,
   live updates; verify the panel's Nitro proxy streams the events response
-- [ ] 6.3 Verify `npm test` and the type check in `web/`
+- [x] 6.3 Verify `npm test` and the type check in `web/`
 
 ## 7. Discord (PR 7, `feat(discord)`)
 

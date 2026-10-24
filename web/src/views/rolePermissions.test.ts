@@ -147,7 +147,7 @@ describe('role-aware controls', () => {
     it('offers adding to moderators and deleting to admins only', async () => {
       const api = mockApi({
         evidence: vi.fn(async () => ok(evidencePage([evidenceItem({ kind: 'LINK', reference: 'https://example.org/x' })]))),
-        evidenceCount: vi.fn(async () => ok(1)),
+        evidenceCounts: vi.fn(async () => ok({ count: 1, playerSupplied: 0 })),
       })
 
       const offered = await controls(EvidencePanel, api, roles, ['open-add-link', 'delete'], { path: '/', props: { punishment: 'p-1' } })
@@ -157,7 +157,7 @@ describe('role-aware controls', () => {
   })
 
   it('offers the evidence upload zone to a moderator and not to a viewer', async () => {
-    const api = mockApi({ evidence: vi.fn(async () => ok(evidencePage([]))), evidenceCount: vi.fn(async () => ok(0)) })
+    const api = mockApi({ evidence: vi.fn(async () => ok(evidencePage([]))), evidenceCounts: vi.fn(async () => ok({ count: 0, playerSupplied: 0 })) })
     const moderator = await mountWithApp(EvidencePanel, { api, roles: MODERATOR, props: { punishment: 'p-1' } })
     const viewer = await mountWithApp(EvidencePanel, { api, roles: VIEWER, props: { punishment: 'p-1' } })
 

@@ -17,6 +17,7 @@ import ReportDetailView from '../views/ReportDetailView.vue'
 import ReportsView from '../views/ReportsView.vue'
 import SectionsView from '../views/SectionsView.vue'
 import TemplatesView from '../views/TemplatesView.vue'
+import LeaveView from '../views/LeaveView.vue'
 
 export const routes: RouteRecordRaw[] = [
   { path: '/', name: 'dashboard', component: DashboardView, meta: { titleKey: 'nav.dashboard' } },
@@ -36,6 +37,8 @@ export const routes: RouteRecordRaw[] = [
   { path: '/no-access', name: 'no-access', component: NoAccessView, meta: { titleKey: 'auth.noAccess.title' } },
   { path: '/auth/callback', name: 'auth-callback', component: AuthCallbackView, meta: { public: true, titleKey: 'auth.signingIn' } },
   { path: '/auth/error', name: 'auth-error', component: AuthErrorView, meta: { public: true, titleKey: 'auth.error.heading' } },
+  // The interstitial for external links in chats; the target is in the fragment.
+  { path: '/leave', name: 'leave', component: LeaveView, meta: { titleKey: 'leave.title' } },
   // Last: any other path. Not public, so it is shown after sign-in like every page.
   { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView, meta: { titleKey: 'notFound.heading' } },
 ]

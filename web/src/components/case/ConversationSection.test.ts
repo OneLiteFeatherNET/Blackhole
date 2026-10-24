@@ -34,6 +34,7 @@ function setup(options: { roles?: string[]; events?: CaseTimelineItem[]; kase?: 
     deleteCaseMessage: vi.fn(async () => ok({ messageId: MINE, seq: 11, repeated: false })),
     redactCaseMessage: vi.fn(async () => ok({ messageId: THEIRS, redactedVersions: 1 })),
     eraseCasePlayerMessages: vi.fn(async () => ok({ redactedMessages: 1 })),
+    openCaseEvents: () => ({ close() {} }),
     ...options.extra,
   }
   return {

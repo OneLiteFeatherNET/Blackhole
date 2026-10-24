@@ -91,6 +91,7 @@ describe('the case page by role', () => {
       caseConversation: vi.fn(async () => ok([])),
       caseProtocols: vi.fn(async () => ok([])),
       caseDecidedAppeals: vi.fn(async () => ok([])),
+      openCaseEvents: () => ({ close() {} }),
     }
     return mountWithApp(CaseView, { api: mockApi(api), path: '/cases/p-0001', props: { reference: 'p-0001' }, roles })
   }

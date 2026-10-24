@@ -116,6 +116,18 @@ export type MessageChannel = Schemas['MessageChannel']
 export type CaseBanIdLeakResult = Schemas['CaseBanIdLeakResponse']
 export type CaseBanIdReissueResult = Schemas['CaseBanIdReissueResponse']
 export type CaseProtocolText = Schemas['CaseProtocolText']
+/** A file staged for the next message of a case; its `attachmentId` goes into `attachmentIds`. */
+export type ChatAttachment = Schemas['ChatAttachmentStaged']
+/** The team count and, separately, the valid files the player sent in the chat. */
+export type EvidenceCounts = Schemas['EvidenceCount']
+export type EvidenceShare = Schemas['EvidenceShare']
+export type EvidenceShareLine = Schemas['EvidenceShareLine']
+export type EvidenceSharePreview = Schemas['EvidenceSharePreview']
+export type EvidenceSharePreviewRequest = Schemas['EvidenceSharePreviewRequest']
+export type EvidenceShareRequest = Schemas['EvidenceShareRequest']
+export type ShareRevokeReason = Schemas['ShareRevokeReason']
+/** The case as the panel reads it; `playerSeenSeq` is part of the spec (the highest seq the player has read). */
+export type CaseWithSeen = Case
 export type TranscriptFormat = 'json' | 'text'
 /** A transcript file as the server sent it; the caller turns it into a download. */
 export interface TranscriptFile {

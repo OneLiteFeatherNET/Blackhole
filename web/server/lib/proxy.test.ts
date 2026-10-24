@@ -190,6 +190,24 @@ describe('forwardToBackend body limit', () => {
   })
 })
 
+describe('the case event stream', () => {
+  it('gives the stream no read timeout, because it stays open while the panel listens', () => {
+    expect(selectTimeoutMs('GET', '/case/p-1/events')).toBeNull()
+  })
+
+  it('keeps the 30 second timeout for the other case reads', () => {
+    expect(selectTimeoutMs('GET', '/case/p-1/timeline')).toBe(DEFAULT_TIMEOUT_MS)
+  })
+
+  it('forwards the stream without a timeout signal', async () => {
+    const { calls, fetchImpl } = fakeFetch()
+
+    await forwardToBackend(request({ fetch: fetchImpl, path: '/api/case/p-1/events' }))
+
+    expect(calls[0].init.signal).toBeUndefined()
+  })
+})
+
 describe('forwardToBackend', () => {
   it('sends /api/x to <backend>/x with method and query', async () => {
     const { calls, fetchImpl } = fakeFetch()

@@ -623,6 +623,45 @@
       "noteHint": "Optional; wird mit der Löschung festgehalten",
       "confirm": "Löschen",
       "done": "Beweis gelöscht."
+    },
+    "provenance": {
+      "player": "Vom Spieler geliefert, nicht geprüft"
+    },
+    "breakdown": "{team} vom Team, {player} vom Spieler",
+    "share": {
+      "title": "Mit dem Spieler teilen",
+      "open": "Mit dem Spieler teilen",
+      "chatIntro": "Wählen Sie die Zeilen, die der Spieler sehen darf. Nichts wird geteilt, bevor Sie die Vorschau geprüft haben.",
+      "imageIntro": "Der Spieler sieht dieses Bild vollständig. Prüfen Sie es, bevor Sie es teilen.",
+      "lines": "Zeilen",
+      "limit": "Es können höchstens {max} Zeilen geteilt werden.",
+      "speaker": "Wer ist der Spieler?",
+      "speakerHint": "Dieser Sprecher wird als Sie angezeigt, die anderen als Spieler 2, Spieler 3 und so weiter.",
+      "speakerPlaceholder": "Sprecher des Spielers wählen",
+      "preview": "Was der Spieler sieht",
+      "previewEmpty": "Wählen Sie Zeilen und den Sprecher des Spielers, um die Vorschau zu sehen.",
+      "imageAlt": "Screenshot, der mit dem Spieler geteilt wird",
+      "imageFailed": "Das Bild konnte nicht geladen werden.",
+      "confirmChat": "Ich habe diese Vorschau geprüft. Sie zeigt keine personenbezogenen Daten anderer Personen über das hinaus, was dieser Einspruch braucht.",
+      "confirmChatHint": "Namen im Text lassen sich nicht automatisch entfernen. Lesen Sie ihn vor der Bestätigung.",
+      "confirmImage": "Ich akzeptiere, dass dieses Bild Namen anderer Spieler zeigen kann und der Spieler es sehen darf.",
+      "confirmImageHint": "Ein Bild lässt sich hier nicht anonymisieren. Teilen Sie es nur, wenn der Einspruch es braucht.",
+      "submit": "Mit dem Spieler teilen",
+      "done": "Mit dem Spieler geteilt.",
+      "failed": "Der Beweis konnte nicht geteilt werden.",
+      "active": "Aktuell mit dem Spieler geteilt",
+      "none": "Nichts wird mit dem Spieler geteilt.",
+      "since": "Geteilt am {date}",
+      "withdraw": "Zurückziehen",
+      "withdrawn": "Freigabe zurückgezogen.",
+      "withdrawTitle": "Freigabe zurückziehen?",
+      "withdrawBody": "Der Spieler verliert den Zugriff sofort. Das kann nicht rückgängig machen, was der Spieler bereits gesehen oder gespeichert hat.",
+      "withdrawConfirm": "Freigabe zurückziehen",
+      "reason": {
+        "MISTAKE": "Versehentlich geteilt",
+        "PRIVACY": "Personenbezogene Daten anderer",
+        "OTHER": "Anderer Grund"
+      }
     }
   },
   "duration": {
@@ -1094,7 +1133,15 @@
         "STAFF": "Team",
         "BOT": "Bot",
         "EXTERNAL": "Unbekannter Discord-Nutzer"
-      }
+      },
+      "formatHint": "Markdown: **fett**, *kursiv*, ~~durchgestrichen~~, `Code`, > Zitat, - Liste, [Link](https://...). Links öffnen zuerst eine Warnseite. Es gibt keine Vorschau.",
+      "seen": "Gelesen",
+      "shared": "Beweis mit dem Spieler geteilt",
+      "sharedLines": "Chat-Auszug, {n} Zeilen",
+      "sharedImage": "Screenshot",
+      "withdrawn": "Freigabe eines Beweises zurückgezogen",
+      "playerFile": "Vom Spieler geliefert, nicht geprüft",
+      "reconnecting": "Live-Updates pausiert, Verbindung wird neu aufgebaut."
     },
     "tickets": {
       "title": "Discord-Tickets",
@@ -1207,6 +1254,25 @@
       "textLabel": "Text von Version {version}",
       "opened": "Protokolltext geöffnet.",
       "downloaded": "Protokoll heruntergeladen."
+    },
+    "files": {
+      "attach": "Datei anhängen",
+      "pick": "Dateien zum Anhängen wählen",
+      "dropHint": "oder hier ablegen oder einfügen",
+      "counter": "{n} / {max} Dateien",
+      "max": "Es können höchstens {max} Dateien angehängt werden.",
+      "attached": "{name} angehängt.",
+      "removed": "{name} entfernt.",
+      "uploading": "Wird hochgeladen…",
+      "ready": "Bereit",
+      "remove": "{name} entfernen",
+      "removeLabel": "Entfernen",
+      "type": "Dieser Dateityp ist nicht erlaubt",
+      "tooLarge": "Die Datei ist größer als {max} MB",
+      "rejected": "Die Datei konnte nicht angenommen werden",
+      "unavailable": "Uploads sind gerade nicht verfügbar, bitte erneut versuchen",
+      "failed": "Die Datei konnte nicht hochgeladen werden",
+      "warning": "Der Spieler sieht diese Dateien, sobald Sie die Nachricht senden."
     }
   },
   "punished": {
@@ -1430,5 +1496,13 @@
       "hint": "Regeln, die dieser Spieler zuletzt ausgelöst hat. Die Werte, die der Client gesendet hat, werden nicht gespeichert.",
       "empty": "Keine Client-Regel-Treffer für diesen Spieler."
     }
+  },
+  "leave": {
+    "title": "Blackhole verlassen",
+    "heading": "Sie verlassen Blackhole",
+    "explain": "Blackhole hat keine Kontrolle über diese Seite. Prüfen Sie die Adresse, bevor Sie weitergehen.",
+    "invalid": "Dieser Link ist keine Webadresse (http oder https) und kann nicht geöffnet werden.",
+    "continue": "Weiter",
+    "back": "Zurück"
   }
 }

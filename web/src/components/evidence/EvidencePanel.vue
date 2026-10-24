@@ -32,7 +32,7 @@ const message = ref('')
 
 const list = useResource(() => api.evidence(props.punishment, { includeInactive: showLifted.value, page: page.value }))
 // Only valid evidence is counted, whatever the toggle shows.
-const count = useResource(() => api.evidenceCount(props.punishment))
+const count = useResource(() => api.evidenceCounts(props.punishment))
 
 watch([page, showLifted], () => void list.reload())
 watch(showLifted, () => (page.value = 0))
@@ -66,7 +66,8 @@ async function uploaded(): Promise<void> {
   <section class="flex flex-col gap-4" :aria-label="t('evidence.title')" data-testid="evidence-panel">
     <header class="flex flex-wrap items-center gap-2">
       <h3 class="text-title-medium">{{ t('evidence.title') }}</h3>
-      <StatusPill v-if="count.data.value !== null" :label="t('evidence.count', { count: count.data.value })" tone="primary" data-testid="count" />
+      <StatusPill v-if="count.data.value !== null" :label="t('evidence.count', { count: count.data.value.count })" tone="primary" data-testid="count" />
+      <span v-if="count.data.value !== null" class="text-body-small text-on-surface-variant" data-testid="breakdown">{{ t('evidence.breakdown', { team: count.data.value.count, player: count.data.value.playerSupplied }) }}</span>
       <MdButton v-if="!readonly && session.moderator" class="ml-auto" variant="tonal" data-testid="open-add-link" @click="addOpen = true">
         {{ t('evidence.addLink.open') }}
       </MdButton>

@@ -236,8 +236,9 @@ describe('the case page by role', () => {
       caseConversation: vi.fn(async () => ok([])),
       caseProtocols: vi.fn(async () => ok([version()])),
       caseDecidedAppeals: vi.fn(async () => ok([APPEAL])),
+      openCaseEvents: () => ({ close() {} }),
     }
-    const { wrapper } = await mountWithApp(CaseView, { api: mockApi(api), path: '/cases/p-0001', props: { reference: 'p-0001' }, roles })
+    const { wrapper } = await mountWithApp(CaseView,{ api: mockApi(api), path: '/cases/p-0001', props: { reference: 'p-0001' }, roles })
 
     expect(wrapper.find('[data-testid="protocol-section"]').exists()).toBe(true)
 
