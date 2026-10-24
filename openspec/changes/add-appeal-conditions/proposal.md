@@ -18,7 +18,7 @@ team should be able to change the wording without a deployment.
 - **Appeal conditions** ("Rahmenbedingungen") are a plain text maintained in the staff panel by `ADMIN`; every
   team role can read it. It is **versioned and append-only**: each save creates a new version, old versions stay.
   A default English text is seeded as version 1 by the migration.
-- **Backend:** a new table `appeal_conditions`, a nullable `appeals.conditions_version`, staff routes
+- **Backend:** a new table `appeal_conditions`, the accepted version in the appeal's own metadata (`conditionsVersion`), staff routes
   (`GET /appeal-conditions`, `GET /appeal-conditions/versions`, `POST /appeal-conditions`) and the public route
   `GET /public/appeal/conditions`. `POST /public/appeal` requires `conditionsVersion` to equal the current version,
   otherwise HTTP 409 `CONDITIONS_CHANGED`. The filed appeal stores that version number and nothing else.

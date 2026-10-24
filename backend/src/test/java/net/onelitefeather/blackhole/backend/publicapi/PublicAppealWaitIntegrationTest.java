@@ -32,7 +32,7 @@ class PublicAppealWaitIntegrationTest extends PublicApiTestBase {
         String token = sessionFor(punishment);
 
         Raw facts = playerGet("/public/punishment", token);
-        Raw filing = playerPost("/public/appeal", token, Map.of("statement", "I would like to appeal"));
+        Raw filing = playerPost("/public/appeal", token, Map.of("conditionsVersion", 1, "statement", "I would like to appeal"));
 
         Map<?, ?> appeal = (Map<?, ?>) facts.json().get("appeal");
         assertEquals("NOT_YET", appeal.get("state"));

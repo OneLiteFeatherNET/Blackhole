@@ -6,10 +6,10 @@
 
 ## 2. Backend (PR 2, `feat(appeal)`)
 
-- [ ] 2.1 Failing tests first: store (versions append, next number, concurrent save), service validation, filing 409 `CONDITIONS_CHANGED` for missing, older and newer version, precedence of `FORFEITED`/`FROZEN`/`NOT_ELIGIBLE`, stored `conditions_version`, route roles (matrix and route coverage), public route needs a session, migration test of the default row and the nullable column
-- [ ] 2.2 Migration `V19__appeal_conditions.sql` (next free version on `main` right before adding it; V18 is the Discord ticket migration): table, default text as version 1, `appeals.conditions_version`
-- [ ] 2.3 `appealconditions/` package: store seam and JDBC implementation, `AppealConditionsService`, sealed DTO, `AppealConditionsApi` and thin controller; `GET /public/appeal/conditions` in `PublicApi`; `conditionsVersion` on `PublicAppealDTO.FileRequest`; `AppealEntity.conditionsVersion`
-- [ ] 2.4 Update `.claude/rules` (public-api, security), regenerate the client spec (`client/specs/blackhole-api-0.0.N.yml`, next free number, bump `inputSpec`); verify `./gradlew :backend:test :client:compileJava`
+- [x] 2.1 Failing tests first: store (versions append, next number, concurrent save), service validation, filing 409 `CONDITIONS_CHANGED` for missing, older and newer version, precedence of `FORFEITED`/`FROZEN`/`NOT_ELIGIBLE`, stored `conditionsVersion` in the appeal metadata, route roles (matrix and route coverage), public route needs a session, migration test of the default row and the nullable column
+- [x] 2.2 Migration `V19__appeal_conditions.sql` (next free version on `main` right before adding it; V18 is the Discord ticket migration): table and the default text as version 1
+- [x] 2.3 `appealconditions/` package: store seam and JDBC implementation, `AppealConditionsService`, sealed DTO, `AppealConditionsApi` and thin controller; `GET /public/appeal/conditions` in `PublicApi`; `conditionsVersion` on `PublicAppealDTO.FileRequest`
+- [x] 2.4 Update `.claude/rules` (public-api, security), regenerate the client spec (`client/specs/blackhole-api-0.0.N.yml`, next free number, bump `inputSpec`); verify `./gradlew :backend:test :client:compileJava`
 
 ## 3. Staff panel (PR 3, `feat(web)`)
 

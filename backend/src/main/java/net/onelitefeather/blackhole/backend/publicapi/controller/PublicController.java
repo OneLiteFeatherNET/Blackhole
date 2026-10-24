@@ -86,6 +86,12 @@ public class PublicController implements PublicApi {
 
     @Override
     @Secured(PlayerSessionRule.ROLE)
+    public HttpResponse<?> appealConditions(PlayerSession session) {
+        return respond(this.appeals.conditions());
+    }
+
+    @Override
+    @Secured(PlayerSessionRule.ROLE)
     public HttpResponse<?> appeal(PlayerSession session) {
         return respond(this.appeals.read(session));
     }

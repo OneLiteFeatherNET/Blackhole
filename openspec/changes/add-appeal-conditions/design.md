@@ -32,8 +32,8 @@ accepts; it does not render.
 After the statement is valid and the existing refusals (`FORFEITED`, `FROZEN`, `NOT_ELIGIBLE`) are evaluated, filing compares
 `conditionsVersion` from the body with the current version. A missing, older or newer number answers 409
 `CONDITIONS_CHANGED`; the portal then reloads the text and asks again. Placing the check after the state refusals keeps those
-answers unchanged. The accepted version is written to `appeals.conditions_version` (nullable integer, `NULL` for appeals filed
-before this change) inside the same save. Nothing else is recorded: no time of acceptance beyond the appeal's own `createdAt`.
+answers unchanged. The accepted version is written to the appeal's `meta_data` (`conditionsVersion`; absent for appeals filed
+before this change) in the same save. Nothing else is recorded: no time of acceptance beyond the appeal's own `createdAt`.
 
 ### 4. Routes
 
@@ -52,12 +52,12 @@ anonymous route and `POST /public/session` stays the only one. A staff edit does
 New package `appealconditions/` with `service/AppealConditionsService` (staff reads and the save), an `AppealConditionsStore` seam with a
 JDBC implementation, sealed `AppealConditionsDTO` (`CreateRequest`, `Response`, `Error`), `controller/AppealConditionsApi` and a thin
 controller. The public route is added to `PublicApi` / `PublicController` and answered by a method of `PublicAppealService` that reads the same
-store. `AppealEntity` gains a nullable `conditionsVersion` field.
+store. `AppealEligibilityService.fileIfEligible` takes the version and stores it in the appeal metadata.
 
 ### 6. Migration
 
 `V19__appeal_conditions.sql` (next free version on `main`; V18 is the Discord ticket migration): creates the table, inserts version 1 with
-the default text, and adds `appeals.conditions_version`. Existing appeals keep `NULL`. No data is rewritten.
+the default text. `appeals` is not changed (no new column); existing appeals carry no version. No data is rewritten.
 
 ### 7. Panel
 
@@ -75,7 +75,7 @@ the conditions changed. `ConversationView` shows a collapsed "Appeal conditions"
 ### Default text (version 1)
 
 ```
-Appeal conditions
+Please read these conditions before you file an appeal.
 
 - Be respectful. Insults and threats towards the team can end your appeal.
 - You may file one appeal per Ban ID.
@@ -84,7 +84,7 @@ Appeal conditions
 - The team decides, and the decision is final for this appeal.
 - We cannot promise how fast we answer.
 - Do not open the same appeal through Discord and through the portal.
-- Do not write personal data such as addresses, or details about other people, in your messages.
+- Do not write personal data, such as addresses or details about other people, in your messages.
 ```
 
 ## Risks

@@ -119,7 +119,7 @@ abstract class PublicApiTestBase extends ApiIntegrationTest {
     }
 
     protected String fileAppeal(String token) {
-        Raw filed = playerPost("/public/appeal", token, Map.of("statement", "I am sorry and it will not happen again."));
+        Raw filed = playerPost("/public/appeal", token, Map.of("conditionsVersion", 1, "statement", "I am sorry and it will not happen again."));
         assertEquals(200, filed.status(), filed.body());
         return filed.body();
     }

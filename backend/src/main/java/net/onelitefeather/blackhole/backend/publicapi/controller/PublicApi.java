@@ -85,7 +85,8 @@ public interface PublicApi {
             summary = "File the appeal",
             description = "Files the appeal with a statement of 1 to 2000 characters through the eligibility checklist. An appeal that is not "
                     + "eligible is not recorded: 409 NOT_ELIGIBLE (with availableFrom when the player only has to wait), FORFEITED or FROZEN "
-                    + "after a leak. At most one appeal is open.",
+                    + "after a leak. conditionsVersion must be the current version of the appeal conditions, else 409 CONDITIONS_CHANGED. "
+                    + "At most one appeal is open.",
             operationId = "publicFileAppeal",
             tags = {"Public"}
     )
@@ -94,12 +95,25 @@ public interface PublicApi {
     @ApiResponse(responseCode = "400", description = "The statement is empty, too long or has control characters",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicErrorBody.class)))
     @ApiResponse(responseCode = "401", description = "The session is missing or expired")
-    @ApiResponse(responseCode = "409", description = "FORFEITED, FROZEN or NOT_ELIGIBLE",
+    @ApiResponse(responseCode = "409", description = "FORFEITED, FROZEN, NOT_ELIGIBLE or CONDITIONS_CHANGED",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicErrorBody.class)))
     @ApiResponse(responseCode = "422", description = "The statement looks like a UUID, an IP address or a Ban ID",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicErrorBody.class)))
     @Post("/appeal")
     HttpResponse<?> fileAppeal(@Parameter(hidden = true) PlayerSession session, @Nullable @Body PublicAppealDTO.FileRequest request);
+
+    @Operation(
+            summary = "The appeal conditions",
+            description = "The current appeal conditions: a version number and a plain text. The player confirms them before filing and sends the "
+                    + "version back as conditionsVersion; a changed version answers 409 CONDITIONS_CHANGED. Any session scope may read them.",
+            operationId = "publicAppealConditions",
+            tags = {"Public"}
+    )
+    @ApiResponse(responseCode = "200", description = "The current conditions",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicAppealDTO.Conditions.class)))
+    @ApiResponse(responseCode = "401", description = "The session is missing or expired")
+    @Get("/appeal/conditions")
+    HttpResponse<?> appealConditions(@Parameter(hidden = true) PlayerSession session);
 
     @Operation(
             summary = "The appeal",

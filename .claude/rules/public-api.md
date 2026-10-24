@@ -45,3 +45,8 @@ Detail: `openspec/changes/add-appeal-portal/` (design decisions 4 to 9, specs `a
   "You", staff "Moderation team" (never a name), markers read "Appeal filed" / "Appeal decided". `FULL` scope only (403 for `LIMITED`), and only
   once an appeal is decided (409 `NOT_DECIDED`, also when none exists); unknown format 400. The answer is `no-store`, `nosniff`, `CSP: sandbox` and an
   attachment. The stored staff protocol (`TRANSCRIPT` evidence, `casetimeline/protocol/`) is never read here (`PublicProtocolIntegrationTest`).
+- **Appeal conditions** (`GET /public/appeal/conditions`, `appealconditions/`, V19): the current `{version, text}` for any session scope, `no-store`; no staff data.
+  `POST /public/appeal` needs `conditionsVersion` equal to the current version, else 409 `CONDITIONS_CHANGED` (missing counts as changed). The check runs
+  after the statement checks and the `FORFEITED`/`FROZEN`/`NOT_ELIGIBLE` refusals, so those answers win. The accepted number is stored only as
+  `meta_data.conditionsVersion` of the appeal (`AppealEligibilityService.META_CONDITIONS_VERSION`), nothing else. `POST /discord/tickets` does not check it yet
+  (the bot does not show the conditions; follow-up).
