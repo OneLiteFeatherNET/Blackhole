@@ -70,8 +70,18 @@ public class ChatFileService implements ChatFiles {
      * @param provenance           who uploads
      * @param by                   the verified staff attribution; {@code null} for a player
      * @param fileName             the client's file name, used only for the sanitised display name
+     * @param identifier           the evidence id to store under, {@code null} for a random one (a Discord upload derives its id so a
+     *                             replay finds the same file)
+     * @param bound                {@code true} to store the file already bound to the punishment (a Discord file, which the channel
+     *                             message names right after), {@code false} to keep it staged until a chat message sends it
      */
-    public record Stage(String punishmentIdentifier, String scope, EvidenceProvenance provenance, @Nullable Attribution by, @Nullable String fileName) {
+    public record Stage(String punishmentIdentifier, String scope, EvidenceProvenance provenance, @Nullable Attribution by,
+                        @Nullable String fileName, @Nullable UUID identifier, boolean bound) {
+
+        /** A staged file of a chat message: a random id, kept until a message binds it. */
+        public Stage(String punishmentIdentifier, String scope, EvidenceProvenance provenance, @Nullable Attribution by, @Nullable String fileName) {
+            this(punishmentIdentifier, scope, provenance, by, fileName, null, false);
+        }
     }
 
     private final CaseReference references;
@@ -121,7 +131,7 @@ public class ChatFileService implements ChatFiles {
         if (punishment == null) {
             return error(EvidenceErrorKind.NOT_FOUND, "there is no such punishment");
         }
-        if (this.items.countByCorrelationIdAndPunishmentIdentifierIsNull(request.scope()) >= this.config.getMaxStaged()) {
+        if (!request.bound() && this.items.countByCorrelationIdAndPunishmentIdentifierIsNull(request.scope()) >= this.config.getMaxStaged()) {
             return error(EvidenceErrorKind.QUOTA, "too many files are waiting to be sent; send the message or remove one");
         }
         if (this.items.countByCorrelationId(request.scope()) >= this.config.getMaxFilesPerAppeal()) {
@@ -148,7 +158,8 @@ public class ChatFileService implements ChatFiles {
             try (InputStream in = Files.newInputStream(accepted.file())) {
                 this.blobs.put(key, in, accepted.size(), accepted.contentType());
             }
-            EvidenceItemEntity item = new EvidenceItemEntity(UUID.randomUUID(), null, punishment.getOwner(), request.scope(), EvidenceKind.FILE,
+            EvidenceItemEntity item = new EvidenceItemEntity(request.identifier() == null ? UUID.randomUUID() : request.identifier(),
+                    request.bound() ? punishment.getIdentifier() : null, punishment.getOwner(), request.scope(), EvidenceKind.FILE,
                     SOURCE_SYSTEM, this.clock.millis());
             item.setProvenance(request.provenance());
             if (request.by() != null) {

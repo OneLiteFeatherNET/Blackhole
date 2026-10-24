@@ -1,5 +1,8 @@
 package net.onelitefeather.blackhole.backend.discord.ticket;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.jdbc.DataSourceResolver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -169,10 +172,17 @@ public class JdbcDiscordTicketStore implements DiscordTicketStore {
      * edit) and is skipped when the message was deleted or redacted before it was relayed. An edit, delete or redaction is only
      * relayed for a message that has a {@code RELAYED} link, because that is the only Discord copy there is to change.
      */
+    private static final ObjectMapper FILES = new ObjectMapper();
+
     private static final String OUTBOX = """
             SELECT e.seq, e.type, e.subject_id, e.occurred_at, e.payload -> 'author' ->> 'kind', e.payload ->> 'channel',
                    COALESCE(ed.text, e.payload ->> 'text'),
-                   l.discord_message_id
+                   l.discord_message_id,
+                   (SELECT COALESCE(jsonb_agg(jsonb_build_object('attachmentId', a ->> 'attachmentId', 'name', a ->> 'name',
+                                                                 'contentType', a ->> 'contentType', 'size', (a ->> 'size')::bigint)), '[]'::jsonb)
+                    FROM jsonb_array_elements(CASE WHEN jsonb_typeof(e.payload -> 'attachments') = 'array'
+                                                   THEN e.payload -> 'attachments' ELSE '[]'::jsonb END) a
+                    WHERE a ->> 'kind' = 'file' AND a ->> 'attachmentId' IS NOT NULL AND a ->> 'rejected' IS NULL)::text
             FROM discord_ticket t
             JOIN case_event e ON e.punishment_identifier = t.punishment_identifier
             LEFT JOIN discord_message_link l ON l.ticket_id = t.id AND l.message_id::text = e.subject_id AND l.direction = 'RELAYED'
@@ -191,6 +201,11 @@ public class JdbcDiscordTicketStore implements DiscordTicketStore {
                                  AND d.subject_id = e.subject_id AND d.type IN ('message.deleted', 'message.redacted')))
                 OR (e.type = 'message.edited' AND e.redacted_at IS NULL AND l.discord_message_id IS NOT NULL)
                 OR (e.type IN ('message.deleted', 'message.redacted') AND l.discord_message_id IS NOT NULL)
+                OR (e.type = 'evidence.shared' AND l.discord_message_id IS NULL
+                    AND EXISTS (SELECT 1 FROM evidence_share s WHERE s.share_id::text = e.subject_id AND s.appeal_id = t.appeal_id)
+                    AND NOT EXISTS (SELECT 1 FROM case_event r WHERE r.punishment_identifier = e.punishment_identifier
+                                    AND r.subject_id = e.subject_id AND r.type = 'evidence.share_revoked'))
+                OR (e.type = 'evidence.share_revoked' AND l.discord_message_id IS NOT NULL)
               )
             ORDER BY e.seq
             LIMIT ?
@@ -469,13 +484,16 @@ public class JdbcDiscordTicketStore implements DiscordTicketStore {
                 case "message.added" -> OutboxItem.Kind.ADD;
                 case "message.edited" -> OutboxItem.Kind.EDIT;
                 case "message.deleted" -> OutboxItem.Kind.DELETE;
+                case "evidence.shared" -> OutboxItem.Kind.SHARE;
+                case "evidence.share_revoked" -> OutboxItem.Kind.SHARE_REVOKED;
                 default -> OutboxItem.Kind.REDACT;
             };
             String authorKind = rows.getString(5);
             String channel = rows.getString(6);
             Long discordMessageId = rows.getObject(8, Long.class);
             return new OutboxItem(rows.getLong(1), kind, rows.getString(3), authorKind == null ? null : MessageAuthorKind.valueOf(authorKind),
-                    channel == null ? null : MessageChannel.valueOf(channel), rows.getString(7), discordMessageId, rows.getLong(4));
+                    channel == null ? null : MessageChannel.valueOf(channel), rows.getString(7), discordMessageId, rows.getLong(4),
+                    files(rows.getString(9)));
         });
     }
 
@@ -494,6 +512,23 @@ public class JdbcDiscordTicketStore implements DiscordTicketStore {
             statement.setLong(++index, now);
             statement.setObject(++index, ticketId);
         }, rows -> rows.getLong(1));
+    }
+
+    /** The files of an outbox row, read from the JSON array the query built; a row without one has none. */
+    private static List<OutboxItem.File> files(String json) {
+        if (json == null) {
+            return List.of();
+        }
+        try {
+            List<OutboxItem.File> files = new ArrayList<>();
+            for (JsonNode file : FILES.readTree(json)) {
+                files.add(new OutboxItem.File(file.path("attachmentId").asText(), file.path("name").asText(), file.path("contentType").asText(),
+                        file.path("size").asLong()));
+            }
+            return List.copyOf(files);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("could not read the files of an outbox row", e);
+        }
     }
 
     // ---- plumbing ----

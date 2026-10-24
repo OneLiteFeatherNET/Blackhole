@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.backend.discord;
 
 import net.onelitefeather.blackhole.backend.PostgresIntegrationTest;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseDatabase;
+import net.onelitefeather.blackhole.backend.casetimeline.ChatFiles;
 import net.onelitefeather.blackhole.backend.casetimeline.JdbcCaseWriter;
 import net.onelitefeather.blackhole.backend.discord.dto.DiscordTicketDTO;
 import net.onelitefeather.blackhole.backend.discord.ingest.DiscordIngestService;
@@ -68,7 +69,7 @@ class DiscordTicketJdbcIntegrationTest extends PostgresIntegrationTest {
         this.db = new CaseDatabase(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()).migrate("latest");
         this.tickets = new JdbcDiscordTicketStore(this.db.dataSource);
         this.ingest = new DiscordIngestService(this.tickets, new JdbcDiscordIngestStore(this.db.dataSource), this.links.links.repository(),
-                this.punishments.repository(), this.events, this.clock, DiscordTicketProperties.defaults());
+                this.punishments.repository(), this.events, this.clock, DiscordTicketProperties.defaults(), null, ChatFiles.NONE);
         this.punishments.given(new PunishmentEntity(ID, UUID.randomUUID(), OWNER, "network", false, 1L, null, new HashMap<>()), ID);
         this.db.execute("INSERT INTO punishments (identifier, source, recorded_by_oid, owner, section_key, permanent, lifted, created_at, short_id, "
                 + "meta_data, ban_id_hash, ban_id_enc) VALUES (?, ?, ?, ?, 'network', false, false, 1, 'AAAAAAA1', '{}'::jsonb, ?, ?)",
@@ -283,8 +284,8 @@ class DiscordTicketJdbcIntegrationTest extends PostgresIntegrationTest {
     @Test
     void attachmentsAreStoredAsMetadataWithoutAnyUrl() {
         post(new DiscordTicketDTO.IngestItem("1000", STAFF, "Staff", false, true, 100, null, "see file", List.of(
-                new DiscordTicketDTO.IngestAttachment("file", "5000", "log.txt", "text/plain", 2048L, null, null),
-                new DiscordTicketDTO.IngestAttachment("sticker", null, "wave", null, null, null, null)),
+                new DiscordTicketDTO.IngestAttachment("file", "5000", "log.txt", "text/plain", 2048L, null, null, null, null),
+                new DiscordTicketDTO.IngestAttachment("sticker", null, "wave", null, null, null, null, null, null)),
                 List.of(new DiscordTicketDTO.IngestEmbed("link", "example.org"))));
 
         String payload = payloadOf("message.added");

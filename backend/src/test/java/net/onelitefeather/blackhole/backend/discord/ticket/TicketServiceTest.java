@@ -8,6 +8,7 @@ import net.onelitefeather.blackhole.backend.casetimeline.protocol.InMemoryProtoc
 import net.onelitefeather.blackhole.backend.casetimeline.protocol.ProtocolVersion;
 import net.onelitefeather.blackhole.backend.discord.DiscordTicketProperties;
 import net.onelitefeather.blackhole.backend.discord.dto.DiscordTicketDTO;
+import net.onelitefeather.blackhole.backend.discord.ticket.SharePosts;
 import net.onelitefeather.blackhole.backend.discord.dto.DiscordTicketDTO.Code;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
@@ -72,7 +73,8 @@ class TicketServiceTest {
         this.service = new TicketService(this.store, this.banIds.service, this.punishments.repository(), (punishment, statement) -> {
             this.appealCalls++;
             return this.appealOutcome;
-        }, this.cases, this.cases, this.protocolStore, this.generator, this.events, this.clock, DiscordTicketProperties.defaults());
+        }, this.cases, this.cases, this.protocolStore, this.generator, this.events, this.clock, DiscordTicketProperties.defaults(),
+                new SharePosts(null, null));
     }
 
     private DiscordTicketDTO.Opened open(String discordUser, String ban, String statement) {
@@ -479,8 +481,8 @@ class TicketServiceTest {
     void theOutboxStartsAtTheTicketCursorAndHidesNoSeq() {
         UUID id = openChannelTicket();
         this.store.outbox = List.of(
-                new DiscordTicketStore.OutboxItem(5, DiscordTicketStore.OutboxItem.Kind.ADD, "m1", null, null, "hi", null, 1L),
-                new DiscordTicketStore.OutboxItem(9, DiscordTicketStore.OutboxItem.Kind.ADD, "m2", null, null, "there", null, 2L));
+                new DiscordTicketStore.OutboxItem(5, DiscordTicketStore.OutboxItem.Kind.ADD, "m1", null, null, "hi", null, 1L, List.of()),
+                new DiscordTicketStore.OutboxItem(9, DiscordTicketStore.OutboxItem.Kind.ADD, "m2", null, null, "there", null, 2L, List.of()));
         this.service.link(id, new DiscordTicketDTO.LinkRequest(5, null, null));
 
         DiscordTicketDTO.Outbox outbox = assertInstanceOf(DiscordTicketDTO.Outbox.class, this.service.outbox(id, null, null));

@@ -42,7 +42,21 @@ public sealed interface DiscordTicketDTO {
         /** No stored (current) protocol: the ticket must not be archived or deleted. */
         PROTOCOL_REQUIRED,
         /** The channel is already used by another ticket. */
-        CHANNEL_TAKEN
+        CHANNEL_TAKEN,
+        /** A file was sent by someone who is neither the bound player nor verified staff. */
+        FILE_NOT_ACCEPTED,
+        /** A file is larger than the chat limit. */
+        TOO_LARGE,
+        /** A file is not one of the chat types (PNG, JPEG, WebP, PDF, TXT). */
+        UNSUPPORTED_TYPE,
+        /** The scanner flagged the file. */
+        FILE_FLAGGED,
+        /** The file carries active content, or is an active document in disguise. */
+        FILE_ACTIVE_CONTENT,
+        /** The bytes do not match the type or are malformed. */
+        INVALID_FILE,
+        /** Too many files are kept for this ticket. */
+        QUOTA
     }
 
     /**
@@ -146,17 +160,42 @@ public sealed interface DiscordTicketDTO {
     // ---- ingest ----
 
     /**
-     * A file or sticker: metadata only. Never the file or its CDN URL.
+     * A file or sticker. Never the file or its CDN URL. A file the bot uploaded and the backend accepted names its {@code attachmentId}
+     * (the Discord id is then not kept); a file that was not accepted is metadata with its {@code rejected} code.
      *
-     * @param kind {@code file} (default) or {@code sticker}
+     * @param kind         {@code file} (default) or {@code sticker}
+     * @param id           the Discord attachment id, for metadata only
+     * @param attachmentId the id {@link Attachment} returned for this file, when it was accepted
+     * @param rejected     the {@link Code} the upload answered, when it was not accepted
      */
     @Schema(name = "DiscordIngestAttachment")
     @Serdeable
     @ReflectiveAccess
     record IngestAttachment(
             @Nullable String kind, @Nullable String id, @Nullable String name, @Nullable String contentType, @Nullable Long size,
-            @Nullable Integer width, @Nullable Integer height
+            @Nullable Integer width, @Nullable Integer height, @Nullable String attachmentId, @Nullable String rejected
     ) {
+    }
+
+    /**
+     * A file the backend accepted from the channel: the evidence behind the message's {@code attachmentId}.
+     *
+     * @param provenance {@code PLAYER} or {@code STAFF}
+     */
+    @Schema(name = "DiscordTicketAttachment")
+    @Serdeable
+    @ReflectiveAccess
+    record Attachment(
+            @NonNull String attachmentId, @NonNull String name, @NonNull String contentType, long size, @Nullable Integer width,
+            @Nullable Integer height, @NonNull String provenance
+    ) implements DiscordTicketDTO {
+    }
+
+    /** A file the bot may fetch and post: its id on the ticket's route, name, type and size. */
+    @Schema(name = "DiscordOutboxFile")
+    @Serdeable
+    @ReflectiveAccess
+    record OutboxFile(@NonNull String attachmentId, @NonNull String name, @NonNull String contentType, long size) {
     }
 
     /** An embed: its type and the host of its URL only. */
@@ -222,15 +261,17 @@ public sealed interface DiscordTicketDTO {
      * @param messageId        the case message
      * @param authorKind       for {@code ADD}: {@code STAFF} is shown as the moderation team, {@code PLAYER} as the player (portal)
      * @param channel          for {@code ADD}: where it was written ({@code PORTAL} or {@code PANEL})
-     * @param text             the current text; {@code null} for a delete or redaction
-     * @param discordMessageId for {@code EDIT}, {@code DELETE} and {@code REDACT}: the Discord copy to change
+     * @param text             the current text; for {@code SHARE} an excerpt's server-rendered lines; {@code null} for a delete or redaction
+     * @param discordMessageId for {@code EDIT}, {@code DELETE}, {@code REDACT} and {@code SHARE_REVOKED}: the Discord copy to change
+     * @param files            for {@code ADD} and {@code SHARE}: the files to fetch and upload, in order
      */
     @Schema(name = "DiscordOutboxItem")
     @Serdeable
     @ReflectiveAccess
     record OutboxItem(
             long seq, @NonNull DiscordTicketStore.OutboxItem.Kind kind, @NonNull String messageId, @Nullable MessageAuthorKind authorKind,
-            @Nullable MessageChannel channel, @Nullable String text, @Nullable String discordMessageId, long occurredAt
+            @Nullable MessageChannel channel, @Nullable String text, @Nullable String discordMessageId, long occurredAt,
+            @Nullable List<OutboxFile> files
     ) {
     }
 

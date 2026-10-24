@@ -27,7 +27,11 @@ public interface DiscordTicketStore {
 
     /** One thing the bot must do in the channel to follow the case. */
     record OutboxItem(long seq, Kind kind, String messageId, @Nullable MessageAuthorKind authorKind, @Nullable MessageChannel channel,
-                      @Nullable String text, @Nullable Long discordMessageId, long occurredAt) {
+                      @Nullable String text, @Nullable Long discordMessageId, long occurredAt, List<File> files) {
+
+        /** A file to fetch and upload: the evidence id the file route takes, its name, type and size. */
+        public record File(String attachmentId, String name, String contentType, long size) {
+        }
 
         /** What to do. */
         @io.swagger.v3.oas.annotations.media.Schema(name = "DiscordOutboxItemKind")
@@ -40,7 +44,11 @@ public interface DiscordTicketStore {
             /** Delete the Discord copy of a relayed message. */
             DELETE,
             /** Delete the Discord copy because the text was redacted. */
-            REDACT
+            REDACT,
+            /** Post an evidence share: its excerpt text or its image file. */
+            SHARE,
+            /** Delete the Discord copy of a share and post that it was withdrawn. */
+            SHARE_REVOKED
         }
     }
 

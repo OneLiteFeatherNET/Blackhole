@@ -377,6 +377,7 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
                 new Object[]{"POST", "/discord/tickets/" + TICKET + "/links", Map.of("seq", 1)},
                 new Object[]{"POST", "/discord/tickets/" + TICKET + "/close", Map.of("count", 0)},
                 new Object[]{"POST", "/discord/tickets/" + TICKET + "/protocol/ensure", Map.of()},
+                new Object[]{"GET", "/discord/tickets/" + TICKET + "/attachments/" + TICKET, null},
                 new Object[]{"GET", "/discord/staff-links", null},
                 new Object[]{"POST", "/discord/leak-check", Map.of("candidates", List.of("K7M29QXA"), "channelKind", "PUBLIC")});
     }

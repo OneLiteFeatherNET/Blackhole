@@ -50,9 +50,11 @@ route only makes `FILE`.
   `JdbcProtocolStore`); a version marked `PURGE_PENDING` or `PURGED`, or without an index row, answers 404.
 - `CaseReconciler` skips `TRANSCRIPT` (`protocol.stored` is its timeline event, not `evidence.attached`).
 
-- Discord attachments are **not** evidence: a ticket channel's files are recorded as metadata only (name, type, size) in the message payload and vanish
-  with the channel. Staff who need a file kept attach it as evidence in the panel. The ticket's protocol is the `TRANSCRIPT` evidence of the appeal
-  (see `case-timeline.md`); the Discord archive and delete gates depend on it.
+- Discord channel files: only the bound player's and verified staff's files are evidence, uploaded with `POST /discord/tickets/{id}/attachments`
+  (the `CHAT` profile, bound to the case at once, id derived from ticket and Discord attachment id, provenance `PLAYER` or `STAFF`). Every other
+  Discord attachment stays metadata only (name, type, size; `rejected` code when refused) and the Discord id is never stored. The bot fetches
+  accepted files back with `GET /discord/tickets/{id}/attachments/{attachmentId}` (same visibility as the player route, scoped to the case).
+  The ticket's protocol is still the `TRANSCRIPT` evidence of the appeal (see `case-timeline.md`); the Discord archive and delete gates depend on it.
 
 ## Chat files, provenance and sharing (appeal chat)
 
