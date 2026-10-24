@@ -40,7 +40,7 @@ implementing is reproduced by a failing test first.
 - [x] 4.2 Migration `V16__player_session.sql` (next free version); `publicapi/` package: `PlayerSessionService`, `PublicApi` + thin controllers (`@Version(ApiVersion.V1)`), sealed DTOs, the `PlayerSession` rule in `security/`
 - [x] 4.3 Routes: session (login, logout, read), punishment facts allow-list, appeal file/read, conversation read (`seq` cursor), message post with `Idempotency-Key`, `PiiGuard`, length cap; request body logging off for `/public/**`
 - [x] 4.4 Metric `blackhole.public.login{result}`; config `blackhole.public.*` documented in `application.yml`
-- [ ] 4.5 `GET /public/appeal/protocol?format=text|json`: the player-visible view rendered on demand with the portal allow-list (FULL session, decided appeal, no staff names, no `STAFF` entries, `no-store`, attachment); tests that a `STAFF` row and the stored protocol never reach a player session
+- [x] 4.5 `GET /public/appeal/protocol?format=text|json`: the player-visible view rendered on demand with the portal allow-list (FULL session, decided appeal, no staff names, no `STAFF` entries, `no-store`, attachment); tests that a `STAFF` row and the stored protocol never reach a player session
 - [x] 4.6 Update the route-coverage and permission-matrix tests (public rule both ways); regenerate the client spec; verify `./gradlew :backend:test`
 
 ## 5. Portal app (PR 5, `feat(portal)`)

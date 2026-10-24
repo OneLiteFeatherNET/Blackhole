@@ -26,6 +26,7 @@ class PublicAccessIntegrationTest extends PublicApiTestBase {
             new Route(HttpMethod.POST, "/public/appeal", Map.of("statement", "hello")),
             new Route(HttpMethod.GET, "/public/appeal", null),
             new Route(HttpMethod.GET, "/public/conversation", null),
+            new Route(HttpMethod.GET, "/public/appeal/protocol", null),
             new Route(HttpMethod.POST, "/public/messages", Map.of("text", "hello")));
 
     private static final List<Route> STAFF_ROUTES = List.of(

@@ -40,3 +40,8 @@ Detail: `openspec/changes/add-appeal-portal/` (design decisions 4 to 9, specs `a
 - **No rate limiting here** (the edge owns it); no `X-Forwarded-For` is read or stored; request bodies are never logged
   (`logback.xml` pins the HTTP loggers). Controllers are thin (`PublicController` implements `PublicApi`), DTOs sealed per resource,
   every answer `no-store`, errors are `PublicErrorBody {code, availableFrom?}`.
+- **Player copy of the protocol** (`GET /public/appeal/protocol?format=text|json`, `PublicProtocolService`): rendered on demand from
+  `PublicConversationReader` (the same SQL visibility filter and allow-list as the conversation), so a `STAFF` row cannot reach it. The player is
+  "You", staff "Moderation team" (never a name), markers read "Appeal filed" / "Appeal decided". `FULL` scope only (403 for `LIMITED`), and only
+  once an appeal is decided (409 `NOT_DECIDED`, also when none exists); unknown format 400. The answer is `no-store`, `nosniff`, `CSP: sandbox` and an
+  attachment. The stored staff protocol (`TRANSCRIPT` evidence, `casetimeline/protocol/`) is never read here (`PublicProtocolIntegrationTest`).
