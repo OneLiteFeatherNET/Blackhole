@@ -1,0 +1,44 @@
+plugins {
+    application
+    alias(libs.plugins.shadow)
+}
+
+// The Discord bot: a plain Java application (a long-lived gateway client with a handful of
+// collaborators, not a Micronaut app). It is stateless; everything it needs it asks the backend for.
+application {
+    mainClass.set("net.onelitefeather.blackhole.discord.Main")
+}
+
+dependencies {
+    implementation(project(":client"))
+
+    // Voice is not used: no audio, so the native opus-java dependency stays out of the image.
+    implementation(libs.jda) {
+        exclude(module = "opus-java")
+    }
+
+    // client's jackson-databind is `implementation`-scoped there, so it isn't exposed transitively.
+    implementation(platform(libs.jackson.bom))
+    implementation(libs.jackson.core)
+    implementation(libs.jackson.databind)
+
+    implementation(libs.jetbrains.annotations)
+    runtimeOnly(mn.logback.classic)
+
+    testImplementation(mn.junit.jupiter.api)
+    testRuntimeOnly(mn.junit.jupiter.engine)
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
+}
+
+tasks.shadowJar {
+    archiveBaseName.set("blackhole-discord")
+    archiveClassifier.set("")
+    archiveVersion.set("")
+    mergeServiceFiles()
+}

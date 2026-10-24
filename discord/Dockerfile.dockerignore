@@ -1,0 +1,16 @@
+# The bot image is built from the repository root; keep the context small.
+.git
+.gradle
+.idea
+.claude
+**/build
+**/node_modules
+**/dist
+**/.output
+backend
+velocity
+phoca
+web
+docker
+openspec
+docs
