@@ -9,10 +9,9 @@ import java.util.Collection;
 import java.util.function.Supplier;
 
 /**
- * Tells the online staff of this proxy about a client rule hit. The proxy that saw the hit only
- * {@linkplain #announce announces} it on the {@link ClientRuleNoticeChannel}; the notice then comes back to
- * {@link #deliver} on every proxy, this one included, so each staff member is told exactly once wherever
- * they are connected. Only when nobody listens (Redis is down) the announcing proxy delivers it itself.
+ * Tells the online staff of this proxy about a client rule hit. A hit is only ever announced to the staff
+ * on the proxy that saw it: {@linkplain #announce announce} hands the notice to {@link #deliver}, which
+ * messages each connected staff member with the notify permission. Other proxies are not told.
  */
 public final class ClientRuleNotifier {
 

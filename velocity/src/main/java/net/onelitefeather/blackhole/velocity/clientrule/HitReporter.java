@@ -12,7 +12,7 @@ import java.util.concurrent.Executor;
 /**
  * Reports a rule hit to the backend and announces it to the team, off the event thread. Both are allowed
  * to fail on their own: without the backend the hit is not recorded (and a TEMPLATE applies nothing), and
- * without Redis the announcing proxy tells its own staff; the notice never depends on the backend.
+ * the notice goes only to this proxy's staff; it never depends on the backend.
  */
 public final class HitReporter {
 
