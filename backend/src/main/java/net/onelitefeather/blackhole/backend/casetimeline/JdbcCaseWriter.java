@@ -3,6 +3,7 @@ package net.onelitefeather.blackhole.backend.casetimeline;
 import io.micronaut.jdbc.DataSourceResolver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.casetimeline.protocol.ProtocolStore;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -151,6 +152,8 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
                 WHERE punishment_identifier = ? AND type IN ('message.added', 'message.edited') AND redacted_at IS NULL
                   AND subject_id IN (SELECT subject_id FROM player_messages)
                 RETURNING subject_id
+            ), purged AS (
+                {{PURGE}}
             ), done AS (
                 INSERT INTO case_event (identifier, punishment_identifier, type, payload_version, occurred_at, origin, actor_trust,
                                         actor_oid, recorded_by_oid, actor_source, subject_id, visibility, payload, dedupe_key)
@@ -163,7 +166,7 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
                 RETURNING identifier, seq, subject_id, visibility
             )
             SELECT identifier, seq, subject_id, visibility FROM done
-            """;
+            """.replace("{{PURGE}}", ProtocolStore.MARK_PURGE_PENDING + " AND EXISTS (SELECT 1 FROM red) RETURNING identifier");
 
     private static final String UNIQUE_VIOLATION = "23505";
 
@@ -357,6 +360,7 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             statement.setString(++index, punishmentIdentifier);
             statement.setLong(++index, now);
             statement.setObject(++index, redactedByOid);
+            statement.setString(++index, punishmentIdentifier);
             statement.setString(++index, punishmentIdentifier);
             statement.setString(++index, punishmentIdentifier);
             statement.setLong(++index, now);

@@ -44,7 +44,7 @@ class CaseConversationNoLeakTest {
                     .build();
     private final BanIdTestBed banIds = new BanIdTestBed(this.punishments.repository());
     private final CaseConversationService service = new CaseConversationService(
-            this.punishments.repository(), this.store, this.store, this.log, this.events, this.clock, this.banIds.service);
+            this.punishments.repository(), this.store, this.store, this.log, this.events, this.clock, this.banIds.service, new net.onelitefeather.blackhole.backend.support.RecordingProtocols());
     private final Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
     private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
     private Level previousLevel;

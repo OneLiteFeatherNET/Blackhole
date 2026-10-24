@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.security;
 
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.casetimeline.protocol.ProtocolRedaction;
 import net.onelitefeather.blackhole.backend.discord.DiscordLinkService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
@@ -30,7 +31,11 @@ public class StaffActorService {
     private final StaffLinkService links;
     private final DiscordLinkService discordLinks;
 
-    public StaffActorService(StaffActorRepository actors, DomainEventPublisher events, StaffLinkService links, DiscordLinkService discordLinks) {
+    private final ProtocolRedaction protocols;
+
+    public StaffActorService(StaffActorRepository actors, DomainEventPublisher events, StaffLinkService links, DiscordLinkService discordLinks,
+                             ProtocolRedaction protocols) {
+        this.protocols = protocols;
         this.actors = actors;
         this.events = events;
         this.links = links;
@@ -62,6 +67,8 @@ public class StaffActorService {
         this.actors.update(actor);
         this.links.removeOnAnonymize(oid, admin);
         this.discordLinks.removeOnAnonymize(oid);
+        // The name is cleared first, so a regenerated protocol cannot show it again; never throws.
+        this.protocols.afterStaffAnonymized(oid);
         LOG.info("Staff actor {} anonymized by {}", oid, admin.oid());
         this.events.publish(ANONYMIZED_EVENT, Map.of("oid", oid.toString(), "anonymizedBy", admin.oid().toString()));
         return new StaffActorDTO.Response(oid);

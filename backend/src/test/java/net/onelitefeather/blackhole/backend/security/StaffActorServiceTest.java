@@ -27,7 +27,8 @@ class StaffActorServiceTest {
     private final TestClock clock = new TestClock();
     private final StaffLinkTestBed links = new StaffLinkTestBed(this.events, this.clock);
     private final DiscordLinkTestBed discord = new DiscordLinkTestBed(this.events, this.clock);
-    private final StaffActorService service = new StaffActorService(this.store.repository(), this.events, this.links.service, this.discord.service);
+    private final net.onelitefeather.blackhole.backend.support.RecordingProtocols protocols = new net.onelitefeather.blackhole.backend.support.RecordingProtocols();
+    private final StaffActorService service = new StaffActorService(this.store.repository(), this.events, this.links.service, this.discord.service, this.protocols);
 
     @Test
     void anonymizingClearsTheDisplayNameAndKeepsTheOidAndKind() {
@@ -39,6 +40,22 @@ class StaffActorServiceTest {
         StaffActorEntity row = this.store.repository().findById(LEAVER).orElseThrow();
         assertNull(row.getDisplayName(), "the name is gone");
         assertEquals(ActorKind.HUMAN, row.getKind(), "the principal itself stays");
+    }
+
+    @Test
+    void anonymizingTellsTheProtocolsAfterTheNameIsCleared() {
+        this.store.given(new StaffActorEntity(LEAVER, ActorKind.HUMAN, "Lea Leaver", 1L), LEAVER);
+
+        this.service.anonymize(LEAVER, ADMIN);
+
+        assertEquals(java.util.List.of(LEAVER), this.protocols.anonymized, "stored protocols that may show the name are purged and regenerated");
+    }
+
+    @Test
+    void anUnknownPrincipalLeavesTheProtocolsAlone() {
+        this.service.anonymize(LEAVER, ADMIN);
+
+        assertTrue(this.protocols.anonymized.isEmpty());
     }
 
     @Test
