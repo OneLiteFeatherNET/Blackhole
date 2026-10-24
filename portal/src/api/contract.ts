@@ -81,10 +81,16 @@ export interface ConversationEntry {
   kind: string
   author: ConversationAuthor
   messageId: string | null
-  /** The current text (edits are folded in by the backend). Null for a removed message and for markers. */
+  /** The current text (edits are folded in by the backend), as Markdown source. Null for a removed message and for markers. */
   text: string | null
+  /** The sanitised tree parsed from `text`; null when there is no text. */
+  blocks?: MarkdownNode[] | null
   /** A deleted or redacted message: shown as "message removed", without text. */
   removed: boolean
+  /** The chat files of the message; null when none, or when removed. */
+  attachments?: ChatAttachment[] | null
+  /** A shared piece of evidence (kinds `SHARE` and `SHARE_WITHDRAWN`). */
+  share?: ChatShare | null
 }
 
 export interface ConversationPage {
@@ -93,8 +99,68 @@ export interface ConversationPage {
   cursor: number | null
 }
 
-export interface MessageRequest {
+/**
+ * One node of the sanitised Markdown tree the backend builds from a message (`blocks`). Only these
+ * types occur: paragraph, text, br, strong, em, del, code, code_block, list, item, quote and link.
+ * The portal draws it with text nodes and elements; nothing here is ever HTML.
+ */
+export interface MarkdownNode {
+  type: string
+  text?: string
+  /** `link` only: the normalised absolute http or https URL. */
+  href?: string
+  /** `link` only: false only for a trusted domain or a true subdomain of one. */
+  external?: boolean
+  /** `list` only. */
+  ordered?: boolean
+  start?: number
+  children?: MarkdownNode[]
+}
+
+/** A chat file a message sent (`attachments` of a conversation entry). Downloaded by its id. */
+export interface ChatAttachment {
+  attachmentId: string
+  name: string
+  contentType: string
+  size: number
+  width?: number | null
+  height?: number | null
+  /** `PLAYER` (the player's own upload, unverified) or `STAFF`. */
+  provenance: 'PLAYER' | 'STAFF'
+}
+
+export interface ShareLine {
+  /** Already relabelled by the backend ("You", "Player 2", "Moderation team"). */
+  speaker: string
+  offsetSeconds?: number | null
   text: string
+}
+
+/** A share of evidence with the player (`share` of a conversation entry). */
+export interface ChatShare {
+  shareId: string
+  /** `FILE` (an image, downloaded by `shareId`) or `EXCERPT` (chat lines). */
+  mode?: 'FILE' | 'EXCERPT' | null
+  state: 'ACTIVE' | 'WITHDRAWN' | 'UNAVAILABLE'
+  lineCount?: number | null
+  lines?: ShareLine[] | null
+}
+
+/** `POST /api/attachments` answers with this once the file is staged (visible to nobody until a message sends it). */
+export interface StagedAttachment {
+  attachmentId: string
+  name: string
+  contentType: string
+  size: number
+  width?: number | null
+  height?: number | null
+}
+
+export interface MessageRequest {
+  /** Optional when at least one file is attached. */
+  text?: string
+  /** Up to `MAX_FILES` staged attachment ids. */
+  attachmentIds?: string[]
 }
 
 /** `POST /public/messages` answers 200 with this; `repeated` is true when the same Idempotency-Key had posted it before. */
@@ -117,8 +183,14 @@ export type ErrorCode =
   | 'CONDITIONS_CHANGED'
   | 'NO_APPEAL'
   | 'NOT_DECIDED'
+  | 'FILES_UNAVAILABLE'
+  | 'QUOTA'
   | 'CONFLICT'
   | 'TOO_LARGE'
+  | 'UNSUPPORTED_TYPE'
+  | 'FILE_FLAGGED'
+  | 'FILE_ACTIVE_CONTENT'
+  | 'INVALID_FILE'
   | 'UNAVAILABLE'
   | 'CSRF'
   | 'ORIGIN'
@@ -131,7 +203,19 @@ export interface ErrorBody {
 }
 
 /** Backend 409 `code` values the BFF passes through; anything else becomes `CONFLICT`. */
-export const CONFLICT_CODES = ['FORFEITED', 'FROZEN', 'NOT_ELIGIBLE', 'CONDITIONS_CHANGED', 'NO_APPEAL', 'NOT_DECIDED'] as const
+export const CONFLICT_CODES = [
+  'FORFEITED',
+  'FROZEN',
+  'NOT_ELIGIBLE',
+  'CONDITIONS_CHANGED',
+  'NO_APPEAL',
+  'NOT_DECIDED',
+  'FILES_UNAVAILABLE',
+  'QUOTA',
+] as const
+
+/** Backend 422 codes of a chat file the BFF passes through (anything else becomes `INVALID_FILE`). */
+export const FILE_REJECTION_CODES = ['FILE_FLAGGED', 'FILE_ACTIVE_CONTENT', 'INVALID_FILE'] as const
 
 export interface RouteSpec {
   /** Browser-facing path on the BFF. */
@@ -147,21 +231,42 @@ export interface RouteSpec {
   body?: readonly string[]
   /** Body fields forwarded as positive integers (a version number); a missing or non-integer value is a 400. */
   integers?: readonly string[]
+  /** Optional body fields: forwarded when present (a string), omitted when absent or null. */
+  optionalBody?: readonly string[]
+  /** Optional body fields: arrays of at most `MAX_FILES` UUIDs, forwarded when present. */
+  uuidLists?: readonly string[]
+  /** A path parameter `:id` (the last segment), with its allowed shape. */
+  param?: { shape: RegExp }
+  /** `POST` multipart upload: the raw body is streamed through, capped at `MAX_UPLOAD_BYTES`. */
+  upload?: boolean
+  /** `GET` of a chat file: the backend's bytes are relayed with the safe headers. */
+  download?: boolean
+  /** `GET` of the live stream: the backend's `text/event-stream` is passed through unbuffered. */
+  stream?: boolean
+  /** `DELETE /api/session`: ends the session and clears the cookies, whatever the backend says. */
+  logout?: boolean
 }
 
 const CURSOR = /^[0-9]{1,18}$/
+/** A staged file id is a UUID; a shared image id is an opaque token of plain characters. */
+export const CHAT_ID = /^[A-Za-z0-9_-]{1,64}$/
+export const UUID_SHAPE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
 
 export const ROUTES: readonly RouteSpec[] = [
   { path: '/api/session', method: 'POST', backend: '/public/session', session: false, body: ['banId'] },
   { path: '/api/session', method: 'GET', backend: '/public/session', session: true },
-  { path: '/api/session', method: 'DELETE', backend: '/public/session', session: true },
+  { path: '/api/session', method: 'DELETE', backend: '/public/session', session: true, logout: true },
   { path: '/api/punishment', method: 'GET', backend: '/public/punishment', session: true },
   { path: '/api/appeal', method: 'POST', backend: '/public/appeal', session: true, body: ['statement'], integers: ['conditionsVersion'] },
   { path: '/api/appeal', method: 'GET', backend: '/public/appeal', session: true },
   { path: '/api/appeal/conditions', method: 'GET', backend: '/public/appeal/conditions', session: true },
   { path: '/api/appeal/protocol', method: 'GET', backend: '/public/appeal/protocol', session: true, query: { format: /^(text|json)$/ } },
   { path: '/api/conversation', method: 'GET', backend: '/public/conversation', session: true, query: { cursor: CURSOR } },
-  { path: '/api/messages', method: 'POST', backend: '/public/messages', session: true, body: ['text'] },
+  { path: '/api/messages', method: 'POST', backend: '/public/messages', session: true, body: [], optionalBody: ['text'], uuidLists: ['attachmentIds'] },
+  { path: '/api/attachments', method: 'POST', backend: '/public/attachments', session: true, upload: true },
+  { path: '/api/attachments/:id', method: 'GET', backend: '/public/attachments/:id', session: true, download: true, param: { shape: CHAT_ID } },
+  { path: '/api/attachments/:id', method: 'DELETE', backend: '/public/attachments/:id', session: true, param: { shape: CHAT_ID } },
+  { path: '/api/conversation/events', method: 'GET', backend: '/public/conversation/events', session: true, stream: true },
 ]
 
 /** The backend returns at most this many entries per page. */
@@ -176,3 +281,8 @@ export const IDEMPOTENCY_HEADER = 'idempotency-key'
 export const MAX_TEXT_LENGTH = 2000
 /** The BFF caps request bodies at 16 KiB (design decision 5). */
 export const MAX_BODY_BYTES = 16 * 1024
+/** A chat file: 10 MiB (the backend's limit) and at most five per message. */
+export const MAX_FILE_BYTES = 10 * 1024 * 1024
+export const MAX_FILES = 5
+/** The upload request: one file plus the multipart framing (design decision 3 and section 12). */
+export const MAX_UPLOAD_BYTES = MAX_FILE_BYTES + 64 * 1024
