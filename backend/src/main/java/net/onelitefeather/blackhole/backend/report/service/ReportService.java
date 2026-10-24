@@ -27,6 +27,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -176,6 +177,25 @@ public class ReportService {
         return this.reportRepository.findById(identifier).map(ReportEntity::toDTO);
     }
 
+    /** The metadata keys that carry a player's name; a value must be a valid Minecraft name or it is dropped. */
+    static final List<String> NAME_KEYS = List.of("reportedName", "reporterName");
+
+    private static final java.util.regex.Pattern MINECRAFT_NAME = java.util.regex.Pattern.compile("^[A-Za-z0-9_]{3,16}$");
+
+    static Map<String, Object> sanitizeMetaData(Map<String, Object> metaData) {
+        Map<String, Object> clean = new HashMap<>();
+        if (metaData == null) {
+            return clean;
+        }
+        metaData.forEach((key, value) -> {
+            if (!NAME_KEYS.contains(key)
+                    || (value instanceof String name && MINECRAFT_NAME.matcher(name).matches())) {
+                clean.put(key, value);
+            }
+        });
+        return clean;
+    }
+
     public SubmitResult submit(ReportRequestDTO submission) {
         long now = this.clock.millis();
         long windowStart = now - this.rateLimitWindow.toMillis();
@@ -203,7 +223,7 @@ public class ReportService {
                 now,
                 null,
                 null,
-                submission.metaData() == null ? new HashMap<>() : submission.metaData()
+                sanitizeMetaData(submission.metaData())
         );
         ReportEntity saved = this.reportRepository.save(report);
 
