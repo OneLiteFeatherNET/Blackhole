@@ -58,7 +58,7 @@ public final class FakeCaseStore implements CaseReader, CaseChanges {
     public Optional<CaseRow> find(String punishmentIdentifier) {
         CaseMeta meta = this.metas.get(punishmentIdentifier);
         return meta == null ? Optional.empty() : Optional.of(new CaseRow(meta, null, this.versions.getOrDefault(punishmentIdentifier, 0L), 0, 0,
-                this.leaks.get(punishmentIdentifier), this.leaks.containsKey(punishmentIdentifier) ? "OTHER" : null));
+                this.leaks.get(punishmentIdentifier), this.leaks.containsKey(punishmentIdentifier) ? "OTHER" : null, 0));
     }
 
     @Override

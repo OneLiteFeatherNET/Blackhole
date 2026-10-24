@@ -34,7 +34,7 @@ public class JdbcCaseReader implements CaseReader {
 
     private static final String FIND = """
             SELECT c.status, c.assignee_oid, a.display_name, c.priority, c.tags::text, c.version, c.created_at, c.updated_at,
-                   c.ban_id_leaked_at, c.ban_id_leak_reason
+                   c.ban_id_leaked_at, c.ban_id_leak_reason, c.player_seen_seq
             FROM punishment_case c LEFT JOIN staff_actor a ON a.oid = c.assignee_oid
             WHERE c.punishment_identifier = ?
             """;
@@ -63,7 +63,8 @@ public class JdbcCaseReader implements CaseReader {
     public Optional<CaseRow> find(String punishmentIdentifier) {
         List<CaseRow> rows = query(FIND, List.of(punishmentIdentifier), row -> new CaseRow(
                 new CaseMeta(row.getString(1), row.getObject(2, UUID.class), row.getString(4), tags(row.getString(5))),
-                row.getString(3), row.getLong(6), row.getLong(7), row.getLong(8), row.getObject(9, Long.class), row.getString(10)));
+                row.getString(3), row.getLong(6), row.getLong(7), row.getLong(8), row.getObject(9, Long.class), row.getString(10),
+                row.getLong(11)));
         return rows.stream().findFirst();
     }
 

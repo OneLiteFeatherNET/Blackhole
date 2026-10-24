@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * The conversation as the player reads it and the message the player posts. There is no staff name, no
@@ -58,12 +59,14 @@ public sealed interface PublicConversationDTO {
     /**
      * Posts a message to the team.
      *
-     * @param text 1 to 2000 characters of Markdown (a small subset, see the conversation entry), without a UUID, an IP address or a Ban ID
+     * @param text          1 to 2000 characters of Markdown (a small subset, see the conversation entry), without a UUID, an IP address or a
+     *                      Ban ID; may be absent when the message has at least one file
+     * @param attachmentIds up to five files uploaded with {@code POST /public/attachments} for this appeal, each sent once
      */
     @Schema(name = "PublicMessageRequest")
     @Serdeable
     @ReflectiveAccess
-    record PostRequest(@Nullable String text) implements PublicConversationDTO {
+    record PostRequest(@Nullable String text, @Nullable List<UUID> attachmentIds) implements PublicConversationDTO {
     }
 
     /**

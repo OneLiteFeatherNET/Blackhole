@@ -9,6 +9,7 @@ import net.onelitefeather.blackhole.backend.casetimeline.MessageRules;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseConversationDTO;
 import net.onelitefeather.blackhole.backend.casetimeline.service.CaseConversationService;
 import net.onelitefeather.blackhole.backend.publicapi.PlayerScope;
+import net.onelitefeather.blackhole.backend.publicapi.PlayerSeenMarker;
 import net.onelitefeather.blackhole.backend.publicapi.PublicAppealReader;
 import net.onelitefeather.blackhole.backend.publicapi.PublicConversationReader;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicConversationDTO;
@@ -35,11 +36,12 @@ public class PublicConversationService {
     private final int maxLength;
     private final int pageSize;
     private final MessageContent content;
+    private final PlayerSeenMarker seen;
 
     public PublicConversationService(
             PublicConversationReader reader, PublicAppealReader appeals, CaseConversationService conversation, BanIdService banIds,
             @Value("${blackhole.public.message.max-length:2000}") int maxLength,
-            @Value("${blackhole.public.conversation.page-size:200}") int pageSize, MessageContent content
+            @Value("${blackhole.public.conversation.page-size:200}") int pageSize, MessageContent content, PlayerSeenMarker seen
     ) {
         this.reader = reader;
         this.appeals = appeals;
@@ -48,10 +50,12 @@ public class PublicConversationService {
         this.maxLength = Math.min(maxLength, MessageRules.MAX_MESSAGE);
         this.pageSize = Math.max(1, pageSize);
         this.content = content;
+        this.seen = seen;
     }
 
     /**
-     * The entries after a cursor, in {@code seq} order.
+     * The entries after a cursor, in {@code seq} order. Reading them moves the player's seen marker to the highest seq returned
+     * (one statement, never backwards), which is what staff see as "Seen".
      *
      * @param cursor the last {@code seq} the portal has seen, or null for the start
      * @return the {@link PublicConversationDTO.Page}, or 403 {@code FORBIDDEN} for a leaked Ban ID
@@ -66,15 +70,20 @@ public class PublicConversationService {
                         PublicConversationDTO.Author.valueOf(entry.author()), entry.messageId(), entry.text(),
                         entry.text() == null ? null : this.content.blocks(entry.text()), entry.removed()))
                 .toList();
+        if (page.cursor() != null && !page.entries().isEmpty()) {
+            this.seen.moveTo(session.punishmentIdentifier(), page.cursor());
+        }
         return new PublicConversationDTO.Page(entries, page.cursor());
     }
 
     /**
-     * Posts a message to the team in the open appeal.
+     * Posts a message to the team in the open appeal. It may send staged files of this appeal (at most five); a message with files
+     * may have no text.
      *
      * @param idempotencyKey makes a double submit a no-op
-     * @return the {@link PublicConversationDTO.Posted}, or an error: 400 / 422 for the text, 409 {@code FROZEN}
-     *         (the Ban ID is leaked) or {@code NO_APPEAL} (nothing is open)
+     * @return the {@link PublicConversationDTO.Posted}, or an error: 400 / 422 for the text or a file id that is not usable,
+     *         409 {@code FROZEN} (the Ban ID is leaked), {@code NO_APPEAL} (nothing is open) or {@code FILES_UNAVAILABLE} (a file was
+     *         sent already or is gone)
      */
     public PublicConversationDTO post(PlayerSession session, @Nullable PublicConversationDTO.PostRequest request, @Nullable String idempotencyKey) {
         boolean leaked = session.scope() == PlayerScope.LIMITED;
@@ -82,19 +91,28 @@ public class PublicConversationService {
         if (leaked) {
             return error(open.isPresent() ? "FROZEN" : "NO_APPEAL", PublicErrorKind.CONFLICT);
         }
-        PublicText.Checked text = PublicText.check(request == null ? null : request.text(), this.maxLength, this.banIds);
-        if (!text.ok()) {
-            return error(text.code(), text.failure());
+        List<UUID> attachmentIds = request == null || request.attachmentIds() == null ? List.of() : request.attachmentIds();
+        String rawText = request == null ? null : request.text();
+        boolean textGiven = rawText != null && !rawText.isBlank();
+        String text = "";
+        if (textGiven || attachmentIds.isEmpty()) {
+            PublicText.Checked checked = PublicText.check(rawText, this.maxLength, this.banIds);
+            if (!checked.ok()) {
+                return error(checked.code(), checked.failure());
+            }
+            text = checked.text();
         }
         if (open.isEmpty()) {
             return error("NO_APPEAL", PublicErrorKind.CONFLICT);
         }
-        CaseConversationDTO result = this.conversation.postPlayerMessage(session.punishmentIdentifier(), open.get().identifier(), text.text(), idempotencyKey);
+        CaseConversationDTO result = this.conversation.postPlayerMessage(session.punishmentIdentifier(), open.get().identifier(), text, idempotencyKey,
+                attachmentIds);
         return switch (result) {
             case CaseConversationDTO.MessageResponse posted -> new PublicConversationDTO.Posted(posted.messageId(), posted.repeated());
             case CaseConversationDTO.Error failed -> switch (failed.kind()) {
                 case VALIDATION -> error("VALIDATION", PublicErrorKind.VALIDATION);
-                case CONFLICT -> error("FROZEN", PublicErrorKind.CONFLICT);
+                case CONFLICT -> attachmentIds.isEmpty() ? error("FROZEN", PublicErrorKind.CONFLICT)
+                        : error("FILES_UNAVAILABLE", PublicErrorKind.CONFLICT);
                 case NOT_FOUND -> error("NOT_FOUND", PublicErrorKind.NOT_FOUND);
                 default -> error("UNAVAILABLE", PublicErrorKind.UNAVAILABLE);
             };
