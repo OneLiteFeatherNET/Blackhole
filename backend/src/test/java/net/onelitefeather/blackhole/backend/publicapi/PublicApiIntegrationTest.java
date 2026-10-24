@@ -231,8 +231,33 @@ class PublicApiIntegrationTest extends PublicApiTestBase {
         assertEquals(List.of("SYSTEM", "STAFF", "PLAYER"), entries.stream().map(e -> e.get("author")).toList());
         assertEquals("Please tell us more.", entries.get(1).get("text"));
         assertEquals("It was a joke between friends.", entries.get(2).get("text"), "trimmed");
-        assertEquals(Set.of("seq", "occurredAt", "kind", "author", "messageId", "text", "removed"), entries.get(1).keySet());
+        assertEquals(Set.of("seq", "occurredAt", "kind", "author", "messageId", "text", "blocks", "removed"), entries.get(1).keySet());
         assertFalse(page.body().contains("Staff"), "no staff names");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aMarkdownMessageComesBackAsItsSourceAndASanitisedTree() {
+        String punishment = punish("c9".repeat(64), "pub-markdown");
+        String token = sessionFor(punishment);
+        fileAppeal(token);
+        String source = "**bold** [home](https://appeal.onelitefeather.net/a) [bad](javascript:alert(1)) <script>alert(1)</script>";
+
+        assertEquals(200, playerPost("/public/messages", token, Map.of("text", source), "k-md").status());
+
+        List<Map<String, Object>> entries = entries(playerGet("/public/conversation", token));
+        Map<String, Object> message = entries.get(entries.size() - 1);
+        assertEquals(source, message.get("text"), "the source is returned as written");
+        List<Map<String, Object>> blocks = (List<Map<String, Object>>) message.get("blocks");
+        assertEquals("paragraph", blocks.getFirst().get("type"));
+        List<Map<String, Object>> inline = (List<Map<String, Object>>) blocks.getFirst().get("children");
+        assertEquals("strong", inline.get(0).get("type"), "bold is a strong node");
+        Map<String, Object> link = inline.get(2);
+        assertEquals("link", link.get("type"));
+        assertEquals("https://appeal.onelitefeather.net/a", link.get("href"));
+        assertEquals(false, link.get("external"), "a subdomain of the trusted domain is not external");
+        assertEquals(1, inline.stream().filter(node -> "link".equals(node.get("type"))).count(), "the javascript link is text, not a link");
+        assertFalse(blocks.toString().contains("type=html"), "there is no html node: " + blocks);
     }
 
     @Test

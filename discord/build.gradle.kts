@@ -12,6 +12,9 @@ application {
 dependencies {
     implementation(project(":client"))
 
+    // The same Markdown parser and renderers the backend uses, so Discord shows what the portal shows.
+    implementation(project(":markdown"))
+
     // Voice is not used: no audio, so the native opus-java dependency stays out of the image.
     implementation(libs.jda) {
         exclude(module = "opus-java")

@@ -22,6 +22,9 @@ public final class TranscriptRenderer {
     private static final ObjectMapper MAPPER = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
     private static final String REMOVED = "[removed for data protection]";
 
+    /** Version 2: a message entry has {@code format: "markdown"}; its payload text is the Markdown source as written. */
+    public static final int SCHEMA_VERSION = 2;
+
     /** A rendered transcript. */
     public record Rendered(String json, String text, int entries) {
     }
@@ -50,6 +53,7 @@ public final class TranscriptRenderer {
             items.add(item(entry));
         }
         Map<String, Object> document = new LinkedHashMap<>();
+        document.put("schemaVersion", SCHEMA_VERSION);
         document.put("punishment", punishmentIdentifier);
         document.put("shortId", shortId);
         document.put("includeNotes", includeNotes);
@@ -78,6 +82,10 @@ public final class TranscriptRenderer {
         }
         item.put("actor", actor);
         item.put("redacted", event.redactedAt() != null);
+        boolean message = event.type().equals(CaseEventPayload.MESSAGE_ADDED) || event.type().equals(CaseEventPayload.MESSAGE_EDITED);
+        if (message && event.redactedAt() == null) {
+            item.put("format", "markdown");
+        }
         item.put("payload", event.body());
         return item;
     }
@@ -86,6 +94,7 @@ public final class TranscriptRenderer {
         StringBuilder out = new StringBuilder();
         out.append("Transcript of punishment ").append(punishmentIdentifier).append(" (").append(shortId).append(")\n");
         out.append("Entries: ").append(shown.size()).append(". Notes ").append(includeNotes ? "included" : "excluded").append(". Times are UTC.\n");
+        out.append("Message texts are the Markdown source exactly as written, not a rendering.\n");
         for (CaseReader.Entry entry : shown) {
             CaseEventRecord event = entry.event();
             out.append('\n').append('#').append(event.seq()).append("  ").append(Instant.ofEpochMilli(event.occurredAt()))

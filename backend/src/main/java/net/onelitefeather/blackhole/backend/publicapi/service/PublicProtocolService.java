@@ -109,7 +109,8 @@ public class PublicProtocolService {
     }
 
     private static String text(String decision, List<PublicConversationReader.Entry> entries) {
-        StringBuilder out = new StringBuilder("Appeal protocol\nDecision: ").append(decision).append("\nTimes are UTC.\n");
+        StringBuilder out = new StringBuilder("Appeal protocol\nDecision: ").append(decision).append("\nTimes are UTC.\n")
+                .append("Message texts are the Markdown source exactly as written, not a rendering.\n");
         for (PublicConversationReader.Entry entry : entries) {
             out.append('\n').append(Instant.ofEpochMilli(entry.occurredAt())).append("  ");
             if (entry.kind().equals("MESSAGE")) {
@@ -125,7 +126,7 @@ public class PublicProtocolService {
 
     private static String json(String decision, List<PublicConversationReader.Entry> entries) {
         Map<String, Object> document = new LinkedHashMap<>();
-        document.put("schemaVersion", 1);
+        document.put("schemaVersion", 2);
         document.put("decision", decision);
         List<Map<String, Object>> shown = new ArrayList<>();
         for (PublicConversationReader.Entry entry : entries) {
@@ -135,6 +136,7 @@ public class PublicProtocolService {
             if (entry.kind().equals("MESSAGE")) {
                 item.put("author", who(entry.author()));
                 item.put("removed", entry.removed());
+                item.put("format", "markdown");
                 item.put("text", entry.removed() ? null : entry.text());
             }
             shown.add(item);

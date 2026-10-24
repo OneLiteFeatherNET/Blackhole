@@ -136,6 +136,8 @@ public sealed interface CaseDTO {
      * @param seq       the order within the case and part of the cursor
      * @param type      the dotted type such as {@code note.added}; unknown types are returned as they are
      * @param payload   the type's body; empty after a redaction
+     * @param blocks    for {@code message.added} and {@code message.edited}: the sanitised block tree parsed from the Markdown source in
+     *                  {@code payload.text} (same nodes as the public conversation entry); null for every other event and after a redaction
      * @param redactedAt set when a note version was redacted
      */
     @Schema(name = "CaseTimelineItem")
@@ -152,6 +154,7 @@ public sealed interface CaseDTO {
             @NonNull ActorInfo actor,
             @Nullable String subjectId,
             @NonNull @JsonInclude(JsonInclude.Include.ALWAYS) Map<String, Object> payload,
+            @Nullable List<Map<String, Object>> blocks,
             @Nullable Long redactedAt
     ) {
     }

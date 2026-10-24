@@ -198,7 +198,7 @@ class ProtocolRendererTest {
         assertEquals(ProtocolModel.sha256(String.join("\n", lines)), completeness.get("sourceDigest").asText());
         assertEquals(1, completeness.get("firstSeq").asLong());
         assertEquals(4, completeness.get("lastSeq").asLong());
-        assertEquals(1, document.get("schemaVersion").asInt());
+        assertEquals(2, document.get("schemaVersion").asInt(), "entries gained a format, so the layout is version 2");
         assertTrue(text(model).contains("Source digest (SHA-256): " + model.digest()));
     }
 
@@ -277,5 +277,38 @@ class ProtocolRendererTest {
         entries.add(ProtocolFixtures.raw(5, 1_500, "ticket.opened", ActorTrust.SYSTEM, Map.of("ticketId", "t-1")));
 
         assertTrue(model(entries).ticketIncomplete());
+    }
+
+    @Test
+    void aMessageTextIsTheMarkdownSourceInBothFilesAndTheJsonSaysSo() throws Exception {
+        String source = "**bold** and [a link](https://example.org/a?b=1)\n- item\n<b>x</b>";
+        ProtocolModel model = model(List.of(ProtocolFixtures.filed(1, 1_000, APPEAL), ProtocolFixtures.playerMessage(2, 2_000, "m-1", APPEAL, source),
+                ProtocolFixtures.decided(3, 4_000, APPEAL, "DENIED")));
+
+        JsonNode message = json(model).get("entries").get(1);
+
+        assertEquals(source, message.get("text").asText(), "the JSON keeps the source, not a rendering");
+        assertEquals("markdown", message.get("format").asText(), "a reader knows how to read the text");
+        String text = text(model);
+        assertTrue(text.contains("    **bold** and [a link](https://example.org/a?b=1)\n    - item\n    <b>x</b>"), "the text file keeps the source: " + text);
+    }
+
+    @Test
+    void anEventEntryHasNoFormat() throws Exception {
+        ProtocolModel model = model(ProtocolFixtures.simpleConversation());
+
+        assertNull(json(model).get("entries").get(0).get("format"), "only messages hold Markdown");
+    }
+
+    @Test
+    void everyEditedTextIsMarkdownToo() throws Exception {
+        ProtocolModel model = model(List.of(ProtocolFixtures.filed(1, 1_000, APPEAL), ProtocolFixtures.playerMessage(2, 2_000, "m-1", APPEAL, "*one*"),
+                ProtocolFixtures.edited(3, 3_000, "m-1", "*two*", null), ProtocolFixtures.decided(4, 4_000, APPEAL, "DENIED")));
+
+        JsonNode message = json(model).get("entries").get(1);
+
+        assertEquals("markdown", message.get("format").asText());
+        assertEquals("*one*", message.get("texts").get(0).get("text").asText(), "earlier versions are sources as well");
+        assertEquals("*two*", message.get("text").asText());
     }
 }
