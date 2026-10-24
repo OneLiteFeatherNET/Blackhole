@@ -24,6 +24,21 @@ services:
       - "5672:5672"
       - "15672:15672"
       - "15692:15692"
+  # NATS with JetStream will carry the domain event bus (subjects blackhole.events.<type>, stream
+  # BLACKHOLE_EVENTS). The tag matches the server of the feather-core NATS chart (2.15.1). Local
+  # development runs without authentication. 4222 is the client port, 8222 the monitoring port
+  # (http://localhost:8222/jsz reports the JetStream state).
+  nats:
+    image: nats:2.15.1-alpine
+    container_name: 'nats_blackhole'
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    networks:
+      - blackhole_go_net
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - ./nats/data/:/data
   # Dragonfly is wire-compatible with Redis, so REDIS_URI (proxy sync + shared cache) is unchanged.
   dragonfly:
     image: docker.dragonflydb.io/dragonflydb/dragonfly
