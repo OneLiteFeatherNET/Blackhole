@@ -29,7 +29,7 @@ file.
 
 ## 2. Local NATS (PR 2: `build(docker): add nats with jetstream to the local compose stack`)
 
-- [ ] 2.1 Add the `nats` service (`-js -sd /data -m 8222`, ports 4222/8222, volume `./nats/data/`) next to `rabbitmq`, ignore `docker/nats/data/` in git; verify `docker compose up -d nats` and `nats server check jetstream` (or the 8222 `/jsz` endpoint) report JetStream enabled
+- [x] 2.1 Add the `nats` service (`-js -sd /data -m 8222`, ports 4222/8222, volume `./nats/data/`) next to `rabbitmq`, ignore `docker/nats/data/` in git; verify `docker compose up -d nats` and `nats server check jetstream` (or the 8222 `/jsz` endpoint) report JetStream enabled
 
 ## 3. NATS transport in the backend (PR 3: `feat(events): move the domain event bus to nats jetstream`)
 

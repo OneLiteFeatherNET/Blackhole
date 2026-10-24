@@ -45,6 +45,7 @@ bin/
 .DS_Store
 /docker/postgres/data/
 /docker/redis/data/dump.rdb
+/docker/nats/data/
 /docker/seaweedfs/data/
 /docker/clamav/data/
 /velocity/run/lang/messages.properties
