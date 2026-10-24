@@ -31,9 +31,9 @@
 ## 5. Velocity plugin
 
 - [x] 5.1 Load sections (shared cache, API fallback) and reload on `section.changed`; per-section sync cache, login (BAN sections) and chat (MUTE sections) enforcement, cross-proxy kick; verify unit tests for enforcement decisions with a stubbed mirror
-- [ ] 5.2 Enforce SERVER sections on `ServerPreConnectEvent` (glob match on server name) and move players on a matching server to the fallback server when a SERVER ban arrives (disconnect if none); verify unit tests for pattern matching and manual run with two backend servers
-- [ ] 5.3 Rewrite `/ban` (BAN + SERVER sections), `/mute`, add `/punish` with template-by-key parsing, section filtering, i18n errors (no null/NPE) and result messages incl. step (n/m), ELO change and permanent escalation; remove `--server`; verify parser unit tests and manual run via `:velocity:runVelocity`
-- [ ] 5.4 Rework `/unban`/`/unmute` (optional section incl. SERVER sections for unban, offline targets via resolver, `blackhole.pardon.permanent`) and add `/elo <player>`; verify manual run and i18n keys present in both `blackhole_en.properties` and `blackhole_de.properties`
+- [x] 5.2 Enforce SERVER sections on `ServerPreConnectEvent` (glob match on server name) and move players on a matching server to the fallback server when a SERVER ban arrives (disconnect if none); verify unit tests for pattern matching and manual run with two backend servers
+- [x] 5.3 Rewrite `/ban` (BAN + SERVER sections), `/mute`, add `/punish` with template-by-key parsing, section filtering, i18n errors (no null/NPE) and result messages incl. step (n/m), ELO change and permanent escalation; remove `--server`; verify parser unit tests and manual run via `:velocity:runVelocity`
+- [x] 5.4 Rework `/unban`/`/unmute` (optional section incl. SERVER sections for unban, offline targets via resolver, `blackhole.pardon.permanent`) and add `/elo <player>`; verify manual run and i18n keys present in both `blackhole_en.properties` and `blackhole_de.properties`
 
 ## 6. Documentation and integration
 
