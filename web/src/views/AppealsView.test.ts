@@ -2,6 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { chooseOption } from '../test/select'
 import { describe, expect, it, vi } from 'vitest'
 import type { Appeal } from '../api/types'
+import { timelineItem, timelinePage } from '../test/cases'
 import { evidenceItem, evidencePage } from '../test/evidence'
 import { fail, mockApi, mountWithApp, ok } from '../test/mount'
 import AppealsView from './AppealsView.vue'
@@ -27,6 +28,7 @@ function setup(overrides: Record<string, unknown> = {}) {
   const api = {
     appeals: vi.fn(async () => ok([appeal(), appeal({ identifier: 'a-2', status: 'DENIED', statement: 'Old' })])),
     reviewAppeal: vi.fn(async () => ok(appeal({ status: 'GRANTED_FULL_LIFT' }))),
+    caseTimeline: vi.fn(async () => ok(timelinePage([]))),
     evidence: vi.fn(async () => ok(evidencePage([evidenceItem({ kind: 'ANTICHEAT', payload: { check: 'Speed' } })]))),
     evidenceCount: vi.fn(async () => ok(1)),
     evidenceContent: async () => ok(new Blob(['x'], { type: 'image/png' })),
@@ -111,7 +113,7 @@ describe('AppealsView: deciding', () => {
 
     expect(api.reviewAppeal).toHaveBeenCalledWith('a-1', { decision: 'GRANTED_FULL_LIFT', note: 'first offence', newExpirationAt: undefined })
     expect(wrapper.find('tbody tr').exists(), 'the appeal left the pending queue').toBe(false)
-    expect(wrapper.get('[role="status"]').text()).toContain('Appeal decided.')
+    expect(wrapper.findAll('[role="status"]').map((node) => node.text()).join(' ')).toContain('Appeal decided.')
 
     wrapper.unmount()
   })
@@ -253,6 +255,140 @@ describe('AppealsView: evidence of the appealed punishment', () => {
 
     expect(wrapper.findAll('[role="dialog"]')).toHaveLength(1)
     expect(wrapper.text()).toContain('Decide appeal')
+
+    wrapper.unmount()
+  })
+})
+
+describe('AppealsView: unanswered player messages', () => {
+  const player = { trust: 'PLAYER' as const }
+  const staff = { oid: '00000000-0000-4000-8000-0000000000b2', name: 'Ada', trust: 'VERIFIED' as const }
+  const newest = (actor: typeof player | typeof staff) => ok(timelinePage([timelineItem({ type: 'message.added', actor })]))
+
+  it('marks a pending appeal whose newest message is from the player, and no other', async () => {
+    const caseTimeline = vi.fn(async (reference: string) => (reference === 'punishment-0001' ? newest(player) : newest(staff)))
+    const { mount } = setup({
+      appeals: vi.fn(async () => ok([appeal(), appeal({ identifier: 'a-3', punishmentIdentifier: 'punishment-0003' })])),
+      caseTimeline,
+    })
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-testid="unanswered-a-1"]').text()).toBe('Unanswered')
+    expect(wrapper.find('[data-testid="unanswered-a-3"]').exists()).toBe(false)
+    expect(caseTimeline).toHaveBeenCalledWith('punishment-0001', { types: ['message.added'], order: 'desc', size: 1 })
+
+    wrapper.unmount()
+  })
+
+  it('reads nothing for decided appeals', async () => {
+    const { api, mount } = setup({ appeals: vi.fn(async () => ok([appeal({ status: 'DENIED' })])) })
+    const { wrapper } = await mount()
+
+    expect(api.caseTimeline).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
+
+  it('shows no marker when the conversation has no message or cannot be read', async () => {
+    const caseTimeline = vi.fn().mockResolvedValueOnce(ok(timelinePage([]))).mockResolvedValueOnce(fail('down', 0, 'NETWORK'))
+    const { mount } = setup({
+      appeals: vi.fn(async () => ok([appeal(), appeal({ identifier: 'a-3', punishmentIdentifier: 'punishment-0003' })])),
+      caseTimeline,
+    })
+    const { wrapper } = await mount()
+
+    expect(wrapper.find('[data-testid^="unanswered-a"]').exists()).toBe(false)
+    expect(wrapper.findAll('tbody tr')).toHaveLength(2)
+
+    wrapper.unmount()
+  })
+
+  it('announces how many appeals wait for an answer in a polite live region', async () => {
+    const { mount } = setup({ caseTimeline: vi.fn(async () => newest(player)) })
+    const { wrapper } = await mount()
+
+    const live = wrapper.get('[data-testid="unanswered-status"]')
+    expect(live.attributes('aria-live')).toBe('polite')
+    expect(live.text()).toBe('1 appeal with an unanswered player message')
+
+    wrapper.unmount()
+  })
+
+  it('links every row to the case conversation', async () => {
+    const { mount } = setup()
+    const { wrapper, router } = await mount()
+
+    const link = wrapper.get('[data-testid="case-a-1"]')
+    expect(link.attributes('href')).toBe(router.resolve({ name: 'case', params: { reference: 'punishment-0001' } }).href)
+    expect(link.text()).toBe('Open case')
+
+    wrapper.unmount()
+  })
+})
+
+describe('AppealsView: message to the player', () => {
+  async function decide(wrapper: Wrapper, message: string) {
+    await wrapper.get('[data-testid="decide-a-1"]').trigger('click')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'DENIED')
+    await wrapper.get('[data-testid="player-message"]').setValue(message)
+    await wrapper.get('[data-testid="confirm"]').trigger('click')
+    await flushPromises()
+  }
+
+  it('sends the message next to the internal note', async () => {
+    const { api, mount } = setup()
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="decide-a-1"]').trigger('click')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'DENIED')
+    await dialogField(wrapper, 'Note').setValue('internal reason')
+    await wrapper.get('[data-testid="player-message"]').setValue('  We looked again.  ')
+    await wrapper.get('[data-testid="confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(api.reviewAppeal).toHaveBeenCalledWith('a-1', {
+      decision: 'DENIED',
+      note: 'internal reason',
+      newExpirationAt: undefined,
+      playerMessage: 'We looked again.',
+    })
+
+    wrapper.unmount()
+  })
+
+  it('leaves the message out when the field is blank', async () => {
+    const { api, mount } = setup()
+    const { wrapper } = await mount()
+
+    await decide(wrapper, '   ')
+
+    expect(api.reviewAppeal).toHaveBeenCalledWith('a-1', expect.objectContaining({ playerMessage: undefined }))
+
+    wrapper.unmount()
+  })
+
+  it('counts characters and refuses more than 2000 without deciding', async () => {
+    const { api, mount } = setup()
+    const { wrapper } = await mount()
+
+    await decide(wrapper, 'x'.repeat(2001))
+
+    expect(wrapper.get('[data-testid="player-message-counter"]').text()).toBe('2001 / 2000')
+    expect(wrapper.get('[data-testid="player-message-hint"]').text()).toBe('A message has at most 2000 characters.')
+    expect(wrapper.get('[data-testid="player-message-hint"]').attributes('role')).toBe('alert')
+    expect(api.reviewAppeal).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
+
+  it('shows the server message when the player message is rejected', async () => {
+    const reviewAppeal = vi.fn(async () => fail('a message must not contain a Ban ID', 400, 'VALIDATION'))
+    const { mount } = setup({ reviewAppeal })
+    const { wrapper } = await mount()
+
+    await decide(wrapper, 'ABCD2345')
+
+    expect(wrapper.get('[data-testid="error"]').text()).toContain('must not contain a Ban ID')
 
     wrapper.unmount()
   })

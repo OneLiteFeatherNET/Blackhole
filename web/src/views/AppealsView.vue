@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { useApi } from '../api/inject'
@@ -27,6 +27,8 @@ const appeals = useResource(() => api.appeals())
 const showAll = ref(false)
 const deciding = ref<Appeal | null>(null)
 const message = ref('')
+/** Identifiers of the pending appeals whose newest conversation entry is a message from the player. */
+const unanswered = ref<ReadonlySet<string>>(new Set())
 
 const visible = computed(() => (appeals.data.value ?? []).filter((entry) => showAll.value || PENDING.includes(entry.status)))
 
@@ -38,6 +40,25 @@ const columns = computed(() => [
   { key: 'status' as const, label: t('appeals.columns.status') },
   { key: 'identifier' as const, label: t('appeals.columns.actions') },
 ])
+
+let generation = 0
+
+// One small read per pending appeal: its newest message. A failed read just shows no marker.
+watch(
+  () => appeals.data.value,
+  async (list) => {
+    const mine = ++generation
+    const pending = (list ?? []).filter((entry) => PENDING.includes(entry.status))
+    const answers = await Promise.all(
+      pending.map(async (entry) => {
+        const result = await api.caseTimeline(entry.punishmentIdentifier, { types: ['message.added'], order: 'desc', size: 1 })
+        return result.ok && result.data.items[0]?.actor.trust === 'PLAYER' ? entry.identifier : null
+      }),
+    )
+    if (mine === generation) unanswered.value = new Set(answers.filter((id): id is string => id !== null))
+  },
+  { immediate: true },
+)
 
 async function done(text: string): Promise<void> {
   deciding.value = null
@@ -59,6 +80,7 @@ async function done(text: string): Promise<void> {
         <MdChip data-testid="filter-all" :label="t('appeals.filterAll')" :selected="showAll" @click="showAll = true" />
       </div>
 
+      <p role="status" aria-live="polite" class="sr-only" data-testid="unanswered-status">{{ unanswered.size > 0 ? t('appeals.unansweredCount', { count: unanswered.size }, unanswered.size) : '' }}</p>
       <p v-if="visible.length === 0" class="text-body-large text-on-surface-variant">{{ t('appeals.empty') }}</p>
       <MdDataTable v-else :label="t('appeals.title')" :columns="columns" :rows="visible">
         <template #cell="{ row, column }">
@@ -73,12 +95,24 @@ async function done(text: string): Promise<void> {
           </RouterLink>
           <span v-else-if="column.key === 'punishmentIdentifier'" :title="row.punishmentIdentifier">{{ row.punishmentIdentifier.slice(0, 8) }}…</span>
           <p v-else-if="column.key === 'statement'" class="max-w-xs break-words">{{ row.statement }}</p>
-          <StatusPill
-            v-else-if="column.key === 'status'"
-            :label="t(`appeals.status.${row.status}`)"
-            :tone="DECIDABLE.includes(row.status) ? 'tertiary' : 'neutral'"
-          />
+          <div v-else-if="column.key === 'status'" class="flex flex-wrap items-center gap-2">
+            <StatusPill :label="t(`appeals.status.${row.status}`)" :tone="DECIDABLE.includes(row.status) ? 'tertiary' : 'neutral'" />
+            <StatusPill
+              v-if="unanswered.has(row.identifier)"
+              :label="t('appeals.unanswered')"
+              tone="tertiary"
+              :title="t('appeals.unansweredHint')"
+              :data-testid="`unanswered-${row.identifier}`"
+            />
+          </div>
           <template v-else-if="column.key === 'identifier'">
+            <RouterLink
+              :to="`/cases/${row.punishmentIdentifier}`"
+              class="mr-2 text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+              :data-testid="`case-${row.identifier}`"
+            >
+              {{ t('appeals.openCase') }}
+            </RouterLink>
             <MdButton v-if="session.moderator && DECIDABLE.includes(row.status)" variant="outlined" :data-testid="`decide-${row.identifier}`" @click="deciding = row">
               {{ t('appeals.decide.open') }}
             </MdButton>
