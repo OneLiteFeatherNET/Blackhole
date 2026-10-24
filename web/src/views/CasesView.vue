@@ -68,17 +68,19 @@ const columns = computed(() => [
 
 <template>
   <div class="flex flex-col gap-4">
-    <div class="flex flex-wrap items-center gap-2" role="group" :aria-label="t('case.list.filter')">
-      <MdChip data-testid="status-all" :label="t('case.list.allStatuses')" :selected="status === null" @click="status = null" />
-      <MdChip v-for="value in STATUSES" :key="value" :data-testid="`status-${value}`" :label="t(`case.status.${value}`)" :selected="status === value" @click="status = value" />
-      <MdChip data-testid="filter-mine" :label="t('case.list.mine')" :selected="mine" @click="mine = !mine" />
-    </div>
-    <form class="flex max-w-md items-start gap-2" @submit.prevent="applyTag">
-      <div class="flex-1">
-        <MdTextField v-model="tagInput" :label="t('case.list.tag')" :error="tagError" data-testid="tag-filter" />
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2" role="group" :aria-label="t('case.list.filter')">
+        <MdChip data-testid="status-all" :label="t('case.list.allStatuses')" :selected="status === null" @click="status = null" />
+        <MdChip v-for="value in STATUSES" :key="value" :data-testid="`status-${value}`" :label="t(`case.status.${value}`)" :selected="status === value" @click="status = value" />
+        <MdChip data-testid="filter-mine" :label="t('case.list.mine')" :selected="mine" @click="mine = !mine" />
       </div>
-      <MdButton type="submit" variant="tonal" class="mt-2" data-testid="apply-tag">{{ t('case.list.applyTag') }}</MdButton>
-    </form>
+      <form class="flex w-full items-start gap-2 md:ml-auto md:w-auto" @submit.prevent="applyTag">
+        <div class="min-w-0 flex-1 md:w-64 md:flex-none">
+          <MdTextField v-model="tagInput" dense :label="t('case.list.tag')" :error="tagError" data-testid="tag-filter" />
+        </div>
+        <MdButton type="submit" variant="tonal" data-testid="apply-tag">{{ t('case.list.applyTag') }}</MdButton>
+      </form>
+    </div>
 
     <ResourceState :loading="cases.loading.value" :error="cases.error.value" :has-data="cases.data.value !== null" @retry="cases.reload">
       <template v-if="cases.data.value">
