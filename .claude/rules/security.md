@@ -65,3 +65,9 @@ paths:
   stored as `recorded_by_oid` and never returned; hits and fingerprints hold hashes only (see `client-rules.md`).
 - Appeal conditions (`/appeal-conditions`, `appealconditions/`): `GET` current and `GET /versions` need `VIEWER`, `POST` (a new version, append-only) needs `ADMIN`;
   `PROXY`, `DISCORD` and player sessions are denied. The saving admin's `oid` is stored as `recorded_by_oid` and never returned.
+- Chat files and shares (`/case/{reference}/...`): `POST attachments` (staff upload), `POST evidence-shares` and `POST evidence-shares/{id}/revoke` need
+  `MODERATOR`; `GET evidence-shares` and `POST evidence-shares/preview` need `VIEWER`; `PROXY`, `DISCORD` and player sessions are denied
+  (`RouteCoverageIntegrationTest`, `PermissionMatrixIntegrationTest`, `ChatApiIntegrationTest`). Uploads scan first and fail closed; a file is served only as the
+  existing `/evidence/{id}/content` does (`nosniff`, `CSP: sandbox`, `no-store`; the player routes come with the public API change). A share needs the
+  backend-checked `confirmedMinimised`; no response, event or log carries a file's bytes, storage key or hash, or the lines of a shared capture outside the
+  preview.

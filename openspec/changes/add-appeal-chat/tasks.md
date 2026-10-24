@@ -23,21 +23,21 @@ Migration versions and the client spec number are the next free ones on `main` r
 
 ## 3. Attachments and sharing (PR 3, `feat(case)`)
 
-- [ ] 3.1 Failing tests first: pipeline profiles (every type, sniffing, polyglot, EXIF/XMP removal for JPEG and WebP, WebP trailing
+- [x] 3.1 Failing tests first: pipeline profiles (every type, sniffing, polyglot, EXIF/XMP removal for JPEG and WebP, WebP trailing
   bytes and animation, PDF active content and `/Encrypt`, TXT UTF-8 and `<svg`, flagged 422, scanner down 503, size, name
   sanitising), staged items invisible, claim in `appendMessage` (idempotency, foreign id, six files, text-less message), quota,
   provenance migration (existing rows `STAFF`), count breakdown (team count and the proxy count route exclude player files; `playerSupplied` separate), redaction and player erase delete files, share rules (kinds,
   confirmation, relabelling, offsets, 20 lines, UUID/IP line, repeat, revoke twice, evidence deleted gives `UNAVAILABLE`), event
   payloads carry no content, route roles in `RouteCoverageIntegrationTest` and `PermissionMatrixIntegrationTest`, protocol markers
-- [ ] 3.2 Migration `V<next>__chat_attachments_and_shares.sql`: `evidence_item.provenance`, table `evidence_share` with the unique
+- [x] 3.2 Migration `V<next>__chat_attachments_and_shares.sql`: `evidence_item.provenance`, table `evidence_share` with the unique
   partial index and cascade
-- [ ] 3.3 `evidence/upload`: `UploadProfile`, `WebpSanitizer`, `PdfGuard`, `TextGuard`, name rule; shared `SafeFileResponse`;
+- [x] 3.3 `evidence/upload`: `UploadProfile`, `WebpSanitizer`, `PdfGuard`, `TextGuard`, name rule; shared `SafeFileResponse`;
   `blackhole.chat.attachments.*` in `application.yml` with comments
-- [ ] 3.4 `evidence/share/`: store, `EvidenceShareService`, sealed `EvidenceShareDTO`, `EvidenceShareApi`, thin controller; routes
+- [x] 3.4 `evidence/share/`: store, `EvidenceShareService`, sealed `EvidenceShareDTO`, `EvidenceShareApi`, thin controller; routes
   `POST|GET /case/{ref}/evidence-shares`, `.../preview`, `.../{shareId}/revoke`, `POST /case/{ref}/attachments`;
   `evidence.shared` and `evidence.share_revoked` in `CaseEventPayload` and `PORTAL_VISIBLE_TYPES`; `attachmentIds` on the staff
   message route; `provenance` and `playerSupplied` in the evidence DTOs and counts
-- [ ] 3.5 Update `.claude/rules` (evidence, case-timeline, events, security), regenerate the client spec; verify
+- [x] 3.5 Update `.claude/rules` (evidence, case-timeline, events, security), regenerate the client spec; verify
   `./gradlew :backend:test :client:compileJava`
 
 ## 4. Public routes, live updates (PR 4, `feat(appeal)`)

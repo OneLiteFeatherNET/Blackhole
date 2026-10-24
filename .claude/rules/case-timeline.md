@@ -164,3 +164,22 @@ Detail: `openspec/changes/add-discord-appeal-tickets/` (design decisions 2 to 8,
 - **Erasure**: `POST /case/{ref}/participants/{id}/erase` (`ADMIN`, `CaseParticipantService`) nulls the Discord id and name, sets `erased_at`, then
   `ProtocolRedaction.afterParticipantErased`; the conversation's player-side erase (`erasePlayerMessages`) erases the `PLAYER` participants too
   (`ParticipantErasure`).
+
+## Chat files and shares in the conversation
+
+Detail: `openspec/changes/add-appeal-chat/` (design decisions 2, 5, 6), `evidence.md` for the pipeline and the rules of a file.
+
+- **A message may carry files.** `MessageRequest.attachmentIds` (staff: `POST /case/{ref}/messages`; players later through `postPlayerMessage(..., attachmentIds)`)
+  names at most `ChatFiles.maxPerMessage()` (5) staged files; text is optional when there is at least one (stored as `""`, because a missing text means
+  removed). The payload entry (`MessageAttachment` with `attachmentId`) is `{kind:"file", attachmentId, name, contentType, size, width?, height?, provenance}`:
+  **no bytes, storage key or hash**. `store` checks an `Idempotency-Key` repeat first (`repeatOf`), resolves the files (400 for an unknown, used, foreign
+  or duplicate id, one answer for all), then `appendMessage` claims them; a lost race answers 409. After the write `ChatFiles.bound` records the
+  `evidence.attached` events (the reconciler would otherwise reconstruct them). The domain event `case.message_added` gains the count `attachments` only.
+- **Staff upload** `POST /case/{reference}/attachments` (`MODERATOR`, multipart, `ChatAttachmentController`): stages for scope `chat:<punishment>`; the panel
+  warns that the player sees the file once the message is posted.
+- **`evidence.shared` / `evidence.share_revoked`** are in `PORTAL_VISIBLE_TYPES` (the public reader ignores types it has no entry for, so the cursor moves);
+  `evidence.attached` is not.
+- **Protocol.** `ProtocolModel` lists a chat file as a marker line `[file: image/png, 1234 bytes, sha256 ab12cd34ef56, name.png]` (the 12 hex digits come from
+  `ProtocolSource.fileDigests`, read from the evidence row, never from the event; a deleted file shows `sha256 unavailable`) and a share as `[evidence shared:
+  chat excerpt, 5 lines]` / `[evidence shared: screenshot]` and a revoke as `[evidence share withdrawn]`. Bytes and excerpt text are never in the protocol, and the
+  hashes do not enter the source digest.

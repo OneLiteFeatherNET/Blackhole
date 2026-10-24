@@ -53,3 +53,34 @@ route only makes `FILE`.
 - Discord attachments are **not** evidence: a ticket channel's files are recorded as metadata only (name, type, size) in the message payload and vanish
   with the channel. Staff who need a file kept attach it as evidence in the panel. The ticket's protocol is the `TRANSCRIPT` evidence of the appeal
   (see `case-timeline.md`); the Discord archive and delete gates depend on it.
+
+## Chat files, provenance and sharing (appeal chat)
+
+Detail: `openspec/changes/add-appeal-chat/` (design decisions 2 to 6; specs `appeal-chat`, `punishment-evidence`, `evidence-sharing`), migration `V23__chat_attachments_and_shares.sql`.
+
+- **Provenance.** `evidence_items.provenance` (`EvidenceProvenance`: `STAFF` 0, `PLAYER` 1, append-only ordinal, default `STAFF`, so every old row is staff
+  evidence). Evidence responses carry it; the panel labels `PLAYER` items "player-supplied, unverified". **`countValid` (and so every
+  `evidenceCount`, the public punishment and `GET /punishment/{ref}/evidence/count`) counts `STAFF` items only**, so a banned player cannot change the
+  number on their own ban screen; `countPlayerSupplied` and `CountResponse.playerSupplied` are the separate figure. Never fold them together.
+- **Upload profiles.** `UploadPipeline.process(file, name, UploadProfile)`: `EVIDENCE` is the old behaviour (PNG, JPEG, MP4, WebM; WebP/PDF/text are 415 even
+  if configured), `CHAT` is PNG/JPEG (re-encoded), WebP (`WebpSanitizer`: RIFF of exact length, EXIF/XMP chunks dropped, animation 415, trailing bytes 422,
+  pixel cap from the canvas header, never decoded), PDF (`PdfGuard`: `%PDF-` in the first KiB, names such as `/JavaScript`, `/OpenAction`, `/Encrypt`
+  read with `#xx` escapes -> `FILE_ACTIVE_CONTENT`), UTF-8 text (`TextGuard`: strict, no NUL/control, not `<svg`/`<html`/`<?xml`/`<script`, tried last).
+  Scan first, then sniff, then caps; a flagged chat file is `FILE_FLAGGED` (422, **no signature name**), a down scanner 503. `FileNames.sanitizeChat` turns a
+  name with a UUID, IP or `#` + 8 Ban ID shape into `attachment.<ext>`. Config `blackhole.chat.attachments.*` (`ChatAttachmentConfig`): sizes, counts, quota.
+- **Staged, then bound.** `ChatFileService.stage` stores a pending item (`punishment_identifier` NULL, `correlation_id` `chat:<scope>`: the appeal id for a
+  player, the punishment id for staff, `ChatFiles.appealScope|caseScope`). Staged items are in no listing, count, owner listing, `GET /evidence/{id}` or
+  `/content` (`isStagedChatFile`). The message binds them inside `CaseChanges.appendMessage(draft, promote, Claim)` (one CTE, `FOR UPDATE`, all or
+  nothing, idempotent with the dedupe key); a bound file **keeps its `chat:` correlation id** so `countByCorrelationId` is the per-appeal quota
+  (`QUOTA` 409: `max-staged`, `max-files-per-appeal`). `ChatFiles` is the narrow door the case package uses; `EvidenceService`'s sweep removes unbound
+  items after `pending-ttl` like any pending item.
+- **Erasure.** Redacting a message and the player-side erase delete the files and blobs **before** they redact (`ChatFiles.deleteFiles|deletePlayerFiles`,
+  reason `ERASURE`); a blob that cannot be deleted answers 503 and redacts nothing, so a retry finishes the job. The cascade with the punishment is unchanged.
+- **Sharing** (`evidence/share/`). Evidence is never visible to a player without an active `evidence_share` row (one per appeal, item and selection; unique
+  partial index while not revoked). Only a `CHAT_LOG` (EXCERPT) or a **team** image file (FILE) is shareable; everything else, video, PDF/text and a player's
+  own file is 422 `NOT_SHAREABLE`. An excerpt stores line indexes (sorted, at most `blackhole.chat.share.max-lines`, default 20) and the appellant speaker;
+  `ExcerptRenderer` renders on read ("You", "Player 2", ..., times as offsets, plain text), so there is no second copy and a deleted item reads
+  `UNAVAILABLE`. `confirmedMinimised: true` is enforced by the backend (400 `NOT_CONFIRMED`), the confirming `oid` is `shared_by_oid`; each selected line
+  passes `PiiGuard` again (422 `PII_REJECTED`, the index only). Needs an appeal (409 `NO_APPEAL`) and a Ban ID that is not leaked (409 `FROZEN`).
+  Share and revoke are one CTE each (`JdbcEvidenceShareStore`) and the case events `evidence.shared|share_revoked` (visibility `PLAYER`, dedupe per share,
+  payload ids/kind/mode/line count/reason code, **no content**). `evidence_id` has no foreign key on purpose.
