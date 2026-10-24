@@ -12,11 +12,11 @@ Order: 1 -> 2 -> 3/4/5 (independent after 2) -> 6 -> 7 -> 8. Group 9 starts when
 ## 1. Chart skeleton and images (PR 1, `build(deploy)`)
 
 - [ ] 1.1 Failing tests first: `deploy/charts/blackhole/tests/render.sh` (plain shell, runs `helm lint` and `helm template` over `ci/*-values.yaml`, asserts with `grep`/`yq`): default values render, unknown top-level key fails the schema, `scan.enabled` without a scanner fails, every Deployment sets `runAsNonRoot`, `seccompProfile`, dropped capabilities and a memory limit
-- [ ] 1.2 `Chart.yaml` (`version`/`appVersion` with `# x-release-please-version`), `values.yaml`, `values.schema.json`, `_helpers.tpl` (names, labels, image reference with the `appVersion` fallback, env-map rendering, `secretRevision` annotation), `.helmignore`, `README.md` with the values table
-- [ ] 1.3 Add `deploy/charts/blackhole/Chart.yaml` to `release-please-config.json` `extra-files` (generic)
-- [ ] 1.4 Check which user the generated `optimizedDockerfile` image runs as; if root, add the `USER`/`runAsUser` handling (Gradle `dockerfile` customisation) so `runAsNonRoot` can be enforced; record the uid in the chart README
+- [x] 1.2 `Chart.yaml` (`version`/`appVersion` with `# x-release-please-version`), `values.yaml`, `values.schema.json`, `_helpers.tpl` (names, labels, image reference with the `appVersion` fallback, env-map rendering, `secretRevision` annotation), `.helmignore`, `README.md` with the values table
+- [x] 1.3 Add `deploy/charts/blackhole/Chart.yaml` to `release-please-config.json` `extra-files` (generic)
+- [x] 1.4 Check which user the generated `optimizedDockerfile` image runs as; if root, add the `USER`/`runAsUser` handling (Gradle `dockerfile` customisation) so `runAsNonRoot` can be enforced; record the uid in the chart README
 - [ ] 1.5 Check that `web`, `portal` (user `node`, uid 1000) and `discord` (uid 10001) images run read-only with a `/tmp` `emptyDir`; fix the Dockerfiles only if not
-- [ ] 1.6 Verify: `tests/render.sh` green with Helm 3.19+ (pin the version in the script header)
+- [x] 1.6 Verify: `tests/render.sh` green with Helm 3.19+ (pin the version in the script header)
 
 ## 2. Application workloads (PR 2, `feat(deploy)`)
 

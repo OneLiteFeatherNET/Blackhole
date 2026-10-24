@@ -1,0 +1,2 @@
+{{- /* Renders nothing; it only runs the cross-field checks of _helpers.tpl on every render. */ -}}
+{{- include "blackhole.validate" . -}}

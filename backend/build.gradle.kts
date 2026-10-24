@@ -119,6 +119,15 @@ tasks {
     }
 }
 
+// The Docker image runs as an unprivileged user (uid 10001, like the Discord bot) so the Helm chart can
+// enforce runAsNonRoot. The application files stay owned by root and are only readable by that user, so
+// the process cannot rewrite its own code. The JVM only needs /tmp to be writable; the chart mounts an
+// emptyDir there because it also runs the container with a read-only root file system.
+tasks.named<io.micronaut.gradle.docker.MicronautDockerfile>("optimizedDockerfile") {
+    instruction("RUN groupadd --system --gid 10001 blackhole && useradd --system --uid 10001 --gid blackhole --no-create-home blackhole")
+    instruction("USER 10001:10001")
+}
+
 // Integration tests (@Tag("integration")) need Docker for Testcontainers. Run the rest without it
 // via ./gradlew :backend:test -PexcludeTags=integration.
 tasks.withType<Test>().configureEach {

@@ -1,0 +1,11 @@
+# Patterns to ignore when building packages.
+.DS_Store
+.git/
+.gitignore
+*.swp
+*.bak
+*.tmp
+*~
+# Test fixtures and scripts are for CI and developers, they do not belong in the published chart.
+ci/
+tests/

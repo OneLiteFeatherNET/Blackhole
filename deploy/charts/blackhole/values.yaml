@@ -1,0 +1,521 @@
+# Default values of the Blackhole chart. Everything that has no safe default is left empty here and is
+# REQUIRED by values.schema.json for the components that are enabled: a missing value fails
+# `helm install`/`helm template` with the path of the value, it never starts a half-configured pod.
+#
+# Secret VALUES never appear in this chart. Every secret is read from a Secret that already exists in the
+# namespace and is named below (`existingSecret`); the keys inside it are fixed and listed in README.md.
+#
+# Helm replaces lists but merges maps, so everything an overlay is likely to touch is a map (`env`,
+# `envFrom`, `config`, the probes). An overlay can add one variable without restating the rest.
+
+global:
+  # prod | dev | local. Becomes the pod label logs.onelitefeather.net/env, and `local` additionally lets the
+  # portal origin be plain http.
+  environment: prod
+  image:
+    # Registry of the Blackhole images. The repository of each component is set on the component.
+    registry: harbor.onelitefeather.dev
+    # Empty means: the chart's appVersion (the release the chart was built with). The dev environment
+    # overrides it with the image tag main-<unix>-<sha7> that Flux image automation writes.
+    tag: ""
+  imagePullSecrets: []
+  podLabels: {}
+  priorityClassName: ""
+
+# --- Shared settings ------------------------------------------------------------------------------------
+
+database:
+  # Secret with the keys JDBC_URL, JDBC_USER and JDBC_PASSWORD.
+  existingSecret: ""
+  driver: org.postgresql.Driver
+
+redis:
+  # Secret with the key REDIS_URI (redis://:<password>@host:6379/<db>; the password is inside the URI).
+  existingSecret: ""
+
+# The event bus. The names of the variables come from the change switch-event-bus-to-nats and are kept in
+# this one block; the chart never renders RabbitMQ settings.
+nats:
+  url: nats://nats.nats.svc:4222
+  # Secret that holds the credentials file (key credsKey). Mounted read-only at credsMountPath and passed
+  # to the applications as NATS_CREDS_FILE.
+  existingSecret: ""
+  credsKey: nats.creds
+  credsMountPath: /etc/blackhole/nats
+  # JetStream stream settings of the backend (NATS_STREAM_REPLICAS, NATS_EVENTS_MAX_AGE, NATS_EVENTS_MAX_BYTES).
+  stream:
+    replicas: 1
+    maxAge: P7D
+    maxBytes: 2147483648
+
+s3:
+  # The evidence store (S3 compatible). Use the INTERNAL service address of the object store.
+  endpoint: ""
+  bucket: ""
+  region: us-east-1
+  pathStyle: true
+  # Secret that holds the access key and the secret key under the two keys below.
+  existingSecret: ""
+  accessKeyKey: BLACKHOLE_EVIDENCE_S3_ACCESS_KEY
+  secretKeyKey: BLACKHOLE_EVIDENCE_S3_SECRET_KEY
+
+keys:
+  # Secret with the keys BLACKHOLE_BANID_KEY and BLACKHOLE_EVASION_IP_SALT. The Ban ID key cannot be
+  # replaced after the first start: keep an offline copy (docs/kubernetes.md).
+  existingSecret: ""
+
+# Microsoft Entra ID, shared by the backend (token validation) and the Discord bot (client credentials).
+auth:
+  tenantId: ""
+  # Client id of the API app registration; also the token audience.
+  apiClientId: ""
+  # Empty: derived from the tenant id (https://login.microsoftonline.com/<tenant>/v2.0 and .../discovery/v2.0/keys).
+  issuer: ""
+  jwksUrl: ""
+  # Object ids of the Entra groups that map to the staff roles. Ids, not secrets.
+  roles:
+    admin: ""
+    moderator: ""
+    viewer: ""
+    metrics: ""
+  machineRoles:
+    proxy: Blackhole.Proxy
+    metrics: Blackhole.Metrics
+    discord: Blackhole.Discord
+  rolesClaimHuman: groups
+  rolesClaimMachine: roles
+  # Must stay false. Only the local mock OIDC server of docker-compose needs it.
+  allowInsecureIssuer: false
+
+# --- Components -----------------------------------------------------------------------------------------
+
+backend:
+  enabled: true
+  replicaCount: 2
+  image:
+    registry: ""
+    repository: onelitefeather/blackhole
+    tag: ""
+    pullPolicy: IfNotPresent
+  # Extra container environment (map). Literal values only: secret-looking names must be an object with
+  # valueFrom, the schema rejects anything else. `null` removes a key set at a lower level.
+  env:
+    JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70 -Duser.timezone=UTC"
+    LOG_JSON: "true"
+  # Whole Secrets/ConfigMaps to expose as environment: {<name>: Secret|ConfigMap}.
+  envFrom: {}
+  # Non-secret application settings rendered into the ConfigMap of the backend (BLACKHOLE_* tunables of
+  # application.yml). Takes precedence over the settings the chart derives from the typed values.
+  config: {}
+  # Raise this after a Secret changed: it is a pod annotation, so the pods are replaced on the next upgrade.
+  secretRevision: "1"
+  logFormat: json
+  evidence:
+    # Cloudflare accepts 100 MB per request, so prod keeps the video cap at 90 MiB. Must equal
+    # web.evidence.maxVideoBytes.
+    maxVideoBytes: 94371840
+    scan:
+      # Fail closed: with the scan on and no scanner, uploads are rejected. Never turn it off in prod.
+      enabled: true
+      timeout: PT30S
+  tracing:
+    enabled: true
+    endpoint: http://alloy-receiver.grafana.svc:4317
+    serviceName: blackhole
+  service:
+    port: 8080
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  pdb:
+    enabled: true
+    maxUnavailable: 1
+  startupProbe:
+    httpGet:
+      path: /health/liveness
+      port: http
+    # 10 minutes: JVM start with the tracing libraries plus a Flyway migration.
+    periodSeconds: 10
+    failureThreshold: 60
+    timeoutSeconds: 3
+  readinessProbe:
+    httpGet:
+      path: /health/readiness
+      port: http
+    periodSeconds: 10
+    failureThreshold: 3
+    timeoutSeconds: 3
+  livenessProbe:
+    httpGet:
+      path: /health/liveness
+      port: http
+    periodSeconds: 20
+    failureThreshold: 3
+    timeoutSeconds: 3
+  resources:
+    requests:
+      cpu: 250m
+      memory: 768Mi
+    limits:
+      memory: 1Gi
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
+  podLabels: {}
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  # Empty: with more than one replica the pods are spread over nodes (ScheduleAnyway).
+  topologySpreadConstraints: []
+  metrics:
+    serviceMonitor:
+      enabled: false
+      interval: 30s
+      # /prometheus needs a bearer token with the Blackhole.Metrics app role. The ServiceMonitor asks Entra
+      # for it with the client credentials in this Secret (keys below). Token URL and scope default to the
+      # tenant and API client id of `auth`.
+      oauth2:
+        existingSecret: ""
+        clientIdKey: BLACKHOLE_METRICS_CLIENT_ID
+        clientSecretKey: BLACKHOLE_METRICS_CLIENT_SECRET
+        tokenUrl: ""
+        scope: ""
+  # The separate host the Velocity proxies (outside the cluster) use. It routes only the proxy prefixes.
+  externalApi:
+    enabled: false
+    host: blackhole-api.onelitefeather.net
+    className: cloudflare-tunnel
+    # paths: one anchored regular expression with the prefixes below (cloudflared matches paths as
+    #        unanchored regular expressions, so a plain prefix would also match /public/appeal/...).
+    # nginx: an allow-list proxy in front of the backend; the tunnel then only sees `/`. Use it if the
+    #        tunnel controller ever stops passing anchored paths through.
+    mode: paths
+    prefixes:
+      - punishment
+      - profile
+      - elo
+      - section
+      - template
+      - report
+      - evasion
+      - evidence
+      - appeal
+      - staff-link
+      - player
+      - cloudnet/catalogue
+    nginx:
+      image:
+        registry: docker.io
+        repository: nginxinc/nginx-unprivileged
+        tag: "1.30.4-alpine"
+        pullPolicy: IfNotPresent
+      replicaCount: 1
+      resources:
+        requests:
+          cpu: 25m
+          memory: 32Mi
+        limits:
+          memory: 64Mi
+
+web:
+  enabled: true
+  replicaCount: 2
+  image:
+    registry: ""
+    repository: onelitefeather/blackhole-web
+    tag: ""
+    pullPolicy: IfNotPresent
+  env: {}
+  envFrom: {}
+  secretRevision: "1"
+  logFormat: plain
+  # Empty: http://<release>-backend:<backend.service.port>
+  backendUrl: ""
+  # The panel is a public OIDC client (PKCE): there is no secret.
+  oidc:
+    # Empty: derived from auth.tenantId.
+    authority: ""
+    clientId: ""
+    # api://<api client id>/access_as_user. Asking only openid/profile/email yields a Microsoft Graph token
+    # that the backend rejects.
+    apiScope: ""
+  evidence:
+    maxVideoBytes: 94371840
+    maxImageBytes: ""
+    allowedTypes: ""
+  service:
+    port: 8080
+  ingress:
+    enabled: false
+    host: blackhole.onelitefeather.net
+    className: cloudflare-tunnel
+    annotations: {}
+  httpRoute:
+    enabled: false
+    hostnames: []
+    parentRefs:
+      - name: envoy
+        namespace: eg
+        sectionName: https
+  pdb:
+    enabled: true
+    maxUnavailable: 1
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 10
+    failureThreshold: 3
+    timeoutSeconds: 3
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 20
+    failureThreshold: 3
+    timeoutSeconds: 3
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
+  podLabels: {}
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+
+portal:
+  enabled: true
+  replicaCount: 2
+  image:
+    registry: ""
+    repository: onelitefeather/blackhole-portal
+    tag: ""
+    pullPolicy: IfNotPresent
+  env: {}
+  envFrom: {}
+  secretRevision: "1"
+  logFormat: plain
+  backendUrl: ""
+  # Public origin of the portal (BLACKHOLE_PORTAL_ORIGIN). Must be https unless global.environment is local.
+  origin: ""
+  service:
+    port: 8080
+  ingress:
+    enabled: false
+    host: appeal.onelitefeather.net
+    className: cloudflare-tunnel
+    annotations: {}
+  httpRoute:
+    enabled: false
+    hostnames: []
+    parentRefs:
+      - name: envoy
+        namespace: eg
+        sectionName: https
+  pdb:
+    enabled: true
+    maxUnavailable: 1
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 10
+    failureThreshold: 3
+    timeoutSeconds: 3
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+    periodSeconds: 20
+    failureThreshold: 3
+    timeoutSeconds: 3
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
+  podLabels: {}
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+
+discord:
+  enabled: true
+  # Exactly one: two bots would post everything twice. The schema rejects any other value.
+  replicaCount: 1
+  image:
+    registry: ""
+    repository: onelitefeather/blackhole-discord
+    tag: ""
+    pullPolicy: IfNotPresent
+  env: {}
+  envFrom: {}
+  secretRevision: "1"
+  logFormat: plain
+  # Secret with the keys DISCORD_TOKEN and BLACKHOLE_DISCORD_CLIENT_SECRET.
+  existingSecret: ""
+  # Entra client of "Blackhole Discord (<env>)". The tenant is auth.tenantId.
+  clientId: ""
+  # Empty: api://<auth.apiClientId>/.default
+  authScope: ""
+  backendUrl: ""
+  panelUrl: ""
+  # Discord ids (not secrets). The first five are required.
+  ids:
+    guildId: ""
+    teamChannelId: ""
+    staffRoleId: ""
+    ticketCategoryId: ""
+    archiveCategoryId: ""
+    appealChannelId: ""
+  # Optional settings as env names: DISCORD_ARCHIVE_DELETE_AFTER, DISCORD_SYNC_INTERVAL,
+  # DISCORD_STAFF_RECONCILE_INTERVAL, DISCORD_LEAK_SCAN, DISCORD_LEAK_SCAN_CHANNELS, DISCORD_HEALTH_PORT.
+  config: {}
+  metrics:
+    podMonitor:
+      enabled: false
+      interval: 30s
+  # /healthz answers 200 only while the bot is connected to Discord, so it is used for startup and
+  # liveness. There is no Service traffic that readiness could gate.
+  startupProbe:
+    httpGet:
+      path: /healthz
+      port: health
+    periodSeconds: 10
+    failureThreshold: 60
+    timeoutSeconds: 3
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: health
+    periodSeconds: 30
+    failureThreshold: 3
+    timeoutSeconds: 3
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 384Mi
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
+  podLabels: {}
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+clamav:
+  enabled: true
+  # A scanner outside this release (host name of its Service). When set, no ClamAV workload is rendered
+  # and the backend uses this host.
+  externalHost: ""
+  externalPort: 3310
+  image:
+    registry: docker.io
+    repository: clamav/clamav
+    tag: "1.5.4"
+    pullPolicy: IfNotPresent
+  # true: start /init-unprivileged as uid 100 with a mounted clamd.conf, which is what lets the pod pass the
+  # `restricted` Pod Security level. false: the image's default root entrypoint (needs `baseline`).
+  unprivileged: true
+  limits:
+    streamMaxLength: 110M
+    maxFileSize: 110M
+    maxScanSize: 220M
+  persistence:
+    size: 2Gi
+    storageClass: ""
+  env: {}
+  secretRevision: "1"
+  startupProbe:
+    exec:
+      command: [clamdcheck.sh]
+    # 10 minutes: the first start downloads the whole signature database (about 300 MB).
+    periodSeconds: 10
+    failureThreshold: 60
+    timeoutSeconds: 10
+  readinessProbe:
+    exec:
+      command: [clamdcheck.sh]
+    periodSeconds: 30
+    failureThreshold: 3
+    timeoutSeconds: 10
+  livenessProbe:
+    exec:
+      command: [clamdcheck.sh]
+    periodSeconds: 60
+    failureThreshold: 5
+    timeoutSeconds: 10
+  resources:
+    requests:
+      cpu: 200m
+      memory: 1536Mi
+    limits:
+      memory: 3Gi
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 100
+    runAsGroup: 101
+    fsGroup: 101
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
+  podLabels: {}
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
