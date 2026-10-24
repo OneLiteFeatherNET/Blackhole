@@ -25,6 +25,13 @@ The Discord bot (`discord` module) declares its own durable queue `blackhole.dis
 events carry only ids and hashes, the bot reads display facts from `GET /discord/notifications/**`. The
 `discord-link.created|removed` events carry kind and subject, never a Discord user id.
 
+Discord ticket events: `discord.ticket_opened|channel_ready|closed|archived|deleted` are published by `TicketService` after the write (in a try/catch) with
+`{ticketId, ticketNo, appealId, punishmentIdentifier, owner (hashed), occurredAt}`: never a Discord user id, a Ban ID, a channel id or text. Nothing
+consumes them yet. The bot's own durable queue for the case events is `blackhole.discord.case` (bound to `case.message_*`, `case.ban_id_*`,
+`case.status_changed` and `appeal.resolved`, a 7 day TTL like `blackhole.discord.notify`): declared by the bot, a *hint* only. The truth is the
+per-ticket cursor read from `GET /discord/tickets/{id}/outbox`, so a lost, duplicated or reordered broker message changes nothing. Messages written in
+Discord are published as `case.message_added|edited|deleted` too (channel `DISCORD`), once per newly appended event.
+
 Publishing must stay non-blocking: `DomainEventRabbitPublisher.publish` returns a `Publisher<Void>`
 and `DomainEventPublisher` subscribes fire-and-forget. A `void` `@RabbitClient` method blocks on a
 Mono, which Reactor refuses on Netty event-loop threads (where controllers and services run).

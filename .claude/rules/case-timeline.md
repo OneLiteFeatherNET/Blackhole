@@ -2,6 +2,8 @@
 paths:
   - "backend/src/main/java/**/casetimeline/**/*.java"
   - "backend/src/main/resources/db/**/V12__punishment_case.sql"
+  - "backend/src/main/java/**/discord/**/*.java"
+  - "backend/src/main/resources/db/**/V18__discord_tickets.sql"
 ---
 
 # Punishment case timeline
@@ -115,3 +117,44 @@ network) and stored as `TRANSCRIPT` evidence.
 - **Staff routes** `GET /case/{ref}/protocol`, `GET .../protocol/{evidenceId}` (text, `VIEWED`), `GET .../protocol/{evidenceId}/download?format=text|json`
   (`DOWNLOADED`; `nosniff`, `CSP: sandbox`, `no-store`, attachment): `VIEWER` and up, `PROXY` denied (`CaseProtocolService`). Unreadable or other-case
   versions are 404. `GET /public/appeal/protocol` is the public API change's, never this stored file.
+
+## Discord tickets and ingest (`discord/ticket|ingest|leak`, `/discord/tickets`)
+
+Detail: `openspec/changes/add-discord-appeal-tickets/` (design decisions 2 to 8, 11, 12, 15), migration `V18__discord_tickets.sql`
+(`case_participant`, `discord_ticket`, `discord_message_link`). The bot holds no state; this is where it lives.
+
+- **Open** (`TicketService.open`): the Ban ID is checked like the portal login. Unknown, leaked and bound-to-another-user all answer the same
+  404 `NOT_ELIGIBLE`. An open appeal is reused, else `TicketAppeals` (`PortalTicketAppeals`) evaluates the checklist read-only and records an appeal
+  only when eligible (409 `NOT_YET` with `availableFrom`, 400 `STATEMENT_REQUIRED`). The ticket binds the Discord user as a `PLAYER`
+  participant; the same user opening again gets the same ticket. Insert and `ticket.opened` are one CTE; one live ticket per appeal and player
+  (partial unique index).
+- **State machine** (`PATCH /discord/tickets/{id}`): `PENDING_CHANNEL -> OPEN` (channel id) `-> CLOSING -> CLOSED -> ARCHIVED -> DELETED`. `ARCHIVED` needs a
+  stored protocol and a verified transcript, `DELETED` a *current* one (`AppealProtocolGenerator.isCurrent`, digest compared, nothing stored), both
+  409 `PROTOCOL_REQUIRED`; `channelGone` records a channel a person deleted (`ticket.channel_deleted` with `transcriptComplete: false`, no gate). The
+  backend enforces the gates, so a buggy bot cannot skip them.
+- **Ingest** (`DiscordIngestService`, `DiscordIngestStore`): the bot posts a message in its *current state*; one CTE per item appends the event, the
+  `discord_message_link` and advances `ingested_cursor`. New id = `message.added` (channel `DISCORD`, Discord time as `occurred_at`, key
+  `discord:<channelId>:<messageId>`); known id with a different text hash = `message.edited` (`...:e:<hash>`, a repeat of the same text appends
+  nothing); reported delete = `message.deleted` (`...:d`, `contentUnavailable` when never recorded); `complete: true` + `presentMessageIds` marks
+  recorded messages missing from the channel `detectedAtCatchup`. The case message id is derived from the ticket and the Discord id, so replays name
+  the same message. The bot never posts its own messages.
+- **Authors** (`AuthorResolver`, judged at ingest time): bound user = `PLAYER`; staff role *and* a live `STAFF` `discord_link` = `STAFF`/`VERIFIED` with the
+  linked `oid` and no participant; staff role only = `UNVERIFIED`; anyone else `EXTERNAL`/`UNVERIFIED`; another bot = `BOT`/`SYSTEM`, visibility `STAFF`.
+  Discord can never decide, reissue or change a punishment: it writes messages only.
+- **Attachments** are metadata (`MessageAttachment`: id, name, content type, size, dimensions; stickers by name; `MessageEmbed`: type and host); no
+  bytes, no CDN URL. They live in the `message.added` payload and are removed with the text by a redaction.
+- **Close** (`POST .../close`): accepted only when count and last id equal the backend tally of inbound, not deleted messages (else 409
+  `TRANSCRIPT_MISMATCH`, nothing appended). One CTE records `ticket.transcript_complete` and moves the ticket to `CLOSED`; then
+  `AppealProtocolGenerator.generate(appealId, true)` runs in the same request and the answer names `protocolVersion` (null while the appeal is undecided:
+  do not archive). `FAILED`/`TOO_LARGE` answer 503, the event stays, the call is idempotent. `POST .../protocol/ensure` regenerates (forced) and answers
+  the version; undecided or unverified is 409 `PROTOCOL_REQUIRED`.
+- **Outbox/links**: `GET .../outbox` returns `PLAYER`-visible message events after `relayed_seq` (`ADD`/`EDIT`/`DELETE`/`REDACT`), never a message
+  written in Discord, with the current text; an edit or delete is only an item for a message with a `RELAYED` link. `POST .../links` advances
+  `relayed_seq` monotonically and links the case message to the Discord one. Events are a hint; this cursor is the truth.
+- **Leak check** (`LeakCheckService`): normalises up to five candidates, a *current* Ban ID marks the case leaked through `CaseChanges.markBanIdLeaked`
+  (reason `POSTED_PUBLIC`, source `DISCORD_BOT`, `poster` = opaque participant id, `posterIsOwner`); a look-alike leaves no event, row or log line.
+- **Portal allow-list**: `ticket.opened` and `ticket.transcript_complete` (visibility `PLAYER`) are in `PORTAL_VISIBLE_TYPES`; `ticket.archived` and
+  `ticket.channel_deleted` are staff facts. The admin export includes all four `ticket.*` markers.
+- **Erasure**: `POST /case/{ref}/participants/{id}/erase` (`ADMIN`, `CaseParticipantService`) nulls the Discord id and name, sets `erased_at`, then
+  `ProtocolRedaction.afterParticipantErased`; the conversation's player-side erase (`erasePlayerMessages`) erases the `PLAYER` participants too
+  (`ParticipantErasure`).

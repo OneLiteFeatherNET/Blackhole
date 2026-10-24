@@ -34,6 +34,7 @@ public final class DiscordLinkTestBed {
                             .filter(link -> link.getKind() == args[0] && link.getSubject().equals(args[1])).findFirst())
                     .finder("findByKindAndDiscordUserId", args -> this.links.all().stream()
                             .filter(link -> link.getKind() == args[0] && link.getDiscordUserId().equals(args[1])).findFirst())
+                    .finder("findByKind", args -> this.links.all().stream().filter(link -> link.getKind() == args[0]).toList())
                     .finder("findByDiscordUserId", args -> this.links.all().stream()
                             .filter(link -> link.getDiscordUserId().equals(args[0])).toList())
                     .build();

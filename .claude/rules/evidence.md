@@ -49,3 +49,7 @@ route only makes `FILE`.
 - **Unreadable after a redaction.** `EvidenceService.get` and `content` ask `TranscriptAccess.readable` (implemented by
   `JdbcProtocolStore`); a version marked `PURGE_PENDING` or `PURGED`, or without an index row, answers 404.
 - `CaseReconciler` skips `TRANSCRIPT` (`protocol.stored` is its timeline event, not `evidence.attached`).
+
+- Discord attachments are **not** evidence: a ticket channel's files are recorded as metadata only (name, type, size) in the message payload and vanish
+  with the channel. Staff who need a file kept attach it as evidence in the panel. The ticket's protocol is the `TRANSCRIPT` evidence of the appeal
+  (see `case-timeline.md`); the Discord archive and delete gates depend on it.

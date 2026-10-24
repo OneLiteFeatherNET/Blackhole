@@ -4,6 +4,7 @@ import net.onelitefeather.blackhole.backend.ApiIntegrationTest;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -279,5 +280,76 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
 
         assertEquals(401, get("/section", sessionShapedToken).status(), "an unknown session token on a staff route");
         assertEquals(401, get("/auth/me", sessionShapedToken).status(), "even the any-token identity route");
+    }
+
+    // ---- the Discord bot: /discord/** and nothing else ----
+
+    private static final String TICKET = UUID.randomUUID().toString();
+
+    private String bot() {
+        return this.jwt.appOnly().claim("oid", UUID.randomUUID().toString()).roles(TestJwtIssuer.DISCORD_ROLE).sign();
+    }
+
+    /** Every /discord/** call of the ticket facade, as {method, path, body}. */
+    private List<Object[]> discordCalls() {
+        return List.of(
+                new Object[]{"POST", "/discord/tickets", Map.of("discordUserId", "111111111111111111", "banId", "ZZZZZZZZ", "statement", "x")},
+                new Object[]{"GET", "/discord/tickets", null},
+                new Object[]{"GET", "/discord/tickets/" + TICKET, null},
+                new Object[]{"PATCH", "/discord/tickets/" + TICKET, Map.of("frozen", true)},
+                new Object[]{"GET", "/discord/tickets/" + TICKET + "/outbox", null},
+                new Object[]{"POST", "/discord/tickets/" + TICKET + "/messages", Map.of("items", List.of())},
+                new Object[]{"POST", "/discord/tickets/" + TICKET + "/links", Map.of("seq", 1)},
+                new Object[]{"POST", "/discord/tickets/" + TICKET + "/close", Map.of("count", 0)},
+                new Object[]{"POST", "/discord/tickets/" + TICKET + "/protocol/ensure", Map.of()},
+                new Object[]{"GET", "/discord/staff-links", null},
+                new Object[]{"POST", "/discord/leak-check", Map.of("candidates", List.of("K7M29QXA"), "channelKind", "PUBLIC")});
+    }
+
+    private Reply call(Object[] call, String token) {
+        String path = (String) call[1];
+        return switch ((String) call[0]) {
+            case "GET" -> get(path, token);
+            case "PATCH" -> patch(path, call[2], token);
+            default -> post(path, call[2], token);
+        };
+    }
+
+    @Test
+    void theBotMayCallEveryDiscordRoute() {
+        for (Object[] call : discordCalls()) {
+            assertAuthorized(call(call, bot()), "the bot on " + call[0] + " " + call[1]);
+        }
+    }
+
+    @Test
+    void staffOfEveryRoleAndTheProxyAreDeniedOnEveryDiscordRoute() {
+        List<String> tokens = List.of(this.jwt.viewer(), this.jwt.moderator(), this.jwt.admin(), this.jwt.proxy(), this.jwt.metrics());
+        for (Object[] call : discordCalls()) {
+            for (String token : tokens) {
+                assertEquals(403, call(call, token).status(), call[0] + " " + call[1] + " must refuse a token that is not the bot's");
+            }
+        }
+    }
+
+    @Test
+    void theBotIsDeniedEverywhereOutsideTheDiscordFacade() {
+        String bot = bot();
+        assertEquals(403, get("/case", bot).status(), "the bot on the case list");
+        assertEquals(403, get("/case/unknown-punishment", bot).status(), "the bot on a case");
+        assertEquals(403, post("/case/unknown-punishment/messages", Map.of("text", "x"), bot).status(), "the bot on a case message");
+        assertEquals(403, post("/case/unknown-punishment/participants/" + TICKET + "/erase", Map.of(), bot).status(), "the bot on a participant erase");
+        assertEquals(403, get("/appeal", bot).status(), "the bot on the appeals");
+        assertEquals(403, post("/punishment/apply", Map.of(), bot).status(), "the bot on a punishment");
+        assertEquals(403, get("/punishment/unknown-punishment/ban-id", bot).status(), "the bot on a Ban ID reveal");
+    }
+
+    @Test
+    void onlyAnAdminMayEraseAParticipant() {
+        String path = "/case/unknown-punishment/participants/" + TICKET + "/erase";
+
+        assertEquals(403, post(path, Map.of(), this.jwt.moderator()).status(), "moderator on a participant erase");
+        assertEquals(403, post(path, Map.of(), this.jwt.proxy()).status(), "proxy on a participant erase");
+        assertAuthorized(post(path, Map.of(), this.jwt.admin()), "admin on a participant erase");
     }
 }

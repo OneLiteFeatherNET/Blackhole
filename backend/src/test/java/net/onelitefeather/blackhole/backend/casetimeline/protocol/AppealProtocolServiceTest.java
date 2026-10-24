@@ -191,6 +191,27 @@ class AppealProtocolServiceTest {
     }
 
     @Test
+    void anAppealWithoutAStoredVersionHasNoCurrentProtocol() {
+        givenDecidedAppeal(Duration.ZERO);
+
+        assertFalse(this.service.isCurrent(APPEAL), "nothing is stored yet");
+        assertEquals(0, transcripts().size(), "asking stores nothing");
+    }
+
+    @Test
+    void aStoredVersionIsCurrentUntilTheConversationChanges() {
+        givenDecidedAppeal(Duration.ZERO);
+        this.service.generate(APPEAL, true);
+
+        assertTrue(this.service.isCurrent(APPEAL), "the digest equals the source");
+
+        this.source.entries.add(ProtocolFixtures.edited(5, now(), "m-2", "We looked again.", "Reviewer Rita"));
+
+        assertFalse(this.service.isCurrent(APPEAL), "a late edit makes the stored version outdated");
+        assertEquals(1, transcripts().size(), "asking stores nothing");
+    }
+
+    @Test
     void aLateEditStoresVersionTwoAndSupersedesTheFirst() {
         givenDecidedAppeal(Duration.ZERO);
         this.service.generate(APPEAL, true);

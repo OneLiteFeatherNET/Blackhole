@@ -7,9 +7,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 /** {@link ProtocolStore} over a list, with the same rules the unique indexes of V17 enforce. */
-final class InMemoryProtocolStore implements ProtocolStore {
+public final class InMemoryProtocolStore implements ProtocolStore {
 
-    final List<ProtocolVersion> rows = new ArrayList<>();
+    public final List<ProtocolVersion> rows = new ArrayList<>();
     List<UUID> candidates = new ArrayList<>();
     /** When set, the next {@link #add} reports that a concurrent run won. */
     boolean loseNextAdd;

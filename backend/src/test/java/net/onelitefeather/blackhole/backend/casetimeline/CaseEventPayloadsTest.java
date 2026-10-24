@@ -47,7 +47,21 @@ class CaseEventPayloadsTest {
                 new CaseEventPayload.MessageRedacted("m-1", "PERSONAL_DATA"),
                 new CaseEventPayload.BanIdLeakMarked(BanIdLeakReason.POSTED_PUBLIC, BanIdLeakSource.STAFF, true),
                 new CaseEventPayload.BanIdReissued(BanIdReissueReason.NOT_PLAYERS_FAULT, 1, 2),
-                new CaseEventPayload.TranscriptExported("json", 12, false));
+                new CaseEventPayload.TranscriptExported("json", 12, false),
+                new CaseEventPayload.MessageAdded("m-4", "appeal-1", MessageAuthorKind.STAFF, "participant-2", MessageChannel.DISCORD, "see file",
+                        java.util.List.of(new MessageAttachment(MessageAttachment.FILE, "1234567890123456789", "log.txt", "text/plain", 2048L, null, null),
+                                new MessageAttachment(MessageAttachment.FILE, "1234567890123456790", "shot.png", "image/png", 4096L, 640, 480),
+                                new MessageAttachment(MessageAttachment.STICKER, null, "wave", null, null, null, null)),
+                        java.util.List.of(new MessageEmbed("link", "example.org"), new MessageEmbed("image", null))),
+                new CaseEventPayload.MessageDeleted("m-5", MessageAuthorKind.EXTERNAL, true, false),
+                new CaseEventPayload.MessageDeleted("m-6", MessageAuthorKind.PLAYER, false, true),
+                new CaseEventPayload.BanIdLeakMarked(BanIdLeakReason.POSTED_PUBLIC, BanIdLeakSource.DISCORD_BOT, true, "participant-1", true),
+                new CaseEventPayload.TicketOpened("ticket-1", "appeal-1", 42L),
+                new CaseEventPayload.TicketTranscriptComplete("ticket-1", "appeal-1", 12, "1234567890123456789", 2, 1),
+                new CaseEventPayload.TicketTranscriptComplete("ticket-2", "appeal-2", 0, null, 0, 0),
+                new CaseEventPayload.TicketArchived("ticket-1", "appeal-1", 3),
+                new CaseEventPayload.TicketChannelDeleted("ticket-1", "appeal-1", true, null),
+                new CaseEventPayload.TicketChannelDeleted("ticket-3", "appeal-3", false, 5_000L));
     }
 
     @ParameterizedTest
@@ -133,6 +147,41 @@ class CaseEventPayloadsTest {
                 new CaseEventPayload.BanIdLeakMarked(BanIdLeakReason.SHARED, BanIdLeakSource.STAFF, false).toMap());
         assertEquals(Map.of("reason", "OTHER", "fromGeneration", 3, "toGeneration", 4),
                 new CaseEventPayload.BanIdReissued(BanIdReissueReason.OTHER, 3, 4).toMap());
+    }
+
+    @Test
+    void aMessageWithoutAttachmentsStoresNoAttachmentKeys() {
+        Map<String, Object> body = new CaseEventPayload.MessageAdded("m", null, MessageAuthorKind.PLAYER, null, MessageChannel.PORTAL, "x").toMap();
+
+        assertFalse(body.containsKey("attachments"), "the portal and panel payload is unchanged");
+        assertFalse(body.containsKey("embeds"));
+    }
+
+    @Test
+    void attachmentMetadataHoldsNoUrl() {
+        MessageAttachment image = new MessageAttachment(MessageAttachment.FILE, "9", "shot.png", "image/png", 10L, 1, 2);
+
+        assertEquals(Map.of("kind", "file", "id", "9", "name", "shot.png", "contentType", "image/png", "size", 10L, "width", 1, "height", 2),
+                image.toMap(), "id, name, type, size and dimensions only");
+    }
+
+    @Test
+    void aNormalDeleteStoresNoMarkers() {
+        assertEquals(Map.of("messageId", "m", "deletedBy", "STAFF"), new CaseEventPayload.MessageDeleted("m", MessageAuthorKind.STAFF).toMap());
+    }
+
+    @Test
+    void ticketPayloadsHoldIdsAndCountsOnly() {
+        assertEquals(Map.of("ticketId", "t", "appealId", "a", "count", 3, "lastMessageId", "99", "edits", 1, "deletes", 0),
+                new CaseEventPayload.TicketTranscriptComplete("t", "a", 3, "99", 1, 0).toMap());
+    }
+
+    @Test
+    void thePortalAllowListShowsTicketOpenedAndClosedButNotArchivedOrDeleted() {
+        assertTrue(CaseEventPayload.PORTAL_VISIBLE_TYPES.contains("ticket.opened"));
+        assertTrue(CaseEventPayload.PORTAL_VISIBLE_TYPES.contains("ticket.transcript_complete"));
+        assertFalse(CaseEventPayload.PORTAL_VISIBLE_TYPES.contains("ticket.archived"));
+        assertFalse(CaseEventPayload.PORTAL_VISIBLE_TYPES.contains("ticket.channel_deleted"));
     }
 
     @Test

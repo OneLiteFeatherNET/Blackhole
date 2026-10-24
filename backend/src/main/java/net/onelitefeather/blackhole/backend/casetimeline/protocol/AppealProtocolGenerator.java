@@ -68,4 +68,11 @@ public interface AppealProtocolGenerator {
      *              verified complete and an appeal that is not decided still make no protocol
      */
     Result generate(UUID appealId, boolean force);
+
+    /**
+     * Whether the appeal has a readable stored version whose source digest equals the digest of the events as they are
+     * now. Stores nothing and never throws; {@code false} for an unknown or undecided appeal, a ticket that is not
+     * verified complete and any failure. The Discord deletion gate asks this before a channel may go.
+     */
+    boolean isCurrent(UUID appealId);
 }

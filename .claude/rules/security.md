@@ -52,3 +52,10 @@ paths:
 - Protocol routes (`/case/{reference}/protocol...`): list, open and download need `VIEWER` (they already read the thread); `PROXY` is denied. Every
   open and download writes an evidence audit entry (`VIEWED`/`DOWNLOADED`). A `TRANSCRIPT` item is also served by `/evidence/{id}` and
   `/evidence/{id}/content` (`VIEWER`) until a redaction makes it unreadable (404).
+- Discord ticket facade (`discord/` `controller/DiscordTicketController|DiscordLeakCheckController|DiscordStaffLinksController`): every `/discord/**`
+  route is `@Secured(Roles.DISCORD)` and nothing else. Staff of every role, the proxy and the metrics scraper get 403 there, and `DISCORD` is
+  allowed on no route outside `/discord/**`; `RouteCoverageIntegrationTest` (route walk) and `PermissionMatrixIntegrationTest` (calls with every
+  role) assert both directions. `POST /case/{reference}/participants/{id}/erase` is `ADMIN`. A Ban ID is accepted by `POST /discord/tickets` and
+  `/discord/leak-check` only and never echoed, logged or published; a Discord user id is returned to the bot (ticket DTO, `/discord/staff-links`),
+  stored only on `case_participant` and `discord_link`, and appears in no event, log, export or timeline payload. No app-level rate limit: the edge
+  limits `POST /discord/tickets` and `POST /discord/leak-check` globally.

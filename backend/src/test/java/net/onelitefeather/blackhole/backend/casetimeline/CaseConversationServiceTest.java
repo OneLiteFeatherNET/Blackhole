@@ -479,8 +479,9 @@ class CaseConversationServiceTest {
         }
 
         @Override
-        public LeakMarked markBanIdLeaked(String punishmentIdentifier, BanIdLeakReason reason, BanIdLeakSource source, long now, CaseActor actor) {
-            return store.markBanIdLeaked(punishmentIdentifier, reason, source, now, actor);
+        public LeakMarked markBanIdLeaked(String punishmentIdentifier, BanIdLeakReason reason, BanIdLeakSource source, long now, CaseActor actor,
+                                          Poster poster) {
+            return store.markBanIdLeaked(punishmentIdentifier, reason, source, now, actor, poster);
         }
 
         @Override

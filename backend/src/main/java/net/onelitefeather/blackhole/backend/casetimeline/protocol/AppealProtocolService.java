@@ -96,6 +96,27 @@ public class AppealProtocolService implements AppealProtocolGenerator, ProtocolR
         }
     }
 
+    @Override
+    public boolean isCurrent(UUID appealId) {
+        try {
+            ProtocolSource.Appeal appeal = this.source.appeal(appealId).orElse(null);
+            if (appeal == null || !appeal.decided()) {
+                return false;
+            }
+            ProtocolVersion active = this.store.active(appealId).orElse(null);
+            if (active == null) {
+                return false;
+            }
+            ProtocolModel model = ProtocolModel.build(appeal, this.source.appealsOf(appeal.punishmentIdentifier()),
+                    this.source.entries(appeal.punishmentIdentifier()));
+            return !model.ticketIncomplete() && active.sourceDigest().equals(model.digest());
+        } catch (RuntimeException e) {
+            failed("error");
+            LOGGER.warn("Could not check whether the protocol of appeal {} is current", appealId, e);
+            return false;
+        }
+    }
+
     private Result attempt(UUID appealId, boolean force) {
         ProtocolSource.Appeal appeal = this.source.appeal(appealId).orElse(null);
         if (appeal == null) {

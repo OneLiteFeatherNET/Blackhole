@@ -113,6 +113,23 @@ blackhole:
   discord:
     link:
       ttl: ${BLACKHOLE_DISCORD_LINK_TTL:PT10M}
+    # Discord appeal tickets (/discord/tickets, role DISCORD only). These bound what one request carries or
+    # returns; they are not rate limits (infra owns those: a global limit on POST /discord/tickets and
+    # POST /discord/leak-check at the edge, see the discord module's docs). Everything the bot needs to resume
+    # (tickets, message links, cursors) lives in the database, so these are the only backend settings.
+    ticket:
+      # Events one outbox read returns when the bot names no limit, and the most it may ask for.
+      outbox-page-size: ${BLACKHOLE_DISCORD_OUTBOX_PAGE_SIZE:50}
+      outbox-max-page-size: ${BLACKHOLE_DISCORD_OUTBOX_MAX_PAGE_SIZE:200}
+      # The most tickets one listing returns (the bot reads them at start).
+      list-limit: ${BLACKHOLE_DISCORD_LIST_LIMIT:200}
+      # The most messages (and deletes) one ingest request may carry; the bot posts history in batches of 100.
+      max-batch-items: ${BLACKHOLE_DISCORD_MAX_BATCH_ITEMS:200}
+      # A longer message text is cut to this many characters (Discord allows 4000 with Nitro). The text is
+      # stored complete otherwise: the transcript must equal the channel.
+      max-text-length: ${BLACKHOLE_DISCORD_MAX_TEXT_LENGTH:4000}
+      # The most Ban ID candidates one leak check examines.
+      max-leak-candidates: ${BLACKHOLE_DISCORD_MAX_LEAK_CANDIDATES:5}
   # Public API for the appeal portal (/public/**). Only the portal's backend-for-frontend calls it, with a
   # player session token (Authorization: Bearer) that a good Ban ID login returns once; no staff token is
   # accepted there and a player session reaches nothing outside /public. Rate limiting is NOT done here:

@@ -288,4 +288,23 @@ class DiscordLinkServiceTest {
 
         assertTrue(this.bed.allLinks().isEmpty(), "the Discord id is erased with the profile");
     }
+
+    @Test
+    void theStaffLinksListHoldsEveryLiveStaffLinkAndNoPlayerLink() {
+        this.bed.givenLink(DiscordLinkKind.STAFF, ALICE.toString(), DISCORD_1);
+        this.bed.givenLink(DiscordLinkKind.PLAYER, OWNER, DISCORD_2);
+
+        DiscordLinkDTO.StaffLinksResponse links = assertInstanceOf(DiscordLinkDTO.StaffLinksResponse.class, this.service.staffLinks());
+
+        assertEquals(List.of(DISCORD_1), links.links().stream().map(DiscordLinkDTO.StaffLink::discordUserId).toList());
+    }
+
+    @Test
+    void aStaffMemberWhoUnlinksIsNoLongerInTheStaffLinksList() {
+        this.bed.givenLink(DiscordLinkKind.STAFF, ALICE.toString(), DISCORD_1);
+
+        this.service.unlinkDiscordUser(DISCORD_1);
+
+        assertTrue(assertInstanceOf(DiscordLinkDTO.StaffLinksResponse.class, this.service.staffLinks()).links().isEmpty());
+    }
 }

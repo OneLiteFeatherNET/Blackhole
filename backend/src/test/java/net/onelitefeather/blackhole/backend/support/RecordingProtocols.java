@@ -15,6 +15,10 @@ public final class RecordingProtocols implements AppealProtocolGenerator, Protoc
     public final List<String> redacted = new ArrayList<>();
     public final List<UUID> anonymized = new ArrayList<>();
     public RuntimeException failure;
+    /** What {@link #generate} answers; a stored version 1 by default. */
+    public Result answer = new Result(Outcome.STORED, 1, UUID.randomUUID(), 1);
+    /** What {@link #isCurrent} answers. */
+    public boolean current = true;
 
     @Override
     public Result generate(UUID appealId, boolean force) {
@@ -22,7 +26,12 @@ public final class RecordingProtocols implements AppealProtocolGenerator, Protoc
         if (this.failure != null) {
             throw this.failure;
         }
-        return Result.of(Outcome.STORED);
+        return this.answer;
+    }
+
+    @Override
+    public boolean isCurrent(UUID appealId) {
+        return this.current;
     }
 
     @Override

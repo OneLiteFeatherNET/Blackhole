@@ -71,7 +71,22 @@ public interface CaseChanges {
      *
      * @return the event, or {@code null} when the Ban ID was already marked leaked
      */
-    LeakMarked markBanIdLeaked(String punishmentIdentifier, BanIdLeakReason reason, BanIdLeakSource source, long now, CaseActor actor);
+    default LeakMarked markBanIdLeaked(String punishmentIdentifier, BanIdLeakReason reason, BanIdLeakSource source, long now, CaseActor actor) {
+        return markBanIdLeaked(punishmentIdentifier, reason, source, now, actor, null);
+    }
+
+    /** Who posted a leaked Ban ID, as an opaque participant, and whether that was the ticket's bound player. */
+    record Poster(String participantId, boolean isOwner) {
+    }
+
+    /**
+     * The same, naming the poster the Discord bot saw (the event records the participant id and whether the poster is
+     * the bound player, never a Discord id).
+     *
+     * @param poster the poster, or {@code null} when staff marked the leak
+     */
+    LeakMarked markBanIdLeaked(String punishmentIdentifier, BanIdLeakReason reason, BanIdLeakSource source, long now, CaseActor actor,
+                               @io.micronaut.core.annotation.Nullable Poster poster);
 
     /**
      * Replaces the punishment's Ban ID, raises its generation, clears the leak state and appends

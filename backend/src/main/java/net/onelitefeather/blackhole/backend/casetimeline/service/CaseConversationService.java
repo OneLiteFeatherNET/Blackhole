@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.casetimeline.service;
 
 import io.micronaut.core.annotation.Nullable;
+import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.banid.service.BanIdService;
 import net.onelitefeather.blackhole.backend.casetimeline.ActorTrust;
@@ -69,10 +70,20 @@ public class CaseConversationService {
     private final Clock clock;
     private final BanIdService banIds;
     private final ProtocolRedaction protocols;
+    private final ParticipantErasure participants;
 
+    /** Without Discord participants to erase. */
     public CaseConversationService(
             PunishmentRepository punishments, CaseReader reader, CaseChanges changes, CaseEventRepository events,
             DomainEventPublisher publisher, Clock clock, BanIdService banIds, ProtocolRedaction protocols
+    ) {
+        this(punishments, reader, changes, events, publisher, clock, banIds, protocols, ParticipantErasure.NONE);
+    }
+
+    @Inject
+    public CaseConversationService(
+            PunishmentRepository punishments, CaseReader reader, CaseChanges changes, CaseEventRepository events,
+            DomainEventPublisher publisher, Clock clock, BanIdService banIds, ProtocolRedaction protocols, ParticipantErasure participants
     ) {
         this.references = new CaseReference(punishments);
         this.reader = reader;
@@ -82,6 +93,7 @@ public class CaseConversationService {
         this.clock = clock;
         this.banIds = banIds;
         this.protocols = protocols;
+        this.participants = participants;
     }
 
     /**
@@ -271,6 +283,8 @@ public class CaseConversationService {
         if (!erased.isEmpty()) {
             this.protocols.afterRedaction(punishment.getIdentifier());
         }
+        // The player's words are gone; so is who they were in the Discord channel (id and name), if there was one.
+        this.participants.erasePlayerParticipants(punishment.getIdentifier());
         return new CaseConversationDTO.EraseResponse(erased.size());
     }
 

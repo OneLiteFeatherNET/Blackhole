@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.discord.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.annotation.ReflectiveAccess;
@@ -15,8 +16,9 @@ import java.util.UUID;
 /**
  * Wire contract of the Discord account link: {@code /staff-discord-link}, {@code /player-discord-link},
  * {@code /discord/link} and {@code /admin/discord-link}. A one-time code appears in exactly one
- * response ({@link CodeResponse}), never in an error. A Discord user id is only ever accepted (by the
- * bot's confirmation); no response returns one.
+ * response ({@link CodeResponse}), never in an error. A Discord user id is accepted by the bot's
+ * confirmation and returned to the bot only by {@link StaffLinksResponse} (it needs the ids to set channel
+ * overwrites); no response to a person returns one.
  */
 @Schema(description = "A link between a staff member or player and a Discord account")
 @Serdeable
@@ -136,6 +138,25 @@ public sealed interface DiscordLinkDTO {
     @Serdeable
     @ReflectiveAccess
     record RemovedResponse(int removed) implements DiscordLinkDTO {
+    }
+
+    /**
+     * One live staff link, for the bot's channel access reconcile.
+     *
+     * @param discordUserId the linked Discord account (the bot needs it to set a channel overwrite)
+     * @param linkedAt      epoch millis
+     */
+    @Schema(name = "DiscordStaffLink")
+    @Serdeable
+    @ReflectiveAccess
+    record StaffLink(@NonNull String discordUserId, long linkedAt) {
+    }
+
+    /** Every live staff link; a staff member without one is not in the list and does not get into ticket channels. */
+    @Schema(name = "DiscordStaffLinksResponse")
+    @Serdeable
+    @ReflectiveAccess
+    record StaffLinksResponse(@JsonInclude(JsonInclude.Include.ALWAYS) @NonNull List<StaffLink> links) implements DiscordLinkDTO {
     }
 
     @Schema(name = "DiscordLinkError")
