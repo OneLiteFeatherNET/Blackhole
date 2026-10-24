@@ -49,8 +49,8 @@ public final class EvidenceTestBed {
                     .finder("findByPunishmentIdentifierOrderByCreatedAt", args -> page(item -> args[0].equals(item.getPunishmentIdentifier()), (Pageable) args[1]))
                     .finder("findByPunishmentIdentifierAndStatusOrderByCreatedAt", args -> page(
                             item -> args[0].equals(item.getPunishmentIdentifier()) && item.getStatus() == args[1], (Pageable) args[2]))
-                    .finder("countByPunishmentIdentifierAndStatus", args -> this.items.all().stream()
-                            .filter(item -> args[0].equals(item.getPunishmentIdentifier()) && item.getStatus() == args[1]).count())
+                    .finder("countByPunishmentIdentifierAndStatusAndKindNotEqual", args -> this.items.all().stream()
+                            .filter(item -> args[0].equals(item.getPunishmentIdentifier()) && item.getStatus() == args[1] && item.getKind() != args[2]).count())
                     .finder("findByPunishmentIdentifier", args -> this.items.all().stream()
                             .filter(item -> args[0].equals(item.getPunishmentIdentifier())).toList())
                     .finder("findByOwnerOrderByCreatedAt", args -> page(item -> args[0].equals(item.getOwner()), (Pageable) args[1]))
@@ -63,6 +63,7 @@ public final class EvidenceTestBed {
                     .finder("findByPunishmentIdentifierIsNullAndCreatedAtLessThan", args -> this.items.all().stream()
                             .filter(item -> item.isPending() && item.getCreatedAt() < (long) args[0]).toList())
                     .finder("existsByFileKey", args -> this.items.all().stream().anyMatch(item -> args[0].equals(item.getFileKey())))
+                    .finder("existsByJsonFileKey", args -> this.items.all().stream().anyMatch(item -> args[0].equals(item.getJsonFileKey())))
                     .build();
     public final InMemoryRepository<EvidenceAuditRepository, EvidenceAuditEntity, UUID> audit =
             InMemoryRepository.<EvidenceAuditRepository, EvidenceAuditEntity, UUID>of(EvidenceAuditRepository.class, EvidenceAuditEntity::getIdentifier)
@@ -96,7 +97,7 @@ public final class EvidenceTestBed {
     public EvidenceTestBed(Path spoolDirectory, DomainEventPublisher publisher) {
         this.service = new EvidenceService(
                 items.repository(), audit.repository(), punishments.repository(), new PayloadValidator(config),
-                new UploadPipeline(config, scanner), blobs, publisher == null ? events : publisher, this.staffLinks.service, cases.timeline, clock, spoolDirectory);
+                new UploadPipeline(config, scanner), blobs, publisher == null ? events : publisher, this.staffLinks.service, cases.timeline, id -> true, clock, spoolDirectory);
         this.sweeper = new EvidenceHousekeepingSweeper(service, items.repository(), audit.repository(), blobs, config, clock);
     }
 

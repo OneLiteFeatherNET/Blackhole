@@ -43,6 +43,7 @@ public sealed interface CaseEventPayload {
     String BAN_ID_LEAK_MARKED = "ban_id.leak_marked";
     String BAN_ID_REISSUED = "ban_id.reissued";
     String TRANSCRIPT_EXPORTED = "transcript.exported";
+    String PROTOCOL_STORED = "protocol.stored";
 
     /**
      * The only event types a player-facing reader may return, on top of the {@code PLAYER} visibility
@@ -564,6 +565,33 @@ public sealed interface CaseEventPayload {
         @Override
         public Map<String, Object> toMap() {
             return Map.of("format", format, "entries", entries, "includeNotes", includeNotes);
+        }
+    }
+
+    /**
+     * A version of an appeal's protocol was stored as evidence. Ids, a count and the digest of the source
+     * events, never content. Staff visibility, and deliberately not in {@link #PORTAL_VISIBLE_TYPES}.
+     */
+    record ProtocolStored(String appealId, int version, String evidenceId, int entries, String digest) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return PROTOCOL_STORED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("appealId", appealId);
+            map.put("version", version);
+            map.put("evidenceId", evidenceId);
+            map.put("entries", entries);
+            map.put("digest", digest);
+            return map;
         }
     }
 

@@ -14,11 +14,13 @@ import net.onelitefeather.blackhole.backend.publicapi.dto.PublicAppealDTO;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicConversationDTO;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicError;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicErrorBody;
+import net.onelitefeather.blackhole.backend.publicapi.dto.PublicProtocolDTO;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicPunishmentDTO;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicSessionDTO;
 import net.onelitefeather.blackhole.backend.publicapi.service.PlayerSessionService;
 import net.onelitefeather.blackhole.backend.publicapi.service.PublicAppealService;
 import net.onelitefeather.blackhole.backend.publicapi.service.PublicConversationService;
+import net.onelitefeather.blackhole.backend.publicapi.service.PublicProtocolService;
 import net.onelitefeather.blackhole.backend.publicapi.service.PublicPunishmentService;
 import net.onelitefeather.blackhole.backend.security.PlayerSession;
 import net.onelitefeather.blackhole.backend.security.PlayerSessionRule;
@@ -37,11 +39,14 @@ public class PublicController implements PublicApi {
     private final PublicPunishmentService punishments;
     private final PublicAppealService appeals;
     private final PublicConversationService conversation;
+    private final PublicProtocolService protocol;
 
     @Inject
     public PublicController(
-            PlayerSessionService sessions, PublicPunishmentService punishments, PublicAppealService appeals, PublicConversationService conversation
+            PlayerSessionService sessions, PublicPunishmentService punishments, PublicAppealService appeals, PublicConversationService conversation,
+            PublicProtocolService protocol
     ) {
+        this.protocol = protocol;
         this.sessions = sessions;
         this.punishments = punishments;
         this.appeals = appeals;
@@ -95,6 +100,20 @@ public class PublicController implements PublicApi {
     @Secured(PlayerSessionRule.ROLE)
     public HttpResponse<?> postMessage(PlayerSession session, @Nullable PublicConversationDTO.PostRequest request, @Nullable String idempotencyKey) {
         return respond(this.conversation.post(session, request, idempotencyKey));
+    }
+
+    @Override
+    @Secured(PlayerSessionRule.ROLE)
+    public HttpResponse<?> appealProtocol(PlayerSession session, @Nullable String format) {
+        PublicProtocolDTO result = this.protocol.read(session, format);
+        if (result instanceof PublicProtocolDTO.Download download) {
+            return noStore(HttpResponse.ok(download.content())
+                    .contentType(download.contentType())
+                    .header("X-Content-Type-Options", "nosniff")
+                    .header("Content-Security-Policy", "sandbox")
+                    .header("Content-Disposition", "attachment; filename=\"" + download.fileName() + "\""));
+        }
+        return respond(result);
     }
 
     private static HttpResponse<?> respond(Object result) {

@@ -82,3 +82,36 @@ Detail: `openspec/changes/add-appeal-portal/specs/case-conversation/spec.md` and
   `transcript.exported` (format, entry count, no content) is appended *before* the file is handed out; `no-store`, attachment.
 - **Decision message**: `AppealReviewDTO.playerMessage` is checked by `MessageRules` (422 on UUID/IP/Ban ID) before the
   decision and recorded by `CaseTimeline.decisionMessage` (id derived from the appeal, never fails the decision). `decisionNote` stays internal.
+
+## Appeal protocol (`casetimeline/protocol/`, `/case/{reference}/protocol`)
+
+Detail: `openspec/changes/add-appeal-portal/specs/appeal-protocol/spec.md`, design decision 16, migration `V17__appeal_protocol.sql`.
+The conversation of a *decided* appeal is generated from `case_event` + the `appeals` row only (`ProtocolSource`; no Discord, no
+network) and stored as `TRANSCRIPT` evidence.
+
+- **Model and renderers are pure.** `ProtocolModel.build` folds the appeal's messages (own `appealId`, or none and filed inside
+  its window up to the next appeal), edits, deletes, redactions and the `appeal.*`/`ban_id.*`/`ticket.*` markers; notes, evidence and
+  punishment events are not part of it. Only whitelisted fields are copied, so no Ban ID, Discord user id or owner hash can get in.
+  `ProtocolRenderer` writes the text and JSON (`schemaVersion` 1) deterministically (fixed field order, `\n`, UTC), so the same events give
+  byte-identical files apart from `generatedAt`. The digest is SHA-256 over `eventId|seq|type|redacted` lines in `seq` order and the JSON
+  carries the same fields, so a reader recomputes it and the entry count. Players are `Player`, verified staff their display name
+  (`Staff member (name removed)` once anonymised), others `Unverified staff`/`Bot`/`External participant`.
+- **`AppealProtocolGenerator.generate(appealId, force)`** is the internal surface (the decision, the reconciler and the later Discord
+  close route). It never throws: `Result.outcome` is `STORED`, `UNCHANGED`, `NOT_SETTLED`, `NOT_DECIDED`, `TICKET_INCOMPLETE`
+  (a `ticket.*` event without `ticket.transcript_complete`: no protocol, even forced), `NOT_FOUND`, `TOO_LARGE` or `FAILED`. `force`
+  skips only the settle delay.
+- **Versions** live in `appeal_protocol` (`ProtocolStore`, `JdbcProtocolStore`). One CTE supersedes the active version and inserts the
+  next one; partial unique indexes allow one `ACTIVE` per appeal and one readable row per `(appeal, digest)`, so concurrent runs store one.
+  Version numbers are never reused (`PURGED` rows stay as tombstones; `evidence_id` is `ON DELETE SET NULL`). Files are written before the row;
+  a run that loses the race deletes its own item. Dedupe key of `protocol.stored` is `protocol:<appealId>:v<version>`.
+- **Redaction.** `JdbcCaseEventRepository.redact` (messages) and `JdbcCaseWriter.erasePlayerMessages` embed `ProtocolStore.MARK_PURGE_PENDING`
+  as a CTE, so the versions are `PURGE_PENDING` (unreadable) in the redacting statement. `CaseConversationService` then calls
+  `ProtocolRedaction.afterRedaction`: delete the files (`ERASURE`), regenerate with markers; a failure is logged, counted in
+  `blackhole.protocol.failures{reason}` and finished by `ProtocolReconciler`. `StaffActorService.anonymize` clears the name first, then calls
+  `afterStaffAnonymized`; `afterParticipantErased` is for the Discord change.
+- **`ProtocolReconciler`** (`blackhole.protocol.reconcile-interval`, `0` = off): finishes purges, creates missing protocols, regenerates when
+  the source changed after the settle delay (`blackhole.protocol.settle-delay`, injected clock). Candidates are an over-approximation in SQL;
+  the digest decides. `blackhole.protocol.retries` bounds the look-again after a lost version race.
+- **Staff routes** `GET /case/{ref}/protocol`, `GET .../protocol/{evidenceId}` (text, `VIEWED`), `GET .../protocol/{evidenceId}/download?format=text|json`
+  (`DOWNLOADED`; `nosniff`, `CSP: sandbox`, `no-store`, attachment): `VIEWER` and up, `PROXY` denied (`CaseProtocolService`). Unreadable or other-case
+  versions are 404. `GET /public/appeal/protocol` is the public API change's, never this stored file.

@@ -403,9 +403,12 @@ for complaints and data-subject requests; the protocol is automatic, stored, ver
   most), is not part of `evidenceCount`, and is capped by `blackhole.protocol.max-bytes`.
   The evidence package exposes one narrow `GeneratedEvidenceGateway.store(...)` for it; the protocol service
   uses nothing else of the package. No blocker was found in the evidence spec.
-- **Index table** `appeal_protocol` (`V15`): `id`, `punishment_identifier` FK cascade, `appeal_id`, `version`,
-  `evidence_id` FK cascade, `source_digest`, `entry_count`, `last_seq`, `status` (`ACTIVE`, `SUPERSEDED`,
-  `PURGE_PENDING`), `created_at`; unique `(appeal_id, version)` and unique `(appeal_id, source_digest)`.
+- **Index table** `appeal_protocol` (`V17`): `id`, `punishment_identifier` FK cascade, `appeal_id`, `version`,
+  `evidence_id` FK `ON DELETE SET NULL` (a purged version stays as a `PURGED` tombstone so version numbers are never
+  reused), `source_digest`, `entry_count`, `first_seq`, `last_seq`, `status` (`ACTIVE`, `SUPERSEDED`,
+  `PURGE_PENDING`, `PURGED`), `created_at`; unique `(appeal_id, version)`, unique `(appeal_id, source_digest)` and
+  unique `(appeal_id)` while `ACTIVE` (the digest index covers readable rows only, because the regenerated version
+  after an erasure can have the same digest). The dedupe key of `protocol.stored` is `protocol:<appealId>:v<version>`.
   The timeline records `protocol.stored` (STAFF visibility, no content) and the domain event
   `case.protocol_stored` is published after the write.
 - **Idempotent and versioned:** generation computes the digest first. Same digest as the active version: no new
@@ -449,7 +452,7 @@ for complaints and data-subject requests; the protocol is automatic, stored, ver
   open appeals on one punishment.
 - `V14__player_session.sql`: `player_session` (token hash PK, punishment FK `ON DELETE CASCADE`, scope,
   csrf, times) and an index on `expires_at`.
-- `V15__appeal_protocol.sql`: `appeal_protocol` (decision 16) and the new evidence kind `TRANSCRIPT` (extend the
+- `V17__appeal_protocol.sql`: `appeal_protocol` (decision 16) and the new evidence kind `TRANSCRIPT` (extend the
   kind column check or enum of `evidence_items`, plus a second file key column for the file pair). New table and
   a widened check: no backfill; existing evidence rows are untouched.
 

@@ -21,6 +21,7 @@ import net.onelitefeather.blackhole.backend.casetimeline.MessageChannel;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageRules;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageThread;
 import net.onelitefeather.blackhole.backend.casetimeline.TranscriptRenderer;
+import net.onelitefeather.blackhole.backend.casetimeline.protocol.ProtocolRedaction;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseConversationDTO;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseErrorKind;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
@@ -67,10 +68,11 @@ public class CaseConversationService {
     private final CaseEventPublisher publisher;
     private final Clock clock;
     private final BanIdService banIds;
+    private final ProtocolRedaction protocols;
 
     public CaseConversationService(
             PunishmentRepository punishments, CaseReader reader, CaseChanges changes, CaseEventRepository events,
-            DomainEventPublisher publisher, Clock clock, BanIdService banIds
+            DomainEventPublisher publisher, Clock clock, BanIdService banIds, ProtocolRedaction protocols
     ) {
         this.references = new CaseReference(punishments);
         this.reader = reader;
@@ -79,6 +81,7 @@ public class CaseConversationService {
         this.publisher = new CaseEventPublisher(publisher);
         this.clock = clock;
         this.banIds = banIds;
+        this.protocols = protocols;
     }
 
     /**
@@ -233,6 +236,10 @@ public class CaseConversationService {
             change.put("reason", request.reason().name());
             this.publisher.publish(punishment, new CaseChanges.Appended(stored.identifier(), stored.seq(), stored.type()), by, now, change);
         }
+        if (redacted > 0 || appended) {
+            // The redaction statement made the stored protocols unreadable; delete their files and regenerate.
+            this.protocols.afterRedaction(id);
+        }
         return new CaseConversationDTO.RedactResponse(messageId.toString(), redacted);
     }
 
@@ -260,6 +267,9 @@ public class CaseConversationService {
             change.put("visibility", message.visibility());
             change.put("reason", request.reason().name());
             this.publisher.publish(punishment, message.event(), by, now, change);
+        }
+        if (!erased.isEmpty()) {
+            this.protocols.afterRedaction(punishment.getIdentifier());
         }
         return new CaseConversationDTO.EraseResponse(erased.size());
     }

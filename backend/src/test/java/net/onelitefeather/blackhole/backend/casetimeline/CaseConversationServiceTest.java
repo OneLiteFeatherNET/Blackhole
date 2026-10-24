@@ -44,8 +44,9 @@ class CaseConversationServiceTest {
                     .finder("findByShortId", args -> this.punishments.all().stream().filter(p -> args[0].equals(p.getShortId())).toList())
                     .build();
     private final BanIdTestBed banIds = new BanIdTestBed(this.punishments.repository());
+    private final net.onelitefeather.blackhole.backend.support.RecordingProtocols protocols = new net.onelitefeather.blackhole.backend.support.RecordingProtocols();
     private final CaseConversationService service = new CaseConversationService(
-            this.punishments.repository(), this.store, this.store, this.log, this.events, this.clock, this.banIds.service);
+            this.punishments.repository(), this.store, this.store, this.log, this.events, this.clock, this.banIds.service, this.protocols);
 
     private void givenPunishment() {
         this.punishments.given(new PunishmentEntity(ID, UUID.randomUUID(), OWNER, "network", false, 1L, null, new HashMap<>()), ID);
@@ -173,7 +174,7 @@ class CaseConversationServiceTest {
         this.log.failAppends(new IllegalStateException("database down"));
         CaseChanges failing = new CaseChangesFailingOnMessages();
         CaseConversationService broken = new CaseConversationService(
-                this.punishments.repository(), this.store, failing, this.log, this.events, this.clock, this.banIds.service);
+                this.punishments.repository(), this.store, failing, this.log, this.events, this.clock, this.banIds.service, this.protocols);
 
         assertThrows(IllegalStateException.class, () -> broken.postMessage(ID, text("lost?"), ALICE, null));
         assertTrue(this.events.events().isEmpty(), "nothing is announced for a message that was not stored");
@@ -274,6 +275,28 @@ class CaseConversationServiceTest {
     }
 
     @Test
+    void redactingAMessageAsksTheProtocolsToPurgeAndRegenerate() {
+        givenPunishment();
+        String id = reply(ALICE, "words to remove");
+
+        this.service.redactMessage(ID, UUID.fromString(id), new CaseConversationDTO.RedactRequest(NoteRedactionReason.OTHER), ADMIN);
+
+        assertEquals(List.of(ID), this.protocols.redacted);
+    }
+
+    @Test
+    void erasingThePlayersSideAsksTheProtocolsOnlyWhenSomethingWasErased() {
+        givenPunishment();
+        this.service.postPlayerMessage(ID, null, "player one", null);
+        CaseConversationDTO.RedactRequest request = new CaseConversationDTO.RedactRequest(NoteRedactionReason.ERASURE_REQUEST);
+
+        this.service.erasePlayerMessages(ID, request, ADMIN);
+        this.service.erasePlayerMessages(ID, request, ADMIN);
+
+        assertEquals(List.of(ID), this.protocols.redacted, "the second erase had nothing left and changed no protocol");
+    }
+
+    @Test
     void markingALeakRecordsItOnceAndNeverTheBanId() {
         givenPunishment();
         String banId = this.banIds.issueFor(ID);
@@ -356,7 +379,7 @@ class CaseConversationServiceTest {
             }
         };
         CaseConversationService service = new CaseConversationService(
-                this.punishments.repository(), this.store, this.store, this.log, broken, this.clock, this.banIds.service);
+                this.punishments.repository(), this.store, this.store, this.log, broken, this.clock, this.banIds.service, this.protocols);
 
         assertInstanceOf(CaseConversationDTO.MessageResponse.class, service.postMessage(ID, text("still stored"), ALICE, null));
         assertEquals(1, ofType("message.added").size());

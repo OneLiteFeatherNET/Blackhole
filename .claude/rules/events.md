@@ -58,3 +58,9 @@ message that moves a `WAITING` case also publishes `case.status_changed` by `SYS
 publishes nothing (the existing `appeal.resolved` announces the decision). `transcript.exported` is not published.
 
 - A filing through the public API publishes `appeal.submitted` like the staff route (ids and hashed owner, `eligible: true`); nothing in `/public` publishes or logs a Ban ID or text.
+## Protocol events
+
+`case.protocol_stored` is published by `AppealProtocolService` after a protocol version was stored: `{appealId, version, evidenceId, entries,
+punishmentIdentifier, owner, occurredAt}`, no content, in a try/catch. The timeline records `protocol.stored` (staff visibility, not in
+`PORTAL_VISIBLE_TYPES`). The stored file also announces itself as `evidence.attached` (kind `TRANSCRIPT`) and a purge as `evidence.deleted`
+(reason `ERASURE`, or `DUPLICATE` when a concurrent identical run lost). Nothing binds to these keys yet.

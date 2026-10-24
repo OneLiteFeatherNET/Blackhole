@@ -135,6 +135,29 @@ public interface PublicApi {
     HttpResponse<?> conversation(@Parameter(hidden = true) PlayerSession session, @Nullable @QueryValue Long cursor);
 
     @Operation(
+            summary = "The appeal protocol",
+            description = "The player's own copy of the conversation of a decided appeal, rendered on demand from the same player-visible "
+                    + "entries as the conversation (you, the moderation team, the system; no staff names, no staff-only entries), as a text or "
+                    + "JSON attachment. Not for a leaked Ban ID (403); 409 NOT_DECIDED while no appeal is decided.",
+            operationId = "publicAppealProtocol",
+            tags = {"Public"}
+    )
+    @ApiResponse(responseCode = "200", description = "The file (Content-Disposition: attachment, Cache-Control: no-store)",
+            content = {
+                    @Content(mediaType = "text/plain", schema = @Schema(type = "string")),
+                    @Content(mediaType = "application/json", schema = @Schema(type = "string"))
+            })
+    @ApiResponse(responseCode = "400", description = "Unknown format",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicErrorBody.class)))
+    @ApiResponse(responseCode = "401", description = "The session is missing or expired")
+    @ApiResponse(responseCode = "403", description = "The Ban ID is marked leaked",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicErrorBody.class)))
+    @ApiResponse(responseCode = "409", description = "NOT_DECIDED",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicErrorBody.class)))
+    @Get("/appeal/protocol")
+    HttpResponse<?> appealProtocol(@Parameter(hidden = true) PlayerSession session, @Nullable @QueryValue String format);
+
+    @Operation(
             summary = "Post a message",
             description = "Adds a message of 1 to 2000 characters to the open appeal. The optional Idempotency-Key makes a double submit a no-op. "
                     + "409 NO_APPEAL (nothing is open) or FROZEN (the Ban ID is marked leaked).",

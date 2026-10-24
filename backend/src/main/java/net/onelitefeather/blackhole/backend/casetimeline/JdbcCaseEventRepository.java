@@ -3,10 +3,12 @@ package net.onelitefeather.blackhole.backend.casetimeline;
 import io.micronaut.jdbc.DataSourceResolver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.casetimeline.protocol.ProtocolStore;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.UUID;
@@ -30,12 +32,24 @@ public class JdbcCaseEventRepository implements CaseEventRepository {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?)
             ON CONFLICT (dedupe_key) DO NOTHING
             """;
+    /**
+     * Redacts the versions of a note or message. When a message was redacted, the same statement marks every
+     * readable protocol version of the punishment {@code PURGE_PENDING}, so the old text is unreadable the
+     * moment it is redacted; the files are deleted and the protocol regenerated afterwards.
+     */
     private static final String REDACT = """
-            UPDATE case_event SET payload = CASE WHEN type LIKE 'note.%' THEN NULL ELSE payload - 'text' - 'attachments' - 'embeds' END,
-                                  redacted_at = ?, redacted_by_oid = ?
-            WHERE punishment_identifier = ? AND subject_id = ?
-              AND type IN ('note.added', 'note.edited', 'message.added', 'message.edited') AND redacted_at IS NULL
-            """;
+            WITH red AS (
+                UPDATE case_event SET payload = CASE WHEN type LIKE 'note.%' THEN NULL ELSE payload - 'text' - 'attachments' - 'embeds' END,
+                                      redacted_at = ?, redacted_by_oid = ?
+                WHERE punishment_identifier = ? AND subject_id = ?
+                  AND type IN ('note.added', 'note.edited', 'message.added', 'message.edited') AND redacted_at IS NULL
+                RETURNING type
+            ), purged AS (
+                {{PURGE}}
+            )
+            SELECT count(*) FROM red
+            """.replace("{{PURGE}}", ProtocolStore.MARK_PURGE_PENDING
+            + " AND EXISTS (SELECT 1 FROM red WHERE type LIKE 'message.%') RETURNING identifier");
     private static final String DELETE_EVENTS = "DELETE FROM case_event WHERE punishment_identifier = ?";
     private static final String DELETE_CASE = "DELETE FROM punishment_case WHERE punishment_identifier = ?";
 
@@ -88,7 +102,11 @@ public class JdbcCaseEventRepository implements CaseEventRepository {
             statement.setObject(2, redactedByOid);
             statement.setString(3, punishmentIdentifier);
             statement.setString(4, subjectId);
-            return statement.executeUpdate();
+            statement.setString(5, punishmentIdentifier);
+            try (ResultSet rows = statement.executeQuery()) {
+                rows.next();
+                return rows.getInt(1);
+            }
         } catch (SQLException e) {
             throw new IllegalStateException("could not redact a case note", e);
         }

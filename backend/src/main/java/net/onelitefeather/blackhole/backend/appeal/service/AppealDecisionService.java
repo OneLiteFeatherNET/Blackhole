@@ -14,6 +14,7 @@ import net.onelitefeather.blackhole.backend.banid.service.BanIdService;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseTimeline;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageRules;
+import net.onelitefeather.blackhole.backend.casetimeline.protocol.AppealProtocolGenerator;
 import net.onelitefeather.blackhole.backend.elo.EloChange;
 import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.EloScoring;
@@ -77,6 +78,7 @@ public class AppealDecisionService {
     private final StaffLinkService staffLinks;
     private final CaseTimeline caseTimeline;
     private final BanIdService banIds;
+    private final AppealProtocolGenerator protocols;
     private final Clock clock;
 
     public AppealDecisionService(
@@ -92,6 +94,7 @@ public class AppealDecisionService {
             StaffLinkService staffLinks,
             CaseTimeline caseTimeline,
             BanIdService banIds,
+            AppealProtocolGenerator protocols,
             Clock clock
     ) {
         this.appealRepository = appealRepository;
@@ -106,6 +109,7 @@ public class AppealDecisionService {
         this.staffLinks = staffLinks;
         this.caseTimeline = caseTimeline;
         this.banIds = banIds;
+        this.protocols = protocols;
         this.clock = clock;
     }
 
@@ -248,6 +252,21 @@ public class AppealDecisionService {
         }
         if (review.decision() == AppealStatus.GRANTED_FULL_LIFT) {
             this.caseTimeline.lifted(punishment, decided.getIdentifier(), decided.getRecordedByOid());
+        }
+        storeProtocol(decided);
+    }
+
+    /**
+     * Stores the protocol of the decided appeal: the conversation closes with the decision, so it is forced
+     * past the settle delay. A failure is logged and never fails the decision; the reconciler stores the
+     * protocol later. An appeal with a Discord ticket gets none here until the ticket's transcript is
+     * verified complete.
+     */
+    private void storeProtocol(AppealEntity decided) {
+        try {
+            this.protocols.generate(decided.getIdentifier(), true);
+        } catch (RuntimeException e) {
+            LOGGER.warn("Could not store the protocol of decided appeal {}; the reconciler will", decided.getIdentifier(), e);
         }
     }
 

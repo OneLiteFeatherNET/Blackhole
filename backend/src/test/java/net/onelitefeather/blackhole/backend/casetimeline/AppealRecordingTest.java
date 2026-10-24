@@ -43,9 +43,10 @@ class AppealRecordingTest {
             .build();
     private final AppealEligibilityService filing = new AppealEligibilityService(
             appeals.repository(), bed.punishments.repository(), bed.elo, bed.eloBed.sections, bed.cases.timeline, bed.eloBed.clock, 14, 3, 7);
+    private final net.onelitefeather.blackhole.backend.support.RecordingProtocols protocols = new net.onelitefeather.blackhole.backend.support.RecordingProtocols();
     private final AppealDecisionService deciding = new AppealDecisionService(
             appeals.repository(), bed.punishments.repository(), bed.profiles.repository(), bed.slots, bed.profileCache,
-            bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.evidence, bed.staffLinks.service, bed.cases.timeline, bed.banIds.service, bed.eloBed.clock);
+            bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.evidence, bed.staffLinks.service, bed.cases.timeline, bed.banIds.service, protocols, bed.eloBed.clock);
 
     /** The database assigns the identifier of a saved appeal; the in-memory repository needs a hand. */
     private static AppealEntity withIdentifier(AppealEntity appeal) {
@@ -75,6 +76,38 @@ class AppealRecordingTest {
 
     private AppealReviewResult review(AppealEntity appeal, AppealStatus decision, Long newExpiration) {
         return deciding.reviewAppeal(appeal.getIdentifier(), AppealReviewDTO.withoutMessage(decision, "a note", newExpiration), REVIEWER_ACTOR);
+    }
+
+    @Test
+    void decidingAnAppealStoresItsProtocolForcedPastTheSettleDelay() {
+        PunishmentEntity mute = givenStaffMute();
+        AppealEntity appeal = givenAppealAwaitingReview(mute);
+
+        review(appeal, AppealStatus.DENIED, null);
+
+        assertEquals(java.util.List.of(appeal.getIdentifier() + ":true"), protocols.generated);
+    }
+
+    @Test
+    void aFailingProtocolDoesNotFailTheDecision() {
+        PunishmentEntity mute = givenStaffMute();
+        AppealEntity appeal = givenAppealAwaitingReview(mute);
+        protocols.failure = new IllegalStateException("evidence store down");
+
+        AppealReviewResult result = review(appeal, AppealStatus.DENIED, null);
+
+        assertEquals(AppealStatus.DENIED, appeals.repository().findById(appeal.getIdentifier()).orElseThrow().getStatus(), "the decision stays");
+        assertInstanceOf(AppealReviewResult.class, result);
+    }
+
+    @Test
+    void anAppealThatIsNotDecidedGeneratesNoProtocol() {
+        PunishmentEntity mute = givenStaffMute();
+        AppealEntity appeal = givenAppealAwaitingReview(mute);
+
+        review(appeal, AppealStatus.ELIGIBLE_PENDING_REVIEW, null);
+
+        assertTrue(protocols.generated.isEmpty(), "an invalid decision is refused before anything is stored");
     }
 
     @Test
