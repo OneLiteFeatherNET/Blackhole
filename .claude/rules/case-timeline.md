@@ -63,7 +63,7 @@ Detail: `openspec/changes/add-appeal-portal/specs/case-conversation/spec.md` and
   `CaseEventPayload`, author as `{kind, participantId?}`). `CaseEventDraft.visibility` is set by the server: staff
   replies and player messages are `PLAYER`; a request body has no visibility, author or channel (ignored). Staff-internal
   text is a note. `CaseEventPayload.PORTAL_VISIBLE_TYPES` is the allow-list a player-facing reader applies in SQL next to
-  `visibility = 'PLAYER'`. `appeal.filed|decided` are listed but still `STAFF` visibility until the public API change shows them.
+  `visibility = 'PLAYER'`. `appeal.filed|decided` stay `STAFF` visibility; the player reader shows them as bare markers through `PORTAL_ANY_VISIBILITY_TYPES` (decision of the public API change, see `public-api.md`).
 - **Current text** is the latest added/edited version (`MessageThread`); an edit is `message.edited:<id>:<n>`, a delete
   `message.deleted:<id>`, never a row change. Only the verified author or an admin may correct a *staff* message; a
   player's words are changed only by redaction. `Idempotency-Key` (header, 1-80 of `[A-Za-z0-9._:-]`) derives the message
@@ -76,8 +76,8 @@ Detail: `openspec/changes/add-appeal-portal/specs/case-conversation/spec.md` and
   surface stays append / redact / deleteForPunishment; the player-side erase is a `CaseChanges` statement.
 - **Leak rule**: state is `punishment_case.ban_id_leaked_at|reason` (V13, no new migration). Marking is `MODERATOR`,
   idempotent (`changed: false`); reissue is `ADMIN`, replaces hash/ciphertext, raises `ban_id_gen`, clears the leak,
-  payload has generations only. Deleting the punishment's player sessions belongs in the same two statements once
-  `player_session` exists (public API change); until then there is nothing to delete.
+  payload has generations only. Both statements delete the punishment's `player_session` rows
+  (V16) in the same CTE when they change something; a repeat mark changes nothing and deletes nothing.
 - **Transcript** (`ADMIN`, `format=json|text`, `includeNotes`): `TranscriptRenderer`; redacted entries are markers;
   `transcript.exported` (format, entry count, no content) is appended *before* the file is handed out; `no-store`, attachment.
 - **Decision message**: `AppealReviewDTO.playerMessage` is checked by `MessageRules` (422 on UUID/IP/Ban ID) before the

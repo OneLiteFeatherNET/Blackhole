@@ -96,6 +96,60 @@ public class AppealEligibilityService {
         return Optional.of(saved);
     }
 
+    /** Whether a player may file now and, if not, when: the checklist's two hard gates as dates. */
+    public record Availability(State state, long availableFrom) {
+
+        /** Why filing is closed, or that it is open. */
+        public enum State {
+            /** The minimum waiting time since the punishment has not passed. */
+            NOT_YET,
+            /** Filing is open. */
+            AVAILABLE,
+            /** A repeat appeal has to wait for the cooldown after an earlier one. */
+            COOLDOWN
+        }
+    }
+
+    /**
+     * When the hard gates of {@link #evaluate} let a player file: the minimum time since the punishment and
+     * the cooldown after an earlier denied (or recorded ineligible) appeal. Read-only. It answers
+     * {@code AVAILABLE} exactly when {@link #evaluate} would say {@code eligible}.
+     */
+    public Availability availability(PunishmentEntity punishment, long now) {
+        long creationDate = ((Number) punishment.getMetaData().get(Metadata.META_DATA_KEY_CREATION_DATE)).longValue();
+        boolean isAutoTriggered = EloService.SYSTEM_ELO_SOURCE.equals(punishment.getSource());
+        long readyAt = creationDate + Duration.ofDays(isAutoTriggered ? this.minDaysAuto : this.minDaysManual).toMillis();
+        long cooldownMillis = Duration.ofDays(this.repeatAppealCooldownDays).toMillis();
+        long cooldownEnd = this.appealRepository.findByPunishmentIdentifierAndStatusIn(
+                punishment.getIdentifier(), List.of(AppealStatus.DENIED, AppealStatus.INELIGIBLE)
+        ).stream().mapToLong(prior -> prior.getCreatedAt() + cooldownMillis).max().orElse(0L);
+        long availableFrom = Math.max(readyAt, cooldownEnd);
+        if (now >= availableFrom) {
+            return new Availability(Availability.State.AVAILABLE, availableFrom);
+        }
+        return new Availability(now < readyAt ? Availability.State.NOT_YET : Availability.State.COOLDOWN, availableFrom);
+    }
+
+    /**
+     * Files an appeal for the player only if the checklist lets them: an appeal that is not eligible is
+     * <em>not</em> recorded (staff intake via {@link #submitAppeal} still records those). The database allows
+     * one open appeal per punishment, so a concurrent second filing fails on the write.
+     *
+     * @return the saved appeal, empty when the punishment does not exist or the player may not file
+     */
+    public Optional<AppealEntity> fileIfEligible(PunishmentEntity punishment, String statement) {
+        EligibilityResult eligibility = evaluate(punishment, punishment.getOwner());
+        if (!eligibility.eligible()) {
+            return Optional.empty();
+        }
+        long now = this.clock.millis();
+        AppealEntity saved = this.appealRepository.save(new AppealEntity(
+                punishment, punishment.getOwner(), statement, AppealStatus.ELIGIBLE_PENDING_REVIEW,
+                eligibility.checklistSnapshot(), now, now, new HashMap<>()));
+        this.caseTimeline.appealFiled(saved);
+        return Optional.of(saved);
+    }
+
     /**
      * Plain, read-only pass-through so {@code AppealController} never has to inject
      * {@link AppealRepository} itself just to list appeals.

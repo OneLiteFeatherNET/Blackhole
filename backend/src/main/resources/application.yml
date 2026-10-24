@@ -113,6 +113,29 @@ blackhole:
   discord:
     link:
       ttl: ${BLACKHOLE_DISCORD_LINK_TTL:PT10M}
+  # Public API for the appeal portal (/public/**). Only the portal's backend-for-frontend calls it, with a
+  # player session token (Authorization: Bearer) that a good Ban ID login returns once; no staff token is
+  # accepted there and a player session reaches nothing outside /public. Rate limiting is NOT done here:
+  # the operator limits POST /public/session (the Ban ID guess) and the write routes at the edge, see the
+  # portal deployment notes. The app only counts logins in blackhole.public.login{result}.
+  # Request bodies carry the Ban ID: nothing in this application logs them, and the HTTP server loggers
+  # stay at INFO in logback.xml - never raise them to DEBUG/TRACE on a deployment that serves /public.
+  public:
+    session:
+      # A session ends after this long without a request (sliding) ...
+      idle: ${BLACKHOLE_PUBLIC_SESSION_IDLE:PT30M}
+      # ... and this long after the login however busy it is (also the cookie lifetime of the portal).
+      absolute: ${BLACKHOLE_PUBLIC_SESSION_ABSOLUTE:PT4H}
+      # How often sessions past either limit are deleted.
+      sweep-interval: ${BLACKHOLE_PUBLIC_SESSION_SWEEP_INTERVAL:PT1M}
+    message:
+      # The longest player message and appeal statement, in characters (never above 2000, the cap of
+      # every conversation message).
+      max-length: ${BLACKHOLE_PUBLIC_MESSAGE_MAX_LENGTH:2000}
+    conversation:
+      # How many entries one GET /public/conversation page holds at most; the portal polls with the
+      # last seq it saw.
+      page-size: ${BLACKHOLE_PUBLIC_CONVERSATION_PAGE_SIZE:200}
   # Swagger / OpenAPI views are only served when enabled (default off; on in the dev profile) and
   # then need the VIEWER role.
   docs:

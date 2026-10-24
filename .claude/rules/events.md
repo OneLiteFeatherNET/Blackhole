@@ -56,3 +56,5 @@ envelope plus `messageId`, `authorKind`, `channel`, `visibility` (messages), `re
 `reason`/`fromGeneration`/`toGeneration` (reissue). Never message text, Ban IDs, file names or Discord identifiers; a player
 message that moves a `WAITING` case also publishes `case.status_changed` by `SYSTEM`. The decision message of an appeal
 publishes nothing (the existing `appeal.resolved` announces the decision). `transcript.exported` is not published.
+
+- A filing through the public API publishes `appeal.submitted` like the staff route (ids and hashed owner, `eligible: true`); nothing in `/public` publishes or logs a Ban ID or text.

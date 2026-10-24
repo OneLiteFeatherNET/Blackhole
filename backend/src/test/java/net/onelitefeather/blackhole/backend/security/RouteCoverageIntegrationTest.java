@@ -31,6 +31,9 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
     private static final Set<String> A = Set.of("ADMIN");
     private static final Set<String> D = Set.of("DISCORD");
     private static final Set<String> AUTHENTICATED = Set.of("isAuthenticated()");
+    private static final Set<String> ANONYMOUS = Set.of("isAnonymous()");
+    /** A valid player session (PlayerSessionRule.ROLE): neither a staff role nor the proxy. */
+    private static final Set<String> PLAYER = Set.of("PLAYER_SESSION");
 
     /** The matrix: route -> roles that may call it (any one of them). */
     private static final Map<String, Set<String>> MATRIX = Map.ofEntries(
@@ -132,7 +135,16 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /admin/discord-link", A),
             Map.entry("DELETE /admin/discord-link/{id}", A),
             // identity
-            Map.entry("GET /auth/me", AUTHENTICATED)
+            Map.entry("GET /auth/me", AUTHENTICATED),
+            // the player portal: the login is anonymous, everything else needs a player session
+            Map.entry("POST /public/session", ANONYMOUS),
+            Map.entry("GET /public/session", PLAYER),
+            Map.entry("DELETE /public/session", PLAYER),
+            Map.entry("GET /public/punishment", PLAYER),
+            Map.entry("POST /public/appeal", PLAYER),
+            Map.entry("GET /public/appeal", PLAYER),
+            Map.entry("GET /public/conversation", PLAYER),
+            Map.entry("POST /public/messages", PLAYER)
     );
 
     /** Routes without @Secured, protected by the intercept-url-map or public (see application.yml). */
@@ -158,10 +170,28 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
-    void noRouteIsRegisteredUnderThePublicPrefix() {
-        boolean any = this.context.getBean(Router.class).uriRoutes()
-                .anyMatch(route -> route.getUriMatchTemplate().toString().startsWith("/public"));
+    void onlyTheLoginIsAnonymousUnderThePublicPrefixAndEveryOtherRouteNeedsAPlayerSessionAndNoStaffRole() {
+        Map<String, Set<String>> publicRoutes = new TreeMap<>();
+        this.context.getBean(Router.class).uriRoutes().filter(route -> !"HEAD".equals(route.getHttpMethodName()))
+                .filter(route -> route.getUriMatchTemplate().toString().startsWith("/public"))
+                .forEach(route -> publicRoutes.put(route.getHttpMethodName() + " " + route.getUriMatchTemplate(),
+                        Set.of(route.getAnnotationMetadata().stringValues(Secured.class))));
 
-        assertTrue(!any, "/public/** is reserved for the player portal");
+        assertTrue(!publicRoutes.isEmpty(), "the portal has routes");
+        publicRoutes.forEach((route, roles) -> {
+            if (route.equals("POST /public/session")) {
+                assertEquals(ANONYMOUS, roles, route);
+            } else {
+                assertEquals(PLAYER, roles, route + " needs a player session and no staff role");
+            }
+        });
+    }
+
+    @Test
+    void noRouteOutsideThePublicPrefixAcceptsAPlayerSession() {
+        this.context.getBean(Router.class).uriRoutes().filter(route -> !"HEAD".equals(route.getHttpMethodName()))
+                .filter(route -> !route.getUriMatchTemplate().toString().startsWith("/public"))
+                .forEach(route -> assertTrue(!Set.of(route.getAnnotationMetadata().stringValues(Secured.class)).contains("PLAYER_SESSION"),
+                        route.getUriMatchTemplate() + " must not accept a player session"));
     }
 }

@@ -47,3 +47,5 @@ paths:
   `MODERATOR` (edit/delete: verified author or `Actor.admin`, staff messages only); `POST messages/{id}/redact`,
   `POST transcript/erase-player`, `POST ban-id/reissue` and `GET transcript` need `ADMIN`; `PROXY` is denied everywhere.
   No response, event or log carries a Ban ID (`CaseConversationNoLeakTest`).
+- Public API (`/public`, `publicapi/`, `security/PlayerSession*`): see `public-api.md`. It is the one place a
+  non-Entra credential is accepted; `PlayerSessionRule.ROLE` is no staff role and `BlackholeRolesFinder` never grants it.

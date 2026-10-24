@@ -9,7 +9,7 @@ import java.util.Map;
 /**
  * A {@link DomainEventPublisher} that records events instead of sending them to RabbitMQ.
  */
-public final class RecordingEventPublisher extends DomainEventPublisher {
+public class RecordingEventPublisher extends DomainEventPublisher {
 
     /** One published event. */
     public record Event(String type, Map<String, Object> payload) {

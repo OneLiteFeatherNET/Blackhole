@@ -279,6 +279,10 @@ Messages are case events. No new table.
   The portal reader filters in SQL (`visibility = 'PLAYER'` and a type allow-list: messages, appeal
   filed/decided, leak/freeze/forfeit markers, ticket open and close), never in the mapper, so a new
   type is invisible to players until it is added to the list.
+  *Decided in the public API change:* `appeal.filed` and `appeal.decided` keep `STAFF` visibility (no rewrite, no
+  migration) and the reader passes exactly those two types whatever the visibility
+  (`CaseEventPayload.PORTAL_ANY_VISIBILITY_TYPES`), turning them into bare `APPEAL_FILED` / `APPEAL_DECIDED` markers without
+  reading the payload. Every other row needs `visibility = 'PLAYER'` and a type in `PORTAL_VISIBLE_TYPES`.
 - **Edits and deletes (supported, append-only):** a new event; the original row is never changed.
   The current text is the latest `message.added`/`message.edited` of that `messageId`. Players
   cannot edit or delete in the portal (v1): a statement in an appeal must not be retractable. Edits
