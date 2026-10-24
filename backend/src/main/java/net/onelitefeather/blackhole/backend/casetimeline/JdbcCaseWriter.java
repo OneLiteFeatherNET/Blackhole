@@ -109,6 +109,8 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
                 UPDATE punishment_case SET ban_id_leaked_at = ?, ban_id_leak_reason = ?, updated_at = ?
                 WHERE punishment_identifier = ? AND ban_id_leaked_at IS NULL
                 RETURNING punishment_identifier
+            ), ended AS (
+                DELETE FROM player_session WHERE punishment_identifier = ? AND EXISTS (SELECT 1 FROM upd)
             )
             INSERT INTO case_event (identifier, punishment_identifier, type, payload_version, occurred_at, origin, actor_trust,
                                     actor_oid, recorded_by_oid, actor_source, visibility, payload)
@@ -129,6 +131,8 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
                 UPDATE punishment_case SET ban_id_leaked_at = NULL, ban_id_leak_reason = NULL, updated_at = ?
                 WHERE punishment_identifier = ? AND EXISTS (SELECT 1 FROM upd)
                 RETURNING punishment_identifier
+            ), ended AS (
+                DELETE FROM player_session WHERE punishment_identifier = ? AND EXISTS (SELECT 1 FROM upd)
             )
             INSERT INTO case_event (identifier, punishment_identifier, type, payload_version, occurred_at, origin, actor_trust,
                                     actor_oid, recorded_by_oid, actor_source, visibility, payload)
@@ -301,6 +305,7 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             statement.setString(++index, reason.name());
             statement.setLong(++index, now);
             statement.setString(++index, punishmentIdentifier);
+            statement.setString(++index, punishmentIdentifier);
             statement.setObject(++index, UUID.randomUUID());
             statement.setLong(++index, now);
             index = bindActor(statement, index, actor);
@@ -325,6 +330,7 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             statement.setBytes(++index, encrypted);
             statement.setString(++index, punishmentIdentifier);
             statement.setLong(++index, now);
+            statement.setString(++index, punishmentIdentifier);
             statement.setString(++index, punishmentIdentifier);
             statement.setObject(++index, UUID.randomUUID());
             statement.setLong(++index, now);
