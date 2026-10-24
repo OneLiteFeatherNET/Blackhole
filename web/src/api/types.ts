@@ -26,6 +26,8 @@ export type RevokeResult = Schemas['PunishmentRevokeResponse']
 export type Template = Schemas['PunishTemplateResponse']
 export type TemplateStep = Schemas['PunishTemplateStep']
 export type Section = Schemas['SectionResponse']
+/** One saved version of the appeal conditions players confirm before filing. */
+export type AppealConditions = Schemas['AppealConditions']
 /** The CloudNet tasks, groups and services the proxies report, merged; `available` is false when none is known. */
 export type CloudNetCatalogue = Schemas['CatalogueResponse']
 export type Report = Schemas['ReportDTO']

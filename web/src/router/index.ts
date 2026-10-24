@@ -10,6 +10,7 @@ import NoAccessView from '../views/NoAccessView.vue'
 import PlayerDetailView from '../views/PlayerDetailView.vue'
 import PlayersView from '../views/PlayersView.vue'
 import PunishedPlayersView from '../views/PunishedPlayersView.vue'
+import AppealConditionsView from '../views/AppealConditionsView.vue'
 import AppealsView from '../views/AppealsView.vue'
 import ReportDetailView from '../views/ReportDetailView.vue'
 import ReportsView from '../views/ReportsView.vue'
@@ -23,6 +24,7 @@ export const routes: RouteRecordRaw[] = [
   { path: '/players/:owner', name: 'player', component: PlayerDetailView, props: true, meta: { titleKey: 'nav.players' } },
   { path: '/templates', name: 'templates', component: TemplatesView, meta: { titleKey: 'nav.templates' } },
   { path: '/sections', name: 'sections', component: SectionsView, meta: { titleKey: 'nav.sections' } },
+  { path: '/appeal-conditions', name: 'appeal-conditions', component: AppealConditionsView, meta: { titleKey: 'nav.appealConditions' } },
   { path: '/reports', name: 'reports', component: ReportsView, meta: { titleKey: 'nav.reports' } },
   { path: '/reports/:id', name: 'report', component: ReportDetailView, props: true, meta: { titleKey: 'reports.detail.title' } },
   { path: '/appeals', name: 'appeals', component: AppealsView, meta: { titleKey: 'nav.appeals' } },

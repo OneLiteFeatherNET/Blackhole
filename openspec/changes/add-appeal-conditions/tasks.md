@@ -13,8 +13,8 @@
 
 ## 3. Staff panel (PR 3, `feat(web)`)
 
-- [ ] 3.1 Failing tests first: API client methods, role gating, save creates a version, 409 reload, i18n parity
-- [ ] 3.2 Types, client methods, `AppealConditionsView`, route, navigation rail entry, de/en strings; verify `npm test` and the type check
+- [x] 3.1 Failing tests first: API client methods, role gating, save creates a version, 409 reload, i18n parity
+- [x] 3.2 Types, client methods, `AppealConditionsView`, route, navigation rail entry, de/en strings; verify `npm test` and the type check
 
 ## 4. Portal (PR 4, `feat(portal)`)
 

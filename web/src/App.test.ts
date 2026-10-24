@@ -181,7 +181,7 @@ describe('App shell', () => {
 
     expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text()), 'headings').toEqual(['Moderation', 'Regelwerk', 'System'])
     expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual([
-      'Übersicht', 'Fälle', 'Einsprüche', 'Meldungen', 'Gesperrte Spieler', 'Spieler', 'Bereiche', 'Vorlagen', 'Verwaltung',
+      'Übersicht', 'Fälle', 'Einsprüche', 'Meldungen', 'Gesperrte Spieler', 'Spieler', 'Bereiche', 'Vorlagen', 'Rahmenbedingungen', 'Verwaltung',
     ])
 
     wrapper.unmount()

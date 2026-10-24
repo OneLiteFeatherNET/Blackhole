@@ -26,7 +26,8 @@
       "cases": "{n} open case | {n} open cases",
       "appeals": "{n} appeal awaiting review | {n} appeals awaiting review",
       "reports": "{n} unresolved report | {n} unresolved reports"
-    }
+    },
+    "appealConditions": "Appeal conditions"
   },
   "settings": {
     "theme": {
@@ -1249,5 +1250,17 @@
     "caseNotFound": "Nothing matches the case id {id}.",
     "ambiguous": "The id {id} matches {n} cases. Pick one.",
     "report": "Open report {id}"
+  },
+  "appealConditions": {
+    "title": "Appeal conditions",
+    "intro": "Players read these conditions and confirm them before they file an appeal. Every save creates a new version; earlier versions are kept.",
+    "current": "Current version {version}",
+    "editorLabel": "Text of the next version",
+    "format": "Plain text. A blank line starts a new paragraph, a line starting with \"- \" is a bullet.",
+    "save": "Save as new version",
+    "saved": "Saved as version {version}.",
+    "conflict": "The conditions were changed by someone else while you were editing. The current version is shown above; review it and save again.",
+    "history": "Earlier versions",
+    "versionLine": "Version {version}, {when}"
   }
 }
