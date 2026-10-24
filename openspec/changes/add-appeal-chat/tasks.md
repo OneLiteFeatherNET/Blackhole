@@ -42,17 +42,17 @@ Migration versions and the client spec number are the next free ones on `main` r
 
 ## 4. Public routes, live updates (PR 4, `feat(appeal)`)
 
-- [ ] 4.1 Failing tests first: public upload, delete, download (other punishment 404, removed message 404, revoked share 404,
+- [x] 4.1 Failing tests first: public upload, delete, download (other punishment 404, removed message 404, revoked share 404,
   `LIMITED` 403, `NO_APPEAL` 409, headers table), `attachmentIds` on `POST /public/messages`, `player_seen_seq` (monotonic),
   `LiveHub` on virtual time (ready, changed, keep-alive, replaced, expired, `Last-Event-ID`, max streams, lifetime), notifier writer
   surface test, two-hub test over a fake transport, no content in any event, route coverage
-- [ ] 4.2 Public attachment service and routes in `PublicApi`; `PlayerSessionService` checks for streams; migration
+- [x] 4.2 Public attachment service and routes in `PublicApi`; `PlayerSessionService` checks for streams; migration
   `V<next>__player_seen.sql`
-- [ ] 4.3 `live/`: `LiveHub`, `ChangeSignalTransport`, `InProcessTransport`, `CaseChangeNotifier` hooked into the case writers;
+- [x] 4.3 `live/`: `LiveHub`, `ChangeSignalTransport`, `InProcessTransport`, `CaseChangeNotifier` hooked into the case writers;
   `GET /public/conversation/events` and `GET /case/{reference}/events`
-- [ ] 4.4 Ship the in-process transport only and note in the PR that multi-replica updates wait for the NATS adapter (task 4.6);
+- [x] 4.4 Ship the in-process transport only and note in the PR that multi-replica updates wait for the NATS adapter (task 4.6);
   `blackhole.chat.live.*` config
-- [ ] 4.5 Update `.claude/rules` (public-api amended "own punishment only", events, security), regenerate the client spec; verify
+- [x] 4.5 Update `.claude/rules` (public-api amended "own punishment only", events, security), regenerate the client spec; verify
   `./gradlew :backend:test :client:compileJava`
 
 - [ ] 4.6 Follow-up PR (`feat(appeal)`), after `switch-event-bus-to-nats` (#314) has merged: failing two-replica test with a real
