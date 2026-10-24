@@ -13,6 +13,10 @@
         {
           "type": "generic",
           "path": "gradle.properties"
+        },
+        {
+          "type": "generic",
+          "path": "deploy/charts/blackhole/Chart.yaml"
         }
       ]
     }

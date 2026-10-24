@@ -1,0 +1,2009 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Blackhole chart values",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "global",
+    "backend",
+    "web",
+    "portal",
+    "discord",
+    "clamav",
+    "database",
+    "redis",
+    "nats",
+    "s3",
+    "keys",
+    "auth"
+  ],
+  "definitions": {
+    "envMap": {
+      "type": "object",
+      "description": "Environment as a map. Literal values only; a name that looks like a secret must be an object with valueFrom (secretKeyRef). RabbitMQ settings are not supported: the event bus is NATS.",
+      "propertyNames": {
+        "allOf": [
+          {
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          {
+            "not": {
+              "pattern": "^RABBITMQ_"
+            }
+          }
+        ]
+      },
+      "patternProperties": {
+        "(PASSWORD|SECRET|TOKEN|SALT|_KEY|REDIS_URI)$": {
+          "type": "object",
+          "required": [
+            "valueFrom"
+          ],
+          "description": "A secret value must come from a Secret (valueFrom.secretKeyRef), never from the values."
+        }
+      },
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "boolean",
+          "object",
+          "null"
+        ]
+      }
+    },
+    "configMap": {
+      "type": "object",
+      "description": "Non-secret settings (rendered into a ConfigMap). Secret-looking names are refused.",
+      "propertyNames": {
+        "allOf": [
+          {
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          {
+            "not": {
+              "pattern": "^RABBITMQ_"
+            }
+          },
+          {
+            "not": {
+              "pattern": "(PASSWORD|SECRET|TOKEN|SALT|_KEY|REDIS_URI)$"
+            }
+          }
+        ]
+      },
+      "additionalProperties": {
+        "type": [
+          "string",
+          "number",
+          "boolean",
+          "null"
+        ]
+      }
+    },
+    "envFrom": {
+      "type": "object",
+      "description": "Whole Secrets or ConfigMaps to expose as environment: {<name>: Secret|ConfigMap}.",
+      "additionalProperties": {
+        "enum": [
+          "Secret",
+          "ConfigMap",
+          null
+        ]
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requests": {
+          "type": "object",
+          "required": [
+            "cpu",
+            "memory"
+          ]
+        },
+        "limits": {
+          "type": "object",
+          "required": [
+            "memory"
+          ]
+        }
+      },
+      "required": [
+        "requests",
+        "limits"
+      ],
+      "description": "CPU and memory requests and a memory limit are mandatory."
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "registry": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tag": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "pullPolicy": {
+          "enum": [
+            "Always",
+            "IfNotPresent",
+            "Never"
+          ]
+        }
+      },
+      "required": [
+        "repository"
+      ]
+    },
+    "probe": {
+      "type": "object"
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "host": {
+          "type": "string"
+        },
+        "className": {
+          "type": "string"
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "enabled"
+      ]
+    },
+    "httpRoute": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "hostnames": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "parentRefs": {
+          "type": "array"
+        }
+      },
+      "required": [
+        "enabled"
+      ]
+    },
+    "pdb": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "maxUnavailable": {
+          "type": [
+            "integer",
+            "string"
+          ]
+        }
+      }
+    }
+  },
+  "properties": {
+    "global": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "environment": {
+          "enum": [
+            "prod",
+            "dev",
+            "local"
+          ]
+        },
+        "image": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "registry": {
+              "type": "string",
+              "minLength": 1
+            },
+            "tag": {
+              "type": [
+                "string",
+                "number"
+              ]
+            }
+          }
+        },
+        "imagePullSecrets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "name"
+            ]
+          }
+        },
+        "podLabels": {
+          "$ref": "#/definitions/labels"
+        },
+        "priorityClassName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "environment",
+        "image"
+      ]
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "existingSecret": {
+          "type": "string"
+        },
+        "driver": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "redis": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "existingSecret": {
+          "type": "string"
+        }
+      }
+    },
+    "nats": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "existingSecret": {
+          "type": "string"
+        },
+        "credsKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "credsMountPath": {
+          "type": "string",
+          "pattern": "^/.+"
+        },
+        "stream": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "replicas": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "maxAge": {
+              "type": "string",
+              "minLength": 1
+            },
+            "maxBytes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "s3": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "endpoint": {
+          "type": "string"
+        },
+        "bucket": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pathStyle": {
+          "type": "boolean"
+        },
+        "existingSecret": {
+          "type": "string"
+        },
+        "accessKeyKey": {
+          "type": "string",
+          "minLength": 1
+        },
+        "secretKeyKey": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "keys": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "existingSecret": {
+          "type": "string"
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tenantId": {
+          "type": "string"
+        },
+        "apiClientId": {
+          "type": "string"
+        },
+        "issuer": {
+          "type": "string"
+        },
+        "jwksUrl": {
+          "type": "string"
+        },
+        "roles": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "admin": {
+              "type": "string"
+            },
+            "moderator": {
+              "type": "string"
+            },
+            "viewer": {
+              "type": "string"
+            },
+            "metrics": {
+              "type": "string"
+            }
+          }
+        },
+        "machineRoles": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "proxy": {
+              "type": "string",
+              "minLength": 1
+            },
+            "metrics": {
+              "type": "string",
+              "minLength": 1
+            },
+            "discord": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "rolesClaimHuman": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rolesClaimMachine": {
+          "type": "string",
+          "minLength": 1
+        },
+        "allowInsecureIssuer": {
+          "type": "boolean",
+          "const": false,
+          "description": "Never true outside the local mock OIDC server."
+        }
+      }
+    },
+    "backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "replicaCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "image": {
+          "$ref": "#/definitions/image"
+        },
+        "env": {
+          "$ref": "#/definitions/envMap"
+        },
+        "envFrom": {
+          "$ref": "#/definitions/envFrom"
+        },
+        "secretRevision": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "logFormat": {
+          "enum": [
+            "json",
+            "plain"
+          ]
+        },
+        "resources": {
+          "$ref": "#/definitions/resources"
+        },
+        "podSecurityContext": {
+          "type": "object"
+        },
+        "securityContext": {
+          "type": "object"
+        },
+        "podLabels": {
+          "$ref": "#/definitions/labels"
+        },
+        "podAnnotations": {
+          "$ref": "#/definitions/labels"
+        },
+        "nodeSelector": {
+          "type": "object"
+        },
+        "tolerations": {
+          "type": "array"
+        },
+        "affinity": {
+          "type": "object"
+        },
+        "startupProbe": {
+          "$ref": "#/definitions/probe"
+        },
+        "readinessProbe": {
+          "$ref": "#/definitions/probe"
+        },
+        "livenessProbe": {
+          "$ref": "#/definitions/probe"
+        },
+        "config": {
+          "$ref": "#/definitions/configMap"
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxVideoBytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "scan": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "timeout": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        },
+        "tracing": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "endpoint": {
+              "type": "string"
+            },
+            "serviceName": {
+              "type": "string"
+            }
+          }
+        },
+        "service": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            }
+          }
+        },
+        "strategy": {
+          "type": "object"
+        },
+        "pdb": {
+          "$ref": "#/definitions/pdb"
+        },
+        "topologySpreadConstraints": {
+          "type": "array"
+        },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "serviceMonitor": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "interval": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "oauth2": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "existingSecret": {
+                      "type": "string"
+                    },
+                    "clientIdKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "clientSecretKey": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "tokenUrl": {
+                      "type": "string"
+                    },
+                    "scope": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "externalApi": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "className": {
+              "type": "string",
+              "minLength": 1
+            },
+            "mode": {
+              "enum": [
+                "paths",
+                "nginx"
+              ]
+            },
+            "prefixes": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)*$",
+                "not": {
+                  "pattern": "^(public|discord|prometheus|swagger|health|admin|auth)"
+                }
+              },
+              "description": "Path prefixes the proxy uses. The operational and anonymous routes (/public, /discord, /prometheus, /swagger, /health, /admin, /auth) can never be added."
+            },
+            "nginx": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "image": {
+                  "$ref": "#/definitions/image"
+                },
+                "replicaCount": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "resources": {
+                  "$ref": "#/definitions/resources"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "web": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "replicaCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "image": {
+          "$ref": "#/definitions/image"
+        },
+        "env": {
+          "$ref": "#/definitions/envMap"
+        },
+        "envFrom": {
+          "$ref": "#/definitions/envFrom"
+        },
+        "secretRevision": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "logFormat": {
+          "enum": [
+            "json",
+            "plain"
+          ]
+        },
+        "resources": {
+          "$ref": "#/definitions/resources"
+        },
+        "podSecurityContext": {
+          "type": "object"
+        },
+        "securityContext": {
+          "type": "object"
+        },
+        "podLabels": {
+          "$ref": "#/definitions/labels"
+        },
+        "podAnnotations": {
+          "$ref": "#/definitions/labels"
+        },
+        "nodeSelector": {
+          "type": "object"
+        },
+        "tolerations": {
+          "type": "array"
+        },
+        "affinity": {
+          "type": "object"
+        },
+        "startupProbe": {
+          "$ref": "#/definitions/probe"
+        },
+        "readinessProbe": {
+          "$ref": "#/definitions/probe"
+        },
+        "livenessProbe": {
+          "$ref": "#/definitions/probe"
+        },
+        "backendUrl": {
+          "type": "string"
+        },
+        "oidc": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "authority": {
+              "type": "string"
+            },
+            "clientId": {
+              "type": "string"
+            },
+            "apiScope": {
+              "type": "string"
+            }
+          }
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxVideoBytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maxImageBytes": {
+              "type": [
+                "integer",
+                "string"
+              ]
+            },
+            "allowedTypes": {
+              "type": "string"
+            }
+          }
+        },
+        "service": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            }
+          }
+        },
+        "ingress": {
+          "$ref": "#/definitions/ingress"
+        },
+        "httpRoute": {
+          "$ref": "#/definitions/httpRoute"
+        },
+        "pdb": {
+          "$ref": "#/definitions/pdb"
+        },
+        "topologySpreadConstraints": {
+          "type": "array"
+        }
+      }
+    },
+    "portal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "replicaCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "image": {
+          "$ref": "#/definitions/image"
+        },
+        "env": {
+          "$ref": "#/definitions/envMap"
+        },
+        "envFrom": {
+          "$ref": "#/definitions/envFrom"
+        },
+        "secretRevision": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "logFormat": {
+          "enum": [
+            "json",
+            "plain"
+          ]
+        },
+        "resources": {
+          "$ref": "#/definitions/resources"
+        },
+        "podSecurityContext": {
+          "type": "object"
+        },
+        "securityContext": {
+          "type": "object"
+        },
+        "podLabels": {
+          "$ref": "#/definitions/labels"
+        },
+        "podAnnotations": {
+          "$ref": "#/definitions/labels"
+        },
+        "nodeSelector": {
+          "type": "object"
+        },
+        "tolerations": {
+          "type": "array"
+        },
+        "affinity": {
+          "type": "object"
+        },
+        "startupProbe": {
+          "$ref": "#/definitions/probe"
+        },
+        "readinessProbe": {
+          "$ref": "#/definitions/probe"
+        },
+        "livenessProbe": {
+          "$ref": "#/definitions/probe"
+        },
+        "backendUrl": {
+          "type": "string"
+        },
+        "origin": {
+          "type": "string"
+        },
+        "service": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            }
+          }
+        },
+        "ingress": {
+          "$ref": "#/definitions/ingress"
+        },
+        "httpRoute": {
+          "$ref": "#/definitions/httpRoute"
+        },
+        "pdb": {
+          "$ref": "#/definitions/pdb"
+        },
+        "topologySpreadConstraints": {
+          "type": "array"
+        }
+      }
+    },
+    "discord": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "replicaCount": {
+          "type": "integer",
+          "const": 1,
+          "description": "Exactly one bot: two would post everything twice."
+        },
+        "image": {
+          "$ref": "#/definitions/image"
+        },
+        "env": {
+          "$ref": "#/definitions/envMap"
+        },
+        "envFrom": {
+          "$ref": "#/definitions/envFrom"
+        },
+        "secretRevision": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "logFormat": {
+          "enum": [
+            "json",
+            "plain"
+          ]
+        },
+        "resources": {
+          "$ref": "#/definitions/resources"
+        },
+        "podSecurityContext": {
+          "type": "object"
+        },
+        "securityContext": {
+          "type": "object"
+        },
+        "podLabels": {
+          "$ref": "#/definitions/labels"
+        },
+        "podAnnotations": {
+          "$ref": "#/definitions/labels"
+        },
+        "nodeSelector": {
+          "type": "object"
+        },
+        "tolerations": {
+          "type": "array"
+        },
+        "affinity": {
+          "type": "object"
+        },
+        "startupProbe": {
+          "$ref": "#/definitions/probe"
+        },
+        "readinessProbe": {
+          "$ref": "#/definitions/probe"
+        },
+        "livenessProbe": {
+          "$ref": "#/definitions/probe"
+        },
+        "existingSecret": {
+          "type": "string"
+        },
+        "clientId": {
+          "type": "string"
+        },
+        "authScope": {
+          "type": "string"
+        },
+        "backendUrl": {
+          "type": "string"
+        },
+        "panelUrl": {
+          "type": "string"
+        },
+        "ids": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "guildId": {
+              "type": "string"
+            },
+            "teamChannelId": {
+              "type": "string"
+            },
+            "staffRoleId": {
+              "type": "string"
+            },
+            "ticketCategoryId": {
+              "type": "string"
+            },
+            "archiveCategoryId": {
+              "type": "string"
+            },
+            "appealChannelId": {
+              "type": "string"
+            }
+          }
+        },
+        "config": {
+          "$ref": "#/definitions/configMap"
+        },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "podMonitor": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "interval": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "clamav": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "externalHost": {
+          "type": "string"
+        },
+        "externalPort": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "image": {
+          "$ref": "#/definitions/image"
+        },
+        "unprivileged": {
+          "type": "boolean"
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "streamMaxLength": {
+              "type": "string",
+              "minLength": 1
+            },
+            "maxFileSize": {
+              "type": "string",
+              "minLength": 1
+            },
+            "maxScanSize": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "persistence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "size": {
+              "type": "string",
+              "minLength": 1
+            },
+            "storageClass": {
+              "type": "string"
+            }
+          }
+        },
+        "env": {
+          "$ref": "#/definitions/envMap"
+        },
+        "secretRevision": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "resources": {
+          "$ref": "#/definitions/resources"
+        },
+        "podSecurityContext": {
+          "type": "object"
+        },
+        "securityContext": {
+          "type": "object"
+        },
+        "podLabels": {
+          "$ref": "#/definitions/labels"
+        },
+        "podAnnotations": {
+          "$ref": "#/definitions/labels"
+        },
+        "nodeSelector": {
+          "type": "object"
+        },
+        "tolerations": {
+          "type": "array"
+        },
+        "affinity": {
+          "type": "object"
+        },
+        "startupProbe": {
+          "$ref": "#/definitions/probe"
+        },
+        "readinessProbe": {
+          "$ref": "#/definitions/probe"
+        },
+        "livenessProbe": {
+          "$ref": "#/definitions/probe"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "backend": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          }
+        },
+        "required": [
+          "backend"
+        ]
+      },
+      "then": {
+        "properties": {
+          "database": {
+            "required": [
+              "existingSecret"
+            ],
+            "properties": {
+              "existingSecret": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "redis": {
+            "required": [
+              "existingSecret"
+            ],
+            "properties": {
+              "existingSecret": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "keys": {
+            "required": [
+              "existingSecret"
+            ],
+            "properties": {
+              "existingSecret": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "nats": {
+            "required": [
+              "url",
+              "existingSecret"
+            ],
+            "properties": {
+              "url": {
+                "type": "string",
+                "minLength": 1
+              },
+              "existingSecret": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "s3": {
+            "required": [
+              "endpoint",
+              "bucket",
+              "existingSecret"
+            ],
+            "properties": {
+              "endpoint": {
+                "type": "string",
+                "minLength": 1
+              },
+              "bucket": {
+                "type": "string",
+                "minLength": 1
+              },
+              "existingSecret": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "auth": {
+            "required": [
+              "tenantId",
+              "apiClientId",
+              "roles"
+            ],
+            "properties": {
+              "tenantId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "apiClientId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "roles": {
+                "required": [
+                  "admin",
+                  "moderator",
+                  "viewer",
+                  "metrics"
+                ],
+                "properties": {
+                  "admin": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "moderator": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "viewer": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "metrics": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "database",
+          "redis",
+          "keys",
+          "nats",
+          "s3",
+          "auth"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "discord": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          }
+        },
+        "required": [
+          "discord"
+        ]
+      },
+      "then": {
+        "properties": {
+          "nats": {
+            "required": [
+              "url",
+              "existingSecret"
+            ],
+            "properties": {
+              "url": {
+                "type": "string",
+                "minLength": 1
+              },
+              "existingSecret": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "auth": {
+            "required": [
+              "tenantId",
+              "apiClientId"
+            ],
+            "properties": {
+              "tenantId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "apiClientId": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "discord": {
+            "required": [
+              "existingSecret",
+              "clientId",
+              "panelUrl",
+              "ids"
+            ],
+            "properties": {
+              "existingSecret": {
+                "type": "string",
+                "minLength": 1
+              },
+              "clientId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "panelUrl": {
+                "type": "string",
+                "minLength": 1
+              },
+              "ids": {
+                "required": [
+                  "guildId",
+                  "teamChannelId",
+                  "staffRoleId",
+                  "ticketCategoryId",
+                  "archiveCategoryId"
+                ],
+                "properties": {
+                  "guildId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "teamChannelId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "staffRoleId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "ticketCategoryId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "archiveCategoryId": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "nats",
+          "auth",
+          "discord"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "web": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          }
+        },
+        "required": [
+          "web"
+        ]
+      },
+      "then": {
+        "properties": {
+          "web": {
+            "required": [
+              "oidc"
+            ],
+            "properties": {
+              "oidc": {
+                "required": [
+                  "clientId",
+                  "apiScope"
+                ],
+                "properties": {
+                  "clientId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "apiScope": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "required": [
+          "web"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "portal": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          }
+        },
+        "required": [
+          "portal"
+        ]
+      },
+      "then": {
+        "properties": {
+          "portal": {
+            "required": [
+              "origin"
+            ],
+            "properties": {
+              "origin": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "required": [
+          "portal"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "backend": {
+            "properties": {
+              "enabled": {
+                "const": true
+              },
+              "evidence": {
+                "properties": {
+                  "scan": {
+                    "properties": {
+                      "enabled": {
+                        "const": true
+                      }
+                    },
+                    "required": [
+                      "enabled"
+                    ]
+                  }
+                },
+                "required": [
+                  "scan"
+                ]
+              }
+            },
+            "required": [
+              "enabled",
+              "evidence"
+            ]
+          }
+        },
+        "required": [
+          "backend"
+        ]
+      },
+      "then": {
+        "properties": {
+          "clamav": {
+            "anyOf": [
+              {
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "enabled"
+                ]
+              },
+              {
+                "properties": {
+                  "externalHost": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "externalHost"
+                ]
+              }
+            ],
+            "description": "The evidence virus scan is enabled but no scanner is configured: set clamav.enabled=true or clamav.externalHost."
+          }
+        },
+        "required": [
+          "clamav"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "web": {
+            "properties": {
+              "ingress": {
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "enabled"
+                ]
+              }
+            },
+            "required": [
+              "ingress"
+            ]
+          }
+        },
+        "required": [
+          "web"
+        ]
+      },
+      "then": {
+        "properties": {
+          "web": {
+            "properties": {
+              "httpRoute": {
+                "properties": {
+                  "enabled": {
+                    "const": false,
+                    "description": "web: use either ingress or httpRoute, never both."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "portal": {
+            "properties": {
+              "ingress": {
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "enabled"
+                ]
+              }
+            },
+            "required": [
+              "ingress"
+            ]
+          }
+        },
+        "required": [
+          "portal"
+        ]
+      },
+      "then": {
+        "properties": {
+          "portal": {
+            "properties": {
+              "httpRoute": {
+                "properties": {
+                  "enabled": {
+                    "const": false,
+                    "description": "portal: use either ingress or httpRoute, never both."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "backend": {
+            "properties": {
+              "metrics": {
+                "properties": {
+                  "serviceMonitor": {
+                    "properties": {
+                      "enabled": {
+                        "const": true
+                      }
+                    },
+                    "required": [
+                      "enabled"
+                    ]
+                  }
+                },
+                "required": [
+                  "serviceMonitor"
+                ]
+              }
+            },
+            "required": [
+              "metrics"
+            ]
+          }
+        },
+        "required": [
+          "backend"
+        ]
+      },
+      "then": {
+        "properties": {
+          "backend": {
+            "properties": {
+              "metrics": {
+                "properties": {
+                  "serviceMonitor": {
+                    "properties": {
+                      "oauth2": {
+                        "properties": {
+                          "existingSecret": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "existingSecret"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "oauth2"
+                    ]
+                  }
+                },
+                "required": [
+                  "serviceMonitor"
+                ]
+              }
+            },
+            "required": [
+              "metrics"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "backend": {
+            "properties": {
+              "externalApi": {
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "enabled"
+                ]
+              }
+            },
+            "required": [
+              "externalApi"
+            ]
+          }
+        },
+        "required": [
+          "backend"
+        ]
+      },
+      "then": {
+        "properties": {
+          "backend": {
+            "properties": {
+              "externalApi": {
+                "properties": {
+                  "host": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "host"
+                ]
+              }
+            },
+            "required": [
+              "externalApi"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "web": {
+            "properties": {
+              "ingress": {
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "enabled"
+                ]
+              }
+            },
+            "required": [
+              "ingress"
+            ]
+          }
+        },
+        "required": [
+          "web"
+        ]
+      },
+      "then": {
+        "properties": {
+          "web": {
+            "properties": {
+              "ingress": {
+                "properties": {
+                  "host": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "host"
+                ]
+              }
+            },
+            "required": [
+              "ingress"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "portal": {
+            "properties": {
+              "ingress": {
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "enabled"
+                ]
+              }
+            },
+            "required": [
+              "ingress"
+            ]
+          }
+        },
+        "required": [
+          "portal"
+        ]
+      },
+      "then": {
+        "properties": {
+          "portal": {
+            "properties": {
+              "ingress": {
+                "properties": {
+                  "host": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "host"
+                ]
+              }
+            },
+            "required": [
+              "ingress"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "web": {
+            "properties": {
+              "httpRoute": {
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "enabled"
+                ]
+              }
+            },
+            "required": [
+              "httpRoute"
+            ]
+          }
+        },
+        "required": [
+          "web"
+        ]
+      },
+      "then": {
+        "properties": {
+          "web": {
+            "properties": {
+              "httpRoute": {
+                "properties": {
+                  "hostnames": {
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "hostnames"
+                ]
+              }
+            },
+            "required": [
+              "httpRoute"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "portal": {
+            "properties": {
+              "httpRoute": {
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "enabled"
+                ]
+              }
+            },
+            "required": [
+              "httpRoute"
+            ]
+          }
+        },
+        "required": [
+          "portal"
+        ]
+      },
+      "then": {
+        "properties": {
+          "portal": {
+            "properties": {
+              "httpRoute": {
+                "properties": {
+                  "hostnames": {
+                    "minItems": 1
+                  }
+                },
+                "required": [
+                  "hostnames"
+                ]
+              }
+            },
+            "required": [
+              "httpRoute"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "global": {
+            "properties": {
+              "environment": {
+                "enum": [
+                  "prod",
+                  "dev"
+                ]
+              }
+            },
+            "required": [
+              "environment"
+            ]
+          }
+        },
+        "required": [
+          "global"
+        ]
+      },
+      "then": {
+        "properties": {
+          "portal": {
+            "properties": {
+              "origin": {
+                "anyOf": [
+                  {
+                    "pattern": "^https://[^/]+$"
+                  },
+                  {
+                    "const": ""
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "web": {
+            "properties": {
+              "ingress": {
+                "properties": {
+                  "enabled": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "enabled"
+                ]
+              }
+            },
+            "required": [
+              "ingress"
+            ]
+          }
+        },
+        "required": [
+          "web"
+        ]
+      },
+      "then": {
+        "properties": {
+          "web": {
+            "properties": {
+              "evidence": {
+                "properties": {
+                  "maxVideoBytes": {
+                    "maximum": 94371840
+                  }
+                }
+              }
+            }
+          },
+          "backend": {
+            "properties": {
+              "evidence": {
+                "properties": {
+                  "maxVideoBytes": {
+                    "maximum": 94371840
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

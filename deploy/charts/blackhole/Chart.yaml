@@ -1,0 +1,19 @@
+apiVersion: v2
+name: blackhole
+description: The Blackhole ban system - backend, admin panel, appeal portal, Discord bot and the evidence virus scanner
+type: application
+# Both markers are rewritten by release-please (extra-files in release-please-config.json), so the chart
+# version and the images it deploys always come from the same release. The chart's default image tag is
+# the appVersion.
+version: "1.0.0" # x-release-please-version
+appVersion: "1.0.0" # x-release-please-version
+home: https://github.com/OneLiteFeatherNET/Blackhole
+sources:
+  - https://github.com/OneLiteFeatherNET/Blackhole
+maintainers:
+  - name: OneLiteFeather
+    url: https://onelitefeather.net
+keywords:
+  - minecraft
+  - moderation
+  - bans
