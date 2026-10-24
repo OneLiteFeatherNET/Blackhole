@@ -113,6 +113,7 @@ include("backend")
 include("client")
 include("velocity")
 include("discord")
+include("markdown")
 
 include("phoca")
 include("web")
