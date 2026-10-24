@@ -88,14 +88,32 @@ openssl rand -base64 32     # 32 random bytes, base64
 ### Rotation (v1)
 
 The key has no identifier in this version, so there is one valid key at a time. Replacing it makes every existing
-Ban ID unusable: players cannot log in and staff cannot reveal. The recovery is to issue a new Ban ID to every
-punishment and raise its generation. The design names this `BanIdBackfill --reissue-all` (idempotent, an
-interrupted run can be repeated). Several valid keys at once come in a later change.
+Ban ID unusable: players cannot log in and staff cannot reveal. The recovery is the reissue-all job
+(`BanIdReissueAll`, the design's `--reissue-all`): it gives every punishment a new Ban ID under the current key.
+Several valid keys at once come in a later change.
 
-> **Known gap.** `BanIdBackfill` in the code at the time of writing has no `--reissue-all` mode. The backfill only
-> issues Ban IDs to punishments that have none; it does not touch a Ban ID that exists but can no longer be read.
-> Until the mode exists, do not rotate the key on a deployment with live punishments. A single punishment is
-> reissued by an administrator in the panel (see the staff guide).
+The job is never started by itself. You switch it on for one start with `BLACKHOLE_BANID_REISSUE_ALL=true` (or the
+argument `--blackhole.banid.reissue-all=true`).
+
+1. **Back up the old key and the database** before you change anything. Until the job has finished, the old key is
+   the only way back.
+2. Generate the new key (`openssl rand -base64 32`) and store it in the secret store. Back it up as in the list above.
+3. Set `BLACKHOLE_BANID_KEY` to the new key **and** `BLACKHOLE_BANID_REISSUE_ALL=true`, then restart (all replicas
+   may get the same settings; a punishment is reissued once).
+4. Watch the log. The job writes only counts, never a Ban ID: `Ban ID key rotation progress: N looked at, M
+   reissued`, then `Ban ID key rotation finished: ... K failed`. The counters `blackhole.banid.reissue.reissued` and
+   `blackhole.banid.reissue.failed` show the same. Logins and the staff reveal work again for each punishment as
+   soon as it is reissued; before that, a login fails like any unknown Ban ID.
+5. If `failed` is not 0, or the run was interrupted (a restart, a crash), start the backend again with the same
+   settings. The job skips every Ban ID the new key can already read, so only what is left is reissued; nothing is
+   reissued twice.
+6. When the job has finished with 0 failed, remove `BLACKHOLE_BANID_REISSUE_ALL` (or set it to `false`) and
+   restart at your convenience.
+
+For every reissued punishment the job raises the generation, deletes its player sessions (players have to log in
+again with the new Ban ID), clears a leak mark and records a `ban_id.reissued` case event with the reason
+`KEY_ROTATION`. Players learn their new Ban ID the way they learn any: on the ban screen, or from staff via the
+reveal. A single punishment is still reissued by an administrator in the panel (see the staff guide).
 
 ### Backfill and the gauge
 
