@@ -53,7 +53,7 @@ class CaseServiceTest {
     private final BanIdTestBed banIds = new BanIdTestBed(this.punishments.repository());
     private final CaseService service = new CaseService(
             this.punishments.repository(), this.staff.repository(), this.store, this.store, this.log, this.events, this.clock,
-            this.banIds.service);
+            this.banIds.service, new MessageContent("onelitefeather.net"));
 
     private void givenPunishment(String identifier) {
         this.punishments.given(new PunishmentEntity(identifier, UUID.randomUUID(), OWNER, "network", false, 1L, null, new HashMap<>()), identifier);
@@ -132,7 +132,7 @@ class CaseServiceTest {
             }
         };
         CaseService racing = new CaseService(this.punishments.repository(), this.staff.repository(), racingReader, this.store, this.log,
-                this.events, this.clock, this.banIds.service);
+                this.events, this.clock, this.banIds.service, new MessageContent("onelitefeather.net"));
 
         CaseDTO result = racing.update(ID, patch(0, CaseStatus.CLOSED, null, null, null), ALICE);
 
@@ -427,5 +427,43 @@ class CaseServiceTest {
         givenPunishment(ID);
 
         assertEquals(CaseErrorKind.VALIDATION, kindOf(this.service.timeline(ID, "garbage", null, null, null, null, null, null)));
+    }
+
+    private CaseDTO.TimelineItem timelineItem(String type) {
+        CaseDTO.TimelinePage page = assertInstanceOf(CaseDTO.TimelinePage.class, this.service.timeline(ID, null, null, null, null, null, null, null));
+        return page.items().stream().filter(item -> item.type().equals(type)).findFirst().orElseThrow();
+    }
+
+    @Test
+    void aMessageInTheTimelineCarriesItsSourceAndTheParsedBlocks() {
+        givenPunishment(ID);
+        this.log.append(new CaseEventDraft(ID, new CaseEventPayload.MessageAdded("m-1", null, MessageAuthorKind.STAFF, null, MessageChannel.PANEL,
+                "**hi** [x](https://example.org/)"), 1L, CaseEventOrigin.LIVE, CaseActor.player(), "m-1", "message.added:m-1", CaseEventDraft.PLAYER));
+
+        CaseDTO.TimelineItem item = timelineItem("message.added");
+
+        assertEquals("**hi** [x](https://example.org/)", item.payload().get("text"), "the stored source is unchanged");
+        assertEquals(1, item.blocks().size(), "one paragraph");
+        assertEquals("paragraph", item.blocks().getFirst().get("type"));
+    }
+
+    @Test
+    void aRedactedMessageHasNoBlocks() {
+        givenPunishment(ID);
+        this.log.append(new CaseEventDraft(ID, new CaseEventPayload.MessageAdded("m-1", null, MessageAuthorKind.STAFF, null, MessageChannel.PANEL,
+                "secret"), 1L, CaseEventOrigin.LIVE, CaseActor.player(), "m-1", "message.added:m-1", CaseEventDraft.PLAYER));
+        this.log.redact(ID, "m-1", 2L, UUID.randomUUID());
+
+        CaseDTO.TimelineItem item = timelineItem("message.added");
+
+        assertNull(item.blocks(), "nothing is left to parse after a redaction");
+    }
+
+    @Test
+    void aNoteIsPlainTextAndHasNoBlocks() {
+        givenPunishment(ID);
+        addNote(ALICE, "**not** markdown");
+
+        assertNull(timelineItem("note.added").blocks(), "notes are plain staff text");
     }
 }

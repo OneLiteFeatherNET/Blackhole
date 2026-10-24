@@ -8,6 +8,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * The conversation as the player reads it and the message the player posts. There is no staff name, no
@@ -28,7 +29,10 @@ public sealed interface PublicConversationDTO {
      * @param occurredAt an ISO instant
      * @param kind      {@code MESSAGE}, or a marker: {@code APPEAL_FILED}, {@code APPEAL_DECIDED}, {@code FROZEN}, {@code FORFEITED}
      * @param messageId the message, the same across its edits; null for a marker
-     * @param text      the current text with every edit folded in; null for a marker and for a removed message
+     * @param text      the current text with every edit folded in, as the Markdown source that was written; null for a marker and for a removed message
+     * @param blocks    the sanitised block tree parsed from {@code text} (nodes {@code paragraph}, {@code text}, {@code br}, {@code strong}, {@code em},
+     *                  {@code del}, {@code code}, {@code code_block}, {@code list}, {@code item}, {@code quote} and {@code link} with an http(s)
+     *                  {@code href} and {@code external}); null when there is no text. Draw it as text nodes and elements, never as HTML.
      * @param removed   whether the message was deleted or redacted
      */
     @Schema(name = "PublicConversationEntry")
@@ -37,7 +41,7 @@ public sealed interface PublicConversationDTO {
     @ReflectiveAccess
     record Entry(
             long seq, @NonNull String occurredAt, @NonNull String kind, @NonNull Author author, @Nullable String messageId,
-            @Nullable String text, boolean removed
+            @Nullable String text, @Nullable List<Map<String, Object>> blocks, boolean removed
     ) {
     }
 
@@ -54,7 +58,7 @@ public sealed interface PublicConversationDTO {
     /**
      * Posts a message to the team.
      *
-     * @param text 1 to 2000 characters, plain text, without a UUID, an IP address or a Ban ID
+     * @param text 1 to 2000 characters of Markdown (a small subset, see the conversation entry), without a UUID, an IP address or a Ban ID
      */
     @Schema(name = "PublicMessageRequest")
     @Serdeable

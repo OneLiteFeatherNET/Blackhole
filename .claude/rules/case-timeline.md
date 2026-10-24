@@ -66,6 +66,11 @@ Detail: `openspec/changes/add-appeal-portal/specs/case-conversation/spec.md` and
   replies and player messages are `PLAYER`; a request body has no visibility, author or channel (ignored). Staff-internal
   text is a note. `CaseEventPayload.PORTAL_VISIBLE_TYPES` is the allow-list a player-facing reader applies in SQL next to
   `visibility = 'PLAYER'`. `appeal.filed|decided` stay `STAFF` visibility; the player reader shows them as bare markers through `PORTAL_ANY_VISIBILITY_TYPES` (decision of the public API change, see `public-api.md`).
+- **Markdown.** The text of a message is Markdown source (module `markdown`: bold, italic, strike, code, fenced code, lists, quotes, http(s)
+  links; everything else is literal text). The source is stored as written; `MessageContent.blocks(text)` derives the tree on read, and
+  `CaseDTO.TimelineItem.blocks` carries it for `message.added|edited` (null for other events and after a redaction). `blackhole.chat.links.trusted-domains`
+  (comma separated, default `onelitefeather.net`) decides `external`. `MessageRules` check the whole source, so a UUID, IP or Ban ID in a link
+  target or a code block is refused (422).
 - **Current text** is the latest added/edited version (`MessageThread`); an edit is `message.edited:<id>:<n>`, a delete
   `message.deleted:<id>`, never a row change. Only the verified author or an admin may correct a *staff* message; a
   player's words are changed only by redaction. `Idempotency-Key` (header, 1-80 of `[A-Za-z0-9._:-]`) derives the message
@@ -80,7 +85,8 @@ Detail: `openspec/changes/add-appeal-portal/specs/case-conversation/spec.md` and
   idempotent (`changed: false`); reissue is `ADMIN`, replaces hash/ciphertext, raises `ban_id_gen`, clears the leak,
   payload has generations only. Both statements delete the punishment's `player_session` rows
   (V16) in the same CTE when they change something; a repeat mark changes nothing and deletes nothing.
-- **Transcript** (`ADMIN`, `format=json|text`, `includeNotes`): `TranscriptRenderer`; redacted entries are markers;
+- **Transcript** (`ADMIN`, `format=json|text`, `includeNotes`): `TranscriptRenderer` (JSON `schemaVersion` 2: a message entry has `format: "markdown"`
+  and its payload text is the source, never a rendering); redacted entries are markers;
   `transcript.exported` (format, entry count, no content) is appended *before* the file is handed out; `no-store`, attachment.
 - **Decision message**: `AppealReviewDTO.playerMessage` is checked by `MessageRules` (422 on UUID/IP/Ban ID) before the
   decision and recorded by `CaseTimeline.decisionMessage` (id derived from the appeal, never fails the decision). `decisionNote` stays internal.
@@ -94,7 +100,7 @@ network) and stored as `TRANSCRIPT` evidence.
 - **Model and renderers are pure.** `ProtocolModel.build` folds the appeal's messages (own `appealId`, or none and filed inside
   its window up to the next appeal), edits, deletes, redactions and the `appeal.*`/`ban_id.*`/`ticket.*` markers; notes, evidence and
   punishment events are not part of it. Only whitelisted fields are copied, so no Ban ID, Discord user id or owner hash can get in.
-  `ProtocolRenderer` writes the text and JSON (`schemaVersion` 1) deterministically (fixed field order, `\n`, UTC), so the same events give
+  `ProtocolRenderer` writes the text and JSON (`schemaVersion` 2: message entries carry `format: "markdown"`, the text is the Markdown source as written) deterministically (fixed field order, `\n`, UTC), so the same events give
   byte-identical files apart from `generatedAt`. The digest is SHA-256 over `eventId|seq|type|redacted` lines in `seq` order and the JSON
   carries the same fields, so a reader recomputes it and the entry count. Players are `Player`, verified staff their display name
   (`Staff member (name removed)` once anonymised), others `Unverified staff`/`Bot`/`External participant`.

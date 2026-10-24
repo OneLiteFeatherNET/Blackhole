@@ -26,6 +26,7 @@ Gradle multi-module project (Kotlin DSL), Java 21+ (backend toolchain targets 25
 | `velocity` | A Velocity proxy plugin that enforces punishments and feeds chat/session data to the backend.  |
 | `client`   | A Java API client generated from `client/specs/blackhole-api-*.yml` via OpenAPI Generator.     |
 | `phoca`    | Shared utility library (metadata/expiry/duration abstractions) used across modules.             |
+| `markdown` | The chat Markdown subset: parser, sanitised block tree, link rules, Discord and plain renderers (no dependencies). |
 
 `client` has no hand-written API code — `compileJava` depends on `openApiGenerate`, which
 regenerates `net.onelitefeather.blackhole.client.{api,invoker,model}` from the pinned spec file

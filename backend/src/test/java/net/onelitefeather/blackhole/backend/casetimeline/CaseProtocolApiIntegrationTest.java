@@ -151,7 +151,7 @@ class CaseProtocolApiIntegrationTest extends ApiIntegrationTest {
             assertEquals("private, no-store", download.header("Cache-Control"));
             assertTrue(download.header("Content-Disposition").startsWith("attachment; filename=\""), download.header("Content-Disposition"));
             assertTrue(download.header("Content-Type").startsWith("application/json"), download.header("Content-Type"));
-            assertTrue(download.body().contains("\"schemaVersion\" : 1"));
+            assertTrue(download.body().contains("\"schemaVersion\" : 2"));
             assertEquals(400, get("/case/" + punishment + "/protocol/" + evidenceId + "/download?format=pdf", viewer()).status());
         }
     }

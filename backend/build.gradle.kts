@@ -12,6 +12,8 @@ dependencies {
     compileOnly(mn.micronaut.openapi.annotations)
     implementation(mn.micronaut.http.validation)
     implementation(project(":phoca"))
+    // The chat Markdown subset: one parser for the conversation readers, the protocol and the Discord relay.
+    implementation(project(":markdown"))
 
     implementation(mn.micronaut.runtime)
     implementation(mn.validation)

@@ -9,6 +9,7 @@ import net.onelitefeather.blackhole.backend.casetimeline.CaseChanges;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventDraft;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventOrigin;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventPayload;
+import net.onelitefeather.blackhole.backend.casetimeline.MessageContent;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventPublisher;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventRecord;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventRepository;
@@ -71,10 +72,11 @@ public class CaseService {
     private final BanIdService banIds;
     private final CaseReference references;
     private final CaseEventPublisher caseEvents;
+    private final MessageContent content;
 
     public CaseService(
             PunishmentRepository punishments, StaffActorRepository staff, CaseReader reader, CaseChanges changes,
-            CaseEventRepository events, DomainEventPublisher publisher, Clock clock, BanIdService banIds
+            CaseEventRepository events, DomainEventPublisher publisher, Clock clock, BanIdService banIds, MessageContent content
     ) {
         this.punishments = punishments;
         this.staff = staff;
@@ -85,6 +87,7 @@ public class CaseService {
         this.banIds = banIds;
         this.references = new CaseReference(punishments);
         this.caseEvents = new CaseEventPublisher(publisher);
+        this.content = content;
     }
 
     private record Found(PunishmentEntity punishment, CaseDTO.Error error) {
@@ -150,7 +153,7 @@ public class CaseService {
             CaseEventRecord last = shown.getLast().event();
             next = last.occurredAt() + ":" + last.seq();
         }
-        return new CaseDTO.TimelinePage(shown.stream().map(CaseService::toItem).toList(), next);
+        return new CaseDTO.TimelinePage(shown.stream().map(this::toItem).toList(), next);
     }
 
     /** The case list, newest activity first. */
@@ -344,11 +347,20 @@ public class CaseService {
         return !row.permanent() && row.expiresAt() != null && row.expiresAt() <= now ? "EXPIRED" : "ACTIVE";
     }
 
-    private static CaseDTO.TimelineItem toItem(CaseReader.Entry entry) {
+    private CaseDTO.TimelineItem toItem(CaseReader.Entry entry) {
         CaseEventRecord event = entry.event();
         return new CaseDTO.TimelineItem(event.seq(), event.identifier(), event.type(), event.payloadVersion(), event.occurredAt(),
                 event.origin(), event.visibility(), new CaseDTO.ActorInfo(event.actorOid(), entry.actorName(), event.actorTrust()),
-                event.subjectId(), event.body(), event.redactedAt());
+                event.subjectId(), event.body(), blocks(event), event.redactedAt());
+    }
+
+    /** The block tree of a message's Markdown source; other events, and a message whose text was erased, have none. */
+    private @Nullable List<Map<String, Object>> blocks(CaseEventRecord event) {
+        boolean message = event.type().equals(CaseEventPayload.MESSAGE_ADDED) || event.type().equals(CaseEventPayload.MESSAGE_EDITED);
+        if (!message || event.redactedAt() != null || !(event.body().get("text") instanceof String text)) {
+            return null;
+        }
+        return this.content.blocks(text);
     }
 
     private List<CaseEventRecord> noteVersions(String punishmentIdentifier, String noteId) {

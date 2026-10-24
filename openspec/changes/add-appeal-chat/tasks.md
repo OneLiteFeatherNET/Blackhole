@@ -10,15 +10,15 @@ Migration versions and the client spec number are the next free ones on `main` r
 
 ## 2. Markdown (PR 2, `feat(case)`)
 
-- [ ] 2.1 Failing tests first: the conformance corpus, the hostile corpus (every case: no non-http(s) link, no raw HTML, no throw,
+- [x] 2.1 Failing tests first: the conformance corpus, the hostile corpus (every case: no non-http(s) link, no raw HTML, no throw,
   bounded output, step-counted linear time), the seeded random-input test, `DiscordRenderer` and `PlainTextRenderer` expectations,
   the Discord round trip, `LinkRules` table, trusted-domain matching (`onelitefeather.net` and `appeal.onelitefeather.net` trusted; `evilonelitefeather.net`, `onelitefeather.net.evil.example`, `onelitefeather.net@evil.example` not), conversation entry carries `text` and `blocks`, `MessageRules` apply to link targets
-- [ ] 2.2 New Gradle module `markdown` (no dependencies): `MarkdownParser`, sealed `Node`, `LinkRules`, renderers; add to
+- [x] 2.2 New Gradle module `markdown` (no dependencies): `MarkdownParser`, sealed `Node`, `LinkRules`, renderers; add to
   `settings.gradle.kts`, `backend` and `discord`
-- [ ] 2.3 Backend: `MessageContent` builds `blocks`; `blackhole.chat.links.trusted-domains`; public and staff conversation DTOs gain
+- [x] 2.3 Backend: `MessageContent` builds `blocks`; `blackhole.chat.links.trusted-domains`; public and staff conversation DTOs gain
   `blocks`; `ProtocolRenderer`/`TranscriptRenderer` keep the source, JSON `schemaVersion` 2 with `format: "markdown"` (adapt
   `ProtocolModel` tests and the digest test)
-- [ ] 2.4 Update `.claude/rules` (case-timeline, public-api), regenerate the client spec and bump `inputSpec`; verify
+- [x] 2.4 Update `.claude/rules` (case-timeline, public-api), regenerate the client spec and bump `inputSpec`; verify
   `./gradlew :markdown:test :backend:test :client:compileJava`
 
 ## 3. Attachments and sharing (PR 3, `feat(case)`)

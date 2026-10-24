@@ -1,0 +1,1485 @@
+[
+ {
+  "name": "plain text",
+  "source": "hello world",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "hello world"
+     }
+    ]
+   }
+  ],
+  "discord": "hello world",
+  "plain": "hello world",
+  "roundTrip": true
+ },
+ {
+  "name": "line break inside a paragraph",
+  "source": "a\nb",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "a"
+     },
+     {
+      "type": "br"
+     },
+     {
+      "type": "text",
+      "text": "b"
+     }
+    ]
+   }
+  ],
+  "discord": "a\nb",
+  "plain": "a\nb",
+  "roundTrip": true
+ },
+ {
+  "name": "crlf is a line break",
+  "source": "a\r\nb",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "a"
+     },
+     {
+      "type": "br"
+     },
+     {
+      "type": "text",
+      "text": "b"
+     }
+    ]
+   }
+  ],
+  "discord": "a\nb",
+  "plain": "a\nb",
+  "roundTrip": false
+ },
+ {
+  "name": "two paragraphs",
+  "source": "a\n\nb",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "a"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "b"
+     }
+    ]
+   }
+  ],
+  "discord": "a\n\nb",
+  "plain": "a\n\nb",
+  "roundTrip": true
+ },
+ {
+  "name": "bold",
+  "source": "**bold**",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "strong",
+      "children": [
+       {
+        "type": "text",
+        "text": "bold"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "**bold**",
+  "plain": "bold",
+  "roundTrip": true
+ },
+ {
+  "name": "italic with a star",
+  "source": "*it*",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "em",
+      "children": [
+       {
+        "type": "text",
+        "text": "it"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "*it*",
+  "plain": "it",
+  "roundTrip": true
+ },
+ {
+  "name": "italic with an underscore",
+  "source": "_it_",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "em",
+      "children": [
+       {
+        "type": "text",
+        "text": "it"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "*it*",
+  "plain": "it",
+  "roundTrip": true
+ },
+ {
+  "name": "strikethrough",
+  "source": "~~gone~~",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "del",
+      "children": [
+       {
+        "type": "text",
+        "text": "gone"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "~~gone~~",
+  "plain": "gone",
+  "roundTrip": true
+ },
+ {
+  "name": "inline code",
+  "source": "`code`",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "code",
+      "text": "code"
+     }
+    ]
+   }
+  ],
+  "discord": "`code`",
+  "plain": "code",
+  "roundTrip": true
+ },
+ {
+  "name": "mixed inline",
+  "source": "**b** and *i*",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "strong",
+      "children": [
+       {
+        "type": "text",
+        "text": "b"
+       }
+      ]
+     },
+     {
+      "type": "text",
+      "text": " and "
+     },
+     {
+      "type": "em",
+      "children": [
+       {
+        "type": "text",
+        "text": "i"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "**b** and *i*",
+  "plain": "b and i",
+  "roundTrip": true
+ },
+ {
+  "name": "emphasis nested in bold",
+  "source": "**bold *and italic***",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "strong",
+      "children": [
+       {
+        "type": "text",
+        "text": "bold "
+       },
+       {
+        "type": "em",
+        "children": [
+         {
+          "type": "text",
+          "text": "and italic"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "**bold *and italic***",
+  "plain": "bold and italic",
+  "roundTrip": true
+ },
+ {
+  "name": "triple star",
+  "source": "***both***",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "em",
+      "children": [
+       {
+        "type": "strong",
+        "children": [
+         {
+          "type": "text",
+          "text": "both"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "***both***",
+  "plain": "both",
+  "roundTrip": true
+ },
+ {
+  "name": "underscore inside a word is text",
+  "source": "snake_case_name",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "snake_case_name"
+     }
+    ]
+   }
+  ],
+  "discord": "snake\\_case\\_name",
+  "plain": "snake_case_name",
+  "roundTrip": true
+ },
+ {
+  "name": "lonely stars are text",
+  "source": "2 * 3 * 4",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "2 * 3 * 4"
+     }
+    ]
+   }
+  ],
+  "discord": "2 \\* 3 \\* 4",
+  "plain": "2 * 3 * 4",
+  "roundTrip": true
+ },
+ {
+  "name": "unbalanced bold is text",
+  "source": "**oops",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "**oops"
+     }
+    ]
+   }
+  ],
+  "discord": "\\*\\*oops",
+  "plain": "**oops",
+  "roundTrip": true
+ },
+ {
+  "name": "unbalanced backtick is text",
+  "source": "a ` b",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "a ` b"
+     }
+    ]
+   }
+  ],
+  "discord": "a \\` b",
+  "plain": "a ` b",
+  "roundTrip": true
+ },
+ {
+  "name": "double underscore is not a delimiter",
+  "source": "__x__",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "__x__"
+     }
+    ]
+   }
+  ],
+  "discord": "\\_\\_x\\_\\_",
+  "plain": "__x__",
+  "roundTrip": true
+ },
+ {
+  "name": "code span with a backtick inside",
+  "source": "`` a`b ``",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "code",
+      "text": "a`b"
+     }
+    ]
+   }
+  ],
+  "discord": "``a`b``",
+  "plain": "a`b",
+  "roundTrip": true
+ },
+ {
+  "name": "markup inside code stays",
+  "source": "`**x**`",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "code",
+      "text": "**x**"
+     }
+    ]
+   }
+  ],
+  "discord": "`**x**`",
+  "plain": "**x**",
+  "roundTrip": true
+ },
+ {
+  "name": "code block",
+  "source": "```\nline1\n  line2\n```",
+  "tree": [
+   {
+    "type": "code_block",
+    "text": "line1\n  line2"
+   }
+  ],
+  "discord": "```\nline1\n  line2\n```",
+  "plain": "line1\n  line2",
+  "roundTrip": true
+ },
+ {
+  "name": "code block info string is dropped",
+  "source": "```java\nint x;\n```",
+  "tree": [
+   {
+    "type": "code_block",
+    "text": "int x;"
+   }
+  ],
+  "discord": "```\nint x;\n```",
+  "plain": "int x;",
+  "roundTrip": true
+ },
+ {
+  "name": "unclosed code block runs to the end",
+  "source": "```\nabc",
+  "tree": [
+   {
+    "type": "code_block",
+    "text": "abc"
+   }
+  ],
+  "discord": "```\nabc\n```",
+  "plain": "abc",
+  "roundTrip": true
+ },
+ {
+  "name": "bullet list",
+  "source": "- a\n- b",
+  "tree": [
+   {
+    "type": "list",
+    "ordered": false,
+    "start": 1,
+    "children": [
+     {
+      "type": "item",
+      "children": [
+       {
+        "type": "paragraph",
+        "children": [
+         {
+          "type": "text",
+          "text": "a"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "item",
+      "children": [
+       {
+        "type": "paragraph",
+        "children": [
+         {
+          "type": "text",
+          "text": "b"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "- a\n- b",
+  "plain": "- a\n- b",
+  "roundTrip": true
+ },
+ {
+  "name": "star bullet list",
+  "source": "* a\n* b",
+  "tree": [
+   {
+    "type": "list",
+    "ordered": false,
+    "start": 1,
+    "children": [
+     {
+      "type": "item",
+      "children": [
+       {
+        "type": "paragraph",
+        "children": [
+         {
+          "type": "text",
+          "text": "a"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "item",
+      "children": [
+       {
+        "type": "paragraph",
+        "children": [
+         {
+          "type": "text",
+          "text": "b"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "- a\n- b",
+  "plain": "- a\n- b",
+  "roundTrip": true
+ },
+ {
+  "name": "numbered list",
+  "source": "1. one\n2. two",
+  "tree": [
+   {
+    "type": "list",
+    "ordered": true,
+    "start": 1,
+    "children": [
+     {
+      "type": "item",
+      "children": [
+       {
+        "type": "paragraph",
+        "children": [
+         {
+          "type": "text",
+          "text": "one"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "item",
+      "children": [
+       {
+        "type": "paragraph",
+        "children": [
+         {
+          "type": "text",
+          "text": "two"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "1. one\n2. two",
+  "plain": "1. one\n2. two",
+  "roundTrip": true
+ },
+ {
+  "name": "numbered list keeps its start",
+  "source": "3. x\n4. y",
+  "tree": [
+   {
+    "type": "list",
+    "ordered": true,
+    "start": 3,
+    "children": [
+     {
+      "type": "item",
+      "children": [
+       {
+        "type": "paragraph",
+        "children": [
+         {
+          "type": "text",
+          "text": "x"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "item",
+      "children": [
+       {
+        "type": "paragraph",
+        "children": [
+         {
+          "type": "text",
+          "text": "y"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "3. x\n4. y",
+  "plain": "3. x\n4. y",
+  "roundTrip": true
+ },
+ {
+  "name": "nested list",
+  "source": "- a\n  - b\n- c",
+  "tree": [
+   {
+    "type": "list",
+    "ordered": false,
+    "start": 1,
+    "children": [
+     {
+      "type": "item",
+      "children": [
+       {
+        "type": "paragraph",
+        "children": [
+         {
+          "type": "text",
+          "text": "a"
+         }
+        ]
+       },
+       {
+        "type": "list",
+        "ordered": false,
+        "start": 1,
+        "children": [
+         {
+          "type": "item",
+          "children": [
+           {
+            "type": "paragraph",
+            "children": [
+             {
+              "type": "text",
+              "text": "b"
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "item",
+      "children": [
+       {
+        "type": "paragraph",
+        "children": [
+         {
+          "type": "text",
+          "text": "c"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "- a\n  - b\n- c",
+  "plain": "- a\n  - b\n- c",
+  "roundTrip": true
+ },
+ {
+  "name": "list nested four levels deep: the fourth is text",
+  "source": "- a\n  - b\n    - c\n      - d",
+  "tree": [
+   {
+    "type": "list",
+    "ordered": false,
+    "start": 1,
+    "children": [
+     {
+      "type": "item",
+      "children": [
+       {
+        "type": "paragraph",
+        "children": [
+         {
+          "type": "text",
+          "text": "a"
+         }
+        ]
+       },
+       {
+        "type": "list",
+        "ordered": false,
+        "start": 1,
+        "children": [
+         {
+          "type": "item",
+          "children": [
+           {
+            "type": "paragraph",
+            "children": [
+             {
+              "type": "text",
+              "text": "b"
+             }
+            ]
+           },
+           {
+            "type": "list",
+            "ordered": false,
+            "start": 1,
+            "children": [
+             {
+              "type": "item",
+              "children": [
+               {
+                "type": "paragraph",
+                "children": [
+                 {
+                  "type": "text",
+                  "text": "c"
+                 },
+                 {
+                  "type": "br"
+                 },
+                 {
+                  "type": "text",
+                  "text": "- d"
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "- a\n  - b\n    - c\n      \\- d",
+  "plain": "- a\n  - b\n    - c\n      - d",
+  "roundTrip": true
+ },
+ {
+  "name": "quote",
+  "source": "> quoted",
+  "tree": [
+   {
+    "type": "quote",
+    "children": [
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "type": "text",
+        "text": "quoted"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "> quoted",
+  "plain": "> quoted",
+  "roundTrip": true
+ },
+ {
+  "name": "nested quote",
+  "source": "> > deep",
+  "tree": [
+   {
+    "type": "quote",
+    "children": [
+     {
+      "type": "quote",
+      "children": [
+       {
+        "type": "paragraph",
+        "children": [
+         {
+          "type": "text",
+          "text": "deep"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "> > deep",
+  "plain": "> > deep",
+  "roundTrip": true
+ },
+ {
+  "name": "quote with two lines",
+  "source": "> a\n> b",
+  "tree": [
+   {
+    "type": "quote",
+    "children": [
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "type": "text",
+        "text": "a"
+       },
+       {
+        "type": "br"
+       },
+       {
+        "type": "text",
+        "text": "b"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "> a\n> b",
+  "plain": "> a\n> b",
+  "roundTrip": true
+ },
+ {
+  "name": "quote with a list",
+  "source": "> - a\n> - b",
+  "tree": [
+   {
+    "type": "quote",
+    "children": [
+     {
+      "type": "list",
+      "ordered": false,
+      "start": 1,
+      "children": [
+       {
+        "type": "item",
+        "children": [
+         {
+          "type": "paragraph",
+          "children": [
+           {
+            "type": "text",
+            "text": "a"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "item",
+        "children": [
+         {
+          "type": "paragraph",
+          "children": [
+           {
+            "type": "text",
+            "text": "b"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "> - a\n> - b",
+  "plain": "> - a\n> - b",
+  "roundTrip": true
+ },
+ {
+  "name": "quote with a code block",
+  "source": "> ```\n> code\n> ```",
+  "tree": [
+   {
+    "type": "quote",
+    "children": [
+     {
+      "type": "code_block",
+      "text": "code"
+     }
+    ]
+   }
+  ],
+  "discord": "> ```\n> code\n> ```",
+  "plain": "> code",
+  "roundTrip": true
+ },
+ {
+  "name": "quotes nested four levels deep: the fourth is text",
+  "source": "> > > > x",
+  "tree": [
+   {
+    "type": "quote",
+    "children": [
+     {
+      "type": "quote",
+      "children": [
+       {
+        "type": "quote",
+        "children": [
+         {
+          "type": "paragraph",
+          "children": [
+           {
+            "type": "text",
+            "text": "> x"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "> > > \\> x",
+  "plain": "> > > > x",
+  "roundTrip": true
+ },
+ {
+  "name": "quote ends at a plain line",
+  "source": "> a\nb",
+  "tree": [
+   {
+    "type": "quote",
+    "children": [
+     {
+      "type": "paragraph",
+      "children": [
+       {
+        "type": "text",
+        "text": "a"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "b"
+     }
+    ]
+   }
+  ],
+  "discord": "> a\n\nb",
+  "plain": "> a\n\nb",
+  "roundTrip": false
+ },
+ {
+  "name": "list ends at a plain line",
+  "source": "- a\nb",
+  "tree": [
+   {
+    "type": "list",
+    "ordered": false,
+    "start": 1,
+    "children": [
+     {
+      "type": "item",
+      "children": [
+       {
+        "type": "paragraph",
+        "children": [
+         {
+          "type": "text",
+          "text": "a"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "b"
+     }
+    ]
+   }
+  ],
+  "discord": "- a\n\nb",
+  "plain": "- a\n\nb",
+  "roundTrip": false
+ },
+ {
+  "name": "link",
+  "source": "[docs](https://example.org/a?b=1)",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "link",
+      "href": "https://example.org/a?b=1",
+      "external": true,
+      "children": [
+       {
+        "type": "text",
+        "text": "docs"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "docs <https://example.org/a?b=1>",
+  "plain": "docs (https://example.org/a?b=1)",
+  "roundTrip": false
+ },
+ {
+  "name": "angle link",
+  "source": "<https://example.org>",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "link",
+      "href": "https://example.org/",
+      "external": true,
+      "children": [
+       {
+        "type": "text",
+        "text": "https://example.org"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "<https://example.org/>",
+  "plain": "https://example.org/",
+  "roundTrip": false
+ },
+ {
+  "name": "bare link",
+  "source": "see https://example.org/path now",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "see "
+     },
+     {
+      "type": "link",
+      "href": "https://example.org/path",
+      "external": true,
+      "children": [
+       {
+        "type": "text",
+        "text": "https://example.org/path"
+       }
+      ]
+     },
+     {
+      "type": "text",
+      "text": " now"
+     }
+    ]
+   }
+  ],
+  "discord": "see <https://example.org/path> now",
+  "plain": "see https://example.org/path now",
+  "roundTrip": false
+ },
+ {
+  "name": "bare link without the closing full stop",
+  "source": "go to https://example.org/path.",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "go to "
+     },
+     {
+      "type": "link",
+      "href": "https://example.org/path",
+      "external": true,
+      "children": [
+       {
+        "type": "text",
+        "text": "https://example.org/path"
+       }
+      ]
+     },
+     {
+      "type": "text",
+      "text": "."
+     }
+    ]
+   }
+  ],
+  "discord": "go to <https://example.org/path>.",
+  "plain": "go to https://example.org/path.",
+  "roundTrip": false
+ },
+ {
+  "name": "trusted subdomain is not external",
+  "source": "[home](https://appeal.onelitefeather.net/x)",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "link",
+      "href": "https://appeal.onelitefeather.net/x",
+      "external": false,
+      "children": [
+       {
+        "type": "text",
+        "text": "home"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "home <https://appeal.onelitefeather.net/x>",
+  "plain": "home (https://appeal.onelitefeather.net/x)",
+  "roundTrip": false
+ },
+ {
+  "name": "look-alike host is external",
+  "source": "[home](https://evilonelitefeather.net/)",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "link",
+      "href": "https://evilonelitefeather.net/",
+      "external": true,
+      "children": [
+       {
+        "type": "text",
+        "text": "home"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "home <https://evilonelitefeather.net/>",
+  "plain": "home (https://evilonelitefeather.net/)",
+  "roundTrip": false
+ },
+ {
+  "name": "formatting in link text",
+  "source": "[**bold** link](https://example.org/)",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "link",
+      "href": "https://example.org/",
+      "external": true,
+      "children": [
+       {
+        "type": "strong",
+        "children": [
+         {
+          "type": "text",
+          "text": "bold"
+         }
+        ]
+       },
+       {
+        "type": "text",
+        "text": " link"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "**bold** link <https://example.org/>",
+  "plain": "bold link (https://example.org/)",
+  "roundTrip": false
+ },
+ {
+  "name": "link without text shows the target",
+  "source": "[](https://example.org/)",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "link",
+      "href": "https://example.org/",
+      "external": true,
+      "children": [
+       {
+        "type": "text",
+        "text": "https://example.org/"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "<https://example.org/>",
+  "plain": "https://example.org/",
+  "roundTrip": false
+ },
+ {
+  "name": "javascript link stays text",
+  "source": "[x](javascript:alert(1))",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "[x](javascript:alert(1))"
+     }
+    ]
+   }
+  ],
+  "discord": "\\[x\\]\\(javascript:alert\\(1\\)\\)",
+  "plain": "[x](javascript:alert(1))",
+  "roundTrip": true
+ },
+ {
+  "name": "image syntax stays text and the url is not a link",
+  "source": "![alt](https://example.org/a.png)",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "![alt](https://example.org/a.png)"
+     }
+    ]
+   }
+  ],
+  "discord": "!\\[alt\\]\\(https:​//example.org/a.png\\)",
+  "plain": "![alt](https://example.org/a.png)",
+  "roundTrip": false
+ },
+ {
+  "name": "html stays text",
+  "source": "<b>x</b>",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "<b>x</b>"
+     }
+    ]
+   }
+  ],
+  "discord": "\\<b\\>x\\</b\\>",
+  "plain": "<b>x</b>",
+  "roundTrip": true
+ },
+ {
+  "name": "heading marker stays text",
+  "source": "# heading",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "# heading"
+     }
+    ]
+   }
+  ],
+  "discord": "\\# heading",
+  "plain": "# heading",
+  "roundTrip": true
+ },
+ {
+  "name": "strike with inner spaces stays text",
+  "source": "~~ x ~~",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "~~ x ~~"
+     }
+    ]
+   }
+  ],
+  "discord": "\\~\\~ x \\~\\~",
+  "plain": "~~ x ~~",
+  "roundTrip": true
+ },
+ {
+  "name": "escaped stars",
+  "source": "\\*not italic\\*",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "*not italic*"
+     }
+    ]
+   }
+  ],
+  "discord": "\\*not italic\\*",
+  "plain": "*not italic*",
+  "roundTrip": true
+ },
+ {
+  "name": "emphasis across a line break",
+  "source": "**a\nb**",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "strong",
+      "children": [
+       {
+        "type": "text",
+        "text": "a"
+       },
+       {
+        "type": "br"
+       },
+       {
+        "type": "text",
+        "text": "b"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "**a\nb**",
+  "plain": "a\nb",
+  "roundTrip": true
+ },
+ {
+  "name": "code in a list item",
+  "source": "- `x`",
+  "tree": [
+   {
+    "type": "list",
+    "ordered": false,
+    "start": 1,
+    "children": [
+     {
+      "type": "item",
+      "children": [
+       {
+        "type": "paragraph",
+        "children": [
+         {
+          "type": "code",
+          "text": "x"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "discord": "- `x`",
+  "plain": "- x",
+  "roundTrip": true
+ },
+ {
+  "name": "everyone mention is neutralised in the discord text",
+  "source": "@everyone look",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "@everyone look"
+     }
+    ]
+   }
+  ],
+  "discord": "@​everyone look",
+  "plain": "@everyone look",
+  "roundTrip": false
+ },
+ {
+  "name": "user mention form is neutralised in the discord text",
+  "source": "<@123456789012345678>",
+  "tree": [
+   {
+    "type": "paragraph",
+    "children": [
+     {
+      "type": "text",
+      "text": "<@123456789012345678>"
+     }
+    ]
+   }
+  ],
+  "discord": "\\<@​123456789012345678\\>",
+  "plain": "<@123456789012345678>",
+  "roundTrip": false
+ },
+ {
+  "name": "empty source",
+  "source": "",
+  "tree": [],
+  "discord": "",
+  "plain": "",
+  "roundTrip": true
+ },
+ {
+  "name": "blank source",
+  "source": " \n \n",
+  "tree": [],
+  "discord": "",
+  "plain": "",
+  "roundTrip": true
+ }
+]

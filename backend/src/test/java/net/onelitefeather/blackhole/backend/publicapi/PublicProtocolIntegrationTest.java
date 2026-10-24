@@ -91,6 +91,12 @@ class PublicProtocolIntegrationTest extends PublicApiTestBase {
         assertTrue(copy.header("Content-Disposition").contains(".json"));
         assertEquals("DENIED", copy.json().get("decision"));
         assertEquals("no-store", copy.header("Cache-Control"));
+        assertEquals(2, copy.json().get("schemaVersion"), "entries gained a format, so the layout is version 2");
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> entries = (List<Map<String, Object>>) copy.json().get("entries");
+        List<Map<String, Object>> messages = entries.stream().filter(entry -> "MESSAGE".equals(entry.get("kind"))).toList();
+        assertFalse(messages.isEmpty(), "the decided appeal has messages");
+        assertTrue(messages.stream().allMatch(entry -> "markdown".equals(entry.get("format"))), "every message text is Markdown source");
     }
 
     @Test

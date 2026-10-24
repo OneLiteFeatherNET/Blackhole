@@ -4,6 +4,7 @@ import io.micronaut.context.annotation.Value;
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.banid.service.BanIdService;
+import net.onelitefeather.blackhole.backend.casetimeline.MessageContent;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageRules;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseConversationDTO;
 import net.onelitefeather.blackhole.backend.casetimeline.service.CaseConversationService;
@@ -33,11 +34,12 @@ public class PublicConversationService {
     private final BanIdService banIds;
     private final int maxLength;
     private final int pageSize;
+    private final MessageContent content;
 
     public PublicConversationService(
             PublicConversationReader reader, PublicAppealReader appeals, CaseConversationService conversation, BanIdService banIds,
             @Value("${blackhole.public.message.max-length:2000}") int maxLength,
-            @Value("${blackhole.public.conversation.page-size:200}") int pageSize
+            @Value("${blackhole.public.conversation.page-size:200}") int pageSize, MessageContent content
     ) {
         this.reader = reader;
         this.appeals = appeals;
@@ -45,6 +47,7 @@ public class PublicConversationService {
         this.banIds = banIds;
         this.maxLength = Math.min(maxLength, MessageRules.MAX_MESSAGE);
         this.pageSize = Math.max(1, pageSize);
+        this.content = content;
     }
 
     /**
@@ -60,7 +63,8 @@ public class PublicConversationService {
         PublicConversationReader.Page page = this.reader.read(session.punishmentIdentifier(), cursor, this.pageSize);
         List<PublicConversationDTO.Entry> entries = page.entries().stream()
                 .map(entry -> new PublicConversationDTO.Entry(entry.seq(), Instant.ofEpochMilli(entry.occurredAt()).toString(), entry.kind(),
-                        PublicConversationDTO.Author.valueOf(entry.author()), entry.messageId(), entry.text(), entry.removed()))
+                        PublicConversationDTO.Author.valueOf(entry.author()), entry.messageId(), entry.text(),
+                        entry.text() == null ? null : this.content.blocks(entry.text()), entry.removed()))
                 .toList();
         return new PublicConversationDTO.Page(entries, page.cursor());
     }

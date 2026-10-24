@@ -22,8 +22,11 @@ import java.util.Map;
  */
 public final class ProtocolRenderer {
 
-    /** The version of the JSON layout. */
-    public static final int SCHEMA_VERSION = 1;
+    /**
+     * The version of the JSON layout. Version 2: a message entry has {@code format: "markdown"}, because its text is the Markdown source
+     * as written (not a rendering), and the layout is otherwise as version 1.
+     */
+    public static final int SCHEMA_VERSION = 2;
 
     static final String REMOVED = "[removed for data protection]";
 
@@ -117,6 +120,7 @@ public final class ProtocolRenderer {
                 item.put("channel", message.channel());
                 item.put("author", who);
                 item.put("visibility", message.visibility());
+                item.put("format", "markdown");
                 item.put("text", message.text());
                 List<Map<String, Object>> texts = new ArrayList<>();
                 for (ProtocolModel.Text text : message.texts()) {
@@ -169,6 +173,7 @@ public final class ProtocolRenderer {
         out.append("Version: ").append(version).append('\n');
         out.append("Generated: ").append(time(generatedAt)).append('\n');
         out.append("Times are UTC. Entries are in sequence order. Visibility shows who could read an entry: PLAYER or STAFF only.\n");
+        out.append("Message texts are the Markdown source exactly as written, not a rendering.\n");
         for (ProtocolModel.Entry entry : model.entries()) {
             out.append('\n');
             switch (entry) {
