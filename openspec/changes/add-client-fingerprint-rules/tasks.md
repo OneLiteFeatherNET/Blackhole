@@ -28,11 +28,11 @@ here); client spec bumps use the next free number as well.
 
 ## 3. Fingerprint hashing and evasion correlation (PR 3, `feat(evasion): correlate hashed client fingerprints`)
 
-- [ ] 3.1 Failing tests first: canonical form known-answer vectors (order independence, length prefixes prevent collisions, empty sets, brand normalisation), HMAC known answer with a test key, protocol version excluded, generic fingerprints not stored, common-fingerprint cut-off (5 vs 6 owners), window edge, `CLIENT` vs `BOTH` origin, no event content leak, key unset gives 503 outside dev/test and a random key in dev/test, oversized lists rejected, retention sweep, erasure
-- [ ] 3.2 Migration `V<next free>__client_fingerprint.sql` (unique `(fingerprint, owner_hash)`, indexes); migration test
-- [ ] 3.3 `ClientFingerprintKeyGuard` (HKDF from `BLACKHOLE_FINGERPRINT_KEY`, modelled on `BanIdKeyGuard`), `ClientFingerprintService` next to `IpCorrelationService`, `POST /evasion/fingerprint` (`PROXY`, 503 when off)
-- [ ] 3.4 Sightings: `via` per linked owner (additive field), `evasion.client_match` event, `ClientFingerprintRetentionSweeper` (default 30 days), `blackhole.evasion.fingerprint.*` keys documented in `application.yml`, erasure hook
-- [ ] 3.5 Matrix and route-coverage rows; regenerate the client spec; update `.claude/rules/evasion.md`
+- [x] 3.1 Failing tests first: canonical form known-answer vectors (order independence, length prefixes prevent collisions, empty sets, brand normalisation), HMAC known answer with a test key, protocol version excluded, generic fingerprints not stored, common-fingerprint cut-off (5 vs 6 owners), window edge, `CLIENT` vs `BOTH` origin, no event content leak, key unset gives 503 outside dev/test and a random key in dev/test, oversized lists rejected, retention sweep, erasure
+- [x] 3.2 Migration `V<next free>__client_fingerprint.sql` (unique `(fingerprint, owner_hash)`, indexes); migration test
+- [x] 3.3 `ClientFingerprintKeyGuard` (HKDF from `BLACKHOLE_FINGERPRINT_KEY`, modelled on `BanIdKeyGuard`), `ClientFingerprintService` next to `IpCorrelationService`, `POST /evasion/fingerprint` (`PROXY`, 503 when off)
+- [x] 3.4 Sightings: `via` per linked owner (additive field), `evasion.client_match` event, `ClientFingerprintRetentionSweeper` (default 30 days), `blackhole.evasion.fingerprint.*` keys documented in `application.yml`, erasure hook
+- [x] 3.5 Matrix and route-coverage rows; regenerate the client spec; update `.claude/rules/evasion.md`
 
 ## 4. Velocity collection and enforcement (PR 4, `feat(velocity): collect client traits and enforce client rules`)
 

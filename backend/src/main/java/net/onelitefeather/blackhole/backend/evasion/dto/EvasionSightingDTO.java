@@ -23,12 +23,24 @@ public sealed interface EvasionSightingDTO {
     @ReflectiveAccess
     record LinkedOwner(
             @NonNull @Schema(description = "Hashed owner; open the player detail with it") String owner,
-            @NonNull @Schema(description = "Why the owners are linked, currently always SHARED_IP") String reason,
+            @NonNull @Schema(description = "Why the owners are linked: SHARED_IP when the IP is involved, else SHARED_CLIENT") String reason,
             @Schema(description = "How many distinct hashed addresses both owners were seen on; more is a stronger link")
             int sharedAddresses,
             @Schema(description = "Earliest sighting of the other owner on a shared address, epoch millis") long firstSeen,
-            @Schema(description = "Latest sighting of the other owner on a shared address, epoch millis") long lastSeen
+            @Schema(description = "Latest sighting of the other owner on a shared address, epoch millis") long lastSeen,
+            @NonNull @Schema(description = "Which signal links them: IP, CLIENT (same client setup only, a weak hint) or BOTH (the strong one)") Via via
     ) {
+    }
+
+    @Schema(name = "EvasionVia", description = "The signal behind a link between two owners")
+    @Serdeable
+    enum Via {
+        /** A shared hashed network address. */
+        IP,
+        /** A shared client fingerprint only: the same client setup, which a shared modpack also explains. */
+        CLIENT,
+        /** Both. */
+        BOTH
     }
 
     @Schema(name = "EvasionSightingsResponse")
@@ -41,7 +53,10 @@ public sealed interface EvasionSightingDTO {
             @Schema(description = "Length of the detection window in days; only sightings inside it are correlated")
             int windowDays,
             @NonNull @Schema(description = "Linked owners, most recently seen first, at most 50") List<LinkedOwner> linkedOwners,
-            @Schema(description = "True when more owners matched than are listed") boolean truncated
+            @Schema(description = "True when more owners matched than are listed") boolean truncated,
+            @Schema(description = "False when BLACKHOLE_FINGERPRINT_KEY is unset outside dev and test: no client fingerprint is recorded or compared")
+            boolean clientFingerprintEnabled,
+            @Schema(description = "Length of the client fingerprint window in days") int clientWindowDays
     ) implements EvasionSightingDTO {
     }
 

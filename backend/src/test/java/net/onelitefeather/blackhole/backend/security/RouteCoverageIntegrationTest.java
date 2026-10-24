@@ -97,6 +97,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /appeal", MP),
             Map.entry("POST /elo/chat", MP),
             Map.entry("POST /evasion/record", MP),
+            Map.entry("POST /evasion/fingerprint", P),
             Map.entry("POST /profile/{owner}/session", MP),
             // admin configuration
             Map.entry("POST /section", A),

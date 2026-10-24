@@ -32,6 +32,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import net.onelitefeather.blackhole.backend.clientrule.ClientRuleHitStore;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
+import net.onelitefeather.blackhole.backend.evasion.ClientFingerprintStore;
 import net.onelitefeather.blackhole.backend.discord.DiscordLinkService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.ActivePunishmentExpirer;
@@ -54,6 +55,7 @@ public class ProfileController {
     private final ProfileAttributionGuard attributionGuard;
     private final DiscordLinkService discordLinks;
     private final ClientRuleHitStore clientRuleHits;
+    private final ClientFingerprintStore clientFingerprints;
 
     /**
      * Create a new ProfileController.
@@ -67,6 +69,7 @@ public class ProfileController {
      * @param attributionGuard discards client-supplied {@code recordedByOid} on whole-profile writes
      * @param discordLinks   removes the player's Discord link when the profile is erased
      * @param clientRuleHits deletes the player's client rule hits when the profile is erased
+     * @param clientFingerprints deletes the player's client fingerprints when the profile is erased
      */
     @Inject
     public ProfileController(
@@ -78,7 +81,8 @@ public class ProfileController {
             Clock clock,
             ProfileAttributionGuard attributionGuard,
             DiscordLinkService discordLinks,
-            ClientRuleHitStore clientRuleHits
+            ClientRuleHitStore clientRuleHits,
+            ClientFingerprintStore clientFingerprints
     ) {
         this.repository = repository;
         this.eventPublisher = eventPublisher;
@@ -89,6 +93,7 @@ public class ProfileController {
         this.attributionGuard = attributionGuard;
         this.discordLinks = discordLinks;
         this.clientRuleHits = clientRuleHits;
+        this.clientFingerprints = clientFingerprints;
     }
 
     /**
@@ -215,6 +220,7 @@ public class ProfileController {
     ) {
         // Erasure: the hits are personal data of the owner even when no punishment profile exists.
         this.clientRuleHits.deleteByOwner(owner);
+        this.clientFingerprints.deleteByOwner(owner);
         PunishmentProfileEntity entity = this.repository.findById(owner).orElse(null);
         if (entity == null) {
             return HttpResponse.badRequest(new PunishProfileResponse.ErrorResponse("There is no profile linked to the given owner"));

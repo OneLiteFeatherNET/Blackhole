@@ -280,6 +280,14 @@ blackhole:
     detection-window-days: ${BLACKHOLE_EVASION_DETECTION_WINDOW_DAYS:7}
     retention-days: ${BLACKHOLE_EVASION_RETENTION_DAYS:90}
     retention-sweep-cron: ${BLACKHOLE_EVASION_RETENTION_SWEEP_CRON:`0 30 3 * * *`}
+    # Client fingerprint signal (needs blackhole.clientrules.fingerprint-key). A weaker signal than the IP,
+    # so it has its own, shorter windows. A fingerprint shared by more than max-owners owners inside the
+    # window (all vanilla clients, a popular modpack) is common and links nobody.
+    fingerprint:
+      window-days: ${BLACKHOLE_EVASION_FINGERPRINT_WINDOW_DAYS:14}
+      max-owners: ${BLACKHOLE_EVASION_FINGERPRINT_MAX_OWNERS:5}
+      retention-days: ${BLACKHOLE_EVASION_FINGERPRINT_RETENTION_DAYS:30}
+      retention-sweep-cron: ${BLACKHOLE_EVASION_FINGERPRINT_RETENTION_SWEEP_CRON:`0 50 3 * * *`}
   # Shared cache (net.onelitefeather.blackhole.backend.cache), stored in the Redis-protocol server
   # above (Dragonfly in production) so every replica reads and evicts the same entries. Each
   # entry expires after its per-resource TTL, so a missed eviction only causes bounded staleness.
@@ -305,6 +313,11 @@ blackhole:
   # hit-retention-days: a hit (rule key, hashed owner, time, action, server; never a client trait) is
   # deleted after this many days; the rule keeps its running total. The sweep runs daily.
   clientrules:
+    # The client fingerprint key (32 random bytes, base64: openssl rand -base64 32). A key of its own, not the
+    # IP salt and not the Ban ID key. Unset outside dev and test: fingerprinting is off and POST
+    # /evasion/fingerprint answers 503. Unset in dev and test: a random key for this run, with a warning.
+    # Treat it as unrotatable in place: a new key cannot be correlated with fingerprints of the old one.
+    fingerprint-key: ${BLACKHOLE_FINGERPRINT_KEY:}
     hit-retention-days: ${BLACKHOLE_CLIENTRULES_HIT_RETENTION_DAYS:30}
     hit-retention-sweep-cron: ${BLACKHOLE_CLIENTRULES_HIT_RETENTION_SWEEP_CRON:`0 45 3 * * *`}
     catalogue:
