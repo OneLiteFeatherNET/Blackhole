@@ -10,8 +10,11 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * The decisions behind {@code /report}: who may be reported, the chat evidence attached, and how the
@@ -24,6 +27,8 @@ public final class ReportService {
 
     /** The longest description the backend accepts. */
     public static final int MAX_DETAILS = 1000;
+
+    private static final Pattern NAME = Pattern.compile("^[A-Za-z0-9_]{3,16}$");
 
     /** How a report ended. */
     public sealed interface Outcome {
@@ -70,15 +75,33 @@ public final class ReportService {
         this.evidence = evidence;
     }
 
+    private static boolean isMinecraftName(@Nullable String name) {
+        return name != null && NAME.matcher(name).matches();
+    }
+
+    private static @NotNull Map<String, Object> names(@Nullable String reporterName, @Nullable String reportedName) {
+        Map<String, Object> metaData = new LinkedHashMap<>();
+        if (isMinecraftName(reportedName)) {
+            metaData.put("reportedName", reportedName);
+        }
+        if (isMinecraftName(reporterName)) {
+            metaData.put("reporterName", reporterName);
+        }
+        return metaData;
+    }
+
     /**
      * @param reporter the reporting player
      * @param reported the reported player
      * @param bypass   whether the reported player is protected from reports by permission
      * @param category the reason
      * @param details  the description the reporter typed, if any
+     * @param reporterName the reporter's current name; sent only if it is a valid Minecraft name
+     * @param reportedName the reported player's current name; sent only if it is a valid Minecraft name
      */
     public @NotNull Outcome submit(
-            @NotNull UUID reporter, @NotNull UUID reported, boolean bypass, @NotNull ReportCategory category, @Nullable String details
+            @NotNull UUID reporter, @NotNull UUID reported, boolean bypass, @NotNull ReportCategory category, @Nullable String details,
+            @Nullable String reporterName, @Nullable String reportedName
     ) {
         if (reporter.equals(reported)) {
             return new Outcome.SelfReport();
@@ -97,7 +120,8 @@ public final class ReportService {
         ReportEvidence.Result attached = this.evidence.attach(reportedHash);
         List<UUID> references = attached.evidenceId() == null ? List.of() : List.of(attached.evidenceId());
         try {
-            ReportDTO report = this.backend.submitReport(UUIDConverter.convertToSHA(reporter), reportedHash, category, description, references);
+            ReportDTO report = this.backend.submitReport(UUIDConverter.convertToSHA(reporter), reportedHash, category, description, references,
+                    names(reporterName, reportedName));
             return new Outcome.Submitted(report, attached);
         } catch (ApiException e) {
             if (e.getCode() == 429) {

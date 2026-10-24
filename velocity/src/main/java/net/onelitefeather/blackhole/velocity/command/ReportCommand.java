@@ -72,7 +72,8 @@ public final class ReportCommand {
         }
         Player online = user.onlinePlayer();
         boolean bypass = online != null && online.hasPermission(Permissions.REPORT_BYPASS);
-        ReportService.Outcome outcome = this.service.submit(sender.getUniqueId(), user.uuid(), bypass, category.get(), details);
+        ReportService.Outcome outcome = this.service.submit(sender.getUniqueId(), user.uuid(), bypass, category.get(), details,
+                sender.getUsername(), user.name());
         sender.sendMessage(ReportMessages.outcome(outcome, user.name(), category.get()));
         if (outcome instanceof ReportService.Outcome.Submitted submitted) {
             String id = submitted.report().getIdentifier() == null ? null : submitted.report().getIdentifier().toString();

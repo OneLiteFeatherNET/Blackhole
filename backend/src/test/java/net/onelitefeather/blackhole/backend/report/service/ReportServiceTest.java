@@ -321,4 +321,35 @@ class ReportServiceTest {
         assertEquals(REPORTED, service.get(id).orElseThrow().reportedHash());
         assertTrue(service.get(UUID.randomUUID()).isEmpty());
     }
+
+    private ReportEntity storedWith(Map<String, Object> metaData) {
+        return new ReportEntity(REPORTER, REPORTED, ReportCategory.CHEATING, "d", new ArrayList<>(), ReportStatus.OPEN,
+                0L, 0L, null, null, ReportService.sanitizeMetaData(metaData));
+    }
+
+    @Test
+    void thePlayersNamesInReportMetadataAreKeptAndExposed() {
+        ReportEntity stored = storedWith(Map.of("reportedName", "Cheater_2", "reporterName", "Reporter_1"));
+
+        assertEquals(Map.of("reportedName", "Cheater_2", "reporterName", "Reporter_1"), stored.toDTO().metaData(),
+                "valid names must round-trip into the read dto");
+    }
+
+    @Test
+    void anInvalidPlayerNameInReportMetadataIsDropped() {
+        ReportEntity stored = storedWith(Map.of("reportedName", "not a valid name!", "reporterName", "Reporter_1", "other", "kept"));
+
+        assertEquals(Map.of("reporterName", "Reporter_1", "other", "kept"), stored.toDTO().metaData(),
+                "only the invalid name must be stripped");
+    }
+
+    @Test
+    void aNonStringPlayerNameInReportMetadataIsDropped() {
+        assertTrue(ReportService.sanitizeMetaData(Map.of("reportedName", 42, "reporterName", "x".repeat(17))).isEmpty());
+    }
+
+    @Test
+    void missingReportMetadataBecomesEmpty() {
+        assertTrue(ReportService.sanitizeMetaData(null).isEmpty());
+    }
 }

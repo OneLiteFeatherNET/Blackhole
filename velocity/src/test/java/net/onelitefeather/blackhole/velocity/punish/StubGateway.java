@@ -72,6 +72,7 @@ final class StubGateway implements BackendGateway {
     ApiException reportFailure;
     /** The reporter, reported, category, description and evidence of each submitted report. */
     final List<String> reports = new ArrayList<>();
+    final List<java.util.Map<String, Object>> reportMetaData = new ArrayList<>();
 
     /** What the feedback fetch answers, and the owners it was asked for. */
     List<ReportFeedbackResponse> feedback = new ArrayList<>();
@@ -107,8 +108,9 @@ final class StubGateway implements BackendGateway {
     }
 
     @Override
-    public ReportDTO submitReport(String reporter, String reported, ReportCategory category, String description, List<UUID> evidence) throws ApiException {
+    public ReportDTO submitReport(String reporter, String reported, ReportCategory category, String description, List<UUID> evidence, java.util.Map<String, Object> metaData) throws ApiException {
         this.calls.add("report");
+        this.reportMetaData.add(metaData);
         this.reports.add(reporter + "|" + reported + "|" + category + "|" + description + "|" + evidence);
         if (this.reportFailure != null) {
             throw this.reportFailure;

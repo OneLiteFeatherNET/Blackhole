@@ -42,7 +42,7 @@ class ReportServiceTest {
 
     @Test
     void aReportCarriesTheHashesTheCategoryAndTheDescription() {
-        Outcome outcome = service.submit(REPORTER, REPORTED, false, ReportCategory.CHEATING, "  flying  ");
+        Outcome outcome = service.submit(REPORTER, REPORTED, false, ReportCategory.CHEATING, "  flying  ", null, null);
 
         assertInstanceOf(Outcome.Submitted.class, outcome);
         assertEquals(List.of(REPORTER_HASH + "|" + REPORTED_HASH + "|CHEATING|flying|[]"), backend.reports,
@@ -50,10 +50,26 @@ class ReportServiceTest {
     }
 
     @Test
+    void theGatewayReceivesBothPlayersNames() {
+        service.submit(REPORTER, REPORTED, false, ReportCategory.CHEATING, null, "Reporter_1", "Cheater_2");
+
+        assertEquals(List.of(java.util.Map.of("reportedName", "Cheater_2", "reporterName", "Reporter_1")), backend.reportMetaData,
+                "both current names must reach the gateway as metadata");
+    }
+
+    @Test
+    void anInvalidNameIsLeftOutOfTheMetadata() {
+        service.submit(REPORTER, REPORTED, false, ReportCategory.CHEATING, null, "ab", REPORTED.toString());
+
+        assertEquals(List.of(java.util.Map.of()), backend.reportMetaData,
+                "a too short name and a raw uuid must never be sent");
+    }
+
+    @Test
     void theReportedPlayersRecentChatIsAttachedAndReferenced() {
         buffer.record(REPORTED_HASH, "lobby", "bad words");
 
-        Outcome outcome = service.submit(REPORTER, REPORTED, false, ReportCategory.CHAT_ABUSE, null);
+        Outcome outcome = service.submit(REPORTER, REPORTED, false, ReportCategory.CHAT_ABUSE, null, null, null);
 
         Outcome.Submitted submitted = assertInstanceOf(Outcome.Submitted.class, outcome);
         assertEquals(ReportEvidence.Result.Status.ATTACHED, submitted.evidence().status());
@@ -66,7 +82,7 @@ class ReportServiceTest {
     @Test
     void withoutBufferedChatNoEvidenceIsPosted() {
         Outcome.Submitted submitted = assertInstanceOf(Outcome.Submitted.class,
-                service.submit(REPORTER, REPORTED, false, ReportCategory.GRIEFING, null));
+                service.submit(REPORTER, REPORTED, false, ReportCategory.GRIEFING, null, null, null));
 
         assertEquals(ReportEvidence.Result.Status.NONE, submitted.evidence().status());
         assertTrue(backend.reportEvidenceOwners.isEmpty());
@@ -79,7 +95,7 @@ class ReportServiceTest {
         ReportService disabled = new ReportService(backend,
                 new ReportEvidence(new ChatSnapshotBuilder(buffer, config), backend, config, () -> "corr-1"));
 
-        disabled.submit(REPORTER, REPORTED, false, ReportCategory.CHAT_ABUSE, null);
+        disabled.submit(REPORTER, REPORTED, false, ReportCategory.CHAT_ABUSE, null, null, null);
 
         assertTrue(backend.reportEvidenceOwners.isEmpty(), "the default configuration must never send chat");
     }
@@ -90,7 +106,7 @@ class ReportServiceTest {
         backend.reportEvidenceResult = CompletableFuture.failedFuture(new IllegalStateException("down"));
 
         Outcome.Submitted submitted = assertInstanceOf(Outcome.Submitted.class,
-                service.submit(REPORTER, REPORTED, false, ReportCategory.CHAT_ABUSE, null));
+                service.submit(REPORTER, REPORTED, false, ReportCategory.CHAT_ABUSE, null, null, null));
 
         assertEquals(ReportEvidence.Result.Status.FAILED, submitted.evidence().status());
         assertEquals(1, backend.reports.size(), "the report must still be filed");
@@ -99,28 +115,28 @@ class ReportServiceTest {
 
     @Test
     void reportingYourselfIsRefusedWithoutAnyBackendCall() {
-        assertInstanceOf(Outcome.SelfReport.class, service.submit(REPORTER, REPORTER, false, ReportCategory.CHEATING, null));
+        assertInstanceOf(Outcome.SelfReport.class, service.submit(REPORTER, REPORTER, false, ReportCategory.CHEATING, null, null, null));
 
         assertTrue(backend.calls.isEmpty());
     }
 
     @Test
     void aProtectedPlayerCannotBeReported() {
-        assertInstanceOf(Outcome.Protected.class, service.submit(REPORTER, REPORTED, true, ReportCategory.CHEATING, null));
+        assertInstanceOf(Outcome.Protected.class, service.submit(REPORTER, REPORTED, true, ReportCategory.CHEATING, null, null, null));
 
         assertTrue(backend.calls.isEmpty());
     }
 
     @Test
     void theReasonOtherNeedsADescription() {
-        assertInstanceOf(Outcome.DetailsRequired.class, service.submit(REPORTER, REPORTED, false, ReportCategory.OTHER, "   "));
+        assertInstanceOf(Outcome.DetailsRequired.class, service.submit(REPORTER, REPORTED, false, ReportCategory.OTHER, "   ", null, null));
 
         assertTrue(backend.calls.isEmpty());
     }
 
     @Test
     void aTooLongDescriptionIsRefusedBeforeTheBackendSeesIt() {
-        Outcome outcome = service.submit(REPORTER, REPORTED, false, ReportCategory.OTHER, "x".repeat(ReportService.MAX_DETAILS + 1));
+        Outcome outcome = service.submit(REPORTER, REPORTED, false, ReportCategory.OTHER, "x".repeat(ReportService.MAX_DETAILS + 1), null, null);
 
         assertEquals(new Outcome.DetailsTooLong(ReportService.MAX_DETAILS), outcome);
         assertTrue(backend.calls.isEmpty());
@@ -130,20 +146,20 @@ class ReportServiceTest {
     void theBackendsRateLimitIsPassedOn() {
         backend.reportFailure = new ApiException(429, "too many", null, null);
 
-        assertInstanceOf(Outcome.RateLimited.class, service.submit(REPORTER, REPORTED, false, ReportCategory.CHEATING, null));
+        assertInstanceOf(Outcome.RateLimited.class, service.submit(REPORTER, REPORTED, false, ReportCategory.CHEATING, null, null, null));
     }
 
     @Test
     void anyOtherBackendFailureIsAFailure() {
         backend.reportFailure = new ApiException(500, "boom", null, null);
 
-        assertInstanceOf(Outcome.Failed.class, service.submit(REPORTER, REPORTED, false, ReportCategory.CHEATING, null));
+        assertInstanceOf(Outcome.Failed.class, service.submit(REPORTER, REPORTED, false, ReportCategory.CHEATING, null, null, null));
     }
 
     @Test
     void thePluginAddsNoCooldownOfItsOwn() {
-        service.submit(REPORTER, REPORTED, false, ReportCategory.CHEATING, null);
-        service.submit(REPORTER, REPORTED, false, ReportCategory.CHEATING, null);
+        service.submit(REPORTER, REPORTED, false, ReportCategory.CHEATING, null, null, null);
+        service.submit(REPORTER, REPORTED, false, ReportCategory.CHEATING, null, null, null);
 
         assertEquals(2, backend.reports.size(), "only the backend's limiter may refuse a report");
     }
@@ -153,7 +169,7 @@ class ReportServiceTest {
         buffer.record(REPORTED_HASH, "lobby", "bad words");
         ReportService real = new ReportService(backend, ReportEvidence.create(new ChatSnapshotBuilder(buffer, config), backend, config));
 
-        real.submit(REPORTER, REPORTED, false, ReportCategory.CHAT_ABUSE, null);
+        real.submit(REPORTER, REPORTED, false, ReportCategory.CHAT_ABUSE, null, null, null);
 
         assertTrue(backend.reportEvidenceCorrelationIds.getFirst().startsWith("report:"),
                 "the backend keeps evidence with this prefix until the report is resolved");
