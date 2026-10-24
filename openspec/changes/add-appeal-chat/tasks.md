@@ -61,14 +61,17 @@ Migration versions and the client spec number are the next free ones on `main` r
 
 ## 5. Portal (PR 5, `feat(portal)`)
 
-- [ ] 5.1 Spike first: SSE through the real tunnel and Nitro v2 (no compression, flush per event, abort on client close, 100 s idle
+- [x] 5.1 Spike first: SSE through Nitro v2 (no compression, flush per event, abort on client close, 100 s idle
   not reached with a 15 s keep-alive); record the result in the PR; adjust the design if it differs
-- [ ] 5.2 Failing tests first: BFF allow-list (multipart upload with size cap and CSRF, binary download streaming and headers,
+  - Local spike (2026-10-24, built `portal/.output` against a fake backend): frames arrive as the backend sends them,
+    `Accept-Encoding: gzip` gets no compression, a missing session gets a bare 401. No design change.
+  - [ ] Manual: the same check through the real Cloudflare tunnel (not run in this PR)
+- [x] 5.2 Failing tests first: BFF allow-list (multipart upload with size cap and CSRF, binary download streaming and headers,
   SSE pass-through and 401), error-code mapping, tree renderer with hostile trees, `safeHttpUrl` with the corpus, interstitial,
   bubbles and grouping, formatting hint under the composer (no preview), composer (attach, drop, paste, chip states, counter, Send disabled), image lightbox, PDF/TXT cards, share
   cards, polling fallback timings with fake timers, `noMarkup.test.ts` still green, no browser storage
-- [ ] 5.3 Contract and BFF: routes, streaming helpers, CSP `img-src 'self' blob:`, English strings; chat components; `/leave`
-- [ ] 5.4 Verify `npm test` and the type check in `portal/`
+- [x] 5.3 Contract and BFF: routes, streaming helpers, CSP `img-src 'self' blob:`, English strings; chat components; `/leave`
+- [x] 5.4 Verify `npm test` and the type check in `portal/`
 
 ## 6. Panel (PR 6, `feat(web)`)
 
