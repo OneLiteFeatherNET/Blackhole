@@ -30,7 +30,9 @@ public class JdbcPublicConversationReader implements PublicConversationReader {
                    cur.text, cur.redacted, orig.author_kind,
                    EXISTS (SELECT 1 FROM case_event d
                            WHERE d.punishment_identifier = e.punishment_identifier AND d.subject_id = e.subject_id
-                             AND d.type = 'message.deleted' AND d.visibility = 'PLAYER')
+                             AND d.type = 'message.deleted' AND d.visibility = 'PLAYER'),
+                   orig.attachments, e.payload ->> 'shareId', s.mode, s.revoked_at IS NOT NULL,
+                   array_to_string(s.selection, ','), s.appellant_speaker, ev.payload::text, ev.identifier IS NOT NULL
             FROM case_event e
             LEFT JOIN LATERAL (
                 SELECT x.payload ->> 'text' AS text, x.redacted_at IS NOT NULL AS redacted
@@ -40,12 +42,14 @@ public class JdbcPublicConversationReader implements PublicConversationReader {
                 ORDER BY x.seq DESC LIMIT 1
             ) cur ON e.type LIKE 'message.%'
             LEFT JOIN LATERAL (
-                SELECT x.payload #>> '{author,kind}' AS author_kind
+                SELECT x.payload #>> '{author,kind}' AS author_kind, (x.payload -> 'attachments')::text AS attachments
                 FROM case_event x
                 WHERE x.punishment_identifier = e.punishment_identifier AND x.subject_id = e.subject_id
                   AND x.type = 'message.added' AND x.visibility = 'PLAYER'
                 ORDER BY x.seq LIMIT 1
             ) orig ON e.type LIKE 'message.%'
+            LEFT JOIN evidence_share s ON s.punishment_identifier = e.punishment_identifier AND s.share_id::text = e.payload ->> 'shareId'
+            LEFT JOIN evidence_items ev ON ev.identifier = s.evidence_id
             WHERE e.punishment_identifier = ? AND e.seq > ?
               AND ((e.visibility = 'PLAYER' AND e.type = ANY (?)) OR e.type = ANY (?))
             ORDER BY e.seq
@@ -111,9 +115,33 @@ public class JdbcPublicConversationReader implements PublicConversationReader {
                 boolean removed = !type.equals(CaseEventPayload.MESSAGE_ADDED) && !type.equals(CaseEventPayload.MESSAGE_EDITED)
                         || rows.getBoolean(7) || rows.getBoolean(9) || text == null;
                 String author = "PLAYER".equals(rows.getString(8)) ? "PLAYER" : "STAFF";
-                return new Entry(seq, occurredAt, "MESSAGE", author, messageId, removed ? null : text, removed);
+                String files = removed ? null : rows.getString(10);
+                return new Entry(seq, occurredAt, "MESSAGE", author, messageId, removed ? null : text, removed, files, null);
+            case CaseEventPayload.EVIDENCE_SHARED:
+                return shareEntry(rows, seq, occurredAt, "SHARE", false);
+            case CaseEventPayload.EVIDENCE_SHARE_REVOKED:
+                return shareEntry(rows, seq, occurredAt, "SHARE_WITHDRAWN", true);
             default:
                 return null;
         }
+    }
+
+    /** A share card: the share as it stands now, with the id the player downloads an image by. */
+    private static Entry shareEntry(ResultSet rows, long seq, long occurredAt, String kind, boolean withdrawn) throws SQLException {
+        String shareId = rows.getString(11);
+        if (shareId == null) {
+            return null;
+        }
+        String mode = rows.getString(12);
+        boolean revoked = rows.getBoolean(13);
+        List<Integer> selection = new ArrayList<>();
+        String selectionText = rows.getString(14);
+        if (selectionText != null && !selectionText.isBlank()) {
+            for (String index : selectionText.split(",")) {
+                selection.add(Integer.parseInt(index.strip()));
+            }
+        }
+        Share share = new Share(shareId, mode, withdrawn || revoked, rows.getBoolean(17), selection, rows.getString(15), rows.getString(16));
+        return new Entry(seq, occurredAt, kind, "SYSTEM", null, null, false, null, share);
     }
 }

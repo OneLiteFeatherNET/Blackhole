@@ -68,6 +68,6 @@ paths:
 - Chat files and shares (`/case/{reference}/...`): `POST attachments` (staff upload), `POST evidence-shares` and `POST evidence-shares/{id}/revoke` need
   `MODERATOR`; `GET evidence-shares` and `POST evidence-shares/preview` need `VIEWER`; `PROXY`, `DISCORD` and player sessions are denied
   (`RouteCoverageIntegrationTest`, `PermissionMatrixIntegrationTest`, `ChatApiIntegrationTest`). Uploads scan first and fail closed; a file is served only as the
-  existing `/evidence/{id}/content` does (`nosniff`, `CSP: sandbox`, `no-store`; the player routes come with the public API change). A share needs the
+  existing `/evidence/{id}/content` does (`nosniff`, `CSP: sandbox`, `no-store`; the player's routes `/public/attachments/{id}` serve the same headers, see `public-api.md`). `GET /case/{reference}/events` (the live signal) is `VIEWER`, denied to `PROXY` and `DISCORD`; a player stream is `PLAYER` only. A share needs the
   backend-checked `confirmedMinimised`; no response, event or log carries a file's bytes, storage key or hash, or the lines of a shared capture outside the
   preview.

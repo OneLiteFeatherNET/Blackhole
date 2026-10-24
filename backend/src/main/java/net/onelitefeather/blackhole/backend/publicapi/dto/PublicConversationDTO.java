@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * The conversation as the player reads it and the message the player posts. There is no staff name, no
@@ -41,8 +42,48 @@ public sealed interface PublicConversationDTO {
     @ReflectiveAccess
     record Entry(
             long seq, @NonNull String occurredAt, @NonNull String kind, @NonNull Author author, @Nullable String messageId,
-            @Nullable String text, @Nullable List<Map<String, Object>> blocks, boolean removed
+            @Nullable String text, @Nullable List<Map<String, Object>> blocks, boolean removed,
+            @Nullable List<Attachment> attachments, @Nullable Share share
     ) {
+    }
+
+    /**
+     * A chat file a message sent. Download it with {@code GET /public/attachments/{attachmentId}}.
+     *
+     * @param provenance {@code PLAYER} (the player's own upload, unverified) or {@code STAFF} (the team's)
+     */
+    @Schema(name = "PublicConversationAttachment")
+    @Serdeable
+    @ReflectiveAccess
+    record Attachment(
+            @NonNull String attachmentId, @NonNull String name, @NonNull String contentType, long size,
+            @Nullable Integer width, @Nullable Integer height, @NonNull String provenance
+    ) {
+    }
+
+    /**
+     * A share of evidence with the player. An image is downloaded by its {@code shareId}; an excerpt shows its {@code lines}.
+     *
+     * @param shareId   the share id
+     * @param mode      {@code FILE} (an image) or {@code EXCERPT} (chat lines)
+     * @param state     {@code ACTIVE}, {@code WITHDRAWN} (revoked) or {@code UNAVAILABLE} (the evidence is gone)
+     * @param lineCount the number of lines of an excerpt; null for an image
+     * @param lines     the excerpt lines, speakers relabelled ("You", "Player 2"), offsets from the first line; null unless ACTIVE excerpt
+     */
+    @Schema(name = "PublicConversationShare")
+    @Serdeable
+    @ReflectiveAccess
+    record Share(
+            @NonNull String shareId, @Nullable String mode, @NonNull String state, @Nullable Integer lineCount,
+            @Nullable List<ShareLine> lines
+    ) {
+    }
+
+    /** One line of an excerpt: a relabelled speaker, an offset in seconds from the first line, and the plain text. */
+    @Schema(name = "PublicConversationShareLine")
+    @Serdeable
+    @ReflectiveAccess
+    record ShareLine(@NonNull String speaker, @Nullable Long offsetSeconds, @NonNull String text) {
     }
 
     /**
@@ -58,12 +99,14 @@ public sealed interface PublicConversationDTO {
     /**
      * Posts a message to the team.
      *
-     * @param text 1 to 2000 characters of Markdown (a small subset, see the conversation entry), without a UUID, an IP address or a Ban ID
+     * @param text          1 to 2000 characters of Markdown (a small subset, see the conversation entry), without a UUID, an IP address or a
+     *                      Ban ID; may be absent when the message has at least one file
+     * @param attachmentIds up to five files uploaded with {@code POST /public/attachments} for this appeal, each sent once
      */
     @Schema(name = "PublicMessageRequest")
     @Serdeable
     @ReflectiveAccess
-    record PostRequest(@Nullable String text) implements PublicConversationDTO {
+    record PostRequest(@Nullable String text, @Nullable List<UUID> attachmentIds) implements PublicConversationDTO {
     }
 
     /**

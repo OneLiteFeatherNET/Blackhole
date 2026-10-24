@@ -335,7 +335,8 @@ public class CaseService {
                 punishment.isPermanent(), punishment.getCreatedAt() == null ? 0 : punishment.getCreatedAt(),
                 CaseStatus.valueOf(meta.status()), meta.assignee(), row.map(CaseReader.CaseRow::assigneeName).orElse(null),
                 CasePriority.valueOf(meta.priority()), meta.tags(), row.map(CaseReader.CaseRow::version).orElse(0L), related,
-                row.map(CaseReader.CaseRow::banIdLeakedAt).orElse(null), row.map(CaseReader.CaseRow::banIdLeakReason).orElse(null));
+                row.map(CaseReader.CaseRow::banIdLeakedAt).orElse(null), row.map(CaseReader.CaseRow::banIdLeakReason).orElse(null),
+                row.map(CaseReader.CaseRow::playerSeenSeq).orElse(0L));
     }
 
     /** {@code LIFTED} (revoked or lifted by an appeal), {@code EXPIRED} or {@code ACTIVE}. */

@@ -29,6 +29,7 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             SELECT ?, upd.punishment_identifier, 'case.status_changed', 1, ?, 'LIVE', 'SYSTEM', 'STAFF',
                    '{"from":"CLOSED","to":"OPEN"}'::jsonb
             FROM upd
+            RETURNING seq
             """;
 
     private static final String ENSURE = """
@@ -226,15 +227,23 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
     private static final String UNIQUE_VIOLATION = "23505";
 
     private final DataSource dataSource;
+    private final CaseChangeNotifier notifier;
 
     @Inject
-    public JdbcCaseWriter(DataSource dataSource, DataSourceResolver resolver) {
+    public JdbcCaseWriter(DataSource dataSource, DataSourceResolver resolver, CaseChangeNotifier notifier) {
         this.dataSource = resolver.resolve(dataSource);
+        this.notifier = notifier;
     }
 
     /** For a plain data source, such as a test's. */
     public JdbcCaseWriter(DataSource plainDataSource) {
+        this(plainDataSource, CaseChangeNotifier.NONE);
+    }
+
+    /** For a plain data source and a notifier, such as a test's. */
+    public JdbcCaseWriter(DataSource plainDataSource, CaseChangeNotifier notifier) {
         this.dataSource = plainDataSource;
+        this.notifier = notifier;
     }
 
     @Override
@@ -245,7 +254,13 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             statement.setString(2, punishmentIdentifier);
             statement.setObject(3, UUID.randomUUID());
             statement.setLong(4, now);
-            return statement.executeUpdate() == 1;
+            try (ResultSet rows = statement.executeQuery()) {
+                if (!rows.next()) {
+                    return false;
+                }
+                this.notifier.appended(punishmentIdentifier, rows.getLong(1), CaseEventPayload.STATUS_CHANGED);
+                return true;
+            }
         } catch (SQLException e) {
             throw new IllegalStateException("could not reopen the case of " + punishmentIdentifier, e);
         }
@@ -291,7 +306,7 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
                 JdbcCaseEventRepository.setUuid(statement, ++index, actor.actorSource());
                 statement.setString(++index, CaseEventPayloads.toJson(payload));
             }
-            return appended(statement);
+            return notified(punishmentIdentifier, appended(statement));
         } catch (SQLException e) {
             throw new IllegalStateException("could not update the case of " + punishmentIdentifier, e);
         }
@@ -313,7 +328,7 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             statement.setString(++index, CaseEventPayloads.toJson(new CaseEventPayload.NoteEdited(noteId, text)));
             statement.setString(++index, punishmentIdentifier);
             statement.setString(++index, noteId);
-            List<Appended> appended = appended(statement);
+            List<Appended> appended = notified(punishmentIdentifier, appended(statement));
             return appended.isEmpty() ? null : appended.getFirst();
         } catch (SQLException e) {
             throw new IllegalStateException("could not edit a note of " + punishmentIdentifier, e);
@@ -347,7 +362,7 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             statement.setBoolean(++index, promoteWaiting);
             statement.setObject(++index, UUID.randomUUID());
             statement.setLong(++index, message.occurredAt());
-            return appended(statement);
+            return notified(message.punishmentIdentifier(), appended(statement));
         } catch (SQLException e) {
             throw new IllegalStateException("could not append a message to the case of " + message.punishmentIdentifier(), e);
         }
@@ -360,7 +375,7 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             int index = bindDraft(statement, 0, edit);
             statement.setString(++index, edit.punishmentIdentifier());
             statement.setString(++index, edit.subjectId());
-            List<Appended> appended = appended(statement);
+            List<Appended> appended = notified(edit.punishmentIdentifier(), appended(statement));
             return appended.isEmpty() ? null : appended.getFirst();
         } catch (SQLException e) {
             throw new IllegalStateException("could not edit a message of " + edit.punishmentIdentifier(), e);
@@ -385,11 +400,18 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             statement.setString(++index, source.name());
             statement.setString(++index, poster == null ? null : poster.participantId());
             statement.setObject(++index, poster == null ? null : poster.isOwner(), java.sql.Types.BOOLEAN);
+            LeakMarked marked = null;
             try (ResultSet rows = statement.executeQuery()) {
-                return rows.next()
-                        ? new LeakMarked(new Appended(rows.getObject(1, UUID.class), rows.getLong(2), rows.getString(3)), rows.getBoolean(4))
-                        : null;
+                if (rows.next()) {
+                    marked = new LeakMarked(new Appended(rows.getObject(1, UUID.class), rows.getLong(2), rows.getString(3)), rows.getBoolean(4));
+                }
             }
+            if (marked != null) {
+                // The player sessions were deleted in the same statement: their streams end too.
+                this.notifier.appended(punishmentIdentifier, marked.event());
+                this.notifier.sessionsEnded(punishmentIdentifier);
+            }
+            return marked;
         } catch (SQLException e) {
             throw new IllegalStateException("could not mark the Ban ID of " + punishmentIdentifier + " leaked", e);
         }
@@ -424,11 +446,19 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             statement.setLong(++index, now);
             index = bindActor(statement, index, actor);
             statement.setString(++index, reason.name());
+            Reissued reissued = null;
             try (ResultSet rows = statement.executeQuery()) {
-                return rows.next()
-                        ? new Reissued(new Appended(rows.getObject(1, UUID.class), rows.getLong(2), rows.getString(3)), rows.getInt(4), rows.getInt(5))
-                        : null;
+                if (rows.next()) {
+                    reissued = new Reissued(new Appended(rows.getObject(1, UUID.class), rows.getLong(2), rows.getString(3)), rows.getInt(4),
+                            rows.getInt(5));
+                }
             }
+            if (reissued != null) {
+                // The player sessions were deleted in the same statement: their streams end too.
+                this.notifier.appended(punishmentIdentifier, reissued.event());
+                this.notifier.sessionsEnded(punishmentIdentifier);
+            }
+            return reissued;
         } catch (SQLException e) {
             if (UNIQUE_VIOLATION.equals(e.getSQLState())) {
                 throw new BanIdCollisionException("a new Ban ID hash for " + punishmentIdentifier + " is already taken", e);
@@ -457,6 +487,7 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
                     erased.add(new Erased(rows.getString(3),
                             new Appended(rows.getObject(1, UUID.class), rows.getLong(2), CaseEventPayload.MESSAGE_REDACTED), rows.getString(4)));
                 }
+                erased.forEach(message -> this.notifier.appended(punishmentIdentifier, message.event()));
                 return erased;
             }
         } catch (SQLException e) {
@@ -489,6 +520,12 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
         JdbcCaseEventRepository.setUuid(statement, ++index, actor.recordedByOid());
         JdbcCaseEventRepository.setUuid(statement, ++index, actor.actorSource());
         return index;
+    }
+
+    /** Signals each appended event of the case; the list is returned unchanged. */
+    private List<Appended> notified(String punishmentIdentifier, List<Appended> appended) {
+        appended.forEach(event -> this.notifier.appended(punishmentIdentifier, event));
+        return appended;
     }
 
     private static List<Appended> appended(PreparedStatement statement) throws SQLException {

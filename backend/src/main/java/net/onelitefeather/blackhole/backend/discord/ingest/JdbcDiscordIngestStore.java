@@ -4,6 +4,7 @@ import io.micronaut.jdbc.DataSourceResolver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseChangeNotifier;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseChanges;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventDraft;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventPayloads;
@@ -124,16 +125,24 @@ public class JdbcDiscordIngestStore implements DiscordIngestStore {
             """;
 
     private final DataSource dataSource;
+    private final CaseChangeNotifier notifier;
 
     @Inject
-    public JdbcDiscordIngestStore(DataSource dataSource, DataSourceResolver resolver) {
+    public JdbcDiscordIngestStore(DataSource dataSource, DataSourceResolver resolver, CaseChangeNotifier notifier) {
         // The injected source is transaction-aware and refuses connections outside a transaction.
         this.dataSource = resolver.resolve(dataSource);
+        this.notifier = notifier;
     }
 
     /** For a plain data source, such as a test's. */
     public JdbcDiscordIngestStore(DataSource plainDataSource) {
+        this(plainDataSource, CaseChangeNotifier.NONE);
+    }
+
+    /** For a plain data source and a notifier, such as a test's. */
+    public JdbcDiscordIngestStore(DataSource plainDataSource, CaseChangeNotifier notifier) {
         this.dataSource = plainDataSource;
+        this.notifier = notifier;
     }
 
     @Override
@@ -173,7 +182,7 @@ public class JdbcDiscordIngestStore implements DiscordIngestStore {
             statement.setBoolean(++index, promoteWaiting);
             statement.setObject(++index, UUID.randomUUID());
             statement.setLong(++index, message.occurredAt());
-            return appended(statement);
+            return notified(message.punishmentIdentifier(), appended(statement));
         } catch (SQLException e) {
             throw new IllegalStateException("could not record a Discord message of ticket " + ticketId, e);
         }
@@ -193,7 +202,7 @@ public class JdbcDiscordIngestStore implements DiscordIngestStore {
             statement.setString(++index, dedupeKey);
             statement.setString(++index, punishmentIdentifier);
             statement.setString(++index, punishmentIdentifier);
-            return first(appended(statement));
+            return first(notified(punishmentIdentifier, appended(statement)));
         } catch (SQLException e) {
             throw new IllegalStateException("could not record an edit of a Discord message of ticket " + ticketId, e);
         }
@@ -210,7 +219,7 @@ public class JdbcDiscordIngestStore implements DiscordIngestStore {
             statement.setBoolean(++index, detectedAtCatchup);
             statement.setString(++index, dedupeKey);
             statement.setString(++index, punishmentIdentifier);
-            return first(appended(statement));
+            return first(notified(punishmentIdentifier, appended(statement)));
         } catch (SQLException e) {
             throw new IllegalStateException("could not record the deletion of a Discord message of ticket " + ticketId, e);
         }
@@ -229,7 +238,7 @@ public class JdbcDiscordIngestStore implements DiscordIngestStore {
             statement.setLong(++index, occurredAt);
             statement.setObject(++index, recordedByOid);
             statement.setString(++index, dedupeKey);
-            return first(appended(statement));
+            return first(notified(punishmentIdentifier, appended(statement)));
         } catch (SQLException e) {
             throw new IllegalStateException("could not record the deletion of an unknown Discord message of ticket " + ticketId, e);
         }
@@ -253,6 +262,12 @@ public class JdbcDiscordIngestStore implements DiscordIngestStore {
         } catch (SQLException e) {
             throw new IllegalStateException("could not look for messages missing from the channel of ticket " + ticketId, e);
         }
+    }
+
+    /** Signals each appended event of the case; the list is returned unchanged. */
+    private List<CaseChanges.Appended> notified(String punishmentIdentifier, List<CaseChanges.Appended> appended) {
+        appended.forEach(event -> this.notifier.appended(punishmentIdentifier, event));
+        return appended;
     }
 
     private static Optional<CaseChanges.Appended> first(List<CaseChanges.Appended> appended) {

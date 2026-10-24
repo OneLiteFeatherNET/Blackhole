@@ -19,7 +19,8 @@ class PublicConversationBlocksTest {
 
     private static PublicConversationService service(List<PublicConversationReader.Entry> entries) {
         PublicConversationReader reader = (punishment, afterSeq, limit) -> new PublicConversationReader.Page(entries, 9L);
-        return new PublicConversationService(reader, null, null, null, 2000, 200, new MessageContent("onelitefeather.net"));
+        return new PublicConversationService(reader, null, null, null, 2000, 200, new MessageContent("onelitefeather.net"),
+                PlayerSeenMarker.NONE);
     }
 
     private static PublicConversationDTO.Page read(List<PublicConversationReader.Entry> entries) {

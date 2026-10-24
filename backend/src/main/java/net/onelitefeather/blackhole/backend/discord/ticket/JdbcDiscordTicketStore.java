@@ -3,6 +3,8 @@ package net.onelitefeather.blackhole.backend.discord.ticket;
 import io.micronaut.jdbc.DataSourceResolver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseChangeNotifier;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseEventSignals;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageAuthorKind;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageChannel;
 
@@ -209,16 +211,24 @@ public class JdbcDiscordTicketStore implements DiscordTicketStore {
             """;
 
     private final DataSource dataSource;
+    private final CaseChangeNotifier notifier;
 
     @Inject
-    public JdbcDiscordTicketStore(DataSource dataSource, DataSourceResolver resolver) {
+    public JdbcDiscordTicketStore(DataSource dataSource, DataSourceResolver resolver, CaseChangeNotifier notifier) {
         // The injected source is transaction-aware and refuses connections outside a transaction.
         this.dataSource = resolver.resolve(dataSource);
+        this.notifier = notifier;
     }
 
     /** For a plain data source, such as a test's. */
     public JdbcDiscordTicketStore(DataSource plainDataSource) {
+        this(plainDataSource, CaseChangeNotifier.NONE);
+    }
+
+    /** For a plain data source and a notifier, such as a test's. */
+    public JdbcDiscordTicketStore(DataSource plainDataSource, CaseChangeNotifier notifier) {
         this.dataSource = plainDataSource;
+        this.notifier = notifier;
     }
 
     // ---- participants ----
@@ -318,10 +328,13 @@ public class JdbcDiscordTicketStore implements DiscordTicketStore {
             statement.setLong(++index, ticket.now());
             statement.setLong(++index, ticket.now());
             statement.setObject(++index, ticket.recordedByOid());
+            DiscordTicket opened;
             try (ResultSet rows = statement.executeQuery()) {
                 rows.next();
-                return ticket(rows);
+                opened = ticket(rows);
             }
+            CaseEventSignals.byDedupeKey(this.dataSource, this.notifier, "ticket.opened:" + opened.id());
+            return opened;
         } catch (SQLException e) {
             if (UNIQUE_VIOLATION.equals(e.getSQLState())) {
                 throw new DuplicateTicketException(e);
@@ -378,7 +391,7 @@ public class JdbcDiscordTicketStore implements DiscordTicketStore {
 
     @Override
     public Optional<DiscordTicket> archive(UUID id, int protocolVersion, long now, UUID recordedByOid) {
-        return one(ARCHIVE, statement -> {
+        Optional<DiscordTicket> archived = one(ARCHIVE, statement -> {
             statement.setLong(1, now);
             statement.setLong(2, now);
             statement.setObject(3, id);
@@ -386,11 +399,13 @@ public class JdbcDiscordTicketStore implements DiscordTicketStore {
             statement.setObject(5, recordedByOid);
             statement.setInt(6, protocolVersion);
         }, JdbcDiscordTicketStore::ticket);
+        archived.ifPresent(ticket -> CaseEventSignals.byDedupeKey(this.dataSource, this.notifier, "ticket.archived:" + ticket.id()));
+        return archived;
     }
 
     @Override
     public Optional<DiscordTicket> deleted(UUID id, long now, UUID recordedByOid) {
-        return one(DELETE, statement -> {
+        Optional<DiscordTicket> deleted = one(DELETE, statement -> {
             statement.setObject(1, id);
             statement.setLong(2, now);
             statement.setLong(3, now);
@@ -398,6 +413,8 @@ public class JdbcDiscordTicketStore implements DiscordTicketStore {
             statement.setLong(5, now);
             statement.setObject(6, recordedByOid);
         }, JdbcDiscordTicketStore::ticket);
+        deleted.ifPresent(ticket -> CaseEventSignals.byDedupeKey(this.dataSource, this.notifier, "ticket.channel_deleted:" + ticket.id()));
+        return deleted;
     }
 
     @Override
@@ -415,10 +432,15 @@ public class JdbcDiscordTicketStore implements DiscordTicketStore {
             statement.setLong(++index, lastMessageId);
             statement.setLong(++index, now);
             statement.setObject(++index, recordedByOid);
+            boolean completed;
             try (ResultSet rows = statement.executeQuery()) {
                 rows.next();
-                return rows.getLong(1) == 1;
+                completed = rows.getLong(1) == 1;
             }
+            if (completed) {
+                CaseEventSignals.byDedupeKey(this.dataSource, this.notifier, "ticket.transcript_complete:" + id);
+            }
+            return completed;
         } catch (SQLException e) {
             throw new IllegalStateException("could not record the transcript of ticket " + id + " as complete", e);
         }

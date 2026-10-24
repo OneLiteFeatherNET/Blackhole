@@ -326,6 +326,30 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void noStaffRoleOrTheProxyUsesThePlayerFileRoutesOrTheConversationStream() {
+        for (String token : java.util.List.of(this.jwt.admin(), this.jwt.moderator(), this.jwt.viewer(), this.jwt.proxy())) {
+            assertTrue(get("/public/conversation/events", token).status() == 401 || get("/public/conversation/events", token).status() == 403,
+                    "a staff token on the player's stream is refused");
+            assertTrue(get("/public/attachments/" + EVIDENCE, token).status() == 401 || get("/public/attachments/" + EVIDENCE, token).status() == 403,
+                    "a staff token on the player's download is refused");
+        }
+    }
+
+    @Test
+    void theCaseStreamIsForViewersAndAboveAndDeniedToTheProxyAndTheBot() {
+        String stream = "/case/unknown-punishment/events";
+        assertEquals(404, get(stream, this.jwt.viewer()).status(), "a viewer may open it: the case is just unknown");
+        assertEquals(404, get(stream, this.jwt.moderator()).status(), "a moderator may open it");
+        assertEquals(403, get(stream, this.jwt.proxy()).status(), "the proxy is denied");
+        assertEquals(403, get(stream, discordBot()).status(), "the Discord bot is denied");
+        assertEquals(401, get(stream, null).status(), "no token");
+    }
+
+    private String discordBot() {
+        return this.jwt.appOnly().claim("oid", UUID.randomUUID().toString()).roles(TestJwtIssuer.DISCORD_ROLE).sign();
+    }
+
+    @Test
     void aPlayerSessionTokenIsNotAStaffTokenOnAnyStaffRoute() {
         String sessionShapedToken = "bhps_" + "A".repeat(43);
 

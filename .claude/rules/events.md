@@ -98,3 +98,12 @@ owners (and not more than `max-owners`): `{owners (hashed), at}` only, never the
 `EvidenceShareService` after the write (via `CaseEventPublisher`, in a try/catch) with the usual case envelope; never lines, a file name, a speaker or an
 evidence payload. `case.message_added` for a message with files adds only the count `attachments`. Chat files delete themselves as `evidence.deleted`
 (reason `ERASURE`); staging a file publishes nothing (it is not evidence until a message binds it, and the bind is announced by the message).
+
+## Live signals (not domain events)
+
+A case write also raises a `ChangeSignal` (`live/`) through `ChangeSignalTransport` after its statement succeeded: `CaseChangeNotifier`
+is held by every writer of `case_event` rows (`CaseChangeSurfaceTest` fails for a new one). The signal carries the punishment identifier,
+the seq, the audience (`PLAYER` for an event of the player's allow-list and the lifecycle markers, else `STAFF`) and a kind (`CHANGED`, or
+`SESSIONS_ENDED` after a leak or reissue). It is not an event: it is not on the bus, not stored and not in any payload. The in-process
+transport is the only adapter until task 4.6 (a transient core NATS subscription); no RabbitMQ adapter is written for it. A failed publish
+is counted in `blackhole.live.signal.failures` and never fails the write.

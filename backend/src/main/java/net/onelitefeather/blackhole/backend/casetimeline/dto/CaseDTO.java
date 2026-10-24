@@ -93,6 +93,8 @@ public sealed interface CaseDTO {
      * @param related         up to 20 other punishments of the same player, newest first
      * @param banIdLeakedAt   when the Ban ID of the current generation was marked leaked; null when it was not (a reissue clears it)
      * @param banIdLeakReason the leak reason code; null when not leaked
+     * @param playerSeenSeq   the highest seq the player's conversation read has returned (0 when none); staff show "Seen" under the last
+     *                        staff message at or below it. A number only, never a time.
      */
     @Schema(name = "CaseResponse")
     @Serdeable
@@ -113,7 +115,8 @@ public sealed interface CaseDTO {
             long version,
             @NonNull @JsonInclude(JsonInclude.Include.ALWAYS) List<Related> related,
             @Nullable Long banIdLeakedAt,
-            @Nullable String banIdLeakReason
+            @Nullable String banIdLeakReason,
+            long playerSeenSeq
     ) implements CaseDTO {
     }
 

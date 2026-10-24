@@ -25,6 +25,15 @@ public enum PublicErrorKind {
     /** The punishment is gone (404). */
     NOT_FOUND(HttpStatus.NOT_FOUND),
 
+    /** A chat file is larger than the limit (413). */
+    TOO_LARGE(HttpStatus.REQUEST_ENTITY_TOO_LARGE),
+
+    /** A chat file is of a type that is not allowed (415). */
+    UNSUPPORTED_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE),
+
+    /** A chat file is refused for its content: flagged by the scanner, active content or not a valid file (422). */
+    REJECTED_FILE(HttpStatus.UNPROCESSABLE_ENTITY),
+
     /** A dependency the request needs cannot answer (503). */
     UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE);
 
