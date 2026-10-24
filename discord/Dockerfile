@@ -21,7 +21,7 @@ COPY gradle ./gradle
 COPY client ./client
 COPY discord ./discord
 # Only the bot and the generated client are built here; the other modules need nothing of this image.
-RUN sed -i -E '/^include\("(backend|velocity|phoca|web)"\)/d' settings.gradle.kts \
+RUN sed -i -E '/^include\("(backend|velocity|phoca|web|portal)"\)/d' settings.gradle.kts \
  && ./gradlew --no-daemon :discord:shadowJar -x test
 
 FROM eclipse-temurin:25-jre

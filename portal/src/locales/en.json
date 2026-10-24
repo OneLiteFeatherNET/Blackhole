@@ -1,0 +1,137 @@
+{
+  "app": {
+    "name": "OneLiteFeather",
+    "tagline": "Living Life Lite",
+    "skip": "Skip to content",
+    "tools": "Language and account",
+    "language": {
+      "en": "English",
+      "de": "Deutsch"
+    },
+    "logout": "Sign out",
+    "loading": "Loading...",
+    "footer": "This page is only for players who received a Ban ID. Your session ends after 30 minutes without activity."
+  },
+  "common": {
+    "back": "Back"
+  },
+  "login": {
+    "title": "Appeal your punishment",
+    "intro": "Enter the Ban ID you were shown when you tried to join the network. It lets you see the facts of your punishment, appeal it and talk to the team.",
+    "label": "Ban ID",
+    "hint": "Eight letters and digits, for example K7M2-9QX4. Upper or lower case, spaces and a leading # are fine.",
+    "submit": "Continue",
+    "submitting": "Checking...",
+    "invalid": "This Ban ID could not be used. Check it and try again.",
+    "unavailable": "The appeal portal cannot be reached right now. Please try again in a few minutes.",
+    "privacy": "Keep your Ban ID private. Anyone who has it can read your punishment, and if it is shared publicly you lose the right to appeal."
+  },
+  "expired": {
+    "title": "Your session has ended",
+    "body": "For your safety you were signed out after a period without activity. Please sign in again with your Ban ID.",
+    "draftKept": "Text you had not sent yet is kept in this tab until you sign in again or close it.",
+    "signIn": "Sign in again"
+  },
+  "case": {
+    "title": "Your punishment",
+    "type": "Type",
+    "reason": "Reason",
+    "section": "Area",
+    "since": "Issued",
+    "until": "Runs until",
+    "permanent": "Permanent",
+    "status": "Status",
+    "evidence": "Evidence",
+    "evidenceCount": "{count} item on file | {count} items on file",
+    "state": {
+      "ACTIVE": "Active",
+      "EXPIRED": "Expired",
+      "LIFTED": "Lifted",
+      "REVOKED": "Revoked"
+    }
+  },
+  "appeal": {
+    "title": "Appeal",
+    "notYet": "You can file an appeal from {date}.",
+    "notYetUnknown": "It is too early to file an appeal.",
+    "available": "You can file one appeal for this punishment.",
+    "open": "Your appeal is open. The team will answer in the conversation.",
+    "decided": "There is nothing further to appeal here: your appeal has been decided or the punishment is over. You can read the conversation and the decision if there is one.",
+    "cooldown": "Your last appeal was denied. You can file a new one from {date}.",
+    "cooldownUnknown": "Your last appeal was denied. You can file a new one after a waiting period.",
+    "file": "File an appeal",
+    "openConversation": "Open conversation"
+  },
+  "appealForm": {
+    "title": "File an appeal",
+    "notice": "You can have one appeal open per punishment. Explain in your own words why the punishment should be reviewed.",
+    "label": "Your statement",
+    "hint": "Do not include IP addresses, UUIDs or ban codes. You cannot attach files; describe evidence in text.",
+    "counter": "{count} of {max} characters",
+    "submit": "Send appeal",
+    "sending": "Sending...",
+    "errors": {
+      "NOT_ELIGIBLE": "You cannot file an appeal yet. You can file from {date}.",
+      "FORFEITED": "The right to appeal this punishment was lost because the Ban ID was shared publicly.",
+      "FROZEN": "This appeal is frozen because the Ban ID was shared publicly.",
+      "CONFLICT": "An appeal for this punishment already exists.",
+      "PII_REJECTED": "Please remove IP addresses, UUIDs or ban codes from your text.",
+      "VALIDATION": "Your statement must be between 1 and 2000 characters.",
+      "TOO_LARGE": "Your statement is too long.",
+      "FORBIDDEN": "This Ban ID cannot be used to file an appeal.",
+      "UNAVAILABLE": "Your appeal could not be sent. Please try again.",
+      "NOT_ELIGIBLE_NOW": "You cannot file an appeal for this punishment right now."
+    }
+  },
+  "conversation": {
+    "title": "Conversation with the team",
+    "thread": "Messages",
+    "empty": "No messages yet.",
+    "removed": "Message removed",
+    "composer": "Your message",
+    "hint": "Press Ctrl+Enter to send. Do not include IP addresses, UUIDs or ban codes.",
+    "counter": "{count} of {max} characters",
+    "send": "Send message",
+    "sending": "Sending...",
+    "readOnly": "This conversation is read-only.",
+    "loadFailed": "The conversation could not be loaded. It will be retried automatically.",
+    "decisionTitle": "Decision",
+    "decisionHint": "The team's message about the decision is part of the conversation below.",
+    "newExpiry": "The punishment now runs until {date}.",
+    "author": {
+      "PLAYER": "You",
+      "STAFF": "Moderation team",
+      "SYSTEM": "System"
+    },
+    "marker": {
+      "APPEAL_FILED": "Appeal filed",
+      "APPEAL_DECIDED": "Appeal decided",
+      "FROZEN": "Conversation frozen",
+      "FORFEITED": "Right to appeal lost",
+      "TICKET_OPENED": "Conversation opened",
+      "TICKET_CLOSED": "Conversation closed",
+      "OTHER": "Update"
+    },
+    "decision": {
+      "DENIED": "Your appeal was denied.",
+      "GRANTED_LIFT": "Your appeal was granted and the punishment was lifted.",
+      "GRANTED_REDUCTION": "Your appeal was granted and the punishment was shortened.",
+      "OTHER": "A decision was made on your appeal."
+    },
+    "errors": {
+      "FROZEN": "This conversation is frozen because the Ban ID was shared publicly.",
+      "NO_APPEAL": "File an appeal before writing a message.",
+      "CONFLICT": "You cannot write a message right now.",
+      "PII_REJECTED": "Please remove IP addresses, UUIDs or ban codes from your message.",
+      "VALIDATION": "Your message must be between 1 and 2000 characters.",
+      "TOO_LARGE": "Your message is too long.",
+      "FORBIDDEN": "This Ban ID cannot be used to write messages.",
+      "UNAVAILABLE": "Your message could not be sent. Please try again."
+    }
+  },
+  "notice": {
+    "forfeited": "The right to appeal this punishment was lost because the Ban ID was shared publicly. The punishment still runs out on its own, and the team can review it on its own initiative.",
+    "frozen": "Your appeal is frozen because the Ban ID was shared publicly. You can no longer write messages here. The team can still answer and decide, and will contact you another way.",
+    "limited": "This Ban ID was shared publicly, so only the facts of the punishment are shown. Conversations and decisions are not visible. Contact the team in game if you are the affected player."
+  }
+}

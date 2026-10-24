@@ -1,0 +1,53 @@
+/* MD3 state layer: a tint in the element's text color; also draws the visible focus ring. */
+@utility md-state {
+  position: relative;
+  isolation: isolate;
+  outline-offset: 2px;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background-color: currentColor;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  &:hover::before {
+    opacity: 0.08;
+  }
+
+  &:focus-visible::before,
+  &:active::before {
+    opacity: 0.12;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--md-sys-color-primary);
+  }
+}
+
+/* The OLF brand gradient, for the hero only; application surfaces use the MD3 roles. */
+@utility olf-gradient {
+  background-image: linear-gradient(135deg, #f7931d 0%, #ec008b 38%, #91268f 70%, #2a388f 100%);
+}
+
+/* Messages and statements are plain text: keep the player's line breaks, never interpret markup. */
+@utility plain-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--md-sys-color-background);
+  color: var(--md-sys-color-on-background);
+  font-family: var(--font-sans);
+}

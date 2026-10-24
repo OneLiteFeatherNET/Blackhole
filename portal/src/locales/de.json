@@ -1,0 +1,137 @@
+{
+  "app": {
+    "name": "OneLiteFeather",
+    "tagline": "Living Life Lite",
+    "skip": "Zum Inhalt springen",
+    "tools": "Sprache und Konto",
+    "language": {
+      "en": "English",
+      "de": "Deutsch"
+    },
+    "logout": "Abmelden",
+    "loading": "Wird geladen ...",
+    "footer": "Diese Seite ist nur für Spielerinnen und Spieler mit einer Ban-ID. Deine Sitzung endet nach 30 Minuten ohne Aktivität."
+  },
+  "common": {
+    "back": "Zurück"
+  },
+  "login": {
+    "title": "Einspruch gegen deine Strafe",
+    "intro": "Gib die Ban-ID ein, die dir beim Beitrittsversuch zum Netzwerk angezeigt wurde. Damit siehst du die Fakten zu deiner Strafe, kannst Einspruch einlegen und mit dem Team schreiben.",
+    "label": "Ban-ID",
+    "hint": "Acht Buchstaben und Ziffern, zum Beispiel K7M2-9QX4. Groß- oder Kleinschreibung, Leerzeichen und ein führendes # sind in Ordnung.",
+    "submit": "Weiter",
+    "submitting": "Wird geprüft ...",
+    "invalid": "Diese Ban-ID kann nicht verwendet werden. Prüfe sie und versuche es noch einmal.",
+    "unavailable": "Das Einspruchsportal ist gerade nicht erreichbar. Bitte versuche es in einigen Minuten erneut.",
+    "privacy": "Halte deine Ban-ID geheim. Wer sie kennt, kann deine Strafe einsehen, und wenn sie öffentlich geteilt wird, verfällt dein Recht auf Einspruch."
+  },
+  "expired": {
+    "title": "Deine Sitzung ist beendet",
+    "body": "Zu deiner Sicherheit wurdest du nach einer Zeit ohne Aktivität abgemeldet. Bitte melde dich mit deiner Ban-ID erneut an.",
+    "draftKept": "Noch nicht gesendeter Text bleibt in diesem Tab erhalten, bis du dich wieder anmeldest oder den Tab schließt.",
+    "signIn": "Erneut anmelden"
+  },
+  "case": {
+    "title": "Deine Strafe",
+    "type": "Art",
+    "reason": "Grund",
+    "section": "Bereich",
+    "since": "Verhängt",
+    "until": "Läuft bis",
+    "permanent": "Dauerhaft",
+    "status": "Status",
+    "evidence": "Beweise",
+    "evidenceCount": "{count} Eintrag vorhanden | {count} Einträge vorhanden",
+    "state": {
+      "ACTIVE": "Aktiv",
+      "EXPIRED": "Abgelaufen",
+      "LIFTED": "Aufgehoben",
+      "REVOKED": "Widerrufen"
+    }
+  },
+  "appeal": {
+    "title": "Einspruch",
+    "notYet": "Du kannst ab dem {date} Einspruch einlegen.",
+    "notYetUnknown": "Für einen Einspruch ist es noch zu früh.",
+    "available": "Du kannst einen Einspruch gegen diese Strafe einlegen.",
+    "open": "Dein Einspruch ist offen. Das Team antwortet im Gespräch.",
+    "decided": "Hier gibt es nichts weiter einzulegen: Dein Einspruch wurde entschieden oder die Strafe ist vorbei. Du kannst das Gespräch und, falls vorhanden, die Entscheidung lesen.",
+    "cooldown": "Dein letzter Einspruch wurde abgelehnt. Ab dem {date} kannst du einen neuen einlegen.",
+    "cooldownUnknown": "Dein letzter Einspruch wurde abgelehnt. Nach einer Wartezeit kannst du einen neuen einlegen.",
+    "file": "Einspruch einlegen",
+    "openConversation": "Gespräch öffnen"
+  },
+  "appealForm": {
+    "title": "Einspruch einlegen",
+    "notice": "Pro Strafe kann ein Einspruch offen sein. Erkläre in eigenen Worten, warum die Strafe überprüft werden soll.",
+    "label": "Deine Stellungnahme",
+    "hint": "Nenne keine IP-Adressen, UUIDs oder Ban-Codes. Dateien kannst du nicht anhängen; beschreibe Beweise als Text.",
+    "counter": "{count} von {max} Zeichen",
+    "submit": "Einspruch senden",
+    "sending": "Wird gesendet ...",
+    "errors": {
+      "NOT_ELIGIBLE": "Du kannst noch keinen Einspruch einlegen. Ab dem {date} ist es möglich.",
+      "FORFEITED": "Das Recht auf Einspruch gegen diese Strafe ist verfallen, weil die Ban-ID öffentlich geteilt wurde.",
+      "FROZEN": "Dieser Einspruch ist eingefroren, weil die Ban-ID öffentlich geteilt wurde.",
+      "CONFLICT": "Für diese Strafe gibt es bereits einen Einspruch.",
+      "PII_REJECTED": "Bitte entferne IP-Adressen, UUIDs oder Ban-Codes aus deinem Text.",
+      "VALIDATION": "Deine Stellungnahme muss zwischen 1 und 2000 Zeichen lang sein.",
+      "TOO_LARGE": "Deine Stellungnahme ist zu lang.",
+      "FORBIDDEN": "Mit dieser Ban-ID kann kein Einspruch eingelegt werden.",
+      "UNAVAILABLE": "Dein Einspruch konnte nicht gesendet werden. Bitte versuche es erneut.",
+      "NOT_ELIGIBLE_NOW": "Für diese Strafe kannst du gerade keinen Einspruch einlegen."
+    }
+  },
+  "conversation": {
+    "title": "Gespräch mit dem Team",
+    "thread": "Nachrichten",
+    "empty": "Noch keine Nachrichten.",
+    "removed": "Nachricht entfernt",
+    "composer": "Deine Nachricht",
+    "hint": "Mit Strg+Enter sendest du die Nachricht. Nenne keine IP-Adressen, UUIDs oder Ban-Codes.",
+    "counter": "{count} von {max} Zeichen",
+    "send": "Nachricht senden",
+    "sending": "Wird gesendet ...",
+    "readOnly": "Dieses Gespräch ist schreibgeschützt.",
+    "loadFailed": "Das Gespräch konnte nicht geladen werden. Es wird automatisch erneut versucht.",
+    "decisionTitle": "Entscheidung",
+    "decisionHint": "Die Nachricht des Teams zur Entscheidung steht im Gespräch unten.",
+    "newExpiry": "Die Strafe läuft jetzt bis zum {date}.",
+    "author": {
+      "PLAYER": "Du",
+      "STAFF": "Moderationsteam",
+      "SYSTEM": "System"
+    },
+    "marker": {
+      "APPEAL_FILED": "Einspruch eingelegt",
+      "APPEAL_DECIDED": "Einspruch entschieden",
+      "FROZEN": "Gespräch eingefroren",
+      "FORFEITED": "Recht auf Einspruch verfallen",
+      "TICKET_OPENED": "Gespräch eröffnet",
+      "TICKET_CLOSED": "Gespräch geschlossen",
+      "OTHER": "Aktualisierung"
+    },
+    "decision": {
+      "DENIED": "Dein Einspruch wurde abgelehnt.",
+      "GRANTED_LIFT": "Dein Einspruch wurde angenommen und die Strafe aufgehoben.",
+      "GRANTED_REDUCTION": "Dein Einspruch wurde angenommen und die Strafe verkürzt.",
+      "OTHER": "Über deinen Einspruch wurde entschieden."
+    },
+    "errors": {
+      "FROZEN": "Dieses Gespräch ist eingefroren, weil die Ban-ID öffentlich geteilt wurde.",
+      "NO_APPEAL": "Lege zuerst einen Einspruch ein, bevor du schreibst.",
+      "CONFLICT": "Du kannst gerade keine Nachricht schreiben.",
+      "PII_REJECTED": "Bitte entferne IP-Adressen, UUIDs oder Ban-Codes aus deiner Nachricht.",
+      "VALIDATION": "Deine Nachricht muss zwischen 1 und 2000 Zeichen lang sein.",
+      "TOO_LARGE": "Deine Nachricht ist zu lang.",
+      "FORBIDDEN": "Mit dieser Ban-ID können keine Nachrichten geschrieben werden.",
+      "UNAVAILABLE": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut."
+    }
+  },
+  "notice": {
+    "forfeited": "Das Recht auf Einspruch gegen diese Strafe ist verfallen, weil die Ban-ID öffentlich geteilt wurde. Die Strafe läuft trotzdem von selbst aus, und das Team kann sie von sich aus überprüfen.",
+    "frozen": "Dein Einspruch ist eingefroren, weil die Ban-ID öffentlich geteilt wurde. Du kannst hier keine Nachrichten mehr schreiben. Das Team kann weiter antworten und entscheiden und meldet sich auf anderem Weg bei dir.",
+    "limited": "Diese Ban-ID wurde öffentlich geteilt, deshalb werden nur die Fakten der Strafe angezeigt. Gespräche und Entscheidungen sind nicht sichtbar. Wende dich im Spiel ans Team, wenn du die betroffene Person bist."
+  }
+}

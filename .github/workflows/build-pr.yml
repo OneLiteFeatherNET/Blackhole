@@ -42,6 +42,22 @@ jobs:
       - name: Smoke-check the admin web UI image
         run: node web/scripts/smoke.mjs blackhole-web:pr
 
+  portal_image:
+    if: github.repository_owner == 'OneLiteFeatherNET'
+    name: Build portal image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Build the appeal portal image
+        run: docker build -f portal/Dockerfile -t blackhole-portal:pr .
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Smoke-check the appeal portal image
+        run: node portal/scripts/smoke.mjs blackhole-portal:pr
+
   discord_image:
     if: github.repository_owner == 'OneLiteFeatherNET'
     name: Build Discord bot image
