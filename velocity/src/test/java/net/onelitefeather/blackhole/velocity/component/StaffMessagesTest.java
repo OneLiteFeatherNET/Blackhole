@@ -9,7 +9,7 @@ import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentEscalation;
 import net.onelitefeather.blackhole.velocity.TestData;
 import net.onelitefeather.blackhole.velocity.punish.TargetNotFoundException;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.section.SectionInfo;
 import org.junit.jupiter.api.Test;
 

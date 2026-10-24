@@ -31,7 +31,6 @@ import net.onelitefeather.blackhole.client.model.StaffLinkConfirmResponse;
 import net.onelitefeather.blackhole.client.model.StaffLinkLookupResponse;
 import net.onelitefeather.blackhole.velocity.evidence.ChatEvidenceRequests;
 import net.onelitefeather.blackhole.velocity.evidence.ChatSnapshot;
-import net.onelitefeather.blackhole.velocity.redis.CachedTemplates;
 
 import java.time.Clock;
 import java.util.List;
@@ -41,10 +40,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
 /**
- * {@link BackendGateway} over the generated API client; templates come from the shared cache when
- * it holds a list.
+ * {@link BackendGateway} over the generated API client. The template list (tab completion asks for it on
+ * every keystroke) is kept for a short time, so a burst of completions is one backend call.
  */
 public final class HttpBackendGateway implements BackendGateway {
+
+    /** How long a read template list is reused. */
+    static final java.time.Duration TEMPLATES_TTL = java.time.Duration.ofSeconds(30);
+
+    private record CachedList(List<PunishTemplateResponse> templates, long readAtMillis) {
+    }
 
     private final PunishmentApi punishmentApi;
     private final PunishmentTemplatesApi templatesApi;
@@ -54,10 +59,10 @@ public final class HttpBackendGateway implements BackendGateway {
     private final StaffLinkApi staffLinkApi;
     private final ReportApi reportApi;
     private final DiscordLinkApi discordLinkApi;
-    private final CachedTemplates cachedTemplates;
+    private volatile CachedList cachedTemplates;
     private final Clock clock;
 
-    public HttpBackendGateway(ApiClient client, CachedTemplates cachedTemplates, Clock clock) {
+    public HttpBackendGateway(ApiClient client, Clock clock) {
         this.punishmentApi = new PunishmentApi(client);
         this.templatesApi = new PunishmentTemplatesApi(client);
         this.profileApi = new PunishProfileApi(client);
@@ -66,17 +71,18 @@ public final class HttpBackendGateway implements BackendGateway {
         this.staffLinkApi = new StaffLinkApi(client);
         this.reportApi = new ReportApi(client);
         this.discordLinkApi = new DiscordLinkApi(client);
-        this.cachedTemplates = cachedTemplates;
         this.clock = clock;
     }
 
     @Override
     public List<PunishTemplateResponse> templates() throws ApiException {
-        Optional<List<PunishTemplateResponse>> cached = this.cachedTemplates.read();
-        if (cached.isPresent()) {
-            return cached.get();
+        CachedList cached = this.cachedTemplates;
+        long now = this.clock.millis();
+        if (cached != null && now - cached.readAtMillis() < TEMPLATES_TTL.toMillis()) {
+            return cached.templates();
         }
         PunishTemplatePage page = this.templatesApi.getAllTemplates(Pageable.builder().build());
+        this.cachedTemplates = new CachedList(page.getContent(), now);
         return page.getContent();
     }
 

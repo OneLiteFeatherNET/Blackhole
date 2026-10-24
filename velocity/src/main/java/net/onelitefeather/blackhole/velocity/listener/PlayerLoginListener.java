@@ -14,7 +14,7 @@ import net.onelitefeather.blackhole.client.model.SessionInfoDTO;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.evidence.EvidenceCounts;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -24,8 +24,8 @@ import java.util.Optional;
 
 /**
  * Denies the login of players with an active punishment in a BAN section. The player's punishments
- * come from the Redis mirror or, if Redis is down, from the backend profile; if neither answers
- * the login is allowed.
+ * come from the backend profile, which the local mirror serves only while the event bus is connected; if
+ * the backend does not answer, the login is allowed.
  *
  * @since 1.0.0
  * @version 1.1.0

@@ -16,7 +16,7 @@ import net.onelitefeather.blackhole.velocity.evidence.ChatEvidence;
 import net.onelitefeather.blackhole.velocity.enforcement.ProfileAdapter;
 import net.onelitefeather.blackhole.velocity.punish.PunishService;
 import net.onelitefeather.blackhole.velocity.punish.TargetResolver.ResolvedTarget;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;

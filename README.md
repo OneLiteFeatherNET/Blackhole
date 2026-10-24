@@ -180,6 +180,13 @@ chat delivered). Staff notices for new reports arrive as `report.created` events
 report from the backend (the proxy's token needs the `PROXY` role, which may read a single report) and
 takes the player names from its online players.
 
+**Upgrading from the Redis-based plugin (breaking).** The plugin no longer reads `redisUri` and has no Redis or
+Dragonfly client: it enforces over HTTP plus NATS only. Set `nats.url` and `nats.credsFile` (or `NATS_URL` and
+`NATS_CREDS_FILE`) before updating. A leftover `redisUri` is ignored with one warning at startup; remove it
+from `config.json` and drop the proxy's access to Dragonfly. The tab completion of sections and templates now
+reads the backend over HTTP with a short local cache (30 seconds for templates, and the section list is
+refreshed on every `section.changed` event and every 5 minutes).
+
 ## Staff workflow
 
 Staff never decide that someone is banned forever. They apply a **temporary** punishment from a
@@ -322,8 +329,7 @@ player may be offline (a name the backend can resolve, or a UUID). No command ac
 permanent flag. The former `--server` flag is gone: use a `SERVER` section. After applying, the sender
 sees the section, how long it lasts, the step (`n/m`), the ELO change and, if the cost triggered it,
 the permanent escalation. Upgrading from earlier releases: templates are selected by key instead of
-by reason, and the proxy reads the Redis keys `blackhole:punish:<section>:<owner>`; deploy backend and
-proxies together.
+by reason; deploy backend and proxies together.
 
 ## Client rules and fingerprints
 
@@ -637,7 +643,7 @@ Key environment variables (all have local-dev defaults, see
 | `NATS_CONNECTION_NAME` / `NATS_CONNECT_TIMEOUT` | Name shown on the server (`blackhole-backend`) and the connect timeout (`5s`). |
 | `NATS_STREAM_REPLICAS` | Replicas of the stream `BLACKHOLE_EVENTS`: `1` locally, `3` in feather-core. |
 | `NATS_EVENTS_MAX_AGE` / `NATS_EVENTS_MAX_BYTES` | How long (`P7D`) and how much (2 GiB) of the event history the stream keeps. |
-| `REDIS_URI`                       | Redis-protocol server (Dragonfly) for proxy sync and the shared cache. |
+| `REDIS_URI`                       | Redis-protocol server (Dragonfly) for the backend's shared cache. The Velocity plugin does not use it. |
 | `BLACKHOLE_EVASION_IP_SALT`       | Required for ban-evasion detection; that feature returns `503` until it's set. |
 | `BLACKHOLE_FINGERPRINT_KEY`       | Key of the client fingerprint (32 bytes, base64); unset means no fingerprinting outside dev and test, see [Client rules](#client-rules-and-fingerprints). |
 | `BLACKHOLE_AUTH_*`                | Entra ID sign-in, see [Authentication](#authentication). |

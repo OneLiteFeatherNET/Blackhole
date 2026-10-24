@@ -18,7 +18,6 @@ import net.onelitefeather.blackhole.velocity.punish.PunishService;
 import net.onelitefeather.blackhole.velocity.report.ReportFeedbackDelivery;
 import net.onelitefeather.blackhole.velocity.report.ReportNotifier;
 import net.onelitefeather.blackhole.velocity.report.ReportService;
-import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import org.jetbrains.annotations.NotNull;
 
@@ -30,7 +29,6 @@ import java.time.Clock;
  *
  * @param apiClient   the backend API client
  * @param config      the plugin configuration
- * @param redis       the Redis connection
  * @param sections    the known punishment sections
  * @param mirror      the local copy of online players' punishments
  * @param state       the enforcement questions (login, chat, server connect)
@@ -52,7 +50,6 @@ import java.time.Clock;
 public record BlackholeClientModule(
         @NotNull ApiClient apiClient,
         @NotNull BlackholeConfig config,
-        @NotNull RedisSyncService redis,
         @NotNull SectionRegistry sections,
         @NotNull PunishmentMirror mirror,
         @NotNull PunishmentState state,
@@ -81,7 +78,6 @@ public record BlackholeClientModule(
             protected void configure() {
                 bind(ApiClient.class).toInstance(apiClient);
                 bind(BlackholeConfig.class).toInstance(config);
-                bind(RedisSyncService.class).toInstance(redis);
                 bind(SectionRegistry.class).toInstance(sections);
                 bind(PunishmentMirror.class).toInstance(mirror);
                 bind(PunishmentState.class).toInstance(state);

@@ -9,7 +9,7 @@ import net.onelitefeather.blackhole.velocity.component.StaffMessages;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
 import net.onelitefeather.blackhole.velocity.punish.PunishService;
 import net.onelitefeather.blackhole.velocity.punish.TargetResolver.ResolvedTarget;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
@@ -67,7 +67,7 @@ public final class PardonCommand {
         boolean mayPardonPermanent = Permissions.of(sender).mayPardonPermanent();
         PunishService.RevokeOutcome outcome = this.service.revoke(user.ownerHash(), section, sender.getUniqueId(), mayPardonPermanent, kinds);
         if (outcome instanceof PunishService.RevokeOutcome.Revoked revoked) {
-            // Keeps this proxy's mirror right even if the Redis announcement is not delivered.
+            // Keeps this proxy's mirror right even if the bus event is not delivered.
             this.syncHandler.accept(new PunishmentSyncMessage(
                     user.ownerHash(), section, null, PunishmentSyncMessage.STATE_CLEARED,
                     revoked.response().getPunishment().getIdentifier(), null, null, null, false));

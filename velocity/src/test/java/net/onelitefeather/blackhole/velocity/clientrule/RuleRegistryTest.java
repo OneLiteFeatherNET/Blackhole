@@ -110,7 +110,7 @@ class RuleRegistryTest {
         FakeClientRuleBackend backend = new FakeClientRuleBackend();
         backend.rulesFailure = new ApiException(404, "not found");
 
-        assertEquals(List.of(), new BackendRuleSource(key -> Optional.empty(), backend).fromApi());
+        assertEquals(List.of(), new BackendRuleSource(backend).fromApi());
     }
 
     @Test
@@ -118,7 +118,7 @@ class RuleRegistryTest {
         FakeClientRuleBackend backend = new FakeClientRuleBackend();
         backend.rulesFailure = new ApiException(500, "boom");
 
-        org.junit.jupiter.api.Assertions.assertThrows(ApiException.class, () -> new BackendRuleSource(key -> Optional.empty(), backend).fromApi());
+        org.junit.jupiter.api.Assertions.assertThrows(ApiException.class, () -> new BackendRuleSource(backend).fromApi());
     }
 
     @Test
@@ -126,25 +126,12 @@ class RuleRegistryTest {
         FakeClientRuleBackend backend = new FakeClientRuleBackend();
         backend.rules = List.of(response("on", true), response("off", false));
 
-        assertEquals(List.of("on"), new BackendRuleSource(key -> Optional.empty(), backend).fromApi().stream().map(ClientRule::key).toList());
+        assertEquals(List.of("on"), new BackendRuleSource(backend).fromApi().stream().map(ClientRule::key).toList());
     }
 
     @Test
-    void theCachedJsonListIsReadIncludingAnEmptyList() {
-        String json = "[{\"key\":\"meteor\",\"displayName\":\"Meteor\",\"kind\":\"CHANNEL\",\"enabled\":true,\"patterns\":[\"meteor-client:*\"],"
-                + "\"negate\":false,\"scope\":\"GLOBAL\",\"sectionKeys\":[],\"targetKind\":\"PATTERN\",\"servers\":[],\"action\":\"DENY\","
-                + "\"denyMessage\":\"No.\",\"acknowledgedSpoofable\":false,\"hideCommand\":false,\"hitCount\":0,"
-                + "\"createdAt\":\"2026-10-24T10:00:00Z\",\"updatedAt\":\"2026-10-24T10:00:00Z\"}]";
-
-        List<ClientRule> rules = new BackendRuleSource(key -> Optional.of(json), new FakeClientRuleBackend()).fromCache().orElseThrow();
-
-        assertEquals(1, rules.size());
-        assertEquals(ClientRuleAction.DENY, rules.getFirst().action());
-        assertEquals("No.", rules.getFirst().denyMessage());
-        assertEquals(List.of("meteor-client:*"), rules.getFirst().patterns());
-        assertEquals(List.of(), new BackendRuleSource(key -> Optional.of("[]"), new FakeClientRuleBackend()).fromCache().orElseThrow());
-        assertTrue(new BackendRuleSource(key -> Optional.of("not json"), new FakeClientRuleBackend()).fromCache().isEmpty());
-        assertTrue(new BackendRuleSource(key -> Optional.empty(), new FakeClientRuleBackend()).fromCache().isEmpty());
+    void theProxyNoLongerReadsAnySharedCache() {
+        assertTrue(new BackendRuleSource(new FakeClientRuleBackend()).fromCache().isEmpty());
     }
 
     private static ClientRuleResponse response(String key, boolean enabled) {

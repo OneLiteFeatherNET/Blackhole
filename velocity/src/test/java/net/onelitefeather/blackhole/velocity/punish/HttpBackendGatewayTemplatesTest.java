@@ -6,21 +6,18 @@ import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.velocity.auth.FakeHttpClient;
 import net.onelitefeather.blackhole.velocity.auth.TokenSource;
 import net.onelitefeather.blackhole.velocity.config.BlackholeApiClients;
-import net.onelitefeather.blackhole.velocity.redis.CachedTemplates;
-import net.onelitefeather.blackhole.velocity.redis.SharedCacheReader;
+import net.onelitefeather.blackhole.velocity.evidence.MutableClock;
 import org.junit.jupiter.api.Test;
 
-import java.time.Clock;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Templates come from the shared cache when it holds a list; otherwise the gateway lists them through
- * the API, which answers with a page object (the templates under {@code content}), not a bare array.
+ * The gateway lists templates through the API, which answers with a page object (the templates under
+ * {@code content}), not a bare array, and reuses the list for a short time so tab completion is cheap.
  */
 class HttpBackendGatewayTemplatesTest {
 
@@ -40,33 +37,18 @@ class HttpBackendGatewayTemplatesTest {
             + "\"pageable\":{\"number\":0,\"sort\":{\"orderBy\":[]},\"size\":100,\"mode\":\"OFFSET\"},"
             + "\"totalSize\":1,\"totalPages\":1,\"empty\":false,\"size\":100,\"offset\":0,\"pageNumber\":0,\"numberOfElements\":1}";
 
-    private static final String CACHED = "[{\"identifier\":\"0a1b2c3d-1a39-4b0e-8e7c-0d2f1a9b3c22\",\"key\":\"cached-spam\","
-            + "\"reason\":\"Spam\",\"section\":\"chat\",\"steps\":[{\"duration\":\"PT1H\",\"eloCost\":10}]}]";
+    private final MutableClock clock = new MutableClock();
 
-    private static HttpBackendGateway gateway(FakeHttpClient transport, SharedCacheReader cache) {
+    private HttpBackendGateway gateway(FakeHttpClient transport) {
         ApiClient client = BlackholeApiClients.create("http://backend.test", TOKEN, transport);
-        return new HttpBackendGateway(client, new CachedTemplates(cache), Clock.systemUTC());
-    }
-
-    private static SharedCacheReader miss() {
-        return key -> Optional.empty();
+        return new HttpBackendGateway(client, this.clock);
     }
 
     @Test
-    void aCachedListIsUsedWithoutCallingTheApi() throws Exception {
-        FakeHttpClient transport = new FakeHttpClient().answer(500, "{}");
-
-        List<PunishTemplateResponse> templates = gateway(transport, key -> Optional.of(CACHED)).templates();
-
-        assertEquals("cached-spam", templates.getFirst().getKey());
-        assertTrue(transport.requests().isEmpty(), "a cache hit needs no request: " + transport.requests());
-    }
-
-    @Test
-    void aMissFallsBackToTheApiAndParsesItsPage() throws Exception {
+    void theTemplatesAreReadFromTheApiAndItsPageIsParsed() throws Exception {
         FakeHttpClient transport = new FakeHttpClient().answer(200, PAGE);
 
-        List<PunishTemplateResponse> templates = gateway(transport, miss()).templates();
+        List<PunishTemplateResponse> templates = gateway(transport).templates();
 
         assertEquals(1, templates.size(), "the one template on the page");
         assertEquals("hacking", templates.getFirst().getKey());
@@ -75,22 +57,27 @@ class HttpBackendGatewayTemplatesTest {
     }
 
     @Test
-    void aCorruptCachedListFallsBackToTheApi() throws Exception {
+    void aBurstOfCompletionsIsOneBackendCall() throws Exception {
         FakeHttpClient transport = new FakeHttpClient().answer(200, PAGE);
+        HttpBackendGateway gateway = gateway(transport);
 
-        List<PunishTemplateResponse> templates = gateway(transport, key -> Optional.of("{broken")).templates();
+        gateway.templates();
+        this.clock.advance(HttpBackendGateway.TEMPLATES_TTL.minusSeconds(1));
+        gateway.templates();
 
-        assertEquals("hacking", templates.getFirst().getKey());
+        assertEquals(1, transport.requests().size(), "the list is reused inside the short TTL");
     }
 
     @Test
-    void aFailingCacheFallsBackToTheApi() throws Exception {
-        FakeHttpClient transport = new FakeHttpClient().answer(200, PAGE);
-        SharedCacheReader failing = key -> {
-            throw new IllegalStateException("connection reset");
-        };
+    void anOldListIsReadAgain() throws Exception {
+        FakeHttpClient transport = new FakeHttpClient().answer(200, PAGE).answer(200, PAGE);
+        HttpBackendGateway gateway = gateway(transport);
 
-        assertEquals("hacking", gateway(transport, failing).templates().getFirst().getKey());
+        gateway.templates();
+        this.clock.advance(HttpBackendGateway.TEMPLATES_TTL);
+        gateway.templates();
+
+        assertEquals(2, transport.requests().size(), "a template added in the meantime shows up");
     }
 
     @Test
@@ -98,13 +85,23 @@ class HttpBackendGatewayTemplatesTest {
         FakeHttpClient transport = new FakeHttpClient().answer(200,
                 "{\"content\":[],\"totalSize\":0,\"totalPages\":0,\"empty\":true,\"size\":100,\"offset\":0,\"pageNumber\":0,\"numberOfElements\":0}");
 
-        assertTrue(gateway(transport, miss()).templates().isEmpty(), "no templates yet");
+        assertTrue(gateway(transport).templates().isEmpty(), "no templates yet");
     }
 
     @Test
-    void aFailingApiSurfacesAsAnApiException() {
-        FakeHttpClient transport = new FakeHttpClient().answer(500, "{}");
+    void aFailingApiSurfacesAsAnApiExceptionAndIsNotCached() {
+        FakeHttpClient transport = new FakeHttpClient().answer(500, "{}").answer(200, PAGE);
+        HttpBackendGateway gateway = gateway(transport);
 
-        assertThrows(ApiException.class, () -> gateway(transport, miss()).templates(), "the caller decides how to report it");
+        assertThrows(ApiException.class, gateway::templates, "the caller decides how to report it");
+        assertDoesNotThrowAndFound(gateway);
+    }
+
+    private static void assertDoesNotThrowAndFound(HttpBackendGateway gateway) {
+        try {
+            assertEquals("hacking", gateway.templates().getFirst().getKey());
+        } catch (ApiException e) {
+            throw new AssertionError("a failure must not be remembered", e);
+        }
     }
 }

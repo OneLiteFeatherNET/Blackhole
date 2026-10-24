@@ -12,7 +12,6 @@ import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.component.theme.BlackholeTheme;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.evidence.MutableClock;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Proxy;

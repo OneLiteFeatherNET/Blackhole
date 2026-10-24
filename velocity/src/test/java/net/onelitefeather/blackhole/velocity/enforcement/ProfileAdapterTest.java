@@ -3,7 +3,6 @@ package net.onelitefeather.blackhole.velocity.enforcement;
 import net.onelitefeather.blackhole.client.model.PunishEntryDTO;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;

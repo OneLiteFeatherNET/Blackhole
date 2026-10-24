@@ -7,7 +7,7 @@ import com.velocitypowered.api.proxy.Player;
 import net.onelitefeather.blackhole.velocity.cloudnet.ServerResolver;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.jetbrains.annotations.NotNull;
 

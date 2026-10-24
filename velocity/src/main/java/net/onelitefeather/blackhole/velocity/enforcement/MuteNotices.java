@@ -2,7 +2,6 @@ package net.onelitefeather.blackhole.velocity.enforcement;
 
 import net.kyori.adventure.text.Component;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Locale;

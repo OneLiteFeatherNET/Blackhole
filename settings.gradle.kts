@@ -47,7 +47,6 @@ dependencyResolutionManagement {
         create("libs") {
             version("micronaut", "5.0.2")
             version("velocity", "4.3.0")
-            version("lettuce", "7.9.0.RELEASE")
             version("cloud.commands", "2.1.0")
             version("shadow", "9.6.1")
             version("jetbrains.annotations", "26.1.0")
@@ -78,9 +77,6 @@ dependencyResolutionManagement {
             library("jakarta-annotation-api", "jakarta.annotation", "jakarta.annotation-api").versionRef("jakarta-annotation")
 
             library("velocity-api", "com.velocitypowered", "velocity-api").versionRef("velocity")
-            // Velocity is a plain Guice plugin, not a Micronaut app, so it talks to Redis via
-            // raw Lettuce rather than the Micronaut redis module the backend uses.
-            library("lettuce-core", "io.lettuce", "lettuce-core").versionRef("lettuce")
             library("cloud-velocity", "org.incendo", "cloud-velocity").version("2.0.1")
             library("cloud-annotations", "org.incendo", "cloud-annotations").versionRef("cloud.commands")
             // CloudNet 4.x has no stable release yet; pinned on purpose, bump with the RC notes at hand.

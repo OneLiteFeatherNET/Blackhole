@@ -3,7 +3,7 @@ package net.onelitefeather.blackhole.velocity.nats;
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
 import net.onelitefeather.blackhole.velocity.nats.NatsSyncService.ReportCreated;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncMessage;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;

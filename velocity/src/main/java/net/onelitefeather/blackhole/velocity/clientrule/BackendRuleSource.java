@@ -1,34 +1,26 @@
 package net.onelitefeather.blackhole.velocity.clientrule;
 
 import net.onelitefeather.blackhole.client.invoker.ApiException;
-import net.onelitefeather.blackhole.client.model.ClientRuleResponse;
-import net.onelitefeather.blackhole.velocity.redis.SharedCacheReader;
-import net.onelitefeather.blackhole.velocity.redis.SyncCodec;
 
 import java.util.List;
 import java.util.Optional;
 
 /**
- * {@link RuleRegistry.Source} backed by the backend's shared cache (read through Redis) and its rule
- * API. A backend that answers 404 predates the routes: that means "no rules", not a failure.
+ * {@link RuleRegistry.Source} backed by the backend's rule API. The proxy keeps no shared cache, so
+ * {@link #fromCache} never answers and every reload reads the API. A backend that answers 404 predates
+ * the routes: that means "no rules", not a failure.
  */
 public final class BackendRuleSource implements RuleRegistry.Source {
 
-    /** The enabled rules in the backend's shared cache; part of the hand-shared Redis contract. */
-    public static final String CACHE_KEY = "blackhole:cache:v1:client-rules:all";
-
-    private final SharedCacheReader cache;
     private final ClientRuleBackend backend;
-    private final SyncCodec codec = new SyncCodec();
 
-    public BackendRuleSource(SharedCacheReader cache, ClientRuleBackend backend) {
-        this.cache = cache;
+    public BackendRuleSource(ClientRuleBackend backend) {
         this.backend = backend;
     }
 
     @Override
     public Optional<List<ClientRule>> fromCache() {
-        return this.cache.readShared(CACHE_KEY).flatMap(this.codec::clientRules);
+        return Optional.empty();
     }
 
     @Override

@@ -2,8 +2,11 @@ package net.onelitefeather.blackhole.velocity.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -12,19 +15,15 @@ import java.time.DateTimeException;
 import java.time.ZoneId;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.function.Consumer;
 
 public class BlackholeConfig {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BlackholeConfig.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    /** The setting of the Redis era; read only to warn that it is ignored. */
+    private static final String LEGACY_REDIS_URI = "redisUri";
 
     private String baseUrl;
-
-    /**
-     * Redis connection used to read active-punishment state mirrored by the backend's
-     * RedisSyncConsumer, so a login/chat check on this proxy can hit a shared, fast cache
-     * instead of an HTTP call to the backend - and so a punishment applied on another proxy in
-     * the network is enforced here immediately via pub/sub, not just on this player's next login.
-     */
-    private String redisUri;
 
     /**
      * The NATS connection the proxy receives the backend's events over. Absent in configs written before
@@ -91,7 +90,6 @@ public class BlackholeConfig {
      */
     public BlackholeConfig() {
         this.baseUrl = "http://localhost:8080";
-        this.redisUri = "redis://localhost:6379";
         this.fallbackServer = "lobby";
         this.appealUrl = "";
         this.appealText = "";
@@ -223,24 +221,6 @@ public class BlackholeConfig {
     }
 
     /**
-     * Gets the Redis connection URI used for cross-proxy punishment-state sync.
-     *
-     * @return the Redis URI
-     */
-    public @NotNull String getRedisUri() {
-        return redisUri;
-    }
-
-    /**
-     * Sets the Redis connection URI used for cross-proxy punishment-state sync.
-     *
-     * @param redisUri the Redis URI
-     */
-    public void setRedisUri(@NotNull String redisUri) {
-        this.redisUri = redisUri;
-    }
-
-    /**
      * Gets the name of the server players are moved to when a server ban arrives while they play on
      * a covered server.
      *
@@ -266,6 +246,17 @@ public class BlackholeConfig {
      * @return the loaded configuration
      */
     public static @NotNull BlackholeConfig load(@NotNull Path path) {
+        return load(path, LOGGER::warn);
+    }
+
+    /**
+     * Loads the configuration from the specified file.
+     *
+     * @param path the path to the configuration file
+     * @param warn receives the warnings about the file's content (a legacy setting that is now ignored)
+     * @return the loaded configuration
+     */
+    public static @NotNull BlackholeConfig load(@NotNull Path path, @NotNull Consumer<String> warn) {
         try {
             if (Files.notExists(path)) {
                 BlackholeConfig config = new BlackholeConfig();
@@ -274,7 +265,13 @@ public class BlackholeConfig {
             }
 
             try (Reader reader = Files.newBufferedReader(path)) {
-                return GSON.fromJson(reader, BlackholeConfig.class);
+                JsonObject raw = GSON.fromJson(reader, JsonObject.class);
+                if (raw != null && raw.has(LEGACY_REDIS_URI)) {
+                    warn.accept("config.json still contains " + LEGACY_REDIS_URI + ": the plugin no longer uses Redis and ignores it. "
+                            + "Set the nats section (url, credsFile) and remove the old key.");
+                }
+                BlackholeConfig config = GSON.fromJson(raw, BlackholeConfig.class);
+                return config == null ? new BlackholeConfig() : config;
             }
         } catch (IOException e) {
             throw new RuntimeException("Failed to load configuration", e);

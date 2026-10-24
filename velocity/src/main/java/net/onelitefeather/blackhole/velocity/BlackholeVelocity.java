@@ -53,6 +53,7 @@ import net.onelitefeather.blackhole.velocity.clientrule.CommandRuleEnforcer;
 import net.onelitefeather.blackhole.velocity.clientrule.HitReporter;
 import net.onelitefeather.blackhole.velocity.clientrule.FingerprintSubmitter;
 import net.onelitefeather.blackhole.velocity.clientrule.HttpClientRuleBackend;
+import net.onelitefeather.blackhole.velocity.clientrule.LocalClientRuleNotices;
 import net.onelitefeather.blackhole.velocity.clientrule.RuleEngine;
 import net.onelitefeather.blackhole.velocity.clientrule.RuleRegistry;
 import net.onelitefeather.blackhole.velocity.clientrule.TraitCollector;
@@ -89,8 +90,6 @@ import net.onelitefeather.blackhole.velocity.config.NatsConfig;
 import net.onelitefeather.blackhole.velocity.nats.BusClient;
 import net.onelitefeather.blackhole.velocity.nats.JnatsBusClient;
 import net.onelitefeather.blackhole.velocity.nats.NatsSyncService;
-import net.onelitefeather.blackhole.velocity.redis.CachedTemplates;
-import net.onelitefeather.blackhole.velocity.redis.RedisSyncService;
 import net.onelitefeather.blackhole.velocity.section.BackendSectionSource;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import net.onelitefeather.blackhole.client.model.ServerTargetKind;
@@ -128,6 +127,9 @@ import java.util.ResourceBundle;
 public class BlackholeVelocity {
     /** After a full mute notice, further notices for the same mute are the one-line reminder for this long. */
     private static final Duration MUTE_NOTICE_COOLDOWN = Duration.ofSeconds(30);
+    /** How often the section list is read again even without a section.changed event. */
+    private static final Duration SECTION_REFRESH = Duration.ofMinutes(5);
+    private static final Duration RULE_REFRESH = Duration.ofSeconds(30);
 
     private final Injector injector;
     private final ProxyServer server;
@@ -135,7 +137,6 @@ public class BlackholeVelocity {
     private final Logger logger;
     private ApiClient client;
     private BlackholeConfig config;
-    private RedisSyncService redisSyncService;
     private BusClient busClient;
     private ExecutorService eventThread;
     private volatile boolean authReady;
@@ -164,10 +165,9 @@ public class BlackholeVelocity {
         }
         this.logger.info("Initialized Blackhole client");
 
-        this.redisSyncService = new RedisSyncService(this.config);
-        SectionRegistry sections = new SectionRegistry(new BackendSectionSource(this.redisSyncService, this.client));
+        SectionRegistry sections = new SectionRegistry(new BackendSectionSource(this.client));
         PunishmentMirror mirror = new PunishmentMirror(clock);
-        BackendGateway backend = new HttpBackendGateway(this.client, new CachedTemplates(this.redisSyncService), clock);
+        BackendGateway backend = new HttpBackendGateway(this.client, clock);
         NatsConfig natsConfig = this.config.getNats().withEnvironment(System::getenv);
         // The sync service is created first (it is the cache trust) and told about the bus once the reactions below exist.
         ExecutorService eventThread = Executors.newSingleThreadExecutor(task -> {
@@ -212,20 +212,19 @@ public class BlackholeVelocity {
                 reportNotifier::reportCreated,
                 owner -> reportFeedback.poked(owner, this.server.getAllPlayers())), eventThread);
         sync.set(natsSync);
-        // Registers its listener on the Redis service, so the notifier must exist before connect().
         ClientRulesConfig clientRulesConfig = this.config.getClientRules().withEnvironment(System::getenv);
         ClientRuleBackend ruleBackend = new HttpClientRuleBackend(this.client);
-        RuleRegistry ruleRegistry = new RuleRegistry(new BackendRuleSource(this.redisSyncService, ruleBackend));
-        ClientRuleNotifier ruleNotifier = new ClientRuleNotifier(this.server::getAllPlayers, this.redisSyncService);
-        // The reload calls the backend, so it must not run on the Redis callback thread.
-        this.redisSyncService.onClientRuleChanged(changed -> CompletableFuture.runAsync(ruleRegistry::reload));
-        this.redisSyncService.connect();
+        RuleRegistry ruleRegistry = new RuleRegistry(new BackendRuleSource(ruleBackend));
+        // Without a bus, a hit reaches only the staff of the proxy that saw it.
+        ClientRuleNotifier ruleNotifier = new ClientRuleNotifier(this.server::getAllPlayers, new LocalClientRuleNotices());
         // Never blocks: the connect runs on its own thread and the proxy enforces over HTTP until it succeeds.
         this.busClient = new JnatsBusClient(natsConfig.getUrl(), natsConfig.getCredsFile(), Duration.ofSeconds(2), JnatsBusClient.daemonThread());
         if (this.busClient.start(natsSync)) {
             this.logger.info("Connecting to the event bus at {} in the background", natsConfig.getUrl());
         }
         sections.reload();
+        // An event may be lost, so the section list heals itself (tab completion, enforcement kinds).
+        server.getScheduler().buildTask(this, sections::reload).delay(SECTION_REFRESH).repeat(SECTION_REFRESH).schedule();
         long cloudNetSections = sections.all().stream().filter(section -> section.targetKind() != ServerTargetKind.PATTERN).count();
         if (!cloudNet.available() && cloudNetSections > 0) {
             this.logger.warn("{} CloudNet section(s) exist but CloudNet is not available: they cover no server and are not enforced", cloudNetSections);
@@ -236,6 +235,8 @@ public class BlackholeVelocity {
         ClientRuleListener clientRuleListener = null;
         if (clientRulesConfig.isEnabled()) {
             ruleRegistry.reload();
+            // A rule change has no bus event yet, so the rules are re-read on a timer.
+            server.getScheduler().buildTask(this, ruleRegistry::reload).delay(RULE_REFRESH).repeat(RULE_REFRESH).schedule();
             clientRuleListener = createClientRules(clientRulesConfig, ruleBackend, ruleRegistry, ruleNotifier, traitCollector,
                     new ClientRuleCoverage(sections, servers), cloudNet, cloudNetConfig, clock);
             this.logger.info("Client rules are enabled: {} rule(s) loaded", ruleRegistry.rules().size());
@@ -244,7 +245,7 @@ public class BlackholeVelocity {
         }
 
         Injector childInjector = this.injector.createChildInjector(
-                new BlackholeClientModule(this.client, this.config, this.redisSyncService, sections, mirror, state,
+                new BlackholeClientModule(this.client, this.config, sections, mirror, state,
                         syncHandler, actions, backend, punishService, clock, screens, chatBuffer, evidenceCounts, chatDenial,
                         new MuteNotices(screens, new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN)), servers, reportService, reportNotifier, reportFeedback).asModule(),
                 new CloudInjectionModule<>(
@@ -357,9 +358,6 @@ public class BlackholeVelocity {
         }
         if (this.eventThread != null) {
             this.eventThread.shutdownNow();
-        }
-        if (this.redisSyncService != null) {
-            this.redisSyncService.shutdown();
         }
     }
 

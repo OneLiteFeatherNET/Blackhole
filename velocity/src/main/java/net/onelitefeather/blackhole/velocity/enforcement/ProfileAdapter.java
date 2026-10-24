@@ -2,7 +2,6 @@ package net.onelitefeather.blackhole.velocity.enforcement;
 
 import net.onelitefeather.blackhole.client.model.PunishEntryDTO;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.section.SectionInfo;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import net.onelitefeather.phoca.metadata.Expirable;
@@ -12,8 +11,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Turns the backend's profile (the HTTP fallback when Redis is unavailable) and a freshly applied
- * punishment into the same {@link PunishmentSyncMessage} shape the Redis mirror carries, so the
+ * Turns the backend's profile and a freshly applied punishment into the same
+ * {@link PunishmentSyncMessage} shape the event bus carries, so the
  * enforcement code has one representation to work with.
  */
 public final class ProfileAdapter {
