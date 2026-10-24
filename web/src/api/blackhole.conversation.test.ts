@@ -134,13 +134,39 @@ describe('transcript export', () => {
 })
 
 describe('appeal review with a player message', () => {
-  it('sends the message next to the internal note, or null without one', async () => {
+  it('sends the message next to the internal note, and none without one', async () => {
     const { calls, api: client } = api([{ body: {} }, { body: {} }])
 
     await client.reviewAppeal('a-1', { decision: 'DENIED', note: 'internal', playerMessage: 'We looked again.' })
     await client.reviewAppeal('a-1', { decision: 'DENIED' })
 
     expect(JSON.parse(calls[0]!.body)).toMatchObject({ decisionNote: 'internal', playerMessage: 'We looked again.' })
-    expect(JSON.parse(calls[1]!.body)).toMatchObject({ decisionNote: null, playerMessage: null })
+    expect(JSON.parse(calls[1]!.body)).toMatchObject({ decisionNote: null })
+    expect(JSON.parse(calls[1]!.body)).not.toHaveProperty('playerMessage')
+  })
+})
+
+describe('case conversation', () => {
+  it('asks for the message group and the leak events oldest first and follows the cursor', async () => {
+    const first = { seq: 1, type: 'message.added' }
+    const second = { seq: 2, type: 'ban_id.leak_marked' }
+    const { calls, api: client } = api([{ body: { items: [first], nextCursor: '1700:1' } }, { body: { items: [second], nextCursor: null } }])
+
+    const result = await client.caseConversation('p-1')
+
+    const urls = calls.map((call) => new URL(call.url))
+    expect(urls[0]!.pathname).toBe('/api/case/p-1/timeline')
+    expect(urls[0]!.searchParams.getAll('type')).toEqual(['message', 'ban_id.leak_marked'])
+    expect(urls[0]!.searchParams.get('order')).toBe('asc')
+    expect(urls[1]!.searchParams.get('cursor')).toBe('1700:1')
+    expect(result.ok && result.data).toEqual([first, second])
+  })
+
+  it('stops with the error of a page that fails', async () => {
+    const { api: client } = api([{ status: 404, body: { errorMessage: 'Unknown punishment', kind: 'NOT_FOUND' } }])
+
+    const result = await client.caseConversation('nope')
+
+    expect(result.ok).toBe(false)
   })
 })

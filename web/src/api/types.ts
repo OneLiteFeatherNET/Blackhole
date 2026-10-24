@@ -88,6 +88,7 @@ export type CaseUpdate = Omit<Schemas['CaseUpdateRequest'], 'clearAssignee' | 'a
 }
 export type NoteRedactionReason = Schemas['NoteRedactionReason']
 export type ActorTrust = Schemas['ActorTrust']
+export type CaseActorInfo = Schemas['CaseActorInfo']
 export type BanIdLeakReason = Schemas['BanIdLeakReason']
 export type BanIdReissueReason = Schemas['BanIdReissueReason']
 /** What a message post, edit or delete answers: the message id stays the same across edits. */

@@ -18,6 +18,7 @@ import type {
   CaseBanIdReissueResult,
   CaseMessageRedactResult,
   CaseMessageResult,
+  CaseTimelineItem,
   CaseTranscriptEraseResult,
   TranscriptFormat,
   TranscriptFile,
@@ -176,6 +177,11 @@ export interface BlackholeApi {
   caseDetail(reference: string): Promise<ApiResult<Case>>
   /** One page of the case timeline; pass the previous page's `nextCursor` to continue. */
   caseTimeline(reference: string, query?: CaseTimelineQuery): Promise<ApiResult<CaseTimelinePage>>
+  /**
+   * Everything the conversation needs, oldest first: the messages with their edits, deletions and
+   * redactions, and the Ban ID leak events. Follows the cursor until the end (bounded).
+   */
+  caseConversation(reference: string): Promise<ApiResult<CaseTimelineItem[]>>
   /** Changes staff metadata; a stale `expectedVersion` answers 409 and changes nothing. */
   updateCase(reference: string, change: CaseUpdate): Promise<ApiResult<Case>>
   /** Adds a staff note (1 to 4000 characters, no UUID or IP); resolves to the new note id. */
@@ -210,6 +216,10 @@ export interface BlackholeApi {
 const EVIDENCE_PAGE_SIZE = 20
 
 const PAGE_SIZE = 200
+/** What the conversation reads of the timeline: a type group and an exact type. */
+const CONVERSATION_TYPES = ['message', 'ban_id.leak_marked']
+const CONVERSATION_PAGE_SIZE = 200
+const CONVERSATION_MAX_PAGES = 10
 const MAX_PAGES = 25
 
 /**
@@ -442,7 +452,7 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
             decision: decision.decision,
             decisionNote: decision.note ?? null,
             newExpirationAt: decision.newExpirationAt ?? null,
-            playerMessage: decision.playerMessage ?? null,
+            playerMessage: decision.playerMessage,
           },
         }),
       ),
@@ -591,6 +601,24 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     caseTimeline: (reference, query = {}) =>
       toResult(http.GET('/case/{reference}/timeline', { params: { path: { reference } }, querySerializer: timelineQuery(query) })),
+
+    caseConversation: async (reference) => {
+      const items: CaseTimelineItem[] = []
+      let cursor: string | undefined
+      for (let page = 0; page < CONVERSATION_MAX_PAGES; page += 1) {
+        const result = await toResult(
+          http.GET('/case/{reference}/timeline', {
+            params: { path: { reference } },
+            querySerializer: timelineQuery({ types: CONVERSATION_TYPES, order: 'asc', size: CONVERSATION_PAGE_SIZE, cursor }),
+          }),
+        )
+        if (!result.ok) return result
+        items.push(...result.data.items)
+        if (!result.data.nextCursor) break
+        cursor = result.data.nextCursor
+      }
+      return { ok: true, data: items }
+    },
 
     updateCase: (reference, change) =>
       toResult(
