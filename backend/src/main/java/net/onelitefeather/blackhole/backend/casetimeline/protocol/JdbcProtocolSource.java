@@ -57,6 +57,25 @@ public class JdbcProtocolSource implements ProtocolSource {
         return this.reader.timeline(new CaseReader.TimelineQuery(punishmentIdentifier, null, null, List.of(), null, null, null, true, Integer.MAX_VALUE));
     }
 
+    @Override
+    public java.util.Map<String, String> fileDigests(String punishmentIdentifier) {
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(
+                     "SELECT identifier, file_sha256 FROM evidence_items WHERE punishment_identifier = ? AND correlation_id LIKE 'chat:%' "
+                             + "AND file_sha256 IS NOT NULL")) {
+            statement.setString(1, punishmentIdentifier);
+            try (ResultSet rows = statement.executeQuery()) {
+                java.util.Map<String, String> found = new java.util.HashMap<>();
+                while (rows.next()) {
+                    found.put(rows.getObject(1, UUID.class).toString(), rows.getString(2));
+                }
+                return found;
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("could not read the chat file digests for a protocol", e);
+        }
+    }
+
     private List<Appeal> appeals(String sql, Object parameter) {
         try (Connection connection = this.dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql)) {

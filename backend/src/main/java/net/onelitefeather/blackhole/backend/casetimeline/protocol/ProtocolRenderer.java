@@ -139,6 +139,11 @@ public final class ProtocolRenderer {
                     file.put("name", attachment.name());
                     file.put("type", attachment.type());
                     file.put("size", attachment.size());
+                    if (attachment.chatFile()) {
+                        file.put("sha256Prefix", attachment.sha12());
+                        file.put("provenance", attachment.provenance());
+                        file.put("marker", attachment.marker());
+                    }
                     attachments.add(file);
                 }
                 item.put("attachments", attachments);
@@ -157,6 +162,10 @@ public final class ProtocolRenderer {
                 item.put("author", who);
                 item.put("visibility", event.visibility());
                 item.put("details", event.details());
+                String marker = marker(event);
+                if (marker != null) {
+                    item.put("marker", marker);
+                }
             }
         }
         return item;
@@ -219,6 +228,10 @@ public final class ProtocolRenderer {
             out.append("    Deleted at ").append(time(message.deletedAt())).append("; the last text is kept above.\n");
         }
         for (ProtocolModel.Attachment attachment : message.attachments()) {
+            if (attachment.chatFile()) {
+                out.append("    ").append(attachment.marker()).append(attachment.provenance() == null ? "" : "  (" + attachment.provenance() + ")").append('\n');
+                continue;
+            }
             out.append("    Attachment: ").append(attachment.name() == null ? "(unnamed)" : attachment.name())
                     .append(" (").append(attachment.type() == null ? "unknown type" : attachment.type()).append(", ")
                     .append(attachment.size() == null ? "unknown size" : attachment.size() + " bytes").append(")\n");
@@ -234,11 +247,30 @@ public final class ProtocolRenderer {
         out.append('#').append(event.seq()).append("  ").append(time(event.at())).append("  ").append(event.type())
                 .append("  ").append(author.label()).append(" (").append(author.kind()).append(", trust ").append(author.trust())
                 .append(")  visibility ").append(event.visibility()).append('\n');
+        String marker = marker(event);
+        if (marker != null) {
+            out.append("    ").append(marker).append('\n');
+        }
         if (!event.details().isEmpty()) {
             List<String> parts = new ArrayList<>();
             event.details().forEach((key, value) -> parts.add(key + " " + value));
             out.append("    ").append(String.join(", ", parts)).append('\n');
         }
+    }
+
+    /** The marker line of an evidence share or revoke: what kind and how many lines, never the lines or the image. */
+    private static @Nullable String marker(ProtocolModel.EventEntry event) {
+        return switch (event.type()) {
+            case "evidence.shared" -> "EXCERPT".equals(event.details().get("mode"))
+                    ? "[evidence shared: chat excerpt, " + event.details().get("lineCount") + (Long.valueOf(1).equals(longOf(event.details().get("lineCount"))) ? " line]" : " lines]")
+                    : "[evidence shared: screenshot]";
+            case "evidence.share_revoked" -> "[evidence share withdrawn]";
+            default -> null;
+        };
+    }
+
+    private static @Nullable Long longOf(@Nullable Object value) {
+        return value instanceof Number number ? Long.valueOf(number.longValue()) : null;
     }
 
     private static void indent(StringBuilder out, String text, String prefix) {

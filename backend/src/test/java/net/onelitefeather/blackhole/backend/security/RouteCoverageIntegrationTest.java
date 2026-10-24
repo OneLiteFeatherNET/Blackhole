@@ -77,6 +77,12 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /case/{reference}/notes", M),
             Map.entry("PUT /case/{reference}/notes/{noteId}", M),
             Map.entry("POST /case/{reference}/messages", M),
+            // chat files and evidence sharing: sharing, revoking and the upload need a moderator; reading and the preview a viewer
+            Map.entry("POST /case/{reference}/attachments", M),
+            Map.entry("GET /case/{reference}/evidence-shares", V),
+            Map.entry("POST /case/{reference}/evidence-shares/preview", V),
+            Map.entry("POST /case/{reference}/evidence-shares", M),
+            Map.entry("POST /case/{reference}/evidence-shares/{shareId}/revoke", M),
             Map.entry("PUT /case/{reference}/messages/{messageId}", M),
             Map.entry("DELETE /case/{reference}/messages/{messageId}", M),
             Map.entry("POST /case/{reference}/ban-id/leak", M),

@@ -108,7 +108,7 @@ public class AppealProtocolService implements AppealProtocolGenerator, ProtocolR
                 return false;
             }
             ProtocolModel model = ProtocolModel.build(appeal, this.source.appealsOf(appeal.punishmentIdentifier()),
-                    this.source.entries(appeal.punishmentIdentifier()));
+                    this.source.entries(appeal.punishmentIdentifier()), this.source.fileDigests(appeal.punishmentIdentifier()));
             return !model.ticketIncomplete() && active.sourceDigest().equals(model.digest());
         } catch (RuntimeException e) {
             failed("error");
@@ -128,7 +128,7 @@ public class AppealProtocolService implements AppealProtocolGenerator, ProtocolR
         for (int attempt = 0; attempt < this.attempts; attempt++) {
             this.store.settleLostEvidence(appealId, this.clock.millis());
             ProtocolModel model = ProtocolModel.build(appeal, this.source.appealsOf(appeal.punishmentIdentifier()),
-                    this.source.entries(appeal.punishmentIdentifier()));
+                    this.source.entries(appeal.punishmentIdentifier()), this.source.fileDigests(appeal.punishmentIdentifier()));
             if (model.ticketIncomplete()) {
                 return Result.of(Outcome.TICKET_INCOMPLETE);
             }

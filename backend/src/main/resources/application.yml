@@ -177,6 +177,26 @@ blackhole:
       # not evilonelitefeather.net) opens directly; every other link goes through the "Leave" page of the portal
       # and the panel. An empty value makes every link external.
       trusted-domains: ${BLACKHOLE_CHAT_LINKS_TRUSTED_DOMAINS:onelitefeather.net}
+    # Files in the appeal conversation, in both directions. They go through the evidence upload pipeline (virus scan first,
+    # fail closed; the type is decided from the bytes, never from the client's type or name; PNG and JPEG are re-encoded,
+    # WebP is stripped of EXIF and XMP and never animated, a PDF with active content or encryption is refused, text must be
+    # strict UTF-8 and not a markup document). A file is staged first and only a message that names it makes it visible.
+    # The limits bound stored state (size, count, quota); none of them is a rate limit, the edge owns rates.
+    attachments:
+      # Largest chat file, in bytes (HTTP 413).
+      max-bytes: ${BLACKHOLE_CHAT_ATTACHMENTS_MAX_BYTES:10485760}
+      # Most files one message may name (HTTP 400).
+      max-per-message: ${BLACKHOLE_CHAT_ATTACHMENTS_MAX_PER_MESSAGE:5}
+      # Detected content types a chat accepts. Remove one to refuse it (HTTP 415); video is never a chat type.
+      allowed-types: ${BLACKHOLE_CHAT_ATTACHMENTS_ALLOWED_TYPES:image/png,image/jpeg,image/webp,application/pdf,text/plain}
+      # Most files one appeal (a case, for staff files) may hold, staged and sent together (HTTP 409 QUOTA).
+      max-files-per-appeal: ${BLACKHOLE_CHAT_ATTACHMENTS_MAX_FILES_PER_APPEAL:50}
+      # Most files that may wait for a message at once in one appeal (HTTP 409 QUOTA). A file nobody sends is deleted
+      # after blackhole.evidence.pending-ttl.
+      max-staged: ${BLACKHOLE_CHAT_ATTACHMENTS_MAX_STAGED:10}
+    share:
+      # Most lines of a chat capture one share may show to the player; there is no "share all".
+      max-lines: ${BLACKHOLE_CHAT_SHARE_MAX_LINES:20}
   # Swagger / OpenAPI views are only served when enabled (default off; on in the dev profile) and
   # then need the VIEWER role.
   docs:
