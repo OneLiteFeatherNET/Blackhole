@@ -219,4 +219,27 @@ assert_eq "ServiceMonitor scope" "api://11111111-1111-1111-1111-111111111111/.de
 assert_eq "PodMonitor for the bot in prod" "health" "$(y "${prod}" 'select(.kind == "PodMonitor") | .spec.podMetricsEndpoints[0].port')"
 assert_eq "no PodMonitor in dev" "0" "$(y "${dev}" '[select(.kind == "PodMonitor")] | length')"
 
+# --- NATS credentials per component (backend and bot are different NATS users) ---------------------------------------------
+nats_vol() { y "$1" "$(dep "$2") | .spec.template.spec.volumes[] | select(.name == \"nats\") | .secret.$3"; }
+assert_eq "without overrides both use the shared secret (backend)" "blackhole-nats" "$(nats_vol "${prod}" t-backend secretName)"
+assert_eq "without overrides both use the shared secret (bot)" "blackhole-nats" "$(nats_vol "${prod}" t-discord secretName)"
+split="${WORK_DIR}/nats-split.yaml"
+render_to prod-values.yaml "${split}" \
+  --set backend.nats.existingSecret=blackhole-nats-backend --set discord.nats.existingSecret=blackhole-nats-bot \
+  --set discord.nats.credsKey=bot.creds
+assert_eq "backend mounts its own secret" "blackhole-nats-backend" "$(nats_vol "${split}" t-backend secretName)"
+assert_eq "bot mounts its own secret" "blackhole-nats-bot" "$(nats_vol "${split}" t-discord secretName)"
+assert_eq "backend keeps the shared key name" "nats.creds" "$(nats_vol "${split}" t-backend items[0].key)"
+assert_eq "bot uses its key override" "bot.creds" "$(nats_vol "${split}" t-discord items[0].key)"
+assert_eq "bot credentials file follows the key override" "/etc/blackhole/nats/bot.creds" "$(configmap_value "${split}" t-discord NATS_CREDS_FILE)"
+assert_eq "backend credentials file is unchanged" "/etc/blackhole/nats/nats.creds" "$(configmap_value "${split}" t-backend NATS_CREDS_FILE)"
+only_bot="${WORK_DIR}/nats-bot-only.yaml"
+render_to prod-values.yaml "${only_bot}" --set discord.nats.existingSecret=blackhole-nats-bot
+assert_eq "an override on one component leaves the other on the shared secret" "blackhole-nats" "$(nats_vol "${only_bot}" t-backend secretName)"
+no_shared="${WORK_DIR}/nats-no-shared.yaml"
+render_to prod-values.yaml "${no_shared}" --set nats.existingSecret= \
+  --set backend.nats.existingSecret=blackhole-nats-backend --set discord.nats.existingSecret=blackhole-nats-bot
+assert_eq "per-component secrets work without a shared one (backend)" "blackhole-nats-backend" "$(nats_vol "${no_shared}" t-backend secretName)"
+assert_eq "per-component secrets work without a shared one (bot)" "blackhole-nats-bot" "$(nats_vol "${no_shared}" t-discord secretName)"
+
 finish

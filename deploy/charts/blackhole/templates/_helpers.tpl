@@ -157,6 +157,23 @@ priorityClassName: {{ . }}
 {{- .url | default (printf "http://%s:%d" (include "blackhole.fullname" (dict "ctx" .ctx "component" "backend")) (int .ctx.Values.backend.service.port)) -}}
 {{- end -}}
 
+{{/*
+NATS credentials of a component: its own <component>.nats.existingSecret / credsKey, else the shared nats.*
+(the backend and the bot are different NATS users). dict: ctx, values
+*/}}
+{{- define "blackhole.natsSecret" -}}
+{{- (.values.nats | default dict).existingSecret | default .ctx.Values.nats.existingSecret -}}
+{{- end -}}
+
+{{- define "blackhole.natsCredsKey" -}}
+{{- (.values.nats | default dict).credsKey | default .ctx.Values.nats.credsKey -}}
+{{- end -}}
+
+{{/* Path of the credentials file inside the pod. dict: ctx, values */}}
+{{- define "blackhole.natsCredsFile" -}}
+{{- printf "%s/%s" (.ctx.Values.nats.credsMountPath | trimSuffix "/") (include "blackhole.natsCredsKey" .) -}}
+{{- end -}}
+
 {{/* The Entra issuer and JWKS URL, derived from the tenant unless set. */}}
 {{- define "blackhole.issuer" -}}
 {{- .Values.auth.issuer | default (printf "https://login.microsoftonline.com/%s/v2.0" .Values.auth.tenantId) -}}

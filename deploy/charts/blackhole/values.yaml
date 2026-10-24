@@ -110,6 +110,11 @@ backend:
   # Raise this after a Secret changed: it is a pod annotation, so the pods are replaced on the next upgrade.
   secretRevision: "1"
   logFormat: json
+  # NATS credentials of this component (the backend and the bot are different NATS users). Empty values fall
+  # back to the shared nats.existingSecret / nats.credsKey.
+  nats:
+    existingSecret: ""
+    credsKey: ""
   evidence:
     # Cloudflare accepts 100 MB per request, so prod keeps the video cap at 90 MiB. Must equal
     # web.evidence.maxVideoBytes.
@@ -265,8 +270,8 @@ web:
     enabled: false
     hostnames: []
     parentRefs:
-      - name: envoy
-        namespace: eg
+      - name: eg
+        namespace: envoy
         sectionName: https
   pdb:
     enabled: true
@@ -335,8 +340,8 @@ portal:
     enabled: false
     hostnames: []
     parentRefs:
-      - name: envoy
-        namespace: eg
+      - name: eg
+        namespace: envoy
         sectionName: https
   pdb:
     enabled: true
@@ -392,6 +397,11 @@ discord:
   envFrom: {}
   secretRevision: "1"
   logFormat: plain
+  # NATS credentials of this component (the backend and the bot are different NATS users). Empty values fall
+  # back to the shared nats.existingSecret / nats.credsKey.
+  nats:
+    existingSecret: ""
+    credsKey: ""
   # Secret with the keys DISCORD_TOKEN and BLACKHOLE_DISCORD_CLIENT_SECRET.
   existingSecret: ""
   # Entra client of "Blackhole Discord (<env>)". The tenant is auth.tenantId.

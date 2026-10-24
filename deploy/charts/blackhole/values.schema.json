@@ -507,6 +507,19 @@
         "config": {
           "$ref": "#/definitions/configMap"
         },
+        "nats": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "NATS credentials of this component. Empty values fall back to the shared nats.existingSecret / nats.credsKey.",
+          "properties": {
+            "existingSecret": {
+              "type": "string"
+            },
+            "credsKey": {
+              "type": "string"
+            }
+          }
+        },
         "evidence": {
           "type": "object",
           "additionalProperties": false,
@@ -990,6 +1003,19 @@
         "config": {
           "$ref": "#/definitions/configMap"
         },
+        "nats": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "NATS credentials of this component. Empty values fall back to the shared nats.existingSecret / nats.credsKey.",
+          "properties": {
+            "existingSecret": {
+              "type": "string"
+            },
+            "credsKey": {
+              "type": "string"
+            }
+          }
+        },
         "metrics": {
           "type": "object",
           "additionalProperties": false,
@@ -1164,15 +1190,10 @@
           },
           "nats": {
             "required": [
-              "url",
-              "existingSecret"
+              "url"
             ],
             "properties": {
               "url": {
-                "type": "string",
-                "minLength": 1
-              },
-              "existingSecret": {
                 "type": "string",
                 "minLength": 1
               }
@@ -1275,15 +1296,10 @@
         "properties": {
           "nats": {
             "required": [
-              "url",
-              "existingSecret"
+              "url"
             ],
             "properties": {
               "url": {
-                "type": "string",
-                "minLength": 1
-              },
-              "existingSecret": {
                 "type": "string",
                 "minLength": 1
               }
@@ -1364,6 +1380,140 @@
           "auth",
           "discord"
         ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "backend": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          }
+        },
+        "required": [
+          "backend"
+        ]
+      },
+      "then": {
+        "anyOf": [
+          {
+            "properties": {
+              "nats": {
+                "properties": {
+                  "existingSecret": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "existingSecret"
+                ]
+              }
+            },
+            "required": [
+              "nats"
+            ]
+          },
+          {
+            "properties": {
+              "backend": {
+                "properties": {
+                  "nats": {
+                    "properties": {
+                      "existingSecret": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "existingSecret"
+                    ]
+                  }
+                },
+                "required": [
+                  "nats"
+                ]
+              }
+            },
+            "required": [
+              "backend"
+            ]
+          }
+        ],
+        "description": "NATS credentials missing: set nats.existingSecret or backend.nats.existingSecret."
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "discord": {
+            "properties": {
+              "enabled": {
+                "const": true
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          }
+        },
+        "required": [
+          "discord"
+        ]
+      },
+      "then": {
+        "anyOf": [
+          {
+            "properties": {
+              "nats": {
+                "properties": {
+                  "existingSecret": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "existingSecret"
+                ]
+              }
+            },
+            "required": [
+              "nats"
+            ]
+          },
+          {
+            "properties": {
+              "discord": {
+                "properties": {
+                  "nats": {
+                    "properties": {
+                      "existingSecret": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "existingSecret"
+                    ]
+                  }
+                },
+                "required": [
+                  "nats"
+                ]
+              }
+            },
+            "required": [
+              "discord"
+            ]
+          }
+        ],
+        "description": "NATS credentials missing: set nats.existingSecret or discord.nats.existingSecret."
       }
     },
     {

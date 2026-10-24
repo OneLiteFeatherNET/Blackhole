@@ -31,7 +31,7 @@ secretKeyRef entries in the Deployment.
       "BLACKHOLE_EVIDENCE_S3_PATH_STYLE" .Values.s3.pathStyle
       "BLACKHOLE_EVIDENCE_SCAN_ENABLED" $v.evidence.scan.enabled
       "NATS_URL" .Values.nats.url
-      "NATS_CREDS_FILE" (printf "%s/%s" (.Values.nats.credsMountPath | trimSuffix "/") .Values.nats.credsKey)
+      "NATS_CREDS_FILE" (include "blackhole.natsCredsFile" (dict "ctx" . "values" $v))
       "NATS_STREAM_REPLICAS" .Values.nats.stream.replicas
       "NATS_EVENTS_MAX_AGE" .Values.nats.stream.maxAge
       "NATS_EVENTS_MAX_BYTES" .Values.nats.stream.maxBytes
