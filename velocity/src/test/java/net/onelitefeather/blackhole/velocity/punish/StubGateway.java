@@ -55,6 +55,10 @@ final class StubGateway implements BackendGateway {
     final List<String> countedPunishments = new ArrayList<>();
     /** What the count call answers. */
     CompletableFuture<Long> countResult = CompletableFuture.completedFuture(0L);
+    /** The punishments whose Ban ID was requested. */
+    final List<String> banIdPunishments = new ArrayList<>();
+    /** What the Ban ID call answers. */
+    CompletableFuture<String> banIdResult = CompletableFuture.completedFuture("7K3M9QXA");
     /** The order of apply and evidence calls. */
     final List<String> calls = new ArrayList<>();
     /** What the evidence post answers; completes successfully unless the test replaces it. */
@@ -153,6 +157,13 @@ final class StubGateway implements BackendGateway {
         this.calls.add("count");
         this.countedPunishments.add(punishment);
         return this.countResult;
+    }
+
+    @Override
+    public CompletableFuture<String> revealBanId(String punishment) {
+        this.calls.add("ban-id");
+        this.banIdPunishments.add(punishment);
+        return this.banIdResult;
     }
 
     @Override

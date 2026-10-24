@@ -4,7 +4,6 @@ import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
@@ -12,6 +11,7 @@ import net.kyori.adventure.text.renderer.ComponentRenderer;
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
 import net.onelitefeather.blackhole.velocity.component.tag.DurationTag;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
+import net.onelitefeather.blackhole.velocity.enforcement.BanIds;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.section.SectionInfo;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
@@ -34,8 +34,9 @@ import java.util.UUID;
 
 /**
  * The text a punished player sees: what happened, why, for how long, in which area and the
- * punishment's short ID to quote in an appeal. The same layout serves disconnect screens (plain: no
- * hover or click there) and chat messages (hover shows the full ID, the appeal link is clickable).
+ * punishment's Ban ID to quote in an appeal. The Ban ID comes from the backend and is left out when
+ * the backend cannot give it; the local hex short id is never shown to players. The same layout serves
+ * disconnect screens (plain: no click there) and chat messages (the appeal link is clickable).
  * Never contains the player's UUID or owner hash.
  */
 public final class PunishmentScreens {
@@ -49,6 +50,7 @@ public final class PunishmentScreens {
     private final BlackholeConfig config;
     private final SectionRegistry sections;
     private final ComponentRenderer<Locale> renderer;
+    private final BanIds banIds;
 
     /**
      * @param renderer translates the finished message, e.g. {@code GlobalTranslator.renderer()}
@@ -57,6 +59,17 @@ public final class PunishmentScreens {
             @NotNull Clock clock, @NotNull BlackholeConfig config, @NotNull SectionRegistry sections,
             @NotNull ComponentRenderer<Locale> renderer
     ) {
+        this(clock, config, sections, renderer, BanIds.NONE);
+    }
+
+    /**
+     * @param banIds where the Ban ID of a punishment comes from
+     */
+    public PunishmentScreens(
+            @NotNull Clock clock, @NotNull BlackholeConfig config, @NotNull SectionRegistry sections,
+            @NotNull ComponentRenderer<Locale> renderer, @NotNull BanIds banIds
+    ) {
+        this.banIds = banIds;
         this.renderer = renderer;
         this.clock = clock;
         this.config = config;
@@ -111,7 +124,7 @@ public final class PunishmentScreens {
         List<Component> where = new ArrayList<>();
         String sectionName = section != null ? section.displayName() : punishment.section();
         boolean hasSection = sectionName != null && !sectionName.isBlank();
-        Component id = id(punishment.punishmentIdentifier(), surface);
+        Component id = id(punishment.punishmentIdentifier());
         if (hasSection && id != null) {
             where.add(Component.translatable("punishment.screen.section_id", Component.text(sectionName), id));
         } else if (hasSection) {
@@ -149,7 +162,7 @@ public final class PunishmentScreens {
 
     /**
      * The one-line reminder for a muted player who keeps chatting: the title, the remaining time (or
-     * "permanent") and the short ID. The reason and the appeal hint are left to the full screen.
+     * "permanent") and the Ban ID. The reason and the appeal hint are left to the full screen.
      */
     public @NotNull Component muteReminder(@NotNull PunishmentSyncMessage punishment, @NotNull Locale locale) {
         List<Component> parts = new ArrayList<>();
@@ -160,7 +173,7 @@ public final class PunishmentScreens {
             Duration remaining = Duration.ofMillis(punishment.expiresAt() - this.clock.millis());
             parts.add(Component.translatable("punishment.screen.remaining", DurationTag.remaining(remaining)));
         }
-        Component id = id(punishment.punishmentIdentifier(), Surface.CHAT);
+        Component id = id(punishment.punishmentIdentifier());
         if (id != null) {
             parts.add(Component.translatable("punishment.screen.id", id));
         }
@@ -169,7 +182,7 @@ public final class PunishmentScreens {
     }
 
     /**
-     * The short ID shown to players: {@code #} and the first eight hex characters (upper case) of the
+     * The legacy short ID staff use, never shown to players: {@code #} and the first eight hex characters (upper case) of the
      * punishment's UUID. The backend's punishment identifier is that UUID as 22 character URL-safe
      * Base64 (16 bytes, no padding; {@code IdGenerator.generateId}), so the short ID is the hex of the
      * first four decoded bytes. Hex has no look-alike characters and is case-insensitive, and the
@@ -243,16 +256,8 @@ public final class PunishmentScreens {
         return Component.translatable("punishment.screen.duration.temporary", DurationTag.remaining(remaining), Component.text(until));
     }
 
-    private @Nullable Component id(@Nullable String identifier, Surface surface) {
-        String shortId = shortId(identifier);
-        if (shortId == null) {
-            return null;
-        }
-        Component text = Component.text(shortId);
-        if (surface == Surface.CHAT) {
-            text = text.hoverEvent(HoverEvent.showText(Component.text(identifier)));
-        }
-        return text;
+    private @Nullable Component id(@Nullable String identifier) {
+        return this.banIds.of(identifier).map(Component::text).orElse(null);
     }
 
     private @Nullable Component appeal(Surface surface) {

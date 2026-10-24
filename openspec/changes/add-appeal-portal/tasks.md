@@ -61,8 +61,8 @@ implementing is reproduced by a failing test first.
 
 ## 7. Velocity ban screen (PR 7, `feat(velocity)`)
 
-- [ ] 7.1 Failing tests first: screen with Ban ID, backend failure shows none (and never a hex id), nothing persisted
-- [ ] 7.2 Fetch via the generated client (`PROXY` role), in-memory cache, remove the local hex short id from the player-facing screen; verify `./gradlew :velocity:test`
+- [x] 7.1 Failing tests first: screen with Ban ID, backend failure shows none (and never a hex id), nothing persisted
+- [x] 7.2 Fetch via the generated client (`PROXY` role), in-memory cache, remove the local hex short id from the player-facing screen; verify `./gradlew :velocity:test`
 
 ## 8. Documentation (PR 8, `docs(appeal)`)
 

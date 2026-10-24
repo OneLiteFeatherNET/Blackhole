@@ -42,6 +42,7 @@ import net.onelitefeather.blackhole.velocity.config.BlackholeApiClients;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.config.ChatCaptureConfig;
 import net.onelitefeather.blackhole.velocity.config.CloudNetConfig;
+import net.onelitefeather.blackhole.velocity.enforcement.CachedBanIds;
 import net.onelitefeather.blackhole.velocity.evidence.CachedEvidenceCounts;
 import net.onelitefeather.blackhole.velocity.evidence.ChatBuffer;
 import net.onelitefeather.blackhole.velocity.evidence.ChatEvidence;
@@ -137,13 +138,14 @@ public class BlackholeVelocity {
         PunishmentMirror mirror = new PunishmentMirror();
         BackendGateway backend = new HttpBackendGateway(this.client, new CachedTemplates(this.redisSyncService), clock);
         PunishmentState state = new PunishmentState(sections, mirror, this.redisSyncService, owner -> backend.profile(owner), clock);
-        PunishmentScreens screens = new PunishmentScreens(clock, this.config, sections, GlobalTranslator.renderer());
+        ChatCaptureConfig chatCapture = this.config.getEvidence().getChatCapture();
+        PunishmentScreens screens = new PunishmentScreens(clock, this.config, sections, GlobalTranslator.renderer(),
+                new CachedBanIds(backend, clock, chatCapture.getTimeout()));
         CloudNetConfig cloudNetConfig = this.config.getCloudnet().withEnvironment(System::getenv);
         CloudNetView cloudNet = CloudNets.detect(cloudNetConfig.getIntegration(), BlackholeVelocity.class.getClassLoader(), this.logger);
         ServerResolver servers = new ServerResolver(cloudNet, sections, this.logger::warn);
         EnforcementActions actions = new EnforcementActions(this.server, sections, state, this.config, clock, screens, servers);
         PunishmentSyncHandler syncHandler = new PunishmentSyncHandler(mirror, actions);
-        ChatCaptureConfig chatCapture = this.config.getEvidence().getChatCapture();
         ChatBuffer chatBuffer = new ChatBuffer(clock, chatCapture);
         ChatEvidence chatEvidence = ChatEvidence.create(new ChatSnapshotBuilder(chatBuffer, chatCapture), backend, chatCapture);
         EvidenceCounts evidenceCounts = new CachedEvidenceCounts(backend, clock, chatCapture.getTimeout());

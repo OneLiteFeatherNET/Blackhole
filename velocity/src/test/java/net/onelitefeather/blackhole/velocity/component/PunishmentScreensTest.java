@@ -11,6 +11,7 @@ import net.onelitefeather.blackhole.velocity.TestData;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens.Surface;
 import net.onelitefeather.blackhole.velocity.component.theme.BlackholeTheme;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
+import net.onelitefeather.blackhole.velocity.enforcement.BanIds;
 import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import org.junit.jupiter.api.Test;
 
@@ -20,6 +21,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Base64;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -57,8 +59,12 @@ class PunishmentScreensTest {
         return config;
     }
 
+    private static final String BAN_ID = "7K3M9QXA";
+    /** A backend that knows the Ban ID of {@link #ID} and nothing else. */
+    private static final BanIds BAN_IDS = identifier -> ID.equals(identifier) ? Optional.of(BAN_ID) : Optional.empty();
+
     private static PunishmentScreens screens(BlackholeConfig config) {
-        return new PunishmentScreens(CLOCK, config, TestData.standardRegistry(), renderer());
+        return new PunishmentScreens(CLOCK, config, TestData.standardRegistry(), renderer(), BAN_IDS);
     }
 
     private static PunishmentSyncMessage punishment(String section, EnforcementKind kind, Long expiresAt, String reason) {
@@ -125,7 +131,7 @@ class PunishmentScreensTest {
                 Verbleibend: 59 Minuten
                 bis 21.10.2026, 23:05 Uhr
 
-                Bereich: Network  ·  Strafen-ID: #A1B2C3D4""",
+                Bereich: Network  ·  Ban-ID: 7K3M9QXA""",
                 text(punishment("network", EnforcementKind.BAN, IN_59_MIN, "Unerlaubte Clientmodifikation"), Locale.GERMAN, Surface.DISCONNECT));
     }
 
@@ -140,7 +146,7 @@ class PunishmentScreensTest {
                 Remaining: 59 minutes
                 until Oct 21, 2026, 11:05 PM
 
-                Area: Network  ·  Punishment ID: #A1B2C3D4""",
+                Area: Network  ·  Ban ID: 7K3M9QXA""",
                 text(punishment("network", EnforcementKind.BAN, IN_59_MIN, "Client modification"), Locale.ENGLISH, Surface.DISCONNECT));
     }
 
@@ -168,7 +174,7 @@ class PunishmentScreensTest {
 
                 Dauer: dauerhaft
 
-                Bereich: Network  ·  Strafen-ID: #A1B2C3D4""",
+                Bereich: Network  ·  Ban-ID: 7K3M9QXA""",
                 text(automatic(null), Locale.GERMAN, Surface.DISCONNECT));
     }
 
@@ -275,11 +281,55 @@ class PunishmentScreensTest {
     }
 
     @Test
-    void fullIdIsOnHoverInChatOnly() {
+    void theBanScreenShowsTheBanIdOnEverySurfaceAndLocale() {
         PunishmentSyncMessage ban = punishment("network", EnforcementKind.BAN, null, "x");
 
-        assertTrue(any(screen(screens(config("", "")), ban, Locale.ENGLISH, Surface.CHAT, false), c -> c.hoverEvent() != null));
-        assertFalse(any(screen(screens(config("", "")), ban, Locale.ENGLISH, Surface.DISCONNECT, false), c -> c.hoverEvent() != null));
+        for (Surface surface : Surface.values()) {
+            for (Locale locale : new Locale[]{Locale.GERMAN, Locale.ENGLISH}) {
+                assertTrue(text(ban, locale, surface).contains(BAN_ID), "the screen must carry the Ban ID: " + locale + " " + surface);
+            }
+        }
+    }
+
+    @Test
+    void theBanIdIsPlainTextWithoutHoverOrClick() {
+        PunishmentSyncMessage ban = punishment("network", EnforcementKind.BAN, null, "x");
+
+        assertFalse(any(screen(screens(config("", "")), ban, Locale.ENGLISH, Surface.CHAT, false), c -> c.hoverEvent() != null),
+                "the Ban ID is a credential: no hover that would carry the identifier");
+    }
+
+    @Test
+    void whenTheBackendGivesNoBanIdTheScreenShowsNoIdAndNoHexId() {
+        PunishmentScreens withoutBackend = new PunishmentScreens(CLOCK, config("", ""), TestData.standardRegistry(), renderer(), BanIds.NONE);
+        PunishmentSyncMessage ban = punishment("network", EnforcementKind.BAN, null, "x");
+
+        for (Surface surface : Surface.values()) {
+            for (Locale locale : new Locale[]{Locale.GERMAN, Locale.ENGLISH}) {
+                String text = plain(screen(withoutBackend, ban, locale, surface, false));
+                assertFalse(text.contains("A1B2C3D4"), "a hex short id must never replace the Ban ID, got:\n" + text);
+                assertFalse(text.contains("#"), "no id of any kind, got:\n" + text);
+                assertFalse(text.contains("Ban ID") || text.contains("Ban-ID"), "no empty ID label, got:\n" + text);
+                assertTrue(text.contains("Network"), "the rest of the screen stays, got:\n" + text);
+            }
+        }
+    }
+
+    @Test
+    void theBanScreenNeverShowsTheLegacyHexShortId() {
+        for (Surface surface : Surface.values()) {
+            String text = text(punishment("network", EnforcementKind.BAN, null, "x"), Locale.ENGLISH, surface);
+            assertFalse(text.contains("A1B2C3D4"), "the local hex short id is staff-only, got:\n" + text);
+        }
+    }
+
+    @Test
+    void theAppealHintStaysNextToTheBanId() {
+        String text = plain(screen(screens(config("https://appeal.onelitefeather.net", "")),
+                punishment("network", EnforcementKind.BAN, null, "x"), Locale.ENGLISH, Surface.DISCONNECT, false));
+
+        assertTrue(text.contains("Ban ID: " + BAN_ID), text);
+        assertTrue(text.contains("Appeal: https://appeal.onelitefeather.net"), text);
     }
 
     @Test
@@ -320,7 +370,7 @@ class PunishmentScreensTest {
 
                 Duration: permanent
 
-                Area: Bedwars  ·  Punishment ID: #A1B2C3D4
+                Area: Bedwars  ·  Ban ID: 7K3M9QXA
                 Excluded servers: bedwars-*
                 You have been moved to the fallback server.""", text);
     }
@@ -336,7 +386,7 @@ class PunishmentScreensTest {
     private String cloudNetScreen(net.onelitefeather.blackhole.client.model.ServerTargetKind kind, String name, Locale locale) {
         var section = new net.onelitefeather.blackhole.velocity.section.SectionInfo(
                 "target", "Target", EnforcementKind.SERVER, java.util.List.of(name), kind);
-        var screens = new PunishmentScreens(CLOCK, config("", ""), TestData.registry(section), renderer());
+        var screens = new PunishmentScreens(CLOCK, config("", ""), TestData.registry(section), renderer(), BAN_IDS);
         return plain(screen(screens, punishment("target", EnforcementKind.SERVER, null, "x"), locale, Surface.DISCONNECT, false));
     }
 
@@ -379,7 +429,7 @@ class PunishmentScreensTest {
                 Beleidigung
                 Verbleibend: 59 Minuten
                 bis 21.10.2026, 23:05 Uhr
-                Bereich: Chat  ·  Strafen-ID: #A1B2C3D4""",
+                Bereich: Chat  ·  Ban-ID: 7K3M9QXA""",
                 text(punishment("chat", EnforcementKind.MUTE, IN_59_MIN, "Beleidigung"), Locale.GERMAN, Surface.CHAT));
     }
 
@@ -394,7 +444,7 @@ class PunishmentScreensTest {
                 Insults
                 Remaining: 59 minutes
                 until Oct 21, 2026, 11:05 PM
-                Area: Chat  ·  Punishment ID: #A1B2C3D4
+                Area: Chat  ·  Ban ID: 7K3M9QXA
                 Appeal: our forum""", text);
     }
 
@@ -409,7 +459,7 @@ class PunishmentScreensTest {
                 Beleidigung
                 Verbleibend: 59 Minuten
                 bis 21.10.2026, 23:05 Uhr
-                Bereich: Chat  ·  Strafen-ID: #A1B2C3D4
+                Bereich: Chat  ·  Ban-ID: 7K3M9QXA
                 Einspruch: https://example.org/appeal""", text);
     }
 
@@ -422,7 +472,7 @@ class PunishmentScreensTest {
                 Grund
                 Spam
                 Dauer: dauerhaft
-                Bereich: Chat  ·  Strafen-ID: #A1B2C3D4""", text);
+                Bereich: Chat  ·  Ban-ID: 7K3M9QXA""", text);
     }
 
     @Test
@@ -458,7 +508,7 @@ class PunishmentScreensTest {
         Component reminder = screens(config("https://example.org/appeal", "")).muteReminder(
                 punishment("chat", EnforcementKind.MUTE, IN_59_MIN, "Insults"), Locale.GERMAN);
 
-        assertEquals("Blackhole » Du wurdest stummgeschaltet · Verbleibend: 59 Minuten · Strafen-ID: #A1B2C3D4", plain(reminder));
+        assertEquals("Blackhole » Du wurdest stummgeschaltet · Verbleibend: 59 Minuten · Ban-ID: 7K3M9QXA", plain(reminder));
     }
 
     @Test
@@ -466,7 +516,7 @@ class PunishmentScreensTest {
         Component reminder = screens(config("", "")).muteReminder(
                 punishment("chat", EnforcementKind.MUTE, null, "Insults"), Locale.ENGLISH);
 
-        assertEquals("Blackhole » You have been muted · Duration: permanent · Punishment ID: #A1B2C3D4", plain(reminder));
+        assertEquals("Blackhole » You have been muted · Duration: permanent · Ban ID: 7K3M9QXA", plain(reminder));
     }
 
     @Test
