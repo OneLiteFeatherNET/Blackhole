@@ -88,7 +88,7 @@ describe('allow-list', () => {
       const init: RequestInit =
         route.method === 'GET'
           ? { headers: { cookie: session } }
-          : { method: route.method, headers: { origin: ORIGIN, 'x-csrf-token': CSRF, cookie: session, 'content-type': 'application/json' }, body: JSON.stringify({ banId: BAN_ID, statement: 's', text: 't' }) }
+          : { method: route.method, headers: { origin: ORIGIN, 'x-csrf-token': CSRF, cookie: session, 'content-type': 'application/json' }, body: JSON.stringify({ banId: BAN_ID, statement: 's', text: 't', conditionsVersion: 1 }) }
 
       await send(route.path, init)
 
@@ -527,5 +527,61 @@ describe('responses', () => {
 
     expect(response.status).toBe(409)
     expect(await response.json()).toEqual({ code: 'NOT_DECIDED' })
+  })
+})
+
+describe('appeal conditions', () => {
+  it('forwards the conditions version as a number together with the statement', async () => {
+    const { send, calls } = bff([{ body: { status: 'ELIGIBLE_PENDING_REVIEW' } }])
+
+    const response = await send(...post('/api/appeal', { statement: 'please', conditionsVersion: 4, extra: 'dropped' }, { cookie: session, 'x-csrf-token': CSRF }))
+
+    expect(response.status).toBe(200)
+    expect(calls[0]?.url).toBe('http://backend.test:8080/public/appeal')
+    expect(JSON.parse(calls[0]!.body)).toEqual({ statement: 'please', conditionsVersion: 4 })
+  })
+
+  it.each([
+    ['is missing', { statement: 'please' }],
+    ['is a string', { statement: 'please', conditionsVersion: '4' }],
+    ['is zero', { statement: 'please', conditionsVersion: 0 }],
+    ['is fractional', { statement: 'please', conditionsVersion: 1.5 }],
+    ['is too large', { statement: 'please', conditionsVersion: 2 ** 40 }],
+  ])('answers 400 without calling the backend when the version %s', async (_name, body) => {
+    const { send, calls } = bff()
+
+    const response = await send(...post('/api/appeal', body, { cookie: session, 'x-csrf-token': CSRF }))
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ code: 'BAD_REQUEST' })
+    expect(calls).toEqual([])
+  })
+
+  it('passes CONDITIONS_CHANGED on as its own code', async () => {
+    const { send } = bff([{ status: 409, body: { code: 'CONDITIONS_CHANGED', message: 'internal detail' } }])
+
+    const response = await send(...post('/api/appeal', { statement: 'please', conditionsVersion: 1 }, { cookie: session, 'x-csrf-token': CSRF }))
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({ code: 'CONDITIONS_CHANGED' })
+  })
+
+  it('serves the conditions with a session and relays them as they are', async () => {
+    const { send, calls } = bff([{ body: { version: 2, text: 'rules' } }])
+
+    const response = await send('/api/appeal/conditions', { headers: { cookie: session } })
+
+    expect(await response.json()).toEqual({ version: 2, text: 'rules' })
+    expect(calls[0]?.url).toBe('http://backend.test:8080/public/appeal/conditions')
+    expect(response.headers.get('cache-control')).toBe('no-store')
+  })
+
+  it('refuses the conditions without a session cookie', async () => {
+    const { send, calls } = bff()
+
+    const response = await send('/api/appeal/conditions')
+
+    expect(response.status).toBe(401)
+    expect(calls).toEqual([])
   })
 })

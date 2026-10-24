@@ -67,7 +67,7 @@ describe('portal api client', () => {
   it('reads the fixed error code and the date of a conflict', async () => {
     const { api } = client(() => json({ code: 'NOT_ELIGIBLE', availableFrom: '2026-11-01T00:00:00Z' }, 409))
 
-    expect(await api.fileAppeal('x')).toEqual({ ok: false, error: { status: 409, code: 'NOT_ELIGIBLE', availableFrom: '2026-11-01T00:00:00Z' } })
+    expect(await api.fileAppeal('x', 1)).toEqual({ ok: false, error: { status: 409, code: 'NOT_ELIGIBLE', availableFrom: '2026-11-01T00:00:00Z' } })
   })
 
   it('maps an answer without a usable body to unavailable', async () => {
@@ -80,5 +80,30 @@ describe('portal api client', () => {
     const { api } = client(() => Promise.reject(new TypeError('network')))
 
     expect(await api.punishment()).toEqual({ ok: false, error: { status: 0, code: 'UNAVAILABLE' } })
+  })
+
+  it('sends the confirmed conditions version with the statement', async () => {
+    const { api, calls } = client(() => json({ status: 'ELIGIBLE_PENDING_REVIEW', decision: null, newExpiresAt: null, filedAt: null }))
+
+    await api.fileAppeal('my statement', 4)
+
+    expect(calls[0]?.path).toBe('/api/appeal')
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({ statement: 'my statement', conditionsVersion: 4 })
+  })
+
+  it('reads the conditions with a GET and no CSRF header', async () => {
+    const { api, calls } = client(() => json({ version: 2, text: 'rules' }))
+
+    const result = await api.appealConditions()
+
+    expect(result).toEqual({ ok: true, data: { version: 2, text: 'rules' } })
+    expect([calls[0]?.path, calls[0]?.init.method]).toEqual(['/api/appeal/conditions', 'GET'])
+    expect((calls[0]?.init.headers as Record<string, string>)['x-csrf-token']).toBeUndefined()
+  })
+
+  it('reads CONDITIONS_CHANGED as the fixed error code', async () => {
+    const { api } = client(() => json({ code: 'CONDITIONS_CHANGED' }, 409))
+
+    expect(await api.fileAppeal('x', 1)).toEqual({ ok: false, error: { status: 409, code: 'CONDITIONS_CHANGED' } })
   })
 })

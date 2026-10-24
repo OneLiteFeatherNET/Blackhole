@@ -3,7 +3,7 @@
  * backend `/public/**` routes each one maps to, and the payload shapes of both sides.
  *
  * Source: openspec/changes/add-appeal-portal and the backend `publicapi` package (API spec 0.0.30,
- * `.claude/rules/public-api.md`; the player copy of the protocol is spec 0.0.31). Everything the backend sends is validated or whitelisted by the BFF.
+ * `.claude/rules/public-api.md`; the player copy of the protocol is spec 0.0.31, the appeal conditions spec 0.0.33). Everything the backend sends is validated or whitelisted by the BFF.
  *
  * The BFF is the mirror of the backend: `/api/<name>` maps one to one onto `/public/<name>`.
  * Pure data and types, so the browser bundle and the server bundle can both import it.
@@ -61,6 +61,14 @@ export interface AppealStatus {
 
 export interface AppealRequest {
   statement: string
+  /** The version of the appeal conditions the player confirmed (from `GET /api/appeal/conditions`). */
+  conditionsVersion: number
+}
+
+/** `GET /api/appeal/conditions`: the text the player confirms before filing. Plain text, see `conditions.ts`. */
+export interface AppealConditions {
+  version: number
+  text: string
 }
 
 export type ConversationAuthor = 'PLAYER' | 'STAFF' | 'SYSTEM'
@@ -106,6 +114,7 @@ export type ErrorCode =
   | 'FORFEITED'
   | 'FROZEN'
   | 'NOT_ELIGIBLE'
+  | 'CONDITIONS_CHANGED'
   | 'NO_APPEAL'
   | 'NOT_DECIDED'
   | 'CONFLICT'
@@ -122,7 +131,7 @@ export interface ErrorBody {
 }
 
 /** Backend 409 `code` values the BFF passes through; anything else becomes `CONFLICT`. */
-export const CONFLICT_CODES = ['FORFEITED', 'FROZEN', 'NOT_ELIGIBLE', 'NO_APPEAL', 'NOT_DECIDED'] as const
+export const CONFLICT_CODES = ['FORFEITED', 'FROZEN', 'NOT_ELIGIBLE', 'CONDITIONS_CHANGED', 'NO_APPEAL', 'NOT_DECIDED'] as const
 
 export interface RouteSpec {
   /** Browser-facing path on the BFF. */
@@ -136,6 +145,8 @@ export interface RouteSpec {
   query?: Record<string, RegExp>
   /** Body fields forwarded (everything else is dropped); present for routes with a JSON body. */
   body?: readonly string[]
+  /** Body fields forwarded as positive integers (a version number); a missing or non-integer value is a 400. */
+  integers?: readonly string[]
 }
 
 const CURSOR = /^[0-9]{1,18}$/
@@ -145,8 +156,9 @@ export const ROUTES: readonly RouteSpec[] = [
   { path: '/api/session', method: 'GET', backend: '/public/session', session: true },
   { path: '/api/session', method: 'DELETE', backend: '/public/session', session: true },
   { path: '/api/punishment', method: 'GET', backend: '/public/punishment', session: true },
-  { path: '/api/appeal', method: 'POST', backend: '/public/appeal', session: true, body: ['statement'] },
+  { path: '/api/appeal', method: 'POST', backend: '/public/appeal', session: true, body: ['statement'], integers: ['conditionsVersion'] },
   { path: '/api/appeal', method: 'GET', backend: '/public/appeal', session: true },
+  { path: '/api/appeal/conditions', method: 'GET', backend: '/public/appeal/conditions', session: true },
   { path: '/api/appeal/protocol', method: 'GET', backend: '/public/appeal/protocol', session: true, query: { format: /^(text|json)$/ } },
   { path: '/api/conversation', method: 'GET', backend: '/public/conversation', session: true, query: { cursor: CURSOR } },
   { path: '/api/messages', method: 'POST', backend: '/public/messages', session: true, body: ['text'] },

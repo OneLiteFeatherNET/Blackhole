@@ -80,7 +80,13 @@
       "TOO_LARGE": "Deine Stellungnahme ist zu lang.",
       "FORBIDDEN": "Mit dieser Ban-ID kann kein Einspruch eingelegt werden.",
       "UNAVAILABLE": "Dein Einspruch konnte nicht gesendet werden. Bitte versuche es erneut.",
-      "NOT_ELIGIBLE_NOW": "Für diese Strafe kannst du gerade keinen Einspruch einlegen."
+      "NOT_ELIGIBLE_NOW": "Für diese Strafe kannst du gerade keinen Einspruch einlegen.",
+      "CONDITIONS_CHANGED": "Die Rahmenbedingungen haben sich geändert, während du geschrieben hast. Bitte lies sie erneut und bestätige sie, um deinen Einspruch zu senden."
+    },
+    "conditions": {
+      "title": "Rahmenbedingungen",
+      "confirm": "Ich habe die Rahmenbedingungen gelesen und akzeptiere sie.",
+      "loadFailed": "Die Rahmenbedingungen konnten nicht geladen werden. Bitte lade die Seite neu."
     }
   },
   "conversation": {
@@ -129,7 +135,8 @@
       "UNAVAILABLE": "Deine Nachricht konnte nicht gesendet werden. Bitte versuche es erneut."
     },
     "downloadText": "Kopie herunterladen (Text)",
-    "downloadJson": "Kopie herunterladen (JSON)"
+    "downloadJson": "Kopie herunterladen (JSON)",
+    "conditions": "Rahmenbedingungen"
   },
   "notice": {
     "forfeited": "Das Recht auf Einspruch gegen diese Strafe ist verfallen, weil die Ban-ID öffentlich geteilt wurde. Die Strafe läuft trotzdem von selbst aus, und das Team kann sie von sich aus überprüfen.",

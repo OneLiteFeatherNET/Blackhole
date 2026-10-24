@@ -1,7 +1,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import type { Component } from 'vue'
 import App from '../App.vue'
-import type { AppealStatus, ConversationEntry, ConversationPage, PunishmentFacts, SessionInfo } from '../api/contract'
+import type { AppealConditions, AppealStatus, ConversationEntry, ConversationPage, PunishmentFacts, SessionInfo } from '../api/contract'
 import type { ApiResult, PortalApi } from '../api/portal'
 import { createPortalI18n } from '../i18n'
 import { createCsrfHolder, createPortalSession, SESSION_KEY, type PortalSession } from '../session'
@@ -86,7 +86,9 @@ export async function mountPortal(api: PortalApi, options: { component?: Compone
   return { wrapper, session }
 }
 
+export const CONDITIONS: AppealConditions = { version: 3, text: 'Please read this.\n\n- Be respectful.\n- One appeal per Ban ID.' }
+
 /** An api for a signed-in player; the given methods override the defaults. */
 export function signedInApi(methods: Partial<PortalApi> = {}, punishment: PunishmentFacts = facts()): PortalApi {
-  return fakeApi({ session: async () => ok(SESSION), punishment: async () => ok(punishment), ...methods })
+  return fakeApi({ session: async () => ok(SESSION), punishment: async () => ok(punishment), appealConditions: async () => ok(CONDITIONS), ...methods })
 }

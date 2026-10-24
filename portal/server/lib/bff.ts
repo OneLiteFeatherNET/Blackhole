@@ -136,10 +136,15 @@ async function readBody(event: H3Event, route: RouteSpec): Promise<{ ok: true; j
   }
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return { ok: false, status: 400, code: 'BAD_REQUEST' }
   const source = parsed as Record<string, unknown>
-  const picked: Record<string, string> = {}
+  const picked: Record<string, string | number> = {}
   for (const field of route.body) {
     const value = source[field]
     if (typeof value !== 'string') return { ok: false, status: 400, code: 'BAD_REQUEST' }
+    picked[field] = value
+  }
+  for (const field of route.integers ?? []) {
+    const value = source[field]
+    if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1 || value > 2_147_483_647) return { ok: false, status: 400, code: 'BAD_REQUEST' }
     picked[field] = value
   }
   return { ok: true, json: JSON.stringify(picked) }

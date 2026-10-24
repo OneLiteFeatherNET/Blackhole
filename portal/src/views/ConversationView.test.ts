@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MessagePosted } from '../api/contract'
 import type { PortalApi } from '../api/portal'
-import { APPEAL_OPEN, entry, fail, facts, mountPortal, ok, page, POSTED, signedInApi } from '../test/helpers'
+import { APPEAL_OPEN, CONDITIONS, entry, fail, facts, mountPortal, ok, page, POSTED, signedInApi } from '../test/helpers'
 
 let mounted: Awaited<ReturnType<typeof mountPortal>> | undefined
 
@@ -423,5 +423,38 @@ describe('keyboard', () => {
     for (const control of wrapper.findAll('button, a[href]')) {
       expect(control.attributes('tabindex')).toBeUndefined()
     }
+  })
+})
+
+describe('appeal conditions block', () => {
+  it('is a collapsed block at the top that opens to the conditions', async () => {
+    const { wrapper } = await openConversation()
+
+    const block = wrapper.get('details[data-testid="conditions-block"]')
+    expect(block.get('summary').text()).toBe('Appeal conditions')
+    expect((block.element as HTMLDetailsElement).open, 'collapsed by default').toBe(false)
+    expect(block.findAll('li').map((li) => li.text())).toEqual(['Be respectful.', 'One appeal per Ban ID.'])
+    expect(wrapper.get('h1').element.compareDocumentPosition(block.element) & Node.DOCUMENT_POSITION_FOLLOWING, 'after the title').toBeTruthy()
+    expect(wrapper.findAll('section > *')[1]!.element, 'right below the title row').toBe(block.element)
+  })
+
+  it('stays available once the appeal is decided', async () => {
+    const { wrapper } = await openConversation({ appeal: async () => ok({ ...APPEAL_OPEN, decision: 'DENIED' }) }, { appealState: 'DECIDED' })
+
+    expect(wrapper.find('[data-testid="conditions-block"]').exists()).toBe(true)
+  })
+
+  it('is left out, without an error, when the conditions cannot be loaded', async () => {
+    const { wrapper } = await openConversation({ appealConditions: async () => fail('UNAVAILABLE', 503) })
+
+    expect(wrapper.find('[data-testid="conditions-block"]').exists()).toBe(false)
+    expect(wrapper.find('[role="alert"]').exists() && wrapper.get('[role="alert"]').text() !== '').toBe(false)
+  })
+
+  it('shows markup in the conditions as text', async () => {
+    const { wrapper } = await openConversation({ appealConditions: async () => ok({ ...CONDITIONS, text: '<img src=x onerror=alert(1)>' }) })
+
+    expect(wrapper.get('[data-testid="conditions-block"]').text()).toContain('<img src=x onerror=alert(1)>')
+    expect(wrapper.find('[data-testid="conditions-block"] img').exists()).toBe(false)
   })
 })
