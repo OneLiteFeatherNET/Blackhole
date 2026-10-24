@@ -67,7 +67,7 @@ BREAKING (plugin config): `redisUri` disappears; the backend keeps writing Redis
 
 ## 8. Docs (PR 8: `docs: describe the nats event bus`)
 
-- [ ] 8.1 README (stack, compose, env table), `docs/discord-bot.md`, `discord/README.md` (variables, queue names become consumer names), the Velocity plugin docs (`nats` config, no Redis), `openspec/config.yaml` stack line, RabbitMQ wording in in-flight changes; add the `nsc` account/user snippet and the exposure notes from `design.md` D6; verify `openspec validate --all --strict`
+- [ ] 8.1 README (stack, compose, env table), `docs/discord-bot.md`, `discord/README.md` (variables, queue names become consumer names), the Velocity plugin docs (`nats` config, no Redis), `openspec/config.yaml` stack line, RabbitMQ wording in in-flight changes; add the `nsc` account/user snippet and the exposure notes from `design.md` D6; verify `openspec validate --all --strict` (done for the backend, bot, compose and config, see `docs/nats-event-bus.md`; the Velocity plugin docs follow with the Velocity PRs)
 - [ ] 8.2 Run the manual check against a real stack (Docker PostgreSQL, Dragonfly, NATS) with a Velocity instance behind the WebSocket route: ban a player on one proxy and see the other kick, stop NATS and see HTTP checks take over, restart it and see the cache refill; record the result in the last PR
 
 ## 9. Remove the backend Redis punishment mirror (PR 9, follow-up after PR 6 is deployed, decision 2: `refactor(punishment): remove the redis punishment mirror`)

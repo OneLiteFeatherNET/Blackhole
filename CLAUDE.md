@@ -65,7 +65,7 @@ Test coverage is minimal — only `backend/src/test/java/.../playerresolver/serv
 exists so far, no other module has a `src/test` yet. JUnit 5 is wired up via the Micronaut/root
 `build.gradle.kts` (`useJUnitPlatform()`, `jacocoTestReport` runs after `test`), ready for more.
 Local dev/manual verification of the backend requires the
-real PostgreSQL + RabbitMQ containers from `docker/docker-compose.yml`; there's no in-memory/mocked
+real PostgreSQL + NATS containers from `docker/docker-compose.yml`; there's no in-memory/mocked
 path for those two dependencies (the app is wired to Flyway+PostgreSQL — see `application.yml`).
 
 Swagger UI is served at `/swagger/views/swagger-ui` once the backend is running.
@@ -84,7 +84,7 @@ consuming context in every session regardless of what you're touching.
   JWTs. Never add an open route or an auth-off switch. Detail: `.claude/rules/security.md`.
 - **`controller/`** — REST controllers; class-level `@Version` API versioning convention.
   Detail: `.claude/rules/controller-versioning.md`.
-- **`events/`** — Domain event bus over RabbitMQ (`blackhole.events` topic exchange). There is
+- **`events/`** — Domain event bus over NATS JetStream (subjects `blackhole.events.<type>`, stream `BLACKHOLE_EVENTS`). There is
   deliberately no generic connector/webhook/signal-ingestion framework anymore (removed
   2026-07-09 to keep the surface simpler) — external-system integration would need to be designed
   fresh if it comes back. Detail: `.claude/rules/events.md`.

@@ -102,7 +102,7 @@ docker compose --profile discord up -d discord
 ```
 
 Or load the variables from the env file the Entra script wrote (`docker compose --env-file <file> ...`).
-The backend and RabbitMQ must be reachable (`BLACKHOLE_BACKEND_URL`, `RABBITMQ_HOST`). A wrong or missing
+The backend and NATS must be reachable (`BLACKHOLE_BACKEND_URL`, `NATS_URL`; `NATS_CREDS_FILE` where the server needs a credential, see [nats-event-bus.md](nats-event-bus.md)). A wrong or missing
 value stops the bot at start with exit code 2 and names every problem. The image can also be built on its own
 from the repository root: `docker build -f discord/Dockerfile -t blackhole-discord .`.
 

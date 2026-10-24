@@ -38,7 +38,7 @@
 ## 6. Documentation and integration
 
 - [x] 6.1 Update README (staff workflow, sections, permissions table), `.claude/rules/elo.md`; verify docs match command syntax in code
-- [ ] 6.2 End-to-end check against local PostgreSQL + Dragonfly + RabbitMQ: staff temp-bans climb the steps until escalation, permanent ban enforced on login, a SERVER-section ban blocks only matching servers, revoke resets score; record the result in the PR description
+- [ ] 6.2 End-to-end check against local PostgreSQL + Dragonfly + NATS: staff temp-bans climb the steps until escalation, permanent ban enforced on login, a SERVER-section ban blocks only matching servers, revoke resets score; record the result in the PR description
 
 ## Workflow follow-up
 

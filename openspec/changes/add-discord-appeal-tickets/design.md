@@ -13,7 +13,7 @@ From before: `Roles` (`ADMIN > MODERATOR > VIEWER`, `PROXY`, `METRICS`) with app
 `roles`; Velocity authenticates with the client credentials grant
 (`ClientCredentialsTokenProvider`); the staff link (`POST /staff-link/code`, confirm by the proxy, one
 to one, code stored hashed); `docs/entra-setup.sh` creates the API registration, app roles and the
-Velocity client; RabbitMQ topic exchange `blackhole.events`; `@Transactional` unusable (single CTE
+Velocity client; NATS JetStream subjects `blackhole.events.<type>`; `@Transactional` unusable (single CTE
 writes); infra owns rate limiting; the test rules of F.I.R.S.T.
 
 ## Phase 0: the bot MVP (settled 2026-10-24, ships before any ticket channel)
@@ -42,7 +42,7 @@ without hurting anything else.
   like `velocity`. Toolchain follows the repo (Java 21+, 25 in CI).
 - **Dependencies** (pinned in the version catalog): `net.dv8tion:JDA:6.7.0` (released 2026-09-20,
   more than two weeks old; the latest on Maven Central at writing; verify again at implementation), voice
-  excluded (`opus-java` exclusion, no audio), `com.rabbitmq:amqp-client:5.37.0` (re-verify),
+  excluded (`opus-java` exclusion, no audio), `io.nats:jnats:2.26.4` (re-verify),
   `:client` (the generated API client, which gains `/discord/**`), Jackson, Logback.
 - **Packages:** `config` (env parsing, fail-fast), `auth` (client-credentials token source; reuse the
   Velocity class by moving it to `:phoca` if it has no Velocity types, else a small copy), `backend`
@@ -62,7 +62,7 @@ without hurting anything else.
 | `DISCORD_ARCHIVE_DELETE_AFTER` | ISO-8601 duration, default `P30D` (decided 2026-10-23), `PT0S` keeps archived channels; deletion also needs the stored protocol (decision 15) |
 | `DISCORD_SYNC_INTERVAL` | cursor poll, default `PT30S` |
 | `BLACKHOLE_BACKEND_URL`, `BLACKHOLE_DISCORD_TENANT_ID`, `_CLIENT_ID`, `_CLIENT_SECRET`, `_AUTH_SCOPE` | backend and Entra client credentials |
-| `RABBITMQ_HOST`, `_PORT`, `_USER`, `_PASSWORD` | event consumption |
+| `NATS_URL`, `NATS_CREDS_FILE` | event consumption |
 
 - **Container:** own `Dockerfile` (`discord/Dockerfile`, build from the repo root like `web`), non-root
   user, health endpoint on a local port (JDK `HttpServer`: 200 when the gateway is `CONNECTED` and a
@@ -361,7 +361,7 @@ at the next access reconcile (decision 6), and anonymising regenerates the store
 |---|---|
 | Bot down | Panel and portal unaffected; relay queue builds in the backend (cursor); on start catch-up reads missed Discord history and relays missed outbox. Deleted-while-down is the only loss. |
 | Backend down | Bot retries with backoff, answers modals with a generic "try again later", skips relays; gateway events are not dropped silently: the catch-up covers them. Leak candidates retried for 5 min. |
-| RabbitMQ down | Cursor poll keeps sync running at poll latency; the consumer reconnects with backoff. |
+| NATS down | Cursor poll keeps sync running at poll latency; the consumer reconnects with backoff. |
 | Discord outage / rate limit | JDA queues and backs off; relay and ingest are idempotent so retries are safe. |
 | Token expiry (Entra) | Provider refreshes before expiry; 401 forces a refresh and one retry. |
 | Duplicate gateway events | Dedupe keys. |

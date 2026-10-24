@@ -39,6 +39,6 @@ Testcontainers for the migration), every UI group its own Vitest tests with a fa
 
 ## 5. Verification and wrap-up
 
-- [ ] 5.1 Manual check against the real stack (Docker PostgreSQL + RabbitMQ): migrate a database with legacy punishments, open a backfilled case, add and edit a note, redact it as admin, anonymize a staff actor; record the result in PR 3
+- [ ] 5.1 Manual check against the real stack (Docker PostgreSQL + NATS): migrate a database with legacy punishments, open a backfilled case, add and edit a note, redact it as admin, anonymize a staff actor; record the result in PR 3
 - [ ] 5.2 `openspec validate --all --strict`; archive with `docs(openspec): archive add-punishment-case-timeline` after the PRs merge
 - [ ] 5.3 Open the pull requests as small stacked PRs against `main` (each squash-merged, title is the Conventional Commit): `feat(case): record an append-only case timeline per punishment`, `feat(case): add case metadata, notes and api`, `feat(web): add case page with timeline and notes`, `docs(case): document the case timeline`
