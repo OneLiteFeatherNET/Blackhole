@@ -2,10 +2,16 @@ package net.onelitefeather.blackhole.velocity.config;
 
 import com.google.gson.Gson;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -58,5 +64,35 @@ class ClientRulesConfigTest {
         assertFalse(fromFile.withEnvironment(Map.of(ClientRulesConfig.ENV_ENABLED, "false")::get).isEnabled());
         assertTrue(fromFile.withEnvironment(Map.of(ClientRulesConfig.ENV_ENABLED, " ")::get).isEnabled());
         assertTrue(fromFile.withEnvironment(key -> null).isEnabled());
+    }
+
+    @Test
+    void aSectionWithoutTheEnabledFlagStaysOnWhenNoEnvironmentOverrideIsSet() {
+        ClientRulesConfig fromFile = new Gson().fromJson("{\"clientRules\":{\"settle\":\"PT10S\"}}", BlackholeConfig.class).getClientRules();
+
+        ClientRulesConfig applied = assertDoesNotThrow(() -> fromFile.withEnvironment(key -> null));
+
+        assertTrue(applied.isEnabled());
+        assertEquals(Duration.ofSeconds(10), applied.getSettle());
+    }
+
+    @Test
+    void anEnvironmentOverrideAppliesWhenTheFileHasNoEnabledFlag() {
+        ClientRulesConfig fromFile = new Gson().fromJson("{\"clientRules\":{\"settle\":\"PT10S\"}}", BlackholeConfig.class).getClientRules();
+
+        assertFalse(fromFile.withEnvironment(Map.of(ClientRulesConfig.ENV_ENABLED, "false")::get).isEnabled());
+        assertTrue(fromFile.withEnvironment(Map.of(ClientRulesConfig.ENV_ENABLED, "true")::get).isEnabled());
+    }
+
+    @Test
+    void aConfigFileWithoutAClientRulesSectionLoadsAndAppliesTheEnvironmentWithoutCrashing(@TempDir Path dir) throws IOException {
+        Path file = dir.resolve("config.json");
+        Files.writeString(file, "{\"nats\":{\"url\":\"wss://other\"}}", StandardCharsets.UTF_8);
+
+        BlackholeConfig config = BlackholeConfig.load(file);
+
+        ClientRulesConfig applied = assertDoesNotThrow(() -> config.getClientRules().withEnvironment(key -> null));
+        assertTrue(applied.isEnabled());
+        assertEquals(3, applied.getCatalogue().getMinPlayers());
     }
 }
