@@ -84,9 +84,9 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
-    void aViewerMayReadOneReportButTheProxyMayNot() {
+    void aViewerAndTheProxyMayReadOneReport() {
         assertEquals(404, get("/report/" + UUID.randomUUID(), this.jwt.viewer()).status(), "viewer on GET /report/{identifier}");
-        assertEquals(403, get("/report/" + UUID.randomUUID(), this.jwt.proxy()).status(), "proxy on a staff read");
+        assertEquals(404, get("/report/" + UUID.randomUUID(), this.jwt.proxy()).status(), "proxy on GET /report/{identifier}");
     }
 
     @Test

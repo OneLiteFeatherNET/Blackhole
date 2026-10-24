@@ -29,7 +29,7 @@ import java.util.UUID;
  * Routing and OpenAPI annotations live on {@link ReportApi}, which this class implements.
  *
  * <p><b>Security note:</b> every route needs an Entra ID bearer token and an explicit
- * {@code @Secured} role (submit: MODERATOR or PROXY; list: VIEWER; resolve: MODERATOR). The actor
+ * {@code @Secured} role (submit: MODERATOR or PROXY; list: VIEWER; read one: VIEWER or PROXY; resolve: MODERATOR). The actor
  * comes from the token. {@code reporterHash} is still client-supplied and does not identify the
  * reporter, so a per-reporterHash limit can be bypassed by varying it; the network-wide limit in
  * {@link ReportService} is the backstop.</p>
@@ -64,7 +64,7 @@ public class ReportController implements ReportApi {
     }
 
     @Override
-    @Secured(Roles.VIEWER)
+    @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<?> get(UUID identifier) {
         return this.reportService.get(identifier).<HttpResponse<?>>map(HttpResponse::ok)
                 .orElseGet(() -> error(ErrorKind.NOT_FOUND, "there is no report with this identifier"));
