@@ -3,6 +3,7 @@ package net.onelitefeather.blackhole.discord.sync;
 import net.onelitefeather.blackhole.discord.backend.BackendGateway;
 import net.onelitefeather.blackhole.discord.backend.Result;
 import net.onelitefeather.blackhole.discord.backend.Tickets.IngestBatch;
+import net.onelitefeather.blackhole.discord.backend.Tickets.IngestItem;
 import net.onelitefeather.blackhole.discord.backend.Tickets.State;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Ticket;
 import net.onelitefeather.blackhole.discord.config.BotConfig.TicketSettings;
@@ -27,6 +28,7 @@ import java.util.Deque;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -70,6 +72,8 @@ public final class SyncEngine implements DiscordGateway.Listener {
 
     private final Deque<Pending> retries = new ArrayDeque<>();
     private final Set<String> needsCatchUp = new HashSet<>();
+    private final Set<String> heldTickets = new HashSet<>();
+    private final Deque<IncomingMessage> heldEdits = new ArrayDeque<>();
     private final AtomicBoolean pollQueued = new AtomicBoolean();
     private final AtomicBoolean reconcileQueued = new AtomicBoolean();
     private boolean startupPending = true;
@@ -203,9 +207,52 @@ public final class SyncEngine implements DiscordGateway.Listener {
             if (message.self() || ticket.state() == State.DELETED) {
                 return;
             }
-            send(ticket, IngestBatch.of(List.of(CatchUp.toItem(message))), edit);
+            if (!edit && this.heldTickets.contains(ticket.id())) {
+                // An earlier message of this ticket waits for the backend; the catch-up reads this one after it, in order.
+                return;
+            }
+            Optional<IngestItem> item = this.catchUp.item(ticket, message);
+            if (item.isEmpty()) {
+                hold(ticket, message, edit);
+                return;
+            }
+            send(ticket, IngestBatch.of(List.of(item.get())), edit);
         } finally {
             this.lifecycle.lock().unlock();
+        }
+    }
+
+    /**
+     * The backend could not take a file of this message (the scanner or the store is down). A new message is left to the cursor
+     * catch-up, which stops at it; an edit is kept and tried again on the next poll. Nothing is ingested meanwhile.
+     */
+    private void hold(Ticket ticket, IncomingMessage message, boolean edit) {
+        this.metrics.increment(Counter.BACKEND_UNAVAILABLE);
+        if (edit) {
+            if (this.heldEdits.size() >= MAX_RETRIES) {
+                this.heldEdits.removeFirst();
+            }
+            this.heldEdits.addLast(message);
+        } else {
+            this.heldTickets.add(ticket.id());
+            this.needsCatchUp.add(ticket.id());
+        }
+    }
+
+    private void drainHeldEdits() {
+        List<IncomingMessage> due = new ArrayList<>(this.heldEdits);
+        this.heldEdits.clear();
+        for (IncomingMessage message : due) {
+            Ticket ticket = this.registry.byChannel(message.channelId());
+            if (ticket == null) {
+                continue;
+            }
+            Optional<IngestItem> item = this.catchUp.item(ticket, message);
+            if (item.isEmpty()) {
+                this.heldEdits.addLast(message);
+            } else {
+                send(ticket, IngestBatch.of(List.of(item.get())), true);
+            }
         }
     }
 
@@ -252,6 +299,7 @@ public final class SyncEngine implements DiscordGateway.Listener {
                 this.startupPending = false;
             }
             drainRetries();
+            drainHeldEdits();
             for (Ticket ticket : tickets) {
                 try {
                     step(ticket, startup);
@@ -281,6 +329,7 @@ public final class SyncEngine implements DiscordGateway.Listener {
         }
         if (this.needsCatchUp.contains(ticket.id()) && this.catchUp.ingestSince(ticket)) {
             this.needsCatchUp.remove(ticket.id());
+            this.heldTickets.remove(ticket.id());
         }
         switch (ticket.state()) {
             case OPEN -> {

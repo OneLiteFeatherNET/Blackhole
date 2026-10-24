@@ -2,8 +2,7 @@ package net.onelitefeather.blackhole.discord.sync;
 
 import net.onelitefeather.blackhole.discord.backend.BackendGateway;
 import net.onelitefeather.blackhole.discord.backend.Result;
-import net.onelitefeather.blackhole.discord.backend.Tickets.Attachment;
-import net.onelitefeather.blackhole.discord.backend.Tickets.Embed;
+import net.onelitefeather.blackhole.discord.attachment.InboundFiles;
 import net.onelitefeather.blackhole.discord.backend.Tickets.IngestBatch;
 import net.onelitefeather.blackhole.discord.backend.Tickets.IngestItem;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Ticket;
@@ -45,20 +44,22 @@ public final class CatchUp {
     private final DiscordGateway discord;
     private final Metrics metrics;
 
-    public CatchUp(@NotNull BackendGateway backend, @NotNull DiscordGateway discord, @NotNull Metrics metrics) {
+    private final InboundFiles inbound;
+
+    public CatchUp(@NotNull BackendGateway backend, @NotNull DiscordGateway discord, @NotNull Metrics metrics, @NotNull InboundFiles inbound) {
         this.backend = backend;
         this.discord = discord;
         this.metrics = metrics;
+        this.inbound = inbound;
     }
 
-    /** Maps a message to the backend's item. The text is never logged. */
-    public static @NotNull IngestItem toItem(@NotNull IncomingMessage message) {
-        List<Attachment> attachments = message.attachments().stream()
-                .map(a -> new Attachment(a.kind(), a.id(), a.name(), a.contentType(), a.size(), a.width(), a.height())).toList();
-        List<Embed> embeds = message.embeds().stream().map(e -> new Embed(e.type(), e.host())).toList();
-        return new IngestItem(Long.toUnsignedString(message.messageId()), Long.toUnsignedString(message.authorId()), message.authorName(),
-                message.bot(), message.hasStaffRole(), message.createdAt().toEpochMilli(),
-                message.editedAt() == null ? null : message.editedAt().toEpochMilli(), message.text(), attachments, embeds);
+    /**
+     * Maps a message to the backend's item (Markdown mapped, files uploaded for the player and verified staff). The text is never logged.
+     *
+     * @return empty when the backend could not take a file of the message right now: hold it and try again later
+     */
+    public @NotNull Optional<IngestItem> item(@NotNull Ticket ticket, @NotNull IncomingMessage message) {
+        return this.inbound.toItem(ticket, message);
     }
 
     /** @return false when the backend or Discord could not be reached, so the caller tries again later */
@@ -75,8 +76,24 @@ public final class CatchUp {
                 if (page.isEmpty()) {
                     return true;
                 }
-                List<IngestItem> items = page.stream().filter(m -> !m.self()).map(CatchUp::toItem).toList();
+                List<IngestItem> items = new ArrayList<>();
+                boolean held = false;
+                for (IncomingMessage message : page) {
+                    if (message.self()) {
+                        continue;
+                    }
+                    Optional<IngestItem> item = item(ticket, message);
+                    if (item.isEmpty()) {
+                        held = true;
+                        break;
+                    }
+                    items.add(item.get());
+                }
+                // A held message stops the pass: what came before it is recorded, nothing after it, so the cursor never skips it.
                 if (!items.isEmpty() && !send(ticket, IngestBatch.of(items))) {
+                    return false;
+                }
+                if (held) {
                     return false;
                 }
                 after = page.getLast().messageId();
@@ -114,7 +131,15 @@ public final class CatchUp {
                     break;
                 }
                 List<IncomingMessage> others = page.stream().filter(m -> !m.self()).toList();
-                if (!others.isEmpty() && !send(ticket, IngestBatch.of(others.stream().map(CatchUp::toItem).toList()))) {
+                List<IngestItem> items = new ArrayList<>();
+                for (IncomingMessage message : others) {
+                    Optional<IngestItem> item = item(ticket, message);
+                    if (item.isEmpty()) {
+                        return Optional.empty();
+                    }
+                    items.add(item.get());
+                }
+                if (!items.isEmpty() && !send(ticket, IngestBatch.of(items))) {
                     return Optional.empty();
                 }
                 for (IncomingMessage message : others) {

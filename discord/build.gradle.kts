@@ -32,6 +32,7 @@ dependencies {
     implementation(mn.logback.classic)
 
     testImplementation(mn.junit.jupiter.api)
+    testImplementation(mn.junit.jupiter.params)
     testRuntimeOnly(mn.junit.jupiter.engine)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     // The NATS integration test runs against a real server (Testcontainers has no NATS module: a plain container).

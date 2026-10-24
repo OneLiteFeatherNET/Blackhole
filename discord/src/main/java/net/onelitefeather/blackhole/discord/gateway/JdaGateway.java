@@ -323,7 +323,7 @@ public final class JdaGateway extends ListenerAdapter implements DiscordGateway 
         List<IncomingAttachment> attachments = new ArrayList<>();
         for (Message.Attachment a : message.getAttachments()) {
             attachments.add(new IncomingAttachment("file", a.getId(), a.getFileName(), a.getContentType(), (long) a.getSize(),
-                    a.isImage() ? a.getWidth() : null, a.isImage() ? a.getHeight() : null));
+                    a.isImage() ? a.getWidth() : null, a.isImage() ? a.getHeight() : null, a.getUrl()));
         }
         message.getStickers().forEach(sticker -> attachments.add(new IncomingAttachment("sticker", null, sticker.getName(), null, null, null, null)));
         List<IncomingEmbed> embeds = new ArrayList<>();
@@ -440,7 +440,7 @@ public final class JdaGateway extends ListenerAdapter implements DiscordGateway 
             channel.sendMessage(new MessageCreateBuilder()
                     .setEmbeds(new EmbedBuilder().setTitle(title).setDescription(body).setFooter(marker).build())
                     .setComponents(ActionRow.of(Button.primary(APPEAL_BUTTON, buttonLabel)))
-                    .setAllowedMentions(EnumSet.noneOf(Message.MentionType.class))
+                    .setAllowedMentions(noMentions())
                     .build()).complete();
         } catch (RuntimeException e) {
             throw failure("post the appeal button", e);
@@ -574,7 +574,7 @@ public final class JdaGateway extends ListenerAdapter implements DiscordGateway 
         GuildMessageChannel channel = messageChannel(channelId);
         try {
             Message sent = channel.sendMessageEmbeds(new EmbedBuilder().setAuthor(label).setDescription(cut(text)).setFooter(ref).build())
-                    .setAllowedMentions(EnumSet.noneOf(Message.MentionType.class)).complete();
+                    .setAllowedMentions(noMentions()).complete();
             return new MessageRef(channelId, sent.getIdLong());
         } catch (RuntimeException e) {
             throw failure("relay a message", e);
@@ -617,9 +617,51 @@ public final class JdaGateway extends ListenerAdapter implements DiscordGateway 
     public void notice(long channelId, @NotNull String text) throws GatewayException {
         GuildMessageChannel channel = messageChannel(channelId);
         try {
-            channel.sendMessage(text).setAllowedMentions(EnumSet.noneOf(Message.MentionType.class)).complete();
+            channel.sendMessage(text).setAllowedMentions(noMentions()).complete();
         } catch (RuntimeException e) {
             throw failure("post a notice", e);
+        }
+    }
+
+    /** No user, role or everyone mention is ever resolved in a message the bot relays. */
+    static EnumSet<Message.MentionType> noMentions() {
+        return EnumSet.noneOf(Message.MentionType.class);
+    }
+
+    @Override
+    public @NotNull MessageRef postPlain(long channelId, @NotNull String text) throws GatewayException {
+        GuildMessageChannel channel = messageChannel(channelId);
+        try {
+            Message sent = channel.sendMessage(text).setAllowedMentions(noMentions()).complete();
+            return new MessageRef(channelId, sent.getIdLong());
+        } catch (RuntimeException e) {
+            throw failure("post a message", e);
+        }
+    }
+
+    @Override
+    public @NotNull MessageRef postFile(long channelId, String text, @NotNull String fileName, byte @NotNull [] data) throws GatewayException {
+        GuildMessageChannel channel = messageChannel(channelId);
+        try {
+            var action = channel.sendFiles(net.dv8tion.jda.api.utils.FileUpload.fromData(data, fileName)).setAllowedMentions(noMentions());
+            Message sent = (text == null ? action : action.setContent(text)).complete();
+            return new MessageRef(channelId, sent.getIdLong());
+        } catch (RuntimeException e) {
+            throw failure("upload a file", e);
+        }
+    }
+
+    @Override
+    public void react(@NotNull MessageRef message, @NotNull String emoji) throws GatewayException {
+        GuildMessageChannel channel = messageChannel(message.channelId());
+        try {
+            channel.addReactionById(message.messageId(), net.dv8tion.jda.api.entities.emoji.Emoji.fromUnicode(emoji)).complete();
+        } catch (ErrorResponseException e) {
+            if (e.getErrorResponse() != ErrorResponse.UNKNOWN_MESSAGE) {
+                throw failure("add a reaction", e);
+            }
+        } catch (RuntimeException e) {
+            throw failure("add a reaction", e);
         }
     }
 

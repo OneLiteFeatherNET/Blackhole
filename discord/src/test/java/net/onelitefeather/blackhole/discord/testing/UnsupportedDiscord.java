@@ -92,6 +92,21 @@ public abstract class UnsupportedDiscord implements DiscordGateway {
     }
 
     @Override
+    public @NotNull MessageRef postPlain(long channelId, @NotNull String text) throws GatewayException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public @NotNull MessageRef postFile(long channelId, String text, @NotNull String fileName, byte @NotNull [] data) throws GatewayException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void react(@NotNull MessageRef message, @NotNull String emoji) throws GatewayException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public @NotNull List<IncomingMessage> history(long channelId, long afterId, int limit) throws GatewayException {
         throw new UnsupportedOperationException();
     }

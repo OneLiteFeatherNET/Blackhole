@@ -48,6 +48,7 @@ public final class Harness {
     public final ManualScheduler scheduler;
     public final FakeTicketBackend backend;
     public final FakeGuild guild;
+    public final FakeDownloader downloader;
     public final Metrics metrics = new Metrics();
     public final Health health = new Health();
     public final TicketRegistry registry = new TicketRegistry();
@@ -89,7 +90,10 @@ public final class Harness {
         this.guild = existingGuild == null ? new FakeGuild(clock, STAFF_ROLE) : existingGuild;
         this.settings = new TicketSettings(TICKET_CATEGORY, ARCHIVE_CATEGORY, APPEAL_CHANNEL, deleteAfter, Duration.ofSeconds(30), Duration.ofMinutes(5));
         OutboxRelay relay = new OutboxRelay(this.backend, this.guild, this.metrics);
-        CatchUp catchUp = new CatchUp(this.backend, this.guild, this.metrics);
+        this.downloader = new FakeDownloader();
+        CatchUp catchUp = new CatchUp(this.backend, this.guild, this.metrics,
+                new net.onelitefeather.blackhole.discord.attachment.InboundFiles(this.backend, this.guild,
+                        new net.onelitefeather.blackhole.discord.attachment.AttachmentFetcher(this.downloader), this.metrics));
         this.staff = new StaffAccessReconciler(this.backend, this.guild, this.registry, STAFF_ROLE, this.metrics);
         this.lifecycle = new TicketLifecycle(this.settings, GUILD, this.backend, this.guild, relay, catchUp, this.staff, this.registry, this.metrics, clock);
         this.sweeper = new ArchiveSweeper(this.backend, this.lifecycle, deleteAfter, this.metrics);

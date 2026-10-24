@@ -52,6 +52,17 @@ public abstract class UnsupportedBackend implements BackendGateway {
     }
 
     @Override
+    public @NotNull Result<byte[]> fetchAttachment(@NotNull String id, @NotNull String attachmentId) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public @NotNull Result<net.onelitefeather.blackhole.discord.backend.Tickets.Uploaded> uploadAttachment(@NotNull String id, @NotNull byte[] data,
+            @NotNull String name, @NotNull String discordAttachmentId, @NotNull String authorDiscordUserId) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public @NotNull Result<Ingested> ingest(@NotNull String id, @NotNull IngestBatch batch) {
         throw new UnsupportedOperationException();
     }

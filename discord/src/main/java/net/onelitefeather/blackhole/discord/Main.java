@@ -1,6 +1,9 @@
 package net.onelitefeather.blackhole.discord;
 
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
+import net.onelitefeather.blackhole.discord.attachment.AttachmentFetcher;
+import net.onelitefeather.blackhole.discord.attachment.InboundFiles;
+import net.onelitefeather.blackhole.discord.attachment.JdkAttachmentDownloader;
 import net.onelitefeather.blackhole.discord.auth.ClientCredentialsTokenProvider;
 import net.onelitefeather.blackhole.discord.auth.JdkTokenTransport;
 import net.onelitefeather.blackhole.discord.auth.TokenSource;
@@ -73,7 +76,8 @@ public final class Main {
         ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name("bot-worker").daemon(true).factory());
         Scheduler botScheduler = new ExecutorScheduler(worker);
         OutboxRelay relay = new OutboxRelay(backend, discord, metrics);
-        CatchUp catchUp = new CatchUp(backend, discord, metrics);
+        CatchUp catchUp = new CatchUp(backend, discord, metrics,
+                new InboundFiles(backend, discord, new AttachmentFetcher(new JdkAttachmentDownloader()), metrics));
         StaffAccessReconciler staff = new StaffAccessReconciler(backend, discord, registry, config.staffRoleId(), metrics);
         TicketLifecycle lifecycle = new TicketLifecycle(config.tickets(), config.guildId(), backend, discord, relay, catchUp, staff, registry, metrics, clock);
         ArchiveSweeper sweeper = new ArchiveSweeper(backend, lifecycle, config.tickets().deleteAfter(), metrics);
