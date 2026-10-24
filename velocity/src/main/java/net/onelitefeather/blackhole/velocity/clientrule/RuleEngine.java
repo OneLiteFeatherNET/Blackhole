@@ -50,6 +50,23 @@ public final class RuleEngine {
         return hits;
     }
 
+    /**
+     * The command rules a command line hits. A rule limited to servers applies to the server the player is on;
+     * without a current server only global rules apply. Arguments are never matched.
+     *
+     * @param words      the candidate words of the line, see {@link CommandWords#candidates}
+     * @param serverName the backend server the player is on, null if none
+     */
+    public @NotNull List<ClientRule> commandHits(@NotNull Set<String> words, @Nullable String serverName, @NotNull List<ClientRule> rules) {
+        List<ClientRule> hits = new ArrayList<>();
+        for (ClientRule rule : rules) {
+            if (rule.kind() == ClientRuleKind.COMMAND && applies(rule, serverName) && words.stream().anyMatch(word -> Globs.matchesAny(rule.patterns(), word))) {
+                hits.add(rule);
+            }
+        }
+        return hits;
+    }
+
     /** @return whether the rule's scope includes the server (global rules always do) */
     public boolean applies(@NotNull ClientRule rule, @Nullable String serverName) {
         if (rule.scope() == ClientRuleScope.GLOBAL) {

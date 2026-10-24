@@ -68,7 +68,7 @@ class ClientRuleEnforcerTest {
         registry.reload();
         this.staff.permissions.add(Permissions.CLIENT_RULES_NOTIFY);
         ClientRuleNotifier notifier = new ClientRuleNotifier(() -> List.of(this.staff.player()), this.channel);
-        this.enforcer = new ClientRuleEnforcer(this.traits, registry, this.engine, this.backend, notifier, Runnable::run);
+        this.enforcer = new ClientRuleEnforcer(this.traits, registry, this.engine, new HitReporter(this.backend, notifier, Runnable::run));
     }
 
     private static String owner(ClientPlayer player) {
@@ -348,8 +348,8 @@ class ClientRuleEnforcerTest {
             }
         });
         registry.reload();
-        ClientRuleEnforcer fragile = new ClientRuleEnforcer(traits, registry, broken, backend,
-                new ClientRuleNotifier(() -> List.of(), channel), Runnable::run);
+        ClientRuleEnforcer fragile = new ClientRuleEnforcer(traits, registry, broken,
+                new HitReporter(backend, new ClientRuleNotifier(() -> List.of(), channel), Runnable::run));
         ClientPlayer old = new ClientPlayer("Old", 47, "lobby");
         traits.loggedIn(owner(old), 47);
         ServerPreConnectEvent event = new ServerPreConnectEvent(old.player(), RecordingProxy.server("minigame-1"));

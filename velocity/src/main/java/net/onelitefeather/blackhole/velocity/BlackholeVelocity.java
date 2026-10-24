@@ -47,6 +47,10 @@ import net.onelitefeather.blackhole.velocity.clientrule.ClientRuleCatalogueRepor
 import net.onelitefeather.blackhole.velocity.clientrule.ClientRuleCoverage;
 import net.onelitefeather.blackhole.velocity.clientrule.ClientRuleEnforcer;
 import net.onelitefeather.blackhole.velocity.clientrule.ClientRuleNotifier;
+import net.onelitefeather.blackhole.velocity.clientrule.CommandCatalogue;
+import net.onelitefeather.blackhole.velocity.clientrule.CommandDenial;
+import net.onelitefeather.blackhole.velocity.clientrule.CommandRuleEnforcer;
+import net.onelitefeather.blackhole.velocity.clientrule.HitReporter;
 import net.onelitefeather.blackhole.velocity.clientrule.FingerprintSubmitter;
 import net.onelitefeather.blackhole.velocity.clientrule.HttpClientRuleBackend;
 import net.onelitefeather.blackhole.velocity.clientrule.RuleEngine;
@@ -56,6 +60,7 @@ import net.onelitefeather.blackhole.velocity.clientrule.TraitTally;
 import net.onelitefeather.blackhole.velocity.config.ClientRulesConfig;
 import net.onelitefeather.blackhole.velocity.config.CloudNetConfig;
 import net.onelitefeather.blackhole.velocity.listener.ClientRuleListener;
+import net.onelitefeather.blackhole.velocity.listener.CommandRuleListener;
 import net.onelitefeather.blackhole.velocity.enforcement.CachedBanIds;
 import net.onelitefeather.blackhole.velocity.evidence.CachedEvidenceCounts;
 import net.onelitefeather.blackhole.velocity.evidence.ChatBuffer;
@@ -125,6 +130,7 @@ public class BlackholeVelocity {
     private BlackholeConfig config;
     private RedisSyncService redisSyncService;
     private volatile boolean authReady;
+    private CommandRuleListener commandRuleListener;
 
     @Inject
     public BlackholeVelocity(Injector injector, Logger logger, ProxyServer server, @DataDirectory Path dataDirectory) {
@@ -167,9 +173,10 @@ public class BlackholeVelocity {
         EvidenceCounts evidenceCounts = new CachedEvidenceCounts(backend, clock, chatCapture.getTimeout());
         MuteChatDenial chatDenial = new MuteChatDenial(this.server.getPluginManager().isLoaded(MuteChatDenial.RELAY_PLUGIN_ID));
         if (!chatDenial.relayPresent()) {
-            this.logger.warn("SignedVelocity is not installed: mutes cannot block signed chat (Minecraft 1.19.1+). "
-                    + "Muted players are told about their mute but their messages are still delivered. "
-                    + "Install SignedVelocity on the proxy and on every backend server to enforce mutes.");
+            this.logger.warn("SignedVelocity is not installed: mutes cannot block signed chat and client rules cannot deny signed "
+                    + "commands (Minecraft 1.19.1+). Muted players are told about their mute but their messages are still delivered; a command "
+                    + "with signed arguments that a rule denies is still delivered and the hit is recorded as not enforced. "
+                    + "Install SignedVelocity on the proxy and on every backend server to enforce mutes and command rules.");
         }
         PunishService punishService = new PunishService(backend, sections, chatEvidence);
         ReportService reportService = new ReportService(backend, ReportEvidence.create(new ChatSnapshotBuilder(chatBuffer, chatCapture), backend, chatCapture));
@@ -249,6 +256,7 @@ public class BlackholeVelocity {
         server.getEventManager().register(this, childInjector.getInstance(PlayerDisconnectListener.class));
         if (clientRuleListener != null) {
             server.getEventManager().register(this, clientRuleListener);
+            server.getEventManager().register(this, this.commandRuleListener);
         }
     }
 
@@ -258,14 +266,20 @@ public class BlackholeVelocity {
                                                  CloudNetView cloudNet, CloudNetConfig cloudNetConfig, Clock clock) {
         CatalogueReporter.Timer timer = timer();
         Executor async = CompletableFuture::runAsync;
-        ClientRuleEnforcer enforcer = new ClientRuleEnforcer(traitCollector, ruleRegistry, new RuleEngine(coverage), ruleBackend, notifier, async);
+        HitReporter hitReporter = new HitReporter(ruleBackend, notifier, async);
+        RuleEngine ruleEngine = new RuleEngine(coverage);
+        ClientRuleEnforcer enforcer = new ClientRuleEnforcer(traitCollector, ruleRegistry, ruleEngine, hitReporter);
         TraitTally tally = new TraitTally(clock, Duration.ofHours(24));
         FingerprintSubmitter fingerprints = new FingerprintSubmitter(traitCollector, ruleBackend, timer, clock, rulesConfig.getSettle(), async);
         String proxyId = cloudNetConfig.getProxyId().or(cloudNet::ownName).orElse("velocity").replaceAll("[^A-Za-z0-9_.-]", "-");
-        ClientRuleCatalogueReporter catalogue = new ClientRuleCatalogueReporter(tally, Set::of, ruleBackend, timer,
+        CommandCatalogue commands = new CommandCatalogue();
+        ClientRuleCatalogueReporter catalogue = new ClientRuleCatalogueReporter(tally, commands::words, ruleBackend, timer,
                 proxyId.length() > 64 ? proxyId.substring(0, 64) : proxyId, rulesConfig.getCatalogue().getMinPlayers(),
                 rulesConfig.getSettle(), rulesConfig.getCatalogue().getHeartbeat());
         catalogue.start();
+        MuteChatDenial signed = new MuteChatDenial(this.server.getPluginManager().isLoaded(MuteChatDenial.RELAY_PLUGIN_ID));
+        CommandRuleEnforcer commandRules = new CommandRuleEnforcer(ruleRegistry, ruleEngine, hitReporter, new CommandDenial(signed.relayPresent()), clock);
+        this.commandRuleListener = new CommandRuleListener(commandRules, commands, catalogue);
         return new ClientRuleListener(traitCollector, enforcer, tally, fingerprints, catalogue);
     }
 
