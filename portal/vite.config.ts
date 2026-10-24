@@ -13,5 +13,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.ts', 'server/**/*.test.ts', 'tests/**/*.test.ts'],
+    setupFiles: ['src/test/warmup.ts'],
+    // Cold-start work (transforming App.vue and its views, jsdom, first mount) is moved into a beforeAll in
+    // the warm-up setup, but CI runners (Windows, macOS, Ubuntu) can still be slow under load: the first view
+    // test took 5-6.5 s against the 5000 ms default. 15 s leaves headroom without hiding a real hang.
+    testTimeout: 15_000,
+    hookTimeout: 60_000,
   },
 })
