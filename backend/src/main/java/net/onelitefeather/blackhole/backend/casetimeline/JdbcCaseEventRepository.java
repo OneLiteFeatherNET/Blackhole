@@ -27,12 +27,14 @@ public class JdbcCaseEventRepository implements CaseEventRepository {
             )
             INSERT INTO case_event (identifier, punishment_identifier, type, payload_version, occurred_at, origin, actor_trust,
                                     actor_oid, recorded_by_oid, actor_source, subject_id, visibility, payload, dedupe_key)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'STAFF', ?::jsonb, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?)
             ON CONFLICT (dedupe_key) DO NOTHING
             """;
     private static final String REDACT = """
-            UPDATE case_event SET payload = NULL, redacted_at = ?, redacted_by_oid = ?
-            WHERE punishment_identifier = ? AND subject_id = ? AND type IN ('note.added', 'note.edited') AND redacted_at IS NULL
+            UPDATE case_event SET payload = CASE WHEN type LIKE 'note.%' THEN NULL ELSE payload - 'text' - 'attachments' - 'embeds' END,
+                                  redacted_at = ?, redacted_by_oid = ?
+            WHERE punishment_identifier = ? AND subject_id = ?
+              AND type IN ('note.added', 'note.edited', 'message.added', 'message.edited') AND redacted_at IS NULL
             """;
     private static final String DELETE_EVENTS = "DELETE FROM case_event WHERE punishment_identifier = ?";
     private static final String DELETE_CASE = "DELETE FROM punishment_case WHERE punishment_identifier = ?";
@@ -69,8 +71,9 @@ public class JdbcCaseEventRepository implements CaseEventRepository {
             setUuid(statement, 12, actor.recordedByOid());
             setUuid(statement, 13, actor.actorSource());
             statement.setString(14, draft.subjectId());
-            statement.setString(15, CaseEventPayloads.toJson(draft.payload()));
-            statement.setString(16, draft.dedupeKey());
+            statement.setString(15, draft.visibility());
+            statement.setString(16, CaseEventPayloads.toJson(draft.payload()));
+            statement.setString(17, draft.dedupeKey());
             return statement.executeUpdate() == 1;
         } catch (SQLException e) {
             throw new IllegalStateException("could not append the case event " + draft.type(), e);
