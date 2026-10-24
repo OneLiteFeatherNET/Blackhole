@@ -15,4 +15,6 @@ public interface DiscordLinkRepository extends CrudRepository<DiscordLinkEntity,
     Optional<DiscordLinkEntity> findByKindAndDiscordUserId(DiscordLinkKind kind, String discordUserId);
 
     List<DiscordLinkEntity> findByDiscordUserId(String discordUserId);
+
+    List<DiscordLinkEntity> findByKind(DiscordLinkKind kind);
 }

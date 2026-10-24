@@ -204,6 +204,17 @@ public class DiscordLinkService {
         return new DiscordLinkDTO.WhoamiResponse(entries);
     }
 
+    /**
+     * Every live staff link (Discord user id and time), oldest first. The bot adds exactly these accounts, when they also hold the staff role,
+     * to ticket channels. Staff without a link are absent.
+     */
+    public DiscordLinkDTO staffLinks() {
+        return new DiscordLinkDTO.StaffLinksResponse(this.links.findByKind(DiscordLinkKind.STAFF).stream()
+                .sorted(Comparator.comparingLong(DiscordLinkEntity::getLinkedAt))
+                .map(link -> new DiscordLinkDTO.StaffLink(link.getDiscordUserId(), link.getLinkedAt()))
+                .toList());
+    }
+
     /** All links, oldest first, with the staff members' display names. */
     public DiscordLinkDTO list() {
         List<DiscordLinkDTO.Item> items = this.links.findAll().stream()
