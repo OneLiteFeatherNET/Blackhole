@@ -31,6 +31,7 @@ English first, German second (the reply follows the Discord client language). Al
    | Ticket category and archive category | View Channel, Send Messages, Read Message History, Embed Links, Manage Channels (create, move, delete), Manage Permissions (per-member overwrites). The staff role gets **no** View here. |
    | Team channel | View Channel, Send Messages, Embed Links, Read Message History. |
    | Appeal channel (optional) | View Channel, Send Messages, Embed Links, Read Message History. |
+   | Scanned public channels | View Channel, Read Message History, Send Messages (for the notice) and **Manage Messages** (to remove a posted ban ID). |
 3. Create two categories (tickets, archive) and, optionally, an appeal channel for the button message.
 4. Copy the ids (developer mode): the guild, the team channel, the staff role, the categories and the appeal channel.
 
@@ -74,6 +75,22 @@ Health and metrics: `GET /healthz` is 200 only while connected and without a per
 permission); `GET /metrics` serves counters (relays, ingests, catch-ups, incomplete transcripts, backend and Discord errors, broker hints,
 dropped leak candidates). Logs are JSON lines on stdout and never contain message content, ban IDs or Discord ids.
 
+## Leak scanning
+
+The bot removes Ban IDs that are posted in public channels. A candidate is `#` followed by eight Crockford base32 characters (case-insensitive,
+at most one space or hyphen in the middle, at a word boundary, at most five per message; `I L O` are read as `1 1 0`). A token without the `#` is not a
+candidate, because every English word and hex number would be a false positive; that gap is accepted. The bot never decides alone: it sends the
+normalised candidates to `POST /discord/leak-check` and the **backend** looks them up. Only when a candidate is a current Ban ID is the message deleted
+(the ID counts as leaked even though it stood for a moment) and a short notice without any identifier is posted; the backend marks the case leaked with the
+poster as an opaque participant, and the ticket channel of that case is frozen for the player (the same poll that handles `case.ban_id_leak_marked`).
+A look-alike causes nothing: no deletion, no event, no record of the token.
+
+Scope: new and edited messages (never history) in every channel or thread where `@everyone` can view the channel, except the ticket and archive categories.
+`DISCORD_LEAK_SCAN=LIST` restricts it to the channels or categories in `DISCORD_LEAK_SCAN_CHANNELS`, `OFF` sends no message content to the backend. The bot needs
+**Manage Messages** (and Send Messages for the notice) in every scanned channel, and nowhere else. If the backend is unreachable the candidates wait in a
+bounded in-memory queue (1000) and are retried with a growing delay for five minutes, then dropped with the counter
+`blackhole_discord_leak_candidates_dropped_total`; a 429 from the edge counts as an outage. Nothing about a message or a candidate is logged.
+
 ## Entra setup
 
 `docs/entra-setup.sh <env>` creates the app role `Blackhole.Discord` and the client
@@ -99,6 +116,8 @@ dropped leak candidates). Logs are JSON lines on stdout and never contain messag
 | `DISCORD_APPEAL_CHANNEL_ID` | Optional channel that holds the "open an appeal" button message (posted once, found again by a marker). |
 | `DISCORD_ARCHIVE_DELETE_AFTER` | Optional ISO-8601 duration, default `P30D`; `PT0S` keeps archived channels. Deletion also needs a stored, current protocol. |
 | `DISCORD_SYNC_INTERVAL` | Optional, default `PT30S` (at least `PT5S`): how often the backend's cursors are polled. |
+| `DISCORD_LEAK_SCAN` | Optional: `PUBLIC` (default), `LIST` or `OFF`. |
+| `DISCORD_LEAK_SCAN_CHANNELS` | With `LIST` (required there): comma separated channel or category ids. |
 | `DISCORD_STAFF_RECONCILE_INTERVAL` | Optional, default `PT5M` (at least `PT30S`): how often channel access is reconciled with staff links and the role. |
 | `RABBITMQ_HOST`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD` | The broker the backend publishes its events to. Optional: `RABBITMQ_PORT` (5672), `RABBITMQ_VHOST` (`/`). |
 | `BLACKHOLE_DISCORD_TOKEN_URL` | Optional, development: a mock token endpoint instead of Entra. |
@@ -119,7 +138,7 @@ bot is connected to Discord. `docker/docker-compose.yml` has a commented `discor
 ## Code layout
 
 `ticket` (channel lifecycle, staff access reconcile, archive sweeper, permission self-check), `sync` (Discord to backend and back: ingest, outbox relay,
-catch-up, the conductor, the broker hint handler), `sched` (the scheduler the tests advance by hand), `metrics`, `log` (the JSON layout),
+catch-up, the conductor, the broker hint handler), `leak` (the candidate format and the scanner), `sched` (the scheduler the tests advance by hand), `metrics`, `log` (the JSON layout),
 `notify` (event parsing, embed rendering, the handler, the RabbitMQ adapter), `config` (environment, fail-fast), `auth` (client credentials token, a copy of the Velocity plugin's
 provider because that one depends on the plugin's config class), `backend` (`BackendGateway` interface
 and the adapter on the generated client), `command` (the command logic and texts, no Discord types),

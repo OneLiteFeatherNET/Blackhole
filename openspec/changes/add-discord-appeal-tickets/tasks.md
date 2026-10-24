@@ -48,9 +48,9 @@ Stacked PRs: `feat(discord): add the discord account link api` (V14, client spec
 
 ## 4. Leak scanning (PR 4, `feat(discord)`)
 
-- [ ] 4.1 Failing tests first: candidate regex table (prefixed, grouped, separators, case, word boundary, bare words and hex numbers rejected, max five), scope (public channel, ticket category excluded, LIST, OFF), backend says no match, match deletes and notifies, already leaked, backend down bounded retry, no content in logs
-- [ ] 4.2 `LeakScanner` over `DiscordGateway`/`BackendGateway`, public-channel detection from `@everyone` overwrites, edits scanned, bounded in-memory queue with the injected scheduler
-- [ ] 4.3 Wire the freeze effect to the ticket channel through the existing `case.ban_id_leak_marked` consumer; verify end to end in the fake layer
+- [x] 4.1 Failing tests first: candidate regex table (prefixed, grouped, separators, case, word boundary, bare words and hex numbers rejected, max five), scope (public channel, ticket category excluded, LIST, OFF), backend says no match, match deletes and notifies, already leaked, backend down bounded retry, no content in logs
+- [x] 4.2 `LeakScanner` over `DiscordGateway`/`BackendGateway`, public-channel detection from `@everyone` overwrites, edits scanned, bounded in-memory queue with the injected scheduler
+- [x] 4.3 Wire the freeze effect to the ticket channel through the existing `case.ban_id_leak_marked` consumer; verify end to end in the fake layer
 
 ## 5. Panel (PR 5, `feat(web)`)
 
