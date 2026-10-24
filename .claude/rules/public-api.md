@@ -31,6 +31,12 @@ Detail: `openspec/changes/add-appeal-portal/` (design decisions 4 to 9, specs `a
   `ban_id.leak_marked` becomes `FROZEN` (after filing) or `FORFEITED`; `ban_id.reissued` and every other type are not entries.
   An edit folds into the current text of all rows of that message id; deleted and redacted messages are `removed` without text.
   Author is `PLAYER`, `STAFF` (never a name) or `SYSTEM`.
+- **Markdown.** A conversation entry carries `text` (the stored Markdown source, unchanged) and `blocks` (the sanitised tree
+  `MessageContent` parses from it on every read with the `markdown` module; null for markers and removed messages). Nothing is
+  stored derived, so a parser change changes no row. The tree has no HTML or image node and a `link` always has an http(s) `href`
+  plus `external` (false only for `blackhole.chat.links.trusted-domains` and true subdomains); clients draw it with text nodes and
+  elements. A player message is Markdown too: `MessageRules` (length, control characters, UUID/IP, Ban ID) look at the whole source,
+  link targets and code included.
 - **Filing** never records an ineligible attempt: `PublicAppealService` reads `AppealEligibilityService.availability` first and
   answers 409 `NOT_ELIGIBLE` (+ `availableFrom`), `FORFEITED` or `FROZEN`; `fileIfEligible` re-evaluates and saves. One open appeal
   is held by the unique partial index; a losing concurrent request is a 409, never a 500.
@@ -42,7 +48,8 @@ Detail: `openspec/changes/add-appeal-portal/` (design decisions 4 to 9, specs `a
   every answer `no-store`, errors are `PublicErrorBody {code, availableFrom?}`.
 - **Player copy of the protocol** (`GET /public/appeal/protocol?format=text|json`, `PublicProtocolService`): rendered on demand from
   `PublicConversationReader` (the same SQL visibility filter and allow-list as the conversation), so a `STAFF` row cannot reach it. The player is
-  "You", staff "Moderation team" (never a name), markers read "Appeal filed" / "Appeal decided". `FULL` scope only (403 for `LIMITED`), and only
+  "You", staff "Moderation team" (never a name), markers read "Appeal filed" / "Appeal decided". Message texts are the Markdown source as written;
+  the JSON is `schemaVersion` 2 and a message item has `format: "markdown"`. `FULL` scope only (403 for `LIMITED`), and only
   once an appeal is decided (409 `NOT_DECIDED`, also when none exists); unknown format 400. The answer is `no-store`, `nosniff`, `CSP: sandbox` and an
   attachment. The stored staff protocol (`TRANSCRIPT` evidence, `casetimeline/protocol/`) is never read here (`PublicProtocolIntegrationTest`).
 - **Appeal conditions** (`GET /public/appeal/conditions`, `appealconditions/`, V19): the current `{version, text}` for any session scope, `no-store`; no staff data.
