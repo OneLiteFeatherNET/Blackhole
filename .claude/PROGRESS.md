@@ -46,6 +46,11 @@
 
 ## Recently completed
 
+- `add-appeal-portal` group 8 (PR `docs(appeal): document the appeal portal`): `docs/appeal-portal.md`
+  (operators: portal container, session limits, Ban ID key and backfill gauge, edge rules, no body logging) and
+  `docs/appeal-portal-staff.md` (Ban ID, leak, reissue, conversation, export, protocol, retention pending legal).
+  Gap found: `BanIdBackfill --reissue-all` is ticked in 1.3 but not in the code; documented as a known gap.
+  Task 6.5 is its own PR (`feat(web)`).
 - `add-discord-appeal-tickets` group 6 (PR `docs(discord): document and deploy the discord bot`): compose
   service `discord` behind the profile of the same name, `docs/discord-bot.md` (portal, permissions,
   edge rules 30/120 per min with 429, archive deletion, health), README additions. The bot image CI job

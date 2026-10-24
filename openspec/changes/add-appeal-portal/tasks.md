@@ -66,9 +66,9 @@ implementing is reproduced by a failing test first.
 
 ## 8. Documentation (PR 8, `docs(appeal)`)
 
-- [ ] 8.1 Docs for operators: portal deployment (host `appeal.onelitefeather.net`, env, container), session limits (30 minutes idle, 4 hours absolute), key rotation is `BanIdBackfill --reissue-all` in v1, required edge rate-limit rules, the key and its backup, no-body-logging requirement, backfill gauge
-- [ ] 8.2 Docs for staff: Ban ID reveal, leak and reissue rules, conversation visibility, transcript export, the stored appeal protocol (when it is made, versions, what redaction does to it, the player copy), retention statement (pending legal confirmation)
-- [ ] 8.3 Note in `.claude/PROGRESS.md` per PR as it lands
+- [x] 8.1 Docs for operators: portal deployment (host `appeal.onelitefeather.net`, env, container), session limits (30 minutes idle, 4 hours absolute), key rotation is `BanIdBackfill --reissue-all` in v1, required edge rate-limit rules, the key and its backup, no-body-logging requirement, backfill gauge
+- [x] 8.2 Docs for staff: Ban ID reveal, leak and reissue rules, conversation visibility, transcript export, the stored appeal protocol (when it is made, versions, what redaction does to it, the player copy), retention statement (pending legal confirmation)
+- [x] 8.3 Note in `.claude/PROGRESS.md` per PR as it lands
 
 ## 9. Verification and wrap-up
 
