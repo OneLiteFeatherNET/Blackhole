@@ -23,6 +23,7 @@ import type {
   CaseParticipantErasure,
   CaseProtocolVersion,
   TranscriptFormat,
+  CaseProtocolText,
   TranscriptFile,
   ApplyPreview,
   Appeal,
@@ -219,6 +220,12 @@ export interface BlackholeApi {
   eraseCaseParticipant(reference: string, participantId: string): Promise<ApiResult<CaseParticipantErasure>>
   /** The readable protocol versions of every appeal of the case, newest first. */
   caseProtocols(reference: string): Promise<ApiResult<CaseProtocolVersion[]>>
+  /** The ids of the appeals of the case that were decided (at most 200), to tell a missing protocol from none. */
+  caseDecidedAppeals(reference: string): Promise<ApiResult<string[]>>
+  /** The plain text of one stored protocol version; the server records a VIEWED entry. */
+  openCaseProtocol(reference: string, evidenceId: string): Promise<ApiResult<CaseProtocolText>>
+  /** One stored protocol version as a file; the server records a DOWNLOADED entry. */
+  downloadCaseProtocol(reference: string, evidenceId: string, format: TranscriptFormat): Promise<ApiResult<TranscriptFile>>
   /** Marks the Ban ID leaked (MODERATOR and above). The Ban ID is in neither request nor response. */
   markBanIdLeaked(reference: string, reason: BanIdLeakReason): Promise<ApiResult<CaseBanIdLeakResult>>
   /** Replaces a leaked Ban ID (ADMIN only). The new one is not returned: {@link revealBanId} shows it. */
@@ -691,6 +698,26 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     caseProtocols: async (reference) =>
       map(await toResult(http.GET('/case/{reference}/protocol', { params: { path: { reference } } })), (body) => body.items),
+
+    caseDecidedAppeals: async (reference) =>
+      map(
+        await toResult(http.GET('/case/{reference}/timeline', { params: { path: { reference } }, querySerializer: timelineQuery({ types: ['appeal.decided'], size: 200 }) })),
+        (page) => page.items.map((event) => (event.payload as { appealId?: unknown }).appealId).filter((id): id is string => typeof id === 'string'),
+      ),
+
+    openCaseProtocol: (reference, evidenceId) =>
+      toResult(http.GET('/case/{reference}/protocol/{evidenceId}', { params: { path: { reference, evidenceId } } })),
+
+    downloadCaseProtocol: async (reference, evidenceId, format) => {
+      const result = await toResult(
+        http.GET('/case/{reference}/protocol/{evidenceId}/download', {
+          params: { path: { reference, evidenceId } },
+          querySerializer: () => new URLSearchParams({ format }).toString(),
+          parseAs: 'text',
+        }),
+      )
+      return map(result, (content) => ({ format, content: String(content), mediaType: format === 'json' ? 'application/json' : 'text/plain' }))
+    },
 
     markBanIdLeaked: (reference, reason) =>
       toResult(http.POST('/case/{reference}/ban-id/leak', { params: { path: { reference } }, body: { reason } })),

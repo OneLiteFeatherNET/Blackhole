@@ -17,6 +17,11 @@ const { t, locale } = useI18n()
 const api = useApi()
 
 const protocols = ref<CaseProtocolVersion[] | null>(null)
+
+/** The stored protocols with open and download live in ProtocolSection further down the page. */
+function goToProtocols() {
+  document.getElementById('case-protocol')?.scrollIntoView({ block: 'start' })
+}
 const protocolError = ref('')
 const loadingProtocols = ref(false)
 const announcement = ref('')
@@ -111,6 +116,9 @@ async function showProtocols(): Promise<void> {
           </li>
         </ul>
       </template>
+      <MdButton variant="text" class="self-start" data-testid="protocols-goto" @click="goToProtocols">
+        {{ t('case.tickets.openProtocols') }}
+      </MdButton>
     </div>
   </section>
 </template>

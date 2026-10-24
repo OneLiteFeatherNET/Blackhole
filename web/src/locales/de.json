@@ -1111,6 +1111,7 @@
         "protocolMissing": "Der Verlauf ist vollständig, aber es ist noch kein Protokoll gespeichert. Der Kanal wird erst archiviert oder gelöscht, wenn es existiert."
       },
       "showProtocols": "Gespeicherte Protokolle anzeigen",
+      "openProtocols": "Gespeicherte Protokolle unten öffnen",
       "protocolsLoaded": "{count} Protokollversionen geladen.",
       "protocolList": "Gespeicherte Protokollversionen",
       "noProtocols": "Für diesen Fall ist kein Protokoll gespeichert."
@@ -1172,6 +1173,30 @@
         "json": "JSON",
         "text": "Text"
       }
+    },
+    "protocol": {
+      "title": "Gespeichertes Einspruchsprotokoll",
+      "hint": "Die Unterhaltung eines entschiedenen Einspruchs, gespeichert bei der Entscheidung. Öffnen und Herunterladen einer Version wird am Fall vermerkt.",
+      "loading": "Die gespeicherten Protokolle werden geladen.",
+      "none": "Zu keinem Einspruch dieses Falls gibt es ein gespeichertes Protokoll.",
+      "pending": "Ein entschiedener Einspruch hat noch kein Protokoll. Es entsteht kurz nach der Entscheidung und erscheint dann hier von selbst.",
+      "version": "Version {version}",
+      "entries": "{count} Einträge",
+      "storedAt": "Gespeichert {when}",
+      "current": "aktuell",
+      "superseded": "ersetzt",
+      "supersededHint": "Durch eine neuere Version desselben Einspruchs ersetzt. Gelöschte Versionen werden nicht aufgeführt.",
+      "open": "Text öffnen",
+      "close": "Text schließen",
+      "openLabel": "Text von Version {version} öffnen",
+      "closeLabel": "Text von Version {version} schließen",
+      "downloadText": "Text herunterladen",
+      "downloadJson": "JSON herunterladen",
+      "downloadTextLabel": "Version {version} als Text herunterladen",
+      "downloadJsonLabel": "Version {version} als JSON herunterladen",
+      "textLabel": "Text von Version {version}",
+      "opened": "Protokolltext geöffnet.",
+      "downloaded": "Protokoll heruntergeladen."
     }
   },
   "punished": {
