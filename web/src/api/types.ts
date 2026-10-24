@@ -88,6 +88,21 @@ export type CaseUpdate = Omit<Schemas['CaseUpdateRequest'], 'clearAssignee' | 'a
 }
 export type NoteRedactionReason = Schemas['NoteRedactionReason']
 export type ActorTrust = Schemas['ActorTrust']
+export type BanIdLeakReason = Schemas['BanIdLeakReason']
+export type BanIdReissueReason = Schemas['BanIdReissueReason']
+/** What a message post, edit or delete answers: the message id stays the same across edits. */
+export type CaseMessageResult = Schemas['CaseMessageResponse']
+export type CaseMessageRedactResult = Schemas['CaseMessageRedactResponse']
+export type CaseTranscriptEraseResult = Schemas['CaseTranscriptEraseResponse']
+export type CaseBanIdLeakResult = Schemas['CaseBanIdLeakResponse']
+export type CaseBanIdReissueResult = Schemas['CaseBanIdReissueResponse']
+export type TranscriptFormat = 'json' | 'text'
+/** A transcript file as the server sent it; the caller turns it into a download. */
+export interface TranscriptFile {
+  format: TranscriptFormat
+  content: string
+  mediaType: string
+}
 
 /** Why staff delete an evidence item; the backend records it in the audit trail. */
 export type EvidenceDeleteReason = 'ERASURE_REQUEST' | 'WRONG_EVIDENCE' | 'OTHER'
@@ -162,6 +177,8 @@ export interface AppealDecision {
   decision: 'GRANTED_FULL_LIFT' | 'GRANTED_DURATION_REDUCTION' | 'DENIED'
   note?: string
   newExpirationAt?: number
+  /** A message to the player, recorded on the case where the player can read it; the note stays internal. */
+  playerMessage?: string
 }
 
 /** What the timeline asks for; `types` are exact types or groups such as `note` and `appeal`. */

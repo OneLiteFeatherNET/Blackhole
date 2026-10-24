@@ -53,7 +53,7 @@ implementing is reproduced by a failing test first.
 
 ## 6. Panel conversation (PR 6, `feat(web)`)
 
-- [ ] 6.1 API types and client methods; fake-client tests
+- [x] 6.1 API types and client methods; fake-client tests
 - [ ] 6.2 Conversation section on the case page (thread, composer, banners), Ban ID mask + reveal, leak dialog, reissue dialog, transcript export; role gating tests
 - [ ] 6.3 Appeals queue "unanswered" marker; `playerMessage` field in the decision dialog
 - [ ] 6.4 de/en strings, `i18n.keys.test.ts` parity; live regions; verify `npm test` and the type check
