@@ -44,9 +44,9 @@ here); client spec bumps use the next free number as well.
 
 ## 5. Command rules (PR 5, `feat(velocity): enforce command rules`)
 
-- [ ] 5.1 Verify against 4.3.0: `CommandExecuteEvent` fires for forwarded commands, how the signed state is exposed (`getInvocationInfo()`), `PlayerAvailableCommandsEvent` includes backend commands; note findings in the tests
-- [ ] 5.2 Failing tests first: normalisation table (slash, leading spaces, case, `namespace:label`), scope per current server and none, `CommandDenial` matrix (`SIGNED_WITH_ARGS`, `SIGNED_WITHOUT_ARGS`, `UNSIGNED`, `UNSUPPORTED` x SignedVelocity present/absent), not enforced recorded and player told, bypass, hiding removes only covered nodes and not for bypass, catalogue takes commands from the tree only
-- [ ] 5.3 `CommandRuleListener` (`CommandExecuteEvent`, `PlayerAvailableCommandsEvent`), `CommandDenial` reusing `MuteChatDenial.RELAY_PLUGIN_ID`, extend the startup SignedVelocity warning to commands
+- [x] 5.1 Verify against 4.3.0: `CommandExecuteEvent` fires for forwarded commands, how the signed state is exposed (`getInvocationInfo()`), `PlayerAvailableCommandsEvent` includes backend commands; note findings in the tests
+- [x] 5.2 Failing tests first: normalisation table (slash, leading spaces, case, `namespace:label`), scope per current server and none, `CommandDenial` matrix (`SIGNED_WITH_ARGS`, `SIGNED_WITHOUT_ARGS`, `UNSIGNED`, `UNSUPPORTED` x SignedVelocity present/absent), not enforced recorded and player told, bypass, hiding removes only covered nodes and not for bypass, catalogue takes commands from the tree only
+- [x] 5.3 `CommandRuleListener` (`CommandExecuteEvent`, `PlayerAvailableCommandsEvent`), `CommandDenial` reusing `MuteChatDenial.RELAY_PLUGIN_ID`, extend the startup SignedVelocity warning to commands
 - [ ] 5.4 Verify `./gradlew :velocity:test`; manual check with a signed and an unsigned command, with and without SignedVelocity
 
 ## 6. Panel (PR 6, `feat(web): manage client rules in the panel`)

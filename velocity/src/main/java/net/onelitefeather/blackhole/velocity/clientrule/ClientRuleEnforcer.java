@@ -5,9 +5,7 @@ import com.velocitypowered.api.event.connection.LoginEvent;
 import com.velocitypowered.api.event.player.ServerPreConnectEvent;
 import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
-import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.ClientRuleAction;
-import net.onelitefeather.blackhole.client.model.ClientRuleHitCreateRequest;
 import net.onelitefeather.blackhole.client.model.ClientRuleKind;
 import net.onelitefeather.blackhole.velocity.component.Permissions;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
@@ -21,7 +19,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
 
 /**
  * Turns rule hits into what the player and the team see: a refusal (login, connect, or a disconnect for
@@ -52,22 +49,15 @@ public final class ClientRuleEnforcer {
     private final TraitCollector traits;
     private final RuleRegistry registry;
     private final RuleEngine engine;
-    private final ClientRuleBackend backend;
-    private final ClientRuleNotifier notifier;
-    private final Executor async;
+    private final HitReporter reporter;
     private final Map<String, Set<String>> reported = new ConcurrentHashMap<>();
 
-    /**
-     * @param async runs the backend call and the announcement off the event thread
-     */
     public ClientRuleEnforcer(@NotNull TraitCollector traits, @NotNull RuleRegistry registry, @NotNull RuleEngine engine,
-                              @NotNull ClientRuleBackend backend, @NotNull ClientRuleNotifier notifier, @NotNull Executor async) {
+                              @NotNull HitReporter reporter) {
         this.traits = traits;
         this.registry = registry;
         this.engine = engine;
-        this.backend = backend;
-        this.notifier = notifier;
-        this.async = async;
+        this.reporter = reporter;
     }
 
     /** Refuses the login when a global {@code PROTOCOL} rule with {@code DENY} hits. */
@@ -147,26 +137,9 @@ public final class ClientRuleEnforcer {
                 refusal = rule;
             }
             if (this.reported.computeIfAbsent(owner, key -> ConcurrentHashMap.newKeySet()).add(rule.key())) {
-                report(player, owner, server, rule, enforced, bypassed);
+                this.reporter.report(player.getUsername(), owner, server, rule, enforced, bypassed);
             }
         }
         return Optional.ofNullable(refusal);
-    }
-
-    private void report(Player player, String owner, @Nullable String server, ClientRule rule, boolean enforced, boolean bypassed) {
-        String name = player.getUsername();
-        this.async.execute(() -> {
-            try {
-                this.backend.reportHit(new ClientRuleHitCreateRequest().rule(rule.key()).owner(owner).server(server).enforced(enforced).bypassed(bypassed));
-            } catch (ApiException | RuntimeException e) {
-                // Fail open: the hit is not recorded and a TEMPLATE applies nothing; the notice below still happens.
-                LOGGER.debug("Client rule hit {} not recorded: {}", rule.key(), e.getMessage());
-            }
-            try {
-                this.notifier.announce(new ClientRuleNotice(rule.displayName(), name, rule.kind().getValue(), rule.action().getValue(), enforced));
-            } catch (RuntimeException e) {
-                LOGGER.debug("Client rule notice {} not delivered: {}", rule.key(), e.getMessage());
-            }
-        });
     }
 }

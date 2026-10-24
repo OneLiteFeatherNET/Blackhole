@@ -64,8 +64,8 @@ class ClientRuleListenerTest {
             }
         });
         this.registry.reload();
-        ClientRuleEnforcer enforcer = new ClientRuleEnforcer(traits, this.registry, new RuleEngine((rule, server) -> true), backend,
-                new ClientRuleNotifier(List::of, new ClientRuleNoticeChannel() {
+        ClientRuleEnforcer enforcer = new ClientRuleEnforcer(traits, this.registry, new RuleEngine((rule, server) -> true),
+                new HitReporter(backend, new ClientRuleNotifier(List::of, new ClientRuleNoticeChannel() {
                     @Override
                     public void onClientRuleNotice(java.util.function.Consumer<ClientRuleNotice> listener) {
                     }
@@ -74,7 +74,7 @@ class ClientRuleListenerTest {
                     public boolean publish(ClientRuleNotice notice) {
                         return false;
                     }
-                }), Runnable::run);
+                }), Runnable::run));
         ClientRuleCatalogueReporter catalogue = new ClientRuleCatalogueReporter(tally, Set::of, backend, timer, "Proxy-1", 3,
                 Duration.ofSeconds(5), Duration.ofMinutes(15));
         this.listener = new ClientRuleListener(traits, enforcer, tally, fingerprints, catalogue);
