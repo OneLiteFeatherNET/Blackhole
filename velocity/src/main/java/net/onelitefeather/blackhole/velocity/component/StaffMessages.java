@@ -15,7 +15,7 @@ import net.onelitefeather.blackhole.velocity.punish.DiscordLinkService.CodeOutco
 import net.onelitefeather.blackhole.velocity.punish.StaffLinkService.LinkOutcome;
 import net.onelitefeather.blackhole.velocity.punish.StaffLinkService.WhoamiOutcome;
 import net.onelitefeather.blackhole.velocity.punish.TargetNotFoundException;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.section.SectionInfo;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

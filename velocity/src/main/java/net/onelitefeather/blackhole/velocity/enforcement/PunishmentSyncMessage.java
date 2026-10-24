@@ -1,10 +1,10 @@
-package net.onelitefeather.blackhole.velocity.redis;
+package net.onelitefeather.blackhole.velocity.enforcement;
 
 /**
  * Mirrors the backend's {@code net.onelitefeather.blackhole.backend.punishment.PunishmentSyncMessage}
- * field-for-field - the JSON shape stored at each Redis key and published on
- * {@link RedisTopology#PUNISHMENT_SYNC_CHANNEL}. Hand-shared, not part of the OpenAPI client:
- * this is an internal side channel between the backend and proxies, not a public API contract.
+ * field-for-field - the shape the backend's events describe a punishment in. Built from the
+ * {@code punishment.*} events and from the backend profile, hand-shared, not part of the OpenAPI client:
+ * it is the proxy's own representation of one active punishment, not a public API contract.
  *
  * @param owner                the hashed owner
  * @param section              the key of the punishment's section

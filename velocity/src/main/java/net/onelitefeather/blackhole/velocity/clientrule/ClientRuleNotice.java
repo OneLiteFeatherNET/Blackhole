@@ -10,7 +10,7 @@ import java.util.Optional;
 
 /**
  * What staff are told about a client rule hit. It carries the player's name, so it only ever travels over
- * the transient Redis pub/sub channel (nothing is stored) and is never sent to the backend. It holds no
+ * the proxy that saw the hit, in memory (nothing is stored), and is never sent to the backend. It holds no
  * client trait either: the rule's display name already says what matched.
  *
  * @param rule     the rule's display name

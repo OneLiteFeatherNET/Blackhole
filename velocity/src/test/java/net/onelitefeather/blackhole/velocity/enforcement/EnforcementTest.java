@@ -1,7 +1,6 @@
 package net.onelitefeather.blackhole.velocity.enforcement;
 
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import org.junit.jupiter.api.Test;
 

@@ -1,7 +1,7 @@
 package net.onelitefeather.blackhole.velocity;
 
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.section.SectionInfo;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 
@@ -25,17 +25,7 @@ public final class TestData {
 
     /** A registry that serves exactly these sections. */
     public static SectionRegistry registry(SectionInfo... sections) {
-        SectionRegistry registry = new SectionRegistry(new SectionRegistry.Source() {
-            @Override
-            public Optional<List<SectionInfo>> fromCache() {
-                return Optional.of(List.of(sections));
-            }
-
-            @Override
-            public List<SectionInfo> fromApi() {
-                return List.of(sections);
-            }
-        });
+        SectionRegistry registry = new SectionRegistry(() -> List.of(sections));
         registry.reload();
         return registry;
     }

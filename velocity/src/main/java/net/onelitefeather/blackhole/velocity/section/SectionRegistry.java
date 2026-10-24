@@ -12,27 +12,23 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * The proxy's view of the backend's punishment sections: loaded from the shared cache (API as
- * fallback) at startup and again whenever the backend announces a section change. Reads always see
- * a complete snapshot; a failed reload keeps the previous one.
+ * The proxy's view of the backend's punishment sections: loaded over HTTP at startup, again whenever
+ * the backend announces a section change and on a timer (an event may be lost). Reads always see a
+ * complete snapshot; a failed reload keeps the previous one.
  */
 public final class SectionRegistry {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SectionRegistry.class);
 
     /** Where the section list comes from. */
+    @FunctionalInterface
     public interface Source {
-
-        /**
-         * @return the list from the shared cache, empty on a miss or when the cache is unavailable
-         */
-        Optional<List<SectionInfo>> fromCache();
 
         /**
          * @return the list from the backend API
          * @throws Exception if the backend cannot be reached
          */
-        List<SectionInfo> fromApi() throws Exception;
+        List<SectionInfo> load() throws Exception;
     }
 
     private final Source source;
@@ -43,20 +39,17 @@ public final class SectionRegistry {
     }
 
     /**
-     * Loads the sections, preferring the shared cache. If neither source answers the previous
-     * snapshot stays in place.
+     * Loads the sections from the backend. If it does not answer the previous snapshot stays in place.
      *
      * @return whether a new snapshot was installed
      */
     public boolean reload() {
-        List<SectionInfo> loaded = this.source.fromCache().orElse(null);
-        if (loaded == null) {
-            try {
-                loaded = this.source.fromApi();
-            } catch (Exception e) {
-                LOGGER.error("Could not load the punishment sections, keeping {} known section(s): {}", this.sections.size(), e.getMessage());
-                return false;
-            }
+        List<SectionInfo> loaded;
+        try {
+            loaded = this.source.load();
+        } catch (Exception e) {
+            LOGGER.error("Could not load the punishment sections, keeping {} known section(s): {}", this.sections.size(), e.getMessage());
+            return false;
         }
         this.sections = loaded.stream().collect(Collectors.toUnmodifiableMap(SectionInfo::key, Function.identity(), (a, b) -> b));
         return true;

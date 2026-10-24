@@ -34,7 +34,7 @@ class HttpBackendGatewayAuthTest {
 
     private static HttpBackendGateway gateway(FakeHttpClient transport) {
         ApiClient client = BlackholeApiClients.create("http://backend.test", TOKEN, transport);
-        return new HttpBackendGateway(client, null, Clock.systemUTC());
+        return new HttpBackendGateway(client, Clock.systemUTC());
     }
 
     @Test

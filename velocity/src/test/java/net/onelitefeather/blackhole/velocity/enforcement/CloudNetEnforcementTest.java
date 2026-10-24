@@ -16,7 +16,6 @@ import net.onelitefeather.blackhole.velocity.cloudnet.NoCloudNetView;
 import net.onelitefeather.blackhole.velocity.cloudnet.ServerResolver;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.listener.ServerConnectListener;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.section.SectionInfo;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;

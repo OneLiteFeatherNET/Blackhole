@@ -12,12 +12,11 @@ dependencies {
 
     implementation(libs.cloud.annotations)
     implementation(libs.cloud.velocity)
-    implementation(libs.lettuce.core)
     // Receives the backend's events (subscribe-only, no publishing); relocated in the shadow jar.
     implementation(libs.nats.jnats)
 
     // client's jackson-databind is `implementation`-scoped there, so it isn't exposed
-    // transitively - needed here directly to (de)serialize RedisSyncService's wire messages.
+    // transitively - needed here directly to read the event envelopes of NatsSyncService.
     implementation(platform(libs.jackson.bom))
     implementation(libs.jackson.core)
     implementation(libs.jackson.databind)

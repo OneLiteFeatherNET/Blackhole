@@ -12,7 +12,7 @@ import net.onelitefeather.blackhole.velocity.component.PunishmentScreens.Surface
 import net.onelitefeather.blackhole.velocity.component.theme.BlackholeTheme;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.enforcement.BanIds;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
+import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncMessage;
 import org.junit.jupiter.api.Test;
 
 import java.nio.ByteBuffer;

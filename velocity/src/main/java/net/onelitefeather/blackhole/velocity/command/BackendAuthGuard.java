@@ -10,7 +10,7 @@ import java.util.function.BooleanSupplier;
 
 /**
  * Stops every staff command, which all need the backend, with a clear message while the proxy has no
- * complete credentials for it. Redis-based enforcement does not go through commands and is unaffected.
+ * complete credentials for it. Enforcement does not go through commands and is unaffected.
  */
 public final class BackendAuthGuard {
 

@@ -1,6 +1,5 @@
 package net.onelitefeather.blackhole.velocity.enforcement;
 
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

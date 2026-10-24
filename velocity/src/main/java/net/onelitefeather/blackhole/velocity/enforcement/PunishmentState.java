@@ -2,7 +2,6 @@ package net.onelitefeather.blackhole.velocity.enforcement;
 
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.velocity.cloudnet.ServerFacts;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

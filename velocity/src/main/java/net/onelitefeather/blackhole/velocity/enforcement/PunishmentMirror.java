@@ -1,6 +1,5 @@
 package net.onelitefeather.blackhole.velocity.enforcement;
 
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
 
 import java.time.Clock;
 import java.time.Duration;

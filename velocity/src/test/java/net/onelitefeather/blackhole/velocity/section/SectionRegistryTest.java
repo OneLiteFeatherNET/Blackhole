@@ -5,7 +5,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -19,18 +18,12 @@ class SectionRegistryTest {
 
     /** A source whose answers each test sets up; counts API calls. */
     private static final class StubSource implements SectionRegistry.Source {
-        Optional<List<SectionInfo>> cache = Optional.empty();
         List<SectionInfo> api = List.of();
         boolean apiDown;
         int apiCalls;
 
         @Override
-        public Optional<List<SectionInfo>> fromCache() {
-            return this.cache;
-        }
-
-        @Override
-        public List<SectionInfo> fromApi() throws Exception {
+        public List<SectionInfo> load() throws Exception {
             this.apiCalls++;
             if (this.apiDown) {
                 throw new IOException("backend down");
@@ -43,23 +36,14 @@ class SectionRegistryTest {
     private final SectionRegistry registry = new SectionRegistry(source);
 
     @Test
-    void theSharedCacheIsPreferredOverTheApi() {
-        source.cache = Optional.of(List.of(CHAT));
+    void theSectionsAreReadFromTheBackendOnEveryReload() {
         source.api = List.of(NETWORK);
 
         assertTrue(registry.reload());
-
-        assertTrue(registry.find("chat").isPresent(), "the cached list is used");
-        assertEquals(0, source.apiCalls, "no API call when the cache answers");
-    }
-
-    @Test
-    void theApiIsUsedWhenTheCacheMisses() {
-        source.api = List.of(NETWORK);
-
         registry.reload();
 
         assertTrue(registry.find("network").isPresent());
+        assertEquals(2, source.apiCalls, "no cache in between: a reload is a backend read");
     }
 
     @Test
