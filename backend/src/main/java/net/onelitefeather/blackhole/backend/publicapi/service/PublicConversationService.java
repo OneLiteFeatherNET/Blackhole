@@ -4,10 +4,15 @@ import io.micronaut.context.annotation.Value;
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.banid.service.BanIdService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseEventPayloads;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageContent;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageRules;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseConversationDTO;
 import net.onelitefeather.blackhole.backend.casetimeline.service.CaseConversationService;
+import net.onelitefeather.blackhole.backend.evidence.share.ExcerptRenderer;
 import net.onelitefeather.blackhole.backend.publicapi.PlayerScope;
 import net.onelitefeather.blackhole.backend.publicapi.PlayerSeenMarker;
 import net.onelitefeather.blackhole.backend.publicapi.PublicAppealReader;
@@ -17,7 +22,9 @@ import net.onelitefeather.blackhole.backend.publicapi.dto.PublicErrorKind;
 import net.onelitefeather.blackhole.backend.security.PlayerSession;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,6 +35,8 @@ import java.util.UUID;
  */
 @Singleton
 public class PublicConversationService {
+
+    private static final ObjectMapper FILES = new ObjectMapper();
 
     private final PublicConversationReader reader;
     private final PublicAppealReader appeals;
@@ -68,7 +77,7 @@ public class PublicConversationService {
         List<PublicConversationDTO.Entry> entries = page.entries().stream()
                 .map(entry -> new PublicConversationDTO.Entry(entry.seq(), Instant.ofEpochMilli(entry.occurredAt()).toString(), entry.kind(),
                         PublicConversationDTO.Author.valueOf(entry.author()), entry.messageId(), entry.text(),
-                        entry.text() == null ? null : this.content.blocks(entry.text()), entry.removed()))
+                        entry.text() == null ? null : this.content.blocks(entry.text()), entry.removed(), attachmentsOf(entry), shareOf(entry)))
                 .toList();
         if (page.cursor() != null && !page.entries().isEmpty()) {
             this.seen.moveTo(session.punishmentIdentifier(), page.cursor());
@@ -122,5 +131,48 @@ public class PublicConversationService {
 
     private static PublicConversationDTO.Error error(String code, PublicErrorKind kind) {
         return new PublicConversationDTO.Error(code, null, kind);
+    }
+
+    /** The files a message sent, as the portal lists them; null when the entry has none. Nothing but the id, name and type leaves. */
+    private static @Nullable List<PublicConversationDTO.Attachment> attachmentsOf(PublicConversationReader.Entry entry) {
+        if (entry.attachmentsJson() == null) {
+            return null;
+        }
+        List<PublicConversationDTO.Attachment> files = new ArrayList<>();
+        try {
+            for (Map<String, Object> file : FILES.readValue(entry.attachmentsJson(), new TypeReference<List<Map<String, Object>>>() { })) {
+                if (file.get("attachmentId") instanceof String id) {
+                    files.add(new PublicConversationDTO.Attachment(id, text(file.get("name")), text(file.get("contentType")),
+                            file.get("size") instanceof Number size ? size.longValue() : 0L,
+                            file.get("width") instanceof Number width ? width.intValue() : null,
+                            file.get("height") instanceof Number height ? height.intValue() : null,
+                            text(file.get("provenance")).isEmpty() ? "PLAYER" : text(file.get("provenance"))));
+                }
+            }
+        } catch (JsonProcessingException malformed) {
+            return null;
+        }
+        return files.isEmpty() ? null : files;
+    }
+
+    /** The share card of a share entry; the state is the share as it stands when the player reads it. */
+    private static @Nullable PublicConversationDTO.Share shareOf(PublicConversationReader.Entry entry) {
+        PublicConversationReader.Share share = entry.share();
+        if (share == null) {
+            return null;
+        }
+        String state = share.withdrawn() ? "WITHDRAWN" : share.mode() == null || !share.evidencePresent() ? "UNAVAILABLE" : "ACTIVE";
+        boolean excerpt = "EXCERPT".equals(share.mode());
+        List<PublicConversationDTO.ShareLine> lines = null;
+        if (excerpt && "ACTIVE".equals(state)) {
+            List<ExcerptRenderer.Line> rendered = ExcerptRenderer.render(ExcerptRenderer.linesOf(CaseEventPayloads.parse(share.evidencePayload())),
+                    share.selection(), share.appellant() == null ? "" : share.appellant());
+            lines = rendered.stream().map(line -> new PublicConversationDTO.ShareLine(line.speaker(), line.offsetSeconds(), line.text())).toList();
+        }
+        return new PublicConversationDTO.Share(share.shareId(), share.mode(), state, excerpt ? share.selection().size() : null, lines);
+    }
+
+    private static String text(@Nullable Object value) {
+        return value == null ? "" : value.toString();
     }
 }

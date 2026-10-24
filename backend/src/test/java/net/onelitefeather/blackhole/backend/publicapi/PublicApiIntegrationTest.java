@@ -231,7 +231,8 @@ class PublicApiIntegrationTest extends PublicApiTestBase {
         assertEquals(List.of("SYSTEM", "STAFF", "PLAYER"), entries.stream().map(e -> e.get("author")).toList());
         assertEquals("Please tell us more.", entries.get(1).get("text"));
         assertEquals("It was a joke between friends.", entries.get(2).get("text"), "trimmed");
-        assertEquals(Set.of("seq", "occurredAt", "kind", "author", "messageId", "text", "blocks", "removed"), entries.get(1).keySet());
+        assertEquals(Set.of("seq", "occurredAt", "kind", "author", "messageId", "text", "blocks", "removed", "attachments", "share"),
+                entries.get(1).keySet());
         assertFalse(page.body().contains("Staff"), "no staff names");
     }
 
