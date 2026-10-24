@@ -38,13 +38,13 @@ Stacked PRs: `feat(discord): add the discord account link api` (V14, client spec
 
 ## 3. The `discord` module (PR 3, `feat(discord)`)
 
-- [ ] 3.1 Failing tests first against fakes: open flow, crash between ticket and channel, relay order and cursor, no duplicate after restart, own-message skip, edit/delete mirror both ways, freeze/thaw, decision lock and archive, delete only when complete, startup catch-up, close rescan with retries, failure table (backend down, broker down, Discord error, token expiry, missing permission)
-- [ ] 3.2 Module skeleton: `settings.gradle.kts` include, version catalog entries (`net.dv8tion:JDA:6.7.0` without voice, `com.rabbitmq:amqp-client:5.37.0`; re-check Maven Central and the two-week rule), Shadow jar, `application` main, env config with fail-fast validation, architecture test (core packages do not import `net.dv8tion`)
-- [ ] 3.3 `auth` (client credentials token source, reuse or move the Velocity provider), `BackendGateway` adapter on the generated client
-- [ ] 3.4 `DiscordGateway` interface, JDA adapter (intents, cache flags off, member cache none, slash commands `/appeal`, `/link`, `/unlink`, button and modal, ephemeral replies, permission overwrites), composition test without connecting
-- [ ] 3.4a `StaffAccessReconciler`: member overwrites for staff who hold the role and have a live link (creation, interval, `staff-link.removed`), no role overwrite, tests for linked/unlinked/role lost/administrator
-- [ ] 3.5 Core: `TicketLifecycle` (archive only with the protocol version, delete only after `protocol/ensure`), `SyncEngine` (inbound ingest, outbox relay, cursor poll, RabbitMQ consumer as hint), `CatchUp` (startup and close rescan), `ArchiveSweeper` (delete delay), `PermissionSelfCheck`
-- [ ] 3.6 Health endpoint, metrics (counters for relays, ingests, catch-ups, incomplete transcripts, dropped leak candidates), JSON logs without message content
+- [x] 3.1 Failing tests first against fakes: open flow, crash between ticket and channel, relay order and cursor, no duplicate after restart, own-message skip, edit/delete mirror both ways, freeze/thaw, decision lock and archive, delete only when complete, startup catch-up, close rescan with retries, failure table (backend down, broker down, Discord error, token expiry, missing permission)
+- [x] 3.2 Module skeleton: `settings.gradle.kts` include, version catalog entries (`net.dv8tion:JDA:6.7.0` without voice, `com.rabbitmq:amqp-client:5.37.0`; re-check Maven Central and the two-week rule), Shadow jar, `application` main, env config with fail-fast validation, architecture test (core packages do not import `net.dv8tion`)
+- [x] 3.3 `auth` (client credentials token source, reuse or move the Velocity provider), `BackendGateway` adapter on the generated client
+- [x] 3.4 `DiscordGateway` interface, JDA adapter (intents, cache flags off, member cache none, slash commands `/appeal`, `/link`, `/unlink`, button and modal, ephemeral replies, permission overwrites), composition test without connecting
+- [x] 3.4a `StaffAccessReconciler`: member overwrites for staff who hold the role and have a live link (creation, interval, `staff-link.removed`), no role overwrite, tests for linked/unlinked/role lost/administrator
+- [x] 3.5 Core: `TicketLifecycle` (archive only with the protocol version, delete only after `protocol/ensure`), `SyncEngine` (inbound ingest, outbox relay, cursor poll, RabbitMQ consumer as hint), `CatchUp` (startup and close rescan), `ArchiveSweeper` (delete delay), `PermissionSelfCheck`
+- [x] 3.6 Health endpoint, metrics (counters for relays, ingests, catch-ups, incomplete transcripts, dropped leak candidates), JSON logs without message content
 
 ## 4. Leak scanning (PR 4, `feat(discord)`)
 
