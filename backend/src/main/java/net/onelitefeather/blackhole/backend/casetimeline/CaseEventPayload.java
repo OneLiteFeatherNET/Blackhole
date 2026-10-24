@@ -40,6 +40,8 @@ public sealed interface CaseEventPayload {
     String MESSAGE_EDITED = "message.edited";
     String MESSAGE_DELETED = "message.deleted";
     String MESSAGE_REDACTED = "message.redacted";
+    String EVIDENCE_SHARED = "evidence.shared";
+    String EVIDENCE_SHARE_REVOKED = "evidence.share_revoked";
     String BAN_ID_LEAK_MARKED = "ban_id.leak_marked";
     String BAN_ID_REISSUED = "ban_id.reissued";
     String TRANSCRIPT_EXPORTED = "transcript.exported";
@@ -58,7 +60,8 @@ public sealed interface CaseEventPayload {
      * ({@code ticket.transcript_complete}) are listed; archived and deleted are staff facts.
      */
     List<String> PORTAL_VISIBLE_TYPES = List.of(MESSAGE_ADDED, MESSAGE_EDITED, MESSAGE_DELETED, MESSAGE_REDACTED,
-            APPEAL_FILED, APPEAL_DECIDED, BAN_ID_LEAK_MARKED, BAN_ID_REISSUED, TICKET_OPENED, TICKET_TRANSCRIPT_COMPLETE);
+            APPEAL_FILED, APPEAL_DECIDED, BAN_ID_LEAK_MARKED, BAN_ID_REISSUED, TICKET_OPENED, TICKET_TRANSCRIPT_COMPLETE,
+            EVIDENCE_SHARED, EVIDENCE_SHARE_REVOKED);
 
     /**
      * The lifecycle facts a player sees whatever the event's visibility: the player's own appeal was filed and
@@ -478,6 +481,53 @@ public sealed interface CaseEventPayload {
                 map.put("embeds", embeds.stream().map(MessageEmbed::toMap).toList());
             }
             return map;
+        }
+    }
+
+    /**
+     * Staff shared one evidence item with the player. Ids, kind, mode and a line count only: never the lines, a file name or a speaker.
+     *
+     * @param evidenceKind {@code CHAT_LOG} or {@code FILE}
+     * @param mode         {@code EXCERPT} or {@code FILE}
+     * @param lineCount    the number of shared lines of an excerpt
+     */
+    record EvidenceShared(String shareId, String evidenceKind, String mode, @Nullable Integer lineCount) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return EVIDENCE_SHARED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("shareId", shareId);
+            map.put("evidenceKind", evidenceKind);
+            map.put("mode", mode);
+            put(map, "lineCount", lineCount);
+            return map;
+        }
+    }
+
+    /** A share was withdrawn. {@code reason} is a code ({@code MISTAKE}, {@code PRIVACY}, {@code OTHER}). */
+    record EvidenceShareRevoked(String shareId, String reason) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return EVIDENCE_SHARE_REVOKED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            return Map.of("shareId", shareId, "reason", reason);
         }
     }
 

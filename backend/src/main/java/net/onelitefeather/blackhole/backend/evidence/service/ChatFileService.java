@@ -7,6 +7,8 @@ import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseTimeline;
 import net.onelitefeather.blackhole.backend.casetimeline.ChatFiles;
+import net.onelitefeather.blackhole.backend.casetimeline.service.CaseReference;
+import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.evidence.ChatAttachmentConfig;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceAuditAction;
@@ -72,6 +74,7 @@ public class ChatFileService implements ChatFiles {
     public record Stage(String punishmentIdentifier, String scope, EvidenceProvenance provenance, @Nullable Attribution by, @Nullable String fileName) {
     }
 
+    private final CaseReference references;
     private final EvidenceItemRepository items;
     private final EvidenceAuditRepository audit;
     private final PunishmentRepository punishments;
@@ -89,6 +92,7 @@ public class ChatFileService implements ChatFiles {
             BlobStore blobs, DomainEventPublisher events, CaseTimeline caseTimeline, ChatAttachmentConfig config, Clock clock,
             @Value("${java.io.tmpdir}") Path spoolDirectory
     ) {
+        this.references = new CaseReference(punishments);
         this.items = items;
         this.audit = audit;
         this.punishments = punishments;
@@ -181,6 +185,26 @@ public class ChatFileService implements ChatFiles {
                 deleteTemp(processed);
             }
         }
+    }
+
+    /**
+     * A moderator's upload for a case: the punishment is named by its identifier or short id, the file is staged for the case (it is
+     * visible to the player only once a message sends it) with staff provenance and the verified caller as actor.
+     *
+     * @return the {@link EvidenceDTO.Staged} file, or an {@link EvidenceDTO.Error} as {@link #stage} answers, plus 400 / 404 / 409 for the reference
+     */
+    public EvidenceDTO stageForCase(String reference, @Nullable String fileName, InputStream content, Actor actor) {
+        CaseReference.Found found = this.references.resolve(reference);
+        if (found.failed()) {
+            EvidenceErrorKind kind = switch (found.kind()) {
+                case NOT_FOUND -> EvidenceErrorKind.NOT_FOUND;
+                case CONFLICT -> EvidenceErrorKind.CONFLICT;
+                default -> EvidenceErrorKind.VALIDATION;
+            };
+            return error(kind, found.message());
+        }
+        String punishment = found.punishment().getIdentifier();
+        return stage(new Stage(punishment, ChatFiles.caseScope(punishment), EvidenceProvenance.STAFF, actor.attribution(), fileName), content);
     }
 
     /**
