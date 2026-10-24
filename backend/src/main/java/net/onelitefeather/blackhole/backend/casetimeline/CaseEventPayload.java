@@ -47,11 +47,21 @@ public sealed interface CaseEventPayload {
     /**
      * The only event types a player-facing reader may return, on top of the {@code PLAYER} visibility
      * filter. Both are applied in the query itself, so a type added later is invisible to players until
-     * it is listed here. The lifecycle events {@code appeal.filed} and {@code appeal.decided} are listed
-     * but stay {@code STAFF} visibility until the public API change decides to show them.
+     * it is listed here. The lifecycle events {@code appeal.filed} and {@code appeal.decided} are listed but
+     * written with {@code STAFF} visibility, so they pass through {@link #PORTAL_ANY_VISIBILITY_TYPES}
+     * instead (decision of the public API change).
      */
     List<String> PORTAL_VISIBLE_TYPES = List.of(MESSAGE_ADDED, MESSAGE_EDITED, MESSAGE_DELETED, MESSAGE_REDACTED,
             APPEAL_FILED, APPEAL_DECIDED, BAN_ID_LEAK_MARKED, BAN_ID_REISSUED);
+
+    /**
+     * The lifecycle facts a player sees whatever the event's visibility: the player's own appeal was filed and
+     * decided. Their events stay {@code STAFF} visibility (nothing is rewritten, no migration, and the panel
+     * keeps its meaning of the word), carry only ids, a flag and an outcome, and a player-facing reader turns
+     * them into a bare marker without reading the payload. This is the single exception to the visibility
+     * filter and it is a fixed list of two.
+     */
+    List<String> PORTAL_ANY_VISIBILITY_TYPES = List.of(APPEAL_FILED, APPEAL_DECIDED);
 
     /** The dotted lower case type, such as {@code punishment.applied}. */
     String type();

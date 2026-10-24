@@ -28,6 +28,13 @@
         <appender-ref ref="STDOUT"/>
     </appender>
 
+    <!-- The login body of /public/session carries the Ban ID. The HTTP server and the netty handlers would
+         print request bodies at DEBUG/TRACE, so they are pinned to INFO/WARN here whatever else is raised. -->
+    <logger name="io.micronaut.http.server" level="INFO"/>
+    <logger name="io.micronaut.http.client" level="INFO"/>
+    <logger name="io.netty" level="WARN"/>
+    <logger name="reactor.netty" level="WARN"/>
+
     <root level="INFO">
         <appender-ref ref="OTEL"/>
     </root>

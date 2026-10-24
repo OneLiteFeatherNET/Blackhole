@@ -38,6 +38,11 @@ public class PlayerSessionService {
     /** The one answer to every login that is not accepted: no hint which part was wrong. */
     static final PublicSessionDTO.Error INVALID_BAN_ID = new PublicSessionDTO.Error("INVALID_BAN_ID", null, PublicErrorKind.UNAUTHORIZED);
 
+    /** The one login failure, for a caller that fails before a login can run (an unreadable body). */
+    public static PublicSessionDTO.Error invalidBanId() {
+        return INVALID_BAN_ID;
+    }
+
     private static final int TOKEN_BYTES = 32;
     private static final int CSRF_BYTES = 24;
 

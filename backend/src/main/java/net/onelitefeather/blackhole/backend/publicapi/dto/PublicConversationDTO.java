@@ -1,0 +1,79 @@
+package net.onelitefeather.blackhole.backend.publicapi.dto;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
+import io.micronaut.core.annotation.ReflectiveAccess;
+import io.micronaut.serde.annotation.Serdeable;
+import io.swagger.v3.oas.annotations.media.Schema;
+
+import java.util.List;
+
+/**
+ * The conversation as the player reads it and the message the player posts. There is no staff name, no
+ * visibility, no channel and no identifier of another case.
+ */
+@Schema(description = "The conversation between the player and the team")
+@Serdeable
+public sealed interface PublicConversationDTO {
+
+    /** Who wrote an entry. Staff are never named. */
+    @Serdeable
+    enum Author {
+        PLAYER, STAFF, SYSTEM
+    }
+
+    /**
+     * @param seq       the order and the paging cursor
+     * @param occurredAt an ISO instant
+     * @param kind      {@code MESSAGE}, or a marker: {@code APPEAL_FILED}, {@code APPEAL_DECIDED}, {@code FROZEN}, {@code FORFEITED}
+     * @param messageId the message, the same across its edits; null for a marker
+     * @param text      the current text with every edit folded in; null for a marker and for a removed message
+     * @param removed   whether the message was deleted or redacted
+     */
+    @Schema(name = "PublicConversationEntry")
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    @Serdeable
+    @ReflectiveAccess
+    record Entry(
+            long seq, @NonNull String occurredAt, @NonNull String kind, @NonNull Author author, @Nullable String messageId,
+            @Nullable String text, boolean removed
+    ) {
+    }
+
+    /**
+     * @param cursor the {@code seq} to pass as {@code cursor} next time; null while the conversation is empty
+     */
+    @Schema(name = "PublicConversation")
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    @Serdeable
+    @ReflectiveAccess
+    record Page(@NonNull List<Entry> entries, @Nullable Long cursor) implements PublicConversationDTO {
+    }
+
+    /**
+     * Posts a message to the team.
+     *
+     * @param text 1 to 2000 characters, plain text, without a UUID, an IP address or a Ban ID
+     */
+    @Schema(name = "PublicMessageRequest")
+    @Serdeable
+    @ReflectiveAccess
+    record PostRequest(@Nullable String text) implements PublicConversationDTO {
+    }
+
+    /**
+     * @param repeated whether the same {@code Idempotency-Key} had posted this message before and nothing was added
+     */
+    @Schema(name = "PublicMessage")
+    @Serdeable
+    @ReflectiveAccess
+    record Posted(@NonNull String messageId, boolean repeated) implements PublicConversationDTO {
+    }
+
+    @Schema(name = "PublicConversationError")
+    @Serdeable
+    @ReflectiveAccess
+    record Error(@NonNull String code, @Nullable String availableFrom, @NonNull PublicErrorKind kind) implements PublicConversationDTO, PublicError {
+    }
+}

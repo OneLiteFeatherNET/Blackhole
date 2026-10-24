@@ -248,4 +248,20 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
         assertNotEquals(200, reply.status(), "an unannotated route must not be served: " + reply.body());
         assertTrue(reply.status() == 401 || reply.status() == 403, "rejected by security, got " + reply.status());
     }
+
+    @Test
+    void noStaffRoleOrTheProxyOpensTheFactsOfAPlayerSession() {
+        for (String token : java.util.List.of(this.jwt.admin(), this.jwt.moderator(), this.jwt.viewer(), this.jwt.proxy())) {
+            int status = get("/public/punishment", token).status();
+            assertTrue(status == 401 || status == 403, "a staff or proxy token on /public/punishment must be refused, got " + status);
+        }
+    }
+
+    @Test
+    void aPlayerSessionTokenIsNotAStaffTokenOnAnyStaffRoute() {
+        String sessionShapedToken = "bhps_" + "A".repeat(43);
+
+        assertEquals(401, get("/section", sessionShapedToken).status(), "an unknown session token on a staff route");
+        assertEquals(401, get("/auth/me", sessionShapedToken).status(), "even the any-token identity route");
+    }
 }
