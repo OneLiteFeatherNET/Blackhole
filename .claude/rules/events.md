@@ -91,3 +91,10 @@ rule's patterns (`ClientRuleNoLeakTest`). Nothing binds to it yet.
 
 `evasion.client_match` is published by `ClientFingerprintService` when a stored client fingerprint links two or more
 owners (and not more than `max-owners`): `{owners (hashed), at}` only, never the fingerprint or a trait. Nothing binds to it yet.
+
+## Chat file and share events
+
+`case.evidence_shared` (`shareId`, `evidenceKind`, `mode`, `lineCount?`) and `case.evidence_share_revoked` (`shareId`, `reason` code) are published by
+`EvidenceShareService` after the write (via `CaseEventPublisher`, in a try/catch) with the usual case envelope; never lines, a file name, a speaker or an
+evidence payload. `case.message_added` for a message with files adds only the count `attachments`. Chat files delete themselves as `evidence.deleted`
+(reason `ERASURE`); staging a file publishes nothing (it is not evidence until a message binds it, and the bind is announced by the message).

@@ -13,31 +13,31 @@ import java.util.Optional;
  * Finds the punishment a case route names: by its full identifier, or by its legacy short id when that
  * matches exactly one. A Ban ID is never a reference; the short id lookup is untouched by it.
  */
-final class CaseReference {
+public final class CaseReference {
 
     /** The punishment, or why there is none ({@code kind} and {@code message}). */
-    record Found(@Nullable PunishmentEntity punishment, @Nullable CaseErrorKind kind, @Nullable String message) {
+    public record Found(@Nullable PunishmentEntity punishment, @Nullable CaseErrorKind kind, @Nullable String message) {
 
-        boolean failed() {
+        public boolean failed() {
             return this.kind != null;
         }
 
-        static Found of(PunishmentEntity punishment) {
+        public static Found of(PunishmentEntity punishment) {
             return new Found(punishment, null, null);
         }
 
-        static Found failure(CaseErrorKind kind, String message) {
+        public static Found failure(CaseErrorKind kind, String message) {
             return new Found(null, kind, message);
         }
     }
 
     private final PunishmentRepository punishments;
 
-    CaseReference(PunishmentRepository punishments) {
+    public CaseReference(PunishmentRepository punishments) {
         this.punishments = punishments;
     }
 
-    Found resolve(@Nullable String reference) {
+    public Found resolve(@Nullable String reference) {
         if (reference == null || reference.isBlank()) {
             return Found.failure(CaseErrorKind.VALIDATION, "a punishment is required");
         }

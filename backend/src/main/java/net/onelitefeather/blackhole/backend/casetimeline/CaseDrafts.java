@@ -95,16 +95,30 @@ public final class CaseDrafts {
     /** {@code message.added} by a staff member: visible to the player, whichever way the request was shaped. */
     public static CaseEventDraft staffMessage(String punishmentIdentifier, String messageId, @Nullable String appealId, String text,
                                               MessageChannel channel, CaseActor actor, CaseEventOrigin origin, long occurredAt) {
+        return staffMessage(punishmentIdentifier, messageId, appealId, text, java.util.List.of(), channel, actor, origin, occurredAt);
+    }
+
+    /** The same with the chat files it sends (their payload entries); the text is empty for a message that is only files. */
+    public static CaseEventDraft staffMessage(String punishmentIdentifier, String messageId, @Nullable String appealId, String text,
+                                              java.util.List<MessageAttachment> attachments, MessageChannel channel, CaseActor actor,
+                                              CaseEventOrigin origin, long occurredAt) {
         return new CaseEventDraft(punishmentIdentifier,
-                new CaseEventPayload.MessageAdded(messageId, appealId, MessageAuthorKind.STAFF, null, channel, text),
+                new CaseEventPayload.MessageAdded(messageId, appealId, MessageAuthorKind.STAFF, null, channel, text, attachments, java.util.List.of()),
                 occurredAt, origin, actor, messageId, "message:" + messageId, CaseEventDraft.PLAYER);
     }
 
     /** {@code message.added} by the player, from the portal: trust {@code PLAYER}, no {@code oid}. */
     public static CaseEventDraft playerMessage(String punishmentIdentifier, String messageId, @Nullable String appealId, String text,
                                                long occurredAt) {
+        return playerMessage(punishmentIdentifier, messageId, appealId, text, java.util.List.of(), occurredAt);
+    }
+
+    /** The same with the chat files it sends (their payload entries); the text is empty for a message that is only files. */
+    public static CaseEventDraft playerMessage(String punishmentIdentifier, String messageId, @Nullable String appealId, String text,
+                                               java.util.List<MessageAttachment> attachments, long occurredAt) {
         return new CaseEventDraft(punishmentIdentifier,
-                new CaseEventPayload.MessageAdded(messageId, appealId, MessageAuthorKind.PLAYER, null, MessageChannel.PORTAL, text),
+                new CaseEventPayload.MessageAdded(messageId, appealId, MessageAuthorKind.PLAYER, null, MessageChannel.PORTAL, text, attachments,
+                        java.util.List.of()),
                 occurredAt, CaseEventOrigin.LIVE, CaseActor.player(), messageId, "message:" + messageId, CaseEventDraft.PLAYER);
     }
 

@@ -123,7 +123,7 @@ class EvidenceApiIntegrationTest extends ApiIntegrationTest {
         assertEquals(200, listed.status(), listed.body());
         assertEquals(1, ((List<?>) listed.json().get("items")).size());
         Reply count = get("/punishment/" + punishment + "/evidence/count");
-        assertEquals(Map.of("count", 1), count.json(), "the count endpoint answers the count and nothing else");
+        assertEquals(Map.of("count", 1, "playerSupplied", 0), count.json(), "the count endpoint answers the team count and the separate player-supplied figure");
     }
 
     @Test

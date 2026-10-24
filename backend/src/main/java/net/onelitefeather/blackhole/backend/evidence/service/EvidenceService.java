@@ -18,6 +18,7 @@ import net.onelitefeather.blackhole.backend.evidence.EvidenceEvents;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceItemEntity;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceItemRepository;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceKind;
+import net.onelitefeather.blackhole.backend.evidence.EvidenceProvenance;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceStatus;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.evidence.dto.EvidenceDTO;
@@ -266,14 +267,17 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         Page<EvidenceItemEntity> page = includeInactive
                 ? this.items.findByOwnerOrderByCreatedAt(owner, pageable)
                 : this.items.findByOwnerAndStatusOrderByCreatedAt(owner, EvidenceStatus.VALID, pageable);
-        auditInactive(page, actor.attribution());
-        return toPage(page);
+        // A chat file nobody has sent yet is not evidence of anything: it appears here once a message binds it.
+        Page<EvidenceItemEntity> visible = Page.of(page.getContent().stream().filter(item -> !item.isStagedChatFile()).toList(),
+                pageable, page.getTotalSize());
+        auditInactive(visible, actor.attribution());
+        return toPage(visible);
     }
 
     /** The one item with its metadata and payload; reading it is audited, as {@code VIEWED_INACTIVE} when it is lifted or revoked. */
     public EvidenceDTO get(UUID identifier, Actor actor) {
         EvidenceItemEntity item = this.items.findById(identifier).orElse(null);
-        if (item == null || unreadableTranscript(item)) {
+        if (item == null || unreadableTranscript(item) || item.isStagedChatFile()) {
             return notFound(identifier);
         }
         record(item, item.getStatus() == EvidenceStatus.VALID ? EvidenceAuditAction.VIEWED : EvidenceAuditAction.VIEWED_INACTIVE, actor.attribution(), null, null);
@@ -286,12 +290,24 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         if (found.error() != null) {
             return found.error();
         }
-        return new EvidenceDTO.CountResponse(countValid(found.punishment().getIdentifier()));
+        String identifier = found.punishment().getIdentifier();
+        return new EvidenceDTO.CountResponse(countValid(identifier), countPlayerSupplied(identifier));
     }
 
+    /**
+     * The team evidence: valid items with staff provenance, the protocol excluded. This is the number the ban screen and the
+     * punishment DTOs show, so a file the banned player uploaded themselves cannot change it.
+     */
     @Override
     public long countValid(String punishmentIdentifier) {
-        return this.items.countByPunishmentIdentifierAndStatusAndKindNotEqual(punishmentIdentifier, EvidenceStatus.VALID, EvidenceKind.TRANSCRIPT);
+        return this.items.countByPunishmentIdentifierAndStatusAndKindNotEqualAndProvenance(punishmentIdentifier, EvidenceStatus.VALID,
+                EvidenceKind.TRANSCRIPT, EvidenceProvenance.STAFF);
+    }
+
+    /** The valid files the appealing player sent in the chat: a separate figure, labelled player-supplied and unverified. */
+    @Override
+    public long countPlayerSupplied(String punishmentIdentifier) {
+        return this.items.countByPunishmentIdentifierAndStatusAndProvenance(punishmentIdentifier, EvidenceStatus.VALID, EvidenceProvenance.PLAYER);
     }
 
     /**
@@ -305,7 +321,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
      */
     public EvidenceDTO content(UUID identifier, String rangeHeader, Actor actor) {
         EvidenceItemEntity item = this.items.findById(identifier).orElse(null);
-        if (item == null || unreadableTranscript(item)) {
+        if (item == null || unreadableTranscript(item) || item.isStagedChatFile()) {
             return notFound(identifier);
         }
         if (item.getFileKey() == null) {
@@ -684,7 +700,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
                 item.getKind(), item.getSourceSystem(), item.getCapturedAt(), item.getCreatedAt(), item.getCreatedBy(),
                 item.getRecordedByOid(), item.getRecordedByOid() != null, item.getActorOid(),
                 item.getExternalRef(), item.getPayload() == null ? null : new HashMap<>(item.getPayload()), file,
-                item.getStatus(), item.getStatusChangedAt(), item.getLiftedByAppeal());
+                item.getStatus(), item.getStatusChangedAt(), item.getLiftedByAppeal(), item.getProvenance());
     }
 
     private static EvidenceDTO.Error notFound(UUID identifier) {

@@ -8,12 +8,9 @@ import io.micronaut.core.version.annotation.Version;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
-import io.micronaut.http.MediaType;
-import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 import io.micronaut.http.multipart.StreamingFileUpload;
-import io.micronaut.http.server.types.files.StreamedFile;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.validation.Validated;
 import jakarta.inject.Inject;
@@ -96,7 +93,7 @@ public class EvidenceController implements EvidenceApi {
     @Secured(Roles.VIEWER)
     public HttpResponse<?> content(UUID identifier, @Nullable String range, Actor actor) {
         return switch (this.evidenceService.content(identifier, range, actor)) {
-            case EvidenceDTO.Download download -> file(download);
+            case EvidenceDTO.Download download -> SafeFileResponse.of(download, true);
             case EvidenceDTO.OutOfRange outOfRange -> HttpResponse.status(HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE)
                     .header("Content-Range", "bytes */" + outOfRange.size());
             case EvidenceDTO.Error error -> HttpResponse.status(error.kind().status()).body(error);
@@ -114,26 +111,6 @@ public class EvidenceController implements EvidenceApi {
     @Secured(Roles.ADMIN)
     public HttpResponse<EvidenceDTO> deleteByOwner(String owner, @Nullable String reason, @Nullable String note, Actor actor) {
         return toResponse(this.evidenceService.deleteByOwner(owner, reason, note, actor));
-    }
-
-    /**
-     * The file as the browser may safely show it: the detected type, no sniffing, a sandboxing CSP and
-     * no caching; only images and videos are shown inline, anything else would be a download.
-     */
-    private static HttpResponse<?> file(EvidenceDTO.Download download) {
-        boolean inline = download.contentType().startsWith("image/") || download.contentType().startsWith("video/");
-        StreamedFile body = new StreamedFile(download.stream(), MediaType.of(download.contentType()));
-        MutableHttpResponse<StreamedFile> response = HttpResponse.<StreamedFile>status(download.partial() ? HttpStatus.PARTIAL_CONTENT : HttpStatus.OK)
-                .body(body)
-                .header("Content-Length", Long.toString(download.length()))
-                .header("Accept-Ranges", "bytes")
-                .header("X-Content-Type-Options", "nosniff")
-                .header("Content-Security-Policy", "sandbox")
-                .header("Cache-Control", "private, no-store")
-                .header("Content-Disposition", (inline ? "inline" : "attachment") + "; filename=\"" + download.fileName() + "\"");
-        return download.partial()
-                ? response.header("Content-Range", "bytes " + download.start() + "-" + download.end() + "/" + download.total())
-                : response;
     }
 
     private static HttpResponse<EvidenceDTO> toResponse(EvidenceDTO result) {

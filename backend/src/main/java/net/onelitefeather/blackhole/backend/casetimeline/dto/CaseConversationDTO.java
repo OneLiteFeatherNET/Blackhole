@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.casetimeline.dto;
 
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.annotation.ReflectiveAccess;
 import io.micronaut.serde.annotation.Serdeable;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -8,6 +9,9 @@ import net.onelitefeather.blackhole.backend.casetimeline.BanIdLeakReason;
 import net.onelitefeather.blackhole.backend.casetimeline.BanIdReissueReason;
 import net.onelitefeather.blackhole.backend.casetimeline.NoteRedactionReason;
 import net.onelitefeather.blackhole.backend.response.ErrorResponse;
+
+import java.util.List;
+import java.util.UUID;
 
 /**
  * Wire contract of the conversation, leak and export routes of a case. Staff only. No variant carries a
@@ -21,12 +25,16 @@ public sealed interface CaseConversationDTO {
     /**
      * Posts or corrects a message to the player. Any visibility, author or channel in the body is ignored.
      *
-     * @param text 1 to 2000 characters, without a UUID, an IP address or a Ban ID
+     * @param text          the Markdown source, 1 to 2000 characters, without a UUID, an IP address or a Ban ID; may be left out
+     *                      when the message carries at least one file
+     * @param attachmentIds files uploaded with {@code POST /case/{reference}/attachments} that this message sends, at most 5; each
+     *                      must be staged for this case and not used before. A staff file is visible to the player once the message
+     *                      is posted. Ignored when editing: an edit changes the text only
      */
     @Schema(name = "CaseMessageRequest")
     @Serdeable
     @ReflectiveAccess
-    record MessageRequest(@NonNull String text) implements CaseConversationDTO {
+    record MessageRequest(@Nullable String text, @Nullable List<UUID> attachmentIds) implements CaseConversationDTO {
     }
 
     /**

@@ -229,6 +229,29 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void onlyAModeratorMayShareOrRevokeEvidenceButAViewerMayReadAndPreview() {
+        String base = "/case/unknown-punishment/evidence-shares";
+        Map<String, Object> share = Map.of("evidenceId", EVIDENCE, "selection", List.of(0), "appellantSpeaker", "A", "confirmedMinimised", true);
+        assertEquals(403, post(base, share, this.jwt.viewer()).status(), "viewer on a share");
+        assertAuthorized(post(base, share, this.jwt.moderator()), "moderator on a share");
+        assertEquals(403, post(base + "/" + EVIDENCE + "/revoke", Map.of("reason", "OTHER"), this.jwt.viewer()).status(), "viewer on a revoke");
+        assertAuthorized(post(base + "/" + EVIDENCE + "/revoke", Map.of("reason", "OTHER"), this.jwt.moderator()), "moderator on a revoke");
+        assertAuthorized(get(base, this.jwt.viewer()), "viewer on the share list");
+        assertAuthorized(post(base + "/preview", share, this.jwt.viewer()), "viewer on the preview");
+    }
+
+    @Test
+    void theProxyAndThePlayerHaveNoRuleOnTheShareRoutes() {
+        String base = "/case/unknown-punishment/evidence-shares";
+        Map<String, Object> share = Map.of("evidenceId", EVIDENCE, "selection", List.of(0), "appellantSpeaker", "A", "confirmedMinimised", true);
+        assertEquals(403, post(base, share, this.jwt.proxy()).status(), "proxy on a share");
+        assertEquals(403, get(base, this.jwt.proxy()).status(), "proxy on the list");
+        assertEquals(403, post(base + "/preview", share, this.jwt.proxy()).status(), "proxy on the preview");
+        assertEquals(403, post(base + "/" + EVIDENCE + "/revoke", Map.of("reason", "OTHER"), this.jwt.proxy()).status(), "proxy on a revoke");
+        assertEquals(401, post(base, share, null).status(), "no token");
+    }
+
+    @Test
     void theProxyHasNoRuleOnTheConversationRoutes() {
         assertEquals(403, post("/case/unknown-punishment/messages", Map.of("text", "x"), this.jwt.proxy()).status());
         assertEquals(403, post("/case/unknown-punishment/ban-id/leak", Map.of("reason", "OTHER"), this.jwt.proxy()).status());

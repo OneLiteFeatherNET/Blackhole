@@ -36,6 +36,14 @@ public interface ProtocolSource {
     /** Every appeal of the punishment, oldest first. */
     List<Appeal> appealsOf(String punishmentIdentifier);
 
+    /**
+     * The SHA-256 of every chat file of the case by evidence id (lower case hex), for the marker line of a file. Not part of any event: a
+     * hash in a payload would be a second copy. A file that was deleted has no entry.
+     */
+    default java.util.Map<String, String> fileDigests(String punishmentIdentifier) {
+        return java.util.Map.of();
+    }
+
     /** Every event of the punishment's case with its actor's display name, in timeline order. */
     List<CaseReader.Entry> entries(String punishmentIdentifier);
 }

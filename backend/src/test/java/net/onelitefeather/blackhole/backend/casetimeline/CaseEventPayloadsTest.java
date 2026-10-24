@@ -191,4 +191,42 @@ class CaseEventPayloadsTest {
         assertFalse(CaseEventPayload.PORTAL_VISIBLE_TYPES.contains("note.added"));
         assertFalse(CaseEventPayload.PORTAL_VISIBLE_TYPES.contains("transcript.exported"));
     }
+
+    @Test
+    void thePortalAllowListShowsSharesAndRevokesButNotEvidenceAttached() {
+        assertTrue(CaseEventPayload.PORTAL_VISIBLE_TYPES.contains("evidence.shared"));
+        assertTrue(CaseEventPayload.PORTAL_VISIBLE_TYPES.contains("evidence.share_revoked"));
+        assertFalse(CaseEventPayload.PORTAL_VISIBLE_TYPES.contains("evidence.attached"), "a player never learns what staff attached");
+    }
+
+    @Test
+    void aShareAndARevokeRoundTripWithIdsKindsAndCountsOnly() {
+        CaseEventPayload.EvidenceShared shared = new CaseEventPayload.EvidenceShared("s-1", "CHAT_LOG", "EXCERPT", 5);
+        CaseEventPayload.EvidenceShareRevoked revoked = new CaseEventPayload.EvidenceShareRevoked("s-1", "PRIVACY");
+
+        assertEquals(shared, CaseEventPayloads.read(shared.type(), 1, shared.toMap()));
+        assertEquals(revoked, CaseEventPayloads.read(revoked.type(), 1, revoked.toMap()));
+        assertEquals(java.util.Set.of("shareId", "evidenceKind", "mode", "lineCount"), shared.toMap().keySet());
+        assertEquals(java.util.Set.of("shareId", "reason"), revoked.toMap().keySet());
+    }
+
+    @Test
+    void aShareOfAScreenshotHasNoLineCount() {
+        CaseEventPayload.EvidenceShared shared = new CaseEventPayload.EvidenceShared("s-2", "FILE", "FILE", null);
+
+        assertFalse(shared.toMap().containsKey("lineCount"));
+        assertEquals(shared, CaseEventPayloads.read(shared.type(), 1, shared.toMap()));
+    }
+
+    @Test
+    void aChatFileEntryOfAMessageRoundTrips() {
+        CaseEventPayload.MessageAdded message = new CaseEventPayload.MessageAdded("m-1", null, MessageAuthorKind.PLAYER, null, MessageChannel.PORTAL, "t",
+                java.util.List.of(new MessageAttachment("file", null, "a.png", "image/png", 10L, 3, 2, "11111111-1111-1111-1111-111111111111", "PLAYER")),
+                java.util.List.of());
+
+        CaseEventPayload.MessageAdded read = (CaseEventPayload.MessageAdded) CaseEventPayloads.read(message.type(), 1, message.toMap());
+
+        assertEquals(message, read);
+        assertEquals("PLAYER", read.attachments().getFirst().provenance());
+    }
 }

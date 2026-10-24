@@ -6,6 +6,7 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.evidence.scan.EvidenceScanner;
+import net.onelitefeather.blackhole.backend.evidence.service.ChatFileService;
 import net.onelitefeather.blackhole.backend.evidence.service.EvidenceService;
 import net.onelitefeather.blackhole.backend.evidence.upload.UploadPipeline;
 import net.onelitefeather.blackhole.backend.evidence.validation.PayloadValidator;
@@ -51,6 +52,17 @@ public final class EvidenceTestBed {
                             item -> args[0].equals(item.getPunishmentIdentifier()) && item.getStatus() == args[1], (Pageable) args[2]))
                     .finder("countByPunishmentIdentifierAndStatusAndKindNotEqual", args -> this.items.all().stream()
                             .filter(item -> args[0].equals(item.getPunishmentIdentifier()) && item.getStatus() == args[1] && item.getKind() != args[2]).count())
+                    .finder("countByPunishmentIdentifierAndStatusAndKindNotEqualAndProvenance", args -> this.items.all().stream()
+                            .filter(item -> args[0].equals(item.getPunishmentIdentifier()) && item.getStatus() == args[1] && item.getKind() != args[2]
+                                    && item.getProvenance() == args[3]).count())
+                    .finder("countByPunishmentIdentifierAndStatusAndProvenance", args -> this.items.all().stream()
+                            .filter(item -> args[0].equals(item.getPunishmentIdentifier()) && item.getStatus() == args[1]
+                                    && item.getProvenance() == args[2]).count())
+                    .finder("findByPunishmentIdentifierAndProvenance", args -> this.items.all().stream()
+                            .filter(item -> args[0].equals(item.getPunishmentIdentifier()) && item.getProvenance() == args[1]).toList())
+                    .finder("countByCorrelationId", args -> this.items.all().stream().filter(item -> args[0].equals(item.getCorrelationId())).count())
+                    .finder("countByCorrelationIdAndPunishmentIdentifierIsNull", args -> this.items.all().stream()
+                            .filter(item -> args[0].equals(item.getCorrelationId()) && item.isPending()).count())
                     .finder("findByPunishmentIdentifier", args -> this.items.all().stream()
                             .filter(item -> args[0].equals(item.getPunishmentIdentifier())).toList())
                     .finder("findByOwnerOrderByCreatedAt", args -> page(item -> args[0].equals(item.getOwner()), (Pageable) args[1]))
@@ -75,7 +87,9 @@ public final class EvidenceTestBed {
     public final net.onelitefeather.blackhole.backend.support.CaseTestBed cases = new net.onelitefeather.blackhole.backend.support.CaseTestBed(clock);
     public final EvidenceConfig config = new EvidenceConfig();
     public final FakeScanner scanner = new FakeScanner();
+    public final ChatAttachmentConfig chatConfig = new ChatAttachmentConfig();
     public final EvidenceService service;
+    public final ChatFileService chatFiles;
     public final EvidenceHousekeepingSweeper sweeper;
 
     /** A scanner a test controls. */
@@ -98,6 +112,9 @@ public final class EvidenceTestBed {
         this.service = new EvidenceService(
                 items.repository(), audit.repository(), punishments.repository(), new PayloadValidator(config),
                 new UploadPipeline(config, scanner), blobs, publisher == null ? events : publisher, this.staffLinks.service, cases.timeline, id -> true, clock, spoolDirectory);
+        this.chatFiles = new ChatFileService(items.repository(), audit.repository(), punishments.repository(),
+                new UploadPipeline(config, chatConfig, scanner), blobs, publisher == null ? events : publisher, cases.timeline, chatConfig, clock,
+                spoolDirectory);
         this.sweeper = new EvidenceHousekeepingSweeper(service, items.repository(), audit.repository(), blobs, config, clock);
     }
 

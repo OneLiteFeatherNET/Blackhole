@@ -69,8 +69,8 @@ class CaseConversationNoLeakTest {
         String banId = this.banIds.issueFor(ID);
         this.store.ensureCase(ID, 1L);
 
-        this.service.postMessage(ID, new CaseConversationDTO.MessageRequest("we will look into it"), ADMIN, "k-1");
-        this.service.postMessage(ID, new CaseConversationDTO.MessageRequest("my id is #" + banId), ADMIN, null);
+        this.service.postMessage(ID, new CaseConversationDTO.MessageRequest("we will look into it", null), ADMIN, "k-1");
+        this.service.postMessage(ID, new CaseConversationDTO.MessageRequest("my id is #" + banId, null), ADMIN, null);
         this.service.markBanIdLeaked(ID, new CaseConversationDTO.LeakRequest(BanIdLeakReason.POSTED_PUBLIC), ADMIN);
         this.store.collideNext(1);
         CaseConversationDTO reissued = this.service.reissueBanId(ID, new CaseConversationDTO.ReissueRequest(BanIdReissueReason.OTHER), ADMIN);

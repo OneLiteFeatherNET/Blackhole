@@ -74,8 +74,22 @@ public record ProtocolModel(
     public record Text(long seq, long at, @Nullable String text) {
     }
 
-    /** Attachment metadata: name, type and size, never a URL or bytes. */
-    public record Attachment(@Nullable String name, @Nullable String type, @Nullable Long size) {
+    /**
+     * Attachment metadata: name, type and size, never a URL or bytes. A chat file also has the first 12 hex digits of its SHA-256
+     * (read from the evidence, not from the event) and its provenance, which make its marker line.
+     */
+    public record Attachment(@Nullable String name, @Nullable String type, @Nullable Long size, boolean chatFile, @Nullable String sha12,
+                             @Nullable String provenance) {
+
+        public Attachment(@Nullable String name, @Nullable String type, @Nullable Long size) {
+            this(name, type, size, false, null, null);
+        }
+
+        /** The marker line of a chat file: type, size, the start of the hash and the sanitised name. */
+        public String marker() {
+            return "[file: " + (this.type == null ? "unknown type" : this.type) + ", " + (this.size == null ? "unknown size" : this.size + " bytes")
+                    + ", sha256 " + (this.sha12 == null ? "unavailable" : this.sha12) + ", " + (this.name == null ? "(unnamed)" : this.name) + "]";
+        }
     }
 
     /** Embed metadata: its type and host, never its content. */
@@ -176,7 +190,16 @@ public record ProtocolModel(
      * @param entries every event of the case with its actor's name, in any order
      */
     public static ProtocolModel build(ProtocolSource.Appeal appeal, List<ProtocolSource.Appeal> appeals, List<CaseReader.Entry> entries) {
-        return new Builder(appeal, appeals, entries).build();
+        return build(appeal, appeals, entries, Map.of());
+    }
+
+    /**
+     * The same, with the SHA-256 of the case's chat files by evidence id, which the marker line of a file shows in short. The hash is
+     * not part of the digest of the source events.
+     */
+    public static ProtocolModel build(ProtocolSource.Appeal appeal, List<ProtocolSource.Appeal> appeals, List<CaseReader.Entry> entries,
+                                      Map<String, String> fileDigests) {
+        return new Builder(appeal, appeals, entries, fileDigests).build();
     }
 
     private static final class Builder {
@@ -186,8 +209,10 @@ public record ProtocolModel(
         private final long windowStart;
         private final long windowEnd;
         private final List<CaseReader.Entry> sorted;
+        private final Map<String, String> fileDigests;
 
-        Builder(ProtocolSource.Appeal appeal, List<ProtocolSource.Appeal> appeals, List<CaseReader.Entry> entries) {
+        Builder(ProtocolSource.Appeal appeal, List<ProtocolSource.Appeal> appeals, List<CaseReader.Entry> entries, Map<String, String> fileDigests) {
+            this.fileDigests = fileDigests;
             this.appeal = appeal;
             this.appealId = appeal.identifier().toString();
             this.windowStart = appeal.createdAt();
@@ -215,7 +240,7 @@ public record ProtocolModel(
                 if (type.equals(CaseEventPayload.MESSAGE_ADDED) && event.payload() instanceof CaseEventPayload.MessageAdded added) {
                     boolean mine = added.appealId() != null ? added.appealId().equals(this.appealId) : inWindow(event.occurredAt());
                     if (mine) {
-                        messages.put(added.messageId(), new MessageBuilder(entry, added));
+                        messages.put(added.messageId(), new MessageBuilder(entry, added, this.fileDigests));
                         include(source, event);
                     }
                 } else if (MESSAGE_FOLLOW_UPS.contains(type) && event.subjectId() != null && messages.containsKey(event.subjectId())) {
@@ -255,6 +280,9 @@ public record ProtocolModel(
                 String ticketAppeal = appealIdOf(event);
                 return ticketAppeal != null ? this.appealId.equals(ticketAppeal) : inWindow(event.occurredAt());
             }
+            if (type.equals(CaseEventPayload.EVIDENCE_SHARED) || type.equals(CaseEventPayload.EVIDENCE_SHARE_REVOKED)) {
+                return inWindow(event.occurredAt());
+            }
             return type.startsWith("ban_id.") && inWindow(event.occurredAt());
         }
 
@@ -287,8 +315,10 @@ public record ProtocolModel(
         private final List<Text> texts = new ArrayList<>();
         private Long deletedAt;
         private boolean redacted;
+        private final Map<String, String> fileDigests;
 
-        MessageBuilder(CaseReader.Entry first, CaseEventPayload.MessageAdded added) {
+        MessageBuilder(CaseReader.Entry first, CaseEventPayload.MessageAdded added, Map<String, String> fileDigests) {
+            this.fileDigests = fileDigests;
             this.first = first;
             this.added = added;
             CaseEventRecord event = first.event();
@@ -319,7 +349,7 @@ public record ProtocolModel(
             Author author = new Author(authorLabel(this.added.authorKind(), event.actorTrust(), this.first.actorName()),
                     this.added.authorKind().name(), event.actorTrust().name(), this.added.participantId());
             return new MessageEntry(event.seq(), event.occurredAt(), this.added.channel().name(), author, event.visibility(), current, shown,
-                    this.deletedAt, this.redacted, attachments(event.body()), embeds(event.body()));
+                    this.deletedAt, this.redacted, attachments(event.body(), this.fileDigests), embeds(event.body()));
         }
     }
 
@@ -378,6 +408,8 @@ public record ProtocolModel(
             case CaseEventPayload.BAN_ID_LEAK_MARKED -> copy(details, body, "reason", "source", "afterFiling");
             case CaseEventPayload.BAN_ID_REISSUED -> copy(details, body, "reason", "fromGeneration", "toGeneration");
             case "ticket.transcript_complete" -> copy(details, body, "count", "lastMessageId", "edits", "deletes");
+            case CaseEventPayload.EVIDENCE_SHARED -> copy(details, body, "evidenceKind", "mode", "lineCount");
+            case CaseEventPayload.EVIDENCE_SHARE_REVOKED -> copy(details, body, "reason");
             default -> {
             }
         }
@@ -393,13 +425,16 @@ public record ProtocolModel(
         }
     }
 
-    private static List<Attachment> attachments(Map<String, Object> body) {
+    private static List<Attachment> attachments(Map<String, Object> body, Map<String, String> fileDigests) {
         List<Attachment> found = new ArrayList<>();
         if (body.get("attachments") instanceof List<?> list) {
             for (Object item : list) {
                 if (item instanceof Map<?, ?> map) {
+                    String attachmentId = text(map.get("attachmentId"));
+                    String digest = attachmentId == null ? null : fileDigests.get(attachmentId);
                     found.add(new Attachment(text(first(map, "name", "fileName")), text(first(map, "contentType", "type")),
-                            number(first(map, "size", "bytes"))));
+                            number(first(map, "size", "bytes")), attachmentId != null,
+                            digest == null ? null : digest.substring(0, Math.min(12, digest.length())), text(map.get("provenance"))));
                 }
             }
         }

@@ -91,6 +91,10 @@ public final class CaseEventPayloads {
                         flag(body, "contentUnavailable"), flag(body, "detectedAtCatchup"));
                 case CaseEventPayload.MESSAGE_REDACTED -> new CaseEventPayload.MessageRedacted(
                         required(text(body, "messageId")), required(text(body, "reason")));
+                case CaseEventPayload.EVIDENCE_SHARED -> new CaseEventPayload.EvidenceShared(required(text(body, "shareId")),
+                        required(text(body, "evidenceKind")), required(text(body, "mode")), integer(body, "lineCount"));
+                case CaseEventPayload.EVIDENCE_SHARE_REVOKED -> new CaseEventPayload.EvidenceShareRevoked(
+                        required(text(body, "shareId")), required(text(body, "reason")));
                 case CaseEventPayload.BAN_ID_LEAK_MARKED -> new CaseEventPayload.BanIdLeakMarked(
                         BanIdLeakReason.valueOf(required(text(body, "reason"))), BanIdLeakSource.valueOf(required(text(body, "source"))),
                         flag(body, "afterFiling"), text(body, "poster"), body.get("posterIsOwner") instanceof Boolean owner ? owner : null);
@@ -128,7 +132,8 @@ public final class CaseEventPayloads {
                     @SuppressWarnings("unchecked") Map<String, Object> map = (Map<String, Object>) raw;
                     String kind = text(map, "kind");
                     found.add(new MessageAttachment(kind == null ? MessageAttachment.FILE : kind, text(map, "id"), text(map, "name"),
-                            text(map, "contentType"), number(map, "size"), integer(map, "width"), integer(map, "height")));
+                            text(map, "contentType"), number(map, "size"), integer(map, "width"), integer(map, "height"),
+                            text(map, "attachmentId"), text(map, "provenance")));
                 }
             }
         }

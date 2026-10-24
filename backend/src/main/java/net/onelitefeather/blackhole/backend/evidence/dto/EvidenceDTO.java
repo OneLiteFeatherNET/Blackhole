@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceKind;
+import net.onelitefeather.blackhole.backend.evidence.EvidenceProvenance;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceStatus;
 import net.onelitefeather.blackhole.backend.response.ErrorResponse;
 
@@ -117,6 +118,8 @@ public sealed interface EvidenceDTO {
      * @param status               VALID, REVOKED or LIFTED
      * @param statusChangedAt      when it became REVOKED or LIFTED
      * @param liftedByAppeal       the appeal that lifted the punishment
+     * @param provenance           who supplied it: {@code STAFF}, or {@code PLAYER} for a file the appealing player sent in the
+     *                             chat ("player-supplied, unverified"; not part of the team evidence count)
      */
     @Schema(name = "EvidenceResponse")
     @Serdeable
@@ -139,7 +142,8 @@ public sealed interface EvidenceDTO {
             @Nullable FileInfo file,
             @NonNull EvidenceStatus status,
             @Nullable Long statusChangedAt,
-            @Nullable UUID liftedByAppeal
+            @Nullable UUID liftedByAppeal,
+            @NonNull EvidenceProvenance provenance
     ) implements EvidenceDTO {
     }
 
@@ -157,11 +161,39 @@ public sealed interface EvidenceDTO {
     ) implements EvidenceDTO {
     }
 
-    /** The number of valid evidence items: the only thing a player may learn. */
+    /**
+     * The number of valid evidence items: the only thing a player may learn.
+     *
+     * @param count          the team evidence (staff provenance); what the ban screen shows, so a player cannot change it
+     * @param playerSupplied the valid files the appealing player sent in the chat, a separate figure
+     */
     @Schema(name = "EvidenceCount")
     @Serdeable
     @ReflectiveAccess
-    record CountResponse(long count) implements EvidenceDTO {
+    record CountResponse(long count, long playerSupplied) implements EvidenceDTO {
+    }
+
+    /**
+     * A chat file that was scanned and staged: in no listing, count or conversation until a message names its id.
+     *
+     * @param attachmentId the id to name in {@code attachmentIds}
+     * @param name         the sanitised display name
+     * @param contentType  the type detected from the bytes
+     * @param size         the stored size in bytes
+     * @param width        the pixel width of an image
+     * @param height       the pixel height of an image
+     */
+    @Schema(name = "ChatAttachmentStaged")
+    @Serdeable
+    @ReflectiveAccess
+    record Staged(
+            @NonNull UUID attachmentId,
+            @NonNull String name,
+            @NonNull String contentType,
+            long size,
+            @Nullable Integer width,
+            @Nullable Integer height
+    ) implements EvidenceDTO {
     }
 
     /** The result of an admin delete. */
