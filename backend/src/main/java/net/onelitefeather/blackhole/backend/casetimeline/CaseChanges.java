@@ -100,6 +100,17 @@ public interface CaseChanges {
     Reissued reissueBanId(String punishmentIdentifier, byte[] hash, byte[] encrypted, BanIdReissueReason reason, long now, CaseActor actor);
 
     /**
+     * The same, but only when the punishment is still at {@code expectedGeneration}, so a second replica or a
+     * repeated run that raced this one changes nothing and appends no second event. The system's reissue after a
+     * key rotation uses it.
+     *
+     * @return the event, or {@code null} when the punishment has no Ban ID or has moved past the generation
+     * @throws BanIdCollisionException when another punishment already has this hash
+     */
+    Reissued reissueBanIdAtGeneration(String punishmentIdentifier, int expectedGeneration, byte[] hash, byte[] encrypted,
+                                      BanIdReissueReason reason, long now, CaseActor actor);
+
+    /**
      * Redacts every version of every message the player wrote and appends one {@code message.redacted}
      * per message, in one statement. Staff messages are untouched; a message that was redacted before
      * gets no second event.

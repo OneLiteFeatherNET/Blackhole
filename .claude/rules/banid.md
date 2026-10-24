@@ -20,3 +20,7 @@ paths:
   rejected only if it is an issued Ban ID, because staff name players by legacy short id.
 - Reissue and leak state live in `casetimeline/` (`CaseChanges.reissueBanId|markBanIdLeaked`, one CTE each); the service
   draws the new value with `BanIdService.draw` (hash + ciphertext, never stored by it) and retries a hash collision.
+- Key rotation: `BanIdReissueAll` (started only by `BanIdReissueAllRunner` when `blackhole.banid.reissue-all` / `BLACKHOLE_BANID_REISSUE_ALL` is
+  `true`, once per start, in the background) reissues every Ban ID the current key cannot decrypt, via
+  `CaseChanges.reissueBanIdAtGeneration` (one CTE: generation guard, sessions deleted, `ban_id.reissued` with reason `KEY_ROTATION`). No extra state:
+  a Ban ID that decrypts is current, so it is idempotent and resumable. Counters `blackhole.banid.reissue.reissued|failed`; logs counts only.

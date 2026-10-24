@@ -83,6 +83,12 @@ public final class BanIdTestBed {
         }
 
         @Override
+        public List<Held> heldAfter(String after, int limit) {
+            return this.hashes.keySet().stream().filter(id -> after == null || id.compareTo(after) > 0).sorted().limit(limit)
+                    .map(id -> new Held(id, this.encrypted.get(id), 1)).toList();
+        }
+
+        @Override
         public long countWithoutBanId() {
             return this.known.stream().filter(id -> !this.hashes.containsKey(id)).count();
         }

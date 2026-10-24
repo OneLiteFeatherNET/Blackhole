@@ -106,6 +106,11 @@ blackhole:
   # issues Ban IDs to punishments that have none (right after start, then periodically).
   banid:
     key: ${BLACKHOLE_BANID_KEY:}
+    # Key rotation recovery. After BLACKHOLE_BANID_KEY was replaced, set this to true for ONE start: the
+    # backend then reissues a new Ban ID to every punishment the new key cannot read (batched, idempotent,
+    # resumable, logs counts only), revokes their player sessions and records ban_id.reissued with the
+    # reason KEY_ROTATION. Off by default and never implied by a key change; switch it off afterwards.
+    reissue-all: ${BLACKHOLE_BANID_REISSUE_ALL:false}
   # Discord bot integration. Linking a staff member or player to their Discord account: the person gets
   # a one-time code (panel, or /blackhole discord in game) and types /link <code> in Discord. A code is
   # single use and valid for this long (ISO-8601 duration). No failed-attempt cap in the app (infra

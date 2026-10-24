@@ -490,6 +490,12 @@ class CaseConversationServiceTest {
         }
 
         @Override
+        public Reissued reissueBanIdAtGeneration(String punishmentIdentifier, int expectedGeneration, byte[] hash, byte[] encrypted,
+                                                 BanIdReissueReason reason, long now, CaseActor actor) {
+            return store.reissueBanIdAtGeneration(punishmentIdentifier, expectedGeneration, hash, encrypted, reason, now, actor);
+        }
+
+        @Override
         public List<Erased> erasePlayerMessages(String punishmentIdentifier, String reason, long now, UUID redactedByOid, CaseActor actor) {
             return store.erasePlayerMessages(punishmentIdentifier, reason, now, redactedByOid, actor);
         }
