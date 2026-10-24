@@ -135,6 +135,19 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("DELETE /discord/link/{discordUserId}", D),
             Map.entry("GET /discord/notifications/report/{identifier}", D),
             Map.entry("GET /discord/notifications/appeal/{identifier}", D),
+            // discord tickets: the bot only (staff and the proxy are denied); erasing a participant is an admin act
+            Map.entry("POST /discord/tickets", D),
+            Map.entry("GET /discord/tickets", D),
+            Map.entry("GET /discord/tickets/{id}", D),
+            Map.entry("PATCH /discord/tickets/{id}", D),
+            Map.entry("GET /discord/tickets/{id}/outbox", D),
+            Map.entry("POST /discord/tickets/{id}/messages", D),
+            Map.entry("POST /discord/tickets/{id}/links", D),
+            Map.entry("POST /discord/tickets/{id}/close", D),
+            Map.entry("POST /discord/tickets/{id}/protocol/ensure", D),
+            Map.entry("GET /discord/staff-links", D),
+            Map.entry("POST /discord/leak-check", D),
+            Map.entry("POST /case/{reference}/participants/{participantId}/erase", A),
             Map.entry("GET /admin/discord-link", A),
             Map.entry("DELETE /admin/discord-link/{id}", A),
             // identity
@@ -197,5 +210,24 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
                 .filter(route -> !route.getUriMatchTemplate().toString().startsWith("/public"))
                 .forEach(route -> assertTrue(!Set.of(route.getAnnotationMetadata().stringValues(Secured.class)).contains("PLAYER_SESSION"),
                         route.getUriMatchTemplate() + " must not accept a player session"));
+    }
+
+    @Test
+    void everyDiscordRouteIsForTheBotAloneAndNoOtherRouteAllowsTheBot() {
+        Map<String, Set<String>> discordRoutes = new TreeMap<>();
+        Set<String> botElsewhere = new TreeSet<>();
+        this.context.getBean(Router.class).uriRoutes().filter(route -> !"HEAD".equals(route.getHttpMethodName())).forEach(route -> {
+            String key = route.getHttpMethodName() + " " + route.getUriMatchTemplate();
+            Set<String> roles = Set.of(route.getAnnotationMetadata().stringValues(Secured.class));
+            if (route.getUriMatchTemplate().toString().startsWith("/discord/")) {
+                discordRoutes.put(key, roles);
+            } else if (roles.contains("DISCORD")) {
+                botElsewhere.add(key);
+            }
+        });
+
+        assertTrue(discordRoutes.size() >= 16, "the whole /discord/** facade is registered: " + discordRoutes.keySet());
+        discordRoutes.forEach((route, roles) -> assertEquals(D, roles, route + " allows the bot and nobody else"));
+        assertEquals(Set.of(), botElsewhere, "the bot is allowed nowhere but /discord/**");
     }
 }
