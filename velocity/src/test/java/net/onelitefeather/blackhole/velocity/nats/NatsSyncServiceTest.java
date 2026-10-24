@@ -150,6 +150,16 @@ class NatsSyncServiceTest {
     }
 
     @Test
+    void aRepeatedConnectedReportDoesNotDiscardTheCacheAgain() {
+        service.connected();
+        mirror.load(OWNER, List.of(active("chat", EnforcementKind.MUTE, "p1", null)));
+
+        service.connected();
+
+        assertTrue(mirror.isLoaded(OWNER), "the second report changes nothing while events keep the cache current");
+    }
+
+    @Test
     void aDisconnectDiscardsTheCacheAndStopsTrusting() {
         service.connected();
         mirror.load(OWNER, List.of(active("chat", EnforcementKind.MUTE, "p1", null)));

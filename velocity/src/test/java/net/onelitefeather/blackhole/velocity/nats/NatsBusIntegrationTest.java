@@ -221,7 +221,11 @@ class NatsBusIntegrationTest {
 
         this.server.getDockerClient().restartContainerCmd(this.server.getContainerId()).withTimeout(1).exec();
 
-        assertEquals("disconnected", next(), "the cache must be discarded as soon as the connection drops");
+        String lost;
+        do {
+            lost = next();
+        } while (lost.equals("connected"));
+        assertEquals("disconnected", lost, "the cache must be discarded as soon as the connection drops");
         String after;
         do {
             after = next();

@@ -77,6 +77,10 @@ public final class NatsSyncService implements BusClient.Listener, PunishmentStat
 
     @Override
     public void connected() {
+        if (this.connected) {
+            // The client may report the same transition twice; the cache is already being kept current.
+            return;
+        }
         // Whatever was cached while events were missed is not to be trusted: start from an empty cache.
         this.mirror.clear();
         this.connected = true;
