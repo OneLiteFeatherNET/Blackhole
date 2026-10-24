@@ -56,6 +56,9 @@ set -a; . ~/.config/blackhole/entra-dev.env; set +a
 
 # Run the Velocity plugin against a local Velocity instance
 ./gradlew :velocity:runVelocity
+
+# Helm chart tests (needs helm v4.3.0 and yq v4.53.6; runbook: docs/kubernetes.md)
+deploy/charts/blackhole/tests/run-all.sh
 ```
 
 Test coverage is minimal — only `backend/src/test/java/.../playerresolver/service/PlayerResolverServiceTest.java`

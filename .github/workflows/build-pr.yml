@@ -111,5 +111,9 @@ jobs:
         run: deploy/charts/blackhole/tests/kubeconform.sh
       - name: Test the version script
         run: .github/scripts/chart-version.test.sh
+      - name: Check the Kubernetes runbook against the code
+        # Every environment variable the runbook names exists, relative links resolve, and no key material or
+        # undecided hostname is pasted into the page.
+        run: .github/scripts/check-kubernetes-doc.sh
       - name: The chart packages
         run: helm package deploy/charts/blackhole --destination "${RUNNER_TEMP}/chart-package"
