@@ -161,6 +161,10 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /public/appeal", PLAYER),
             Map.entry("GET /public/conversation", PLAYER),
             Map.entry("GET /public/appeal/protocol", PLAYER),
+            Map.entry("GET /public/appeal/conditions", PLAYER),
+            Map.entry("GET /appeal-conditions", V),
+            Map.entry("GET /appeal-conditions/versions", V),
+            Map.entry("POST /appeal-conditions", A),
             Map.entry("POST /public/messages", PLAYER)
     );
 

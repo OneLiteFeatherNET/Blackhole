@@ -59,3 +59,5 @@ paths:
   `/discord/leak-check` only and never echoed, logged or published; a Discord user id is returned to the bot (ticket DTO, `/discord/staff-links`),
   stored only on `case_participant` and `discord_link`, and appears in no event, log, export or timeline payload. No app-level rate limit: the edge
   limits `POST /discord/tickets` and `POST /discord/leak-check` globally.
+- Appeal conditions (`/appeal-conditions`, `appealconditions/`): `GET` current and `GET /versions` need `VIEWER`, `POST` (a new version, append-only) needs `ADMIN`;
+  `PROXY`, `DISCORD` and player sessions are denied. The saving admin's `oid` is stored as `recorded_by_oid` and never returned.

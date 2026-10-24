@@ -39,7 +39,7 @@ class PublicAppealEligibilityIntegrationTest extends PublicApiTestBase {
                 Callable<Integer> filing = () -> {
                     ready.countDown();
                     go.await();
-                    return playerPost("/public/appeal", token, Map.of("statement", statement)).status();
+                    return playerPost("/public/appeal", token, Map.of("conditionsVersion", 1, "statement", statement)).status();
                 };
                 results.add(pool.submit(filing));
             }

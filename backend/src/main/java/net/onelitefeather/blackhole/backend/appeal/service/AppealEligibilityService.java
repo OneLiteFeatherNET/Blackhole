@@ -5,6 +5,7 @@ import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
 import net.onelitefeather.blackhole.backend.appeal.AppealStatus;
 import net.onelitefeather.blackhole.backend.appeal.EligibilityResult;
 import io.micronaut.context.annotation.Value;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.inject.Singleton;
@@ -36,6 +37,9 @@ import java.util.Optional;
 public class AppealEligibilityService {
 
     public static final int CHECKLIST_VERSION = 2;
+
+    /** Key in the appeal metadata of the appeal-conditions version the player accepted when filing. */
+    public static final String META_CONDITIONS_VERSION = "conditionsVersion";
 
     private final AppealRepository appealRepository;
     private final PunishmentRepository punishmentRepository;
@@ -138,14 +142,28 @@ public class AppealEligibilityService {
      * @return the saved appeal, empty when the punishment does not exist or the player may not file
      */
     public Optional<AppealEntity> fileIfEligible(PunishmentEntity punishment, String statement) {
+        return fileIfEligible(punishment, statement, null);
+    }
+
+    /**
+     * Like {@link #fileIfEligible(PunishmentEntity, String)}, and records the version of the appeal conditions the player accepted
+     * under {@link #META_CONDITIONS_VERSION} in the appeal's metadata: the number only, nothing else about the acceptance.
+     *
+     * @param conditionsVersion the accepted version, {@code null} to record none
+     */
+    public Optional<AppealEntity> fileIfEligible(PunishmentEntity punishment, String statement, @Nullable Integer conditionsVersion) {
         EligibilityResult eligibility = evaluate(punishment, punishment.getOwner());
         if (!eligibility.eligible()) {
             return Optional.empty();
         }
         long now = this.clock.millis();
+        Map<String, Object> metaData = new HashMap<>();
+        if (conditionsVersion != null) {
+            metaData.put(META_CONDITIONS_VERSION, conditionsVersion);
+        }
         AppealEntity saved = this.appealRepository.save(new AppealEntity(
                 punishment, punishment.getOwner(), statement, AppealStatus.ELIGIBLE_PENDING_REVIEW,
-                eligibility.checklistSnapshot(), now, now, new HashMap<>()));
+                eligibility.checklistSnapshot(), now, now, metaData));
         this.caseTimeline.appealFiled(saved);
         return Optional.of(saved);
     }

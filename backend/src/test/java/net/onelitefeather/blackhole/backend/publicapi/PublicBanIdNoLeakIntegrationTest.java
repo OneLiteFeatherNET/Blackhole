@@ -50,7 +50,7 @@ class PublicBanIdNoLeakIntegrationTest extends PublicApiTestBase {
         Raw failedWithBanIdInBrokenBody = call(HttpMethod.POST, "/public/session", null, "{\"banId\": \"" + banId + "\" oops");
         Raw typedWithNoise = login(" #" + banId.toLowerCase());
         String token = (String) login.json().get("token");
-        Raw filed = playerPost("/public/appeal", token, Map.of("statement", "Please review my ban."));
+        Raw filed = playerPost("/public/appeal", token, Map.of("conditionsVersion", 1, "statement", "Please review my ban."));
         Raw rejected = playerPost("/public/messages", token, Map.of("text", "my ban id is #" + banId));
         Raw posted = playerPost("/public/messages", token, Map.of("text", "thank you"));
         Raw facts = playerGet("/public/punishment", token);

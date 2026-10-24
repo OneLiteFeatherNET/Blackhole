@@ -21,12 +21,25 @@ public sealed interface PublicAppealDTO {
     /**
      * Files the appeal of the session's punishment.
      *
-     * @param statement 1 to 2000 characters, plain text, without a UUID, an IP address or a Ban ID
+     * @param statement         1 to 2000 characters, plain text, without a UUID, an IP address or a Ban ID
+     * @param conditionsVersion the version of the appeal conditions the player confirmed; must be the current one, else 409 {@code CONDITIONS_CHANGED}
      */
     @Schema(name = "PublicAppealRequest")
     @Serdeable
     @ReflectiveAccess
-    record FileRequest(@Nullable String statement) implements PublicAppealDTO {
+    record FileRequest(@Nullable String statement, @Nullable Integer conditionsVersion) implements PublicAppealDTO {
+    }
+
+    /**
+     * The appeal conditions a player confirms before filing.
+     *
+     * @param version the number to send back as {@code conditionsVersion}
+     * @param text    plain text; a blank line separates paragraphs and a line starting with "- " is a bullet
+     */
+    @Schema(name = "PublicAppealConditions")
+    @Serdeable
+    @ReflectiveAccess
+    record Conditions(int version, @NonNull String text) implements PublicAppealDTO {
     }
 
     /**

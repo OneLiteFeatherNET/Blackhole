@@ -5,6 +5,7 @@ import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
 import net.onelitefeather.blackhole.backend.appeal.AppealStatus;
 import net.onelitefeather.blackhole.backend.appeal.service.AppealEligibilityService;
+import net.onelitefeather.blackhole.backend.appealconditions.AppealConditionsStore;
 import net.onelitefeather.blackhole.backend.banid.service.BanIdService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.publicapi.PlayerScope;
@@ -43,13 +44,15 @@ public class PublicAppealService {
     private final AppealEligibilityService eligibility;
     private final DomainEventPublisher events;
     private final BanIdService banIds;
+    private final AppealConditionsStore conditions;
     private final Clock clock;
     private final int maxLength;
 
     public PublicAppealService(
             PunishmentRepository punishments, PublicAppealReader appeals, AppealEligibilityService eligibility, DomainEventPublisher events,
-            BanIdService banIds, Clock clock, @Value("${blackhole.public.message.max-length:2000}") int maxLength
+            BanIdService banIds, Clock clock, @Value("${blackhole.public.message.max-length:2000}") int maxLength, AppealConditionsStore conditions
     ) {
+        this.conditions = conditions;
         this.punishments = punishments;
         this.appeals = appeals;
         this.eligibility = eligibility;
@@ -107,9 +110,13 @@ public class PublicAppealService {
         if (refused != null) {
             return refused;
         }
+        Optional<AppealConditionsStore.Version> conditions = this.conditions.current();
+        if (conditions.isEmpty() || request.conditionsVersion() == null || request.conditionsVersion() != conditions.get().version()) {
+            return error("CONDITIONS_CHANGED", PublicErrorKind.CONFLICT);
+        }
         AppealEntity saved;
         try {
-            Optional<AppealEntity> filed = this.eligibility.fileIfEligible(punishment, statement.text());
+            Optional<AppealEntity> filed = this.eligibility.fileIfEligible(punishment, statement.text(), conditions.get().version());
             if (filed.isEmpty()) {
                 return notEligible(summary(punishment, false, history, now));
             }
@@ -123,6 +130,17 @@ public class PublicAppealService {
         }
         publishSubmitted(saved, punishment);
         return status(saved.getStatus(), saved.getCreatedAt(), punishment);
+    }
+
+    /**
+     * The current appeal conditions, for the form that asks the player to confirm them.
+     *
+     * @return the {@link PublicAppealDTO.Conditions}, or a 404 error when none exist
+     */
+    public PublicAppealDTO conditions() {
+        return this.conditions.current()
+                .<PublicAppealDTO>map(version -> new PublicAppealDTO.Conditions(version.version(), version.text()))
+                .orElseGet(() -> error("NOT_FOUND", PublicErrorKind.NOT_FOUND));
     }
 
     /**

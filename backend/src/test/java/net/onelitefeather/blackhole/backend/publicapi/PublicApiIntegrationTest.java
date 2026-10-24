@@ -132,8 +132,8 @@ class PublicApiIntegrationTest extends PublicApiTestBase {
         String punishment = punish("b1".repeat(64), "pub-file");
         String token = sessionFor(punishment);
 
-        Raw filed = playerPost("/public/appeal", token, Map.of("statement", "I was not the one writing in the chat."));
-        Raw second = playerPost("/public/appeal", token, Map.of("statement", "Please look again."));
+        Raw filed = playerPost("/public/appeal", token, Map.of("conditionsVersion", 1, "statement", "I was not the one writing in the chat."));
+        Raw second = playerPost("/public/appeal", token, Map.of("conditionsVersion", 1, "statement", "Please look again."));
 
         assertEquals(200, filed.status(), filed.body());
         assertEquals("ELIGIBLE_PENDING_REVIEW", filed.json().get("status"));
@@ -181,7 +181,7 @@ class PublicApiIntegrationTest extends PublicApiTestBase {
         assertFalse(conversation.body().contains("INTERNAL-NOTE-XYZ"));
         assertTrue(conversation.body().contains("We looked again and the ban stays."), "the team's message reaches the player");
         assertEquals("COOLDOWN", appealState(playerGet("/public/punishment", token)));
-        Raw again = playerPost("/public/appeal", token, Map.of("statement", "Another try"));
+        Raw again = playerPost("/public/appeal", token, Map.of("conditionsVersion", 1, "statement", "Another try"));
         assertEquals(409, again.status());
         assertEquals("NOT_ELIGIBLE", again.json().get("code"));
         assertNotNull(again.json().get("availableFrom"), "the date the cooldown ends");
@@ -296,7 +296,7 @@ class PublicApiIntegrationTest extends PublicApiTestBase {
 
         assertEquals("LIMITED", login.json().get("scope"));
         assertEquals("FORFEITED", appealState(playerGet("/public/punishment", token)));
-        Raw filing = playerPost("/public/appeal", token, Map.of("statement", "I want to appeal"));
+        Raw filing = playerPost("/public/appeal", token, Map.of("conditionsVersion", 1, "statement", "I want to appeal"));
         assertEquals(409, filing.status());
         assertEquals("FORFEITED", filing.json().get("code"));
     }
