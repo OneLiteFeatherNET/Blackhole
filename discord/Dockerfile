@@ -9,7 +9,7 @@
 #     -e DISCORD_TOKEN=<bot token> -e DISCORD_GUILD_ID=<guild id> \
 #     -e DISCORD_TEAM_CHANNEL_ID=<channel id> -e DISCORD_STAFF_ROLE_ID=<role id> \
 #     -e DISCORD_TICKET_CATEGORY_ID=<category id> -e DISCORD_ARCHIVE_CATEGORY_ID=<category id> \
-#     -e RABBITMQ_HOST=rabbitmq -e RABBITMQ_USER=<user> -e RABBITMQ_PASSWORD=<password> \
+#     -e NATS_URL=nats://nats:4222 -e NATS_CREDS_FILE=/run/secrets/bot.creds \
 #     -e BLACKHOLE_BACKEND_URL=http://backend:8080 -e BLACKHOLE_PANEL_URL=https://blackhole.example.org \
 #     -e BLACKHOLE_DISCORD_TENANT_ID=<tenant> -e BLACKHOLE_DISCORD_CLIENT_ID=<bot client id> \
 #     -e BLACKHOLE_DISCORD_CLIENT_SECRET=<secret> -e BLACKHOLE_DISCORD_AUTH_SCOPE=api://<api client id>/.default \

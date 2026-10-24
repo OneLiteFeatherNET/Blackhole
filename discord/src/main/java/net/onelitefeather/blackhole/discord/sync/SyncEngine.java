@@ -33,7 +33,7 @@ import java.util.function.Consumer;
 
 /**
  * The conductor of the ticket channels. It listens to Discord (live messages, edits, deletes, deleted channels), polls the
- * backend on the sync interval, and treats the RabbitMQ events as a hint to poll now. The backend's cursors are the truth:
+ * backend on the sync interval, and treats the NATS events as a hint to poll now. The backend's cursors are the truth:
  * a lost or duplicated event, a restart or an outage changes nothing but the delay.
  *
  * <p>Everything runs on the one {@link Scheduler} thread (events are handed off with {@link Scheduler#execute}), and every

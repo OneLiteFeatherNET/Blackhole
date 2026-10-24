@@ -42,9 +42,9 @@ file.
 
 ## 4. Discord bot on NATS (PR 4: `feat(discord): consume events from nats jetstream`)
 
-- [ ] 4.1 Failing tests first: `BotConfig` (`NATS_URL` required with exit code 2, `NATS_CREDS_FILE` optional, `RABBITMQ_*` ignored, secrets never printed), `Outcome` mapping (done/drop ack, retry `nakWithDelay(10 s)`) with a fake message, consumer config (filters, `max_ack_pending` 5, explicit ack)
-- [ ] 4.2 Replace `RabbitConsumer` by `NatsConsumer` (two durables `blackhole-discord-notify`, `blackhole-discord-case`, jnats reconnect, keeps serving commands while down); `RabbitSettings` becomes `NatsSettings`; update `Main`, `SyncEngine` and `NotificationDispatcher` comments
-- [ ] 4.3 Integration test against the NATS container: a published `report.created` reaches the handler, a retry is redelivered after the delay (injected short delay), the bot's creds cannot publish
+- [x] 4.1 Failing tests first: `BotConfig` (`NATS_URL` required with exit code 2, `NATS_CREDS_FILE` optional, `RABBITMQ_*` ignored, secrets never printed), `Outcome` mapping (done/drop ack, retry `nakWithDelay(10 s)`) with a fake message, consumer config (filters, `max_ack_pending` 5, explicit ack)
+- [x] 4.2 Replace `RabbitConsumer` by `NatsConsumer` (two durables `blackhole-discord-notify`, `blackhole-discord-case`, jnats reconnect, keeps serving commands while down); `RabbitSettings` becomes `NatsSettings`; update `Main`, `SyncEngine` and `NotificationDispatcher` comments
+- [x] 4.3 Integration test against the NATS container: a published `report.created` reaches the handler, a retry is redelivered after the delay (injected short delay), the bot's creds cannot publish
 
 ## 5. Velocity receives changes over NATS (PR 5: `feat(velocity): receive punishment changes over nats`)
 

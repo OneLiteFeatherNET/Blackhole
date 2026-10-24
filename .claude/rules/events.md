@@ -31,15 +31,16 @@ were removed 2026-07-09 to keep the API surface simpler) — external-system int
 need to be designed fresh if it comes back, including SSRF hardening for any caller-controlled
 URL a new design introduces (see CLAUDE.md's cross-cutting conventions).
 
-The Discord bot (`discord` module) declares its own durable queue `blackhole.discord.notify` (7 day TTL) on
-`blackhole.events` for `report.created`, `report.resolved`, `appeal.submitted` and `appeal.resolved`; the
+The Discord bot (`discord` module, plain `jnats`, `NatsConsumer`) creates its own durable pull consumer `blackhole-discord-notify` on the stream
+`BLACKHOLE_EVENTS` (the stream's 7 day max age bounds redelivery; `max_ack_pending` 5, explicit ack, a retry is `nakWithDelay(10 s)`) for
+`report.created`, `report.resolved`, `appeal.submitted` and `appeal.resolved`; the
 events carry only ids and hashes, the bot reads display facts from `GET /discord/notifications/**`. The
 `discord-link.created|removed` events carry kind and subject, never a Discord user id.
 
 Discord ticket events: `discord.ticket_opened|channel_ready|closed|archived|deleted` are published by `TicketService` after the write (in a try/catch) with
 `{ticketId, ticketNo, appealId, punishmentIdentifier, owner (hashed), occurredAt}`: never a Discord user id, a Ban ID, a channel id or text. Nothing
-consumes them yet. The bot's own durable queue for the case events is `blackhole.discord.case` (bound to `case.message_*`, `case.ban_id_*`,
-`case.status_changed` and `appeal.resolved`, a 7 day TTL like `blackhole.discord.notify`): declared by the bot, a *hint* only. The truth is the
+consumes them yet. The bot's own durable consumer for the case events is `blackhole-discord-case` (filtering `case.message_*`, `case.ban_id_*`,
+`case.status_changed`, `appeal.resolved` and the link-removed events, same settings as `blackhole-discord-notify`): created by the bot, a *hint* only. The truth is the
 per-ticket cursor read from `GET /discord/tickets/{id}/outbox`, so a lost, duplicated or reordered broker message changes nothing. Messages written in
 Discord are published as `case.message_added|edited|deleted` too (channel `DISCORD`), once per newly appended event.
 

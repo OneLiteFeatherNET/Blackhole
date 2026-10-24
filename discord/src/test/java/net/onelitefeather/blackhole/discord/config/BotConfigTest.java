@@ -26,9 +26,7 @@ class BotConfigTest {
         env.put("BLACKHOLE_DISCORD_CLIENT_ID", "client-1");
         env.put("BLACKHOLE_DISCORD_CLIENT_SECRET", "client-secret");
         env.put("BLACKHOLE_DISCORD_AUTH_SCOPE", "api://api-1/.default");
-        env.put("RABBITMQ_HOST", "rabbit");
-        env.put("RABBITMQ_USER", "guest");
-        env.put("RABBITMQ_PASSWORD", "rabbit-secret");
+        env.put("NATS_URL", "nats://nats:4222");
         env.put("DISCORD_TICKET_CATEGORY_ID", "444444444444444444");
         env.put("DISCORD_ARCHIVE_CATEGORY_ID", "555555555555555555");
         return env;
@@ -48,7 +46,7 @@ class BotConfigTest {
         assertEquals("http://backend:8080", config.backendUrl(), "backend url");
         assertEquals("https://panel.example.org", config.panelUrl(), "panel url");
         assertEquals(8082, config.healthPort(), "default health port");
-        assertEquals(new BotConfig.RabbitSettings("rabbit", 5672, "guest", "rabbit-secret", "/"), config.rabbit(), "broker with defaults");
+        assertEquals(new BotConfig.NatsSettings("nats://nats:4222", ""), config.nats(), "broker without credentials");
     }
 
     @Test
@@ -57,7 +55,7 @@ class BotConfigTest {
 
         for (String name : List.of("DISCORD_TOKEN", "DISCORD_GUILD_ID", "DISCORD_TEAM_CHANNEL_ID", "DISCORD_STAFF_ROLE_ID",
                 "BLACKHOLE_BACKEND_URL", "BLACKHOLE_PANEL_URL", "BLACKHOLE_DISCORD_CLIENT_ID",
-                "BLACKHOLE_DISCORD_CLIENT_SECRET", "BLACKHOLE_DISCORD_AUTH_SCOPE", "RABBITMQ_HOST", "RABBITMQ_USER", "RABBITMQ_PASSWORD",
+                "BLACKHOLE_DISCORD_CLIENT_SECRET", "BLACKHOLE_DISCORD_AUTH_SCOPE", "NATS_URL",
                 "DISCORD_TICKET_CATEGORY_ID", "DISCORD_ARCHIVE_CATEGORY_ID")) {
             assertTrue(problems.stream().anyMatch(problem -> problem.contains(name)), name + " is named: " + problems);
         }
@@ -102,7 +100,66 @@ class BotConfigTest {
 
         assertFalse(text.contains("bot-token-secret"), "bot token: " + text);
         assertFalse(text.contains("client-secret"), "client secret: " + text);
-        assertFalse(text.contains("rabbit-secret"), "broker password: " + text);
+    }
+
+    @Test
+    void theStringFormHidesCredentialsInTheNatsUrl() throws Exception {
+        Map<String, String> env = complete();
+        env.put("NATS_URL", "nats://user:nats-secret@nats:4222");
+
+        String text = BotConfig.fromEnvironment(env::get).toString();
+
+        assertFalse(text.contains("nats-secret"), "url password: " + text);
+        assertTrue(text.contains("nats:4222"), "the host stays visible: " + text);
+    }
+
+    @Test
+    void theRabbitMqVariablesOfEarlierVersionsAreIgnored() throws Exception {
+        Map<String, String> env = complete();
+        env.put("RABBITMQ_HOST", "rabbit");
+        env.put("RABBITMQ_USER", "guest");
+        env.put("RABBITMQ_PASSWORD", "rabbit-secret");
+
+        BotConfig config = BotConfig.fromEnvironment(env::get);
+
+        assertFalse(config.toString().contains("rabbit"), "no trace of the old broker: " + config);
+    }
+
+    @Test
+    void aMissingNatsUrlIsNamedAndTheCredentialsFileIsOptional() {
+        Map<String, String> env = complete();
+        env.remove("NATS_URL");
+
+        List<String> problems = problems(env);
+
+        assertEquals(List.of("NATS_URL is missing"), problems, "only the URL is required");
+    }
+
+    @Test
+    void aNatsUrlWithAnUnknownSchemeIsRefused() {
+        Map<String, String> env = complete();
+        env.put("NATS_URL", "http://nats:4222");
+
+        assertTrue(problems(env).stream().anyMatch(p -> p.startsWith("NATS_URL")), "scheme");
+    }
+
+    @Test
+    void severalNatsServersAndWebSocketUrlsAreAccepted() throws Exception {
+        Map<String, String> env = complete();
+        env.put("NATS_URL", "nats://a:4222, wss://nats.example.org");
+
+        assertEquals("nats://a:4222, wss://nats.example.org", BotConfig.fromEnvironment(env::get).nats().url());
+    }
+
+    @Test
+    void aCredentialsFileMustBeReadable(@org.junit.jupiter.api.io.TempDir java.nio.file.Path directory) throws Exception {
+        Map<String, String> env = complete();
+        env.put("NATS_CREDS_FILE", directory.resolve("missing.creds").toString());
+        assertTrue(problems(env).stream().anyMatch(p -> p.startsWith("NATS_CREDS_FILE")), "missing file");
+
+        java.nio.file.Path creds = java.nio.file.Files.writeString(directory.resolve("bot.creds"), "x");
+        env.put("NATS_CREDS_FILE", creds.toString());
+        assertEquals(creds.toString(), BotConfig.fromEnvironment(env::get).nats().credsFile(), "readable file");
     }
 
     @Test

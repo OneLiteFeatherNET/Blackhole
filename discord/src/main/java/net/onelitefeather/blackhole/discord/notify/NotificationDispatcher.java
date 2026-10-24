@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Between the broker and the handler: parses a message body and decides what to do with it, so the
- * RabbitMQ adapter stays a thin ack/nack shell and this is tested without a broker.
+ * NATS adapter stays a thin ack/nak shell and this is tested without a broker.
  */
 public final class NotificationDispatcher {
 

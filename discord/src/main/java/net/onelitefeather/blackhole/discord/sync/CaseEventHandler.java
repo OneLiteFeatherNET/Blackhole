@@ -16,7 +16,7 @@ import java.util.Set;
  */
 public final class CaseEventHandler {
 
-    /** The routing keys of the durable queue {@code blackhole.discord.case}. */
+    /** The event types of the durable consumer {@code blackhole-discord-case}. */
     public static final String[] ROUTING_KEYS = {
             "case.message_added", "case.message_edited", "case.message_deleted", "case.message_redacted",
             "case.ban_id_leak_marked", "case.ban_id_reissued", "case.status_changed", "appeal.resolved",

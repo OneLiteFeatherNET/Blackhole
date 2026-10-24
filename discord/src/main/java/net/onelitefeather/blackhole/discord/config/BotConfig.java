@@ -4,6 +4,8 @@ import net.onelitefeather.blackhole.discord.auth.TokenSettings;
 import org.jetbrains.annotations.NotNull;
 
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -20,8 +22,8 @@ import java.util.function.Function;
  * <p>Environment variables: {@code DISCORD_TOKEN}, {@code DISCORD_GUILD_ID},
  * {@code DISCORD_TEAM_CHANNEL_ID}, {@code DISCORD_STAFF_ROLE_ID}, {@code BLACKHOLE_BACKEND_URL},
  * {@code BLACKHOLE_PANEL_URL}, {@code BLACKHOLE_DISCORD_TENANT_ID}, {@code BLACKHOLE_DISCORD_CLIENT_ID},
- * {@code BLACKHOLE_DISCORD_CLIENT_SECRET}, {@code BLACKHOLE_DISCORD_AUTH_SCOPE}, {@code RABBITMQ_HOST},
- * {@code RABBITMQ_USER}, {@code RABBITMQ_PASSWORD}; optional {@code RABBITMQ_PORT} (5672), {@code RABBITMQ_VHOST} (/),
+ * {@code BLACKHOLE_DISCORD_CLIENT_SECRET}, {@code BLACKHOLE_DISCORD_AUTH_SCOPE}, {@code NATS_URL}; optional
+ * {@code NATS_CREDS_FILE} (path of the bot's {@code .creds} file; empty for a server without authentication),
  * {@code BLACKHOLE_DISCORD_TOKEN_URL} (development: a mock token endpoint) and
  * {@code DISCORD_HEALTH_PORT} (default 8082, 0 turns the health endpoint off).</p>
  *
@@ -40,7 +42,7 @@ import java.util.function.Function;
  * @param backendUrl     the backend base URL without a trailing slash
  * @param panelUrl       the admin panel base URL without a trailing slash, for links into the panel
  * @param auth           the backend client credentials
- * @param rabbit         the broker the report and appeal events come from
+ * @param nats           the NATS server the report, appeal and case events come from
  * @param healthPort     the port of the local health endpoint, 0 for none
  * @param tickets        the appeal ticket channels
  * @param leak           which channels are scanned for posted Ban IDs
@@ -53,7 +55,7 @@ public record BotConfig(
         @NotNull String backendUrl,
         @NotNull String panelUrl,
         @NotNull TokenSettings auth,
-        @NotNull RabbitSettings rabbit,
+        @NotNull NatsSettings nats,
         int healthPort,
         @NotNull TicketSettings tickets,
         @NotNull LeakSettings leak
@@ -70,11 +72,8 @@ public record BotConfig(
     public static final String ENV_CLIENT_SECRET = "BLACKHOLE_DISCORD_CLIENT_SECRET";
     public static final String ENV_AUTH_SCOPE = "BLACKHOLE_DISCORD_AUTH_SCOPE";
     public static final String ENV_TOKEN_URL = "BLACKHOLE_DISCORD_TOKEN_URL";
-    public static final String ENV_RABBIT_HOST = "RABBITMQ_HOST";
-    public static final String ENV_RABBIT_PORT = "RABBITMQ_PORT";
-    public static final String ENV_RABBIT_USER = "RABBITMQ_USER";
-    public static final String ENV_RABBIT_PASSWORD = "RABBITMQ_PASSWORD";
-    public static final String ENV_RABBIT_VHOST = "RABBITMQ_VHOST";
+    public static final String ENV_NATS_URL = "NATS_URL";
+    public static final String ENV_NATS_CREDS_FILE = "NATS_CREDS_FILE";
     public static final String ENV_HEALTH_PORT = "DISCORD_HEALTH_PORT";
     public static final String ENV_TICKET_CATEGORY_ID = "DISCORD_TICKET_CATEGORY_ID";
     public static final String ENV_ARCHIVE_CATEGORY_ID = "DISCORD_ARCHIVE_CATEGORY_ID";
@@ -115,18 +114,20 @@ public record BotConfig(
     }
 
     /**
-     * @param host     the RabbitMQ host
-     * @param port     its AMQP port
-     * @param user     the user to connect as
-     * @param password its password (a secret, never printed)
-     * @param vhost    the virtual host
+     * @param url       the server URL(s), comma separated: {@code nats://}, {@code tls://}, {@code ws://} or {@code wss://}; it may
+     *                  carry a user and password, which are never printed
+     * @param credsFile the path of the {@code .creds} file of the bot's NATS user, empty for none
      */
-    public record RabbitSettings(@NotNull String host, int port, @NotNull String user, @NotNull String password, @NotNull String vhost) {
+    public record NatsSettings(@NotNull String url, @NotNull String credsFile) {
+
+        /** The URL(s) with any user and password replaced, for logs and the string form. */
+        public static @NotNull String redact(@NotNull String url) {
+            return url.replaceAll("(?i)((?:nats|tls|ws|wss)://)[^/@\\s,]*@", "$1<redacted>@");
+        }
 
         @Override
         public String toString() {
-            return "RabbitSettings{host=" + this.host + ", port=" + this.port + ", user=" + this.user
-                    + ", password=<redacted>, vhost=" + this.vhost + "}";
+            return "NatsSettings{url=" + redact(this.url) + ", credsFile=" + this.credsFile + "}";
         }
     }
 
@@ -169,23 +170,7 @@ public record BotConfig(
                 problems.add(e.getMessage());
             }
         }
-        String rabbitHost = required(env, ENV_RABBIT_HOST, problems);
-        String rabbitUser = required(env, ENV_RABBIT_USER, problems);
-        String rabbitPassword = required(env, ENV_RABBIT_PASSWORD, problems);
-        int rabbitPort = 5672;
-        String rabbitPortText = value(env, ENV_RABBIT_PORT);
-        if (!rabbitPortText.isEmpty()) {
-            try {
-                rabbitPort = Integer.parseInt(rabbitPortText);
-                if (rabbitPort < 1 || rabbitPort > 65535) {
-                    problems.add(ENV_RABBIT_PORT + " must be between 1 and 65535");
-                }
-            } catch (NumberFormatException e) {
-                problems.add(ENV_RABBIT_PORT + " must be a number");
-            }
-        }
-        String vhost = value(env, ENV_RABBIT_VHOST);
-        RabbitSettings rabbit = new RabbitSettings(rabbitHost, rabbitPort, rabbitUser, rabbitPassword, vhost.isEmpty() ? "/" : vhost);
+        NatsSettings nats = nats(env, problems);
         int healthPort = 8082;
         String port = value(env, ENV_HEALTH_PORT);
         if (!port.isEmpty()) {
@@ -211,7 +196,7 @@ public record BotConfig(
         if (!problems.isEmpty()) {
             throw new ConfigException(problems);
         }
-        return new BotConfig(token, guildId, teamChannelId, staffRoleId, backendUrl, panelUrl, auth, rabbit, healthPort,
+        return new BotConfig(token, guildId, teamChannelId, staffRoleId, backendUrl, panelUrl, auth, nats, healthPort,
                 new TicketSettings(ticketCategory, archiveCategory, appealChannel, deleteAfter, syncInterval, reconcileInterval), leak);
     }
 
@@ -220,7 +205,24 @@ public record BotConfig(
     public String toString() {
         return "BotConfig{discordToken=<redacted>, guildId=" + this.guildId + ", teamChannelId=" + this.teamChannelId
                 + ", staffRoleId=" + this.staffRoleId + ", backendUrl=" + this.backendUrl + ", panelUrl=" + this.panelUrl
-                + ", auth=" + this.auth + ", rabbit=" + this.rabbit + ", healthPort=" + this.healthPort + ", tickets=" + this.tickets + ", leak=" + this.leak + "}";
+                + ", auth=" + this.auth + ", nats=" + this.nats + ", healthPort=" + this.healthPort + ", tickets=" + this.tickets + ", leak=" + this.leak + "}";
+    }
+
+    private static NatsSettings nats(Function<String, String> env, List<String> problems) {
+        String url = required(env, ENV_NATS_URL, problems);
+        if (!url.isEmpty()) {
+            for (String server : url.split("\\s*,\\s*")) {
+                if (!server.matches("(?i)(nats|tls|ws|wss)://\\S+")) {
+                    problems.add(ENV_NATS_URL + " must list nats://, tls://, ws:// or wss:// URLs, separated by commas");
+                    break;
+                }
+            }
+        }
+        String creds = value(env, ENV_NATS_CREDS_FILE);
+        if (!creds.isEmpty() && !Files.isReadable(Path.of(creds))) {
+            problems.add(ENV_NATS_CREDS_FILE + " must be the path of a readable file");
+        }
+        return new NatsSettings(url, creds);
     }
 
     private static LeakSettings leak(Function<String, String> env, List<String> problems) {

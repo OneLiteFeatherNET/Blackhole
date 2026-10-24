@@ -7,7 +7,7 @@
         </encoder>
     </appender>
     <logger name="net.dv8tion" level="WARN"/>
-    <logger name="com.rabbitmq" level="WARN"/>
+    <logger name="io.nats" level="WARN"/>
     <logger name="net.onelitefeather.blackhole.client" level="WARN"/>
     <root level="INFO">
         <appender-ref ref="STDOUT"/>
