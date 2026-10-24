@@ -76,7 +76,8 @@ public final class ClientRulesConfig {
         ClientRulesConfig result = new ClientRulesConfig();
         result.settle = settle;
         result.catalogue = catalogue;
-        result.enabled = override == null || override.isBlank() ? enabled : Boolean.parseBoolean(override.strip());
+        // Both branches are Boolean: a boolean operand would unbox a null `enabled` and throw.
+        result.enabled = override == null || override.isBlank() ? this.enabled : Boolean.valueOf(Boolean.parseBoolean(override.strip()));
         return result;
     }
 }
