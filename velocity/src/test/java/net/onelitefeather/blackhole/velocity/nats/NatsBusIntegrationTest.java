@@ -129,10 +129,23 @@ class NatsBusIntegrationTest {
         }
     }
 
-    private String next() throws InterruptedException {
-        String event = this.events.poll(WAIT_SECONDS, TimeUnit.SECONDS);
-        assertNotNull(event, "no event within " + WAIT_SECONDS + " s");
-        return event;
+    /**
+     * Waits, bounded by {@link #WAIT_SECONDS} in total, until the {@code expected} event is queued. Connection-state
+     * events ({@code connected}, {@code disconnected}) that arrive first are skipped, because the connection may
+     * report its state more than once. Any other event that is not {@code expected} fails the test at once.
+     */
+    private void awaitEvent(String expected) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(WAIT_SECONDS);
+        while (true) {
+            long remaining = deadline - System.nanoTime();
+            String event = remaining > 0 ? this.events.poll(remaining, TimeUnit.NANOSECONDS) : null;
+            assertNotNull(event, "no '" + expected + "' event within " + WAIT_SECONDS + " s");
+            if (event.equals(expected)) {
+                return;
+            }
+            assertTrue(event.equals("connected") || event.equals("disconnected"),
+                    "expected '" + expected + "' but got '" + event + "'");
+        }
     }
 
     /** A raw connection of the proxy's user whose server errors are collected. */
@@ -150,44 +163,46 @@ class NatsBusIntegrationTest {
     @Test
     void aPublishedPunishmentEventReachesTheProxyOverTcp() throws Exception {
         proxy(tcpUrl("velocity"));
-        assertEquals("connected", next(), "the subscriptions are in place before the cache is trusted");
+        // The subscriptions are in place before the cache is trusted.
+        awaitEvent("connected");
 
         publish("blackhole.events.punishment.created", "{\"payload\":{}}");
 
-        assertEquals("blackhole.events.punishment.created {\"payload\":{}}", next());
+        awaitEvent("blackhole.events.punishment.created {\"payload\":{}}");
     }
 
     @Test
     void aPublishedPunishmentEventReachesTheProxyOverTheWebSocketListener() throws Exception {
         proxy(webSocketUrl("velocity"));
-        assertEquals("connected", next());
+        awaitEvent("connected");
 
         publish("blackhole.events.report.created", "{\"payload\":{\"reportIdentifier\":\"r1\"}}");
 
-        assertEquals("blackhole.events.report.created {\"payload\":{\"reportIdentifier\":\"r1\"}}", next());
+        awaitEvent("blackhole.events.report.created {\"payload\":{\"reportIdentifier\":\"r1\"}}");
     }
 
     @Test
     void everySubscribedSubjectGroupIsDelivered() throws Exception {
         proxy(tcpUrl("velocity"));
-        assertEquals("connected", next());
+        awaitEvent("connected");
 
         for (String subject : List.of("blackhole.events.punishment.expired", "blackhole.events.punishment.revoked",
                 "blackhole.events.appeal.resolved", "blackhole.events.section.changed", "blackhole.events.report.feedback")) {
             publish(subject, "{}");
-            assertEquals(subject + " {}", next());
+            awaitEvent(subject + " {}");
         }
     }
 
     @Test
     void anEventOutsideTheSubscriptionsIsNotDelivered() throws Exception {
         proxy(tcpUrl("velocity"));
-        assertEquals("connected", next());
+        awaitEvent("connected");
 
         publish("blackhole.events.case.created", "{\"ignored\":true}");
         publish("blackhole.events.appeal.resolved", "{\"wanted\":true}");
 
-        assertEquals("blackhole.events.appeal.resolved {\"wanted\":true}", next(), "the case event never arrives, the next one does");
+        // The case event would fail this wait as an unexpected message, so the next delivered event must be the appeal.
+        awaitEvent("blackhole.events.appeal.resolved {\"wanted\":true}");
     }
 
     @Test
@@ -217,23 +232,16 @@ class NatsBusIntegrationTest {
     @Test
     void losingTheServerIsReportedAndTheClientReconnectsAndSubscribesAgain() throws Exception {
         proxy(tcpUrl("velocity"));
-        assertEquals("connected", next());
+        awaitEvent("connected");
 
         this.server.getDockerClient().restartContainerCmd(this.server.getContainerId()).withTimeout(1).exec();
 
-        String lost;
-        do {
-            lost = next();
-        } while (lost.equals("connected"));
-        assertEquals("disconnected", lost, "the cache must be discarded as soon as the connection drops");
-        String after;
-        do {
-            after = next();
-        } while (after.equals("disconnected"));
-        assertEquals("connected", after, "trusted again only once resubscribed");
+        // The cache must be discarded as soon as the connection drops, then trusted again only once resubscribed.
+        awaitEvent("disconnected");
+        awaitEvent("connected");
 
         publish("blackhole.events.punishment.created", "{\"after\":\"restart\"}");
-        assertEquals("blackhole.events.punishment.created {\"after\":\"restart\"}", next(), "the subscriptions survived the restart");
+        awaitEvent("blackhole.events.punishment.created {\"after\":\"restart\"}");
     }
 
     @Test
@@ -246,10 +254,7 @@ class NatsBusIntegrationTest {
 
         this.server.getDockerClient().startContainerCmd(this.server.getContainerId()).exec();
 
-        String event;
-        do {
-            event = next();
-        } while (event.equals("disconnected"));
-        assertEquals("connected", event, "failed attempts only ever report a disconnect, the cache stays untrusted");
+        // Failed attempts only ever report a disconnect, the cache stays untrusted until the connection is up.
+        awaitEvent("connected");
     }
 }
