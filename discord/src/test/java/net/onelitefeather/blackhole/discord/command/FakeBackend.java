@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** A backend the test scripts; each test builds its own, so nothing is shared. */
-final class FakeBackend implements BackendGateway {
+final class FakeBackend extends net.onelitefeather.blackhole.discord.testing.UnsupportedBackend {
 
     LinkResult linkResult = new LinkResult.InvalidCode();
     WhoamiResult whoamiResult = new WhoamiResult.Found(List.of());

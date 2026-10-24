@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /** An in-memory Discord: channels hold the messages the bot posted. Each test builds its own. */
-final class FakeDiscord implements DiscordGateway {
+final class FakeDiscord extends net.onelitefeather.blackhole.discord.testing.UnsupportedDiscord {
 
     final Map<MessageRef, MessageSpec> messages = new LinkedHashMap<>();
     final List<String> calls = new ArrayList<>();

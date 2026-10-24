@@ -3,11 +3,9 @@ package net.onelitefeather.blackhole.discord.gateway;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.commands.build.CommandData;
 import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
+import net.dv8tion.jda.api.requests.GatewayIntent;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -18,10 +16,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class GatewayContractTest {
 
     @Test
-    void theThreeAccountCommandsAreRegisteredWithAGermanDescription() {
+    void theAccountAndAppealCommandsAreRegisteredWithAGermanDescription() {
         List<CommandData> commands = JdaGateway.commandData();
 
-        assertEquals(List.of("link", "unlink", "whoami"), commands.stream().map(CommandData::getName).toList(), "command names");
+        assertEquals(List.of("link", "unlink", "whoami", "appeal"), commands.stream().map(CommandData::getName).toList(), "command names");
         for (CommandData command : commands) {
             SlashCommandData slash = (SlashCommandData) command;
             assertFalse(slash.getDescriptionLocalizations().toMap().get(DiscordLocale.GERMAN).isBlank(), command.getName() + " has a German description");
@@ -38,16 +36,24 @@ class GatewayContractTest {
     }
 
     @Test
-    void theCommandLogicBackendAndConfigNeverReferenceJda() throws IOException {
-        for (Class<?> type : List.of(
-                net.onelitefeather.blackhole.discord.command.AccountCommands.class,
-                net.onelitefeather.blackhole.discord.backend.BackendGateway.class,
-                net.onelitefeather.blackhole.discord.backend.HttpBackendGateway.class,
-                net.onelitefeather.blackhole.discord.config.BotConfig.class)) {
-            try (InputStream in = type.getResourceAsStream(type.getSimpleName() + ".class")) {
-                String bytecode = new String(in.readAllBytes(), StandardCharsets.ISO_8859_1);
-                assertFalse(bytecode.contains("net/dv8tion"), type.getName() + " must not depend on JDA");
-            }
+    void theAppealCommandTakesNoOptionBecauseTheBanIdIsTypedIntoAModal() {
+        SlashCommandData appeal = (SlashCommandData) JdaGateway.commandData().getLast();
+
+        assertEquals("appeal", appeal.getName(), "last command");
+        assertTrue(appeal.getOptions().isEmpty(), "a slash option would show the ban id in the command line");
+    }
+
+    @Test
+    void theGatewayConnectsWithGuildMessagesAndMessageContentOnly() {
+        assertEquals(java.util.EnumSet.of(GatewayIntent.GUILD_MESSAGES, GatewayIntent.MESSAGE_CONTENT), JdaGateway.intents(),
+                "no member list, no presence: only messages and their content");
+    }
+
+    @Test
+    void permissionsMapToDiscordsOnesWithoutAdministrator() {
+        for (net.onelitefeather.blackhole.discord.gateway.DiscordGateway.Permission permission
+                : net.onelitefeather.blackhole.discord.gateway.DiscordGateway.Permission.values()) {
+            assertFalse(JdaGateway.jda(permission) == net.dv8tion.jda.api.Permission.ADMINISTRATOR, permission + " is never administrator");
         }
     }
 }

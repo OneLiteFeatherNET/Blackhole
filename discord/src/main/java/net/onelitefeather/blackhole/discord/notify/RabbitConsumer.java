@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /**
  * The RabbitMQ adapter: consumes the report and appeal events from a durable queue bound to the
@@ -34,13 +35,30 @@ public final class RabbitConsumer implements AutoCloseable {
     private static final long QUEUE_TTL_MILLIS = Duration.ofDays(7).toMillis();
 
     private final RabbitSettings settings;
-    private final NotificationDispatcher dispatcher;
+    private final String queue;
+    private final String[] routingKeys;
+    private final Function<byte[], NotificationHandler.Outcome> handler;
     private final ScheduledExecutorService scheduler;
     private volatile Connection connection;
 
+    /** The report and appeal notifications of the team channel. */
     public RabbitConsumer(@NotNull RabbitSettings settings, @NotNull NotificationDispatcher dispatcher, @NotNull ScheduledExecutorService scheduler) {
+        this(settings, QUEUE, NotificationEvent.ROUTING_KEYS, dispatcher::onMessage, scheduler);
+    }
+
+    /**
+     * Any durable queue bound to the topic exchange.
+     *
+     * @param queue       the queue to declare and consume
+     * @param routingKeys what to bind it to
+     * @param handler     decides what happens with a body: done, retry later or drop
+     */
+    public RabbitConsumer(@NotNull RabbitSettings settings, @NotNull String queue, @NotNull String[] routingKeys,
+                          @NotNull Function<byte[], NotificationHandler.Outcome> handler, @NotNull ScheduledExecutorService scheduler) {
         this.settings = settings;
-        this.dispatcher = dispatcher;
+        this.queue = queue;
+        this.routingKeys = routingKeys.clone();
+        this.handler = handler;
         this.scheduler = scheduler;
     }
 
@@ -73,13 +91,13 @@ public final class RabbitConsumer implements AutoCloseable {
             Channel channel = opened.createChannel();
             // Declarations are idempotent and match the backend's exchange.
             channel.exchangeDeclare(EXCHANGE, BuiltinExchangeType.TOPIC, true);
-            channel.queueDeclare(QUEUE, true, false, false, Map.of("x-message-ttl", QUEUE_TTL_MILLIS));
-            for (String key : NotificationEvent.ROUTING_KEYS) {
-                channel.queueBind(QUEUE, EXCHANGE, key);
+            channel.queueDeclare(this.queue, true, false, false, Map.of("x-message-ttl", QUEUE_TTL_MILLIS));
+            for (String key : this.routingKeys) {
+                channel.queueBind(this.queue, EXCHANGE, key);
             }
             channel.basicQos(5);
             DeliverCallback deliver = (tag, delivery) -> {
-                NotificationHandler.Outcome outcome = this.dispatcher.onMessage(delivery.getBody());
+                NotificationHandler.Outcome outcome = this.handler.apply(delivery.getBody());
                 long deliveryTag = delivery.getEnvelope().getDeliveryTag();
                 if (outcome == NotificationHandler.Outcome.RETRY) {
                     this.scheduler.schedule(() -> settle(channel, deliveryTag, true), RETRY_DELAY.toSeconds(), TimeUnit.SECONDS);
@@ -87,13 +105,13 @@ public final class RabbitConsumer implements AutoCloseable {
                     settle(channel, deliveryTag, false);
                 }
             };
-            channel.basicConsume(QUEUE, false, deliver, tag -> LOGGER.warn("RabbitMQ cancelled the consumer {}", tag));
+            channel.basicConsume(this.queue, false, deliver, tag -> LOGGER.warn("RabbitMQ cancelled the consumer {}", tag));
         } catch (Exception e) {
             opened.abort();
             throw e;
         }
         this.connection = opened;
-        LOGGER.info("Consuming report and appeal events from queue {}", QUEUE);
+        LOGGER.info("Consuming events from queue {}", this.queue);
     }
 
     private static void settle(Channel channel, long deliveryTag, boolean requeue) {
