@@ -26,8 +26,12 @@ public final class ImageSanitizer {
     public sealed interface Result {
     }
 
-    /** The image was re-encoded to {@code output}. */
-    public record Sanitized(Path output) implements Result {
+    /** The image was re-encoded to {@code output}; {@code width} and {@code height} are its size in pixels. */
+    public record Sanitized(Path output, int width, int height) implements Result {
+
+        public Sanitized(Path output) {
+            this(output, 0, 0);
+        }
     }
 
     /** The image has more pixels than allowed; nothing was decoded. */
@@ -59,7 +63,7 @@ public final class ImageSanitizer {
                 }
                 BufferedImage image = reader.read(0);
                 write(image, output, format);
-                return new Sanitized(output);
+                return new Sanitized(output, image.getWidth(), image.getHeight());
             } catch (IOException | RuntimeException e) {
                 return new Undecodable(String.valueOf(e.getMessage()));
             } finally {

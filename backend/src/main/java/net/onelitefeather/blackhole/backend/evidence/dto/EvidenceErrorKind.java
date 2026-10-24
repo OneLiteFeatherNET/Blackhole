@@ -29,6 +29,15 @@ public enum EvidenceErrorKind {
     /** The content is understood but must not be stored: personal data in a payload, malware (422). */
     UNPROCESSABLE(HttpStatus.UNPROCESSABLE_ENTITY),
 
+    /** The chat upload was flagged by the virus scanner (422); the signature name is never shown. */
+    FILE_FLAGGED(HttpStatus.UNPROCESSABLE_ENTITY),
+
+    /** The chat upload is a PDF that names active content or encryption (422). */
+    FILE_ACTIVE_CONTENT(HttpStatus.UNPROCESSABLE_ENTITY),
+
+    /** The appeal or case already holds as many chat files as the quota allows, or as many are staged (409). */
+    QUOTA(HttpStatus.CONFLICT),
+
     /** A dependency evidence needs (the virus scanner, the file store) is not available (503). */
     UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE);
 
