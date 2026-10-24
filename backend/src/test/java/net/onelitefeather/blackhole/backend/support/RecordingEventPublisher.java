@@ -2,12 +2,14 @@ package net.onelitefeather.blackhole.backend.support;
 
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 /**
- * A {@link DomainEventPublisher} that records events instead of sending them to RabbitMQ.
+ * A {@link DomainEventPublisher} over an in-memory {@link RecordingEventTransport}: it records
+ * events instead of sending them to a broker.
  */
 public class RecordingEventPublisher extends DomainEventPublisher {
 
@@ -15,18 +17,19 @@ public class RecordingEventPublisher extends DomainEventPublisher {
     public record Event(String type, Map<String, Object> payload) {
     }
 
-    private final List<Event> events = new ArrayList<>();
+    private final List<Event> events;
 
     public RecordingEventPublisher() {
-        super(null);
+        this(new ArrayList<>());
     }
 
-    @Override
-    public void publish(String eventType, Map<String, Object> payload) {
-        this.events.add(new Event(eventType, payload));
+    private RecordingEventPublisher(List<Event> events) {
+        super(new RecordingEventTransport(published ->
+                events.add(new Event(published.eventType(), published.event().payload()))), Clock.systemUTC());
+        this.events = events;
     }
 
-    /** All events published so far, in order. */
+    /** All events published so far, in order (mutable, so a test can clear it). */
     public List<Event> events() {
         return this.events;
     }

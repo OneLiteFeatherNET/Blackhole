@@ -3,8 +3,8 @@ package net.onelitefeather.blackhole.backend.events;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import reactor.core.publisher.Flux;
 
+import java.time.Clock;
 import java.util.Map;
 import java.util.UUID;
 
@@ -19,33 +19,37 @@ public class DomainEventPublisher {
     private static final int CURRENT_PAYLOAD_VERSION = 1;
     private static final Logger LOGGER = LoggerFactory.getLogger(DomainEventPublisher.class);
 
-    private final DomainEventRabbitPublisher rabbitPublisher;
+    private final EventTransport transport;
+    private final Clock clock;
 
-    public DomainEventPublisher(DomainEventRabbitPublisher rabbitPublisher) {
-        this.rabbitPublisher = rabbitPublisher;
+    public DomainEventPublisher(EventTransport transport, Clock clock) {
+        this.transport = transport;
+        this.clock = clock;
     }
 
     /**
-     * Publishes a domain event. The routing key is the event type itself (e.g.
-     * {@code punishment.created}), so consumers can bind with wildcards (e.g. {@code punishment.*}).
+     * Publishes a domain event. The event type is the routing identity (e.g.
+     * {@code punishment.created}), so consumers can filter by type or by a prefix of it.
      *
-     * @param eventType the event type / routing key
+     * @param eventType the event type
      * @param payload   event-specific data — hashed owner/IDs only, never raw player UUIDs
      */
     public void publish(String eventType, Map<String, Object> payload) {
         DomainEvent event = new DomainEvent(
                 UUID.randomUUID().toString(),
                 eventType,
-                System.currentTimeMillis(),
+                this.clock.millis(),
                 CURRENT_PAYLOAD_VERSION,
                 payload
         );
         try {
-            // Fire and forget: subscribing never blocks the calling thread (which may be a Netty
-            // event-loop thread); failures surface asynchronously through the error callback.
-            Flux.from(this.rabbitPublisher.publish(eventType, event)).subscribe(
-                    ignored -> { },
-                    e -> LOGGER.error("Failed to publish domain event {}: {}", eventType, e.getMessage()));
+            // Fire and forget: the transport never blocks the calling thread (which may be a Netty
+            // event-loop thread); failures surface asynchronously through the stage.
+            this.transport.publish(eventType, event).whenComplete((ignored, e) -> {
+                if (e != null) {
+                    LOGGER.error("Failed to publish domain event {}: {}", eventType, e.getMessage());
+                }
+            });
         } catch (RuntimeException e) {
             // The event bus is an additive side channel; a broker hiccup must never fail the
             // primary write path that triggered it.

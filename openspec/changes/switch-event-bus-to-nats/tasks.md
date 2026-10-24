@@ -23,9 +23,9 @@ file.
 
 ## 1. Transport port (PR 1: `refactor(events): put the event bus behind a transport port`)
 
-- [ ] 1.1 Failing tests first: `DomainEventPublisher` over an in-memory `EventTransport` (envelope fields, failure logged and not thrown, never blocks), `RedisSyncConsumer` over a fake subscription (handler error logged and message acked); verify they fail to compile/run before the port exists
-- [ ] 1.2 Add `EventTransport`, `EventSubscription` and a subscription factory; move the RabbitMQ code into `RabbitEventTransport`/`RabbitEventSubscription` adapters; behaviour unchanged; verify the whole backend unit suite and `DomainEventDeliveryIntegrationTest` stay green
-- [ ] 1.3 `RecordingEventPublisher` drops `super(null)` and builds on the port; verify all existing tests that use it pass unchanged
+- [x] 1.1 Failing tests first: `DomainEventPublisher` over an in-memory `EventTransport` (envelope fields, failure logged and not thrown, never blocks), `RedisSyncConsumer` over a fake subscription (handler error logged and message acked); verify they fail to compile/run before the port exists
+- [x] 1.2 Add `EventTransport`, `EventSubscription` and a subscription factory; move the RabbitMQ code into `RabbitEventTransport`/`RabbitEventSubscription` adapters; behaviour unchanged; verify the whole backend unit suite and `DomainEventDeliveryIntegrationTest` stay green
+- [x] 1.3 `RecordingEventPublisher` drops `super(null)` and builds on the port; verify all existing tests that use it pass unchanged
 
 ## 2. Local NATS (PR 2: `build(docker): add nats with jetstream to the local compose stack`)
 

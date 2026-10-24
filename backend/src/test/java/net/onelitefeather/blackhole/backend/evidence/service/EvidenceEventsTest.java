@@ -31,7 +31,7 @@ class EvidenceEventsTest {
     private static final class FailingPublisher extends DomainEventPublisher {
 
         FailingPublisher() {
-            super(null);
+            super(null, java.time.Clock.systemUTC());
         }
 
         @Override

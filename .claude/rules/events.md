@@ -32,8 +32,14 @@ consumes them yet. The bot's own durable queue for the case events is `blackhole
 per-ticket cursor read from `GET /discord/tickets/{id}/outbox`, so a lost, duplicated or reordered broker message changes nothing. Messages written in
 Discord are published as `case.message_added|edited|deleted` too (channel `DISCORD`), once per newly appended event.
 
+The domain code never touches a broker client: `DomainEventPublisher` depends on the `EventTransport` port
+(`publish` returns a `CompletionStage<Void>`), and consumers start through `EventSubscriptionFactory`
+(`EventConsumer` names a durable consumer and its event types, see `EventConsumers`). The RabbitMQ classes
+are the adapters (`RabbitEventTransport`, `RabbitEventSubscriptionFactory`). Tests use
+`RecordingEventTransport` / `FakeEventSubscriptions`, no broker.
+
 Publishing must stay non-blocking: `DomainEventRabbitPublisher.publish` returns a `Publisher<Void>`
-and `DomainEventPublisher` subscribes fire-and-forget. A `void` `@RabbitClient` method blocks on a
+and `RabbitEventTransport` adapts it; `DomainEventPublisher` attaches a failure logger fire-and-forget. A `void` `@RabbitClient` method blocks on a
 Mono, which Reactor refuses on Netty event-loop threads (where controllers and services run).
 
 ## Evidence events
