@@ -41,7 +41,21 @@ import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.config.BlackholeApiClients;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.config.ChatCaptureConfig;
+import net.onelitefeather.blackhole.velocity.clientrule.BackendRuleSource;
+import net.onelitefeather.blackhole.velocity.clientrule.ClientRuleBackend;
+import net.onelitefeather.blackhole.velocity.clientrule.ClientRuleCatalogueReporter;
+import net.onelitefeather.blackhole.velocity.clientrule.ClientRuleCoverage;
+import net.onelitefeather.blackhole.velocity.clientrule.ClientRuleEnforcer;
+import net.onelitefeather.blackhole.velocity.clientrule.ClientRuleNotifier;
+import net.onelitefeather.blackhole.velocity.clientrule.FingerprintSubmitter;
+import net.onelitefeather.blackhole.velocity.clientrule.HttpClientRuleBackend;
+import net.onelitefeather.blackhole.velocity.clientrule.RuleEngine;
+import net.onelitefeather.blackhole.velocity.clientrule.RuleRegistry;
+import net.onelitefeather.blackhole.velocity.clientrule.TraitCollector;
+import net.onelitefeather.blackhole.velocity.clientrule.TraitTally;
+import net.onelitefeather.blackhole.velocity.config.ClientRulesConfig;
 import net.onelitefeather.blackhole.velocity.config.CloudNetConfig;
+import net.onelitefeather.blackhole.velocity.listener.ClientRuleListener;
 import net.onelitefeather.blackhole.velocity.enforcement.CachedBanIds;
 import net.onelitefeather.blackhole.velocity.evidence.CachedEvidenceCounts;
 import net.onelitefeather.blackhole.velocity.evidence.ChatBuffer;
@@ -84,7 +98,9 @@ import org.slf4j.Logger;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
@@ -165,6 +181,13 @@ public class BlackholeVelocity {
         this.redisSyncService.onReportFeedback(owner -> reportFeedback.poked(owner, this.server.getAllPlayers()));
 
         this.redisSyncService.onPunishmentSync(syncHandler::accept);
+        // Registers its listener on the Redis service, so the notifier must exist before connect().
+        ClientRulesConfig clientRulesConfig = this.config.getClientRules().withEnvironment(System::getenv);
+        ClientRuleBackend ruleBackend = new HttpClientRuleBackend(this.client);
+        RuleRegistry ruleRegistry = new RuleRegistry(new BackendRuleSource(this.redisSyncService, ruleBackend));
+        ClientRuleNotifier ruleNotifier = new ClientRuleNotifier(this.server::getAllPlayers, this.redisSyncService);
+        // The reload calls the backend, so it must not run on the Redis callback thread.
+        this.redisSyncService.onClientRuleChanged(changed -> CompletableFuture.runAsync(ruleRegistry::reload));
         // The reload calls the backend, so it must not run on the Redis callback thread.
         this.redisSyncService.onSectionChanged(changed -> CompletableFuture.runAsync(sections::reload));
         this.redisSyncService.connect();
@@ -175,6 +198,16 @@ public class BlackholeVelocity {
         }
 
         startCatalogueReporter(cloudNet, cloudNetConfig);
+        TraitCollector traitCollector = new TraitCollector();
+        ClientRuleListener clientRuleListener = null;
+        if (clientRulesConfig.isEnabled()) {
+            ruleRegistry.reload();
+            clientRuleListener = createClientRules(clientRulesConfig, ruleBackend, ruleRegistry, ruleNotifier, traitCollector,
+                    new ClientRuleCoverage(sections, servers), cloudNet, cloudNetConfig, clock);
+            this.logger.info("Client rules are enabled: {} rule(s) loaded", ruleRegistry.rules().size());
+        } else {
+            this.logger.info("Client rules are switched off on this proxy");
+        }
 
         Injector childInjector = this.injector.createChildInjector(
                 new BlackholeClientModule(this.client, this.config, this.redisSyncService, sections, mirror, state,
@@ -214,6 +247,41 @@ public class BlackholeVelocity {
         server.getEventManager().register(this, childInjector.getInstance(PlayerClientBrandListener.class));
         server.getEventManager().register(this, childInjector.getInstance(ServerConnectListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerDisconnectListener.class));
+        if (clientRuleListener != null) {
+            server.getEventManager().register(this, clientRuleListener);
+        }
+    }
+
+    /** Builds the client rule parts and starts the catalogue report; the returned listener is registered by the caller. */
+    private ClientRuleListener createClientRules(ClientRulesConfig rulesConfig, ClientRuleBackend ruleBackend, RuleRegistry ruleRegistry,
+                                                 ClientRuleNotifier notifier, TraitCollector traitCollector, ClientRuleCoverage coverage,
+                                                 CloudNetView cloudNet, CloudNetConfig cloudNetConfig, Clock clock) {
+        CatalogueReporter.Timer timer = timer();
+        Executor async = CompletableFuture::runAsync;
+        ClientRuleEnforcer enforcer = new ClientRuleEnforcer(traitCollector, ruleRegistry, new RuleEngine(coverage), ruleBackend, notifier, async);
+        TraitTally tally = new TraitTally(clock, Duration.ofHours(24));
+        FingerprintSubmitter fingerprints = new FingerprintSubmitter(traitCollector, ruleBackend, timer, clock, rulesConfig.getSettle(), async);
+        String proxyId = cloudNetConfig.getProxyId().or(cloudNet::ownName).orElse("velocity").replaceAll("[^A-Za-z0-9_.-]", "-");
+        ClientRuleCatalogueReporter catalogue = new ClientRuleCatalogueReporter(tally, Set::of, ruleBackend, timer,
+                proxyId.length() > 64 ? proxyId.substring(0, 64) : proxyId, rulesConfig.getCatalogue().getMinPlayers(),
+                rulesConfig.getSettle(), rulesConfig.getCatalogue().getHeartbeat());
+        catalogue.start();
+        return new ClientRuleListener(traitCollector, enforcer, tally, fingerprints, catalogue);
+    }
+
+    /** Velocity's scheduler as the timer of the periodic reporters. */
+    private CatalogueReporter.Timer timer() {
+        return new CatalogueReporter.Timer() {
+            @Override
+            public void after(Duration delay, Runnable task) {
+                server.getScheduler().buildTask(BlackholeVelocity.this, task).delay(delay).schedule();
+            }
+
+            @Override
+            public void every(Duration period, Runnable task) {
+                server.getScheduler().buildTask(BlackholeVelocity.this, task).delay(period).repeat(period).schedule();
+            }
+        };
     }
 
     /** Reports CloudNet's tasks, groups and services to the backend for the section editor; skipped without CloudNet. */

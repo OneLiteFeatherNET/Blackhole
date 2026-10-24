@@ -18,6 +18,15 @@ public final class RedisTopology {
      */
     static final String REPORT_CREATED_CHANNEL = "blackhole.report.created";
 
+    /** Announces that the client rules changed; the message is the changed rule key. Written by the backend. */
+    static final String CLIENT_RULE_CHANGED_CHANNEL = "blackhole.clientrule.changed";
+
+    /**
+     * Announces a client rule hit to the staff of every proxy. Written by the proxy that saw the hit (the notice carries the
+     * player's name, which the backend never gets) and never stored.
+     */
+    static final String CLIENT_RULE_HIT_CHANNEL = "blackhole.clientrule.hit";
+
     /** Announces that a reporter has report feedback waiting; the message is the reporter's owner hash. */
     static final String REPORT_FEEDBACK_CHANNEL = "blackhole.report.feedback";
 
