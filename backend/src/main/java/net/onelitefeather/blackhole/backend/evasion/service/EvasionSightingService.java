@@ -27,14 +27,18 @@ public class EvasionSightingService {
     static final int MAX_LINKED_OWNERS = 50;
     private static final Pattern OWNER = Pattern.compile("^[a-fA-F0-9]{128}$");
     private static final String REASON_SHARED_IP = "SHARED_IP";
+    private static final String REASON_SHARED_CLIENT = "SHARED_CLIENT";
 
     private final IpCorrelationTokenRepository repository;
     private final IpCorrelationService correlation;
+    private final ClientFingerprintService fingerprints;
     private final Clock clock;
 
-    public EvasionSightingService(IpCorrelationTokenRepository repository, IpCorrelationService correlation, Clock clock) {
+    public EvasionSightingService(IpCorrelationTokenRepository repository, IpCorrelationService correlation,
+                                  ClientFingerprintService fingerprints, Clock clock) {
         this.repository = repository;
         this.correlation = correlation;
+        this.fingerprints = fingerprints;
         this.clock = clock;
     }
 
@@ -42,13 +46,36 @@ public class EvasionSightingService {
         if (owner == null || !OWNER.matcher(owner).matches()) {
             return new EvasionSightingDTO.Error("owner must be a sha-512 hash", ErrorKind.VALIDATION);
         }
-        Duration window = this.correlation.detectionWindow();
-        int windowDays = (int) window.toDays();
-        if (!this.correlation.isConfigured()) {
-            return new EvasionSightingDTO.Response(false, windowDays, List.of(), false);
-        }
+        int windowDays = (int) this.correlation.detectionWindow().toDays();
+        int clientWindowDays = (int) this.fingerprints.window().toDays();
+        boolean ipEnabled = this.correlation.isConfigured();
+        boolean clientEnabled = this.fingerprints.isEnabled();
 
-        long windowStart = this.clock.millis() - window.toMillis();
+        Map<String, long[]> ip = ipEnabled ? ipLinks(owner) : Map.of();
+        Map<String, ClientFingerprintService.Link> client = new LinkedHashMap<>();
+        this.fingerprints.linksOf(owner).forEach(link -> client.put(link.owner(), link));
+
+        Set<String> owners = new java.util.LinkedHashSet<>(ip.keySet());
+        owners.addAll(client.keySet());
+        List<EvasionSightingDTO.LinkedOwner> linked = owners.stream().map(other -> {
+            long[] byIp = ip.get(other);
+            ClientFingerprintService.Link byClient = client.get(other);
+            long first = Math.min(byIp == null ? Long.MAX_VALUE : byIp[0], byClient == null ? Long.MAX_VALUE : byClient.firstSeen());
+            long last = Math.max(byIp == null ? Long.MIN_VALUE : byIp[1], byClient == null ? Long.MIN_VALUE : byClient.lastSeen());
+            EvasionSightingDTO.Via via = byIp != null && byClient != null ? EvasionSightingDTO.Via.BOTH
+                    : byIp != null ? EvasionSightingDTO.Via.IP : EvasionSightingDTO.Via.CLIENT;
+            return new EvasionSightingDTO.LinkedOwner(other, byIp != null ? REASON_SHARED_IP : REASON_SHARED_CLIENT,
+                    byIp != null ? (int) byIp[2] : 0, first, last, via);
+        }).sorted(Comparator.comparingLong(EvasionSightingDTO.LinkedOwner::lastSeen).reversed()
+                .thenComparing(EvasionSightingDTO.LinkedOwner::owner)).toList();
+        boolean truncated = linked.size() > MAX_LINKED_OWNERS;
+        return new EvasionSightingDTO.Response(ipEnabled, windowDays,
+                truncated ? linked.subList(0, MAX_LINKED_OWNERS) : linked, truncated, clientEnabled, clientWindowDays);
+    }
+
+    /** Other owners on a shared hashed address: owner to {first seen, last seen, shared addresses}. */
+    private Map<String, long[]> ipLinks(String owner) {
+        long windowStart = this.clock.millis() - this.correlation.detectionWindow().toMillis();
         Set<String> tokens = new HashSet<>();
         for (IpCorrelationTokenEntity own : this.repository.findByOwnerHash(owner)) {
             if (own.getLastSeen() >= windowStart) {
@@ -56,9 +83,8 @@ public class EvasionSightingService {
             }
         }
         if (tokens.isEmpty()) {
-            return new EvasionSightingDTO.Response(true, windowDays, List.of(), false);
+            return Map.of();
         }
-
         Map<String, Set<String>> addressesByOwner = new LinkedHashMap<>();
         Map<String, long[]> seenByOwner = new LinkedHashMap<>();
         for (IpCorrelationTokenEntity other : this.repository.findByTokenInAndLastSeenGreaterThanEquals(tokens, windowStart)) {
@@ -66,18 +92,10 @@ public class EvasionSightingService {
                 continue;
             }
             addressesByOwner.computeIfAbsent(other.getOwnerHash(), key -> new HashSet<>()).add(other.getToken());
-            seenByOwner.merge(other.getOwnerHash(), new long[]{other.getFirstSeen(), other.getLastSeen()},
-                    (a, b) -> new long[]{Math.min(a[0], b[0]), Math.max(a[1], b[1])});
+            seenByOwner.merge(other.getOwnerHash(), new long[]{other.getFirstSeen(), other.getLastSeen(), 0},
+                    (a, b) -> new long[]{Math.min(a[0], b[0]), Math.max(a[1], b[1]), 0});
         }
-
-        List<EvasionSightingDTO.LinkedOwner> linked = seenByOwner.entrySet().stream()
-                .map(entry -> new EvasionSightingDTO.LinkedOwner(entry.getKey(), REASON_SHARED_IP,
-                        addressesByOwner.get(entry.getKey()).size(), entry.getValue()[0], entry.getValue()[1]))
-                .sorted(Comparator.comparingLong(EvasionSightingDTO.LinkedOwner::lastSeen).reversed()
-                        .thenComparing(EvasionSightingDTO.LinkedOwner::owner))
-                .toList();
-        boolean truncated = linked.size() > MAX_LINKED_OWNERS;
-        return new EvasionSightingDTO.Response(true, windowDays,
-                truncated ? linked.subList(0, MAX_LINKED_OWNERS) : linked, truncated);
+        seenByOwner.forEach((other, seen) -> seen[2] = addressesByOwner.get(other).size());
+        return seenByOwner;
     }
 }

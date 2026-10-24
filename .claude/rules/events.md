@@ -88,3 +88,6 @@ punishmentIdentifier, owner, occurredAt}`, no content, in a try/catch. The timel
 `client-rule.hit` is published by `ClientRuleHitService` for every stored hit (non-blocking, like the others) with
 `{rule, owner (hashed), kind, action, at}` only: never a brand, channel, mod or command text, a player name, a server or the
 rule's patterns (`ClientRuleNoLeakTest`). Nothing binds to it yet.
+
+`evasion.client_match` is published by `ClientFingerprintService` when a stored client fingerprint links two or more
+owners (and not more than `max-owners`): `{owners (hashed), at}` only, never the fingerprint or a trait. Nothing binds to it yet.

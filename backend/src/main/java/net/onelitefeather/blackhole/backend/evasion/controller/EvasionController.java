@@ -2,8 +2,10 @@ package net.onelitefeather.blackhole.backend.evasion.controller;
 
 import io.micronaut.security.annotation.Secured;
 import net.onelitefeather.blackhole.backend.security.Roles;
+import net.onelitefeather.blackhole.backend.evasion.dto.ClientFingerprintDTO;
 import net.onelitefeather.blackhole.backend.evasion.dto.EvasionRecordDTO;
 import net.onelitefeather.blackhole.backend.evasion.dto.EvasionSightingDTO;
+import net.onelitefeather.blackhole.backend.evasion.service.ClientFingerprintService;
 import net.onelitefeather.blackhole.backend.evasion.service.EvasionSightingService;
 import net.onelitefeather.blackhole.backend.evasion.service.IpCorrelationService;
 import io.micronaut.http.HttpResponse;
@@ -30,11 +32,14 @@ public class EvasionController implements EvasionApi {
 
     private final IpCorrelationService ipCorrelationService;
     private final EvasionSightingService sightingService;
+    private final ClientFingerprintService fingerprintService;
 
     @Inject
-    public EvasionController(IpCorrelationService ipCorrelationService, EvasionSightingService sightingService) {
+    public EvasionController(IpCorrelationService ipCorrelationService, EvasionSightingService sightingService,
+                             ClientFingerprintService fingerprintService) {
         this.ipCorrelationService = ipCorrelationService;
         this.sightingService = sightingService;
+        this.fingerprintService = fingerprintService;
     }
 
     /** VIEWER: a read like the profile and ELO reads; the proxy only writes sightings. */
@@ -44,6 +49,18 @@ public class EvasionController implements EvasionApi {
         EvasionSightingDTO result = this.sightingService.forOwner(owner);
         if (result instanceof EvasionSightingDTO.Error error) {
             return HttpResponse.<EvasionSightingDTO>status(error.kind().status()).body(error);
+        }
+        return HttpResponse.ok(result);
+    }
+
+    /** PROXY only: the traits are the proxy's observation, a human has no use for the route. */
+    @Override
+    @Validated
+    @Secured(Roles.PROXY)
+    public HttpResponse<ClientFingerprintDTO> fingerprint(ClientFingerprintDTO.CreateRequest request) {
+        ClientFingerprintDTO result = this.fingerprintService.record(request);
+        if (result instanceof ClientFingerprintDTO.Error error) {
+            return HttpResponse.<ClientFingerprintDTO>status(error.kind().status()).body(error);
         }
         return HttpResponse.ok(result);
     }

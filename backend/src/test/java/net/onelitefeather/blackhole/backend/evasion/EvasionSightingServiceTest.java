@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.evasion;
 
 import net.onelitefeather.blackhole.backend.evasion.dto.EvasionSightingDTO;
+import net.onelitefeather.blackhole.backend.evasion.service.ClientFingerprintService;
 import net.onelitefeather.blackhole.backend.evasion.service.EvasionSightingService;
 import net.onelitefeather.blackhole.backend.evasion.service.IpCorrelationService;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
@@ -45,7 +46,10 @@ class EvasionSightingServiceTest {
     private EvasionSightingService service(String salt) {
         IpCorrelationService correlation = new IpCorrelationService(
                 this.store.repository(), new RecordingEventPublisher(), salt, 7);
-        return new EvasionSightingService(this.store.repository(), correlation, this.clock);
+        ClientFingerprintService fingerprints = new ClientFingerprintService(
+                new net.onelitefeather.blackhole.backend.support.FakeClientFingerprintStore(), new ClientFingerprintHasher((byte[]) null),
+                new RecordingEventPublisher(), this.clock, 14, 5);
+        return new EvasionSightingService(this.store.repository(), correlation, fingerprints, this.clock);
     }
 
     private void seen(String owner, String token, Duration firstAgo, Duration lastAgo) {
