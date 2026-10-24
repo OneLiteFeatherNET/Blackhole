@@ -5,14 +5,25 @@ paths:
 
 # Domain events
 
-`events/` — Domain event bus over RabbitMQ. `BlackholeRabbitTopology` declares exchanges at
-channel-creation time (not via config, since this Micronaut RabbitMQ version lacks declarative
-exchange config): a topic exchange `blackhole.events` for domain events consumed by other
-services. `RedisSyncConsumer` binds a queue to specific routing keys
-(`punishment.created`/`.expired`/`.revoked`, `appeal.resolved`) on the topic exchange to keep a
-Redis-backed read model in sync. Hot reads are not cached here: they live in the shared cache
-(`cache/`, Dragonfly over the Redis protocol), and writers evict the keys after their DB write, so
-no cross-replica broadcast is needed.
+`events/` — Domain event bus over NATS JetStream (plain `jnats`, `libs.nats.jnats`). An event goes to the subject
+`blackhole.events.<eventType>` (`EventSubjects` builds it and rejects whitespace, `*`, `>` and empty tokens; only the event type may
+ever appear in a subject) and is captured by the stream `BLACKHOLE_EVENTS` (file storage, limits retention, `max_age` 7 days,
+`duplicate_window` 2 min, `deny_delete`/`deny_purge`; `NatsStreams` builds the configuration from `blackhole.events.nats.*`).
+`StreamProvisioner` creates or updates the stream and the backend's durable consumers at startup (in the background, and again
+after a failed publish); a NATS outage or an unreadable `NATS_CREDS_FILE` is logged and never stops the app.
+
+The domain code never touches a broker client: `DomainEventPublisher` depends on the `EventTransport` port (`publish` returns a
+`CompletionStage<Void>`), and consumers start through `EventSubscriptionFactory` (`EventConsumer` names a durable consumer and its
+event types, see `EventConsumers`). The adapters are `NatsEventTransport` (`publishAsync`, `Nats-Msg-Id` = `eventId` for dedupe)
+and `NatsEventSubscriptionFactory` (one pull loop per subscription, explicit ack after the handler returned or failed, reconnects
+forever; `NatsConnectionProvider` owns the one connection: jnats' connect blocks while the server is down, so it runs on a background thread and `connection()` fails at once until it is up). Tests use `RecordingEventTransport` /
+`FakeEventSubscriptions`, no broker; the NATS adapters are covered by Docker tests against `nats:2.15.1-alpine` (`NatsTestServer`).
+`micronaut-nats` was evaluated and rejected (see `NatsCompatibilityTest`).
+
+`RedisSyncConsumer` is the durable pull consumer `blackhole-redis-sync` (filters `punishment.created`/`.updated`/`.expired`/
+`.revoked`, `appeal.resolved`; `deliver_policy new` on first creation, `max_deliver 1`, `ack_wait 30s`), shared by all backend
+replicas, to keep a Redis-backed read model in sync. Hot reads are not cached here: they live in the shared cache (`cache/`,
+Dragonfly over the Redis protocol), and writers evict the keys after their DB write, so no cross-replica broadcast is needed.
 
 There is deliberately no generic connector/webhook/signal-ingestion framework anymore (the
 `connector/` package, `WebhookDispatchConsumer`, `WebhookUrlValidator`, and `EloSignalConsumer`
@@ -32,15 +43,8 @@ consumes them yet. The bot's own durable queue for the case events is `blackhole
 per-ticket cursor read from `GET /discord/tickets/{id}/outbox`, so a lost, duplicated or reordered broker message changes nothing. Messages written in
 Discord are published as `case.message_added|edited|deleted` too (channel `DISCORD`), once per newly appended event.
 
-The domain code never touches a broker client: `DomainEventPublisher` depends on the `EventTransport` port
-(`publish` returns a `CompletionStage<Void>`), and consumers start through `EventSubscriptionFactory`
-(`EventConsumer` names a durable consumer and its event types, see `EventConsumers`). The RabbitMQ classes
-are the adapters (`RabbitEventTransport`, `RabbitEventSubscriptionFactory`). Tests use
-`RecordingEventTransport` / `FakeEventSubscriptions`, no broker.
-
-Publishing must stay non-blocking: `DomainEventRabbitPublisher.publish` returns a `Publisher<Void>`
-and `RabbitEventTransport` adapts it; `DomainEventPublisher` attaches a failure logger fire-and-forget. A `void` `@RabbitClient` method blocks on a
-Mono, which Reactor refuses on Netty event-loop threads (where controllers and services run).
+Publishing must stay non-blocking: `NatsEventTransport` uses `publishAsync` and `DomainEventPublisher` only attaches a failure logger to
+the returned stage. Never wait for the ack on the calling thread (it may be a Netty event-loop thread).
 
 ## Evidence events
 

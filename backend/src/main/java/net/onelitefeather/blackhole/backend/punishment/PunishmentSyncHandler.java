@@ -46,7 +46,7 @@ public class PunishmentSyncHandler {
                     this.mirror.clear(section, enforcement, owner, punishmentIdentifier);
                 }
             }
-            default -> LOGGER.debug("Ignoring unrelated event type {} on the Redis sync queue", event.eventType());
+            default -> LOGGER.debug("Ignoring unrelated event type {} on the Redis sync consumer", event.eventType());
         }
     }
 
