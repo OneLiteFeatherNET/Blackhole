@@ -12,6 +12,54 @@
 #                    ~/.config/blackhole/entra-<env>.env. Never commit that file.
 # See docs/entra-setup.md.
 set -euo pipefail
+
+# write_env FILE: writes the managed lines to FILE (mode 600) from the caller's variables
+# (ENVNAME, TENANT, API, SPA, VEL, BOT, G_*, VEL_SECRET, BOT_SECRET), then appends every line of
+# the old FILE whose key the script does not manage. The managed keys are read from the block
+# just written, so they cannot drift from it. Secrets already in FILE are reused when the
+# corresponding *_SECRET variable is empty.
+write_env() {
+  local out="$1" block keys
+  umask 077
+  block=$({
+  echo "# Blackhole Entra $ENVNAME set, tenant $TENANT. Secret file: do not commit or share."
+  echo "BLACKHOLE_AUTH_TENANT_ID=$TENANT"
+  echo "BLACKHOLE_AUTH_AUDIENCE=$API"
+  echo "BLACKHOLE_AUTH_ISSUER=https://login.microsoftonline.com/$TENANT/v2.0"
+  echo "BLACKHOLE_AUTH_JWKS_URL=https://login.microsoftonline.com/$TENANT/discovery/v2.0/keys"
+  echo "BLACKHOLE_AUTH_ROLE_ADMIN=$G_ADMIN"
+  echo "BLACKHOLE_AUTH_ROLE_MODERATOR=$G_EDIT"
+  echo "BLACKHOLE_AUTH_ROLE_VIEWER=$G_VIEW"
+  echo "BLACKHOLE_AUTH_ROLE_METRICS=$G_OPS"
+  echo "BLACKHOLE_UI_OIDC_AUTHORITY=https://login.microsoftonline.com/$TENANT/v2.0"
+  echo "BLACKHOLE_UI_OIDC_CLIENT_ID=$SPA"
+  echo "BLACKHOLE_UI_API_SCOPE=api://$API/access_as_user"
+  echo "BLACKHOLE_TENANT_ID=$TENANT"
+  echo "BLACKHOLE_CLIENT_ID=$VEL"
+  echo "BLACKHOLE_AUTH_SCOPE=api://$API/.default"
+  if [ -n "$VEL_SECRET" ]; then echo "BLACKHOLE_CLIENT_SECRET=$VEL_SECRET";
+  else grep '^BLACKHOLE_CLIENT_SECRET=' "$out"; fi
+  echo "BLACKHOLE_DISCORD_TENANT_ID=$TENANT"
+  echo "BLACKHOLE_DISCORD_CLIENT_ID=$BOT"
+  echo "BLACKHOLE_DISCORD_AUTH_SCOPE=api://$API/.default"
+  if [ -n "$BOT_SECRET" ]; then echo "BLACKHOLE_DISCORD_CLIENT_SECRET=$BOT_SECRET";
+  else grep '^BLACKHOLE_DISCORD_CLIENT_SECRET=' "$out"; fi
+  })
+  keys=$(printf '%s\n' "$block" | sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' | tr '\n' ' ')
+  {
+    printf '%s\n' "$block"
+    if [ -f "$out" ]; then
+      awk -v keys="$keys" 'BEGIN { n = split(keys, a, " "); for (i = 1; i <= n; i++) managed[a[i]] = 1 }
+        /^[A-Za-z_][A-Za-z0-9_]*=/ { k = $0; sub(/=.*/, "", k); if (!(k in managed)) print }' "$out"
+    fi
+  } > "$out.new"
+  chmod 600 "$out.new"
+  mv "$out.new" "$out"
+}
+
+# Sourced by the test (docs/entra-setup.test.sh): stop here, before any az call.
+if [ "${BASH_SOURCE[0]}" != "$0" ]; then return 0; fi
+
 ENVNAME="${1:-}"
 case "$ENVNAME" in dev|prod) ;; *) echo "usage: $0 <dev|prod> [redirect-origin] [env-file]" >&2; exit 2;; esac
 if [ -n "${2:-}" ]; then ORIGIN="${2%/}"
@@ -142,30 +190,5 @@ if ! grep -q '^BLACKHOLE_DISCORD_CLIENT_SECRET=' "$OUT" 2>/dev/null; then
   BOT_SECRET=$(az ad app credential reset --id "$BOT" --display-name "$ENVNAME" --years 1 --append --query password -o tsv)
 fi
 
-umask 077
-{
-  echo "# Blackhole Entra $ENVNAME set, tenant $TENANT. Secret file: do not commit or share."
-  echo "BLACKHOLE_AUTH_TENANT_ID=$TENANT"
-  echo "BLACKHOLE_AUTH_AUDIENCE=$API"
-  echo "BLACKHOLE_AUTH_ISSUER=https://login.microsoftonline.com/$TENANT/v2.0"
-  echo "BLACKHOLE_AUTH_JWKS_URL=https://login.microsoftonline.com/$TENANT/discovery/v2.0/keys"
-  echo "BLACKHOLE_AUTH_ROLE_ADMIN=$G_ADMIN"
-  echo "BLACKHOLE_AUTH_ROLE_MODERATOR=$G_EDIT"
-  echo "BLACKHOLE_AUTH_ROLE_VIEWER=$G_VIEW"
-  echo "BLACKHOLE_AUTH_ROLE_METRICS=$G_OPS"
-  echo "BLACKHOLE_UI_OIDC_AUTHORITY=https://login.microsoftonline.com/$TENANT/v2.0"
-  echo "BLACKHOLE_UI_OIDC_CLIENT_ID=$SPA"
-  echo "BLACKHOLE_UI_API_SCOPE=api://$API/access_as_user"
-  echo "BLACKHOLE_TENANT_ID=$TENANT"
-  echo "BLACKHOLE_CLIENT_ID=$VEL"
-  echo "BLACKHOLE_AUTH_SCOPE=api://$API/.default"
-  if [ -n "$VEL_SECRET" ]; then echo "BLACKHOLE_CLIENT_SECRET=$VEL_SECRET";
-  else grep '^BLACKHOLE_CLIENT_SECRET=' "$OUT"; fi
-  echo "BLACKHOLE_DISCORD_TENANT_ID=$TENANT"
-  echo "BLACKHOLE_DISCORD_CLIENT_ID=$BOT"
-  echo "BLACKHOLE_DISCORD_AUTH_SCOPE=api://$API/.default"
-  if [ -n "$BOT_SECRET" ]; then echo "BLACKHOLE_DISCORD_CLIENT_SECRET=$BOT_SECRET";
-  else grep '^BLACKHOLE_DISCORD_CLIENT_SECRET=' "$OUT"; fi
-} > "$OUT.new"
-mv "$OUT.new" "$OUT"
+write_env "$OUT"
 echo "done; ids in $OUT"
