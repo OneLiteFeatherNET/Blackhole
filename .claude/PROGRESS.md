@@ -46,6 +46,11 @@
 
 ## Recently completed
 
+- `add-discord-appeal-tickets` group 6 (PR `docs(discord): document and deploy the discord bot`): compose
+  service `discord` behind the profile of the same name, `docs/discord-bot.md` (portal, permissions,
+  edge rules 30/120 per min with 429, archive deletion, health), README additions. The bot image CI job
+  and smoke check already existed (verified, unchanged). Group 5 (panel) is its own PR. Still open: 7.x
+  needs a real test guild.
 - Prompt-engineering audit of `.claude/agents/*.md`: added a one-example output-format anchor to
   backend-reviewer, test-runner, and migration-checker (consistent report formatting across
   invocations); confirmed the four `micronaut-*-layer` skills already meet the bar (trigger-clause
