@@ -208,6 +208,22 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void aViewerMayReadTheStoredProtocolsButTheProxyMayNot() {
+        assertAuthorized(get("/case/unknown-punishment/protocol", this.jwt.viewer()), "viewer on the protocol list");
+        assertAuthorized(get("/case/unknown-punishment/protocol/" + EVIDENCE, this.jwt.viewer()), "viewer on opening a protocol");
+        assertAuthorized(get("/case/unknown-punishment/protocol/" + EVIDENCE + "/download", this.jwt.viewer()), "viewer on a protocol download");
+        assertAuthorized(get("/case/unknown-punishment/protocol", this.jwt.moderator()), "moderator on the protocol list");
+        assertEquals(403, get("/case/unknown-punishment/protocol", this.jwt.proxy()).status(), "proxy on the protocol list");
+        assertEquals(403, get("/case/unknown-punishment/protocol/" + EVIDENCE, this.jwt.proxy()).status(), "proxy on opening a protocol");
+        assertEquals(403, get("/case/unknown-punishment/protocol/" + EVIDENCE + "/download", this.jwt.proxy()).status(), "proxy on a download");
+    }
+
+    @Test
+    void aRequestWithoutATokenIsRefusedOnTheProtocolRoutes() {
+        assertEquals(401, get("/case/unknown-punishment/protocol", null).status());
+    }
+
+    @Test
     void theProxyCannotReadACase() {
         assertEquals(403, get("/case/unknown-punishment", this.jwt.proxy()).status(), "proxy has no case rule");
     }
