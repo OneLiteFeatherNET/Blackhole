@@ -17,8 +17,8 @@ dependencies {
         exclude(module = "opus-java")
     }
 
-    // Events about new reports and appeals come from the backend's topic exchange.
-    implementation(libs.rabbitmq.amqp.client)
+    // Events about new reports, appeals and cases come from the backend's JetStream stream.
+    implementation(libs.nats.jnats)
 
     // client's jackson-databind is `implementation`-scoped there, so it isn't exposed transitively.
     implementation(platform(libs.jackson.bom))
@@ -31,6 +31,8 @@ dependencies {
     testImplementation(mn.junit.jupiter.api)
     testRuntimeOnly(mn.junit.jupiter.engine)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    // The NATS integration test runs against a real server (Testcontainers has no NATS module: a plain container).
+    testImplementation(mn.testcontainers.core)
 }
 
 java {

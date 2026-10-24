@@ -18,7 +18,7 @@ import net.onelitefeather.blackhole.discord.metrics.Metrics;
 import net.onelitefeather.blackhole.discord.notify.EmbedRenderer;
 import net.onelitefeather.blackhole.discord.notify.NotificationDispatcher;
 import net.onelitefeather.blackhole.discord.notify.NotificationHandler;
-import net.onelitefeather.blackhole.discord.notify.RabbitConsumer;
+import net.onelitefeather.blackhole.discord.notify.NatsConsumer;
 import net.onelitefeather.blackhole.discord.sched.ExecutorScheduler;
 import net.onelitefeather.blackhole.discord.sched.Scheduler;
 import net.onelitefeather.blackhole.discord.sync.CaseEventHandler;
@@ -87,10 +87,10 @@ public final class Main {
 
         NotificationHandler handler = new NotificationHandler(backend, discord,
                 new EmbedRenderer(config.panelUrl(), config.staffRoleId()), config.teamChannelId());
-        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name("rabbit-retry").daemon(true).factory());
-        RabbitConsumer consumer = new RabbitConsumer(config.rabbit(), new NotificationDispatcher(handler), scheduler);
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name("nats-retry").daemon(true).factory());
+        NatsConsumer consumer = new NatsConsumer(config.nats(), new NotificationDispatcher(handler), scheduler);
         CaseEventHandler caseEvents = new CaseEventHandler(engine);
-        RabbitConsumer caseConsumer = new RabbitConsumer(config.rabbit(), "blackhole.discord.case", CaseEventHandler.ROUTING_KEYS, caseEvents::onMessage, scheduler);
+        NatsConsumer caseConsumer = new NatsConsumer(config.nats(), NatsConsumer.CASE_DURABLE, CaseEventHandler.ROUTING_KEYS, caseEvents::onMessage, scheduler);
 
         HealthServer healthServer = config.healthPort() > 0
                 ? new HealthServer(config.healthPort(), () -> new HealthServer.Status(discord.connected(), health.problems()), metrics::render)
