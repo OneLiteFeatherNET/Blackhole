@@ -174,6 +174,11 @@ public final class HttpBackendGateway implements BackendGateway {
     }
 
     @Override
+    public ReportDTO report(UUID identifier) throws ApiException {
+        return this.reportApi.getReport(identifier);
+    }
+
+    @Override
     public List<ReportFeedbackResponse> reportFeedback(String owner) throws ApiException {
         List<ReportFeedbackResponse> items = this.reportApi.getPendingReportFeedback(owner).getItems();
         return items == null ? List.of() : items;

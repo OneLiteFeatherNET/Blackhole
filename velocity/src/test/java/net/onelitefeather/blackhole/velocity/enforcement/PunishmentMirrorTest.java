@@ -1,8 +1,10 @@
 package net.onelitefeather.blackhole.velocity.enforcement;
 
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
+import net.onelitefeather.blackhole.velocity.evidence.MutableClock;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.List;
 
 import static net.onelitefeather.blackhole.velocity.TestData.OWNER;
@@ -14,7 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PunishmentMirrorTest {
 
-    private final PunishmentMirror mirror = new PunishmentMirror();
+    private final MutableClock clock = new MutableClock();
+    private final PunishmentMirror mirror = new PunishmentMirror(clock);
 
     @Test
     void aPlayerIsNotLoadedUntilTheirStateWasRead() {
@@ -79,5 +82,41 @@ class PunishmentMirrorTest {
         mirror.forget(OWNER);
 
         assertFalse(mirror.isLoaded(OWNER));
+    }
+
+    @Test
+    void aLoadedPlayerIsFreshUntilTheMaximumAgeIsReached() {
+        mirror.load(OWNER, List.of());
+
+        clock.advance(Duration.ofSeconds(59));
+        assertTrue(mirror.isFresh(OWNER, Duration.ofSeconds(60)));
+
+        clock.advance(Duration.ofSeconds(1));
+        assertFalse(mirror.isFresh(OWNER, Duration.ofSeconds(60)), "at the maximum age the entry is no longer trusted");
+    }
+
+    @Test
+    void aPlayerThatIsNotLoadedIsNeverFresh() {
+        assertFalse(mirror.isFresh(OWNER, Duration.ofDays(1)));
+    }
+
+    @Test
+    void reloadingRestartsTheAge() {
+        mirror.load(OWNER, List.of());
+        clock.advance(Duration.ofSeconds(59));
+        mirror.load(OWNER, List.of());
+        clock.advance(Duration.ofSeconds(59));
+
+        assertTrue(mirror.isFresh(OWNER, Duration.ofSeconds(60)));
+    }
+
+    @Test
+    void clearingForgetsEveryPlayer() {
+        mirror.load(OWNER, List.of(active("chat", EnforcementKind.MUTE, "p1", null)));
+
+        mirror.clear();
+
+        assertFalse(mirror.isLoaded(OWNER));
+        assertTrue(mirror.active(OWNER).isEmpty());
     }
 }

@@ -46,19 +46,11 @@ class ReportCommandTest {
                 throw new UnsupportedOperationException(method.getName());
             });
     private final ChatCaptureConfig config = new ChatCaptureConfig();
-    private final List<ReportNotice> announced = new ArrayList<>();
-    private final ReportNotifier notifier = new ReportNotifier(List::of, new net.onelitefeather.blackhole.velocity.report.ReportNoticeChannel() {
-        @Override
-        public void onNotice(java.util.function.Consumer<ReportNotice> listener) {
-            // no listener needed: the test reads what is published
-        }
-
-        @Override
-        public boolean publish(ReportNotice notice) {
-            announced.add(notice);
-            return true;
-        }
-    }, () -> null);
+    /** What the online staff member of this proxy was told. */
+    private final List<String> announced = new ArrayList<>();
+    private final Player staff = player(UUID.randomUUID(), Tristate.TRUE, true, announced);
+    /** The bus is down, so the proxy that took the report tells its own staff. */
+    private final ReportNotifier notifier = new ReportNotifier(() -> List.of(staff), () -> null, backend, () -> false, Runnable::run);
     private final ReportCommand command = new ReportCommand(new ReportService(backend,
             new ReportEvidence(new ChatSnapshotBuilder(new ChatBuffer(new MutableClock(), config), config), backend, config, () -> "c")), notifier);
 
@@ -101,11 +93,9 @@ class ReportCommandTest {
         command.handle(sender, new ResolvedTarget(REPORTED, "Steve", null), "cheating", "flying around");
 
         assertEquals(1, announced.size());
-        ReportNotice notice = announced.getFirst();
-        assertEquals("Name", notice.reporter());
-        assertEquals("Steve", notice.reported());
-        assertEquals("CHEATING", notice.category());
-        assertEquals("flying around", notice.excerpt());
+        String notice = announced.getFirst();
+        assertTrue(notice.contains("Name") && notice.contains("Steve"), "the notice names both players: " + notice);
+        assertTrue(notice.contains("flying around"), "the notice carries the excerpt: " + notice);
     }
 
     @Test

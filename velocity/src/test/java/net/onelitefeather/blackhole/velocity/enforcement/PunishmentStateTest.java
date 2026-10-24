@@ -3,13 +3,11 @@ package net.onelitefeather.blackhole.velocity.enforcement;
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
 import net.onelitefeather.blackhole.client.model.PunishEntryDTO;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
-import net.onelitefeather.blackhole.velocity.redis.PunishmentSyncMessage;
+import net.onelitefeather.blackhole.velocity.evidence.MutableClock;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneOffset;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -21,25 +19,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/** The backend is the truth; the mirror is trusted only while the bus is connected and the entry is young. */
 class PunishmentStateTest {
 
-    private static final long NOW = 1_000_000L;
+    private static final Duration MAX_AGE = Duration.ofSeconds(60);
 
-    private final PunishmentMirror mirror = new PunishmentMirror();
-    private final Map<String, PunishmentSyncMessage> redis = new HashMap<>();
-    private boolean redisDown;
+    private final MutableClock clock = new MutableClock();
+    private final PunishmentMirror mirror = new PunishmentMirror(clock);
+    private boolean trusted = true;
     private Optional<PunishProfileDTO> profile = Optional.empty();
     private boolean backendDown;
     private int profileCalls;
 
     private final PunishmentState state = new PunishmentState(
             standardRegistry(), mirror,
-            (section, owner) -> {
-                if (this.redisDown) {
-                    throw new IllegalStateException("Redis is not connected");
-                }
-                return Optional.ofNullable(this.redis.get(section + ":" + owner));
-            },
             owner -> {
                 this.profileCalls++;
                 if (this.backendDown) {
@@ -47,24 +40,26 @@ class PunishmentStateTest {
                 }
                 return this.profile;
             },
-            Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC));
+            clock, () -> this.trusted, MAX_AGE);
 
-    private void givenRedisHolds(PunishmentSyncMessage message) {
-        this.redis.put(message.section() + ":" + message.owner(), message);
-    }
-
-    private static PunishProfileDTO profileWithBan(String section, long expiresAt) {
-        PunishEntryDTO entry = new PunishEntryDTO().identifier("p1").section(section).permanent(false).lifted(false)
-                .metaData(new HashMap<>(Map.of("reason", "cheating", "expiration_date", expiresAt)));
+    private static PunishProfileDTO profileWith(String section, boolean permanent, Long expiresAt) {
+        Map<String, Object> meta = new HashMap<>(Map.of("reason", "cheating"));
+        if (expiresAt != null) {
+            meta.put("expiration_date", expiresAt);
+        }
+        PunishEntryDTO entry = new PunishEntryDTO().identifier("p1").section(section).permanent(permanent).lifted(false).metaData(meta);
         return new PunishProfileDTO().owner(OWNER).active(Map.of(section, entry));
     }
 
+    private void givenTheBackendHoldsAMute() {
+        this.profile = Optional.of(profileWith("chat", true, null));
+    }
+
     @Test
-    void aBanInRedisDeniesTheLogin() {
-        givenRedisHolds(active("network", EnforcementKind.BAN, "p1", NOW + 1000));
+    void aBanInTheProfileDeniesTheLogin() {
+        profile = Optional.of(profileWith("network", true, null));
 
         assertEquals("p1", state.onLogin(OWNER).orElseThrow().punishmentIdentifier());
-        assertEquals(0, profileCalls, "Redis answered, no HTTP call needed");
     }
 
     @Test
@@ -73,53 +68,40 @@ class PunishmentStateTest {
     }
 
     @Test
-    void aMuteInRedisDoesNotDenyTheLoginButIsKnownForChat() {
-        givenRedisHolds(active("chat", EnforcementKind.MUTE, "p1", null));
+    void theLoginAlwaysReadsTheBackendEvenWithATrustedCache() {
+        state.onLogin(OWNER);
+        state.onLogin(OWNER);
+
+        assertEquals(2, profileCalls, "a login is the seed of the cache, never served from it");
+    }
+
+    @Test
+    void aMuteDoesNotDenyTheLoginButIsKnownForChat() {
+        givenTheBackendHoldsAMute();
 
         assertTrue(state.onLogin(OWNER).isEmpty(), "a mute keeps nobody off the proxy");
-        assertTrue(state.activeMute(OWNER).isPresent(), "the login loaded the mute, so chat needs no further lookup");
-        assertEquals(0, profileCalls);
-    }
-
-    @Test
-    void whenRedisIsDownTheBackendProfileDecidesTheLogin() {
-        redisDown = true;
-        profile = Optional.of(profileWithBan("network", NOW + 5000));
-
-        assertTrue(state.onLogin(OWNER).isPresent(), "the same decision as with Redis");
-        assertEquals(1, profileCalls);
-    }
-
-    @Test
-    void whenRedisIsDownAndTheBackendHasNoProfileTheLoginIsAllowed() {
-        redisDown = true;
-
-        assertTrue(state.onLogin(OWNER).isEmpty());
+        assertTrue(state.activeMute(OWNER).isPresent());
+        assertEquals(1, profileCalls, "the login loaded the mute, so chat needs no further lookup");
     }
 
     @Test
     void whenNothingAnswersTheLoginStateIsReportedUnavailable() {
-        redisDown = true;
         backendDown = true;
 
         assertThrows(PunishmentState.Unavailable.class, () -> state.onLogin(OWNER), "the caller decides to allow the login");
     }
 
     @Test
-    void aKnownMuteStateIsServedFromTheMirrorWithoutAnyLookup() {
+    void aKnownMuteStateIsServedFromTheMirrorWhileTrusted() {
         state.onLogin(OWNER);
-        redisDown = true;
         backendDown = true;
 
         assertTrue(state.activeMute(OWNER).isEmpty(), "the empty state loaded at login is definitive");
-        assertEquals(0, profileCalls);
+        assertEquals(1, profileCalls);
     }
 
     @Test
     void anUnknownMuteStateIsFetchedOnceAndCached() {
-        redisDown = true;
-        profile = Optional.of(new PunishProfileDTO().owner(OWNER).active(Map.of()));
-
         state.activeMute(OWNER);
         state.activeMute(OWNER);
 
@@ -128,15 +110,56 @@ class PunishmentStateTest {
 
     @Test
     void anUnknownMuteStateWithTheBackendDownIsReportedUnavailable() {
-        redisDown = true;
         backendDown = true;
 
         assertThrows(PunishmentState.Unavailable.class, () -> state.activeMute(OWNER));
     }
 
     @Test
+    void withoutTrustEveryChatCheckReadsTheBackend() {
+        state.onLogin(OWNER);
+        trusted = false;
+        givenTheBackendHoldsAMute();
+
+        assertTrue(state.activeMute(OWNER).isPresent(), "a mute applied while the bus was down is found");
+        state.activeMute(OWNER);
+
+        assertEquals(3, profileCalls, "login plus one read per check");
+    }
+
+    @Test
+    void withoutTrustAndWithTheBackendDownTheCheckIsUnavailableNeverAllowedFromTheCache() {
+        givenTheBackendHoldsAMute();
+        state.onLogin(OWNER);
+        trusted = false;
+        backendDown = true;
+
+        assertThrows(PunishmentState.Unavailable.class, () -> state.activeMute(OWNER),
+                "a cached mute must not be trusted, and the caller applies the backend-unreachable rule");
+    }
+
+    @Test
+    void anEntryOlderThanTheMaximumAgeIsReadAgain() {
+        state.onLogin(OWNER);
+        clock.advance(MAX_AGE.plusSeconds(1));
+        givenTheBackendHoldsAMute();
+
+        assertTrue(state.activeMute(OWNER).isPresent(), "a lost event heals once the entry expires");
+        assertEquals(2, profileCalls);
+    }
+
+    @Test
+    void anEntryYoungerThanTheMaximumAgeIsNotReadAgain() {
+        state.onLogin(OWNER);
+        clock.advance(MAX_AGE.minusSeconds(1));
+
+        state.activeMute(OWNER);
+
+        assertEquals(1, profileCalls);
+    }
+
+    @Test
     void aServerBanForAnUnknownStateWithTheBackendDownDoesNotLockThePlayerOut() {
-        redisDown = true;
         backendDown = true;
 
         assertTrue(state.activeServerBan(OWNER, "bedwars-1", Optional.empty()).isEmpty());
@@ -144,7 +167,7 @@ class PunishmentStateTest {
 
     @Test
     void aServerBanDeniesOnlyTheMatchingServer() {
-        givenRedisHolds(active("bedwars", EnforcementKind.SERVER, "p1", null));
+        profile = Optional.of(profileWith("bedwars", true, null));
         state.onLogin(OWNER);
 
         assertTrue(state.activeServerBan(OWNER, "bedwars-2", Optional.empty()).isPresent());
@@ -158,5 +181,6 @@ class PunishmentStateTest {
         mirror.apply(active("chat", EnforcementKind.MUTE, "p9", null));
 
         assertTrue(state.activeMute(OWNER).isPresent(), "the next chat message is denied without contacting the backend");
+        assertEquals(1, profileCalls);
     }
 }

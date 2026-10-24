@@ -27,6 +27,12 @@ public class BlackholeConfig {
     private String redisUri;
 
     /**
+     * The NATS connection the proxy receives the backend's events over. Absent in configs written before
+     * this setting existed, which {@link #getNats()} treats as the defaults.
+     */
+    private NatsConfig nats;
+
+    /**
      * The backend server a player is sent to when a SERVER-section punishment arrives while they
      * stand on a server it covers. If this server does not exist, is itself covered by the
      * punishment or cannot be reached, the player is disconnected instead.
@@ -95,6 +101,7 @@ public class BlackholeConfig {
         this.auth = new AuthConfig();
         this.cloudnet = new CloudNetConfig();
         this.clientRules = new ClientRulesConfig();
+        this.nats = new NatsConfig();
     }
 
     /**
@@ -102,6 +109,14 @@ public class BlackholeConfig {
      */
     public @NotNull ClientRulesConfig getClientRules() {
         return clientRules == null ? new ClientRulesConfig() : clientRules;
+    }
+
+    /**
+     * @return the file's NATS settings, without the environment overrides (see
+     * {@link NatsConfig#withEnvironment}); the defaults for configs written before they existed
+     */
+    public @NotNull NatsConfig getNats() {
+        return nats == null ? new NatsConfig() : nats;
     }
 
     /**

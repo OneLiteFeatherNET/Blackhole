@@ -1,16 +1,12 @@
 package net.onelitefeather.blackhole.velocity.report;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Optional;
-
 /**
  * What staff are told about a new report. It carries the player names and a short excerpt of the text, so
- * it only ever travels over the Redis pub/sub channel (nothing is stored) and is never sent to the backend.
+ * it exists only in the memory of the proxy that renders it: the names come from the proxy's online players
+ * or the report, never from the event bus, and nothing is stored or sent to the backend.
  *
  * @param reportId the backend's identifier of the report, null if the backend did not name one
  * @param reporter the reporting player's name
@@ -22,10 +18,8 @@ public record ReportNotice(
         @Nullable String reportId, @NotNull String reporter, @NotNull String reported, @NotNull String category, @NotNull String excerpt
 ) {
 
-    /** The longest excerpt that is sent. */
+    /** The longest excerpt that is shown. */
     public static final int EXCERPT_LENGTH = 80;
-
-    private static final ObjectMapper MAPPER = new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     /**
      * @param details the reporter's text, may be null
@@ -37,29 +31,5 @@ public record ReportNotice(
         }
         String line = details.replaceAll("\\s+", " ").strip();
         return line.length() <= EXCERPT_LENGTH ? line : line.substring(0, EXCERPT_LENGTH - 1).stripTrailing() + "…";
-    }
-
-    /** @return the wire form */
-    public static @NotNull String encode(@NotNull ReportNotice notice) {
-        try {
-            return MAPPER.writeValueAsString(notice);
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("A report notice could not be encoded", e);
-        }
-    }
-
-    /** @return the notice, empty if the text is not one */
-    public static @NotNull Optional<ReportNotice> decode(@Nullable String json) {
-        if (json == null) {
-            return Optional.empty();
-        }
-        try {
-            ReportNotice notice = MAPPER.readValue(json, ReportNotice.class);
-            boolean complete = notice.reporter() != null && notice.reported() != null && notice.category() != null;
-            return complete ? Optional.of(new ReportNotice(notice.reportId(), notice.reporter(), notice.reported(),
-                    notice.category(), notice.excerpt() == null ? "" : notice.excerpt())) : Optional.empty();
-        } catch (JsonProcessingException e) {
-            return Optional.empty();
-        }
     }
 }

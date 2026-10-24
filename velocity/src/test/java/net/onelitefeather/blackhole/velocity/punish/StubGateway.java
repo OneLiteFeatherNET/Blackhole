@@ -85,6 +85,20 @@ final class StubGateway implements BackendGateway {
     final List<String> feedbackOwners = new ArrayList<>();
     final List<UUID> acknowledged = new ArrayList<>();
 
+    /** What the single-report lookup answers, and the identifiers it was asked for. */
+    ReportDTO lookedUpReport;
+    ApiException lookupReportFailure;
+    final List<UUID> lookedUp = new ArrayList<>();
+
+    @Override
+    public ReportDTO report(UUID identifier) throws ApiException {
+        this.lookedUp.add(identifier);
+        if (this.lookupReportFailure != null) {
+            throw this.lookupReportFailure;
+        }
+        return this.lookedUpReport;
+    }
+
     @Override
     public List<ReportFeedbackResponse> reportFeedback(String owner) throws ApiException {
         this.feedbackOwners.add(owner);

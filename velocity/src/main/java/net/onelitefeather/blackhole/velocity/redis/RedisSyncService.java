@@ -4,12 +4,9 @@ import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.pubsub.RedisPubSubAdapter;
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
-import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
-import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.clientrule.ClientRuleNotice;
 import net.onelitefeather.blackhole.velocity.clientrule.ClientRuleNoticeChannel;
-import net.onelitefeather.blackhole.velocity.report.ReportNotice;
-import net.onelitefeather.blackhole.velocity.report.ReportNoticeChannel;
+import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.section.SectionInfo;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -22,16 +19,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
- * The proxy's connection to the backend's Redis: a read-only view of the mirrored active
- * punishments (one key per section and owner, written solely by the backend), the shared-cache
- * lists of sections and templates, and the two pub/sub channels - punishment sync messages and
- * section changes - which it hands to registered listeners.
+ * The proxy's Redis view of the backend: the shared-cache lists of sections and templates used for
+ * tab completion, and the client-rule pub/sub channels. Punishment state, section changes and report
+ * notices arrive over NATS and HTTP (see {@code NatsSyncService}).
  *
- * <p>Every read either returns a definitive answer or says "unavailable" (an exception from
- * {@link #read}, an empty {@link Optional} from the cache reads), so callers can fall back to the
- * backend over HTTP - Redis being unreachable must never make a login or chat check fail outright.</p>
+ * <p>Every read either returns a definitive answer or says "unavailable" (an empty {@link Optional}), so
+ * callers fall back to the backend over HTTP.</p>
  */
-public final class RedisSyncService implements PunishmentState.KeyReader, SharedCacheReader, ReportNoticeChannel, ClientRuleNoticeChannel {
+public final class RedisSyncService implements SharedCacheReader, ClientRuleNoticeChannel {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RedisSyncService.class);
     /** Bounds one shared-cache read, so a slow Redis can't stall tab completion. */
@@ -39,10 +34,6 @@ public final class RedisSyncService implements PunishmentState.KeyReader, Shared
 
     private final BlackholeConfig config;
     private final SyncCodec codec = new SyncCodec();
-    private final List<Consumer<PunishmentSyncMessage>> syncListeners = new CopyOnWriteArrayList<>();
-    private final List<Consumer<String>> sectionListeners = new CopyOnWriteArrayList<>();
-    private final List<Consumer<ReportNotice>> reportListeners = new CopyOnWriteArrayList<>();
-    private final List<Consumer<String>> feedbackListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<String>> clientRuleListeners = new CopyOnWriteArrayList<>();
     private final List<Consumer<ClientRuleNotice>> clientRuleNoticeListeners = new CopyOnWriteArrayList<>();
 
@@ -52,21 +43,6 @@ public final class RedisSyncService implements PunishmentState.KeyReader, Shared
 
     public RedisSyncService(@NotNull BlackholeConfig config) {
         this.config = config;
-    }
-
-    /** Registers a listener for punishment sync messages; call before {@link #connect}. */
-    public void onPunishmentSync(@NotNull Consumer<PunishmentSyncMessage> listener) {
-        this.syncListeners.add(listener);
-    }
-
-    /** Registers a listener for section changes (the changed section's key); call before {@link #connect}. */
-    public void onSectionChanged(@NotNull Consumer<String> listener) {
-        this.sectionListeners.add(listener);
-    }
-
-    /** Registers a listener for report feedback waiting for a reporter (their owner hash); call before {@link #connect}. */
-    public void onReportFeedback(@NotNull Consumer<String> listener) {
-        this.feedbackListeners.add(listener);
     }
 
     /** Registers a listener for client rule changes (the changed rule's key); call before {@link #connect}. */
@@ -93,30 +69,9 @@ public final class RedisSyncService implements PunishmentState.KeyReader, Shared
         }
     }
 
-    @Override
-    public void onNotice(@NotNull Consumer<ReportNotice> listener) {
-        this.reportListeners.add(listener);
-    }
-
-    @Override
-    public boolean publish(@NotNull ReportNotice notice) {
-        StatefulRedisConnection<String, String> conn = this.connection;
-        if (conn == null) {
-            return false;
-        }
-        try {
-            // Zero receivers means not even this proxy's own subscription is listening.
-            return conn.sync().publish(RedisTopology.REPORT_CREATED_CHANNEL, ReportNotice.encode(notice)) > 0;
-        } catch (RuntimeException e) {
-            LOGGER.warn("A report notice could not be published, delivering it on this proxy only: {}", e.getMessage());
-            return false;
-        }
-    }
-
     /**
-     * Connects to Redis and subscribes to the sync channels. A failure here is logged and leaves
-     * the service disconnected rather than propagating - every proxy must keep working against the
-     * backend over plain HTTP if Redis is unavailable at startup.
+     * Connects to Redis. A failure here is logged and leaves the service disconnected rather than
+     * propagating - every proxy must keep working against the backend over plain HTTP.
      */
     public void connect() {
         try {
@@ -129,11 +84,10 @@ public final class RedisSyncService implements PunishmentState.KeyReader, Shared
                     onMessage(channel, message);
                 }
             });
-            this.pubSubConnection.sync().subscribe(RedisTopology.PUNISHMENT_SYNC_CHANNEL, RedisTopology.SECTION_CHANGED_CHANNEL, RedisTopology.REPORT_CREATED_CHANNEL, RedisTopology.REPORT_FEEDBACK_CHANNEL,
-                    RedisTopology.CLIENT_RULE_CHANGED_CHANNEL, RedisTopology.CLIENT_RULE_HIT_CHANNEL);
-            LOGGER.info("Connected to Redis for cross-proxy punishment sync at {}", this.config.getRedisUri());
+            this.pubSubConnection.sync().subscribe(RedisTopology.CLIENT_RULE_CHANGED_CHANNEL, RedisTopology.CLIENT_RULE_HIT_CHANNEL);
+            LOGGER.info("Connected to Redis for the shared tab-completion cache and client rules at {}", this.config.getRedisUri());
         } catch (RuntimeException e) {
-            LOGGER.error("Failed to connect to Redis at {} - falling back to per-request HTTP checks: {}", this.config.getRedisUri(), e.getMessage());
+            LOGGER.error("Failed to connect to Redis at {} - falling back to HTTP: {}", this.config.getRedisUri(), e.getMessage());
             shutdown();
         }
     }
@@ -151,18 +105,6 @@ public final class RedisSyncService implements PunishmentState.KeyReader, Shared
             this.client.shutdown();
             this.client = null;
         }
-    }
-
-    /**
-     * @throws IllegalStateException if Redis isn't connected - callers must fall back to HTTP
-     */
-    @Override
-    public Optional<PunishmentSyncMessage> read(@NotNull String section, @NotNull String owner) {
-        StatefulRedisConnection<String, String> conn = this.connection;
-        if (conn == null) {
-            throw new IllegalStateException("Redis is not connected");
-        }
-        return this.codec.tryMessage(conn.sync().get(RedisTopology.punishKey(section, owner)));
     }
 
     /**
@@ -194,10 +136,6 @@ public final class RedisSyncService implements PunishmentState.KeyReader, Shared
     }
 
     private void onMessage(String channel, String message) {
-        if (RedisTopology.SECTION_CHANGED_CHANNEL.equals(channel)) {
-            notifyAll(this.sectionListeners, message);
-            return;
-        }
         if (RedisTopology.CLIENT_RULE_CHANGED_CHANNEL.equals(channel)) {
             notifyAll(this.clientRuleListeners, message);
             return;
@@ -206,24 +144,7 @@ public final class RedisSyncService implements PunishmentState.KeyReader, Shared
             ClientRuleNotice.decode(message).ifPresentOrElse(
                     notice -> notifyAll(this.clientRuleNoticeListeners, notice),
                     () -> LOGGER.warn("Ignoring an unreadable client rule notice"));
-            return;
         }
-        if (RedisTopology.REPORT_FEEDBACK_CHANNEL.equals(channel)) {
-            notifyAll(this.feedbackListeners, message);
-            return;
-        }
-        if (RedisTopology.REPORT_CREATED_CHANNEL.equals(channel)) {
-            ReportNotice.decode(message).ifPresentOrElse(
-                    notice -> notifyAll(this.reportListeners, notice),
-                    () -> LOGGER.warn("Ignoring an unreadable report notice"));
-            return;
-        }
-        Optional<PunishmentSyncMessage> parsed = this.codec.tryMessage(message);
-        if (parsed.isEmpty()) {
-            LOGGER.warn("Ignoring an unreadable punishment sync message");
-            return;
-        }
-        notifyAll(this.syncListeners, parsed.get());
     }
 
     /** A failing listener must neither stop the others nor kill the Redis callback thread. */
