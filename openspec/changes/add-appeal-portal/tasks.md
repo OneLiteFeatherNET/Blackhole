@@ -45,10 +45,10 @@ implementing is reproduced by a failing test first.
 
 ## 5. Portal app (PR 5, `feat(portal)`)
 
-- [ ] 5.1 Failing tests first: BFF allow-list (unknown paths 404), cookie flags, CSRF + Origin, uniform login error mapping, no body logging, security headers, runtime config validation
-- [ ] 5.2 New module `portal/` (Gradle node driver, Nitro `node-server`, Vue 3 + Tailwind MD3 tokens), `settings.gradle.kts` include, `Dockerfile`, `/healthz`
-- [ ] 5.3 Pages: login, facts, appeal form, conversation (15 s visible-tab polling, composer, drafts in memory only), forfeited / frozen / expired pages, logout
-- [ ] 5.4 German and English strings with parity test; accessibility and keyboard component tests; plain-text rendering test
+- [x] 5.1 Failing tests first: BFF allow-list (unknown paths 404), cookie flags, CSRF + Origin, uniform login error mapping, no body logging, security headers, runtime config validation
+- [x] 5.2 New module `portal/` (Gradle node driver, Nitro `node-server`, Vue 3 + Tailwind MD3 tokens), `settings.gradle.kts` include, `Dockerfile`, `/healthz`
+- [x] 5.3 Pages: login, facts, appeal form, conversation (15 s visible-tab polling, composer, drafts in memory only), forfeited / frozen / expired pages, logout
+- [x] 5.4 German and English strings with parity test; accessibility and keyboard component tests; plain-text rendering test
 - [ ] 5.5 CI: build and smoke-check the portal image beside the web image in `.github/workflows/build-pr.yml`
 
 ## 6. Panel conversation (PR 6, `feat(web)`)

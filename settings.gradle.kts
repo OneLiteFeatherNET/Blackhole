@@ -116,3 +116,4 @@ include("discord")
 
 include("phoca")
 include("web")
+include("portal")
