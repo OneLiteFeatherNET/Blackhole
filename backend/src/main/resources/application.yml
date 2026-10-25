@@ -461,8 +461,9 @@ micronaut:
         claims-validators:
           # Entra v2 tokens: https://login.microsoftonline.com/<tenant>/v2.0
           issuer: ${BLACKHOLE_AUTH_ISSUER:`http://localhost:18090/blackhole`}
-          # The API app registration's application (client) id, as it appears in the token's "aud"
-          # claim (a plain GUID for v2 tokens).
+          # The API app registration's application (client) id GUID, as it appears in the token's
+          # "aud" claim (a plain GUID for v2 tokens). The default "blackhole-api" is a local-dev
+          # placeholder, not a real Entra value; the chart sets it from auth.apiClientId.
           audience: ${BLACKHOLE_AUTH_AUDIENCE:blackhole-api}
     intercept-url-map:
       - pattern: /health/**

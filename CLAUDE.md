@@ -62,8 +62,8 @@ set -a; . ~/.config/blackhole/entra-dev.env; set +a
 deploy/charts/blackhole/tests/run-all.sh
 ```
 
-Test coverage is minimal — only `backend/src/test/java/.../playerresolver/service/PlayerResolverServiceTest.java`
-exists so far, no other module has a `src/test` yet. JUnit 5 is wired up via the Micronaut/root
+Tests live in `backend/src/test`, `velocity/src/test/java` and `discord/src/test/java`;
+`client` and `phoca` have none. JUnit 5 is wired up via the Micronaut/root
 `build.gradle.kts` (`useJUnitPlatform()`, `jacocoTestReport` runs after `test`), ready for more.
 Local dev/manual verification of the backend requires the
 real PostgreSQL + NATS containers from `docker/docker-compose.yml`; there's no in-memory/mocked
