@@ -91,12 +91,23 @@ A mismatch stops the app. Entra's exact-match rule stays as the second layer.
    "end all portal sessions" (`DELETE FROM player_session`). That is safe because sessions last at most 4 hours.
 5. Rollback for the auth PRs: revert the PR, then restore the previous config values. No data is affected.
 
+## Decisions (2026-10-25)
+
+- **Q2, user assignment (yes).** The Entra Admin UI app requires user assignment (`appRoleAssignmentRequired`
+  on its service principal). Set by the setup script and documented in `docs/entra-setup.md` (task 6.3). It
+  changes who can get a token, not what they can do.
+- **Q3, DPoP (out of scope).** Sender-constrained tokens are not part of this change. Bearer access tokens in
+  browser memory stay as they are (`audit.md` W9).
+- **Q4, machine client secrets (kept).** Velocity and Discord keep client secrets for now. Certificates or
+  managed identity come later, in a separate change. The secret stays env-only and is never logged (`audit.md` M1).
+- **Stale "no auth" text.** The stale text is in `.claude/agents/backend-reviewer.md:27`, not in `CLAUDE.md`.
+  Task 1.1 targets that file. `CLAUDE.md:82-85` is correct and needs no change for this.
+
 ## Open Questions
 
+Resolved on 2026-10-25; see Decisions above.
+
 - **Q1 (resolved in Decision 2):** audience is the GUID, not `api://`. No further input needed.
-- **Q2:** Should Entra require user assignment to the Admin UI app? Recommended default: yes, enable
-  "assignment required" and document it. It changes who can get a token, not what they can do.
-- **Q3:** Is DPoP in scope? Recommended default: no. Short-lived access tokens with the browser memory
-  store meet RFC 9700 for a public client (`audit.md` W9). Revisit if the panel ever stores tokens elsewhere.
-- **Q4:** Do machine clients move from client secrets to certificates or managed identity? Recommended
-  default: no for this change. The secret is env-only and never logged (`audit.md` M1). Track separately.
+- **Q2:** resolved, yes: assignment required on the Admin UI app.
+- **Q3:** resolved, DPoP is out of scope.
+- **Q4:** resolved, machine clients keep client secrets for now.
