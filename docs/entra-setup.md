@@ -50,7 +50,19 @@ docs/entra-setup.sh prod https://blackhole.example.org ~/.config/blackhole/entra
 
 It adds the signed-in admin to the `-admin` group, grants tenant-wide consent for the SPA, assigns
 `Blackhole.Proxy` to the Velocity registration and `Blackhole.Discord` to the Discord bot
-registration, and creates a one-year secret for each when the env file has none. The env file (mode 600) contains tenant, client and group ids and the secret: it
+registration, and creates a one-year secret for each when the env file has none. Each secret is
+saved to the env file right after it is created, so a later failure does not lose it. The
+production origin must start with `https://`; the script refuses anything else before it creates
+anything. `--dry-run` prints what would be created or changed and makes no Azure call and no file
+write.
+
+**Production step: user assignment.** The script sets `appRoleAssignmentRequired` to `true` on the
+service principal of `Blackhole Admin UI (<env>)` (Enterprise applications, Properties, "Assignment
+required"), so only assigned users and groups can sign in to the admin UI. It first assigns the
+signed-in admin, so the person running it is not locked out. Assign the staff afterwards under
+Enterprise applications, Blackhole Admin UI, Users and groups (assigning groups needs Entra ID P1;
+otherwise assign users). Assignment only decides who can get a token; the group claims still decide
+what they may do. The env file (mode 600) contains tenant, client and group ids and the secret: it
 is a secret file, keep it out of git and out of chat. A rerun rewrites the lines the script manages and keeps every other line of the file (for example `BLACKHOLE_BANID_KEY` or `DISCORD_TOKEN`). Add staff to the three role groups afterwards
 (group membership is not scripted).
 
@@ -66,6 +78,7 @@ portal (Groups, the group, Object Id).
 | `BLACKHOLE_UI_OIDC_AUTHORITY`, `_OIDC_CLIENT_ID`, `_API_SCOPE` | Web container |
 | `BLACKHOLE_TENANT_ID`, `BLACKHOLE_CLIENT_ID`, `BLACKHOLE_CLIENT_SECRET`, `BLACKHOLE_AUTH_SCOPE` | Velocity plugin |
 | `BLACKHOLE_DISCORD_TENANT_ID`, `_CLIENT_ID`, `_CLIENT_SECRET`, `_AUTH_SCOPE` | Discord bot (`discord` module) |
+| `BLACKHOLE_METRICS_CLIENT_ID`, `_CLIENT_SECRET` | Prometheus scraper |
 
 The backend maps the Discord bot's role through `BLACKHOLE_AUTH_MACHINE_ROLE_DISCORD` (default
 `Blackhole.Discord`), next to `BLACKHOLE_AUTH_MACHINE_ROLE_PROXY` and `_METRICS`.
@@ -73,16 +86,13 @@ The backend maps the Discord bot's role through `BLACKHOLE_AUTH_MACHINE_ROLE_DIS
 `BLACKHOLE_AUTH_AUDIENCE` is the API's application (client) id and `BLACKHOLE_AUTH_SCOPE` is
 `api://<api-client-id>/.default`.
 
-## Metrics scraper (optional)
+## Metrics scraper
 
-Prometheus authenticates as an application holding `Blackhole.Metrics`. The script does not create it;
-do the same as for Velocity with another registration, for example:
-
-```shell
-az ad app create --display-name "Blackhole Metrics (<env>)" --sign-in-audience AzureADMyOrg
-# add the application permission Blackhole.Metrics of the API, then grant admin consent
-az ad app credential reset --id <metrics-client-id> --display-name <env> --years 1 --append
-```
+Prometheus authenticates as an application holding `Blackhole.Metrics`. The script creates the
+registration `Blackhole Metrics (<env>)`, assigns `Blackhole.Metrics` to its service principal
+(only when the assignment is missing) and writes `BLACKHOLE_METRICS_CLIENT_ID` and
+`BLACKHOLE_METRICS_CLIENT_SECRET` to the env file. Nothing is manual here; give the scraper that
+client id and secret.
 
 The scraper requests a token with the scope `api://<api-client-id>/.default` and sends it as
 `Authorization: Bearer` to `GET /prometheus`.

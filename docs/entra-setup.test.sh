@@ -89,7 +89,22 @@ test_fresh_file_is_created() {
   rm -rf "$t"
 }
 
+test_save_secret_replaces_one_line_and_keeps_others() {
+  local t out; t=$(mktemp -d); out="$t/entra-dev.env"
+  printf '%s\n' 'DISCORD_TOKEN=keep' 'BLACKHOLE_CLIENT_SECRET=old' > "$out"
+  save_secret "$out" BLACKHOLE_CLIENT_SECRET new-secret
+  if [ "$(count_key "$out" BLACKHOLE_CLIENT_SECRET)" = 1 ] \
+     && [ "$(grep '^BLACKHOLE_CLIENT_SECRET=' "$out")" = "BLACKHOLE_CLIENT_SECRET=new-secret" ] \
+     && grep -q '^DISCORD_TOKEN=keep$' "$out" && [ "$(mode_of "$out")" = 600 ]; then
+    pass "save_secret replaces its own line, keeps the rest, mode 600"
+  else
+    fail "save_secret replaces its own line, keeps the rest, mode 600"
+  fi
+  rm -rf "$t"
+}
+
 test_unmanaged_keys_survive_rewrite
+test_save_secret_replaces_one_line_and_keeps_others
 test_managed_key_is_updated
 test_existing_secret_is_reused
 test_file_mode_is_600

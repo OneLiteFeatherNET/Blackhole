@@ -39,9 +39,9 @@ reads except with explicit offsets of at least 30 seconds, and they assert on be
 
 ## 6. Entra setup script (PR type `fix(security)`, `docs/`)
 
-- [ ] 6.1 Refuse a non-`https` production origin in `docs/entra-setup.sh:65-67`, and save each client secret to the env file immediately after creation (`:175`, `:190`). Verify: `shellcheck docs/entra-setup.sh` is clean, and a dry-run with a non-`https` production origin exits non-zero before creating anything.
-- [ ] 6.2 Assign `Blackhole.Metrics` in the script, or document the manual step as the decision (proposal, `audit.md` M8). Update `docs/entra-setup.md:78-88` to match. Verify: the doc and script agree; `shellcheck` clean.
-- [ ] 6.3 Require user assignment on the Admin UI app (decision Q2, design Decisions 2026-10-25): the script sets `appRoleAssignmentRequired` to true on the `Blackhole Admin UI (<env>)` service principal, and `docs/entra-setup.md` states it as a production step. Verify: `shellcheck docs/entra-setup.sh` is clean, and a dry-run prints the PATCH and creates nothing.
+- [x] 6.1 Refuse a non-`https` production origin in `docs/entra-setup.sh:65-67`, and save each client secret to the env file immediately after creation (`:175`, `:190`). Verify: `shellcheck docs/entra-setup.sh` is clean, and a dry-run with a non-`https` production origin exits non-zero before creating anything.
+- [x] 6.2 Assign `Blackhole.Metrics` in the script, or document the manual step as the decision (proposal, `audit.md` M8). Update `docs/entra-setup.md:78-88` to match. Verify: the doc and script agree; `shellcheck` clean.
+- [x] 6.3 Require user assignment on the Admin UI app (decision Q2, design Decisions 2026-10-25): the script sets `appRoleAssignmentRequired` to true on the `Blackhole Admin UI (<env>)` service principal, and `docs/entra-setup.md` states it as a production step. Verify: `shellcheck docs/entra-setup.sh` is clean, and a dry-run prints the PATCH and creates nothing.
 
 ## 7. Open the pull requests (last task)
 
