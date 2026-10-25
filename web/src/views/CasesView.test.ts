@@ -139,3 +139,51 @@ describe('CasesView', () => {
     wrapper.unmount()
   })
 })
+
+describe('CasesView: filters in the URL', () => {
+  it('starts with the filters the route query names', async () => {
+    const cases = vi.fn(async () => ok({ items: [item()], page: 0, size: 25, totalSize: 1, totalPages: 1 }))
+    const { wrapper } = await mountWithApp(CasesView, { api: mockApi({ cases }), path: '/cases?status=CLOSED&tag=spam&mine=1' })
+
+    expect(cases).toHaveBeenCalledWith(expect.objectContaining({ status: 'CLOSED', tag: 'spam', assignee: ME, page: 0 }))
+    expect(wrapper.get('[data-testid="status-CLOSED"]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.get('[data-testid="applied-filters"]').text()).toContain('Tag: spam')
+
+    wrapper.unmount()
+  })
+
+  it('ignores a status and a tag the query cannot hold', async () => {
+    const cases = vi.fn(async () => ok({ items: [item()], page: 0, size: 25, totalSize: 1, totalPages: 1 }))
+    const { wrapper } = await mountWithApp(CasesView, { api: mockApi({ cases }), path: '/cases?status=NOPE&tag=Not%20A%20Tag' })
+
+    expect(cases).toHaveBeenCalledWith(expect.objectContaining({ status: undefined, tag: undefined }))
+    expect(wrapper.find('[data-testid="applied-filters"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('writes each applied filter to the route query', async () => {
+    const { mount } = setup([[item()], [item()]])
+    const { wrapper, router } = await mount()
+
+    await wrapper.get('[data-testid="status-CLOSED"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ status: 'CLOSED' })
+
+    wrapper.unmount()
+  })
+
+  it('applies the filters of the route when the query changes, as Back does', async () => {
+    const { cases, mount } = setup([[item()], [item()], [item()]])
+    const { wrapper, router } = await mount()
+
+    await router.push('/cases?status=OPEN')
+    await flushPromises()
+
+    expect(cases).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'OPEN', page: 0 }))
+    expect(wrapper.get('[data-testid="status-OPEN"]').attributes('aria-pressed')).toBe('true')
+
+    wrapper.unmount()
+  })
+})
