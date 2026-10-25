@@ -207,13 +207,25 @@ The bot and the proxies read the same variable names. Off by default locally: no
 Each pull request is additive and can be reverted alone. Rollback: set `OTEL_TRACES_EXPORTER=none` (no code path is
 removed). No database, API or schema change, so no Flyway migration and no client spec regeneration.
 
+## Decisions (2026-10-25)
+
+The owner answered the open questions below. The answers confirm the defaults this design already lists, so no
+task or requirement changes.
+
+- **Velocity (D5):** propagates only and exports nothing. No OTLP exporter on the proxy.
+- **Trace start (D2):** the trace starts at the Nitro proxy and the portal BFF. Incoming browser `traceparent`,
+  `tracestate` and `baggage` headers are dropped before forwarding. No browser SDK.
+- **Bot export (D1):** the Discord bot exports its spans over OTLP.
+- **Tail sampling (D6):** the tail policy lives in Alloy in a separate Kubernetes-FLUX pull request (task 7.4).
+  Services use `parentbased_always_on`.
+
 ## Open Questions
 
-1. **Velocity export (D5):** propagate-only, or OTLP/HTTPS to a public endpoint? Default: propagate-only; exporting
-   from the proxy needs a public, authenticated OTLP ingest that does not exist yet.
-2. **Browser trace start (D2):** start at Nitro/BFF and drop browser trace headers, or add the browser SDK? Default:
-   start at Nitro/BFF and drop browser trace headers.
-3. **Tail-sampling home (D6):** the policy goes into Alloy in Kubernetes-FLUX, or a per-service sampler is enough?
-   Default: Alloy tail policy in a separate Kubernetes-FLUX pull request; services keep `parentbased_always_on`.
-4. **Bot export (D1):** should the Discord bot export spans to Alloy, or only propagate? Default: export, because it
-   runs in the cluster next to Alloy and is the consumer that most needs a trace of an appeal.
+Resolved on 2026-10-25; see Decisions above.
+
+1. **Velocity export (D5):** resolved, propagate only. Exporting from the proxy would need a public, authenticated
+   OTLP ingest that does not exist yet.
+2. **Browser trace start (D2):** resolved, start at Nitro/BFF and drop browser trace headers.
+3. **Tail-sampling home (D6):** resolved, Alloy tail policy in a separate Kubernetes-FLUX pull request; services keep
+   `parentbased_always_on`.
+4. **Bot export (D1):** resolved, the Discord bot exports spans over OTLP.
