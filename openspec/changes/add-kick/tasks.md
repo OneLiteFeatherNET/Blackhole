@@ -13,13 +13,13 @@
 
 Branch `feat/kick-model`. Backend only, no route.
 
-- [ ] 1.1 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/punishment/StepSelectorKickTest.java`
+- [x] 1.1 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/punishment/StepSelectorKickTest.java`
   asserts that a kick in the group counts towards the next step (`StepSelector.select` over two
   steps, count 1, selects index 1). Fails until the count query includes kicks (task 1.6).
-- [ ] 1.2 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/punishment/TemplateValidatorKickTest.java`:
+- [x] 1.2 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/punishment/TemplateValidatorKickTest.java`:
   `KICK` without duration is valid; `KICK` with duration is refused (400); `PUNISH` without duration
   is refused.
-- [ ] 1.3 Add `backend/src/main/resources/db/migration/V<next>__kick.sql` (next free version, see the
+- [x] 1.3 Add `backend/src/main/resources/db/migration/V<next>__kick.sql` (next free version, see the
   conventions above; never V25 or V26):
   `punishments` gets `kind VARCHAR(16) NOT NULL DEFAULT 'PUNISHMENT'`, `kick_scope VARCHAR(16)`,
   `kick_target VARCHAR(255)`, index on `(kind, owner)`, CHECK on `kind` in (`PUNISHMENT`, `KICK`);
@@ -29,19 +29,19 @@ Branch `feat/kick-model`. Backend only, no route.
   `created_at BIGINT`, `deadline_at BIGINT`); `CREATE TABLE kick_delivery` (`subject_id UUID`,
   `proxy_id VARCHAR(64)`, `found BOOLEAN`, `moved BOOLEAN`, `acked_at BIGINT`,
   PRIMARY KEY (`subject_id`, `proxy_id`)).
-- [ ] 1.4 Add the `kind`, `kickScope`, `kickTarget` fields to
+- [x] 1.4 Add the `kind`, `kickScope`, `kickTarget` fields to
   `backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentEntity.java`
   (defaults `PUNISHMENT`, null), and a `kind` to `TemplateStep.java` (default `PUNISH`, duration
   nullable; keep the 2-arg constructor for existing callers).
-- [ ] 1.5 Add `backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentKind.java`
+- [x] 1.5 Add `backend/src/main/java/net/onelitefeather/blackhole/backend/punishment/PunishmentKind.java`
   (`PUNISHMENT`, `KICK`) and `StepKind.java` (`PUNISH`, `KICK`).
-- [ ] 1.6 Escalation: in `PunishmentRepository.java` keep
+- [x] 1.6 Escalation: in `PunishmentRepository.java` keep
   `countByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals` as is (kicks count).
   Add `kind = PUNISHMENT` to every active-state read: `JdbcActivePunishmentReader.java`,
   `ActivePunishmentExpirer.java`, `PunishmentExpirySweeper.java`, `PunishmentApplicationService.hasActivePermanent`.
   Red test first: `backend/src/test/java/net/onelitefeather/blackhole/backend/punishment/ActiveReadExcludesKickTest.java`.
-- [ ] 1.7 `TemplateValidator.java`: apply the rules of 1.2.
-- [ ] 1.8 Tests green: `./gradlew :backend:test --tests "*punishment*"`. Run the full
+- [x] 1.7 `TemplateValidator.java`: apply the rules of 1.2.
+- [x] 1.8 Tests green: `./gradlew :backend:test --tests "*punishment*"`. Run the full
   `./gradlew :backend:test` before opening the PR.
 
 Commit: `feat(punishment): add the kick punishment kind and template step kind`.
