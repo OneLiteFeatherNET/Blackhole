@@ -149,7 +149,7 @@ order (between steps 2 and 4 the plugin and UI cannot reach the backend):
    `{"auth": {"tenantId": "", "clientId": "", "clientSecret": "", "scope": "api://<api-client-id>/.default"}}`.
    Each key can be overridden by `BLACKHOLE_TENANT_ID`, `BLACKHOLE_CLIENT_ID`,
    `BLACKHOLE_CLIENT_SECRET` and `BLACKHOLE_AUTH_SCOPE`, which win over the file; prefer the environment
-   for the secret. `auth.tokenUrl` (`BLACKHOLE_TOKEN_URL`) overrides the token endpoint for a mock server.
+   for the secret. `auth.tokenUrl` (`BLACKHOLE_TOKEN_URL`) overrides the token endpoint for a mock server. It must be `https`; `http` to a loopback host is accepted only when `MICRONAUT_ENVIRONMENTS` is `dev` or `test`.
    With incomplete credentials the plugin logs an error and keeps enforcing for players it already has cached, but backend-bound
    commands are refused. Grant the permission `blackhole.link` to the staff LuckPerms groups so that staff
    can [link their Minecraft account](#linking-a-minecraft-account); grant it to nobody else.
