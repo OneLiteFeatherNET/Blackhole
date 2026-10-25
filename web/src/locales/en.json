@@ -237,7 +237,7 @@
     }
   },
   "templates": {
-    "title": "Punishment templates",
+    "title": "Templates",
     "intro": "Templates describe the punishments staff can apply. Each template lists escalation steps: the nth offence in its group uses the nth step.",
     "new": "New template",
     "edit": "Edit",
@@ -245,6 +245,7 @@
     "saved": "Template saved.",
     "deleted": "Template deleted.",
     "stepCount": "no steps | 1 step | {count} steps",
+    "stepLine": "{n}. {duration} / {cost} ELO",
     "columns": {
       "key": "Key",
       "reason": "Reason",
@@ -1362,7 +1363,7 @@
     "report": "Open report {id}"
   },
   "appealConditions": {
-    "title": "Appeal conditions",
+    "title": "Appeal terms",
     "intro": "Players read these conditions and confirm them before they file an appeal. Every save creates a new version; earlier versions are kept.",
     "current": "Current version {version}",
     "editorLabel": "Text of the next version",
@@ -1370,6 +1371,7 @@
     "save": "Save as new version",
     "saved": "Saved as version {version}.",
     "conflict": "The conditions were changed by someone else while you were editing. The current version is shown above; review it and save again.",
+    "tooLong": "{count}: over the limit, shorten the text.",
     "history": "Earlier versions",
     "versionLine": "Version {version}, {when}"
   },
@@ -1394,6 +1396,7 @@
     "hidden": "Hidden from tab completion",
     "acknowledged": "Punishes on a value the client can fake (acknowledged)",
     "hitCount": "Hits: {n}",
+    "showHits": "Show hits",
     "columns": {
       "rule": "Rule",
       "match": "Matches",

@@ -32,6 +32,29 @@ async function chooseOption(combobox: Parameters<typeof choose>[0], value: strin
   await flushPromises()
 }
 
+type Page = Awaited<ReturnType<ReturnType<typeof setup>['mount']>>['wrapper']
+
+/** The table row of a rule, found by the key in its first cell. */
+function rowOf(wrapper: Page, key: string) {
+  const row = wrapper.findAll('tbody tr').find((candidate) => candidate.get('td').text().startsWith(key))
+  if (!row) throw new Error(`no row for ${key}`)
+  return row
+}
+
+/** Opens the row menu of a rule and returns the labels of its items. */
+async function menuOf(wrapper: Page, key: string): Promise<string[]> {
+  await rowOf(wrapper, key).get('button[aria-haspopup="menu"]').trigger('click')
+  return wrapper.findAll('[role="menuitem"]').map((item) => item.text())
+}
+
+/** Chooses one item of a rule's row menu. */
+async function rowAction(wrapper: Page, key: string, label: string): Promise<void> {
+  await menuOf(wrapper, key)
+  const item = wrapper.findAll('[role="menuitem"]').find((candidate) => candidate.text() === label)
+  if (!item) throw new Error(`no menu item ${label}`)
+  await item.trigger('click')
+}
+
 describe('ClientRulesView: list', () => {
   it('lists the rules with their match, scope, action and hit counts', async () => {
     const { mount } = setup()
@@ -109,9 +132,8 @@ describe('ClientRulesView: roles', () => {
 
     expect(wrapper.find('[data-testid="new-client-rule"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="edit-meteor"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="delete-meteor"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="read-only"]').text()).toContain('Only administrators')
-    expect(wrapper.find('[data-testid="hits-meteor"]').exists(), 'every team role reads the hits').toBe(true)
+    expect(await menuOf(wrapper, 'meteor'), 'every team role reads the hits, no delete').toEqual(['Show hits'])
 
     wrapper.unmount()
   })
@@ -122,7 +144,7 @@ describe('ClientRulesView: roles', () => {
 
     expect(wrapper.find('[data-testid="new-client-rule"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="edit-meteor"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="delete-meteor"]').exists()).toBe(true)
+    expect(await menuOf(wrapper, 'meteor')).toEqual(['Show hits', 'Delete'])
     expect(wrapper.find('[data-testid="read-only"]').exists()).toBe(false)
 
     wrapper.unmount()
@@ -134,11 +156,11 @@ describe('ClientRulesView: hits', () => {
     const { api, mount } = setup()
     const { wrapper } = await mount()
 
-    await wrapper.get('[data-testid="hits-meteor"]').trigger('click')
+    await rowAction(wrapper, 'meteor', 'Show hits')
     await flushPromises()
 
     expect(api.clientRuleHits).toHaveBeenCalledWith('meteor')
-    const dialog = wrapper.get('[data-testid="hits-dialog"]')
+    const dialog = wrapper.get('[data-testid="hits-section"]')
     expect(dialog.findAll('tbody tr')).toHaveLength(3)
     expect(dialog.text()).toContain('Enforced')
     expect(dialog.text()).toContain('Bypassed (staff)')
@@ -155,12 +177,12 @@ describe('ClientRulesView: hits', () => {
     const { mount } = setup({ clientRuleHits })
     const { wrapper } = await mount()
 
-    await wrapper.get('[data-testid="hits-meteor"]').trigger('click')
+    await rowAction(wrapper, 'meteor', 'Show hits')
     await flushPromises()
     expect(wrapper.get('[data-testid="hits-empty"]').text()).toContain('No recorded hits')
 
     await wrapper.get('[data-testid="close-hits"]').trigger('click')
-    await wrapper.get('[data-testid="hits-no-op"]').trigger('click')
+    await rowAction(wrapper, 'no-op', 'Show hits')
     await flushPromises()
     expect(wrapper.get('[data-testid="hits-error"]').attributes('role')).toBe('alert')
 
@@ -174,7 +196,7 @@ describe('ClientRulesView: delete', () => {
     const { api, mount } = setup({ clientRules })
     const { wrapper } = await mount()
 
-    await wrapper.get('[data-testid="delete-meteor"]').trigger('click')
+    await rowAction(wrapper, 'meteor', 'Delete')
     expect(api.deleteClientRule).not.toHaveBeenCalled()
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
@@ -190,7 +212,7 @@ describe('ClientRulesView: delete', () => {
     const { mount } = setup({ deleteClientRule: vi.fn(async () => fail('there is no rule with key meteor', 404, 'NOT_FOUND')) })
     const { wrapper } = await mount()
 
-    await wrapper.get('[data-testid="delete-meteor"]').trigger('click')
+    await rowAction(wrapper, 'meteor', 'Delete')
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
 
@@ -436,6 +458,35 @@ describe('ClientRulesView: editor', () => {
     await flushPromises()
 
     expect(api.updateClientRule).toHaveBeenCalledWith(expect.objectContaining({ key: 'meteor', enabled: false }))
+
+    wrapper.unmount()
+  })
+})
+
+describe('ClientRulesView: page template', () => {
+  it('shows the hits of a rule as a section of the page, not in a dialog', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+    await wrapper.findAll('tbody tr')[0]!.get('button[aria-haspopup="menu"]').trigger('click')
+    await wrapper.get('[role="menuitem"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[role="dialog"]').exists(), 'no hit dialog').toBe(false)
+    expect(wrapper.get('[data-testid="hits-section"]').findAll('tbody tr')).toHaveLength(3)
+
+    wrapper.unmount()
+  })
+
+  it('moves delete into the row menu and confirms it with the error button', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+    const row = wrapper.findAll('tbody tr')[0]!
+
+    expect(row.find('[data-testid="delete-meteor"]').exists(), 'delete is not a row button').toBe(false)
+    await row.get('button[aria-haspopup="menu"]').trigger('click')
+    await wrapper.findAll('[role="menuitem"]').at(-1)!.trigger('click')
+
+    expect(wrapper.get('[data-testid="confirm"]').classes(), 'destructive confirm').toContain('bg-error')
 
     wrapper.unmount()
   })

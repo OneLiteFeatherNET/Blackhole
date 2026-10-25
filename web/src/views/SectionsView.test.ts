@@ -2,6 +2,8 @@ import { flushPromises } from '@vue/test-utils'
 import { chooseOption } from '../test/select'
 import { describe, expect, it, vi } from 'vitest'
 import type { Section } from '../api/types'
+import DiscordLinksPanel from '../components/account/DiscordLinksPanel.vue'
+import StaffLinksPanel from '../components/account/StaffLinksPanel.vue'
 import { fail, mockApi, mountWithApp, ok } from '../test/mount'
 import SectionsView from './SectionsView.vue'
 
@@ -41,6 +43,21 @@ function setup(overrides: Record<string, unknown> = {}) {
 
 type Wrapper = Awaited<ReturnType<ReturnType<typeof setup>['mount']>>['wrapper']
 
+/** The table row of a section, found by the key in its first cell. */
+function rowOf(wrapper: Wrapper, key: string) {
+  const row = wrapper.findAll('tbody tr').find((candidate) => candidate.get('td').text().startsWith(key))
+  if (!row) throw new Error(`no row for ${key}`)
+  return row
+}
+
+/** Chooses an item of a section's row menu, which holds the actions beyond edit. */
+async function rowAction(wrapper: Wrapper, key: string, label: string): Promise<void> {
+  await rowOf(wrapper, key).get('button[aria-haspopup="menu"]').trigger('click')
+  const item = wrapper.findAll('[role="menuitem"]').find((candidate) => candidate.text() === label)
+  if (!item) throw new Error(`no menu item ${label}`)
+  await item.trigger('click')
+}
+
 const field = (wrapper: Wrapper, label: string) => {
   const found = wrapper.findAll('[role="dialog"] label').find((l) => l.text().startsWith(label))
   if (!found) throw new Error(`no field labelled ${label}`)
@@ -72,8 +89,8 @@ describe('SectionsView: list', () => {
     expect(rows[0]!.text()).toContain('bedwars-*')
     expect(rows[0]!.text()).toContain('bw-*')
     expect(rows[1]!.text()).toContain('Disabled')
-    expect(wrapper.find('[data-testid="disable-old"]').exists(), 'nothing to disable').toBe(false)
-    expect(wrapper.find('[data-testid="disable-bedwars"]').exists()).toBe(true)
+    expect(rowOf(wrapper, 'old').find('button[aria-haspopup="menu"]').exists(), 'nothing to disable').toBe(false)
+    expect(rowOf(wrapper, 'bedwars').find('button[aria-haspopup="menu"]').exists()).toBe(true)
 
     wrapper.unmount()
   })
@@ -296,7 +313,7 @@ describe('SectionsView: disable', () => {
     const { api, mount } = setup({ sections })
     const { wrapper } = await mount()
 
-    await wrapper.get('[data-testid="disable-network"]').trigger('click')
+    await rowAction(wrapper, 'network', 'Disable')
     expect(api.disableSection, 'asks first').not.toHaveBeenCalled()
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
@@ -312,11 +329,56 @@ describe('SectionsView: disable', () => {
     const { mount } = setup({ disableSection })
     const { wrapper } = await mount()
 
-    await wrapper.get('[data-testid="disable-network"]').trigger('click')
+    await rowAction(wrapper, 'network', 'Disable')
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
 
     expect(wrapper.get('[data-testid="error"]').text()).toContain('no section with key')
+
+    wrapper.unmount()
+  })
+})
+
+describe('SectionsView: page template', () => {
+  it('no longer renders the account link panels on the sections page', async () => {
+    const { api } = setup()
+    const { wrapper } = await mountWithApp(SectionsView, { api: mockApi(api), path: '/sections', roles: ['ADMIN', 'MODERATOR', 'VIEWER'] })
+
+    expect(wrapper.findComponent(StaffLinksPanel).exists()).toBe(false)
+    expect(wrapper.findComponent(DiscordLinksPanel).exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('keeps every table cell to one kind of content: no definition lists', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    expect(wrapper.find('tbody dl').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('keeps edit in the row and moves disable into the row menu', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+    const row = wrapper.findAll('tbody tr')[1]!
+
+    expect(row.find('[data-testid="edit-network"]').exists()).toBe(true)
+    expect(row.find('[data-testid="disable-network"]').exists(), 'disable is not a row button').toBe(false)
+    await row.get('button[aria-haspopup="menu"]').trigger('click')
+    expect(wrapper.findAll('[role="menuitem"]').map((item) => item.text())).toEqual(['Disable'])
+
+    wrapper.unmount()
+  })
+
+  it('confirms the disable with the error button', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+    await wrapper.findAll('tbody tr')[1]!.get('button[aria-haspopup="menu"]').trigger('click')
+    await wrapper.get('[role="menuitem"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="confirm"]').classes(), 'destructive confirm').toContain('bg-error')
 
     wrapper.unmount()
   })

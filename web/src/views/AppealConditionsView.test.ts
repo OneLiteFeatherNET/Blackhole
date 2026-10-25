@@ -1,5 +1,6 @@
 import { flushPromises } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
+import MdTextField from '../components/md/MdTextField.vue'
 import { fail, mockApi, mountWithApp, ok } from '../test/mount'
 import AppealConditionsView from './AppealConditionsView.vue'
 
@@ -22,7 +23,7 @@ describe('AppealConditionsView', () => {
 
     expect(wrapper.get('[data-testid="current-version"]').text()).toContain('2')
     expect(wrapper.get('[data-testid="current-text"]').text()).toContain('text 2')
-    expect(wrapper.find('[data-testid="conditions-editor"]').exists(), 'no editor for a viewer').toBe(false)
+    expect(wrapper.find('textarea').exists(), 'no editor for a viewer').toBe(false)
     expect(wrapper.find('[data-testid="conditions-save"]').exists(), 'no save for a viewer').toBe(false)
 
     wrapper.unmount()
@@ -32,7 +33,7 @@ describe('AppealConditionsView', () => {
     const { mount } = setup()
     const { wrapper } = await mount(['MODERATOR', 'VIEWER'])
 
-    expect(wrapper.find('[data-testid="conditions-editor"]').exists()).toBe(false)
+    expect(wrapper.find('textarea').exists()).toBe(false)
 
     wrapper.unmount()
   })
@@ -51,7 +52,7 @@ describe('AppealConditionsView', () => {
     const { mount } = setup()
     const { wrapper } = await mount(['ADMIN', 'MODERATOR', 'VIEWER'])
 
-    expect((wrapper.get('[data-testid="conditions-editor"]').element as HTMLTextAreaElement).value).toBe('text 2')
+    expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toBe('text 2')
 
     wrapper.unmount()
   })
@@ -61,7 +62,7 @@ describe('AppealConditionsView', () => {
     const { wrapper } = await mount(['ADMIN', 'MODERATOR', 'VIEWER'])
     api.appealConditions.mockResolvedValueOnce(ok(version(3, 'edited')))
 
-    await wrapper.get('[data-testid="conditions-editor"]').setValue('edited')
+    await wrapper.get('textarea').setValue('edited')
     await wrapper.get('[data-testid="conditions-save"]').trigger('click')
     await flushPromises()
 
@@ -74,7 +75,7 @@ describe('AppealConditionsView', () => {
   it('disables saving when the text is empty or over 4000 characters and shows the overflow', async () => {
     const { api, mount } = setup()
     const { wrapper } = await mount(['ADMIN', 'MODERATOR', 'VIEWER'])
-    const editor = wrapper.get('[data-testid="conditions-editor"]')
+    const editor = wrapper.get('textarea')
     const save = wrapper.get('[data-testid="conditions-save"]')
 
     await editor.setValue('   ')
@@ -82,7 +83,7 @@ describe('AppealConditionsView', () => {
 
     await editor.setValue('x'.repeat(4001))
     expect(save.attributes('disabled'), 'too long').toBeDefined()
-    expect(wrapper.get('[data-testid="conditions-counter"]').text()).toContain('4001 / 4000')
+    expect(wrapper.text(), 'the counter names the overflow').toContain('4001 / 4000')
     expect(api.saveAppealConditions).not.toHaveBeenCalled()
 
     wrapper.unmount()
@@ -93,7 +94,7 @@ describe('AppealConditionsView', () => {
     const { wrapper } = await mount(['ADMIN', 'MODERATOR', 'VIEWER'])
     api.appealConditions.mockResolvedValueOnce(ok(version(3, 'someone else')))
 
-    await wrapper.get('[data-testid="conditions-editor"]').setValue('mine')
+    await wrapper.get('textarea').setValue('mine')
     await wrapper.get('[data-testid="conditions-save"]').trigger('click')
     await flushPromises()
 
@@ -107,12 +108,26 @@ describe('AppealConditionsView', () => {
     const { mount } = setup({ saveAppealConditions: vi.fn(async () => fail('the text must not be empty', 400)) })
     const { wrapper } = await mount(['ADMIN', 'MODERATOR', 'VIEWER'])
 
-    await wrapper.get('[data-testid="conditions-editor"]').setValue('mine')
+    await wrapper.get('textarea').setValue('mine')
     await wrapper.get('[data-testid="conditions-save"]').trigger('click')
     await flushPromises()
 
     expect(wrapper.get('[data-testid="conditions-error"]').text()).toContain('the text must not be empty')
-    expect((wrapper.get('[data-testid="conditions-editor"]').element as HTMLTextAreaElement).value).toBe('mine')
+    expect((wrapper.get('textarea').element as HTMLTextAreaElement).value).toBe('mine')
+
+    wrapper.unmount()
+  })
+})
+
+describe('AppealConditionsView: page template', () => {
+  it('edits the terms in a multi-line MdTextField that carries the counter as its supporting text', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount(['ADMIN', 'MODERATOR', 'VIEWER'])
+    const field = wrapper.findComponent(MdTextField)
+
+    expect(field.props('multiline'), 'a multi-line field').toBe(true)
+    expect(field.props('rows'), 'twelve rows').toBe(12)
+    expect(field.props('supportingText'), 'the counter under the field').toContain('6 / 4000')
 
     wrapper.unmount()
   })

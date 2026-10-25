@@ -21,6 +21,17 @@ describe('locale files', () => {
   })
 })
 
+describe('terminology of the configuration pages', () => {
+  it('names a ban Sperre in German, as the glossary does', () => {
+    expect(de.enforcement.BAN).toBe('Sperre')
+  })
+
+  it('names the templates Templates and Vorlagen', () => {
+    expect(en.templates.title).toBe('Templates')
+    expect(de.templates.title).toBe('Vorlagen')
+  })
+})
+
 describe('default language', () => {
   afterEach(() => {
     i18n.global.locale.value = 'en'

@@ -2,7 +2,6 @@ import { flushPromises } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import type { DiscordLink } from '../../api/types'
 import { fail, mockApi, mountWithApp, ok } from '../../test/mount'
-import SectionsView from '../../views/SectionsView.vue'
 import DiscordLinksPanel from './DiscordLinksPanel.vue'
 
 const staff: DiscordLink = { id: '00000000-0000-4000-8000-0000000000d1', kind: 'STAFF', subject: '00000000-0000-4000-8000-0000000000b2', displayName: 'Ada', linkedAt: Date.UTC(2026, 9, 23) }
@@ -99,28 +98,3 @@ describe('DiscordLinksPanel', () => {
   })
 })
 
-describe('DiscordLinksPanel: role gating on the sections page', () => {
-  function sectionsApi() {
-    return { sections: vi.fn(async () => ok([])), staffLinks: vi.fn(async () => ok([])), discordLinks: vi.fn(async () => ok([staff])) }
-  }
-
-  it.each([['MODERATOR'], ['VIEWER']])('is hidden from a %s and never requests the list', async (role) => {
-    const api = sectionsApi()
-    const { wrapper } = await mountWithApp(SectionsView, { api: mockApi(api), roles: [role], path: '/sections' })
-
-    expect(wrapper.find('[data-testid="discord-links"]').exists(), 'no panel').toBe(false)
-    expect(api.discordLinks, 'no request').not.toHaveBeenCalled()
-
-    wrapper.unmount()
-  })
-
-  it('is shown to an admin', async () => {
-    const api = sectionsApi()
-    const { wrapper } = await mountWithApp(SectionsView, { api: mockApi(api), roles: ['ADMIN'], path: '/sections' })
-
-    expect(wrapper.find('[data-testid="discord-links"]').exists(), 'panel').toBe(true)
-    expect(api.discordLinks).toHaveBeenCalledTimes(1)
-
-    wrapper.unmount()
-  })
-})

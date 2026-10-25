@@ -2,7 +2,6 @@ import { flushPromises } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import type { StaffLink } from '../../api/types'
 import { fail, mockApi, mountWithApp, ok } from '../../test/mount'
-import SectionsView from '../../views/SectionsView.vue'
 import StaffLinksPanel from './StaffLinksPanel.vue'
 
 const ada: StaffLink = { oid: '00000000-0000-4000-8000-0000000000b2', displayName: 'Ada', minecraftUuid: '11111111-1111-4111-8111-111111111111', linkedAt: Date.UTC(2026, 9, 23) }
@@ -79,28 +78,3 @@ describe('StaffLinksPanel', () => {
   })
 })
 
-describe('StaffLinksPanel: role gating on the sections page', () => {
-  function sectionsApi() {
-    return { sections: vi.fn(async () => ok([])), staffLinks: vi.fn(async () => ok([ada])), discordLinks: vi.fn(async () => ok([])) }
-  }
-
-  it.each([['MODERATOR'], ['VIEWER']])('is hidden from a %s and never requests the list', async (role) => {
-    const api = sectionsApi()
-    const { wrapper } = await mountWithApp(SectionsView, { api: mockApi(api), roles: [role], path: '/sections' })
-
-    expect(wrapper.find('[data-testid="staff-links"]').exists(), 'no panel').toBe(false)
-    expect(api.staffLinks, 'no request').not.toHaveBeenCalled()
-
-    wrapper.unmount()
-  })
-
-  it('is shown to an admin', async () => {
-    const api = sectionsApi()
-    const { wrapper } = await mountWithApp(SectionsView, { api: mockApi(api), roles: ['ADMIN'], path: '/sections' })
-
-    expect(wrapper.find('[data-testid="staff-links"]').exists(), 'panel').toBe(true)
-    expect(api.staffLinks).toHaveBeenCalledTimes(1)
-
-    wrapper.unmount()
-  })
-})
