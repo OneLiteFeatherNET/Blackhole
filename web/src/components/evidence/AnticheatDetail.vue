@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Evidence } from '../../api/types'
+import DataTable, { type DataColumn } from '../DataTable.vue'
 import { anticheatOf } from './payload'
 
 const props = defineProps<{ item: Evidence }>()
@@ -17,6 +18,12 @@ const facts = computed(() =>
     [t('evidence.anticheat.detail'), record.value.detail],
   ].filter((fact): fact is [string, string] => fact[1] !== null),
 )
+
+const valueColumns = computed<DataColumn<{ name: string; value: string }>[]>(() => [
+  { key: 'name', label: t('evidence.anticheat.name'), priority: 1 },
+  { key: 'value', label: t('evidence.anticheat.value'), priority: 1 },
+])
+const valueRows = computed(() => record.value.values.map(([name, value]) => ({ name, value })))
 </script>
 
 <template>
@@ -27,20 +34,6 @@ const facts = computed(() =>
         <dd class="break-words">{{ value }}</dd>
       </template>
     </dl>
-    <table v-if="record.values.length > 0" class="w-full text-left text-body-small" :aria-label="t('evidence.anticheat.values')">
-      <caption class="pb-1 text-left text-label-large text-on-surface-variant">{{ t('evidence.anticheat.values') }}</caption>
-      <thead class="sr-only">
-        <tr>
-          <th scope="col">{{ t('evidence.anticheat.name') }}</th>
-          <th scope="col">{{ t('evidence.anticheat.value') }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="[name, value] in record.values" :key="name" class="border-t border-outline-variant">
-          <th scope="row" class="py-1 pr-4 font-normal text-on-surface-variant">{{ name }}</th>
-          <td class="py-1 break-words">{{ value }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <DataTable v-if="valueRows.length > 0" :caption="t('evidence.anticheat.values')" caption-visible :columns="valueColumns" :rows="valueRows" />
   </div>
 </template>

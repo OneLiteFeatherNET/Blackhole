@@ -3,12 +3,15 @@ import { computed, ref, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../../api/inject'
 import type { VanillaImportResult } from '../../api/types'
+import DataTable, { type DataColumn } from '../DataTable.vue'
 import MdButton from '../md/MdButton.vue'
 import MdDialog from '../md/MdDialog.vue'
 import MdProgress from '../md/MdProgress.vue'
 import MdSelect from '../md/MdSelect.vue'
 import MdTextField from '../md/MdTextField.vue'
 import { useImportTemplateOptions } from './importTemplates'
+
+type ReasonGroup = VanillaImportResult['reasonGroups'][number]
 
 // The UI server forwards request bodies up to 1 MiB on this route; larger files are refused here
 // with an explanation instead of failing later with a bare 413.
@@ -39,6 +42,14 @@ const pasteHintId = useId()
 
 const hasPlayers = computed(() => pasted.value.trim() !== '' || playersFile.value !== null)
 const canRun = computed(() => hasPlayers.value && templateKey.value !== '' && !running.value)
+// The table rows carry an `actions` field so the row action has a column of its own.
+const groupColumns = computed<DataColumn<ReasonGroup & { actions: string }>[]>(() => [
+  { key: 'reason', label: t('vanillaImport.groupReason'), priority: 1 },
+  { key: 'templateKey', label: t('vanillaImport.groupTemplate'), priority: 2 },
+  { key: 'count', label: t('vanillaImport.groupCount'), priority: 1, align: 'end' },
+  { key: 'actions', label: t('vanillaImport.groupActions'), priority: 1, align: 'end' },
+])
+const groupRows = computed(() => (result.value?.reasonGroups ?? []).map((group) => ({ ...group, actions: group.reason })))
 const templateLabel = computed(() => templates.options.value.find((option) => option.value === templateKey.value)?.label ?? templateKey.value)
 
 function addMapping(reason = ''): void {
@@ -97,7 +108,7 @@ async function run(dryRun: boolean): Promise<void> {
 
 <template>
   <section aria-labelledby="vanilla-import-title" class="flex flex-col gap-4" data-testid="vanilla-import">
-    <h2 id="vanilla-import-title" class="text-title-large">{{ t('vanillaImport.title') }}</h2>
+    <h2 id="vanilla-import-title" class="text-title-medium">{{ t('vanillaImport.title') }}</h2>
     <p class="text-body-large text-on-surface-variant">{{ t('vanillaImport.intro') }}</p>
 
     <p v-if="templates.error.value" role="alert" data-testid="templates-problem" class="rounded-md-md bg-error-container p-3 text-on-error-container">{{ templates.error.value.message }}</p>
@@ -182,33 +193,26 @@ async function run(dryRun: boolean): Promise<void> {
       </dl>
       <div v-if="result.reasonGroups.length > 0">
         <h4 class="text-title-small">{{ result.dryRun ? t('vanillaImport.groupsPreview') : t('vanillaImport.groupsImport') }}</h4>
-        <table class="mt-1 w-full text-left text-body-medium" data-testid="reason-groups">
-          <caption class="sr-only">{{ t('vanillaImport.groupsCaption') }}</caption>
-          <thead>
-            <tr>
-              <th scope="col" class="py-1 pr-4 text-label-large">{{ t('vanillaImport.groupReason') }}</th>
-              <th scope="col" class="py-1 pr-4 text-label-large">{{ t('vanillaImport.groupTemplate') }}</th>
-              <th scope="col" class="py-1 pr-4 text-label-large">{{ t('vanillaImport.groupCount') }}</th>
-              <th scope="col" class="py-1"><span class="sr-only">{{ t('vanillaImport.groupActions') }}</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="group in result.reasonGroups" :key="group.reason + '|' + group.templateKey">
-              <td class="py-1 pr-4 break-words">{{ group.reason }}</td>
-              <td class="py-1 pr-4"><code class="font-mono text-body-small">{{ group.templateKey }}</code></td>
-              <td class="py-1 pr-4">{{ group.count }}</td>
-              <td class="py-1">
-                <MdButton variant="text" data-testid="map-group" :aria-label="t('vanillaImport.mapGroupFor', { reason: group.reason })" @click="addMapping(group.reason)">
-                  {{ t('vanillaImport.mapGroup') }}
-                </MdButton>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable data-testid="reason-groups" class="mt-1" :caption="t('vanillaImport.groupsCaption')" :columns="groupColumns" :rows="groupRows">
+          <template #cell="{ row, column }">
+            <span v-if="column.key === 'reason'" class="break-words">{{ row.reason }}</span>
+            <code v-else-if="column.key === 'templateKey'" class="font-mono text-body-small">{{ row.templateKey }}</code>
+            <template v-else-if="column.key === 'count'">{{ row.count }}</template>
+            <MdButton
+              v-else
+              variant="tonal"
+              data-testid="map-group"
+              :aria-label="t('vanillaImport.mapGroupFor', { reason: row.reason })"
+              @click="addMapping(row.reason)"
+            >
+              {{ t('vanillaImport.mapGroup') }}
+            </MdButton>
+          </template>
+        </DataTable>
       </div>
       <div v-if="result.invalidEntries.length > 0">
         <h4 class="text-title-small">{{ t('vanillaImport.invalidEntries') }}</h4>
-        <ul class="list-disc pl-5 text-body-small" data-testid="invalid-entries">
+        <ul class="list-disc pl-6 text-body-small" data-testid="invalid-entries">
           <li v-for="(entry, index) in result.invalidEntries" :key="index">{{ entry }}</li>
         </ul>
       </div>
