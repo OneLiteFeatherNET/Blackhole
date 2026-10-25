@@ -41,6 +41,8 @@ async function mountApp(numbers: Numbers, path = '/players') {
         [AUTH_KEY as symbol]: fakeAuthService().service,
         [API_KEY as symbol]: mockApi({
           inbox,
+          // The front page also shows the escalations and the active punishments.
+          dashboard: async () => ok({ activePunishmentsBySection: [], latestEscalations: [], escalationsLast7Days: 0 }),
           cases,
           profile: async () => ok({ active: {}, history: [] }),
           staffLinkStatus: async () => ok({ linked: false }),
