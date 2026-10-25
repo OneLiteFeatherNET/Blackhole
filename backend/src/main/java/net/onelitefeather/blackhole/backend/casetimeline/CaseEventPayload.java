@@ -30,6 +30,7 @@ public sealed interface CaseEventPayload {
     String LIFTED = "punishment.lifted";
     String RETEMPLATED = "punishment.retemplated";
     String EXPIRED = "punishment.expired";
+    String KICKED = "punishment.kicked";
     String EVIDENCE_ATTACHED = "evidence.attached";
     String EVIDENCE_LIFTED = "evidence.lifted";
     String EVIDENCE_REVOKED = "evidence.revoked";
@@ -180,6 +181,34 @@ public sealed interface CaseEventPayload {
             Map<String, Object> map = new LinkedHashMap<>();
             map.put("templateId", templateId);
             put(map, "fromTemplateId", fromTemplateId);
+            return map;
+        }
+    }
+
+    /**
+     * The player was kicked: a moment, not a sanction. Names where the kick took the player from and what its
+     * template step cost; never the reason (it is shown to the player and kept on the kick itself).
+     *
+     * @param scope  {@code NETWORK}, {@code SERVER} or {@code SECTION}
+     * @param target the server or section for a scoped kick
+     */
+    record Kicked(@Nullable String scope, @Nullable String target, @Nullable Integer eloCost) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return KICKED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            put(map, "scope", scope);
+            put(map, "target", target);
+            put(map, "eloCost", eloCost);
             return map;
         }
     }

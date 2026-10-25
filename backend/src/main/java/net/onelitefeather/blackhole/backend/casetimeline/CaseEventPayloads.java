@@ -59,6 +59,7 @@ public final class CaseEventPayloads {
                 case CaseEventPayload.LIFTED -> new CaseEventPayload.Lifted(text(body, "appealId"), flag(body, "approximate"));
                 case CaseEventPayload.RETEMPLATED -> new CaseEventPayload.Retemplated(
                         required(text(body, "templateId")), text(body, "fromTemplateId"));
+                case CaseEventPayload.KICKED -> new CaseEventPayload.Kicked(text(body, "scope"), text(body, "target"), integer(body, "eloCost"));
                 case CaseEventPayload.EXPIRED -> new CaseEventPayload.Expired(required(number(body, "expiredAt")));
                 case CaseEventPayload.EVIDENCE_ATTACHED -> new CaseEventPayload.EvidenceAttached(
                         required(text(body, "evidenceId")), text(body, "kind"), text(body, "sourceSystem"));

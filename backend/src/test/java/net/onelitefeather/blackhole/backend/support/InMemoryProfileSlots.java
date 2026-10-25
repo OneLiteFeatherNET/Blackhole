@@ -72,6 +72,19 @@ public final class InMemoryProfileSlots implements ProfileSlots {
     }
 
     @Override
+    public synchronized void appendHistory(String owner, String punishmentIdentifier) {
+        PunishmentProfileEntity profile = this.profiles.findById(owner).orElse(null);
+        if (profile == null) {
+            profile = new PunishmentProfileEntity(owner, new HashMap<>(), new ArrayList<>(), new HashMap<>());
+            this.profiles.save(profile);
+        }
+        PunishmentEntity punishment = this.punishments.findById(punishmentIdentifier).orElseThrow();
+        if (profile.getHistory().stream().noneMatch(entry -> entry.getIdentifier().equals(punishmentIdentifier))) {
+            profile.getHistory().add(punishment);
+        }
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public synchronized void mergeSessionInfo(String owner, Map<String, Object> fields) {
         PunishmentProfileEntity profile = this.profiles.findById(owner).orElse(null);

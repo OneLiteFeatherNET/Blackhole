@@ -6,6 +6,7 @@ import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.appeal.AppealStatus;
 import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.AppealRow;
 import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.EvidenceRow;
+import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.KickRow;
 import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.PunishmentRow;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceKind;
 import net.onelitefeather.blackhole.backend.evidence.EvidenceStatus;
@@ -31,7 +32,7 @@ public class JdbcCaseSourceReader implements CaseSourceReader {
     /** A punishment with the values of its JSON metadata the case events need; wrapped by the queries below. */
     private static final String PUNISHMENTS = """
             SELECT * FROM (
-                SELECT p.identifier, p.source, p.recorded_by_oid, p.actor_oid, p.section_key, p.step_index, p.step_count,
+                SELECT p.identifier, p.kind, p.source, p.recorded_by_oid, p.actor_oid, p.section_key, p.step_index, p.step_count,
                        p.elo_cost, p.permanent, p.lifted, COALESCE(p.created_at, 0) AS created_at,
                        CASE WHEN jsonb_typeof(p.meta_data -> 'expiration_date') = 'number'
                             THEN (p.meta_data ->> 'expiration_date')::numeric::bigint END AS expires_at,
@@ -48,13 +49,21 @@ public class JdbcCaseSourceReader implements CaseSourceReader {
 
     private static final String NO_EVENT = "NOT EXISTS (SELECT 1 FROM case_event ce WHERE ce.dedupe_key = %s)";
 
-    private static final String APPLIED_MISSING = PUNISHMENTS + " WHERE x.created_at >= ? AND "
+    // A kick is recorded as punishment.kicked, never as applied, ended or expired.
+    private static final String APPLIED_MISSING = PUNISHMENTS + " WHERE x.kind = 'PUNISHMENT' AND x.created_at >= ? AND "
             + NO_EVENT.formatted("'applied:' || x.identifier") + " ORDER BY x.created_at, x.identifier LIMIT ?";
-    private static final String ENDED_MISSING = PUNISHMENTS + " WHERE x.lifted AND COALESCE(x.updated_at, x.created_at) >= ? AND "
+    private static final String ENDED_MISSING = PUNISHMENTS + " WHERE x.kind = 'PUNISHMENT' AND x.lifted AND COALESCE(x.updated_at, x.created_at) >= ? AND "
             + NO_EVENT.formatted("'revoked:' || x.identifier") + " AND " + NO_EVENT.formatted("'lifted:' || x.identifier")
             + " ORDER BY COALESCE(x.updated_at, x.created_at), x.identifier LIMIT ?";
-    private static final String EXPIRED_MISSING = PUNISHMENTS + " WHERE NOT x.lifted AND x.expires_at >= ? AND x.expires_at < ? AND "
+    private static final String EXPIRED_MISSING = PUNISHMENTS + " WHERE x.kind = 'PUNISHMENT' AND NOT x.lifted AND x.expires_at >= ? AND x.expires_at < ? AND "
             + NO_EVENT.formatted("'expired:' || x.identifier") + " ORDER BY x.expires_at, x.identifier LIMIT ?";
+
+    private static final String KICKED_MISSING = """
+            SELECT p.identifier, p.source, p.recorded_by_oid, p.actor_oid, p.kick_scope, p.kick_target, p.elo_cost,
+                   COALESCE(p.created_at, 0) AS created_at
+            FROM punishments p
+            WHERE p.kind = 'KICK' AND COALESCE(p.created_at, 0) >= ? AND
+            """ + NO_EVENT.formatted("'kicked:' || p.identifier") + " ORDER BY p.created_at, p.identifier LIMIT ?";
 
     private static final String APPEALS = """
             SELECT a.identifier, a.punishment_identifier, a.status, a.decided_by, a.recorded_by_oid, a.created_at, a.updated_at
@@ -99,6 +108,11 @@ public class JdbcCaseSourceReader implements CaseSourceReader {
     @Override
     public List<PunishmentRow> appliedMissing(long since, int limit) {
         return query(APPLIED_MISSING, JdbcCaseSourceReader::punishment, since, limit);
+    }
+
+    @Override
+    public List<KickRow> kickedMissing(long since, int limit) {
+        return query(KICKED_MISSING, JdbcCaseSourceReader::kick, since, limit);
     }
 
     @Override
@@ -163,6 +177,13 @@ public class JdbcCaseSourceReader implements CaseSourceReader {
                 rows.getObject("updated_at", Long.class), rows.getObject("template_identifier", UUID.class),
                 rows.getObject("ended_by", UUID.class), rows.getObject("ended_recorded_by", UUID.class),
                 rows.getObject("lifting_appeal", UUID.class));
+    }
+
+    private static KickRow kick(ResultSet rows) throws SQLException {
+        return new KickRow(
+                rows.getString("identifier"), rows.getObject("source", UUID.class), rows.getObject("recorded_by_oid", UUID.class),
+                rows.getObject("actor_oid", UUID.class), rows.getString("kick_scope"), rows.getString("kick_target"),
+                rows.getObject("elo_cost", Integer.class), rows.getLong("created_at"));
     }
 
     private static AppealRow appeal(ResultSet rows) throws SQLException {

@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.backend.casetimeline;
 
 import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.AppealRow;
 import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.EvidenceRow;
+import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.KickRow;
 import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.PunishmentRow;
 
 import java.util.List;
@@ -13,8 +14,11 @@ import java.util.List;
  */
 public interface CaseSourceReader {
 
-    /** Punishments without a {@code punishment.applied} event. */
+    /** Punishments (not kicks) without a {@code punishment.applied} event. */
     List<PunishmentRow> appliedMissing(long since, int limit);
+
+    /** Kicks without a {@code punishment.kicked} event. */
+    List<KickRow> kickedMissing(long since, int limit);
 
     /** Revoked or lifted punishments without a {@code punishment.revoked} / {@code punishment.lifted} event. */
     List<PunishmentRow> endedMissing(long since, int limit);

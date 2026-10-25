@@ -104,6 +104,13 @@ public abstract class ApiIntegrationTest extends PostgresIntegrationTest {
         return call(body == null ? HttpRequest.POST(path, "") : HttpRequest.POST(path, body), token);
     }
 
+    /** A POST with extra request headers, such as {@code Idempotency-Key}. */
+    protected Reply post(String path, Object body, String token, Map<String, String> headers) {
+        MutableHttpRequest<?> request = body == null ? HttpRequest.POST(path, "") : HttpRequest.POST(path, body);
+        headers.forEach(request::header);
+        return call(request, token);
+    }
+
     protected Reply put(String path, Object body, String token) {
         return call(HttpRequest.PUT(path, body), token);
     }

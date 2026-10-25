@@ -37,6 +37,12 @@ public interface ProfileSlots {
     boolean clearIf(String owner, String sectionKey, String punishmentIdentifier);
 
     /**
+     * Adds a punishment that never occupies a slot, such as a kick, to the owner's history, creating the
+     * profile if needed. Adding it twice keeps one entry.
+     */
+    void appendHistory(String owner, String punishmentIdentifier);
+
+    /**
      * Merges the given telemetry fields into {@code metaData.sessionInfo}, creating the profile if
      * needed. Touches nothing else.
      */

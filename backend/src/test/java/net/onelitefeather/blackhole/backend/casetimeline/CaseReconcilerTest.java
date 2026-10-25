@@ -25,7 +25,7 @@ class CaseReconcilerTest {
     private static final Duration LOOK_BACK = Duration.ofDays(2);
 
     /** What the reader finds missing; the reconciler decides what to append from it. */
-    private static final class GapReader implements CaseSourceReader {
+    static final class GapReader implements CaseSourceReader {
 
         final List<PunishmentRow> applied = new ArrayList<>();
         final List<PunishmentRow> ended = new ArrayList<>();
@@ -40,6 +40,13 @@ class CaseReconcilerTest {
         public List<PunishmentRow> appliedMissing(long since, int limit) {
             this.sinces.add(since);
             return this.applied;
+        }
+
+        final List<SourceRows.KickRow> kicked = new ArrayList<>();
+
+        @Override
+        public List<SourceRows.KickRow> kickedMissing(long since, int limit) {
+            return this.kicked;
         }
 
         @Override

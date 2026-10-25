@@ -3,6 +3,7 @@ package net.onelitefeather.blackhole.backend.punishment.dto;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.annotation.ReflectiveAccess;
 import io.micronaut.serde.annotation.Serdeable;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentKind;
 import net.onelitefeather.phoca.metadata.Expirable;
 import net.onelitefeather.phoca.metadata.Metadata;
 
@@ -37,6 +38,10 @@ import java.util.UUID;
  * @param evidenceCount   how many valid evidence items the punishment has - the only thing about evidence a
  *                        player may learn; {@code null} where it was not computed (profile listings), use
  *                        {@code GET /punishment/{reference}/evidence/count} there
+ * @param kind            {@code PUNISHMENT}, or {@code KICK} for a kick, which is a moment and never active; {@code null}
+ *                        reads as {@code PUNISHMENT}
+ * @param kickScope       the scope a kick was applied at ({@code NETWORK}, {@code SERVER} or {@code SECTION}), else {@code null}
+ * @param kickTarget      the server or section a scoped kick targeted, else {@code null}
  * @param metaData        the metadata of the punishment
  * @author theEvilReaper
  * @version 2.0.0
@@ -63,6 +68,9 @@ public record PunishEntryDTO(
         @Nullable Integer eloCost,
         @Nullable PunishTemplateDTO.Response template,
         @Nullable Long evidenceCount,
+        @Nullable PunishmentKind kind,
+        @Nullable String kickScope,
+        @Nullable String kickTarget,
         Map<String, Object> metaData
 ) implements Metadata, Expirable {
 
@@ -70,28 +78,28 @@ public record PunishEntryDTO(
     public PunishEntryDTO withEvidenceCount(long count) {
         return new PunishEntryDTO(this.identifier, this.shortId, this.source, this.recordedByOid, this.verified, this.actorOid, this.actorName, this.section, this.scope, this.permanent,
                 this.lifted, this.createdAt, this.escalationGroup, this.stepIndex, this.stepCount, this.eloCost,
-                this.template, count, this.metaData);
+                this.template, count, this.kind, this.kickScope, this.kickTarget, this.metaData);
     }
 
     /** This entry attributed to the given verified principal, or to none ({@code null}), which marks it unverified. */
     public PunishEntryDTO withRecordedByOid(UUID recordedByOid) {
         return new PunishEntryDTO(this.identifier, this.shortId, this.source, recordedByOid, recordedByOid != null, this.actorOid, this.actorName, this.section,
                 this.scope, this.permanent, this.lifted, this.createdAt, this.escalationGroup, this.stepIndex, this.stepCount,
-                this.eloCost, this.template, this.evidenceCount, this.metaData);
+                this.eloCost, this.template, this.evidenceCount, this.kind, this.kickScope, this.kickTarget, this.metaData);
     }
 
     /** This entry attributed to the staff member the guard found stored ({@code null} if none). */
     public PunishEntryDTO withActorOid(UUID actorOid) {
         return new PunishEntryDTO(this.identifier, this.shortId, this.source, this.recordedByOid, this.verified, actorOid, null,
                 this.section, this.scope, this.permanent, this.lifted, this.createdAt, this.escalationGroup, this.stepIndex,
-                this.stepCount, this.eloCost, this.template, this.evidenceCount, this.metaData);
+                this.stepCount, this.eloCost, this.template, this.evidenceCount, this.kind, this.kickScope, this.kickTarget, this.metaData);
     }
 
     /** This entry with the display name of its {@code actorOid} filled in. */
     public PunishEntryDTO withActorName(String actorName) {
         return new PunishEntryDTO(this.identifier, this.shortId, this.source, this.recordedByOid, this.verified, this.actorOid, actorName,
                 this.section, this.scope, this.permanent, this.lifted, this.createdAt, this.escalationGroup, this.stepIndex,
-                this.stepCount, this.eloCost, this.template, this.evidenceCount, this.metaData);
+                this.stepCount, this.eloCost, this.template, this.evidenceCount, this.kind, this.kickScope, this.kickTarget, this.metaData);
     }
 
     @Override
