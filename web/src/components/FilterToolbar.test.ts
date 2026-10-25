@@ -31,7 +31,7 @@ function setup(filters: FilterDef[], modelValue: Record<string, string> = {}) {
 
 /** The last value the toolbar asked for; each test mounts its own toolbar, so nothing is shared. */
 function lastEmitted(wrapper: Awaited<ReturnType<typeof setup>>['wrapper']): Record<string, string> | undefined {
-  return wrapper.emitted<Record<string, string>>('update:modelValue')?.at(-1)?.[0]
+  return wrapper.emitted<[Record<string, string>]>('update:modelValue')?.at(-1)?.[0]
 }
 
 describe('FilterToolbar: the four kinds', () => {

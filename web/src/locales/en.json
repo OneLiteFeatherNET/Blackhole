@@ -1079,7 +1079,8 @@
         "priority": "Priority",
         "tags": "Tags",
         "activity": "Last activity"
-      }
+      },
+      "noneYet": "No cases yet."
     },
     "reason": {
       "label": "Reason",
@@ -1517,5 +1518,13 @@
     "unassignedCases": "Unassigned cases",
     "showAll": "Show all",
     "empty": "Nothing waiting"
+  },
+  "filters": {
+    "clearAll": "Clear all",
+    "clearFilters": "Clear filters",
+    "applied": "Applied filters"
+  },
+  "rowMenu": {
+    "more": "More actions for {name}"
   }
 }

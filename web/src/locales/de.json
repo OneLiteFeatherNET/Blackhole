@@ -1079,7 +1079,8 @@
         "priority": "Priorität",
         "tags": "Tags",
         "activity": "Letzte Aktivität"
-      }
+      },
+      "noneYet": "Noch keine Fälle."
     },
     "reason": {
       "label": "Grund",
@@ -1517,5 +1518,13 @@
     "unassignedCases": "Nicht zugewiesene Fälle",
     "showAll": "Alle anzeigen",
     "empty": "Nichts wartet gerade"
+  },
+  "filters": {
+    "clearAll": "Alle löschen",
+    "clearFilters": "Filter zurücksetzen",
+    "applied": "Aktive Filter"
+  },
+  "rowMenu": {
+    "more": "Weitere Aktionen für {name}"
   }
 }

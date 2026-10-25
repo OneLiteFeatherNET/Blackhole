@@ -1,4 +1,4 @@
-import { h } from 'vue'
+import { h, type Slots } from 'vue'
 import { describe, expect, it } from 'vitest'
 import { mountWithApp } from '../test/mount'
 import DataTable, { type DataColumn } from './DataTable.vue'
@@ -19,7 +19,7 @@ const ROWS: Row[] = [
   { name: '#ZZ99XX', status: 'Closed', note: 'chat' },
 ]
 
-function setup(props: Record<string, unknown> = {}, slots: Record<string, () => unknown> = {}) {
+function setup(props: Record<string, unknown> = {}, slots: Slots = {}) {
   return mountWithApp(DataTable, { props: { caption: 'Cases', columns: COLUMNS, rows: ROWS, ...props }, slots })
 }
 
@@ -54,7 +54,7 @@ describe('DataTable: structure', () => {
   })
 
   it('renders the cell slot for each cell', async () => {
-    const { wrapper } = await setup({}, { cell: ({ row }: { row: Row }) => h('span', `${row.name}!`) })
+    const { wrapper } = await setup({}, { cell: ({ row }: { row: Row }) => [h('span', `${row.name}!`)] })
 
     expect(wrapper.findAll('tbody td').map((cell) => cell.text())).toContain('#AB12CD!')
 
@@ -98,7 +98,7 @@ describe('DataTable: sorting', () => {
 
 describe('DataTable: states', () => {
   it('shows the empty slot when there are no rows', async () => {
-    const { wrapper } = await setup({ rows: [] }, { empty: () => h('p', { 'data-testid': 'nothing' }, 'Nothing here.') })
+    const { wrapper } = await setup({ rows: [] }, { empty: () => [h('p', { 'data-testid': 'nothing' }, 'Nothing here.')] })
 
     expect(wrapper.find('[data-testid="nothing"]').exists()).toBe(true)
     expect(wrapper.find('tbody tr').exists()).toBe(false)
@@ -107,9 +107,9 @@ describe('DataTable: states', () => {
   })
 
   it('shows skeleton rows and marks the table busy while loading the first page', async () => {
-    const { wrapper } = await setup({ rows: [], loading: true }, { empty: () => h('p', { 'data-testid': 'nothing' }, 'Nothing here.') })
+    const { wrapper } = await setup({ rows: [], loading: true }, { empty: () => [h('p', { 'data-testid': 'nothing' }, 'Nothing here.')] })
 
-    expect(wrapper.get('[aria-busy="true"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-busy="true"]').exists()).toBe(true)
     expect(wrapper.findAll('[data-skeleton="row"]').length).toBeGreaterThan(0)
     expect(wrapper.find('[data-testid="nothing"]').exists()).toBe(false)
 
