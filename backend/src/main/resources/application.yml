@@ -78,6 +78,10 @@ blackhole:
     tenant-id: ${BLACKHOLE_AUTH_TENANT_ID:}
     # Where the issuer publishes its signing keys. Entra: https://login.microsoftonline.com/<tenant>/discovery/v2.0/keys
     jwks-url: ${BLACKHOLE_AUTH_JWKS_URL:`http://localhost:18090/blackhole/jwks`}
+    # Seconds of clock difference tolerated between the issuer and this backend when checking a
+    # token's exp and nbf. Bounded to 0..60: a larger value stops the backend from starting, so
+    # expiry cannot be silently widened (RFC 8725). It can only be lowered.
+    clock-skew-seconds: ${BLACKHOLE_AUTH_CLOCK_SKEW_SECONDS:60}
     # The backend refuses to start with a plain http or localhost issuer outside the dev and test
     # environments (so the mock-server defaults never reach production). Only set this to true for a
     # deliberate exception, e.g. an internal http identity provider on a private network.
@@ -467,6 +471,11 @@ micronaut:
           # "aud" claim (a plain GUID for v2 tokens). The default "blackhole-api" is a local-dev
           # placeholder, not a real Entra value; the chart sets it from auth.apiClientId.
           audience: ${BLACKHOLE_AUTH_AUDIENCE:blackhole-api}
+          # exp and nbf are checked by TimeClaimsValidator, which applies the bounded clock skew
+          # (blackhole.security.clock-skew-seconds). The library validators have no leeway, so they
+          # are switched off here.
+          expiration: false
+          not-before: false
     intercept-url-map:
       - pattern: /health/**
         access:
