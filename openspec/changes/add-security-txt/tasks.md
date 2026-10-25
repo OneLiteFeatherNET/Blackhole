@@ -46,11 +46,12 @@ shared state, per the F.I.R.S.T. rules in the Blackhole CLAUDE.md.
 ## 3. PR 3: `build(deploy)` (branch `build/deploy-security-txt`, stacked on PR 1 and PR 2)
 
 - [ ] 3.1 Add `deploy/charts/blackhole/tests/security-txt.sh` in the style of `exposure.sh` (it is run by `run-all.sh`
-  automatically). Cases: (a) defaults render no `BLACKHOLE_SECURITY_CONTACT` and no personal address; (b) contact and a
-  valid expiry render the matching env in both the portal and the web Deployment; (c) contact without expiry fails
-  the render and names `securityTxt.expires`; (d) a malformed expiry (`next year`) fails the render. Red first.
-- [ ] 3.2 Add the `securityTxt` values block to `values.yaml` (`contact`, `expires`, `encryption`,
-  `acknowledgments`, `policy`, `preferredLanguages: en, de`; all empty except the language default) and the matching
+  automatically). Cases: (a) defaults without `expires` fail the render and name `securityTxt.expires` (the contact
+  default is `mailto:security@onelitefeather.net`, design Decisions 2026-10-25); (b) contact and a
+  valid expiry render the matching env in both the portal and the web Deployment; (c) clearing `contact` with no
+  `expires` renders no `BLACKHOLE_SECURITY_CONTACT`; (d) a malformed expiry (`next year`) fails the render. Red first.
+- [ ] 3.2 Add the `securityTxt` values block to `values.yaml` (`contact: mailto:security@onelitefeather.net`,
+  `expires` empty, `encryption`, `acknowledgments`, `policy` empty, `preferredLanguages: en, de`) and the matching
   entries in `values.schema.json`. Add `web.origin` (renders `BLACKHOLE_UI_ORIGIN`) next to `portal.origin`.
 - [ ] 3.3 Render the `BLACKHOLE_SECURITY_*` variables in `templates/portal.yaml` and `templates/web.yaml`, next to
   `BLACKHOLE_PORTAL_ORIGIN`, and add the checks to `templates/validate.yaml` (contact without expiry, malformed expiry).

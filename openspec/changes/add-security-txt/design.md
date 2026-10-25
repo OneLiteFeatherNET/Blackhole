@@ -83,8 +83,8 @@ existing security headers are kept (the `request` hook already applies them).
 ### D8. Unset contact disables the route
 With no `BLACKHOLE_SECURITY_CONTACT` the route answers 404 and the app logs one warning. Making it a
 startup error would break every deployment that has not set the value yet, and the file is not part
-of the app's function. Chart defaults leave the contact empty, so no personal or placeholder contact
-reaches a deployment by default.
+of the app's function. The chart default is the organisation mailbox (see Decisions, 2026-10-25), so
+an operator clears `securityTxt.contact` to turn the route off.
 
 ### D9. Shared shape, not shared code
 Both apps get the same parser, written in each app's `lib/` (the two apps do not share a package
@@ -113,3 +113,26 @@ this one feature. Alternative: a shared TypeScript workspace package. Rejected f
   `build(deploy)` sets the values in `ci/prod-values.yaml` and the chart.
 - Rollback: unset `securityTxt.contact` and roll the release. The route answers 404 again and
   nothing else changes.
+- Before the first release with the chart default, the organisation creates the
+  `security@onelitefeather.net` mailbox. Until it exists, the published contact points nowhere.
+
+## Decisions (2026-10-25)
+
+- **Default contact.** The Helm `securityTxt.contact` default is `mailto:security@onelitefeather.net`. The
+  organisation must create that mailbox (see Migration Plan). Replaces the empty default in D8.
+- **No default `expires`.** `securityTxt.expires` has no default. With the contact default in place, a render
+  without `expires` fails, as D3 requires. Every deployment must set `expires` explicitly, which is the intent of
+  D2: the operator looks at the date and the file cannot go stale unnoticed.
+- **Policy.** `securityTxt.policy` stays empty by default and optional. No disclosure policy text ships in v1.
+- **Signing.** The file is unsigned in v1 (D6).
+- **Past `Expires`.** The app refuses to start on a past `Expires` (D3), as proposed.
+
+## Open Questions
+
+Resolved on 2026-10-25; see Decisions above.
+
+1. **Default contact:** resolved, `mailto:security@onelitefeather.net` as the Helm default; the mailbox is created by
+   the organisation.
+2. **Policy URL:** resolved, empty or optional for now.
+3. **Signing:** resolved, unsigned in v1.
+4. **Past `Expires`:** resolved, refuse to start.
