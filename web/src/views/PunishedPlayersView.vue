@@ -10,7 +10,9 @@ import FilterToolbar, { type FilterDef } from '../components/FilterToolbar.vue'
 import PageShell from '../components/PageShell.vue'
 import ResourceState from '../components/ResourceState.vue'
 import StatusPill from '../components/StatusPill.vue'
+import KickDialog from '../components/kick/KickDialog.vue'
 import MdButton from '../components/md/MdButton.vue'
+import RowMenu, { type RowMenuItem } from '../components/RowMenu.vue'
 import { useResource } from '../composables/useResource'
 import { describeDuration } from '../duration'
 import { formatDateTime, shortHash } from '../format'
@@ -185,7 +187,16 @@ const columns = computed<DataColumn<ActivePunishment>[]>(() => [
   { key: 'automatic', label: t('punished.columns.source'), priority: 3 },
   { key: 'actorName', label: t('punished.columns.issuer'), priority: 3 },
   { key: 'caseStatus', label: t('punished.columns.case'), priority: 1 },
+  // The row actions (the overflow menu) have a column of their own for staff who may act; `owner` is only a key here.
+  ...(session.moderator ? [{ key: 'punishmentId' as const, label: t('punished.columns.actions'), priority: 1 as const, align: 'end' as const }] : []),
 ])
+
+const rowMenu = computed<RowMenuItem[]>(() => [{ key: 'kick', label: t('kick.open') }])
+const kickTarget = ref<ActivePunishment | null>(null)
+
+function onRowMenu(row: ActivePunishment, key: string): void {
+  if (key === 'kick') kickTarget.value = row
+}
 
 function playerName(row: ActivePunishment): string {
   return lookup.nameOf(row.owner) ?? shortHash(row.owner)
@@ -257,6 +268,9 @@ function remaining(expiresAt: number): string {
                 <span v-else class="text-on-surface-variant">{{ t('punished.noCase') }}</span>
               </div>
             </template>
+            <div v-else-if="column.key === 'punishmentId'" class="flex justify-end">
+              <RowMenu :label="playerName(row)" :items="rowMenu" @select="(key) => onRowMenu(row, key)" />
+            </div>
             <template v-else>{{ row[column.key] }}</template>
           </template>
         </DataTable>
@@ -283,5 +297,13 @@ function remaining(expiresAt: number): string {
         </nav>
       </template>
     </ResourceState>
+
+    <KickDialog
+      v-if="kickTarget && session.moderator"
+      open
+      :owner="kickTarget.owner"
+      :name="playerName(kickTarget)"
+      @close="kickTarget = null"
+    />
   </PageShell>
 </template>

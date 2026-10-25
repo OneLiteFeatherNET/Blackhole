@@ -81,7 +81,15 @@ export interface VanillaImportRequest {
   dryRun: boolean
 }
 
-export type ImportedPunishmentGroups = Schemas['ImportedPunishmentGroups']
+export type KickScope = Schemas['KickScope']
+export type KickStatus = Schemas['KickStatus']
+export type KickAccepted = Schemas['KickAccepted']
+/** A kick and how it went so far; the status is derived by the backend each time it is read. */
+export type KickResult = Schemas['KickResponse']
+export type KickRequest = Schemas['KickCreateRequest']
+export type KickMassRequest = Schemas['KickMassCreateRequest']
+
+export type ImportedPunishmentGroups =Schemas['ImportedPunishmentGroups']
 export type ImportedPunishmentGroup = Schemas['ImportedPunishmentGroup']
 export type ImportedPunishmentRetemplateResult = Schemas['ImportedPunishmentRetemplateResponse']
 

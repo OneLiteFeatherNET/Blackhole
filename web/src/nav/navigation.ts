@@ -82,6 +82,7 @@ export const ADMINISTRATION_GROUPS: NavGroup[] = [
       { to: '/admin/staff', key: 'staffAccounts', icon: ADMIN_ICON },
       { to: '/admin/imports', key: 'imports', icon: ADMIN_ICON },
       { to: '/admin/cloudnet', key: 'cloudnet', icon: ADMIN_ICON },
+      { to: '/admin/kick', key: 'kick', icon: ADMIN_ICON },
     ],
   },
 ]

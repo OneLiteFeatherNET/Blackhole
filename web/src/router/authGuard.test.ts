@@ -167,6 +167,7 @@ describe('router guard', () => {
     ['/admin/staff', 'admin-staff'],
     ['/admin/imports', 'admin-imports'],
     ['/admin/cloudnet', 'admin-cloudnet'],
+    ['/admin/kick', 'admin-kick'],
   ])('keeps every administration tab such as %s away from roles other than the administrator', async (path, name) => {
     for (const roles of [['VIEWER'], ['MODERATOR']]) {
       const { router } = setup({ roles })

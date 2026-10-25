@@ -84,13 +84,14 @@ describe('PunishedPlayersView', () => {
     wrapper.unmount()
   })
 
-  it('has a labelled table with the eight column headers', async () => {
+  it('has a labelled table with the eight column headers and a ninth for the row actions of staff', async () => {
     const { mount } = setup()
     const { wrapper } = await mount()
 
     expect(wrapper.get('table caption').text()).toBe('Active punishments')
     expect(wrapper.findAll('th[scope="col"]').map((th) => th.text())).toEqual([
       'Player', 'Kind and section', 'Reason', 'Since', 'Until', 'Source', 'Issued by', 'Case',
+      'Actions',
     ])
 
     wrapper.unmount()

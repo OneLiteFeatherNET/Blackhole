@@ -8,9 +8,12 @@ import EvidenceDialog from '../evidence/EvidenceDialog.vue'
 import MdButton from '../md/MdButton.vue'
 import MdDataTable from '../md/MdDataTable.vue'
 import StatusPill from '../StatusPill.vue'
-import { reasonOf, stepLabel } from './punishmentInfo'
+import { countActive, isKick, reasonOf, stepLabel } from './punishmentInfo'
 
-defineProps<{ history: Punishment[] }>()
+const props = withDefaults(defineProps<{ history: Punishment[]; now?: number }>(), { now: () => Date.now() })
+
+// Kicks are history only: they get a badge and never count as active.
+const active = computed(() => countActive(props.history, props.now))
 
 const { t, locale } = useI18n()
 const evidenceFor = ref<string | null>(null)
@@ -30,7 +33,8 @@ const columns = computed(() => [
 
 <template>
   <p v-if="history.length === 0" class="text-body-large text-on-surface-variant">{{ t('player.noHistory') }}</p>
-  <MdDataTable v-else :label="t('player.history')" :columns="columns" :rows="history">
+  <p v-if="history.length > 0" class="mb-2 text-body-medium text-on-surface-variant" data-testid="active-count">{{ t('player.activeCount', { count: active }) }}</p>
+  <MdDataTable v-if="history.length > 0" :label="t('player.history')" :columns="columns" :rows="history">
     <template #cell="{ row, column }">
       <template v-if="column.key === 'createdAt'">{{ row.createdAt ? formatDateTime(row.createdAt, locale) : '' }}</template>
       <template v-else-if="column.key === 'source'">{{ row.actorName || row.source }}</template>
@@ -38,7 +42,8 @@ const columns = computed(() => [
       <template v-else-if="column.key === 'stepIndex'">{{ stepLabel(row) ?? '' }}</template>
       <template v-else-if="column.key === 'eloCost'">{{ row.eloCost ?? '' }}</template>
       <template v-else-if="column.key === 'lifted'">
-        <StatusPill v-if="row.lifted" :label="t('player.lifted')" />
+        <StatusPill v-if="isKick(row)" :label="t('kick.badge')" tone="tertiary" data-testid="kick-badge" />
+        <StatusPill v-else-if="row.lifted" :label="t('player.lifted')" />
         <StatusPill v-else-if="row.permanent" :label="t('player.permanent')" tone="error" />
         <StatusPill v-else :label="t('player.ended')" />
       </template>

@@ -34,7 +34,8 @@
     },
     "staffAccounts": "Staff accounts",
     "imports": "Imports",
-    "cloudnet": "CloudNet"
+    "cloudnet": "CloudNet",
+    "kick": "Mass kick"
   },
   "settings": {
     "theme": {
@@ -195,7 +196,8 @@
       "weak": "(weak hint)",
       "weakNote": "A link by the client setup alone is a weak hint, not proof: players who use the same modpack or launcher look alike. An address together with the client setup is the stronger signal.",
       "weakOnly": "Every account listed here shares only the client setup with this player. That is a weak hint, no proof: a modpack or launcher is used by many unrelated players."
-    }
+    },
+    "activeCount": "{count} active"
   },
   "actions": {
     "cancel": "Cancel",
@@ -778,7 +780,8 @@
     "tabs": {
       "staff": "Staff accounts",
       "imports": "Imports",
-      "cloudnet": "CloudNet"
+      "cloudnet": "CloudNet",
+      "kick": "Mass kick"
     }
   },
   "staffActors": {
@@ -1339,7 +1342,8 @@
       "until": "Until",
       "source": "Source",
       "issuer": "Issued by",
-      "case": "Case"
+      "case": "Case",
+      "actions": "Actions"
     },
     "permanent": "permanent",
     "remaining": "{duration} left",
@@ -1546,5 +1550,50 @@
     "moderation": "Moderation",
     "administration": "Administration",
     "switch": "Workspace"
+  },
+  "kick": {
+    "title": "Kick {name}",
+    "open": "Kick",
+    "intro": "Takes the player off the network, a server or a section. A kick is a moment, not a punishment: it is not active and cannot be undone.",
+    "scope": {
+      "label": "Where from",
+      "NETWORK": "Network",
+      "SERVER": "Server",
+      "SECTION": "Section"
+    },
+    "target": {
+      "SERVER": "Server",
+      "SECTION": "Section",
+      "choose": "Choose a target"
+    },
+    "reason": {
+      "label": "Reason",
+      "hint": "Shown to the player. 1 to 200 characters. Do not write a UUID, IP address or Ban ID.",
+      "empty": "Enter a reason.",
+      "tooLong": "At most 200 characters.",
+      "pii": "The reason must not contain a UUID, IP address or Ban ID."
+    },
+    "targetRequired": "Choose a target.",
+    "submit": "Kick",
+    "sending": "Sending...",
+    "waiting": "Waiting for a proxy to answer...",
+    "timedOut": "No answer yet. Check the player history later.",
+    "close": "Close",
+    "status": {
+      "PENDING": "Waiting",
+      "DELIVERED": "Delivered",
+      "NOT_ON_TARGET": "Not on that server",
+      "NOT_ONLINE": "Not online",
+      "NO_PROXY_ANSWER": "No proxy answered"
+    },
+    "badge": "Kick",
+    "mass": {
+      "title": "Mass kick",
+      "intro": "Kicks everybody from a server or a section in one audited action. It writes no punishment, case or ELO. It cannot be undone.",
+      "confirmLabel": "Type the target name to confirm",
+      "confirmHint": "Type \"{target}\" exactly.",
+      "submit": "Kick everybody",
+      "result": "Status: {status}. Delivered by {count} proxies."
+    }
   }
 }

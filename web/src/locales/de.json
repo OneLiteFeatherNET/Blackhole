@@ -34,7 +34,8 @@
     },
     "staffAccounts": "Teamkonten",
     "imports": "Importe",
-    "cloudnet": "CloudNet"
+    "cloudnet": "CloudNet",
+    "kick": "Massen-Kick"
   },
   "settings": {
     "theme": {
@@ -195,7 +196,8 @@
       "weak": "(schwacher Hinweis)",
       "weakNote": "Eine Verknüpfung nur über das Client-Setup ist ein schwacher Hinweis, kein Beweis: Spieler mit demselben Modpack oder Launcher sehen sich ähnlich. Adresse zusammen mit Client-Setup ist das stärkere Signal.",
       "weakOnly": "Alle hier gelisteten Konten teilen mit diesem Spieler nur das Client-Setup. Das ist ein schwacher Hinweis, kein Beweis: Ein Modpack oder Launcher wird von vielen unabhängigen Spielern benutzt."
-    }
+    },
+    "activeCount": "{count} aktiv"
   },
   "actions": {
     "cancel": "Abbrechen",
@@ -778,7 +780,8 @@
     "tabs": {
       "staff": "Teamkonten",
       "imports": "Importe",
-      "cloudnet": "CloudNet"
+      "cloudnet": "CloudNet",
+      "kick": "Massen-Kick"
     }
   },
   "staffActors": {
@@ -1339,7 +1342,8 @@
       "until": "Bis",
       "source": "Herkunft",
       "issuer": "Verhängt von",
-      "case": "Fall"
+      "case": "Fall",
+      "actions": "Aktionen"
     },
     "permanent": "dauerhaft",
     "remaining": "noch {duration}",
@@ -1546,5 +1550,50 @@
     "moderation": "Moderation",
     "administration": "Verwaltung",
     "switch": "Arbeitsbereich"
+  },
+  "kick": {
+    "title": "{name} kicken",
+    "open": "Kicken",
+    "intro": "Entfernt den Spieler vom Netzwerk, von einem Server oder einer Sektion. Ein Kick ist ein Moment, keine Strafe: Er ist nicht aktiv und kann nicht zurückgenommen werden.",
+    "scope": {
+      "label": "Wovon",
+      "NETWORK": "Netzwerk",
+      "SERVER": "Server",
+      "SECTION": "Sektion"
+    },
+    "target": {
+      "SERVER": "Server",
+      "SECTION": "Sektion",
+      "choose": "Ziel wählen"
+    },
+    "reason": {
+      "label": "Grund",
+      "hint": "Wird dem Spieler angezeigt. 1 bis 200 Zeichen. Keine UUID, IP-Adresse oder Ban-ID schreiben.",
+      "empty": "Grund eingeben.",
+      "tooLong": "Höchstens 200 Zeichen.",
+      "pii": "Der Grund darf keine UUID, IP-Adresse oder Ban-ID enthalten."
+    },
+    "targetRequired": "Ziel wählen.",
+    "submit": "Kicken",
+    "sending": "Wird gesendet...",
+    "waiting": "Warte auf die Antwort eines Proxys...",
+    "timedOut": "Noch keine Antwort. Prüfe später den Verlauf des Spielers.",
+    "close": "Schließen",
+    "status": {
+      "PENDING": "Wartet",
+      "DELIVERED": "Zugestellt",
+      "NOT_ON_TARGET": "Nicht auf diesem Server",
+      "NOT_ONLINE": "Nicht online",
+      "NO_PROXY_ANSWER": "Kein Proxy hat geantwortet"
+    },
+    "badge": "Kick",
+    "mass": {
+      "title": "Massen-Kick",
+      "intro": "Kickt alle von einem Server oder einer Sektion in einer protokollierten Aktion. Es entstehen keine Strafe, kein Fall und kein ELO. Er kann nicht zurückgenommen werden.",
+      "confirmLabel": "Zur Bestätigung den Namen des Ziels eintippen",
+      "confirmHint": "\"{target}\" genau eintippen.",
+      "submit": "Alle kicken",
+      "result": "Status: {status}. Von {count} Proxys zugestellt."
+    }
   }
 }

@@ -66,6 +66,45 @@ describe('staff actions', () => {
   })
 })
 
+describe('kicks', () => {
+  it('posts a kick with the Idempotency-Key header and no actor', async () => {
+    const { api, calls } = apiWith([{ status: 202, body: { id: 'k-1', kind: 'PLAYER', status: 'PENDING', deadlineAt: 1, warnings: [], repeated: false } }])
+
+    const result = await api.kickPlayer({ owner: OWNER, scope: 'SERVER', target: 'Lobby-1', reason: 'spam' }, 'key-1')
+
+    expect(result.ok && result.data.id).toBe('k-1')
+    expect(new URL(calls[0]!.url).pathname).toBe('/api/kick')
+    expect(calls[0]!.headers.get('Idempotency-Key')).toBe('key-1')
+    expect(JSON.parse(calls[0]!.body)).toEqual({ owner: OWNER, scope: 'SERVER', target: 'Lobby-1', reason: 'spam' })
+  })
+
+  it('posts a mass kick to its own route', async () => {
+    const { api, calls } = apiWith([{ status: 202, body: { id: 'm-1', kind: 'MASS', status: 'PENDING', deadlineAt: 1, warnings: [], repeated: false } }])
+
+    await api.kickMass({ scope: 'SECTION', target: 'chat', reason: 'restart' }, 'key-2')
+
+    expect(new URL(calls[0]!.url).pathname).toBe('/api/kick/mass')
+    expect(calls[0]!.headers.get('Idempotency-Key')).toBe('key-2')
+  })
+
+  it('reads a kick by id', async () => {
+    const { api, calls } = apiWith([{ body: { id: 'k-1', status: 'DELIVERED' } }])
+
+    await api.kick('k-1')
+
+    expect(calls[0]!.method).toBe('GET')
+    expect(new URL(calls[0]!.url).pathname).toBe('/api/kick/k-1')
+  })
+
+  it('surfaces a refused kick', async () => {
+    const { api } = apiWith([{ status: 422, body: { errorMessage: 'KICK_TARGET_INVALID', kind: 'VALIDATION' } }])
+
+    const result = await api.kickPlayer({ owner: OWNER, scope: 'SERVER', reason: 'spam' }, 'key-3')
+
+    expect(result.ok).toBe(false)
+  })
+})
+
 describe('template management', () => {
   const draft = {
     key: ' hacking ',
