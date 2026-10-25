@@ -143,7 +143,7 @@ describe('router guard', () => {
 
     await router.push('/no-access')
 
-    expect(router.currentRoute.value.name).toBe('dashboard')
+    expect(router.currentRoute.value.name).toBe('inbox')
   })
 
   it.each([['VIEWER'], ['MODERATOR']])('sends a %s who opens the admin page to the no-access page with the admin reason', async (role) => {

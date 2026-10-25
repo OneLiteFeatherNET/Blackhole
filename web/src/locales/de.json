@@ -2,33 +2,35 @@
   "nav": {
     "label": "Hauptnavigation",
     "skip": "Zum Inhalt springen",
-    "dashboard": "Übersicht",
-    "players": "Spieler",
-    "punished": "Gesperrte Spieler",
-    "templates": "Vorlagen",
-    "sections": "Bereiche",
-    "reports": "Meldungen",
-    "appeals": "Einsprüche",
-    "admin": "Verwaltung",
+    "inbox": "Posteingang",
     "cases": "Fälle",
+    "appeals": "Einsprüche",
+    "reports": "Meldungen",
+    "playerLookup": "Spielersuche",
+    "activePunishments": "Aktive Strafen",
+    "sections": "Bereiche",
+    "templates": "Vorlagen",
+    "appealTerms": "Einspruchsbedingungen",
+    "clientRules": "Client-Regeln",
+    "administration": "Verwaltung",
     "groups": {
-      "overview": "Übersicht",
-      "moderation": "Moderation",
-      "rules": "Regelwerk",
-      "system": "System"
+      "work": "Arbeit",
+      "players": "Spieler",
+      "configuration": "Konfiguration",
+      "administration": "Verwaltung"
     },
     "brand": "Blackhole",
     "open": "Navigation öffnen",
     "close": "Navigation schließen",
     "collapse": "Navigation einklappen",
     "expand": "Navigation ausklappen",
+    "breadcrumbs": "Navigationspfad",
     "badge": {
+      "inbox": "{n} Vorgang braucht Aufmerksamkeit | {n} Vorgänge brauchen Aufmerksamkeit",
       "cases": "{n} offener Fall | {n} offene Fälle",
       "appeals": "{n} Einspruch wartet auf Prüfung | {n} Einsprüche warten auf Prüfung",
       "reports": "{n} ungelöste Meldung | {n} ungelöste Meldungen"
-    },
-    "appealConditions": "Rahmenbedingungen",
-    "clientRules": "Client-Regeln"
+    }
   },
   "settings": {
     "theme": {
@@ -720,7 +722,9 @@
       "unlinkBody": "Dein Discord-Konto wird dir nicht mehr zugeordnet. Du kannst es mit einem neuen Code erneut verknüpfen.",
       "unlinkConfirm": "Verknüpfung entfernen",
       "unlinked": "Discord-Verknüpfung entfernt."
-    }
+    },
+    "linkMinecraft": "Mein Minecraft-Konto verknüpfen",
+    "linkDiscord": "Discord verknüpfen"
   },
   "staffLinks": {
     "title": "Verknüpfte Minecraft-Konten",
@@ -1504,5 +1508,14 @@
     "invalid": "Dieser Link ist keine Webadresse (http oder https) und kann nicht geöffnet werden.",
     "continue": "Weiter",
     "back": "Zurück"
+  },
+  "inbox": {
+    "title": "Posteingang",
+    "needsAnswer": "Wartet auf Antwort",
+    "openAppeals": "Offene Einsprüche",
+    "newReports": "Neue Meldungen",
+    "unassignedCases": "Nicht zugewiesene Fälle",
+    "showAll": "Alle anzeigen",
+    "empty": "Nichts wartet gerade"
   }
 }

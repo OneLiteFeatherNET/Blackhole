@@ -29,7 +29,6 @@
     "src/components/search/GlobalSearch.vue",
     "src/components/sections/SectionEditor.vue",
     "src/components/templates/TemplateEditor.vue",
-    "src/views/DashboardView.vue",
     "src/views/LeaveView.vue",
     "src/views/TemplatesView.vue"
   ]

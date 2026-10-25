@@ -17,6 +17,16 @@ describe('createBlackholeApi', () => {
     expect(calls[0]!.url).toBe('http://ui.test/api/dashboard/summary')
   })
 
+  it('reads the inbox from GET /inbox with the four sections', async () => {
+    const { calls, impl } = fakeFetch([{ body: { generatedAt: 1, needsAnswer: { count: 0, items: [] }, openAppeals: { count: 0, items: [] }, newReports: { count: 0, items: [] }, unassignedCases: { count: 0, items: [] } } }])
+    const api = createBlackholeApi({ baseUrl: 'http://ui.test/api', auth: fakeHttpAuth().auth, fetch: impl })
+
+    const result = await api.inbox()
+
+    expect(calls[0]!.url).toBe('http://ui.test/api/inbox')
+    expect(result.ok && result.data.openAppeals.count).toBe(0)
+  })
+
   it('returns the data of a successful call', async () => {
     const summary = { activePunishmentsBySection: [{ section: 'chat', active: 2 }], latestEscalations: [], openReports: 4 }
     const { impl } = fakeFetch([{ body: summary }])

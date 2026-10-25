@@ -38,9 +38,10 @@ const uid = useId()
 const root = ref<HTMLElement | null>(null)
 let returnFocusTo: HTMLElement | null = null
 
-// An entry stays current on its sub pages, e.g. /players for /players/<owner>.
+// An entry is current on its own page, or on a detail page whose route names it (`meta.nav`, e.g. /players
+// for /players/<owner>). Never by a prefix of the path: /cases is not current on /casesfoo.
 function isCurrent(to: string): boolean {
-  return route.path === to || (to !== '/' && route.path.startsWith(`${to}/`))
+  return route.path === to || route.meta.nav === to
 }
 
 const visible = () => props.mode !== 'modal' || props.open

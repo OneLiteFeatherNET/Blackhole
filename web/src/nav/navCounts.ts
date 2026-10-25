@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { BlackholeApi } from '../api/blackhole'
+import type { InboxSummary } from '../api/types'
 
 /** What the navigation counts. */
-export type CountKey = 'cases' | 'appeals' | 'reports'
+export type CountKey = 'inbox' | 'cases' | 'appeals' | 'reports'
 
 /** Above this the badge reads "99+". */
 export const COUNT_CAP = 99
@@ -15,11 +16,21 @@ export function badgeText(count: number | null | undefined): string | null {
 }
 
 /**
- * Open work for the navigation badges, held in memory. Appeals and reports come from the dashboard
- * summary (`pendingAppeals`, `openReports`), open cases from the totalSize of a one-item case page, so
- * no list is downloaded. A failed request keeps the previous value: a badge is a hint, not an error.
+ * The inbox total: open appeals, new reports and unassigned cases. Items that need an answer are a part of
+ * the open appeals, so they are not added again.
+ */
+export function inboxTotal(inbox: InboxSummary): number {
+  return inbox.openAppeals.count + inbox.newReports.count + inbox.unassignedCases.count
+}
+
+/**
+ * Open work for the navigation badges, held in memory. Appeals, reports and the inbox total come from the
+ * inbox read, so the badges cannot disagree with the inbox page; open cases come from the totalSize of a
+ * one-item case page, so no list is downloaded. A failed request keeps the previous value: a badge is a hint,
+ * not an error.
  */
 export const useNavCountsStore = defineStore('navCounts', () => {
+  const inbox = ref<number | null>(null)
   const cases = ref<number | null>(null)
   const appeals = ref<number | null>(null)
   const reports = ref<number | null>(null)
@@ -27,10 +38,11 @@ export const useNavCountsStore = defineStore('navCounts', () => {
 
   async function load(api: BlackholeApi): Promise<void> {
     try {
-      const [summary, openCases] = await Promise.all([api.dashboard(), api.cases({ status: 'OPEN', page: 0, size: 1 })])
+      const [summary, openCases] = await Promise.all([api.inbox(), api.cases({ status: 'OPEN', page: 0, size: 1 })])
       if (summary.ok) {
-        appeals.value = summary.data.pendingAppeals ?? 0
-        reports.value = summary.data.openReports ?? 0
+        inbox.value = inboxTotal(summary.data)
+        appeals.value = summary.data.openAppeals.count
+        reports.value = summary.data.newReports.count
       }
       if (openCases.ok) cases.value = openCases.data.totalSize
     } catch {
@@ -49,8 +61,8 @@ export const useNavCountsStore = defineStore('navCounts', () => {
   }
 
   function reset(): void {
-    cases.value = appeals.value = reports.value = null
+    inbox.value = cases.value = appeals.value = reports.value = null
   }
 
-  return { cases, appeals, reports, refresh, reset }
+  return { inbox, cases, appeals, reports, refresh, reset }
 })

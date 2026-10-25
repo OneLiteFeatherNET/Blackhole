@@ -2,33 +2,35 @@
   "nav": {
     "label": "Main navigation",
     "skip": "Skip to content",
-    "dashboard": "Dashboard",
-    "players": "Players",
-    "punished": "Punished players",
-    "templates": "Templates",
-    "sections": "Sections",
-    "reports": "Reports",
-    "appeals": "Appeals",
-    "admin": "Admin",
+    "inbox": "Inbox",
     "cases": "Cases",
+    "appeals": "Appeals",
+    "reports": "Reports",
+    "playerLookup": "Player lookup",
+    "activePunishments": "Active punishments",
+    "sections": "Sections",
+    "templates": "Templates",
+    "appealTerms": "Appeal terms",
+    "clientRules": "Client rules",
+    "administration": "Administration",
     "groups": {
-      "overview": "Overview",
-      "moderation": "Moderation",
-      "rules": "Rules",
-      "system": "System"
+      "work": "Work",
+      "players": "Players",
+      "configuration": "Configuration",
+      "administration": "Administration"
     },
     "brand": "Blackhole",
     "open": "Open navigation",
     "close": "Close navigation",
     "collapse": "Collapse navigation",
     "expand": "Expand navigation",
+    "breadcrumbs": "Breadcrumbs",
     "badge": {
+      "inbox": "{n} item needs attention | {n} items need attention",
       "cases": "{n} open case | {n} open cases",
       "appeals": "{n} appeal awaiting review | {n} appeals awaiting review",
       "reports": "{n} unresolved report | {n} unresolved reports"
-    },
-    "appealConditions": "Appeal conditions",
-    "clientRules": "Client rules"
+    }
   },
   "settings": {
     "theme": {
@@ -720,7 +722,9 @@
       "unlinkBody": "Your Discord account is no longer attributed to you. You can link it again with a new code.",
       "unlinkConfirm": "Remove link",
       "unlinked": "Discord link removed."
-    }
+    },
+    "linkMinecraft": "Link my Minecraft account",
+    "linkDiscord": "Link Discord"
   },
   "staffLinks": {
     "title": "Linked Minecraft accounts",
@@ -1504,5 +1508,14 @@
     "invalid": "This link is not a web address (http or https) and cannot be opened.",
     "continue": "Continue",
     "back": "Go back"
+  },
+  "inbox": {
+    "title": "Inbox",
+    "needsAnswer": "Needs an answer",
+    "openAppeals": "Open appeals",
+    "newReports": "New reports",
+    "unassignedCases": "Unassigned cases",
+    "showAll": "Show all",
+    "empty": "Nothing waiting"
   }
 }

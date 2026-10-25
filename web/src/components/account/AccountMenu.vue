@@ -11,7 +11,8 @@ import MdSelect from '../md/MdSelect.vue'
 import MdTransition from '../../motion/MdTransition.vue'
 
 const props = defineProps<{ displayName: string | null }>()
-const emit = defineEmits<{ account: []; signOut: [] }>()
+// `account` names the own-account panel to open: the Minecraft link, or the Discord link inside the same dialog.
+const emit = defineEmits<{ account: [target: 'minecraft' | 'discord']; signOut: [] }>()
 
 const { t } = useI18n()
 const ui = useUiStore()
@@ -54,10 +55,14 @@ function onKeydown(event: KeyboardEvent): void {
   close()
 }
 
-function choose(action: 'account' | 'signOut'): void {
+function chooseAccount(target: 'minecraft' | 'discord'): void {
   close(false)
-  if (action === 'account') emit('account')
-  else emit('signOut')
+  emit('account', target)
+}
+
+function chooseSignOut(): void {
+  close(false)
+  emit('signOut')
 }
 
 watch(open, (isOpen) => {
@@ -97,11 +102,12 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerOutsi
       >
         <template v-if="props.displayName">
           <p data-testid="signed-in-as" class="text-body-medium text-on-surface-variant">{{ t('auth.signedInAs', { name: props.displayName }) }}</p>
-          <MdButton variant="tonal" data-testid="account" @click="choose('account')">{{ t('account.open') }}</MdButton>
+          <MdButton variant="tonal" data-testid="link-minecraft" @click="chooseAccount('minecraft')">{{ t('account.linkMinecraft') }}</MdButton>
+          <MdButton variant="tonal" data-testid="link-discord" @click="chooseAccount('discord')">{{ t('account.linkDiscord') }}</MdButton>
         </template>
         <MdSelect v-model="theme" :label="t('settings.theme.label')" :options="themeOptions" />
         <MdSelect v-model="locale" :label="t('settings.locale.label')" :options="localeOptions" />
-        <MdButton v-if="props.displayName" variant="outlined" data-testid="sign-out" @click="choose('signOut')">{{ t('auth.signOut') }}</MdButton>
+        <MdButton v-if="props.displayName" variant="outlined" data-testid="sign-out" @click="chooseSignOut">{{ t('auth.signOut') }}</MdButton>
       </div>
     </MdTransition>
   </div>

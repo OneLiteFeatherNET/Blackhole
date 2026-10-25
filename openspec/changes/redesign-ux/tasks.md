@@ -90,26 +90,26 @@ PR title: `feat(api): add the inbox summary for the staff panel`
 
 PR title: `feat(web): regroup the navigation and add the inbox home`
 
-- [ ] 2b.1 Red: `web/src/nav/navigation.test.ts` asserts the groups, headings and German labels of the design's
+- [x] 2b.1 Red: `web/src/nav/navigation.test.ts` asserts the groups, headings and German labels of the design's
   "After" table (glossary terms); `web/src/views/InboxView.test.ts` asserts the four sections, the counts, "Show all"
   links and the empty state; `web/src/components/PageShell.test.ts` asserts exactly one `h1` and the slot order
   (breadcrumbs, title, description, actions, toolbar, content, aside); `web/src/components/Breadcrumbs.test.ts`
   asserts that the last item has `aria-current="page"`. Use a fake fetch for `GET /inbox`.
-- [ ] 2b.2 Green: `web/src/nav/navigation.ts` (lines 25-88 and `visibleGroups` lines 91-96) rewritten to the four
+- [x] 2b.2 Green: `web/src/nav/navigation.ts` (lines 25-88 and `visibleGroups` lines 91-96) rewritten to the four
   groups; `web/src/router/index.ts` (lines 23-43): `/` renders `InboxView`, `/admin/staff` added, redirects for any
   renamed route; `web/src/views/InboxView.vue` (new) replaces `DashboardView.vue` (keep its escalation table and
   active list as sections, audit 6.5); `web/src/components/PageShell.vue` and `web/src/components/Breadcrumbs.vue`
   (new); `web/src/components/md/MdNavigationDrawer.vue` (lines 41-44) marks the current item by route match.
-- [ ] 2b.3 `web/src/App.vue`: navigation badges (lines 41-46, `navCounts`) read from the inbox response; remove the
+- [x] 2b.3 `web/src/App.vue`: navigation badges (lines 41-46, `navCounts`) read from the inbox response; remove the
   route-title `h1` at line 134 so `PageShell` provides the only one.
-- [ ] 2b.4 Account menu: `web/src/components/account/AccountMenu.vue` gets "Link my Minecraft account" and "Link
+- [x] 2b.4 Account menu: `web/src/components/account/AccountMenu.vue` gets "Link my Minecraft account" and "Link
   Discord" entries that open `AccountLinkDialog.vue` and `DiscordLinkSection.vue` (the own-account panels move here
   from the Sections page; the removal from Sections is task 3d.2). Update `AccountMenu.test.ts`.
-- [ ] 2b.5 Locales `web/src/locales/en.json` and `de.json`: the nav keys of the glossary (Inbox / Posteingang, Work /
+- [x] 2b.5 Locales `web/src/locales/en.json` and `de.json`: the nav keys of the glossary (Inbox / Posteingang, Work /
   Arbeit, Players / Spieler, Configuration / Konfiguration, Administration / Verwaltung, Appeal terms /
   Einspruchsbedingungen, Active punishments / Aktive Strafen, Player lookup / Spielersuche). Test: both files have
   the same keys (the existing i18n test pattern).
-- [ ] 2b.6 Refactor: remove `DashboardView.vue` once `InboxView.vue` passes; update `web/tests/design-baseline.json`.
+- [x] 2b.6 Refactor: remove `DashboardView.vue` once `InboxView.vue` passes; update `web/tests/design-baseline.json`.
 
 ---
 

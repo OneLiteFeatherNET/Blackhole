@@ -45,6 +45,7 @@ import type {
   CurrentCaller,
   ApplyResult,
   DashboardSummary,
+  InboxSummary,
   EloAdjustResult,
   EvasionSightings,
   EloEvent,
@@ -93,6 +94,8 @@ export interface BlackholeApi {
   /** Who the token belongs to and which roles it maps to; an empty role list is a valid answer. */
   me(): Promise<ApiResult<CurrentCaller>>
   dashboard(): Promise<ApiResult<DashboardSummary>>
+  /** The four sections of the inbox: counts and the oldest items of each. */
+  inbox(): Promise<ApiResult<InboxSummary>>
   /** Resolves a player name; the result carries the hashed `owner` all other calls use. */
   resolvePlayer(name: string): Promise<ApiResult<ResolvedPlayer & { owner: string }>>
   /** A player without any punishment has no profile; that is an empty profile, not an error. */
@@ -433,6 +436,8 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     me: () => toResult(http.GET('/auth/me')),
 
     dashboard: () => toResult(http.GET('/dashboard/summary')),
+
+    inbox: () => toResult(http.GET('/inbox')),
 
     async resolvePlayer(name) {
       const result = await toResult(http.GET('/player/resolve/{name}', { params: { path: { name } } }))
