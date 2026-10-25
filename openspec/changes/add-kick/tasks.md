@@ -97,14 +97,14 @@ Body notes: `BREAKING` for the generated client (enum values), see `design.md` d
 
 Branch `feat/kick-template`. Depends on PR 2.
 
-- [ ] 3.1 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/punishment/KickTemplateStepTest.java`:
+- [x] 3.1 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/punishment/KickTemplateStepTest.java`:
   applying a template whose step 1 is `KICK` (`eloCost` 10) creates a KICK row, changes the score by
   10 once, and a second application within the window selects step 2 (`PUNISH P1D`).
-- [ ] 3.2 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/punishment/KickWithoutTemplateCostsNoEloTest.java`:
+- [x] 3.2 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/punishment/KickWithoutTemplateCostsNoEloTest.java`:
   a kick with no template and a mass kick change no score.
-- [ ] 3.3 `PunishmentApplicationService.java`: a `KICK` step goes to the kick path (no
+- [x] 3.3 `PunishmentApplicationService.java`: a `KICK` step goes to the kick path (no
   `placeAndRecord`), scope from the request (default `NETWORK`), ELO through the existing template path.
-- [ ] 3.4 Tests green: `./gradlew :backend:test --tests "*punishment*" --tests "*kick*"`.
+- [x] 3.4 Tests green: `./gradlew :backend:test --tests "*punishment*" --tests "*kick*"`.
 
 Commit: `feat(template): apply kick steps with ELO cost and escalation`.
 
