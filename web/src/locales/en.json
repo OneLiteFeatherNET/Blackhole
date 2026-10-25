@@ -17,7 +17,8 @@
       "work": "Work",
       "players": "Players",
       "configuration": "Configuration",
-      "administration": "Administration"
+      "administration": "Administration",
+      "system": "System"
     },
     "brand": "Blackhole",
     "open": "Open navigation",
@@ -30,7 +31,10 @@
       "cases": "{n} open case | {n} open cases",
       "appeals": "{n} appeal awaiting review | {n} appeals awaiting review",
       "reports": "{n} unresolved report | {n} unresolved reports"
-    }
+    },
+    "staffAccounts": "Staff accounts",
+    "imports": "Imports",
+    "cloudnet": "CloudNet"
   },
   "settings": {
     "theme": {
@@ -1537,5 +1541,10 @@
   },
   "rowMenu": {
     "more": "More actions for {name}"
+  },
+  "workspace": {
+    "moderation": "Moderation",
+    "administration": "Administration",
+    "switch": "Workspace"
   }
 }

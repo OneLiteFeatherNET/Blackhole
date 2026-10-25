@@ -43,6 +43,20 @@ async function choose(wrapper: Awaited<ReturnType<ReturnType<typeof setup>['moun
   await flushPromises()
 }
 
+// The administration workspace is ADMIN only, but the moderation dialogs still offer the templates to a moderator.
+describe('ApplyTemplateDialog for a moderator', () => {
+  it('still lists the templates and applies one, with no administration access', async () => {
+    const { api } = setup()
+    const { wrapper } = await mountWithApp(ApplyTemplateDialog, { api: mockApi(api), props: { open: true, owner: OWNER }, roles: ['MODERATOR', 'VIEWER'] })
+
+    const options = (await listOptions(wrapper.get('[role="combobox"]'))).map((o) => o.label)
+    expect(options, 'templates offered to a moderator').toEqual(['hacking', 'spam'])
+    expect(api.templates, 'the templates list is read').toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
+})
+
 describe('ApplyTemplateDialog', () => {
   it('lists the templates and keeps Apply disabled until one is chosen', async () => {
     const { mount } = setup()

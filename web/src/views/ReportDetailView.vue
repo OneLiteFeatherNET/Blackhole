@@ -24,6 +24,7 @@ import StatusPill from '../components/StatusPill.vue'
 import { useResource } from '../composables/useResource'
 import { formatDateTime, shortHash } from '../format'
 import { useLookupStore } from '../stores/lookup'
+import { withWorkspace } from '../nav/workspaces'
 import { useSessionStore } from '../stores/session'
 
 const OPEN: ReportStatus[] = ['OPEN', 'UNDER_REVIEW']
@@ -55,6 +56,8 @@ const playerName = computed(() => (current.value ? lookup.nameOf(current.value.r
 
 // The trail back to the list is the breadcrumbs; the title of the page is the report itself.
 const crumbs = computed(() => [{ label: t('nav.reports'), to: '/reports' }, { label: `#${props.id.slice(0, 8)}` }])
+// The workspace leads the trail for an administrator (the switcher is shown to them only).
+const trail = (items: { label: string; to?: string }[]) => withWorkspace(items, { show: session.administrator, workspace: 'moderation', translate: (key) => t(key) })
 
 const summaryItems = computed(() => {
   const loaded = current.value
@@ -113,7 +116,7 @@ async function done(text: string): Promise<void> {
 <template>
   <PageShell :title="t('reports.detail.title')">
     <template #breadcrumbs>
-      <Breadcrumbs :items="crumbs" />
+      <Breadcrumbs :items="trail(crumbs)" />
     </template>
 
     <SkeletonBlock v-if="report.loading.value && report.data.value === null" height="12rem" />

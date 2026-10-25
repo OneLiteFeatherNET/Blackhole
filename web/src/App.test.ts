@@ -35,6 +35,8 @@ async function mountApp(path = '/', options: { roles?: string[]; auth?: ReturnTy
           staffLinkStatus: async () => ok({ linked: false }),
           discordLinkStatus: async () => ok({ linked: false }),
           cases: async () => ok({ items: [], page: 0, size: 20, totalSize: 0, totalPages: 0 }),
+          templates: async () => ok([]),
+          sections: async () => ok([]),
         }),
       },
     },
@@ -107,18 +109,18 @@ describe('App shell', () => {
     wrapper.unmount()
   })
 
-  it('offers the admin page in the navigation to an admin', async () => {
+  it('offers the administration workspace in the switcher to an admin', async () => {
     const wrapper = await mountApp('/')
 
-    expect(wrapper.findAll('nav a').map((a) => a.text()), 'entries').toContain('Verwaltung')
+    expect(wrapper.findAll('a[data-testid^="workspace-"]').map((a) => a.text()), 'switcher').toEqual(['Moderation', 'Verwaltung'])
 
     wrapper.unmount()
   })
 
-  it.each([['MODERATOR'], ['VIEWER']])('does not offer the admin page in the navigation to a %s', async (role) => {
+  it.each([['MODERATOR'], ['VIEWER']])('offers no switcher to a %s', async (role) => {
     const wrapper = await mountApp('/', { roles: [role] })
 
-    expect(wrapper.findAll('nav a').map((a) => a.text()), 'entries').not.toContain('Verwaltung')
+    expect(wrapper.find('[data-testid="workspace-switcher"]').exists(), 'switcher').toBe(false)
 
     wrapper.unmount()
   })
@@ -178,21 +180,29 @@ describe('App shell', () => {
     wrapper.unmount()
   })
 
-  it('groups the navigation and shows the admin group to an admin', async () => {
+  it('shows the moderation rail on the inbox for an admin', async () => {
     const wrapper = await mountApp('/')
 
-    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text()), 'headings').toEqual(['Arbeit', 'Spieler', 'Konfiguration', 'Verwaltung'])
-    expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual([
-      'Posteingang', 'Fälle', 'Einsprüche', 'Meldungen', 'Spielersuche', 'Aktive Strafen', 'Bereiche', 'Vorlagen', 'Einspruchsbedingungen', 'Client-Regeln', 'Verwaltung',
-    ])
+    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text()), 'headings').toEqual(['Arbeit', 'Spieler'])
+    expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual(['Posteingang', 'Fälle', 'Einsprüche', 'Meldungen', 'Spielersuche', 'Aktive Strafen'])
 
     wrapper.unmount()
   })
 
-  it('leaves out the system group for a moderator', async () => {
+  it('shows the administration rail on an administration page for an admin', async () => {
+    const wrapper = await mountApp('/admin/templates')
+
+    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text()), 'headings').toEqual(['Konfiguration', 'System'])
+    expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual(['Vorlagen', 'Bereiche', 'Client-Regeln', 'Einspruchsbedingungen', 'Teamkonten', 'Importe', 'CloudNet'])
+    expect(wrapper.get('[data-testid="workspace-administration"]').attributes('aria-current')).toBe('true')
+
+    wrapper.unmount()
+  })
+
+  it('shows no administration rail to a moderator on the inbox', async () => {
     const wrapper = await mountApp('/', { roles: ['MODERATOR'] })
 
-    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text())).toEqual(['Arbeit', 'Spieler', 'Konfiguration'])
+    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text())).toEqual(['Arbeit', 'Spieler'])
 
     wrapper.unmount()
   })
@@ -220,7 +230,7 @@ describe('App shell', () => {
     const wrapper = await mountApp('/')
     const toggle = wrapper.get('[data-testid="nav-toggle"]')
     expect(toggle.attributes('aria-label')).toBe('Navigation einklappen')
-    expect(wrapper.findAll('nav [role="group"]'), 'headings while expanded').toHaveLength(4)
+    expect(wrapper.findAll('nav [role="group"]'), 'headings while expanded').toHaveLength(2)
 
     await toggle.trigger('click')
 

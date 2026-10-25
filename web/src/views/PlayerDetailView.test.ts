@@ -158,8 +158,10 @@ describe('PlayerDetailView', () => {
 
     expect(wrapper.findAll('h1')).toHaveLength(1)
     const crumbs = wrapper.get('nav[aria-label="Breadcrumbs"]')
-    expect(crumbs.get('a').attributes('href')).toBe('/players')
-    expect(crumbs.get('a').text()).toBe('Player lookup')
+    // The default test user is an administrator, so the workspace leads the trail; the lookup is the link before the player.
+    expect(crumbs.findAll('a')[0]!.text()).toBe('Moderation')
+    expect(crumbs.findAll('a')[1]!.attributes('href')).toBe('/players')
+    expect(crumbs.findAll('a')[1]!.text()).toBe('Player lookup')
     expect(crumbs.get('[aria-current="page"]').text()).toBe(`${OWNER.slice(0, 8)}…`)
     expect(wrapper.findAll(`a[href="/players"]`), 'the way back is the breadcrumb only').toHaveLength(1)
 

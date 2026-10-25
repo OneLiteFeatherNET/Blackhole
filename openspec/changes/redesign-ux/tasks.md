@@ -200,7 +200,7 @@ Decision of 2026-10-25 in `design.md` section 1 ("Decision 2026-10-25"). Two PRs
 PR 1 title: `docs(openspec): split the panel into moderation and administration workspaces` (this spec update).
 PR 2 title: `feat(web): split the panel into moderation and administration workspaces`, based on PR 1's branch.
 
-- [ ] 3f.1 Red, PR 2 (`web/`, all Vitest, F.I.R.S.T., fake fetch, no timers):
+- [x] 3f.1 Red, PR 2 (`web/`, all Vitest, F.I.R.S.T., fake fetch, no timers):
   - `web/src/nav/navigation.test.ts`: replace the single-rail shape with the two workspaces. Moderation for ADMIN and
     MODERATOR: Inbox, Work (Cases, Appeals, Reports), Players (Player lookup, Active punishments). Administration for
     ADMIN only: Configuration (Templates, Sections, Client rules, Appeal terms), System (Staff accounts, Imports,
@@ -223,7 +223,7 @@ PR 2 title: `feat(web): split the panel into moderation and administration works
   - `web/src/components/Breadcrumbs.test.ts` and `web/src/views/CaseView.test.ts`, `ReportDetailView.test.ts`,
     `PlayerDetailView.test.ts`: with the switcher shown (ADMIN), the first crumb is the workspace name; without it
     (MODERATOR) the trail is unchanged.
-- [ ] 3f.2 Green, PR 2:
+- [x] 3f.2 Green, PR 2:
   - `web/src/nav/navigation.ts`: `NAV_GROUPS` becomes two exports, `MODERATION_GROUPS` and `ADMINISTRATION_GROUPS`
     (lines 25-88 and `visibleGroups` lines 91-96). Each `NavDestination` gets no `admin` flag; the workspace does.
   - `web/src/nav/workspaces.ts` (new): the two workspaces with key, home route, label key, groups and the admin flag.
@@ -240,9 +240,9 @@ PR 2 title: `feat(web): split the panel into moderation and administration works
   - `web/src/locales/en.json` and `de.json`: `workspace.moderation` (Moderation / Moderation), `workspace.administration`
     (Administration / Verwaltung), `workspace.switch`, `nav.groups.system` (System / System), and the keys for the
     Administration items (`nav.staffAccounts`, `nav.imports`, `nav.cloudnet`). Key parity test passes.
-- [ ] 3f.3 Refactor, PR 2: `web/tests/design-baseline.json` may only shrink (a file migrated in this PR may be removed,
+- [x] 3f.3 Refactor, PR 2: `web/tests/design-baseline.json` may only shrink (a file migrated in this PR may be removed,
   none may be added). Remove the `AdminView` tab helpers that are now unused.
-- [ ] 3f.4 Verify, PR 2, in `web/`: `npm ci`, `npm test`, `npx vue-tsc --noEmit`, `npm run build`.
+- [x] 3f.4 Verify, PR 2, in `web/`: `npm ci`, `npm test`, `npx vue-tsc --noEmit`, `npm run build`.
 - [ ] 3f.5 Open the pull requests: PR 1 against `main`, PR 2 against PR 1's branch (`docs/ux-workspaces`), each body
   ending with the session URL; wait for `gh pr checks`; do not merge.
 

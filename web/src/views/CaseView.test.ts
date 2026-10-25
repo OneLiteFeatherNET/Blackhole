@@ -41,8 +41,9 @@ describe('CaseView: loading', () => {
     const { wrapper } = await mount()
 
     const crumbs = wrapper.findAll('nav[aria-label="Breadcrumbs"] a')
-    expect(crumbs.map((crumb) => crumb.text())).toEqual(['Cases'])
-    expect(crumbs[0]!.attributes('href')).toBe('/cases')
+    // The default test user is an administrator, so the workspace leads the trail; the list is the link before the case.
+    expect(crumbs.map((crumb) => crumb.text())).toEqual(['Moderation', 'Cases'])
+    expect(crumbs[1]!.attributes('href')).toBe('/cases')
     expect(wrapper.get('nav[aria-label="Breadcrumbs"] [aria-current="page"]').text()).toBe('#AB12CD')
 
     wrapper.unmount()
