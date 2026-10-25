@@ -10,7 +10,7 @@ import jakarta.inject.Singleton;
 /**
  * Registers the issuer's JWKS as the signature source. Micronaut Security turns every
  * {@link JwksSignatureConfiguration} bean into a signature validator that fetches and caches the
- * keys. It is not registered in the {@code test} environment, where tests sign with their own key
+ * keys, pinned to RS256 by {@link Rs256PinnedJwksSignature}. It is not registered in the {@code test} environment, where tests sign with their own key
  * and no key is ever fetched over the network.
  */
 @Factory

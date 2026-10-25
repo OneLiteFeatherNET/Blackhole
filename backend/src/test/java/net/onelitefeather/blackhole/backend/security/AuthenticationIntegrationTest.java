@@ -67,6 +67,13 @@ class AuthenticationIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void anHs256TokenSignedWithThePublicKeyBytesIsUnauthorized() {
+        String token = this.jwt.delegated().groups(TestJwtIssuer.ADMIN_GROUP).hs256WithPublicKeyAsSecret();
+
+        assertEquals(401, get("/auth/me", token).status(), "key confusion");
+    }
+
+    @Test
     void aMalformedTokenIsUnauthorized() {
         assertEquals(401, get("/auth/me", "not-a-jwt").status(), "garbage instead of a JWT");
     }

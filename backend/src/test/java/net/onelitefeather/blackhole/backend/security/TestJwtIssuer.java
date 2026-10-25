@@ -3,6 +3,7 @@ package net.onelitefeather.blackhole.backend.security;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.RSASSASigner;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -160,6 +161,18 @@ public final class TestJwtIssuer {
                 return jwt.serialize();
             } catch (JOSEException e) {
                 throw new IllegalStateException("cannot sign the test token", e);
+            }
+        }
+
+        /** A key-confusion token: {@code HS256}, with the application's public key bytes as the HMAC secret. */
+        public String hs256WithPublicKeyAsSecret() {
+            try {
+                SignedJWT jwt = new SignedJWT(
+                        new JWSHeader.Builder(JWSAlgorithm.HS256).keyID(this.signingKey.getKeyID()).build(), claimsSet());
+                jwt.sign(new MACSigner(this.signingKey.toRSAPublicKey().getEncoded()));
+                return jwt.serialize();
+            } catch (JOSEException e) {
+                throw new IllegalStateException("cannot sign the key-confusion token", e);
             }
         }
 
