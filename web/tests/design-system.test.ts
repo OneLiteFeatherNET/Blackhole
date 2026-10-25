@@ -1,9 +1,12 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { join, relative, sep } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 // Design section 2 of openspec/changes/redesign-ux: retired classes must not come back in web/src.
 const WEB = join(import.meta.dirname, '..')
+
+// Baseline keys are posix paths ("src/..."), on every platform.
+const posix = (file: string) => relative(WEB, file).split(sep).join('/')
 const SRC = join(WEB, 'src')
 const BASELINE = join(WEB, 'tests/design-baseline.json')
 const MAIN_CSS = join(SRC, 'styles/main.css')
@@ -29,7 +32,7 @@ function violationsIn(file: string, source: string): string[] {
       RETIRED_PATTERNS.some((pattern) => pattern.test(line)) ||
       // rounded-md-sm is for nothing but buttons and chips' former shape; both now use rounded-full.
       (/rounded-md-sm/.test(line) && /button|chip/i.test(`${file} ${line}`))
-    if (retired) hits.push(`${relative(WEB, file)}:${index + 1}`)
+    if (retired) hits.push(`${posix(file)}:${index + 1}`)
   })
   return hits
 }
@@ -46,7 +49,7 @@ function filesUsingRetiredClasses(): Map<string, string[]> {
   const result = new Map<string, string[]>()
   for (const file of vueFiles(SRC)) {
     const hits = violationsIn(file, readFileSync(file, 'utf8'))
-    if (hits.length > 0) result.set(relative(WEB, file), hits)
+    if (hits.length > 0) result.set(posix(file), hits)
   }
   return result
 }
