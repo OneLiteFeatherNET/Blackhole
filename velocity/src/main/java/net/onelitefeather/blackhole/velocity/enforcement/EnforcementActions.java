@@ -16,6 +16,9 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * Applies a newly active punishment to a player connected to this proxy: a BAN disconnects them, a
@@ -92,22 +95,40 @@ public final class EnforcementActions {
             return;
         }
         String owner = punishment.owner();
+        moveToFallback(player,
+                moved -> screen(player, punishment, moved ? PunishmentScreens.Surface.CHAT : PunishmentScreens.Surface.DISCONNECT, moved),
+                name -> this.state.activeServerBan(owner, name, this.servers.facts(name)).isPresent());
+    }
+
+    /**
+     * Takes the player off the server they stand on: to the configured fallback server if it exists and
+     * is usable, otherwise (or if the move fails) off the network. The one rule behind both the SERVER
+     * punishments and the kicks of a server or section.
+     *
+     * @param screen   the text for the outcome; the argument is whether the player was moved (shown in
+     *                 chat) or disconnected (shown as the disconnect screen)
+     * @param unusable whether the named fallback server must not be used, e.g. the player is banned
+     *                 from it or it is the server being kicked from
+     * @return completes with true if the player was moved to the fallback, false if they were disconnected
+     */
+    public CompletableFuture<Boolean> moveToFallback(
+            @NotNull Player player, @NotNull Function<Boolean, Component> screen, @NotNull Predicate<String> unusable
+    ) {
         RegisteredServer fallback = this.proxy.getServer(this.config.getFallbackServer())
-                .filter(server -> {
-                    String name = server.getServerInfo().getName();
-                    return this.state.activeServerBan(owner, name, this.servers.facts(name)).isEmpty();
-                })
+                .filter(server -> !unusable.test(server.getServerInfo().getName()))
                 .orElse(null);
         if (fallback == null) {
-            player.disconnect(screen(player, punishment, PunishmentScreens.Surface.DISCONNECT, false));
-            return;
+            player.disconnect(screen.apply(false));
+            return CompletableFuture.completedFuture(false);
         }
-        player.sendMessage(screen(player, punishment, PunishmentScreens.Surface.CHAT, true));
-        player.createConnectionRequest(fallback).connect().thenAccept(result -> {
-            if (!result.isSuccessful()) {
-                LOGGER.warn("Could not move {} to the fallback server, disconnecting instead", player.getUsername());
-                player.disconnect(screen(player, punishment, PunishmentScreens.Surface.DISCONNECT, false));
+        player.sendMessage(screen.apply(true));
+        return player.createConnectionRequest(fallback).connect().thenApply(result -> {
+            if (result.isSuccessful()) {
+                return true;
             }
+            LOGGER.warn("Could not move {} to the fallback server, disconnecting instead", player.getUsername());
+            player.disconnect(screen.apply(false));
+            return false;
         });
     }
 }
