@@ -182,13 +182,13 @@ update. Each PR removes its files from `web/tests/design-baseline.json`.
 
 ### 3e. Administration (`refactor(web)`)
 
-- [ ] 3e.1 Red: `web/src/views/AdminView.test.ts`: tabs with headings, the viewer does not see the area (the nav test
+- [x] 3e.1 Red: `web/src/views/AdminView.test.ts`: tabs with headings, the viewer does not see the area (the nav test
   from 2b covers it too).
-- [ ] 3e.2 Create `web/src/views/StaffAccountsView.vue` (route `/admin/staff`) holding `StaffActorsPanel.vue`,
+- [x] 3e.2 Create `web/src/views/StaffAccountsView.vue` (route `/admin/staff`) holding `StaffActorsPanel.vue`,
   `StaffLinksPanel.vue` and `DiscordLinksPanel.vue` (`web/src/components/admin/` and `web/src/components/account/`),
   their lists on `DataTable` with the row pattern. Their unpaged `body.items` stay until group 8.
-- [ ] 3e.3 `web/src/views/AdminView.vue` (lines 13-19): tabs Staff accounts, Imports, CloudNet.
-- [ ] 3e.4 `web/src/components/admin/VanillaImportPanel.vue` (line 185 raw table to `DataTable`) and
+- [x] 3e.3 `web/src/views/AdminView.vue` (lines 13-19): tabs Staff accounts, Imports, CloudNet.
+- [x] 3e.4 `web/src/components/admin/VanillaImportPanel.vue` (line 185 raw table to `DataTable`) and
   `web/src/components/evidence/AnticheatDetail.vue` (line 30 raw table to `DataTable`).
 
 ---
