@@ -45,6 +45,119 @@ const dialogField = (wrapper: Wrapper, label: string) => {
   return wrapper.get(`[role="dialog"] [id="${found.attributes('for')}"]`)
 }
 
+describe('AppealsView: page template', () => {
+  it('shows the page title as its only h1', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    expect(wrapper.findAll('h1').map((heading) => heading.text())).toEqual(['Appeals'])
+
+    wrapper.unmount()
+  })
+
+  it('keeps the pending and all choice as the toggle group of the filter toolbar', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    const group = wrapper.get('[data-testid="filter-toolbar"] [data-testid="show"]')
+    expect(group.attributes('aria-label')).toBe('Which appeals to show')
+    expect(group.find('[data-testid="filter-pending"]').attributes('aria-pressed')).toBe('true')
+
+    wrapper.unmount()
+  })
+
+  it('starts with every appeal when the route query asks for all', async () => {
+    const { api } = setup()
+    const { wrapper } = await mountWithApp(AppealsView, { api: mockApi(api), path: '/appeals?show=all' })
+
+    expect(wrapper.findAll('tbody tr')).toHaveLength(2)
+    expect(wrapper.get('[data-testid="filter-all"]').attributes('aria-pressed')).toBe('true')
+
+    wrapper.unmount()
+  })
+
+  it('writes the choice to the route query and removes it for the pending view', async () => {
+    const { mount } = setup()
+    const { wrapper, router } = await mount()
+
+    await wrapper.get('[data-testid="filter-all"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({ show: 'all' })
+
+    await wrapper.get('[data-testid="filter-pending"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({})
+
+    wrapper.unmount()
+  })
+
+  it('gives each row one primary action, the decision, next to the case link', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    const actions = wrapper.findAll('tbody tr')[0]!.findAll('td').at(-1)!
+    expect(actions.findAll('button').map((button) => button.text())).toEqual(['Decide'])
+    expect(actions.findAll('a').map((link) => link.text())).toEqual(['Open case'])
+
+    wrapper.unmount()
+  })
+
+  it('says that no pending appeal exists and offers to show all of them', async () => {
+    const { mount } = setup({ appeals: vi.fn(async () => ok([appeal({ status: 'DENIED' })])) })
+    const { wrapper } = await mount()
+
+    const empty = wrapper.get('[data-testid="appeals-empty"]')
+    expect(empty.attributes('data-variant')).toBe('no-matches')
+    expect(empty.text()).toContain('No pending appeals.')
+
+    await wrapper.get('[data-testid="empty-show-all"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="filter-all"]').attributes('aria-pressed')).toBe('true')
+
+    wrapper.unmount()
+  })
+
+  it('says that no appeal exists yet when the list is empty and all are shown', async () => {
+    const { mount } = setup({ appeals: vi.fn(async () => ok([])) })
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="filter-all"]').trigger('click')
+    await flushPromises()
+
+    const empty = wrapper.get('[data-testid="appeals-empty"]')
+    expect(empty.attributes('data-variant')).toBe('no-items')
+    expect(empty.text()).toContain('No appeals yet.')
+
+    wrapper.unmount()
+  })
+
+  it('shows skeleton rows, marked busy, while the first load runs', async () => {
+    const { mount } = setup({ appeals: vi.fn(() => new Promise(() => {})) })
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[aria-busy="true"]').exists()).toBe(true)
+    expect(wrapper.findAll('tbody tr')).toHaveLength(0)
+
+    wrapper.unmount()
+  })
+
+  it('reads the unanswered markers once per load, not again when the filter changes', async () => {
+    const player = timelineItem({ type: 'message.added', actor: { trust: 'PLAYER' as const } })
+    const { api, mount } = setup({ caseTimeline: vi.fn(async () => ok(timelinePage([player]))) })
+    const { wrapper } = await mount()
+    const reads = vi.mocked(api.caseTimeline).mock.calls.length
+
+    await wrapper.get('[data-testid="filter-all"]').trigger('click')
+    await flushPromises()
+
+    expect(vi.mocked(api.caseTimeline).mock.calls.length).toBe(reads)
+
+    wrapper.unmount()
+  })
+})
+
 describe('AppealsView: queue', () => {
   it('lists the pending appeals and hides decided ones by default', async () => {
     const { mount } = setup()

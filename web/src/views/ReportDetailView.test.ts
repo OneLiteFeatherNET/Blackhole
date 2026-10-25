@@ -63,6 +63,55 @@ function setup(options: { roles?: string[]; report?: Report; extra?: Record<stri
   return { api, mount: () => mountWithApp(ReportDetailView, { api: mockApi(api), path: `/reports/${ID}`, props: { id: ID }, roles: options.roles }) }
 }
 
+describe('ReportDetailView: page template', () => {
+  it('shows the report title as the only h1, with no second heading of the same text', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    expect(wrapper.findAll('h1').map((heading) => heading.text())).toEqual(['Report'])
+    expect(wrapper.findAll('h2').map((heading) => heading.text())).not.toContain('Report')
+
+    wrapper.unmount()
+  })
+
+  it('leads back to the reports through breadcrumbs, not a text link', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    const crumbs = wrapper.findAll('nav[aria-label="Breadcrumbs"] a')
+    expect(crumbs.map((crumb) => crumb.text())).toEqual(['Reports'])
+    expect(crumbs[0]!.attributes('href')).toBe('/reports')
+    expect(wrapper.get('nav[aria-label="Breadcrumbs"] [aria-current="page"]').text()).toBe(`#${ID.slice(0, 8)}`)
+    expect(wrapper.findAll('a').map((link) => link.text())).not.toContain('Back to reports')
+
+    wrapper.unmount()
+  })
+
+  it('puts each section under a second-level heading', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('section[aria-labelledby="report-summary"] > h2').text()).toBe('Summary')
+    expect(wrapper.get('section[aria-labelledby="report-others"] > h2').text()).toBe('Other reports against this player')
+
+    wrapper.unmount()
+  })
+
+  it('describes the reporter hash by its pseudonymous note instead of a tooltip', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    const summary = wrapper.get('[data-testid="summary"]')
+    expect(summary.find('[title]').exists(), 'no title attribute').toBe(false)
+    const hash = summary.findAll('[aria-describedby]').find((node) => node.text().startsWith(REPORTER.slice(0, 8)))
+    expect(hash, 'the reporter hash carries aria-describedby').toBeDefined()
+    const described = wrapper.get(`[id="${hash!.attributes('aria-describedby')}"]`)
+    expect(described.text()).toBe('(pseudonymous)')
+
+    wrapper.unmount()
+  })
+})
+
 describe('ReportDetailView: content', () => {
   it('shows the report without any raw identifier of a person', async () => {
     const { api, mount } = setup()
