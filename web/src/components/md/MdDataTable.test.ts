@@ -35,4 +35,12 @@ describe('MdDataTable', () => {
 
     expect(onSelect).toHaveBeenCalledWith('Steve')
   })
+
+  it('highlights a hovered row with the state-layer token, not a fixed opacity', () => {
+    const wrapper = mount(MdDataTable, { props: { label: 'Spieler', columns, rows } })
+
+    const rowClasses = wrapper.get('tbody tr').classes()
+    expect(rowClasses).toContain('hover:bg-on-surface/(--md-sys-state-hover-opacity)')
+    expect(rowClasses).not.toContain('hover:bg-on-surface/[0.08]')
+  })
 })

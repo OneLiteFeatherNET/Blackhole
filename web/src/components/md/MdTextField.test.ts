@@ -34,4 +34,25 @@ describe('MdTextField', () => {
     expect(message.text()).toBe('Dauer muss positiv sein')
     expect(input.attributes('aria-describedby')).toBe(message.attributes('id'))
   })
+
+  it('uses the default height and inner padding when not dense', () => {
+    const wrapper = mount(MdTextField, { props: { label: 'Spielername', modelValue: '' } })
+
+    expect(wrapper.get('input').classes()).toEqual(expect.arrayContaining(['h-14', 'px-4']))
+  })
+
+  it('uses the dense height and inner padding of a filter toolbar field', () => {
+    const wrapper = mount(MdTextField, { props: { label: 'Suche', modelValue: '', dense: true } })
+
+    expect(wrapper.get('input').classes()).toEqual(expect.arrayContaining(['h-10', 'px-3']))
+    expect(wrapper.get('input').classes()).not.toContain('h-14')
+  })
+
+  it('pads the supporting text the same in both densities', () => {
+    const normal = mount(MdTextField, { props: { label: 'A', modelValue: '', supportingText: 'Hinweis' } })
+    const dense = mount(MdTextField, { props: { label: 'B', modelValue: '', supportingText: 'Hinweis', dense: true } })
+
+    expect(normal.get('p').classes()).toContain('px-4')
+    expect(dense.get('p').classes()).toContain('px-4')
+  })
 })

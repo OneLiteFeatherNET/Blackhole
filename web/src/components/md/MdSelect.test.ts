@@ -312,4 +312,23 @@ describe('MdSelect', () => {
     expect(list()!.style.maxHeight).toMatch(/^\d+(\.\d+)?px$/)
     expect(Number.parseFloat(list()!.style.maxHeight)).toBeLessThanOrEqual(5.5 * 48 + 16)
   })
+
+  it('uses the dense height and left padding of a filter toolbar select', () => {
+    const wrapper = mount(MdSelect, { props: { label: 'Design', modelValue: 'system', options, dense: true }, attachTo: document.body })
+    mounted.push(wrapper)
+
+    const classes = wrapper.get('[role="combobox"]').classes()
+    expect(classes).toEqual(expect.arrayContaining(['h-10', 'pl-3']))
+    expect(classes).not.toContain('h-14')
+  })
+
+  it('layers the open menu with the menu z-index token, not a literal', async () => {
+    const { combobox, list } = setup()
+    await combobox.trigger('click')
+    await nextTick()
+
+    const menuClasses = list()!.className
+    expect(menuClasses).toContain('z-(--z-menu)')
+    expect(menuClasses).not.toContain('z-[60]')
+  })
 })
