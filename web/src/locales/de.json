@@ -770,7 +770,12 @@
   },
   "admin": {
     "title": "Verwaltung",
-    "intro": "Werkzeuge für Administratoren."
+    "intro": "Werkzeuge für Administratoren.",
+    "tabs": {
+      "staff": "Teamkonten",
+      "imports": "Importe",
+      "cloudnet": "CloudNet"
+    }
   },
   "staffActors": {
     "title": "Team",

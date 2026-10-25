@@ -49,7 +49,8 @@ function close(returnFocus: boolean): void {
 }
 
 function choose(key: string): void {
-  close(true)
+  open.value = false
+  trigger.value?.focus()
   emit('select', key)
 }
 
