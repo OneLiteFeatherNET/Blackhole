@@ -15,6 +15,10 @@ the header `Idempotent-Replayed: true`. The key SHALL be scoped to the caller an
 - **WHEN** a client sends `POST /report` with `Idempotency-Key: k-123` and then a different body with the same key
 - **THEN** the second response is HTTP 409 with `code` `IDEMPOTENCY_KEY_REUSED` and nothing is stored
 
+#### Scenario: Retry while the first request is in flight
+- **WHEN** a client repeats a key while the first request has no stored response yet
+- **THEN** the response is HTTP 409 with `code` `IDEMPOTENCY_KEY_IN_FLIGHT` and `Retry-After: 1`, and nothing is stored
+
 #### Scenario: Same key on another route or from another caller
 - **WHEN** the same key is used on `POST /appeal` or by another caller
 - **THEN** the request is handled as new and does not replay the earlier response

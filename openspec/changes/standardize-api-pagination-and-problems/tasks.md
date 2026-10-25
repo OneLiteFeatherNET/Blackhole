@@ -256,9 +256,12 @@ in the DTO and the mapping code. Add the BREAKING CHANGE footer:
 
 ## 4h. Idempotency-Key on creating POST routes (`feat(backend)`), design D18
 
+- [ ] 4h.0 Before any code: check the IETF Datatracker for the revision of `draft-ietf-httpapi-idempotency-key-header`
+  that is current today (S-Q2). Record its number, and whether the value must be a quoted sf-string, in the PR body.
 - [ ] 4h.1 Tests first: `backend/src/test/java/net/onelitefeather/blackhole/backend/idempotency/IdempotencyStoreTest.java`
   (`@MicronautTest` against the test database; fresh `Clock` fixture) covering: insert and replay; fingerprint
-  mismatch gives 409 `IDEMPOTENCY_KEY_REUSED`; in-flight gives 409 `IDEMPOTENCY_KEY_IN_FLIGHT`; a 4xx is not stored;
+  mismatch gives 409 `IDEMPOTENCY_KEY_REUSED`; in-flight gives 409 `IDEMPOTENCY_KEY_IN_FLIGHT` with `Retry-After: 1`
+  (S-Q4); a 4xx is not stored;
   expiry after 24 h ignored; caller scope; route scope. `IdempotencyKeyValidatorTest.java` for 422
   `IDEMPOTENCY_KEY_INVALID` (empty, 129 characters, disallowed characters, valid 128 characters).
 - [ ] 4h.2 Migration: `backend/src/main/resources/db/migration/V<next free>__idempotency_keys.sql` with the table
@@ -329,9 +332,10 @@ in the DTO and the mapping code. Add the BREAKING CHANGE footer:
   the problem) and `web/src/api/caseEvents.ts` (SSE error handling unchanged, status-based).
 - [ ] 6.5 `web/package.json`: move the spec pin from `0.0.39` to `0.0.41` and regenerate the types
   the web build uses. Components are out of scope (see `redesign-ux`).
-- [ ] 6.6 RFC 3339 and conditional requests (D16, D17): tests first in `web/src/api/`: `instant.test.ts` (parses
-  every `date-time` string, rejects an epoch number). Add `web/src/api/instant.ts` (`parseInstant(value: string): Date`,
-  one helper; the existing components that format numbers get a value they can still format, see S-Q1 in design D15-D20).
+- [ ] 6.6 RFC 3339 and conditional requests (D16, D17): tests first in `web/src/api/`: `blackhole.instant.test.ts`
+  (`parseInstant` parses every `date-time` string and rejects an epoch number; the mapped responses expose `Date`
+  values). `web/src/api/blackhole.ts` exports `parseInstant(value: string): Date` and maps every instant field to
+  `Date` there (S-Q1 in design Decisions 2026-10-25). No separate `instant.ts`, and no component changes for this.
   Replace the epoch readers in `web/src/api/blackhole.ts` (`createdAt`, `updatedAt`, `occurredAt`, `expiresAt`,
   `linkedAt`, `capturedAt`, `sharedAt`, `firstSeen`, `lastSeen`) and the types they return. Test first:
   `blackhole.case.test.ts` asserts `PATCH /case/{reference}` sends `If-Match: "<version>"` and no `expectedVersion`

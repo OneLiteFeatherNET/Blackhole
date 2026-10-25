@@ -557,24 +557,24 @@ If the Java generator fails, 0.0.41 stays on `openapi: 3.0.3` and the move is de
 When the move happens: JSON Schema 2020-12 dialect; `nullable: true` becomes `type: [<t>, "null"]`;
 `exclusiveMinimum` is a number; `example` becomes `examples`.
 
-### Open questions for D15-D20 (S-Q1 to S-Q4)
+## Decisions (2026-10-25)
 
-The numbered questions elsewhere in this change (open questions 2, 3 and 5 in the proposal and
-tasks) predate these standards and keep their numbers. These four are the new ones.
+- **S-Q1, instants in the web client.** `parseInstant(value: string): Date` lives in
+  `web/src/api/blackhole.ts`. That file maps every RFC 3339 instant field to a `Date`, so no component
+  takes an epoch number and no component file changes for this reason. The separate `instant.ts` helper is dropped.
+- **S-Q2, Idempotency-Key revision.** Implement the revision the IETF Datatracker lists as current on the day
+  task 4h starts. The PR names its number (task 4h.7). Check on that day whether the value must be a quoted
+  sf-string, and change the clients in the same PR if it must.
+- **S-Q3, Discord protocol version.** No ETag. `protocolVersion` stays a body field on the close action (E2).
+- **S-Q4, in-flight idempotent request.** `409` with `code: IDEMPOTENCY_KEY_IN_FLIGHT` and `Retry-After: 1`.
+  The retry uses the same key. Covered by a new scenario in `specs/api-idempotency/spec.md`.
 
-- **S-Q1. How do existing web components consume RFC 3339 instants?** Components are out of scope
-  (`redesign-ux`). Recommended default: `parseInstant` returns a `Date`, and the web API layer
-  exposes `createdAt` as a `Date`. Components that format numbers get the `Date` through one
-  mapping in `blackhole.ts`, so no component file changes in this change. If a component cannot
-  take a `Date`, it reads the ISO string.
-- **S-Q2. Which IETF Idempotency-Key revision do we implement?** The latest confirmed revision is
-  `-07` (October 2025). A newer 2026 revision was suggested by a mirror but not confirmed on the
-  Datatracker. Recommended default: implement the revision the Datatracker lists as current on the
-  day task 4h starts, and record its number in the PR. Also check whether the draft requires the
-  value as a quoted sf-string; the current clients send an unquoted value.
-- **S-Q3. Does the Discord appeal protocol version get an ETag?** Recommended default: no. It stays a
-  body field (`protocolVersion`) on the close action, because it versions the appeal protocol, not the
-  ticket row, and the bot already sends it. Revisit only if a ticket row version exists.
-- **S-Q4. Which code does an in-flight idempotent request get?** Recommended default:
-  `409` with `code: IDEMPOTENCY_KEY_IN_FLIGHT`, plus a `Retry-After: 1` header, so a client that
-  gets it waits and retries with the same key instead of posting a new one.
+## Open Questions
+
+The numbered questions elsewhere in this change (open questions 2, 3 and 5 in the proposal and tasks) predate
+these standards and keep their numbers. The four S-Q questions for D15-D20 are resolved as recorded above:
+
+- **S-Q1:** resolved, `parseInstant` in `web/src/api/blackhole.ts`, no component change.
+- **S-Q2:** resolved, the revision current on the Datatracker on the day task 4h starts.
+- **S-Q3:** resolved, no ETag; `protocolVersion` stays a body field.
+- **S-Q4:** resolved, `409 IDEMPOTENCY_KEY_IN_FLIGHT` with `Retry-After: 1`.
