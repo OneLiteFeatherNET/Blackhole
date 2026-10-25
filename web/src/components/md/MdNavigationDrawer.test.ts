@@ -21,7 +21,13 @@ const groups: DrawerGroup[] = [
 async function setup(props: Record<string, unknown> = {}, path = '/') {
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: ['/', '/cases', '/players'].map((p) => ({ path: p, component: Empty })).concat([{ path: '/players/:owner', component: Empty }]),
+    // A detail page names its destination in its route meta, as the app's router does.
+    routes: [
+      { path: '/', component: Empty },
+      { path: '/cases', component: Empty },
+      { path: '/players', component: Empty },
+      { path: '/players/:owner', component: Empty, meta: { nav: '/players' } },
+    ],
   })
   await router.push(path)
   await router.isReady()

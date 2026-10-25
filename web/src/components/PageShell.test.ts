@@ -24,7 +24,6 @@ describe('PageShell', () => {
       { title: 'Cases', description: 'Open work' },
       {
         breadcrumbs: '<nav data-testid="s-breadcrumbs"></nav>',
-        description: '<p data-testid="s-description-slot"></p>',
         actions: '<button data-testid="s-actions"></button>',
         toolbar: '<div data-testid="s-toolbar"></div>',
         default: '<p data-testid="s-content"></p>',

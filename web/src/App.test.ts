@@ -26,6 +26,7 @@ async function mountApp(path = '/', options: { roles?: string[]; auth?: ReturnTy
         [AUTH_KEY as symbol]: auth.service,
         [API_KEY as symbol]: mockApi({
           dashboard: async () => ok({ activePunishmentsBySection: [], latestEscalations: [] }),
+          inbox: async () => ok({ generatedAt: 0, needsAnswer: { count: 0, items: [] }, openAppeals: { count: 0, items: [] }, newReports: { count: 0, items: [] }, unassignedCases: { count: 0, items: [] } }),
           profile: async () => ok({ active: {}, history: [] }),
           eloProfile: async () => ok({ owner: '', sections: [] }),
           eloHistory: async () => ok([]),
@@ -62,8 +63,8 @@ describe('App shell', () => {
     const wrapper = await mountApp('/players')
 
     expect(wrapper.get('nav').attributes('aria-label')).toBe('Hauptnavigation')
-    expect(wrapper.get('h1').text()).toBe('Spieler')
-    expect(wrapper.get('a[aria-current="page"]').text()).toBe('Spieler')
+    expect(wrapper.get('h1').text()).toBe('Spielersuche')
+    expect(wrapper.get('a[aria-current="page"]').text()).toBe('Spielersuche')
 
     wrapper.unmount()
   })
@@ -71,7 +72,7 @@ describe('App shell', () => {
   it('keeps the players entry current on a player detail page', async () => {
     const wrapper = await mountApp(`/players/${'ab'.repeat(64)}`)
 
-    expect(wrapper.get('a[aria-current="page"]').text()).toBe('Spieler')
+    expect(wrapper.get('a[aria-current="page"]').text()).toBe('Spielersuche')
 
     wrapper.unmount()
   })
@@ -160,7 +161,7 @@ describe('App shell', () => {
     await chooseOption(localeSelect!, 'en')
     await flushPromises()
     expect(wrapper.get('nav').attributes('aria-label')).toBe('Main navigation')
-    expect(wrapper.get('h1').text()).toBe('Dashboard')
+    expect(wrapper.get('h1').text()).toBe('Inbox')
 
     wrapper.unmount()
   })
@@ -170,7 +171,7 @@ describe('App shell', () => {
 
     expect(wrapper.find('[role="dialog"]').exists(), 'closed at first').toBe(false)
     await openAccountMenu(wrapper)
-    await wrapper.get('[data-testid="account"]').trigger('click')
+    await wrapper.get('[data-testid="link-minecraft"]').trigger('click')
 
     expect(wrapper.find('[role="dialog"]').exists(), 'opened by the button').toBe(true)
 
@@ -180,9 +181,9 @@ describe('App shell', () => {
   it('groups the navigation and shows the admin group to an admin', async () => {
     const wrapper = await mountApp('/')
 
-    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text()), 'headings').toEqual(['Moderation', 'Regelwerk', 'System'])
+    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text()), 'headings').toEqual(['Arbeit', 'Spieler', 'Konfiguration', 'Verwaltung'])
     expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual([
-      'Übersicht', 'Fälle', 'Einsprüche', 'Meldungen', 'Gesperrte Spieler', 'Spieler', 'Bereiche', 'Vorlagen', 'Rahmenbedingungen', 'Client-Regeln', 'Verwaltung',
+      'Posteingang', 'Fälle', 'Einsprüche', 'Meldungen', 'Spielersuche', 'Aktive Strafen', 'Bereiche', 'Vorlagen', 'Einspruchsbedingungen', 'Client-Regeln', 'Verwaltung',
     ])
 
     wrapper.unmount()
@@ -191,7 +192,7 @@ describe('App shell', () => {
   it('leaves out the system group for a moderator', async () => {
     const wrapper = await mountApp('/', { roles: ['MODERATOR'] })
 
-    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text())).toEqual(['Moderation', 'Regelwerk'])
+    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text())).toEqual(['Arbeit', 'Spieler', 'Konfiguration'])
 
     wrapper.unmount()
   })
@@ -219,7 +220,7 @@ describe('App shell', () => {
     const wrapper = await mountApp('/')
     const toggle = wrapper.get('[data-testid="nav-toggle"]')
     expect(toggle.attributes('aria-label')).toBe('Navigation einklappen')
-    expect(wrapper.findAll('nav [role="group"]'), 'headings while expanded').toHaveLength(3)
+    expect(wrapper.findAll('nav [role="group"]'), 'headings while expanded').toHaveLength(4)
 
     await toggle.trigger('click')
 
@@ -276,11 +277,11 @@ describe('App shell', () => {
 
     await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
     expect(wrapper.get('[data-testid="nav-toggle"]').attributes('aria-expanded')).toBe('true')
-    await wrapper.findAll('nav a').find((a) => a.text() === 'Spieler')!.trigger('click')
+    await wrapper.findAll('nav a').find((a) => a.text() === 'Spielersuche')!.trigger('click')
     await flushPromises()
 
     expect(wrapper.find('nav').exists(), 'closed after navigating').toBe(false)
-    expect(wrapper.get('h1').text()).toBe('Spieler')
+    expect(wrapper.get('h1').text()).toBe('Spielersuche')
 
     wrapper.unmount()
   })

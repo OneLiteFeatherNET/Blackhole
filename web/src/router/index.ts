@@ -5,7 +5,7 @@ import AuthErrorView from '../views/AuthErrorView.vue'
 import CasesView from '../views/CasesView.vue'
 import ClientRulesView from '../views/ClientRulesView.vue'
 import CaseView from '../views/CaseView.vue'
-import DashboardView from '../views/DashboardView.vue'
+import InboxView from '../views/InboxView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 import NoAccessView from '../views/NoAccessView.vue'
 import PlayerDetailView from '../views/PlayerDetailView.vue'
@@ -20,20 +20,24 @@ import TemplatesView from '../views/TemplatesView.vue'
 import LeaveView from '../views/LeaveView.vue'
 
 export const routes: RouteRecordRaw[] = [
-  { path: '/', name: 'dashboard', component: DashboardView, meta: { titleKey: 'nav.dashboard' } },
-  { path: '/punished', name: 'punished', component: PunishedPlayersView, meta: { titleKey: 'nav.punished' } },
-  { path: '/players', name: 'players', component: PlayersView, meta: { titleKey: 'nav.players' } },
-  { path: '/players/:owner', name: 'player', component: PlayerDetailView, props: true, meta: { titleKey: 'nav.players' } },
+  // The inbox is the front page. `pageShell` means the page renders its own single heading (PageShell).
+  { path: '/', name: 'inbox', component: InboxView, meta: { titleKey: 'inbox.title', pageShell: true } },
+  // `nav` names the navigation destination a page belongs to, so the detail pages keep their group marked.
+  { path: '/punished', name: 'punished', component: PunishedPlayersView, meta: { titleKey: 'nav.activePunishments' } },
+  { path: '/players', name: 'players', component: PlayersView, meta: { titleKey: 'nav.playerLookup' } },
+  { path: '/players/:owner', name: 'player', component: PlayerDetailView, props: true, meta: { titleKey: 'nav.playerLookup', nav: '/players' } },
   { path: '/templates', name: 'templates', component: TemplatesView, meta: { titleKey: 'nav.templates' } },
   { path: '/client-rules', name: 'client-rules', component: ClientRulesView, meta: { titleKey: 'nav.clientRules' } },
   { path: '/sections', name: 'sections', component: SectionsView, meta: { titleKey: 'nav.sections' } },
-  { path: '/appeal-conditions', name: 'appeal-conditions', component: AppealConditionsView, meta: { titleKey: 'nav.appealConditions' } },
+  { path: '/appeal-conditions', name: 'appeal-conditions', component: AppealConditionsView, meta: { titleKey: 'nav.appealTerms' } },
   { path: '/reports', name: 'reports', component: ReportsView, meta: { titleKey: 'nav.reports' } },
-  { path: '/reports/:id', name: 'report', component: ReportDetailView, props: true, meta: { titleKey: 'reports.detail.title' } },
+  { path: '/reports/:id', name: 'report', component: ReportDetailView, props: true, meta: { titleKey: 'reports.detail.title', nav: '/reports' } },
   { path: '/appeals', name: 'appeals', component: AppealsView, meta: { titleKey: 'nav.appeals' } },
-  { path: '/admin', name: 'admin', component: AdminView, meta: { titleKey: 'nav.admin', admin: true } },
+  { path: '/admin', name: 'admin', component: AdminView, meta: { titleKey: 'nav.administration', admin: true } },
+  // The staff accounts tab of the administration area; the same page until the tabs of the area land.
+  { path: '/admin/staff', name: 'admin-staff', component: AdminView, meta: { titleKey: 'nav.administration', admin: true, nav: '/admin' } },
   { path: '/cases', name: 'cases', component: CasesView, meta: { titleKey: 'nav.cases' } },
-  { path: '/cases/:reference', name: 'case', component: CaseView, props: true, meta: { titleKey: 'case.title' } },
+  { path: '/cases/:reference', name: 'case', component: CaseView, props: true, meta: { titleKey: 'case.title', nav: '/cases' } },
   { path: '/no-access', name: 'no-access', component: NoAccessView, meta: { titleKey: 'auth.noAccess.title' } },
   { path: '/auth/callback', name: 'auth-callback', component: AuthCallbackView, meta: { public: true, titleKey: 'auth.signingIn' } },
   { path: '/auth/error', name: 'auth-error', component: AuthErrorView, meta: { public: true, titleKey: 'auth.error.heading' } },

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../../api/inject'
 import type { ApiError, StaffLinkStatus } from '../../api/types'
@@ -8,7 +8,8 @@ import MdButton from '../md/MdButton.vue'
 import MdDialog from '../md/MdDialog.vue'
 import DiscordLinkSection from './DiscordLinkSection.vue'
 
-const props = defineProps<{ open: boolean }>()
+// `focus` names the part the dialog opens at: the Minecraft link, or the Discord link below it.
+const props = defineProps<{ open: boolean; focus?: 'minecraft' | 'discord' }>()
 const emit = defineEmits<{ close: [] }>()
 
 const { t, locale } = useI18n()
@@ -111,6 +112,17 @@ watch(
   { immediate: true },
 )
 
+// The Discord part is reached from the menu: when the dialog opens for it, that part is brought into view.
+const discordPart = ref<HTMLElement | null>(null)
+watch(
+  () => props.open && props.focus === 'discord',
+  async (wanted) => {
+    if (!wanted) return
+    await nextTick()
+    discordPart.value?.scrollIntoView?.({ block: 'start' })
+  },
+)
+
 onBeforeUnmount(stopTimer)
 </script>
 
@@ -157,7 +169,9 @@ onBeforeUnmount(stopTimer)
       <!-- Always mounted so a screen reader announces the text when it appears. -->
       <p role="status" aria-live="polite" data-testid="announcement" class="min-h-6 text-body-medium">{{ announcement }}</p>
       <p v-if="error" data-testid="error" role="alert" class="rounded-md-md bg-error-container p-3 text-on-error-container">{{ error }}</p>
-      <DiscordLinkSection v-if="open" />
+      <div ref="discordPart" data-testid="discord-part">
+        <DiscordLinkSection v-if="open" />
+      </div>
     </div>
     <template #actions>
       <MdButton variant="text" data-testid="close" @click="emit('close')">{{ t('account.link.close') }}</MdButton>

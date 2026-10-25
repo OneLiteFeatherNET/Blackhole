@@ -7,7 +7,7 @@ import InboxView from './InboxView.vue'
 const OWNER = 'ab'.repeat(64)
 const OTHER = 'cd'.repeat(64)
 
-function item(id: string, since: number, reference: string | null = 'ABCD0001', owner: string | null = OWNER) {
+function item(id: string, since: number, reference = 'ABCD0001', owner = OWNER) {
   return { id, reference, owner, since }
 }
 

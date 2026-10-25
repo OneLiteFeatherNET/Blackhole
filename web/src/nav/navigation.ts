@@ -5,7 +5,7 @@ import {
   APPEALS_ICON,
   CASES_ICON,
   CLIENT_RULES_ICON,
-  DASHBOARD_ICON,
+  INBOX_ICON,
   PLAYERS_ICON,
   PUNISHED_ICON,
   REPORTS_ICON,
@@ -13,7 +13,10 @@ import {
   TEMPLATES_ICON,
 } from '../icons'
 
-/* The destinations of the side navigation, grouped. Which of them a viewer sees follows the role matrix. */
+/*
+ * The destinations of the side navigation: the inbox first, without a heading, then four headed groups.
+ * Labels are glossary terms (see the redesign design, section 1); which of them a viewer sees follows the role matrix.
+ */
 
 export interface NavDestination {
   to: string
@@ -30,42 +33,48 @@ export interface NavDestination {
 export interface NavGroup {
   /** Last part of `nav.groups.<key>`. */
   key: string
-  /** Whether the group is introduced by a heading; the overview stands alone. */
+  /** Whether the group is introduced by a heading; the inbox stands alone. */
   heading: boolean
   items: NavDestination[]
 }
 
 export const NAV_GROUPS: NavGroup[] = [
   {
-    key: 'overview',
+    key: 'home',
     heading: false,
-    items: [{ to: '/', key: 'dashboard', icon: DASHBOARD_ICON }],
+    items: [{ to: '/', key: 'inbox', count: 'inbox', icon: INBOX_ICON }],
   },
   {
-    key: 'moderation',
+    key: 'work',
     heading: true,
     items: [
       { to: '/cases', key: 'cases', count: 'cases', icon: CASES_ICON },
       { to: '/appeals', key: 'appeals', count: 'appeals', icon: APPEALS_ICON },
       { to: '/reports', key: 'reports', count: 'reports', icon: REPORTS_ICON },
-      { to: '/punished', key: 'punished', icon: PUNISHED_ICON },
-      { to: '/players', key: 'players', icon: PLAYERS_ICON },
     ],
   },
   {
-    key: 'rules',
+    key: 'players',
+    heading: true,
+    items: [
+      { to: '/players', key: 'playerLookup', icon: PLAYERS_ICON },
+      { to: '/punished', key: 'activePunishments', icon: PUNISHED_ICON },
+    ],
+  },
+  {
+    key: 'configuration',
     heading: true,
     items: [
       { to: '/sections', key: 'sections', icon: SECTIONS_ICON },
       { to: '/templates', key: 'templates', icon: TEMPLATES_ICON },
-      { to: '/appeal-conditions', key: 'appealConditions', icon: APPEAL_CONDITIONS_ICON },
+      { to: '/appeal-conditions', key: 'appealTerms', icon: APPEAL_CONDITIONS_ICON },
       { to: '/client-rules', key: 'clientRules', icon: CLIENT_RULES_ICON },
     ],
   },
   {
-    key: 'system',
+    key: 'administration',
     heading: true,
-    items: [{ to: '/admin', key: 'admin', admin: true, icon: ADMIN_ICON }],
+    items: [{ to: '/admin', key: 'administration', admin: true, icon: ADMIN_ICON }],
   },
 ]
 

@@ -31,6 +31,12 @@ const api = useApi()
 const counts = useNavCountsStore()
 const ticker = useTicker()
 const accountOpen = ref(false)
+const accountFocus = ref<'minecraft' | 'discord'>('minecraft')
+
+function openAccount(target: 'minecraft' | 'discord'): void {
+  accountFocus.value = target
+  accountOpen.value = true
+}
 const navOpen = ref(false)
 const size = useBreakpoint()
 
@@ -118,7 +124,7 @@ onBeforeUnmount(() => stopTicker?.())
         <GlobalSearch v-if="showNav" />
       </template>
       <template #actions>
-        <AccountMenu v-if="resolved" :display-name="session.displayName" @account="accountOpen = true" @sign-out="signOut" />
+        <AccountMenu v-if="resolved" :display-name="session.displayName" @account="openAccount" @sign-out="signOut" />
       </template>
     </MdTopAppBar>
     <div class="flex min-h-0 flex-1">
@@ -131,7 +137,8 @@ onBeforeUnmount(() => stopTicker?.())
         @close="navOpen = false"
       />
       <main id="main" tabindex="-1" class="min-w-0 flex-1 p-4 md:p-6">
-        <h1 v-if="resolved && title" class="mb-4 text-headline-small text-on-surface">{{ title }}</h1>
+        <!-- A page with PageShell renders its own heading; every other page still gets the route title. -->
+        <h1 v-if="resolved && title && !route.meta.pageShell" class="mb-4 text-headline-small text-on-surface">{{ title }}</h1>
         <!-- Always mounted so a screen reader announces the text when it appears. -->
         <p role="status" aria-live="polite" class="text-body-large" data-testid="auth-status">
           <template v-if="auth.redirecting.value">{{ t('auth.redirecting') }}</template>
@@ -143,6 +150,6 @@ onBeforeUnmount(() => stopTicker?.())
       </main>
     </div>
   </div>
-  <AccountLinkDialog v-if="resolved && session.displayName" :open="accountOpen" @close="accountOpen = false" />
+  <AccountLinkDialog v-if="resolved && session.displayName" :open="accountOpen" :focus="accountFocus" @close="accountOpen = false" />
   <MdSnackbar :open="session.forbidden" :message="t('auth.forbidden')" @close="session.forbidden = false" />
 </template>

@@ -13,6 +13,8 @@ export type EvidenceKind = Schemas['EvidenceKind']
 export type EvidenceStatus = Schemas['EvidenceStatus']
 
 export type DashboardSummary = Schemas['DashboardSummaryResponse']
+export type InboxSummary = Schemas['InboxResponse']
+export type InboxItem = Schemas['InboxItem']
 export type ResolvedPlayer = Schemas['PlayerResolveResponse']
 export type Punishment = Schemas['PunishEntryDTO']
 export type EloSectionScore = Schemas['EloSectionScore']
