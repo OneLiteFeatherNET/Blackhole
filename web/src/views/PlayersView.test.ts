@@ -14,6 +14,15 @@ async function search(wrapper: Awaited<ReturnType<typeof mountWithApp>>['wrapper
 }
 
 describe('PlayersView', () => {
+  it('has one level-one heading, the page title, with the lookup intro as its description', async () => {
+    const { wrapper } = await mountWithApp(PlayersView, { path: '/players', api: mockApi() })
+
+    expect(wrapper.findAll('h1').map((heading) => heading.text())).toEqual(['Player lookup'])
+    expect(wrapper.get('[data-testid="page-description"]').text()).toContain('Look up a player by their current Minecraft name.')
+
+    wrapper.unmount()
+  })
+
   it('resolves the name and opens the player detail by owner hash', async () => {
     const resolvePlayer = vi.fn(async () => ok(STEVE))
     const { wrapper, router } = await mountWithApp(PlayersView, { path: '/players', api: mockApi({ resolvePlayer }) })

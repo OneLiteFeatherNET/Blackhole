@@ -142,13 +142,26 @@ describe('PlayerDetailView', () => {
 
   it('shows the player name when this session looked it up, and the short hash otherwise', async () => {
     const withoutName = await open()
-    expect(withoutName.wrapper.get('[data-testid="player-title"]').text()).toBe(`${OWNER.slice(0, 8)}…`)
+    expect(withoutName.wrapper.get('h1').text()).toBe(`${OWNER.slice(0, 8)}…`)
     withoutName.wrapper.unmount()
 
     const { wrapper } = await mountWithApp(PlayerDetailView, { path: `/players/${OWNER}`, props: { owner: OWNER }, api: api() })
     useLookupStore().remember(OWNER, 'Steve')
     await flushPromises()
-    expect(wrapper.get('[data-testid="player-title"]').text()).toBe('Steve')
+    expect(wrapper.get('h1').text()).toBe('Steve')
+
+    wrapper.unmount()
+  })
+
+  it('has one level-one heading and breadcrumbs back to the lookup, not a text link in the body', async () => {
+    const { wrapper } = await open()
+
+    expect(wrapper.findAll('h1')).toHaveLength(1)
+    const crumbs = wrapper.get('nav[aria-label="Breadcrumbs"]')
+    expect(crumbs.get('a').attributes('href')).toBe('/players')
+    expect(crumbs.get('a').text()).toBe('Player lookup')
+    expect(crumbs.get('[aria-current="page"]').text()).toBe(`${OWNER.slice(0, 8)}…`)
+    expect(wrapper.findAll(`a[href="/players"]`), 'the way back is the breadcrumb only').toHaveLength(1)
 
     wrapper.unmount()
   })

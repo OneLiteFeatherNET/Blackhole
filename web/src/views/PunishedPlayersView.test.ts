@@ -39,7 +39,8 @@ const sections = [{ key: 'network', displayName: 'Network' }, { key: 'chat', dis
 
 function setup(pages: ActivePunishmentPage[] = [page([row(), row({ owner: BOB, punishmentId: 'p-0002', shortId: '#EF56AB78', permanent: true, expiresAt: null, automatic: true, actorName: null, caseStatus: null, kind: 'MUTE', sectionName: 'Chat', section: 'chat' })])]) {
   const activePunishments = vi.fn(async () => ok(pages.shift() ?? page([])))
-  const mount = (roles?: string[]) => mountWithApp(PunishedPlayersView, { api: mockApi({ activePunishments, sections: vi.fn(async () => ok(sections)) }), path: '/punished', roles })
+  const mount = (roles?: string[], path = '/punished') =>
+    mountWithApp(PunishedPlayersView, { api: mockApi({ activePunishments, sections: vi.fn(async () => ok(sections)) }), path, roles })
   return { activePunishments, mount }
 }
 
@@ -83,14 +84,28 @@ describe('PunishedPlayersView', () => {
     wrapper.unmount()
   })
 
-  it('has a labelled table with column headers', async () => {
+  it('has a labelled table with the eight column headers', async () => {
     const { mount } = setup()
     const { wrapper } = await mount()
 
-    expect(wrapper.get('table').attributes('aria-label')).toBe('Punished players')
+    expect(wrapper.get('table caption').text()).toBe('Active punishments')
     expect(wrapper.findAll('th[scope="col"]').map((th) => th.text())).toEqual([
       'Player', 'Kind and section', 'Reason', 'Since', 'Until', 'Source', 'Issued by', 'Case',
     ])
+
+    wrapper.unmount()
+  })
+
+  it('has one level-one heading and keeps every filter in one toolbar', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    expect(wrapper.findAll('h1').map((heading) => heading.text())).toEqual(['Active punishments'])
+    const toolbar = wrapper.get('[data-testid="filter-toolbar"]')
+    for (const testid of ['q', 'section', 'term', 'sort', 'kind-BAN', 'source-automatic', 'filter-mine']) {
+      expect(toolbar.find(`[data-testid="${testid}"]`).exists(), testid).toBe(true)
+    }
+    expect(wrapper.findAll('[role="group"][aria-label="Kind"]'), 'the kind toggles are the toolbar group').toHaveLength(1)
 
     wrapper.unmount()
   })
@@ -115,11 +130,11 @@ describe('PunishedPlayersView', () => {
     ['permanent', { permanent: true, expiresBefore: undefined }],
     ['temporary', { permanent: false, expiresBefore: undefined }],
     ['soon', { permanent: false, expiresBefore: NOW + 86_400_000 }],
-  ])('filters by the %s duration chip', async (term, expected) => {
+  ])('filters by the %s duration', async (term, expected) => {
     const { activePunishments, mount } = setup([page([row()]), page([row()])])
     const { wrapper } = await mount()
 
-    await wrapper.get(`[data-testid="term-${term}"]`).trigger('click')
+    await chooseOption(wrapper.get('[data-testid="term"] [role="combobox"]'), term)
     await flushPromises()
 
     expect(activePunishments).toHaveBeenLastCalledWith(expect.objectContaining(expected))
@@ -142,21 +157,67 @@ describe('PunishedPlayersView', () => {
     wrapper.unmount()
   })
 
-  it('filters by section and sorts by expiry in the chosen direction', async () => {
-    const { activePunishments, mount } = setup([page([row()]), page([row()]), page([row()]), page([row()])])
+  it('filters by section', async () => {
+    const { activePunishments, mount } = setup([page([row()]), page([row()])])
     const { wrapper } = await mount()
 
-    await chooseOption(wrapper.get('[data-testid="section-filter"] [role="combobox"]'), 'chat')
+    await chooseOption(wrapper.get('[data-testid="section"] [role="combobox"]'), 'chat')
     await flushPromises()
+
     expect(activePunishments).toHaveBeenLastCalledWith(expect.objectContaining({ section: 'chat' }))
 
-    await chooseOption(wrapper.get('[data-testid="sort-select"] [role="combobox"]'), 'EXPIRES')
-    await flushPromises()
-    expect(activePunishments).toHaveBeenLastCalledWith(expect.objectContaining({ sort: 'EXPIRES', direction: 'DESC' }))
+    wrapper.unmount()
+  })
 
-    await wrapper.get('[data-testid="toggle-direction"]').trigger('click')
+  it('sorts by expiry in one select that names the order, without a separate direction button', async () => {
+    const { activePunishments, mount } = setup([page([row()]), page([row()]), page([row()])])
+    const { wrapper } = await mount()
+
+    await chooseOption(wrapper.get('[data-testid="sort"] [role="combobox"]'), 'expires-asc')
     await flushPromises()
+
     expect(activePunishments).toHaveBeenLastCalledWith(expect.objectContaining({ sort: 'EXPIRES', direction: 'ASC' }))
+    expect(wrapper.find('[data-testid="toggle-direction"]').exists(), 'the direction is part of the select').toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('keeps the filters in the route query so that Back returns to them', async () => {
+    const { mount } = setup([page([row()]), page([row()])])
+    const { wrapper, router } = await mount()
+
+    await wrapper.get('[data-testid="kind-MUTE"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query.kind).toBe('MUTE')
+
+    wrapper.unmount()
+  })
+
+  it('restores the filters from the route query on load', async () => {
+    const { activePunishments, mount } = setup([page([row()])])
+    const { wrapper } = await mount(undefined, '/punished?kind=MUTE&source=manual&mine=1')
+
+    expect(wrapper.get('[data-testid="kind-MUTE"]').attributes('aria-pressed')).toBe('true')
+    expect(wrapper.get('[data-testid="source-manual"]').attributes('aria-pressed')).toBe('true')
+    expect(activePunishments).toHaveBeenLastCalledWith(expect.objectContaining({ kind: 'MUTE', automatic: false, actor: ME }))
+
+    wrapper.unmount()
+  })
+
+  it('shows each applied filter as an input chip that removes it', async () => {
+    const { mount } = setup([page([row()]), page([row()])])
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="kind-MUTE"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="applied-filters"]').text()).toContain('Mute')
+
+    await wrapper.get('[data-testid="applied-filters"] button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="kind-MUTE"]').attributes('aria-pressed')).toBe('false')
+    expect(wrapper.find('[data-testid="applied-filters"]').exists()).toBe(false)
 
     wrapper.unmount()
   })
@@ -176,51 +237,90 @@ describe('PunishedPlayersView', () => {
     wrapper.unmount()
   })
 
-  it('searches the listed players by a name resolved in this session', async () => {
+  it('does not show a total that counts pages the search cannot reach', async () => {
+    const { mount } = setup([page([row()], 2, 30)])
+    const { wrapper } = await mount()
+
+    expect(wrapper.find('[data-testid="total"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('30 active punishments')
+
+    wrapper.unmount()
+  })
+
+  it('labels the search as searching only the players on this page', async () => {
     const { mount } = setup()
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-testid="q"] label').text()).toContain('Search this page')
+    expect(wrapper.get('[data-testid="page-description"]').text()).toContain('only the players on this page')
+
+    wrapper.unmount()
+  })
+
+  it('searches the listed players by a name resolved in this session without another request', async () => {
+    const { activePunishments, mount } = setup()
     const { wrapper } = await mount()
     useLookupStore().remember(BOB, 'Notch')
     await flushPromises()
+    const requests = activePunishments.mock.calls.length
 
-    await wrapper.get('[data-testid="search"] input').setValue('notc')
+    await wrapper.get('[data-testid="q"] input').setValue('notc')
 
     const rows = wrapper.findAll('tbody tr')
     expect(rows).toHaveLength(1)
     expect(rows[0]!.get('a').text()).toBe('Notch')
+    expect(activePunishments.mock.calls.length, 'the search runs on the loaded page only').toBe(requests)
 
     wrapper.unmount()
   })
 
-  it('says so when nothing on the page matches the search', async () => {
+  it('says so when nothing on the page matches the search, and clears the search from there', async () => {
     const { mount } = setup()
     const { wrapper } = await mount()
 
-    await wrapper.get('[data-testid="search"] input').setValue('nobody-here')
+    await wrapper.get('[data-testid="q"] input').setValue('nobody-here')
 
     expect(wrapper.find('table').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="punished-no-match"]').text()).toBe('No player on this page matches the search.')
+    const empty = wrapper.get('[data-testid="punished-no-match"]')
+    expect(empty.attributes('data-variant')).toBe('no-matches')
+    expect(empty.text()).toContain('No player on this page matches the search.')
+
+    await wrapper.get('[data-testid="empty-clear-search"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findAll('tbody tr')).toHaveLength(2)
+    expect((wrapper.get('[data-testid="q"] input').element as HTMLInputElement).value).toBe('')
 
     wrapper.unmount()
   })
 
-  it('shows the empty state when nobody is punished', async () => {
+  it('shows the no-items empty state when nobody is punished', async () => {
     const { mount } = setup([page([])])
     const { wrapper } = await mount()
 
-    expect(wrapper.get('[data-testid="punished-empty"]').text()).toBe('No player is punished right now.')
+    const empty = wrapper.get('[data-testid="punished-empty"]')
+    expect(empty.attributes('data-variant')).toBe('no-items')
+    expect(empty.text()).toContain('No player is punished right now.')
     expect(wrapper.find('table').exists()).toBe(false)
 
     wrapper.unmount()
   })
 
-  it('shows another empty state when the filters match nobody', async () => {
+  it('shows the no-matches empty state with clear filters when the filters match nobody', async () => {
     const { mount } = setup([page([row()]), page([])])
     const { wrapper } = await mount()
 
     await wrapper.get('[data-testid="kind-SERVER"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="punished-empty"]').text()).toBe('No punished players for these filters.')
+    const empty = wrapper.get('[data-testid="punished-empty"]')
+    expect(empty.attributes('data-variant')).toBe('no-matches')
+    expect(empty.text()).toContain('No punished players for these filters.')
+
+    await wrapper.get('[data-testid="empty-clear-filters"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="kind-SERVER"]').attributes('aria-pressed')).toBe('false')
 
     wrapper.unmount()
   })

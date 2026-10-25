@@ -20,7 +20,6 @@
     "src/components/md/MdNavigationDrawer.vue",
     "src/components/md/MdTopAppBar.vue",
     "src/components/player/AdjustDialog.vue",
-    "src/components/player/PlayerDetail.vue",
     "src/components/player/SectionScores.vue",
     "src/components/search/GlobalSearch.vue",
     "src/components/sections/SectionEditor.vue",

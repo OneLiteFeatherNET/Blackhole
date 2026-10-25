@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useApi } from '../api/inject'
+import PageShell from '../components/PageShell.vue'
 import MdButton from '../components/md/MdButton.vue'
 import MdCard from '../components/md/MdCard.vue'
 import MdProgress from '../components/md/MdProgress.vue'
@@ -41,15 +42,16 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <MdCard variant="outlined" class="max-w-xl">
-    <form class="flex flex-col gap-4" novalidate @submit.prevent="submit">
-      <p class="text-body-large text-on-surface-variant">{{ t('players.intro') }}</p>
-      <MdTextField v-model="name" :label="t('players.name')" required :error="fieldError" :supporting-text="t('players.nameHint')" />
-      <MdProgress v-if="searching" :label="t('state.loading')" />
-      <p v-if="failure" role="alert" class="rounded-md-md bg-error-container p-3 text-on-error-container">{{ failure }}</p>
-      <div>
-        <MdButton type="submit" :disabled="searching">{{ t('players.search') }}</MdButton>
-      </div>
-    </form>
-  </MdCard>
+  <PageShell :title="t('nav.playerLookup')" :description="t('players.intro')">
+    <MdCard variant="outlined" class="max-w-xl">
+      <form class="flex flex-col gap-4" novalidate @submit.prevent="submit">
+        <MdTextField v-model="name" :label="t('players.name')" required :error="fieldError" :supporting-text="t('players.nameHint')" />
+        <MdProgress v-if="searching" :label="t('state.loading')" />
+        <p v-if="failure" role="alert" class="rounded-md-md bg-error-container p-3 text-on-error-container">{{ failure }}</p>
+        <div>
+          <MdButton type="submit" :disabled="searching">{{ t('players.search') }}</MdButton>
+        </div>
+      </form>
+    </MdCard>
+  </PageShell>
 </template>

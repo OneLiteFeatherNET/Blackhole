@@ -151,13 +151,13 @@ update. Each PR removes its files from `web/tests/design-baseline.json`.
 
 ### 3c. Players and active punishments (`refactor(web)`)
 
-- [ ] 3c.1 Red: `web/src/views/PlayersView.test.ts` (lookup form, not-found), `web/src/views/PunishedPlayersView.test.ts`
+- [x] 3c.1 Red: `web/src/views/PlayersView.test.ts` (lookup form, not-found), `web/src/views/PunishedPlayersView.test.ts`
   (toolbar with search, section select, kind toggle, "Automatic" toggle and sort; the search is sent to the API;
   no client-side filter of the page; the total line is not shown).
-- [ ] 3c.2 Migrate `web/src/views/PlayersView.vue` (line 35 NOT_FOUND mapping moves to `problemCopy` in 9a; here the
+- [x] 3c.2 Migrate `web/src/views/PlayersView.vue` (line 35 NOT_FOUND mapping moves to `problemCopy` in 9a; here the
   layout only) and `web/src/views/PlayerDetailView.vue` (lines 73-75 back link to breadcrumbs; line 75 focus style via
   `TextLink`).
-- [ ] 3c.3 Migrate `web/src/views/PunishedPlayersView.vue`: the three chip rows, two selects, direction button and
+- [x] 3c.3 Migrate `web/src/views/PunishedPlayersView.vue`: the three chip rows, two selects, direction button and
   search (lines 122-147) become one `FilterToolbar`; the eight columns (`DataTable` priority 1-3); the sort direction
   button shows its target (line 141-143); the empty messages (lines 153-156) become one `EmptyState` per case.
 
