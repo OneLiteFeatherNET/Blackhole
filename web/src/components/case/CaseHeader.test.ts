@@ -26,13 +26,24 @@ describe('CaseHeader: facts', () => {
     const { mount } = setup({ kase: { status: 'IN_REVIEW', priority: 'HIGH', tags: ['spam'], assigneeOid: OTHER, assigneeName: 'Ada' } })
     const { wrapper } = await mount()
 
-    expect(wrapper.get('h2').text()).toBe('Case #AB12CD')
+    expect(wrapper.find('h1, h2').exists(), 'the page title names the case, the header adds no heading').toBe(false)
     expect(wrapper.get('[data-testid="player-prefix"]').text()).toBe('abcdef12…')
     expect(wrapper.get('[data-testid="punishment-state"]').text()).toBe('Active')
     expect(combobox(wrapper, 'status').text()).toContain('In review')
     expect(combobox(wrapper, 'priority').text()).toContain('High')
     expect(combobox(wrapper, 'assignee').text()).toContain('Ada')
     expect(wrapper.get('[data-testid="tags"]').text()).toContain('spam')
+
+    wrapper.unmount()
+  })
+})
+
+describe('CaseHeader: layout', () => {
+  it('lists the facts as a definition list in the order player, section, issued', async () => {
+    const { mount } = setup({ kase: { section: 'network' } })
+    const { wrapper } = await mount()
+
+    expect(wrapper.findAll('dl dt').map((term) => term.text())).toEqual(['Player', 'Section', 'Issued'])
 
     wrapper.unmount()
   })

@@ -121,17 +121,17 @@ update. Each PR removes its files from `web/tests/design-baseline.json`.
 
 ### 3a. Cases and the case page (`refactor(web)`)
 
-- [ ] 3a.1 Create `web/src/components/FilterToolbar.vue` (red test first: `FilterToolbar.test.ts` with the four
+- [x] 3a.1 Create `web/src/components/FilterToolbar.vue` (red test first: `FilterToolbar.test.ts` with the four
   kinds `search`, `select`, `toggle-group`, `tag`, the single toolbar row, and an input chip per applied filter with
   "Clear all"). Create `web/src/components/DataTable.vue` (red: `DataTable.test.ts`: caption, `aria-sort`, empty
   slot, skeleton, card layout below 840 px with `data-label`). Create `web/src/components/RowMenu.vue` (red: menu
   keyboard test). Create `web/src/components/ProblemBanner.vue` only as a stub used by `DataTable` for `error`;
   its full mapping is task 9a.1.
-- [ ] 3a.2 Migrate `web/src/views/CasesView.vue`: the tag text field plus submit (lines 77-82) becomes the `tag` kind;
+- [x] 3a.2 Migrate `web/src/views/CasesView.vue`: the tag text field plus submit (lines 77-82) becomes the `tag` kind;
   status and kind chips (lines 72-76) become the `toggle-group`; the table (lines 57-66) becomes `DataTable` with
   priority columns; the empty state (line 87) becomes `EmptyState` `no-matches` with "Clear filters" when filters are
   applied. Route query keeps the filter (admin-web-ui "Filter idiom and URL state").
-- [ ] 3a.3 Migrate `web/src/views/CaseView.vue` (line 69-71 back link becomes breadcrumbs; line 91 heading level)
+- [x] 3a.3 Migrate `web/src/views/CaseView.vue` (line 69-71 back link becomes breadcrumbs; line 91 heading level)
   and `web/src/components/case/CaseHeader.vue` (line 113 `grid-cols-[auto_1fr]` becomes `DefinitionList`; line 136
   tag pills become status chips).
 

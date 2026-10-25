@@ -8,7 +8,9 @@ import { useApi } from '../../api/inject'
 import type { Case, CasePriority, CaseStatus, CaseUpdate } from '../../api/types'
 import { formatDateTime } from '../../format'
 import { useSessionStore } from '../../stores/session'
+import DefinitionList from '../DefinitionList.vue'
 import MdButton from '../md/MdButton.vue'
+import MdChip from '../md/MdChip.vue'
 import MdSelect from '../md/MdSelect.vue'
 import MdTextField from '../md/MdTextField.vue'
 import StatusPill from '../StatusPill.vue'
@@ -49,6 +51,12 @@ const assigneeOptions = computed(() => {
 })
 
 const stateTone = computed(() => (props.kase.punishmentState === 'ACTIVE' ? 'error' : 'neutral'))
+
+const facts = computed(() => [
+  { term: t('case.header.player'), value: `${props.kase.ownerPrefix}…`, testid: 'player-prefix' },
+  ...(props.kase.section ? [{ term: t('case.header.section'), value: props.kase.section }] : []),
+  { term: t('case.header.issued'), value: formatDateTime(props.kase.punishmentCreatedAt, locale.value) },
+])
 
 // A fresh version means the user is looking at current data again.
 watch(
@@ -105,21 +113,11 @@ const removeTag = (tag: string) => apply({ tags: props.kase.tags.filter((existin
 <template>
   <section :aria-label="t('case.header.title')" class="flex flex-col gap-4 rounded-md-lg bg-surface-container p-4" data-testid="case-header">
     <div class="flex flex-wrap items-center gap-2">
-      <h2 class="text-title-large">{{ t('case.header.heading', { id: kase.shortId }) }}</h2>
       <StatusPill :label="t(`case.state.${kase.punishmentState}`)" :tone="stateTone" data-testid="punishment-state" />
       <StatusPill v-if="kase.permanent" :label="t('player.permanent')" tone="error" />
     </div>
 
-    <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-body-medium text-on-surface-variant">
-      <dt>{{ t('case.header.player') }}</dt>
-      <dd data-testid="player-prefix">{{ kase.ownerPrefix }}…</dd>
-      <template v-if="kase.section">
-        <dt>{{ t('case.header.section') }}</dt>
-        <dd>{{ kase.section }}</dd>
-      </template>
-      <dt>{{ t('case.header.issued') }}</dt>
-      <dd>{{ formatDateTime(kase.punishmentCreatedAt, locale) }}</dd>
-    </dl>
+    <DefinitionList :items="facts" />
 
     <p v-if="!editable" class="text-body-medium text-on-surface-variant" data-testid="read-only">{{ t('case.header.readOnly') }}</p>
 
@@ -130,11 +128,11 @@ const removeTag = (tag: string) => apply({ tags: props.kase.tags.filter((existin
     </div>
 
     <div>
-      <h3 class="mb-2 text-label-large text-on-surface-variant">{{ t('case.header.tags') }}</h3>
+      <p class="mb-2 text-label-medium text-on-surface-variant">{{ t('case.header.tags') }}</p>
       <p v-if="kase.tags.length === 0" class="text-body-medium text-on-surface-variant">{{ t('case.header.noTags') }}</p>
-      <ul v-else class="flex flex-wrap gap-2" data-testid="tags">
-        <li v-for="tag in kase.tags" :key="tag" class="inline-flex h-8 items-center gap-1 rounded-md-sm bg-secondary-container pr-1 pl-3 text-label-large text-on-secondary-container">
-          <span>{{ tag }}</span>
+      <ul v-else class="flex flex-wrap gap-2" data-testid="tags" :aria-label="t('case.header.tags')">
+        <li v-for="tag in kase.tags" :key="tag" class="inline-flex items-center gap-1">
+          <MdChip variant="status" :label="tag" />
           <button
             v-if="editable"
             type="button"

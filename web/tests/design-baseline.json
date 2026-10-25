@@ -11,7 +11,6 @@
     "src/components/admin/VanillaImportPanel.vue",
     "src/components/appeals/AppealDecisionDialog.vue",
     "src/components/case/CaseEventEntry.vue",
-    "src/components/case/CaseHeader.vue",
     "src/components/case/ReasonDialog.vue",
     "src/components/case/RedactNoteDialog.vue",
     "src/components/clientrules/ClientRuleEditor.vue",

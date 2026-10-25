@@ -1,91 +1,132 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { type LocationQuery, RouterLink, useRoute, useRouter } from 'vue-router'
 import { useApi } from '../api/inject'
-import type { CaseStatus } from '../api/types'
-import MdButton from '../components/md/MdButton.vue'
-import MdChip from '../components/md/MdChip.vue'
-import MdDataTable from '../components/md/MdDataTable.vue'
-import MdTextField from '../components/md/MdTextField.vue'
+import type { CaseListItem, CaseStatus } from '../api/types'
+import DataTable, { type DataColumn } from '../components/DataTable.vue'
+import EmptyState from '../components/EmptyState.vue'
+import FilterToolbar, { type FilterDef } from '../components/FilterToolbar.vue'
+import PageShell from '../components/PageShell.vue'
 import ResourceState from '../components/ResourceState.vue'
 import StatusPill from '../components/StatusPill.vue'
+import MdButton from '../components/md/MdButton.vue'
 import { useResource } from '../composables/useResource'
 import { formatDateTime } from '../format'
 import { useSessionStore } from '../stores/session'
 
 const STATUSES: CaseStatus[] = ['OPEN', 'IN_REVIEW', 'WAITING', 'CLOSED']
 const TAG = /^[a-z0-9-]{1,32}$/
+const FILTER_KEYS = ['status', 'mine', 'tag'] as const
 
 const { t, locale } = useI18n()
 const api = useApi()
 const session = useSessionStore()
+const route = useRoute()
+const router = useRouter()
 
-const status = ref<CaseStatus | null>(null)
-const mine = ref(false)
-const tagInput = ref('')
-const tag = ref('')
-const tagError = ref('')
+// Every filter value is a string; '' means the filter is not applied. The route query holds the same values, so a
+// reload or Back returns to the same filtered list. Anything the query cannot hold is ignored.
+function fromQuery(query: LocationQuery): Record<string, string> {
+  const status = typeof query.status === 'string' && (STATUSES as string[]).includes(query.status) ? query.status : ''
+  const tag = typeof query.tag === 'string' && TAG.test(query.tag) ? query.tag : ''
+  return { status, mine: query.mine === '1' ? 'mine' : '', tag }
+}
+
+function toQuery(filters: Record<string, string>): LocationQuery {
+  const query: LocationQuery = { ...route.query }
+  for (const key of FILTER_KEYS) delete query[key]
+  if (filters.status) query.status = filters.status
+  if (filters.mine) query.mine = '1'
+  if (filters.tag) query.tag = filters.tag
+  return query
+}
+
+const values = ref<Record<string, string>>(fromQuery(route.query))
 const page = ref(0)
+
+const filtersApplied = computed(() => Object.values(values.value).some((value) => value !== ''))
 
 const cases = useResource(() =>
   api.cases({
-    status: status.value ?? undefined,
-    assignee: mine.value ? session.me?.oid : undefined,
-    tag: tag.value || undefined,
+    status: (values.value.status || undefined) as CaseStatus | undefined,
+    assignee: values.value.mine ? session.me?.oid : undefined,
+    tag: values.value.tag || undefined,
     page: page.value,
   }),
 )
 
-// Any filter starts again at the first page.
-watch([status, mine, tag], () => {
+// Any filter starts again at the first page, and the query follows the filters.
+watch(values, (next) => {
   page.value = 0
   void cases.reload()
+  void router.replace({ query: toQuery(next) })
 })
 watch(page, () => void cases.reload())
 
-function applyTag(): void {
-  const value = tagInput.value.trim().toLowerCase()
-  if (value && !TAG.test(value)) {
-    tagError.value = t('case.header.tagInvalid')
-    return
-  }
-  tagError.value = ''
-  tag.value = value
+// Back and forward change the query; the filters follow it.
+watch(
+  () => route.query,
+  (query) => {
+    const next = fromQuery(query)
+    if (FILTER_KEYS.some((key) => next[key] !== values.value[key])) values.value = next
+  },
+)
+
+function clearFilters(): void {
+  values.value = { status: '', mine: '', tag: '' }
 }
 
-const columns = computed(() => [
-  { key: 'shortId' as const, label: t('case.list.columns.case') },
-  { key: 'section' as const, label: t('case.list.columns.section') },
-  { key: 'punishmentState' as const, label: t('case.list.columns.punishment') },
-  { key: 'status' as const, label: t('case.list.columns.status') },
-  { key: 'assigneeName' as const, label: t('case.list.columns.assignee') },
-  { key: 'priority' as const, label: t('case.list.columns.priority') },
-  { key: 'tags' as const, label: t('case.list.columns.tags') },
-  { key: 'lastActivityAt' as const, label: t('case.list.columns.activity') },
+const filters = computed<FilterDef[]>(() => [
+  {
+    kind: 'toggle-group',
+    id: 'status',
+    label: t('case.header.status'),
+    options: [{ value: '', label: t('case.list.allStatuses') }, ...STATUSES.map((value) => ({ value, label: t(`case.status.${value}`) }))],
+  },
+  {
+    kind: 'toggle-group',
+    id: 'mine',
+    label: t('case.list.mine'),
+    options: [{ value: 'mine', label: t('case.list.mine'), testid: 'filter-mine' }],
+  },
+  { kind: 'tag', id: 'tag', label: t('case.list.tag'), pattern: TAG, invalid: t('case.header.tagInvalid') },
+])
+
+const columns = computed<DataColumn<CaseListItem>[]>(() => [
+  { key: 'shortId', label: t('case.list.columns.case'), priority: 1 },
+  { key: 'section', label: t('case.list.columns.section'), priority: 3 },
+  { key: 'punishmentState', label: t('case.list.columns.punishment'), priority: 2 },
+  { key: 'status', label: t('case.list.columns.status'), priority: 1 },
+  { key: 'assigneeName', label: t('case.list.columns.assignee'), priority: 2 },
+  { key: 'priority', label: t('case.list.columns.priority'), priority: 2 },
+  { key: 'tags', label: t('case.list.columns.tags'), priority: 3 },
+  { key: 'lastActivityAt', label: t('case.list.columns.activity'), priority: 3 },
 ])
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
-    <div class="flex flex-wrap items-center gap-2">
-      <div class="flex flex-wrap items-center gap-2" role="group" :aria-label="t('case.list.filter')">
-        <MdChip data-testid="status-all" :label="t('case.list.allStatuses')" :selected="status === null" @click="status = null" />
-        <MdChip v-for="value in STATUSES" :key="value" :data-testid="`status-${value}`" :label="t(`case.status.${value}`)" :selected="status === value" @click="status = value" />
-        <MdChip data-testid="filter-mine" :label="t('case.list.mine')" :selected="mine" @click="mine = !mine" />
-      </div>
-      <form class="flex w-full items-start gap-2 md:ml-auto md:w-auto" @submit.prevent="applyTag">
-        <div class="min-w-0 flex-1 md:w-64 md:flex-none">
-          <MdTextField v-model="tagInput" dense :label="t('case.list.tag')" :error="tagError" data-testid="tag-filter" />
-        </div>
-        <MdButton type="submit" variant="tonal" data-testid="apply-tag">{{ t('case.list.applyTag') }}</MdButton>
-      </form>
-    </div>
+  <PageShell :title="t('case.list.title')">
+    <template #toolbar>
+      <FilterToolbar v-model="values" :filters="filters" />
+    </template>
+
+    <DataTable
+      v-if="cases.loading.value && cases.data.value === null"
+      :caption="t('case.list.title')"
+      :columns="columns"
+      :rows="[]"
+      loading
+    />
 
     <ResourceState :loading="cases.loading.value" :error="cases.error.value" :has-data="cases.data.value !== null" @retry="cases.reload">
       <template v-if="cases.data.value">
-        <p v-if="cases.data.value.items.length === 0" class="text-body-large text-on-surface-variant" data-testid="cases-empty">{{ t('case.list.empty') }}</p>
-        <MdDataTable v-else :label="t('case.list.title')" :columns="columns" :rows="cases.data.value.items">
+        <DataTable
+          v-if="cases.data.value.items.length > 0"
+          :caption="t('case.list.title')"
+          :columns="columns"
+          :rows="cases.data.value.items"
+        >
           <template #cell="{ row, column }">
             <RouterLink
               v-if="column.key === 'shortId'"
@@ -102,7 +143,19 @@ const columns = computed(() => [
             <template v-else-if="column.key === 'lastActivityAt'">{{ formatDateTime(row.lastActivityAt, locale) }}</template>
             <template v-else>{{ row[column.key] }}</template>
           </template>
-        </MdDataTable>
+        </DataTable>
+
+        <EmptyState
+          v-else
+          data-testid="cases-empty"
+          :variant="filtersApplied ? 'no-matches' : 'no-items'"
+          :title="filtersApplied ? t('case.list.empty') : t('case.list.noneYet')"
+        >
+          <MdButton v-if="filtersApplied" variant="text" data-testid="empty-clear-filters" @click="clearFilters">
+            {{ t('filters.clearFilters') }}
+          </MdButton>
+        </EmptyState>
+
         <nav v-if="cases.data.value.totalPages > 1" class="flex items-center gap-2" :aria-label="t('case.list.paging')">
           <MdButton variant="text" :disabled="page === 0" data-testid="prev" @click="page--">{{ t('evidence.paging.previous') }}</MdButton>
           <span class="text-body-medium" aria-live="polite">{{ t('evidence.paging.position', { page: page + 1, total: cases.data.value.totalPages }) }}</span>
@@ -110,5 +163,5 @@ const columns = computed(() => [
         </nav>
       </template>
     </ResourceState>
-  </div>
+  </PageShell>
 </template>
