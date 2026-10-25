@@ -163,6 +163,22 @@ describe('router guard', () => {
     expect(router.currentRoute.value.name).toBe('admin')
   })
 
+  it.each([
+    ['/admin/staff', 'admin-staff'],
+    ['/admin/imports', 'admin-imports'],
+    ['/admin/cloudnet', 'admin-cloudnet'],
+  ])('keeps every administration tab such as %s away from roles other than the administrator', async (path, name) => {
+    for (const roles of [['VIEWER'], ['MODERATOR']]) {
+      const { router } = setup({ roles })
+      await router.push(path)
+      expect(router.currentRoute.value.name, `${roles} route`).toBe('no-access')
+      expect(router.currentRoute.value.query.reason, `${roles} reason`).toBe('admin')
+    }
+    const { router } = setup({ roles: ['ADMIN'] })
+    await router.push(path)
+    expect(router.currentRoute.value.name, 'administrator route').toBe(name)
+  })
+
   it('keeps a viewer on the admin no-access page instead of bouncing to the dashboard', async () => {
     const { router } = setup({ roles: ['VIEWER'] })
 
