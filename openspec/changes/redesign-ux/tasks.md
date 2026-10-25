@@ -163,21 +163,21 @@ update. Each PR removes its files from `web/tests/design-baseline.json`.
 
 ### 3d. Configuration pages and the account panels (`refactor(web)`)
 
-- [ ] 3d.1 Red: `web/src/views/SectionsView.test.ts`, `TemplatesView.test.ts`, `AppealConditionsView.test.ts`,
+- [x] 3d.1 Red: `web/src/views/SectionsView.test.ts`, `TemplatesView.test.ts`, `AppealConditionsView.test.ts`,
   `ClientRulesView.test.ts`: the table cells have one content type (no `dl` in cells), the template step unit labels
   (`TemplatesView.vue:93-97`: "30 min / 10 ELO"), the edit and delete are the row menu, the appeal terms text field
   is `MdTextField` with a counter.
-- [ ] 3d.2 Migrate `web/src/views/SectionsView.vue`: remove `StaffLinksPanel` and `DiscordLinksPanel` (lines 146-147)
+- [x] 3d.2 Migrate `web/src/views/SectionsView.vue`: remove `StaffLinksPanel` and `DiscordLinksPanel` (lines 146-147)
   (the lists move in 3e.2, the own links moved in 2b.4); cells (lines 85-129) to `DataTable`; row actions (lines
   121-126) to the row pattern; delete confirmation with the error-variant button (line 142); the dialog error (line
   137) stays until 9b.
-- [ ] 3d.3 Migrate `web/src/views/TemplatesView.vue` (lines 85-106 table, 93-97 step labels with units, 100-103 row
+- [x] 3d.3 Migrate `web/src/views/TemplatesView.vue` (lines 85-106 table, 93-97 step labels with units, 100-103 row
   actions, 125 error-variant confirm, 80-83 primary action) and `web/src/views/ClientRulesView.vue` (lines 114-153
   table, 121-127 dl grid, 147-150 row actions, 170 the hit list moves from a dialog to a page section with
   `PageShell`, because it lists more than ten rows).
-- [ ] 3d.4 Migrate `web/src/views/AppealConditionsView.vue` (lines 93-103 raw `label` and `textarea` become
+- [x] 3d.4 Migrate `web/src/views/AppealConditionsView.vue` (lines 93-103 raw `label` and `textarea` become
   `MdTextField`; line 105 counter into supporting text; line 84 heading level).
-- [ ] 3d.5 Terminology pass in these pages: "Templates" / "Vorlagen" (drop "Strafvorlagen" and "Punishment
+- [x] 3d.5 Terminology pass in these pages: "Templates" / "Vorlagen" (drop "Strafvorlagen" and "Punishment
   templates"), "Sections" / "Bereiche" (drop "Area"), per the glossary. Locales en and de, with the key test.
 
 ### 3e. Administration (`refactor(web)`)
