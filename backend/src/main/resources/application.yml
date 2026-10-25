@@ -74,7 +74,8 @@ blackhole:
   # The defaults below point at the local mock OIDC server (docker/docker-compose.yml, dev only);
   # for a real tenant set the BLACKHOLE_AUTH_* variables, nothing else.
   security:
-    # Optional. The Entra tenant (directory) id; when set, a token whose "tid" claim differs is refused.
+    # The Entra tenant (directory) id; a token whose "tid" claim differs is refused. Required outside
+    # the dev and test environments (StartupRequirementsGuard); empty is accepted only there.
     tenant-id: ${BLACKHOLE_AUTH_TENANT_ID:}
     # Where the issuer publishes its signing keys. Entra: https://login.microsoftonline.com/<tenant>/discovery/v2.0/keys
     jwks-url: ${BLACKHOLE_AUTH_JWKS_URL:`http://localhost:18090/blackhole/jwks`}
@@ -469,7 +470,8 @@ micronaut:
           issuer: ${BLACKHOLE_AUTH_ISSUER:`http://localhost:18090/blackhole`}
           # The API app registration's application (client) id GUID, as it appears in the token's
           # "aud" claim (a plain GUID for v2 tokens). The default "blackhole-api" is a local-dev
-          # placeholder, not a real Entra value; the chart sets it from auth.apiClientId.
+          # placeholder, not a real Entra value; it is accepted only in dev and test, anywhere else
+          # StartupRequirementsGuard refuses to start unless this is the GUID. The chart sets it from auth.apiClientId.
           audience: ${BLACKHOLE_AUTH_AUDIENCE:blackhole-api}
           # exp and nbf are checked by TimeClaimsValidator, which applies the bounded clock skew
           # (blackhole.security.clock-skew-seconds). The library validators have no leeway, so they
