@@ -56,3 +56,17 @@ describe('MdTextField', () => {
     expect(dense.get('p').classes()).toContain('px-4')
   })
 })
+
+describe('MdTextField: multi-line', () => {
+  it('renders a textarea with the given rows and links the label to it', () => {
+    const wrapper = mount(MdTextField, {
+      props: { label: 'Text', modelValue: 'first line', multiline: true, rows: 12 },
+    })
+    const area = wrapper.get('textarea')
+
+    expect(wrapper.find('input').exists(), 'no single-line input').toBe(false)
+    expect(area.attributes('rows')).toBe('12')
+    expect(area.element.value).toBe('first line')
+    expect(wrapper.get('label').attributes('for')).toBe(area.attributes('id'))
+  })
+})
