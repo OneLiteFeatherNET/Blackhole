@@ -44,7 +44,14 @@ The panel navigation SHALL be split into two workspaces (see "Workspaces"). The 
 - **THEN** the rail shows the Inbox, Work (Cases, Appeals, Reports) and Players (Player lookup, Active punishments) and no Administration item
 
 ### Requirement: Workspaces
-The panel SHALL have two workspaces, Moderation and Administration. A workspace SHALL be determined by the route the user is on, and each route SHALL declare its workspace. The Moderation workspace SHALL open at the Inbox (`/`). The Administration workspace SHALL open at `/admin/templates`. The URL SHALL be the source of truth for the workspace; the last workspace used MAY be stored in `localStorage`, read and written inside try/catch, and it SHALL only decide where a signed-in administrator lands when the bare `/` is opened.
+The panel SHALL have two workspaces, Moderation and Administration. Each route SHALL declare its workspace. The Moderation workspace SHALL open at the Inbox (`/`) and the Administration workspace at `/admin/templates`.
+
+#### Scenario: Two workspaces
+- **WHEN** the workspaces are listed
+- **THEN** they are Moderation and Administration, in that order
+
+### Requirement: Workspace source of truth
+The URL SHALL be the source of truth for the workspace. The last workspace used MAY be stored in `localStorage`, read and written inside try/catch, and it SHALL only decide where a signed-in administrator lands when the bare `/` is opened.
 
 #### Scenario: Workspace from the URL
 - **WHEN** an administrator opens `/admin/sections` directly
