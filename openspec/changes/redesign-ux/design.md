@@ -87,6 +87,84 @@ Changes against the before table:
 The account menu (top bar, every signed-in user) gets: My profile / Mein Profil (display name and avatar choice,
 see section 5), Link my Minecraft account / Minecraft-Konto verknüpfen, Link Discord / Discord verknüpfen.
 
+### Decision 2026-10-25: two workspaces (supersedes the single-rail navigation)
+
+The user split the panel into two workspaces. This decision replaces the "After" table above and the rail groups of
+the navigation. Everything else in this section (the Inbox, breadcrumbs, glossary) still applies, with the workspace
+added where stated.
+
+**Before** (the table above, as on `main`): one rail for everyone, with the admin tabs at the bottom.
+
+| Rail group | Items | Visible to |
+|---|---|---|
+| (Inbox) | Inbox / Posteingang | every role with read access |
+| Work / Arbeit | Cases, Appeals, Reports | every role with read access |
+| Players / Spieler | Player lookup, Active punishments | every role with read access |
+| Configuration / Konfiguration | Sections, Templates, Appeal terms, Client rules | every role with read access (editing: admins) |
+| Administration / Verwaltung | tabs: Staff accounts, Imports, CloudNet (on `/admin`) | ADMIN |
+
+**After**: a workspace switcher at the top left of the app bar. Each workspace has its own rail.
+
+| Workspace (switcher) | Rail group | Item | Route | Visible to |
+|---|---|---|---|---|
+| Moderation / Moderation | (Inbox) | Inbox / Posteingang | `/` | every role with read access |
+| Moderation | Work / Arbeit | Cases / Fälle | `/cases` | every role with read access |
+| Moderation | Work / Arbeit | Appeals / Einsprüche | `/appeals` | every role with read access |
+| Moderation | Work / Arbeit | Reports / Meldungen | `/reports` | every role with read access |
+| Moderation | Players / Spieler | Player lookup / Spielersuche | `/players` | every role with read access |
+| Moderation | Players / Spieler | Active punishments / Aktive Strafen | `/punished` | every role with read access |
+| Administration / Verwaltung | Configuration / Konfiguration | Templates / Vorlagen | `/admin/templates` | ADMIN |
+| Administration / Verwaltung | Configuration / Konfiguration | Sections / Bereiche | `/admin/sections` | ADMIN |
+| Administration / Verwaltung | Configuration / Konfiguration | Client rules / Client-Regeln | `/admin/client-rules` | ADMIN |
+| Administration / Verwaltung | Configuration / Konfiguration | Appeal terms / Einspruchsbedingungen | `/admin/appeal-terms` | ADMIN |
+| Administration / Verwaltung | System / System | Staff accounts / Teammitglieder-Konten | `/admin/staff` | ADMIN |
+| Administration / Verwaltung | System / System | Imports / Importe | `/admin/imports` | ADMIN |
+| Administration / Verwaltung | System / System | CloudNet / CloudNet | `/admin/cloudnet` | ADMIN |
+
+Rules:
+
+- **Switcher.** The switcher lists Moderation and Administration. It is shown to ADMIN only. Every other role has
+  Moderation alone, sees no switcher and no Administration entry, and the breadcrumbs carry no workspace name.
+- **Access.** Every `/admin/*` route needs ADMIN. The router guard (`meta.admin`, `authGuard.ts`) sends any other role to
+  the no-access page with `reason=admin`. The navigation config does not decide access; it only hides what the guard
+  would refuse.
+- **Moderator information.** Moderators do not browse configuration. Where they need it, it appears in the moderation
+  dialogs: the punish dialog's template picker (`ApplyTemplateDialog`) and the report resolve dialog's template list
+  read `GET /templates`, which the moderator role may call. Those pickers must keep working for MODERATOR; the tests
+  name that.
+- **Administration landing.** `/admin` redirects to `/admin/templates`. Templates is the first configuration page and
+  the first thing an administrator sets up. No overview page is invented; "System status" is not offered because no
+  page for it exists.
+- **Tabs retired.** The tab strip of `AdminView` is removed. Staff accounts, Imports and CloudNet become rail items
+  with their existing URLs (`/admin/staff`, `/admin/imports`, `/admin/cloudnet`); each is its own page.
+- **Inbox stays the Moderation home** at `/`.
+- **URL is the source of truth.** The workspace of a page comes from its route (`meta.workspace`). The last workspace
+  is also stored in `localStorage` (try/catch, convenience only): when a signed-in administrator opens the bare `/`
+  after sign-in, the remembered workspace's home opens. Any explicit URL wins over the stored value.
+- **Breadcrumbs.** When the switcher is shown, detail pages (case, report, player) start their trail with the workspace
+  name, for example Moderation › Cases › `CASE-REF`.
+
+**Old URLs redirect** (the query string is kept):
+
+| Old route | New route |
+|---|---|
+| `/admin` | `/admin/templates` |
+| `/templates` | `/admin/templates` |
+| `/sections` | `/admin/sections` |
+| `/client-rules` | `/admin/client-rules` |
+| `/appeal-conditions` | `/admin/appeal-terms` |
+
+Unchanged: `/`, `/cases`, `/cases/:reference`, `/appeals`, `/reports`, `/reports/:id`, `/players`, `/players/:owner`,
+`/punished`, `/admin/staff`, `/admin/imports`, `/admin/cloudnet`.
+
+**Glossary additions.** Workspace / Arbeitsbereich (the switcher's label); Moderation / Moderation; Administration /
+Verwaltung (the workspace, replacing the former rail group of the same name); System / System (rail group of
+Staff accounts, Imports and CloudNet).
+
+**Consequences.** Moderators lose the configuration pages in the navigation; a moderator who opens a configuration URL
+lands on the no-access page, which explains the admin requirement. The navigation test of `redesign-ux` task 2b.1
+(the single-rail shape) is replaced by the per-workspace shape in task 3f.1.
+
 ### Inbox (`/`)
 
 Four sections, each with a count, the first 10 items, and a "Show all" link to the filtered list:

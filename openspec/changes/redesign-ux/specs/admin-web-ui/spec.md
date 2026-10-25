@@ -33,11 +33,78 @@ The UI SHALL list open reports and pending appeals with the server-side filters 
 ## ADDED Requirements
 
 ### Requirement: Navigation groups and names
-The panel navigation SHALL have an ungrouped Inbox item and four headed groups, one of them for administrators only. Labels SHALL use the glossary terms in English and German. Staff links for the signed-in user SHALL be in the account menu. Renamed routes SHALL redirect.
+The panel navigation SHALL be split into two workspaces (see "Workspaces"). The Moderation rail SHALL have an ungrouped Inbox item and the headed groups Work and Players. The Administration rail SHALL have the headed groups Configuration and System. Labels SHALL use the glossary terms in English and German. Staff links for the signed-in user SHALL be in the account menu. Renamed routes SHALL redirect.
 
 #### Scenario: Group headings
+- **WHEN** an administrator opens the Administration workspace
+- **THEN** every group has a visible heading in the active language, and the Inbox is not shown in that rail
+
+#### Scenario: Moderation rail
+- **WHEN** a moderator opens the panel
+- **THEN** the rail shows the Inbox, Work (Cases, Appeals, Reports) and Players (Player lookup, Active punishments) and no Administration item
+
+### Requirement: Workspaces
+The panel SHALL have two workspaces, Moderation and Administration. A workspace SHALL be determined by the route the user is on, and each route SHALL declare its workspace. The Moderation workspace SHALL open at the Inbox (`/`). The Administration workspace SHALL open at `/admin/templates`. The URL SHALL be the source of truth for the workspace; the last workspace used MAY be stored in `localStorage`, read and written inside try/catch, and it SHALL only decide where a signed-in administrator lands when the bare `/` is opened.
+
+#### Scenario: Workspace from the URL
+- **WHEN** an administrator opens `/admin/sections` directly
+- **THEN** the Administration workspace and its Sections item are shown
+
+#### Scenario: Stored workspace on the bare root
+- **WHEN** an administrator whose last workspace was Administration opens `/` after sign-in
+- **THEN** the Administration home opens
+
+#### Scenario: Explicit URL wins
+- **WHEN** an administrator whose last workspace was Administration opens `/cases`
+- **THEN** the Cases page opens in the Moderation workspace
+
+#### Scenario: Storage fails
+- **WHEN** reading or writing `localStorage` throws
+- **THEN** the panel works with the URL alone and shows no error
+
+### Requirement: Workspace switcher
+The switcher SHALL sit at the top left of the app bar and SHALL list the Moderation and Administration workspaces. It SHALL be shown only to users with the ADMIN role. Users without ADMIN SHALL see neither the switcher nor any Administration item or breadcrumb.
+
+#### Scenario: Switcher for an administrator
 - **WHEN** an administrator opens the panel
-- **THEN** every group except the Inbox has a visible heading in the active language
+- **THEN** the switcher at the top left offers Moderation and Administration
+
+#### Scenario: No switcher for a moderator
+- **WHEN** a moderator opens the panel
+- **THEN** no switcher is shown and the Moderation rail is shown alone
+
+#### Scenario: Switching
+- **WHEN** an administrator chooses Administration in the switcher
+- **THEN** the Administration home opens and the Administration rail is shown
+
+### Requirement: Administration access
+Every route under `/admin` SHALL require the ADMIN role. A signed-in user without ADMIN who opens such a route, or an old configuration route, SHALL be sent to the no-access page. Moderators SHALL still be able to use the template choices of the moderation dialogs, which read the templates list the VIEWER role may read.
+
+#### Scenario: Moderator opens an administration URL
+- **WHEN** a moderator opens `/admin/templates`
+- **THEN** the no-access page is shown and no configuration data is requested
+
+#### Scenario: Moderator uses the template picker
+- **WHEN** a moderator opens the punish dialog on a player and the template picker is shown
+- **THEN** the templates are listed and one can be applied
+
+### Requirement: Old URLs redirect
+The panel SHALL redirect the routes of the former layout, keeping the query string: `/admin` to `/admin/templates`, `/templates` to `/admin/templates`, `/sections` to `/admin/sections`, `/client-rules` to `/admin/client-rules` and `/appeal-conditions` to `/admin/appeal-terms`. The URLs `/`, `/cases`, `/appeals`, `/reports`, `/players`, `/punished`, `/admin/staff`, `/admin/imports` and `/admin/cloudnet` SHALL NOT change.
+
+#### Scenario: Old template URL
+- **WHEN** an administrator opens `/templates?page=2`
+- **THEN** the browser lands on `/admin/templates?page=2`
+
+#### Scenario: Old URL for a moderator
+- **WHEN** a moderator opens `/sections`
+- **THEN** the browser lands on the no-access page, because the target requires ADMIN
+
+### Requirement: Breadcrumbs include the workspace
+When the switcher is shown, the breadcrumbs of a detail page (case, report, player) SHALL start with the workspace name as a link to its home, followed by the list the page was reached from. Without the switcher the breadcrumbs SHALL be unchanged.
+
+#### Scenario: Case breadcrumb for an administrator
+- **WHEN** an administrator opens a case from the Cases list
+- **THEN** the breadcrumb reads Moderation, Cases, then the case reference, and the case reference is the current page
 
 #### Scenario: Account links
 - **WHEN** a staff member opens the Sections page
@@ -132,8 +199,12 @@ The panel SHALL offer "My profile" from the account menu to every signed-in staf
 - **THEN** the composer is enabled and the next reply shows the name to the player
 
 ### Requirement: Administration area
-The Administration area SHALL group the admin-only tools in tabs with a heading each: Staff accounts (staff actors, staff links, Discord links), Imports and CloudNet. The area SHALL be visible only to administrators.
+The Administration workspace SHALL hold the admin-only tools as rail items, each its own page: Templates, Sections, Client rules and Appeal terms (group Configuration), and Staff accounts (staff actors, staff links, Discord links), Imports and CloudNet (group System). The former tab strip SHALL be removed. The workspace SHALL be visible only to administrators. No "System status" item SHALL be offered while no such page exists.
 
 #### Scenario: Viewer
 - **WHEN** a viewer opens the navigation
-- **THEN** Administration is not shown
+- **THEN** no Administration item and no switcher is shown
+
+#### Scenario: Administration items
+- **WHEN** an administrator opens the Administration workspace
+- **THEN** the rail shows Templates, Sections, Client rules, Appeal terms, Staff accounts, Imports and CloudNet, and no System status item
