@@ -17,6 +17,7 @@ const config = {
     authority: process.env.BLACKHOLE_UI_OIDC_AUTHORITY.replace(/\/+$/, ''),
     clientId: process.env.BLACKHOLE_UI_OIDC_CLIENT_ID,
     apiScope: process.env.BLACKHOLE_UI_API_SCOPE,
+    ...(process.env.BLACKHOLE_UI_PANEL_ORIGIN ? { panelOrigin: process.env.BLACKHOLE_UI_PANEL_ORIGIN } : {}),
   },
 }
 writeFileSync(target, `${JSON.stringify(config, null, 2)}\n`)

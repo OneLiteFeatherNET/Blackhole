@@ -83,7 +83,10 @@ the backend verifies it; the UI only decides what to offer.
 Register the UI as a **Single-page application** with the redirect URI
 `https://<ui-host>/auth/callback` (and `http://localhost:5173/auth/callback` for development) and the
 logout URL `https://<ui-host>/`. Grant it the delegated permission `access_as_user` of the API
-registration. The scopes requested are `openid profile offline_access` plus the API scope.
+registration. The scopes requested are `openid offline_access` plus the API scope.
+
+Optionally set `BLACKHOLE_UI_PANEL_ORIGIN` (an origin only, e.g. `https://<ui-host>`): the app then refuses
+to start when it is served from any other origin. Entra's exact redirect URI match stays the second layer.
 
 ## Privacy
 

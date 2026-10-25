@@ -6,6 +6,8 @@ export interface OidcConfig {
   clientId: string
   /** The API scope the access token is requested for, e.g. `api://<api-client-id>/access_as_user`. */
   apiScope: string
+  /** The origin the panel is served from; the browser refuses to start on any other. Unset means no pin. */
+  panelOrigin?: string
 }
 
 export interface UiConfig {
@@ -64,6 +66,18 @@ function parseAuthority(raw: string): string | undefined {
   return raw.replace(/\/+$/, '')
 }
 
+/** A bare origin (scheme, host, optional port): no path, credentials, query or fragment. */
+function parsePanelOrigin(raw: string): string | undefined {
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch {
+    return undefined
+  }
+  const secure = url.protocol === 'https:' || (url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname))
+  return secure && url.origin === raw ? raw : undefined
+}
+
 /**
  * Validates the environment with strict patterns.
  * Throws a {@link ConfigError} naming every invalid variable.
@@ -96,6 +110,12 @@ export function parseUiConfig(env: Env): UiConfig {
     problems.push(`BLACKHOLE_UI_API_SCOPE must be one scope without spaces, e.g. api://<api-client-id>/access_as_user (got: '${apiScope}')`)
   }
 
+  const rawOrigin = get('BLACKHOLE_UI_PANEL_ORIGIN')
+  const panelOrigin = rawOrigin ? parsePanelOrigin(rawOrigin) : undefined
+  if (rawOrigin && panelOrigin === undefined) {
+    problems.push(`BLACKHOLE_UI_PANEL_ORIGIN must be an origin only, e.g. https://panel.example.org (got: '${rawOrigin}')`)
+  }
+
   const evidence: NonNullable<UiConfig['evidence']> = {}
   for (const [name, key] of [
     ['BLACKHOLE_UI_EVIDENCE_MAX_IMAGE_BYTES', 'maxImageBytes'],
@@ -113,7 +133,7 @@ export function parseUiConfig(env: Env): UiConfig {
   }
 
   if (problems.length > 0 || backendUrl === undefined || authority === undefined) throw new ConfigError(problems)
-  return { backendUrl, oidc: { authority, clientId, apiScope }, ...(Object.keys(evidence).length > 0 ? { evidence } : {}) }
+  return { backendUrl, oidc: { authority, clientId, apiScope, ...(panelOrigin ? { panelOrigin } : {}) }, ...(Object.keys(evidence).length > 0 ? { evidence } : {}) }
 }
 
 export function toPublicConfig(config: UiConfig): PublicUiConfig {
