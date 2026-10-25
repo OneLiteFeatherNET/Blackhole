@@ -69,6 +69,12 @@ public final class InMemoryCaseEventRepository implements CaseEventRepository, C
         return redacted;
     }
 
+    /** Payloads are not rewritten in this fake, so there is nothing to clear. The SQL itself has no test yet. */
+    @Override
+    public void clearStaffNameSnapshots(java.util.UUID actorOid) {
+        // nothing to clear in memory
+    }
+
     @Override
     public int deleteForPunishment(String punishmentIdentifier) {
         int before = this.rows.size();

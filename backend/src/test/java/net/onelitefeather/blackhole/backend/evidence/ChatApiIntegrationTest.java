@@ -104,7 +104,7 @@ class ChatApiIntegrationTest extends ApiIntegrationTest {
     void aModeratorStagesAFileAndItIsInvisibleUntilAMessageSendsIt() {
         String punishment = givenPunishment("c1".repeat(64), "chat-stage");
 
-        Reply staged = upload(punishment, png(), "shot.png", this.jwt.moderator());
+        Reply staged = upload(punishment, png(), "shot.png", named(this.jwt.moderator()));
 
         assertEquals(200, staged.status(), staged.body());
         assertEquals("shot.png", staged.json().get("name"));
@@ -119,9 +119,9 @@ class ChatApiIntegrationTest extends ApiIntegrationTest {
     @Test
     void aMessageSendsTheFileAndItBecomesStaffEvidence() {
         String punishment = givenPunishment("c2".repeat(64), "chat-send");
-        String attachmentId = (String) upload(punishment, png(), "shot.png", this.jwt.moderator()).json().get("attachmentId");
+        String attachmentId = (String) upload(punishment, png(), "shot.png", named(this.jwt.moderator())).json().get("attachmentId");
 
-        Reply sent = post("/case/" + punishment + "/messages", Map.of("attachmentIds", List.of(attachmentId)), this.jwt.moderator());
+        Reply sent = post("/case/" + punishment + "/messages", Map.of("attachmentIds", List.of(attachmentId)), named(this.jwt.moderator()));
 
         assertEquals(200, sent.status(), sent.body());
         Reply listed = get("/punishment/" + punishment + "/evidence");
@@ -138,11 +138,11 @@ class ChatApiIntegrationTest extends ApiIntegrationTest {
     @Test
     void aSecondMessageCannotSendTheSameFile() {
         String punishment = givenPunishment("c3".repeat(64), "chat-twice");
-        String attachmentId = (String) upload(punishment, png(), "shot.png", this.jwt.moderator()).json().get("attachmentId");
-        assertEquals(200, post("/case/" + punishment + "/messages", Map.of("attachmentIds", List.of(attachmentId)), this.jwt.moderator()).status());
+        String attachmentId = (String) upload(punishment, png(), "shot.png", named(this.jwt.moderator())).json().get("attachmentId");
+        assertEquals(200, post("/case/" + punishment + "/messages", Map.of("attachmentIds", List.of(attachmentId)), named(this.jwt.moderator())).status());
 
         assertEquals(400, post("/case/" + punishment + "/messages", Map.of("text", "again", "attachmentIds", List.of(attachmentId)),
-                this.jwt.moderator()).status());
+                named(this.jwt.moderator())).status());
     }
 
     @Test
@@ -153,15 +153,15 @@ class ChatApiIntegrationTest extends ApiIntegrationTest {
         assertEquals(403, upload(punishment, png(), "a.png", this.jwt.proxy()).status(), "proxy");
         assertEquals(403, upload(punishment, png(), "a.png", discordBot()).status(), "the Discord bot");
         assertEquals(401, upload(punishment, png(), "a.png", null).status(), "no token");
-        assertEquals(200, upload(punishment, png(), "a.png", this.jwt.admin()).status(), "an admin may too");
+        assertEquals(200, upload(punishment, png(), "a.png", named(this.jwt.admin())).status(), "an admin may too");
     }
 
     @Test
     void anUnsupportedFileIsRefusedAndAnUnknownPunishmentIsNotFound() {
         String punishment = givenPunishment("c5".repeat(64), "chat-bad");
 
-        assertEquals(415, upload(punishment, EvidenceFixtures.mp4(2048), "clip.mp4", this.jwt.moderator()).status());
-        assertEquals(404, upload("no-such-punishment", png(), "a.png", this.jwt.moderator()).status());
+        assertEquals(415, upload(punishment, EvidenceFixtures.mp4(2048), "clip.mp4", named(this.jwt.moderator())).status());
+        assertEquals(404, upload("no-such-punishment", png(), "a.png", named(this.jwt.moderator())).status());
     }
 
     @Test
@@ -178,9 +178,9 @@ class ChatApiIntegrationTest extends ApiIntegrationTest {
         assertEquals(403, post(base + "/preview", request, this.jwt.proxy()).status(), "proxy cannot preview");
         assertEquals(403, post(base + "/" + UUID.randomUUID() + "/revoke", Map.of("reason", "OTHER"), this.jwt.viewer()).status(), "viewer cannot revoke");
         assertEquals(403, get(base, discordBot()).status(), "the bot cannot list");
-        assertEquals(404, post(base, request, this.jwt.moderator()).status(), "a moderator may: the evidence is just unknown");
+        assertEquals(404, post(base, request, named(this.jwt.moderator())).status(), "a moderator may: the evidence is just unknown");
         assertEquals(404, post(base + "/preview", request, this.jwt.viewer()).status(), "a viewer may preview");
-        assertEquals(404, post(base + "/" + UUID.randomUUID() + "/revoke", Map.of("reason", "OTHER"), this.jwt.moderator()).status());
+        assertEquals(404, post(base + "/" + UUID.randomUUID() + "/revoke", Map.of("reason", "OTHER"), named(this.jwt.moderator())).status());
     }
 
     @Test
@@ -205,10 +205,10 @@ class ChatApiIntegrationTest extends ApiIntegrationTest {
         assertEquals(200, preview.status(), preview.body());
         assertTrue(preview.body().contains("\"You\"") && preview.body().contains("\"Player 2\""), preview.body());
         assertTrue(!preview.body().contains("Alice") && !preview.body().contains("Bob"), "no original label: " + preview.body());
-        Reply share = post(base, request, this.jwt.moderator());
+        Reply share = post(base, request, named(this.jwt.moderator()));
         assertEquals(409, share.status(), "no appeal on this case: " + share.body());
         assertEquals("NO_APPEAL", share.json().get("code"));
-        assertEquals(400, post(base, Map.of("evidenceId", evidenceId, "selection", List.of(0), "appellantSpeaker", "Alice"), this.jwt.moderator()).status(),
+        assertEquals(400, post(base, Map.of("evidenceId", evidenceId, "selection", List.of(0), "appellantSpeaker", "Alice"), named(this.jwt.moderator())).status(),
                 "without confirmedMinimised");
     }
 }

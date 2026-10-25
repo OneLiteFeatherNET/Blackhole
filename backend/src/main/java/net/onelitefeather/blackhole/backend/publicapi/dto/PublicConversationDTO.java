@@ -12,17 +12,30 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * The conversation as the player reads it and the message the player posts. There is no staff name, no
+ * The conversation as the player reads it and the message the player posts. A staff entry carries the display name the
+ * staff member had when writing and the key of the head; never a UUID, an object id or the sign-in name. There is no
  * visibility, no channel and no identifier of another case.
  */
 @Schema(description = "The conversation between the player and the team")
 @Serdeable
 public sealed interface PublicConversationDTO {
 
-    /** Who wrote an entry. Staff are never named. */
+    /** Who wrote an entry. A staff entry is named by its {@link StaffAuthor}; the player is "You" to the player. */
     @Serdeable
     enum Author {
         PLAYER, STAFF, SYSTEM
+    }
+
+    /**
+     * The staff member of an entry, as the player may see them.
+     *
+     * @param displayName the display name the staff member had when writing; null for a message written before names existed
+     * @param avatarKey   the key of the head, or null for initials; the portal turns it into {@code /api/avatars/{key}}
+     */
+    @Schema(name = "PublicConversationStaff")
+    @Serdeable
+    @ReflectiveAccess
+    record StaffAuthor(@Nullable String displayName, @Nullable String avatarKey) {
     }
 
     /**
@@ -35,6 +48,7 @@ public sealed interface PublicConversationDTO {
      *                  {@code del}, {@code code}, {@code code_block}, {@code list}, {@code item}, {@code quote} and {@code link} with an http(s)
      *                  {@code href} and {@code external}); null when there is no text. Draw it as text nodes and elements, never as HTML.
      * @param removed   whether the message was deleted or redacted
+     * @param staff     the staff member of a {@code STAFF} entry; null for a player, a system marker or a legacy message without one
      */
     @Schema(name = "PublicConversationEntry")
     @JsonInclude(JsonInclude.Include.ALWAYS)
@@ -43,7 +57,7 @@ public sealed interface PublicConversationDTO {
     record Entry(
             long seq, @NonNull String occurredAt, @NonNull String kind, @NonNull Author author, @Nullable String messageId,
             @Nullable String text, @Nullable List<Map<String, Object>> blocks, boolean removed,
-            @Nullable List<Attachment> attachments, @Nullable Share share
+            @Nullable List<Attachment> attachments, @Nullable Share share, @Nullable StaffAuthor staff
     ) {
     }
 

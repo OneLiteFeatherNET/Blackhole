@@ -31,4 +31,10 @@ public interface CaseEventRepository {
      * @return how many events were deleted
      */
     int deleteForPunishment(String punishmentIdentifier);
+
+    /**
+     * Removes the display name snapshot from every {@code message.added} of a staff member (anonymization), the same key
+     * removal the text redaction uses. The events and their other fields stay; a later protocol shows the legacy label.
+     */
+    void clearStaffNameSnapshots(UUID actorOid);
 }

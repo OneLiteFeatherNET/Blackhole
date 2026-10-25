@@ -48,6 +48,36 @@ class CaseConversationServiceTest {
     private final CaseConversationService service = new CaseConversationService(
             this.punishments.repository(), this.store, this.store, this.log, this.events, this.clock, this.banIds.service, this.protocols);
 
+    /** The same service as the injected one: a staff reply needs a display name. */
+    private final net.onelitefeather.blackhole.backend.support.StaffLinkTestBed staffLinks =
+            new net.onelitefeather.blackhole.backend.support.StaffLinkTestBed(this.events, this.clock);
+    private final CaseConversationService namedService = new CaseConversationService(
+            this.punishments.repository(), this.store, this.store, this.log, this.events, this.clock, this.banIds.service, this.protocols,
+            net.onelitefeather.blackhole.backend.casetimeline.service.ParticipantErasure.NONE,
+            net.onelitefeather.blackhole.backend.casetimeline.ChatFiles.NONE, this.staffLinks.profileService);
+
+    @Test
+    void aStaffReplyWithoutADisplayNameIsRefusedAndWritesNoEvent() {
+        givenPunishment();
+
+        CaseConversationDTO result = this.namedService.postMessage(ID, text("hello"), ALICE, null);
+
+        assertEquals(CaseErrorKind.STAFF_PROFILE_REQUIRED, kindOf(result), "the staff member has no name yet");
+        assertTrue(this.events.events().isEmpty(), "nothing reached the case or the players");
+    }
+
+    @Test
+    void aStaffReplyWithADisplayNameIsWritten() {
+        givenPunishment();
+        this.staffLinks.givenActor(ALICE.oid(), "Alice");
+        this.staffLinks.profileService.save(new net.onelitefeather.blackhole.backend.staffprofile.dto.StaffProfileDTO.UpdateRequest(
+                "Alice K.", "AUTO", true), ALICE);
+
+        CaseConversationDTO result = this.namedService.postMessage(ID, text("hello"), ALICE, null);
+
+        assertInstanceOf(CaseConversationDTO.MessageResponse.class, result, "a named staff member may reply");
+    }
+
     private void givenPunishment() {
         this.punishments.given(new PunishmentEntity(ID, UUID.randomUUID(), OWNER, "network", false, 1L, null, new HashMap<>()), ID);
         this.store.ensureCase(ID, 1L);

@@ -46,7 +46,7 @@ class AppealRecordingTest {
     private final net.onelitefeather.blackhole.backend.support.RecordingProtocols protocols = new net.onelitefeather.blackhole.backend.support.RecordingProtocols();
     private final AppealDecisionService deciding = new AppealDecisionService(
             appeals.repository(), bed.punishments.repository(), bed.profiles.repository(), bed.slots, bed.profileCache,
-            bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.evidence, bed.staffLinks.service, bed.cases.timeline, bed.banIds.service, protocols, bed.eloBed.clock);
+            bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.evidence, bed.staffLinks.service, bed.cases.timeline, bed.banIds.service, protocols, bed.staffLinks.profileService, bed.eloBed.clock);
 
     /** The database assigns the identifier of a saved appeal; the in-memory repository needs a hand. */
     private static AppealEntity withIdentifier(AppealEntity appeal) {
@@ -237,9 +237,22 @@ class AppealRecordingTest {
     }
 
     @Test
+    void aDecisionWithAPlayerMessageNeedsTheReviewersDisplayNameAndDecidesNothingWithout() {
+        PunishmentEntity mute = givenStaffMute();
+        AppealEntity appeal = givenAppealAwaitingReview(mute);
+
+        AppealReviewResult result = reviewWithMessage(appeal, "We looked at the logs and the mute stays.");
+
+        assertEquals(AppealReviewResult.Kind.STAFF_PROFILE_REQUIRED, result.kind());
+        assertEquals(0, bed.cases.log.ofType(mute.getIdentifier(), "appeal.decided").size(), "no decision is recorded");
+    }
+
+    @Test
     void aDecisionWithAPlayerMessageRecordsAPlayerVisibleStaffMessageFromTheReviewer() {
         PunishmentEntity mute = givenStaffMute();
         AppealEntity appeal = givenAppealAwaitingReview(mute);
+        bed.staffLinks.profileService.save(new net.onelitefeather.blackhole.backend.staffprofile.dto.StaffProfileDTO.UpdateRequest(
+                "Rae Vance", "AUTO", true), REVIEWER_ACTOR);
 
         AppealReviewResult result = reviewWithMessage(appeal, "We looked at the logs and the mute stays.");
 

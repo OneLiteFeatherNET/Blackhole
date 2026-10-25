@@ -99,6 +99,7 @@ public class AppealController implements AppealApi {
                     HttpResponse.badRequest(result.message());
             case SELF_REVIEW -> HttpResponse.status(HttpStatus.FORBIDDEN, result.message());
             case INVALID_PLAYER_MESSAGE -> HttpResponse.status(HttpStatus.UNPROCESSABLE_ENTITY, result.message());
+            case STAFF_PROFILE_REQUIRED -> HttpResponse.status(HttpStatus.CONFLICT, result.message());
             case DECIDED -> HttpResponse.ok(withEvidenceCount(result.appeal()));
         };
     }

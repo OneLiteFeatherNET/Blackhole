@@ -16,7 +16,7 @@ class PublicSeenApiIntegrationTest extends PublicApiTestBase {
     @Test
     void theCaseShowsNoSeenSeqBeforeThePlayerReadAnything() {
         String punishment = punish("e1".repeat(64), "seen-none");
-        assertEquals(200, post("/case/" + punishment + "/messages", Map.of("text", "We are looking into it."), this.jwt.moderator()).status());
+        assertEquals(200, post("/case/" + punishment + "/messages", Map.of("text", "We are looking into it."), named(this.jwt.moderator())).status());
 
         assertEquals(0, ((Number) get("/case/" + punishment, this.jwt.viewer()).json().get("playerSeenSeq")).longValue());
     }
@@ -25,7 +25,7 @@ class PublicSeenApiIntegrationTest extends PublicApiTestBase {
     void thePlayersConversationReadMovesTheSeenSeqThatTheCaseReports() {
         String punishment = punish("e2".repeat(64), "seen-read");
         String token = sessionFor(punishment);
-        assertEquals(200, post("/case/" + punishment + "/messages", Map.of("text", "We are looking into it."), this.jwt.moderator()).status());
+        assertEquals(200, post("/case/" + punishment + "/messages", Map.of("text", "We are looking into it."), named(this.jwt.moderator())).status());
 
         Raw read = playerGet("/public/conversation", token);
 

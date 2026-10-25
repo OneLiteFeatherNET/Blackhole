@@ -77,7 +77,8 @@ public class PublicConversationService {
         List<PublicConversationDTO.Entry> entries = page.entries().stream()
                 .map(entry -> new PublicConversationDTO.Entry(entry.seq(), Instant.ofEpochMilli(entry.occurredAt()).toString(), entry.kind(),
                         PublicConversationDTO.Author.valueOf(entry.author()), entry.messageId(), entry.text(),
-                        entry.text() == null ? null : this.content.blocks(entry.text()), entry.removed(), attachmentsOf(entry), shareOf(entry)))
+                        entry.text() == null ? null : this.content.blocks(entry.text()), entry.removed(), attachmentsOf(entry), shareOf(entry),
+                        staffOf(entry)))
                 .toList();
         if (page.cursor() != null && !page.entries().isEmpty()) {
             this.seen.moveTo(session.punishmentIdentifier(), page.cursor());
@@ -131,6 +132,12 @@ public class PublicConversationService {
 
     private static PublicConversationDTO.Error error(String code, PublicErrorKind kind) {
         return new PublicConversationDTO.Error(code, null, kind);
+    }
+
+    /** The staff member of a staff entry: the snapshot name and the head key. Null for every other author. */
+    private static @Nullable PublicConversationDTO.StaffAuthor staffOf(PublicConversationReader.Entry entry) {
+        PublicConversationReader.Staff staff = entry.staff();
+        return staff == null ? null : new PublicConversationDTO.StaffAuthor(staff.displayName(), staff.avatarKey());
     }
 
     /** The files a message sent, as the portal lists them; null when the entry has none. Nothing but the id, name and type leaves. */

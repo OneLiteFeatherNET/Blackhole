@@ -39,8 +39,8 @@ class PublicProtocolIntegrationTest extends PublicApiTestBase {
     }
 
     private String reviewer() {
-        return this.jwt.delegated().groups(net.onelitefeather.blackhole.backend.security.TestJwtIssuer.MODERATOR_GROUP)
-                .claim("oid", REVIEWER.toString()).claim("name", "Reviewer Rita Secretname").sign();
+        return named(this.jwt.delegated().groups(net.onelitefeather.blackhole.backend.security.TestJwtIssuer.MODERATOR_GROUP)
+                .claim("oid", REVIEWER.toString()).claim("name", "Reviewer Rita Secretname").sign());
     }
 
     @SuppressWarnings("unchecked")
@@ -55,7 +55,7 @@ class PublicProtocolIntegrationTest extends PublicApiTestBase {
         String token = sessionFor(punishment);
         fileAppeal(token);
         assertEquals(200, playerPost("/public/messages", token, Map.of("text", "PLAYER-WORDS I did not do it.")).status());
-        assertEquals(200, post("/case/" + punishment + "/notes", Map.of("text", "SECRET-STAFF-NOTE"), this.jwt.moderator()).status());
+        assertEquals(200, post("/case/" + punishment + "/notes", Map.of("text", "SECRET-STAFF-NOTE"), named(this.jwt.moderator())).status());
         Reply review = post("/appeal/" + appealIdOf(punishment) + "/review", Map.of("decision", "DENIED", "decisionNote", "INTERNAL-NOTE-XYZ",
                 "playerMessage", "TEAM-WORDS the ban stays."), reviewer());
         assertEquals(200, review.status(), review.body());
@@ -177,7 +177,7 @@ class PublicProtocolIntegrationTest extends PublicApiTestBase {
 
     @Test
     void aStaffTokenIsRefusedOnTheRoute() {
-        int status = playerGet("/public/appeal/protocol", this.jwt.admin()).status();
+        int status = playerGet("/public/appeal/protocol", named(this.jwt.admin())).status();
         assertTrue(status == 401 || status == 403, "a staff token is no player session, got " + status);
     }
 }

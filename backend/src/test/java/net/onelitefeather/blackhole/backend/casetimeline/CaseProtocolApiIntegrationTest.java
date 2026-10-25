@@ -46,7 +46,7 @@ class CaseProtocolApiIntegrationTest extends ApiIntegrationTest {
     }
 
     private String moderator(UUID oid) {
-        return this.jwt.delegated().groups(TestJwtIssuer.MODERATOR_GROUP).claim("oid", oid.toString()).claim("name", "Staff Alice").sign();
+        return named(this.jwt.delegated().groups(TestJwtIssuer.MODERATOR_GROUP).claim("oid", oid.toString()).claim("name", "Staff Alice").sign());
     }
 
     private String viewer() {
@@ -172,7 +172,7 @@ class CaseProtocolApiIntegrationTest extends ApiIntegrationTest {
         assertEquals(0, ((Number) get("/punishment/" + punishment + "/evidence/count", viewer()).json().get("count")).intValue());
 
         Reply attach = post("/evidence", Map.of("punishment", punishment, "kind", "TRANSCRIPT", "sourceSystem", "client", "payload", Map.of("a", "b")),
-                this.jwt.moderator());
+                named(this.jwt.moderator()));
         assertEquals(400, attach.status(), attach.body());
     }
 
@@ -202,7 +202,7 @@ class CaseProtocolApiIntegrationTest extends ApiIntegrationTest {
         decideDenied(appeal);
         String oldEvidence = (String) protocols(punishment).getFirst().get("evidenceId");
 
-        Reply redacted = post("/case/" + punishment + "/messages/" + secret + "/redact", Map.of("reason", "OTHER"), this.jwt.admin());
+        Reply redacted = post("/case/" + punishment + "/messages/" + secret + "/redact", Map.of("reason", "OTHER"), named(this.jwt.admin()));
         assertEquals(200, redacted.status(), redacted.body());
 
         assertEquals(404, get("/case/" + punishment + "/protocol/" + oldEvidence, viewer()).status(), "the old text is gone");

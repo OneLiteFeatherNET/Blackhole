@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.security;
 
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseEventRepository;
 import net.onelitefeather.blackhole.backend.casetimeline.protocol.ProtocolRedaction;
 import net.onelitefeather.blackhole.backend.discord.DiscordLinkService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
@@ -34,15 +35,17 @@ public class StaffActorService {
 
     private final ProtocolRedaction protocols;
     private final StaffProfileService profiles;
+    private final CaseEventRepository caseEvents;
 
     public StaffActorService(StaffActorRepository actors, DomainEventPublisher events, StaffLinkService links, DiscordLinkService discordLinks,
-                             ProtocolRedaction protocols, StaffProfileService profiles) {
+                             ProtocolRedaction protocols, StaffProfileService profiles, CaseEventRepository caseEvents) {
         this.protocols = protocols;
         this.actors = actors;
         this.events = events;
         this.links = links;
         this.discordLinks = discordLinks;
         this.profiles = profiles;
+        this.caseEvents = caseEvents;
     }
 
     /** Every known principal, most recently seen first. */
@@ -72,6 +75,8 @@ public class StaffActorService {
         this.discordLinks.removeOnAnonymize(oid);
         // Clears the display name and the avatar key; the head itself is deleted with the link above.
         this.profiles.anonymize(oid);
+        // The name snapshots of the messages go before the protocols are regenerated, so none of them can show it again.
+        this.caseEvents.clearStaffNameSnapshots(oid);
         // The name is cleared first, so a regenerated protocol cannot show it again; never throws.
         this.protocols.afterStaffAnonymized(oid);
         LOG.info("Staff actor {} anonymized by {}", oid, admin.oid());

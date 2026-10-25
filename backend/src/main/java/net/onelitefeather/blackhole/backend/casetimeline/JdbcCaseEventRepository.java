@@ -52,6 +52,10 @@ public class JdbcCaseEventRepository implements CaseEventRepository {
             """.replace("{{PURGE}}", ProtocolStore.MARK_PURGE_PENDING
             + " AND EXISTS (SELECT 1 FROM red WHERE type LIKE 'message.%') RETURNING identifier");
     private static final String DELETE_EVENTS = "DELETE FROM case_event WHERE punishment_identifier = ?";
+    private static final String CLEAR_NAME_SNAPSHOTS = """
+            UPDATE case_event SET payload = payload #- '{author,staffDisplayName}'
+            WHERE actor_oid = ? AND type = 'message.added' AND payload #> '{author,staffDisplayName}' IS NOT NULL
+            """;
     private static final String DELETE_CASE = "DELETE FROM punishment_case WHERE punishment_identifier = ?";
 
     private final DataSource dataSource;
@@ -124,6 +128,17 @@ public class JdbcCaseEventRepository implements CaseEventRepository {
             }
         } catch (SQLException e) {
             throw new IllegalStateException("could not redact a case note", e);
+        }
+    }
+
+    @Override
+    public void clearStaffNameSnapshots(UUID actorOid) {
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(CLEAR_NAME_SNAPSHOTS)) {
+            statement.setObject(1, actorOid);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            throw new IllegalStateException("could not clear the staff names of a staff actor", e);
         }
     }
 

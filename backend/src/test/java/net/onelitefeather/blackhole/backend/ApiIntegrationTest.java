@@ -17,6 +17,9 @@ import org.junit.jupiter.api.BeforeEach;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Base for tests that call the REST API of an application started against the real containers.
@@ -103,6 +106,17 @@ public abstract class ApiIntegrationTest extends PostgresIntegrationTest {
 
     protected Reply put(String path, Object body, String token) {
         return call(HttpRequest.PUT(path, body), token);
+    }
+
+    /**
+     * Gives the staff member of {@code token} a display name through the API (a staff reply to a player needs one), and
+     * returns the token. Each call saves a fresh, unique name, so tests stay independent.
+     */
+    protected String named(String token) {
+        String name = "Person " + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        Reply saved = put("/staff-profile/me", Map.of("displayName", name, "noticeAcknowledged", true), token);
+        assertEquals(200, saved.status(), "the test staff member gets a display name: " + saved.body());
+        return token;
     }
 
     protected Reply patch(String path, Object body, String token) {

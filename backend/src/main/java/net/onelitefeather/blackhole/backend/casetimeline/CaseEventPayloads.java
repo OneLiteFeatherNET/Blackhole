@@ -46,7 +46,8 @@ public final class CaseEventPayloads {
      * with the body kept, never as an error.
      */
     public static CaseEventPayload read(String type, int version, Map<String, Object> body) {
-        if (version != CaseEventPayload.CURRENT_VERSION) {
+        boolean namedStaffMessage = version == CaseEventPayload.NAMED_STAFF_MESSAGE_VERSION && CaseEventPayload.MESSAGE_ADDED.equals(type);
+        if (version != CaseEventPayload.CURRENT_VERSION && !namedStaffMessage) {
             return new CaseEventPayload.Unknown(type, version, body);
         }
         try {
@@ -83,7 +84,7 @@ public final class CaseEventPayloads {
                     yield new CaseEventPayload.MessageAdded(required(text(body, "messageId")), text(body, "appealId"),
                             MessageAuthorKind.valueOf(required(text(author, "kind"))), text(author, "participantId"),
                             MessageChannel.valueOf(required(text(body, "channel"))), text(body, "text"),
-                            attachments(body), embeds(body));
+                            attachments(body), embeds(body), text(author, "staffDisplayName"));
                 }
                 case CaseEventPayload.MESSAGE_EDITED -> new CaseEventPayload.MessageEdited(required(text(body, "messageId")), text(body, "text"));
                 case CaseEventPayload.MESSAGE_DELETED -> new CaseEventPayload.MessageDeleted(

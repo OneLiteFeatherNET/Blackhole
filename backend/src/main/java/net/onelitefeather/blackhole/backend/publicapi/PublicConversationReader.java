@@ -23,12 +23,27 @@ public interface PublicConversationReader {
      * @param share     for {@code SHARE} and {@code SHARE_WITHDRAWN}: the share as it stands now; null otherwise
      */
     record Entry(long seq, long occurredAt, String kind, String author, @Nullable String messageId, @Nullable String text, boolean removed,
-                 @Nullable String attachmentsJson, @Nullable Share share) {
+                 @Nullable String attachmentsJson, @Nullable Share share, @Nullable Staff staff) {
 
         /** Shares an entry without files or a share card. */
         public Entry(long seq, long occurredAt, String kind, String author, @Nullable String messageId, @Nullable String text, boolean removed) {
-            this(seq, occurredAt, kind, author, messageId, text, removed, null, null);
+            this(seq, occurredAt, kind, author, messageId, text, removed, null, null, null);
         }
+
+        /** An entry without a staff author. */
+        public Entry(long seq, long occurredAt, String kind, String author, @Nullable String messageId, @Nullable String text, boolean removed,
+                     @Nullable String attachmentsJson, @Nullable Share share) {
+            this(seq, occurredAt, kind, author, messageId, text, removed, attachmentsJson, share, null);
+        }
+    }
+
+    /**
+     * The staff author of a message as a player may see it.
+     *
+     * @param displayName the name the staff member had when writing (a snapshot); null for a message written before names existed
+     * @param avatarKey   the key of the head, live from the profile; null for initials or an unlinked account
+     */
+    record Staff(@Nullable String displayName, @Nullable String avatarKey) {
     }
 
     /**

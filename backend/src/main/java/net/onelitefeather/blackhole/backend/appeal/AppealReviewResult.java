@@ -23,6 +23,7 @@ public record AppealReviewResult(Kind kind, String message, AppealEntity appeal)
         DURATION_REDUCTION_NOT_SHORTER,
         PUNISHMENT_NOT_ACTIVE,
         INVALID_PLAYER_MESSAGE,
+        STAFF_PROFILE_REQUIRED,
         DECIDED
     }
 
@@ -62,6 +63,10 @@ public record AppealReviewResult(Kind kind, String message, AppealEntity appeal)
         return new AppealReviewResult(
                 Kind.DURATION_REDUCTION_NOT_SHORTER, "newExpirationAt must be strictly before the punishment's current expiry", null
         );
+    }
+
+    public static AppealReviewResult staffProfileRequired() {
+        return new AppealReviewResult(Kind.STAFF_PROFILE_REQUIRED, "set your display name before a decision reaches the player", null);
     }
 
     public static AppealReviewResult invalidPlayerMessage(String message) {
