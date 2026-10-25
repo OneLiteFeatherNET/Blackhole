@@ -131,7 +131,7 @@ defineExpose({ reload })
       <p
         v-if="pending"
         role="status"
-        class="rounded-md-md bg-surface-container-highest p-3 text-on-surface"
+        class="rounded-md-md bg-surface-container-highest p-4 text-on-surface"
         data-testid="protocol-pending"
       >
         {{ t('case.protocol.pending') }}

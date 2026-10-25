@@ -17,9 +17,9 @@ import { visibleGroups } from './nav/navigation'
 import { useTicker } from './nav/ticker'
 import { useBreakpoint } from './nav/useBreakpoint'
 import { useSessionStore } from './stores/session'
+import { MENU_ICON } from './icons'
 import { useUiStore } from './stores/ui'
 
-const MENU_ICON = 'M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z'
 
 const { t } = useI18n()
 const route = useRoute()

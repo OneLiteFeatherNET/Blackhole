@@ -1,0 +1,7 @@
+{
+  "$comment": "OLF brand tokens, taken from portal/src/styles/utilities.css. Used for the hero gradient only; application surfaces use the MD3 roles.",
+  "gradient": {
+    "angle": "135deg",
+    "stops": ["#f7931d 0%", "#ec008b 38%", "#91268f 70%", "#2a388f 100%"]
+  }
+}

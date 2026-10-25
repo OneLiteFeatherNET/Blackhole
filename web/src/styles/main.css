@@ -109,6 +109,67 @@
   --text-label-small--line-height: 1rem;
   --text-label-small--letter-spacing: 0.5px;
   --text-label-small--font-weight: 500;
+
+  /*
+   * Type roles (design section 2, "Type ramp"): one role per style. Each role points at the scale above, so a
+   * role changes in one place. Use the role utility (`text-section`), not the scale name.
+   */
+  --text-page-title: var(--text-headline-small);
+  --text-page-title--line-height: var(--text-headline-small--line-height);
+  --text-section: var(--text-title-medium);
+  --text-section--line-height: var(--text-title-medium--line-height);
+  --text-section--letter-spacing: var(--text-title-medium--letter-spacing);
+  --text-section--font-weight: var(--text-title-medium--font-weight);
+  --text-card: var(--text-title-small);
+  --text-card--line-height: var(--text-title-small--line-height);
+  --text-card--letter-spacing: var(--text-title-small--letter-spacing);
+  --text-card--font-weight: var(--text-title-small--font-weight);
+  --text-lead: var(--text-body-large);
+  --text-lead--line-height: var(--text-body-large--line-height);
+  --text-lead--letter-spacing: var(--text-body-large--letter-spacing);
+  --text-meta: var(--text-body-small);
+  --text-meta--line-height: var(--text-body-small--line-height);
+  --text-meta--letter-spacing: var(--text-body-small--letter-spacing);
+  --text-field-label: var(--text-label-medium);
+  --text-field-label--line-height: var(--text-label-medium--line-height);
+  --text-field-label--letter-spacing: var(--text-label-medium--letter-spacing);
+  --text-field-label--font-weight: var(--text-label-medium--font-weight);
+  --text-control: var(--text-label-large);
+  --text-control--line-height: var(--text-label-large--line-height);
+  --text-control--letter-spacing: var(--text-label-large--letter-spacing);
+  --text-control--font-weight: var(--text-label-large--font-weight);
+  --text-inbox-count: var(--text-display-small);
+  --text-inbox-count--line-height: var(--text-display-small--line-height);
+}
+
+/*
+ * Spacing roles on a 4 px base (design section 2, "Spacing"): one role, one step. Use them as arbitrary values,
+ * e.g. `gap-(--space-3)`, so the step is named where it is used. Do not add a value between the steps.
+ */
+/*
+ * State layers, scrim, menu layer and the drawer height. Components reference these names, not literals, so a
+ * change of value is one edit here.
+ */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --md-sys-state-hover-opacity: 0.08;
+  --md-sys-state-disabled-opacity: 0.38;
+  --md-sys-scrim-opacity: 0.32;
+  --z-menu: 60;
+  --md-drawer-height: calc(100dvh - 4rem);
+
+  /* Outlined fields take the background of the surface they sit on (a dialog sets its own, below). */
+  --md-field-bg: var(--md-sys-color-surface);
+}
+
+[role="dialog"] {
+  --md-field-bg: var(--md-sys-color-surface-container-high);
 }
 
 /*
