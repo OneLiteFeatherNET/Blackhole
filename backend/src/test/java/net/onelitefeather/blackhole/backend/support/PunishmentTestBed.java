@@ -1,5 +1,11 @@
 package net.onelitefeather.blackhole.backend.support;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.kick.KickDeadline;
+import net.onelitefeather.blackhole.backend.kick.KickEventPublisher;
+import net.onelitefeather.blackhole.backend.kick.service.KickService;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.ActorKind;
 import net.onelitefeather.blackhole.backend.elo.ThresholdEscalationPolicy;
@@ -71,9 +77,18 @@ public final class PunishmentTestBed {
     public final CaseTestBed cases = new CaseTestBed(eloBed.clock);
     public final StaffLinkTestBed staffLinks = new StaffLinkTestBed(eloBed.events, eloBed.clock);
     public final BanIdTestBed banIds = new BanIdTestBed(punishments.repository());
+    public final InMemoryKickStore kickStore = new InMemoryKickStore();
+    public final RecordingEventTransport kickTransport = new RecordingEventTransport();
+    public final MeterRegistry kickMeters = new SimpleMeterRegistry();
+    public final KickDeadline kickDeadline = new KickDeadline(eloBed.clock, Duration.ofSeconds(5));
+    public final KickService kickService = new KickService(
+            punishments.repository(), profiles.repository(), slots, profileCache, kickStore, kickDeadline,
+            new KickEventPublisher(new DomainEventPublisher(kickTransport, eloBed.clock), kickMeters),
+            eloBed.sections, cases.timeline, staffLinks.service);
     public final PunishmentApplicationService punishmentService = new PunishmentApplicationService(
             punishments.repository(), profiles.repository(), slots, templates.repository(), eloBed.sections, eloBed.events,
-            profileCache, evidence, cases.timeline, () -> this.elo, this.staffLinks.service, eloBed.clock, banIds.service, Duration.ofDays(365));
+            profileCache, evidence, cases.timeline, () -> this.elo, this.staffLinks.service, eloBed.clock, banIds.service,
+            kickService, Duration.ofDays(365));
     public final FakeClientRuleStore clientRules = new FakeClientRuleStore();
     public final PunishmentTemplateService templateService = new PunishmentTemplateService(
             templates.repository(), punishments.repository(), templateCache, eloBed.sections, clientRules);

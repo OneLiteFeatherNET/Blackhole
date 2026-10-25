@@ -18,6 +18,7 @@ import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentKind;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.section.SectionService;
 import net.onelitefeather.blackhole.backend.section.dto.SectionDTO;
@@ -147,10 +148,59 @@ public class KickService {
         }
 
         List<String> warnings = warningsFor(request.owner(), scope, target);
+        announce(saved, id, scope, target, now);
+        return new KickDTO.Accepted(id.toString(), KickKind.PLAYER, KickStatus.PENDING, deadlineAt, warnings, false);
+    }
+
+    /**
+     * Checks what a template kick step needs before it is applied: the reason, and a scope with a target
+     * that exists. Nothing is written.
+     *
+     * @return the {@link KickDTO.Error} to answer, or empty when the kick can be recorded
+     */
+    public Optional<KickDTO.Error> checkTemplateKick(String owner, KickScope scope, String target, String reason) {
+        Optional<KickDTO.Error> invalid = KickValidator.validate(new KickDTO.CreateRequest(owner, scope, target, reason));
+        if (invalid.isPresent()) {
+            return invalid;
+        }
+        return checkSection(scope == null ? KickScope.NETWORK : scope, target);
+    }
+
+    /**
+     * Records the kick a template step stands for: a {@code KICK} row of the template's escalation group (so it
+     * counts for escalation), listed in the player's history and in its case, announced to the proxies, and
+     * never active. Charging the step's ELO cost is the caller's job. The request is checked with
+     * {@link #checkTemplateKick} first.
+     *
+     * @return the stored kick
+     */
+    public PunishmentEntity kickForTemplate(String owner, KickScope scope, String target, String reason, Attribution attribution,
+                                            PunishmentTemplateEntity template, String group, int stepIndex, int stepCount, int eloCost) {
+        KickScope effective = scope == null ? KickScope.NETWORK : scope;
+        String effectiveTarget = effective == KickScope.NETWORK ? null : target;
+        UUID id = UUID.randomUUID();
+        long now = this.deadline.now();
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put(Metadata.META_DATA_KEY_CREATION_DATE, now);
+        metadata.put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
+        metadata.put("reason", reason.strip());
+        metadata.put(DEADLINE_KEY, this.deadline.deadlineAt());
+        PunishmentEntity kick = new PunishmentEntity(IdGenerator.generateId(id), attribution.source(), owner,
+                effective == KickScope.SECTION ? effectiveTarget : null, false, now, template, metadata);
+        kick.recordKick(effective.name(), effectiveTarget);
+        kick.recordEscalation(group, stepIndex, stepCount, eloCost);
+        kick.setRecordedByOid(attribution.recordedByOid());
+        kick.setActorOid(attribution.actorOid());
+        PunishmentEntity saved = this.punishments.save(kick);
+        announce(saved, id, effective, effectiveTarget, now);
+        return saved;
+    }
+
+    /** The kick is stored: list it in the history and its case, and tell the proxies. */
+    private void announce(PunishmentEntity saved, UUID id, KickScope scope, String target, long now) {
         addToHistory(saved);
         this.caseTimeline.kicked(saved);
-        this.events.kicked(id, request.owner(), scope, target, now);
-        return new KickDTO.Accepted(id.toString(), KickKind.PLAYER, KickStatus.PENDING, deadlineAt, warnings, false);
+        this.events.kicked(id, saved.getOwner(), scope, target, now);
     }
 
     /**
