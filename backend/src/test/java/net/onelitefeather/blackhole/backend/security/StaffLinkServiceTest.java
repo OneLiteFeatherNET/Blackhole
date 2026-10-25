@@ -96,6 +96,20 @@ class StaffLinkServiceTest {
     }
 
     @Test
+    void confirmingALinkStoresTheAvatarKeyOfTheAccountAndUnlinkingClearsIt() {
+        this.bed.givenActor(ALICE, "Alice");
+        String code = issue(ALICE_ACTOR);
+
+        confirm(code, ALICE_MC);
+        String key = this.bed.profiles.find(ALICE).orElseThrow().avatarKey();
+
+        assertEquals(this.bed.avatarJob.png(key).isPresent(), false, "the test source has no skin, so no head is cached");
+        assertTrue(key != null && !key.contains(ALICE_MC.toString()), "the key stands in for the account");
+        this.service.unlinkSelf(ALICE_ACTOR);
+        assertEquals(null, this.bed.profiles.find(ALICE).orElseThrow().avatarKey(), "unlinking clears the key");
+    }
+
+    @Test
     void confirmingALiveCodeLinksTheUuidToTheStaffMemberAndPublishesCreated() {
         this.bed.givenActor(ALICE, "Alice");
         String code = issue(ALICE_ACTOR);

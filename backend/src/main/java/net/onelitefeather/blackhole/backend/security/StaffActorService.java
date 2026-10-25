@@ -6,6 +6,7 @@ import net.onelitefeather.blackhole.backend.discord.DiscordLinkService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.security.dto.StaffActorDTO;
+import net.onelitefeather.blackhole.backend.staffprofile.StaffProfileService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,14 +33,16 @@ public class StaffActorService {
     private final DiscordLinkService discordLinks;
 
     private final ProtocolRedaction protocols;
+    private final StaffProfileService profiles;
 
     public StaffActorService(StaffActorRepository actors, DomainEventPublisher events, StaffLinkService links, DiscordLinkService discordLinks,
-                             ProtocolRedaction protocols) {
+                             ProtocolRedaction protocols, StaffProfileService profiles) {
         this.protocols = protocols;
         this.actors = actors;
         this.events = events;
         this.links = links;
         this.discordLinks = discordLinks;
+        this.profiles = profiles;
     }
 
     /** Every known principal, most recently seen first. */
@@ -67,6 +70,8 @@ public class StaffActorService {
         this.actors.update(actor);
         this.links.removeOnAnonymize(oid, admin);
         this.discordLinks.removeOnAnonymize(oid);
+        // Clears the display name and the avatar key; the head itself is deleted with the link above.
+        this.profiles.anonymize(oid);
         // The name is cleared first, so a regenerated protocol cannot show it again; never throws.
         this.protocols.afterStaffAnonymized(oid);
         LOG.info("Staff actor {} anonymized by {}", oid, admin.oid());

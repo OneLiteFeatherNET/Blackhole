@@ -143,6 +143,9 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /staff-link/by-minecraft/{uuid}", P),
             Map.entry("GET /admin/staff-link", A),
             Map.entry("DELETE /admin/staff-link/{oid}", A),
+            // staff display name: own profile, any staff role (a service principal is refused by the service)
+            Map.entry("GET /staff-profile/me", V),
+            Map.entry("PUT /staff-profile/me", V),
             // discord account link: own (any staff role), the proxy's player code, the bot's facade, admin
             Map.entry("POST /staff-discord-link/code", V),
             Map.entry("GET /staff-discord-link/me", V),
@@ -191,6 +194,8 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /public/attachments/{id}", PLAYER),
             Map.entry("DELETE /public/attachments/{id}", PLAYER),
             Map.entry("GET /public/conversation/events", PLAYER),
+            // a staff head, by its keyed avatar key: served to the portal's player session only
+            Map.entry("GET /public/staff-avatar/{avatarKey}", PLAYER),
             // the case's live signal: viewers and above (the proxy and the Discord bot are denied)
             Map.entry("GET /case/{reference}/events", V)
     );

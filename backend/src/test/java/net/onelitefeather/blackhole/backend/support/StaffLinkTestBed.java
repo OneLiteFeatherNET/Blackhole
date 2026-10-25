@@ -10,6 +10,9 @@ import net.onelitefeather.blackhole.backend.security.StaffLinkEntity;
 import net.onelitefeather.blackhole.backend.security.StaffLinkProperties;
 import net.onelitefeather.blackhole.backend.security.StaffLinkRepository;
 import net.onelitefeather.blackhole.backend.security.StaffLinkService;
+import net.onelitefeather.blackhole.backend.staffprofile.StaffAvatarJob;
+import net.onelitefeather.blackhole.backend.staffprofile.StaffAvatarKeys;
+import net.onelitefeather.blackhole.backend.staffprofile.StaffProfileService;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -42,11 +45,19 @@ public final class StaffLinkTestBed {
                     .build();
     public final InMemoryRepository<StaffActorRepository, StaffActorEntity, UUID> actors =
             InMemoryRepository.<StaffActorRepository, StaffActorEntity, UUID>of(StaffActorRepository.class, StaffActorEntity::getOid).build();
+    public final InMemoryStaffProfiles profiles = new InMemoryStaffProfiles();
+    public final InMemoryStaffAvatars avatars = new InMemoryStaffAvatars();
+    /** The avatar job over in-memory stores and a source that never has a skin: no network in tests. */
+    public final StaffAvatarJob avatarJob;
+    public final StaffProfileService profileService;
     public final StaffLinkService service;
 
     public StaffLinkTestBed(DomainEventPublisher events, Clock clock) {
+        this.avatarJob = new StaffAvatarJob(this.profiles, this.avatars,
+                new StaffAvatarKeys("test-staff-avatar-secret"), uuid -> Optional.empty(), clock);
+        this.profileService = new StaffProfileService(this.profiles, this.avatarJob, clock);
         this.service = new StaffLinkService(this.links.repository(), this.codes.repository(), this.actors.repository(),
-                new StaffLinkCodeGenerator(), events, new StaffLinkProperties(TTL), clock);
+                new StaffLinkCodeGenerator(), events, new StaffLinkProperties(TTL), clock, this.avatarJob);
     }
 
     /** Stores a link as if it was confirmed earlier. */

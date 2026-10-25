@@ -28,7 +28,19 @@ class StaffActorServiceTest {
     private final StaffLinkTestBed links = new StaffLinkTestBed(this.events, this.clock);
     private final DiscordLinkTestBed discord = new DiscordLinkTestBed(this.events, this.clock);
     private final net.onelitefeather.blackhole.backend.support.RecordingProtocols protocols = new net.onelitefeather.blackhole.backend.support.RecordingProtocols();
-    private final StaffActorService service = new StaffActorService(this.store.repository(), this.events, this.links.service, this.discord.service, this.protocols);
+    private final StaffActorService service = new StaffActorService(this.store.repository(), this.events, this.links.service, this.discord.service,
+            this.protocols, this.links.profileService);
+
+    @Test
+    void anonymizingClearsTheStaffDisplayNameOfThePerson() {
+        this.store.given(new StaffActorEntity(LEAVER, ActorKind.HUMAN, "Lea Leaver", 1L), LEAVER);
+        this.links.profileService.save(new net.onelitefeather.blackhole.backend.staffprofile.dto.StaffProfileDTO.UpdateRequest(
+                "Lea L.", "AUTO", true), new Actor(LEAVER, null, ActorKind.HUMAN, false));
+
+        this.service.anonymize(LEAVER, ADMIN);
+
+        assertTrue(this.links.profileService.namedDisplayName(LEAVER).isEmpty(), "the chosen name is gone with the person");
+    }
 
     @Test
     void anonymizingClearsTheDisplayNameAndKeepsTheOidAndKind() {
