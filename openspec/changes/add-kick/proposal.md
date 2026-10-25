@@ -60,8 +60,8 @@ section in one step for maintenance, without that counting as misconduct.
 
 ## Out of scope
 
-- Per-actor identity. The actor is what the caller supplies until the identity change lands; this
-  change does not add an identity claim (see `CLAUDE.md`, "Known gap", and `config.yaml` principle 2).
+- Changes to identity or auth. The actor of a kick is the Entra ID token's `oid`, as for every write
+  (`config.yaml` principle 2; PR #363 corrected the stale "no auth" text). This change adds no claim.
 - Localized kick screens. Kick messages are English only.
 - Kick history for mass kicks per player. The mass action records no owner hashes.
 - Scheduled or recurring kicks, kicks from Discord, kicks for offline players (a kick for a player
@@ -93,8 +93,8 @@ Each type is one type per commit: `feat` for behaviour, `docs` for the rule file
   semantics), `events/` (two new event types), `template` validator, `elo/` (no change; the template
   path already applies `eloCost`), a new `kick/` feature package (controller, service, DTOs, JDBC
   reader and writer), `application.yml` (`blackhole.kick.*`).
-- **Database**: one new Flyway migration `V26__kick.sql` (next free after `V25`, which two in-flight
-  changes reserve). Additive only.
+- **Database**: one new Flyway migration `V<next>__kick.sql`, the next free version at implementation
+  (V27 or higher; V25 and V26 are taken). Additive only.
 - **API**: new routes under `/kick`. `client/specs/blackhole-api-*.yml` gets the next free version.
 - **Velocity**: two commands, a kick handler, the kick screen, the NATS kick subscription and an
   HTTP client for the acknowledgement. Velocity config gets `kick.ackTimeout` only if the wait is

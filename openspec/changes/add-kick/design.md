@@ -22,9 +22,9 @@ The code this design builds on (checked on `main`, 2026-10-25):
 - `velocity/.../punish/BackendGateway.java` / `HttpBackendGateway.java`: the proxy's HTTP client.
 - NATS (`switch-event-bus-to-nats`, D6/D7): backend is the only publisher; the proxy is subscribe-only
   over WebSocket and never publishes; subjects `blackhole.events.<type>`, stream `BLACKHOLE_EVENTS`.
-- Flyway: `V24__player_seen.sql` is the head on `main`. `V25` is reserved by two in-flight changes
-  (`keyset-indexes`, `player_session_csrf_hash`). The kick migration is `V26` unless those merge with
-  other numbers; the number is fixed at implementation time, not now.
+- Flyway: `V24__player_seen.sql` is the head on `main`. `V25` is taken by the CSRF hash migration and
+  `V26` by the staff profile migration (redesign-ux #374). The kick migration takes the next free version
+  at implementation time (V27 or higher). No number is fixed in this change.
 - `openspec/config.yaml` principles: GDPR (owner hashes only, no raw UUID or IP), layered backend,
   dual-ELO stays automatic, infra owns rate limiting, migrations append-only.
 
@@ -90,16 +90,17 @@ and are in `kick/controller/KickApi` (OpenAPI annotations on the interface; `Kic
 
 | Method and route | Who | Purpose |
 |---|---|---|
-| `POST /kick` | MODERATOR and up (`PROXY` denied) | Kick one player: body `KickDTO.CreateRequest {owner, scope, target?, reason, templateKey?}`. Header `Idempotency-Key` required. Answers **202** `KickDTO.Accepted {id, status: PENDING, deadlineAt}`. |
+| `POST /kick` | MODERATOR and up (`PROXY` denied) | Kick one player: body `KickDTO.CreateRequest {owner, scope, target?, reason, templateKey?}`. Header `Idempotency-Key` required. Answers **202** `KickDTO.Accepted {id, status: PENDING, deadlineAt, warnings[]}`. |
 | `POST /kick/mass` | ADMIN | Mass kick: body `KickDTO.MassCreateRequest {scope: SERVER|SECTION, target, reason}`. Header `Idempotency-Key`. Answers **202** `KickDTO.Accepted` with `kind: MASS`. |
 | `GET /kick/{id}` | VIEWER and up, and PROXY | Status and reason: `KickDTO.Response {id, kind, owner?, scope, target?, reason, actor, createdAt, status, deliveredCount, deadlineAt}`. The proxy uses it to read the reason before it shows the screen. |
 | `POST /kick/{id}/deliveries` | PROXY only | Acknowledgement from one proxy: body `{proxyId, found, moved}`. Idempotent per `(id, proxyId)`; **204**. |
 
 Errors: 400 `VALIDATION` (reason 1 to 200 characters, `PiiGuard`; a UUID, IP or Ban ID is refused),
-404 `NOT_FOUND` (owner hash unknown, template unknown), 409 `CONFLICT` (player permanently banned in
-the target section makes a kick pointless: not refused, see open question 3; a disabled section),
+404 `NOT_FOUND` (owner hash unknown, template unknown), 409 `CONFLICT` (a disabled section),
 422 `KICK_TARGET_INVALID` (scope SERVER/SECTION without a target, or a target that is not a
 server/section), 503 when the event could not be published after the write (see decision 5).
+A player already permanently banned in the target section is **not** refused: the kick is accepted
+and the response carries a `warnings` entry (decision 2026-10-25, point 3). The ban is not changed.
 
 Status values: `PENDING`, `DELIVERED` (at least one proxy reports `moved` or `found` for the player),
 `NOT_ON_TARGET` (a proxy found the player but not on the target server or section, nothing moved),
@@ -191,7 +192,8 @@ ignores the `kick` suffix explicitly, so no eviction runs for kicks.
   kick action in the case page's actions. Redesign-ux components only (`RowMenu`, `MdDialog`,
   `FilterToolbar` for the filter if the history list is filtered by kind).
 - **Mass kick** in the admin area (`web/src/.../admin/`): a page section with a single form, not a
-  dialog (it is rare and needs a confirmation step of its own: the target name typed back). Visible
+  dialog (it is rare and needs a confirmation step of its own: the target name typed back, no second
+approval; decision 2026-10-25, point 4). Visible
   to ADMIN; the server enforces the role anyway. Shows the outcome counts.
 - The history list shows kick rows with a "Kick" badge; they are not counted in "active" counters.
 
@@ -221,7 +223,8 @@ a kick would fail to parse it. Mitigation, in order:
 
 ### 10. Migration
 
-`V26__kick.sql` (number fixed at implementation; append-only):
+`V<next>__kick.sql`, where `<next>` is the next free Flyway version at implementation (V27 or
+higher; V25 and V26 are taken). Append-only:
 - `ALTER TABLE punishments ADD COLUMN kind VARCHAR(16) NOT NULL DEFAULT 'PUNISHMENT'`, `kick_scope`, `kick_target`.
   Existing rows: `kind = 'PUNISHMENT'` via the default, nothing rewritten.
 - `ALTER TABLE <template step table> ADD COLUMN kind VARCHAR(16) NOT NULL DEFAULT 'PUNISH'`; make
@@ -269,15 +272,28 @@ case event.
 - **`NOT_ONLINE` is not proof the player is offline**: a proxy may be unreachable. The status text
   says "not found on any answering proxy" in the UI.
 - **Two replicas, two proxies**: the status is DB-derived; no in-memory state.
-- **Identity gap**: the actor is client-supplied until the identity change lands; the kick record
-  carries that actor and no more. Recorded as an open question.
+- **Actor**: every write's actor is the Entra ID token's `oid`, never a client-supplied field
+  (`config.yaml` principle 2; `@Secured`; authoritative since PR #363). The kick record stores that oid.
 
-## Open questions (with defaults; the user decides)
+## Decisions (2026-10-25)
 
-Recorded in the proposal's report; defaults are in the tasks so implementation can start.
+The user decided the four open questions of the first draft. The specs and `tasks.md` follow them.
 
-1. Entry point count for the mass kick command: `/kickall` (default) versus `/kick all ...`.
-2. A kick step with no scope in the apply request: default NETWORK.
-3. A kick of a player already permanently banned in the target section: default accept (the kick
-   is recorded, the player is already gone) with a warning in the response.
-4. Mass kick confirmation in the panel: default typed target name; no second approval.
+1. **Mass-kick command is `/kickall <server|section> <reason>`** (permission `blackhole.kick.mass`).
+   `/kick all ...` is not used.
+2. **A kick step with no scope in the apply request defaults to `NETWORK`.** This applies to template
+   `KICK` steps (decision 2) and to any kick whose request names no scope.
+3. **Kicking a player who is already permanently banned in the target section is accepted, with a
+   warning.** The kick is recorded and answered `202` with a `warnings` entry. No `409`, and the ban is
+   not changed.
+4. **Mass-kick confirmation requires typing the target name. There is no second approval.** The panel
+   enables submit only when the typed name matches exactly; the server still enforces ADMIN.
+
+Other items settled on the same date:
+
+- **Migration**: the kick migration takes the next free Flyway version at implementation time (V27 or
+  higher). V25 is the CSRF hash migration and V26 the staff profile migration (redesign-ux #374). No
+  fixed number appears in this change.
+- **Auth**: the auth conflict in the first draft is resolved. PR #363 removed the stale "no auth" text.
+  Entra ID with `@Secured` is authoritative (`openspec/config.yaml`, principle 2), and the actor of a
+  kick is the token's `oid`. The former "identity gap" risk and open question are withdrawn.

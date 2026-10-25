@@ -16,7 +16,7 @@ The panel SHALL offer "Kick" from the player row menu, the player page header an
 
 ### Requirement: Mass kick in the admin area
 
-The admin area SHALL offer a mass kick form to ADMIN users only, with target and reason. The form SHALL require the target name to be typed back before submit and SHALL show the moved count when the outcome is known. The server enforces the role regardless of the panel.
+The admin area SHALL offer a mass kick form to ADMIN users only, with target and reason. The form SHALL require the target name to be typed back exactly before submit, with no second approval, and SHALL show the moved count when the outcome is known. The server enforces the role regardless of the panel.
 
 #### Scenario: Moderator sees no mass kick
 

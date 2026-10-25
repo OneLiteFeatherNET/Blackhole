@@ -4,8 +4,9 @@
 - Red, then green, then refactor: each group starts with the failing test named in it.
 - F.I.R.S.T.: no `Thread.sleep`, no system time (inject `java.time.Clock`), no shared static state,
   fresh fixtures per test, one behaviour per test.
-- Commit per type. Do not add a Co-Authored-By trailer. Migration number is `V26` unless `V25` or a
-  later number is already on `main`; if so, use the next free number and rename the file.
+- Commit per type. Do not add a Co-Authored-By trailer. Migration number is the next free Flyway
+  version at implementation time (V27 or higher; V25 and V26 are taken). Use no fixed number from this
+  document.
 - Never edit an applied Flyway migration. Never use `--force` or `--no-verify`.
 
 ## PR 1: `feat(punishment): add the kick punishment kind and template step kind`
@@ -18,7 +19,8 @@ Branch `feat/kick-model`. Backend only, no route.
 - [ ] 1.2 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/punishment/TemplateValidatorKickTest.java`:
   `KICK` without duration is valid; `KICK` with duration is refused (400); `PUNISH` without duration
   is refused.
-- [ ] 1.3 Add `backend/src/main/resources/db/migration/V26__kick.sql`:
+- [ ] 1.3 Add `backend/src/main/resources/db/migration/V<next>__kick.sql` (next free version, see the
+  conventions above; never V25 or V26):
   `punishments` gets `kind VARCHAR(16) NOT NULL DEFAULT 'PUNISHMENT'`, `kick_scope VARCHAR(16)`,
   `kick_target VARCHAR(255)`, index on `(kind, owner)`, CHECK on `kind` in (`PUNISHMENT`, `KICK`);
   the template step table from `V5__template_steps_and_active_punishments.sql` gets
@@ -66,7 +68,8 @@ Branch `feat/kick-api`. Depends on PR 1.
   the same proxy acknowledging twice stores one `kick_delivery` row (JDBC, the existing test support).
 - [ ] 2.5 Red then implement `backend/src/test/java/net/onelitefeather/blackhole/backend/kick/KickNotActiveIntegrationTest.java`:
   a kick is not in active lists, not enforced on login, counted for escalation, and a repeated
-  `Idempotency-Key` writes nothing.
+  `Idempotency-Key` writes nothing; a kick of a player already permanently banned in the target
+  section is accepted with a `warnings` entry (202, not 409) and leaves the ban unchanged.
 - [ ] 2.6 Red then implement `backend/src/test/java/net/onelitefeather/blackhole/backend/kick/MassKickWritesNoPunishmentTest.java`:
   `POST /kick/mass` writes one `kick_action` and no `punishments` row, no `case_event`, no ELO event.
 - [ ] 2.7 Events: add `punishment.kick` and `kick.mass` to the subject builder used by
@@ -150,7 +153,7 @@ Branch `feat/kick-web`. Depends on PR 2 (client regenerated).
 - [ ] 5.2 Red: `web/tests/unit/kick/KickStatusChip.spec.ts`: each status maps to its label
   (`Delivered`, `Not on that server`, `Not online`, `No proxy answered`).
 - [ ] 5.3 Red: `web/tests/unit/admin/MassKickForm.spec.ts`: submit disabled until the target name is
-  typed exactly; the form is not rendered for MODERATOR.
+  typed exactly; no second approval step is shown; the form is not rendered for MODERATOR.
 - [ ] 5.4 Create `web/src/components/kick/KickDialog.vue` (uses `MdDialog`), `web/src/components/kick/KickStatusChip.vue`,
   `web/src/components/kick/KickStatusPoller.ts` (pure, injected timer); `web/src/pages/admin/MassKickForm.vue`
   (in the admin area route of commit d23d7ab).

@@ -19,6 +19,11 @@ A kick SHALL be recorded as a punishment of kind `KICK` with a reason, a staff a
 - **WHEN** the player's punishment history is read
 - **THEN** the kick appears with its reason, actor, time and kind `KICK`
 
+#### Scenario: Kick of a permanently banned player
+
+- **WHEN** staff kick a player who is already permanently banned in the target section
+- **THEN** the kick is recorded and accepted with a warning in the response, and the ban is unchanged
+
 ### Requirement: Network kick disconnects with a kick screen
 
 A network kick SHALL disconnect the player from the proxy with a kick screen that shows the reason. The player SHALL be able to reconnect immediately.
@@ -134,7 +139,7 @@ The `punishment.kick` and `kick.mass` events SHALL carry only identifiers, the o
 
 ### Requirement: Kick in a template
 
-A template step of kind `KICK` SHALL apply as a kick with the scope named by the apply request, defaulting to network. Its `eloCost` SHALL apply as for any template step, and it SHALL count towards escalation of its escalation group.
+A template step of kind `KICK` SHALL apply as a kick with the scope named by the apply request, defaulting to `NETWORK` when the request names no scope. Its `eloCost` SHALL apply as for any template step, and it SHALL count towards escalation of its escalation group.
 
 #### Scenario: Escalation from kick to ban
 
