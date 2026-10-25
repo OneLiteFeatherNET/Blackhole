@@ -438,6 +438,8 @@ blackhole:
     # than the primary source.
     mojang:
       enabled: ${BLACKHOLE_PLAYER_RESOLVER_MOJANG_ENABLED:true}
+      # Overridable so tests can point the client at a local fake instead of the public host.
+      base-url: ${BLACKHOLE_PLAYER_RESOLVER_MOJANG_BASE_URL:https://api.mojang.com}
     # NameMC has no official public API - only undocumented endpoints that "may change or
     # disappear at any time" per every third-party wrapper. Lowest priority, and disabled by
     # default: an operator has to explicitly opt into that instability.

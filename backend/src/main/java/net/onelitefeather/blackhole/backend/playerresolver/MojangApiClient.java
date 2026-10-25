@@ -11,7 +11,7 @@ import java.util.Optional;
  * means "no such player", which Micronaut maps straight to {@link Optional#empty()} for an
  * {@code Optional<T>} return type.
  */
-@Client(id = "mojang", value = "https://api.mojang.com")
+@Client(id = "mojang", value = "${blackhole.player-resolver.mojang.base-url}")
 public interface MojangApiClient {
 
     @Get("/users/profiles/minecraft/{username}")
