@@ -166,3 +166,22 @@ describe('web README', () => {
     expect(parser, 'parser').not.toMatch(/BLACKHOLE_UI_(?:SOURCE|REVIEWER)/)
   })
 })
+
+describe('parseUiConfig panel origin', () => {
+  it('passes a valid origin on to the browser config', () => {
+    const config = parseUiConfig({ ...OIDC, BLACKHOLE_UI_PANEL_ORIGIN: 'https://panel.example.org' })
+
+    expect(config.oidc.panelOrigin, 'panelOrigin').toBe('https://panel.example.org')
+  })
+
+  it('leaves the pin unset when no origin is configured', () => {
+    expect('panelOrigin' in parseUiConfig(OIDC).oidc, 'panelOrigin present').toBe(false)
+  })
+
+  it.each(['https://panel.example.org/path', 'panel.example.org', 'http://panel.example.org', 'https://u:p@panel.example.org'])(
+    'refuses %s as the panel origin',
+    (value) => {
+      expect(problemsOf({ ...OIDC, BLACKHOLE_UI_PANEL_ORIGIN: value }).join('\n')).toContain('BLACKHOLE_UI_PANEL_ORIGIN must be')
+    },
+  )
+})

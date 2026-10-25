@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { UserManager, type User } from 'oidc-client-ts'
+import { OidcClient, UserManager, type User } from 'oidc-client-ts'
 import {
+  SCOPES,
   createAuthService,
+  createUserManager,
   safeReturnTo,
   userManagerSettings,
   type OidcConfig,
@@ -206,8 +208,8 @@ describe('userManagerSettings', () => {
     expect(settings().response_type).toBe('code')
   })
 
-  it('asks for the API scope next to the identity and refresh scopes', () => {
-    expect(settings().scope).toBe('openid profile offline_access api://backend/access_as_user')
+  it('asks for the API scope next to the identity and refresh scopes, without profile', () => {
+    expect(settings().scope).toBe('openid offline_access api://backend/access_as_user')
   })
 
   it('returns to the callback route of the same origin', () => {
@@ -259,7 +261,7 @@ describe('where tokens are kept', () => {
           refresh_token: REFRESH_TOKEN,
           token_type: 'Bearer',
           expires_in: 3600,
-          scope: 'openid profile offline_access api://backend/access_as_user',
+          scope: 'openid offline_access api://backend/access_as_user',
           id_token: jwt({ iss: issuer, aud: CONFIG.clientId, sub: 'user-1', iat: NOW / 1000, exp: NOW / 1000 + 3600 }),
         }),
       ),
@@ -322,5 +324,48 @@ describe('where tokens are kept', () => {
     const signedIn = await signInWithCallback()
 
     expect(signedIn.state).toBe('/players')
+  })
+})
+
+describe('authorization request', () => {
+  const metadata = {
+    issuer: CONFIG.authority,
+    authorization_endpoint: `${CONFIG.authority}/authorize`,
+    token_endpoint: `${CONFIG.authority}/token`,
+  }
+
+  it('carries a PKCE challenge with method S256', async () => {
+    sessionStorage.clear()
+    const manager = new OidcClient({ ...userManagerSettings(CONFIG, 'http://ui.test', window.sessionStorage), metadata })
+
+    const request = await manager.createSigninRequest({ state: '/' })
+    const url = new URL(request.url)
+
+    expect(url.searchParams.get('code_challenge_method'), 'code_challenge_method').toBe('S256')
+    expect(url.searchParams.get('code_challenge'), 'code_challenge').toBeTruthy()
+    expect(url.searchParams.get('response_type'), 'response_type').toBe('code')
+  })
+
+  it('asks for no profile scope', async () => {
+    const manager = new OidcClient({ ...userManagerSettings(CONFIG, 'http://ui.test', window.sessionStorage), metadata })
+
+    const url = new URL((await manager.createSigninRequest({ state: '/' })).url)
+
+    expect(url.searchParams.get('scope'), 'scope').toBe(`openid offline_access ${CONFIG.apiScope}`)
+    expect(SCOPES, 'SCOPES').toBe('openid offline_access')
+  })
+})
+
+describe('createUserManager origin pin', () => {
+  it('refuses to start when the page origin differs from the configured panel origin', () => {
+    const config = { ...CONFIG, panelOrigin: 'https://panel.example.org' }
+
+    expect(() => createUserManager(config)).toThrow(/panel origin/i)
+  })
+
+  it('starts when the page origin equals the configured panel origin', () => {
+    const config = { ...CONFIG, panelOrigin: window.location.origin }
+
+    expect(createUserManager(config), 'a manager is returned').toBeInstanceOf(UserManager)
   })
 })

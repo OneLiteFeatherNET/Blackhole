@@ -7,6 +7,11 @@ export interface OidcConfig {
   clientId: string
   /** The API scope the access token is requested for, e.g. `api://<api-client-id>/access_as_user`. */
   apiScope: string
+  /**
+   * The origin the panel is served from, e.g. `https://panel.example.org`. When set, the app refuses
+   * to start on any other origin, so a `redirect_uri` is never built from an unexpected host.
+   */
+  panelOrigin?: string
 }
 
 /** The part of oidc-client-ts' `UserManager` the app relies on; tests provide a fake. */
@@ -35,7 +40,11 @@ export interface AuthService {
 }
 
 export const CALLBACK_PATH = '/auth/callback'
-export const SCOPES = 'openid profile offline_access'
+/**
+ * `profile` is dropped: the UI reads no profile claims. `offline_access` stays because background renewal
+ * runs on the refresh token (see README); without it the library would fall back to a hidden iframe.
+ */
+export const SCOPES = 'openid offline_access'
 
 /**
  * Tokens live in the in-memory `userStore`; only the short-lived `state` and PKCE verifier of the
@@ -57,7 +66,13 @@ export function userManagerSettings(config: OidcConfig, origin: string, stateSto
   }
 }
 
+/** PKCE with `code_challenge_method=S256` is always sent by oidc-client-ts (hard-coded, not configurable). */
 export function createUserManager(config: OidcConfig): UserManager {
+  if (config.panelOrigin !== undefined && config.panelOrigin !== window.location.origin) {
+    throw new Error(
+      `Refusing to start: the panel origin is pinned to ${config.panelOrigin} but the page is served from ${window.location.origin}`,
+    )
+  }
   return new UserManager(userManagerSettings(config, window.location.origin, window.sessionStorage))
 }
 

@@ -34,7 +34,8 @@ function oidcConfig(value: unknown): OidcConfig | null {
   const authority = text(body.authority)
   const clientId = text(body.clientId)
   const apiScope = text(body.apiScope)
-  return authority && clientId && apiScope ? { authority, clientId, apiScope } : null
+  const panelOrigin = text(body.panelOrigin)
+  return authority && clientId && apiScope ? { authority, clientId, apiScope, ...(panelOrigin ? { panelOrigin } : {}) } : null
 }
 
 function positiveInteger(value: unknown, fallback: number): number {

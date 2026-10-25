@@ -33,9 +33,9 @@ reads except with explicit offsets of at least 30 seconds, and they assert on be
 
 ## 5. Panel OIDC client (PR type `fix(security)`, `web/`)
 
-- [ ] 5.1 Write failing unit tests in `web/src/auth/authService.test.ts`: the authorize URL carries `code_challenge_method=S256`, and `createUserManager` refuses to start when `window.location.origin` differs from the configured panel origin. Verify: fail first, with deps installed (`npm ci` in `web/`), which also settles audit W2 and W7.
-- [ ] 5.2 Implement the origin pin in `authService.ts:48-61` and set `code_challenge_method` explicitly if the library default is not S256. Verify: tests pass.
-- [ ] 5.3 Remove `offline_access` and `profile` from `SCOPES` (`authService.ts:38`) if the UI does not read them. Verify: a test asserts the scope string, and the sign-in still works in the dev stack.
+- [x] 5.1 Write failing unit tests in `web/src/auth/authService.test.ts`: the authorize URL carries `code_challenge_method=S256`, and `createUserManager` refuses to start when `window.location.origin` differs from the configured panel origin. Verify: fail first, with deps installed (`npm ci` in `web/`), which also settles audit W2 and W7.
+- [x] 5.2 Implement the origin pin in `authService.ts:48-61` and set `code_challenge_method` explicitly if the library default is not S256. Verify: tests pass.
+- [x] 5.3 Remove `offline_access` and `profile` from `SCOPES` (`authService.ts:38`) if the UI does not read them. Verify: a test asserts the scope string, and the sign-in still works in the dev stack.
 
 ## 6. Entra setup script (PR type `fix(security)`, `docs/`)
 
