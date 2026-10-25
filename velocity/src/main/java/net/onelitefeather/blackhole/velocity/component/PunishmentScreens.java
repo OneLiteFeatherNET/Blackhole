@@ -41,8 +41,14 @@ import java.util.UUID;
  */
 public final class PunishmentScreens {
 
-    /** Where a message is shown; decides whether hover and click events are attached. */
-    public enum Surface { DISCONNECT, CHAT }
+    /**
+     * Where a message is shown; decides whether hover and click events are attached. {@code KICK} is the
+     * disconnect screen of a kick, which has no punishment behind it and so no appeal hint.
+     */
+    public enum Surface { DISCONNECT, CHAT, KICK }
+
+    /** What a kicked player is told, with or without a reason. */
+    static final String KICK_TITLE = "You were removed from the network";
 
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
@@ -161,6 +167,27 @@ public final class PunishmentScreens {
                 ? JoinConfiguration.separator(Component.newline().append(Component.newline()))
                 : JoinConfiguration.newlines();
         return this.renderer.render(Component.join(separator, paragraphs), locale);
+    }
+
+    /**
+     * The screen of a kick: English only, whatever the client's locale, built from plain text so the
+     * staff member's reason is never read as markup. A kick is not a punishment, so there is no duration,
+     * Ban ID or appeal hint.
+     *
+     * @param surface {@code CHAT} for the message that goes with a move, otherwise the disconnect screen
+     * @param reason  the staff member's reason, null or blank if it could not be read
+     * @param moved   whether the player was moved to the fallback server instead of leaving the network
+     */
+    public @NotNull Component kick(@NotNull Locale locale, @NotNull Surface surface, @Nullable String reason, boolean moved) {
+        List<Component> paragraphs = new ArrayList<>();
+        paragraphs.add(Component.text(moved ? "You were moved to the fallback server" : KICK_TITLE, NamedTextColor.RED));
+        if (reason != null && !reason.isBlank()) {
+            paragraphs.add(Component.text("Reason: ", NamedTextColor.GRAY).append(Component.text(reason.strip(), NamedTextColor.WHITE)));
+        }
+        JoinConfiguration separator = surface == Surface.CHAT
+                ? JoinConfiguration.newlines()
+                : JoinConfiguration.separator(Component.newline().append(Component.newline()));
+        return Component.join(separator, paragraphs);
     }
 
     /**

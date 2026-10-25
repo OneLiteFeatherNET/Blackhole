@@ -50,7 +50,8 @@ class NatsBusIntegrationTest {
                   permissions: {
                     publish: { deny: ">" }
                     subscribe: { allow: ["blackhole.events.punishment.*", "blackhole.events.appeal.resolved",
-                      "blackhole.events.section.changed", "blackhole.events.report.created", "blackhole.events.report.feedback"] }
+                      "blackhole.events.section.changed", "blackhole.events.report.created", "blackhole.events.report.feedback",
+                      "blackhole.events.kick.mass"] }
                   } }
               ]
             }

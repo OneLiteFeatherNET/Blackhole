@@ -228,6 +228,28 @@ final class StubGateway implements BackendGateway {
         return this.discordResponse;
     }
 
+    @Override
+    public net.onelitefeather.blackhole.client.model.KickAccepted kick(String idempotencyKey, String owner,
+            net.onelitefeather.blackhole.client.model.KickScope scope, String target, String reason) {
+        throw new UnsupportedOperationException("kick");
+    }
+
+    @Override
+    public net.onelitefeather.blackhole.client.model.KickAccepted kickMass(String idempotencyKey,
+            net.onelitefeather.blackhole.client.model.KickScope scope, String target, String reason) {
+        throw new UnsupportedOperationException("kickMass");
+    }
+
+    @Override
+    public net.onelitefeather.blackhole.client.model.KickResponse kickStatus(String id) {
+        throw new UnsupportedOperationException("kickStatus");
+    }
+
+    @Override
+    public void acknowledgeKick(String id, String proxyId, boolean found, boolean moved) {
+        throw new UnsupportedOperationException("acknowledgeKick");
+    }
+
     static PunishTemplateResponse template(String key, String section) {
         return new PunishTemplateResponse().identifier(UUID.randomUUID()).key(key).reason("reason of " + key).section(section);
     }

@@ -2,6 +2,8 @@ package net.onelitefeather.blackhole.velocity.enforcement;
 
 import net.kyori.adventure.text.Component;
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
+import net.onelitefeather.blackhole.client.model.KickResponse;
+import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
 import net.onelitefeather.blackhole.velocity.RecordingProxy;
 import net.onelitefeather.blackhole.velocity.TestData;
 import net.onelitefeather.blackhole.velocity.cloudnet.NoCloudNetView;
@@ -11,6 +13,7 @@ import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Proxy;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -72,6 +75,24 @@ class FallbackMoveTest {
 
         assertFalse(moved);
         assertEquals(1, fixture.disconnects.size());
+    }
+
+    @Test
+    void aKickOfAServerMovesThroughTheSameRule() {
+        var fixture = new RecordingProxy("bedwars-1", "lobby", "bedwars-1");
+        var backend = (BackendGateway) Proxy.newProxyInstance(FallbackMoveTest.class.getClassLoader(), new Class<?>[]{BackendGateway.class},
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "kickStatus" -> new KickResponse().reason("calm down");
+                    case "acknowledgeKick" -> null;
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
+        var servers = new ServerResolver(new NoCloudNetView(), this.sections, warning -> { });
+        var kicks = new KickHandler(actions(fixture), this.sections, servers, RecordingProxy.screens(this.sections), backend, "proxy-1");
+
+        kicks.kick(new KickMessage("k-1", UUIDConverter.convertToSHA(fixture.uuid), "SERVER", "bedwars-1"));
+
+        assertEquals(List.of("lobby"), fixture.movedTo, "the same fallback as the punishment path");
+        assertEquals(1, fixture.messages.size());
     }
 
     @Test

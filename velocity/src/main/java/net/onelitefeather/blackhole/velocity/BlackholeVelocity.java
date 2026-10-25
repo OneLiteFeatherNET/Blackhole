@@ -21,7 +21,11 @@ import net.onelitefeather.blackhole.velocity.config.AuthConfig;
 import net.onelitefeather.blackhole.velocity.command.CommandErrorHandlers;
 import net.onelitefeather.blackhole.velocity.command.DiscordCommand;
 import net.onelitefeather.blackhole.velocity.command.LinkCommand;
+import net.onelitefeather.blackhole.velocity.command.KickAllCommand;
+import net.onelitefeather.blackhole.velocity.command.KickCommand;
+import net.onelitefeather.blackhole.velocity.command.KickRunner;
 import net.onelitefeather.blackhole.velocity.command.PardonCommand;
+import net.onelitefeather.blackhole.velocity.enforcement.KickHandler;
 import net.onelitefeather.blackhole.velocity.command.PunishCommand;
 import net.onelitefeather.blackhole.velocity.command.PunishInfoCommand;
 import net.onelitefeather.blackhole.velocity.command.EloCommand;
@@ -107,6 +111,7 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -130,6 +135,9 @@ public class BlackholeVelocity {
     /** How often the section list is read again even without a section.changed event. */
     private static final Duration SECTION_REFRESH = Duration.ofMinutes(5);
     private static final Duration RULE_REFRESH = Duration.ofSeconds(30);
+    /** How often a staff member's kick is read again, and how long after it was taken before giving up. */
+    private static final Duration KICK_POLL = Duration.ofMillis(500);
+    private static final Duration KICK_GIVE_UP = Duration.ofSeconds(15);
 
     private final Injector injector;
     private final ProxyServer server;
@@ -187,6 +195,11 @@ public class BlackholeVelocity {
         ServerResolver servers = new ServerResolver(cloudNet, sections, this.logger::warn);
         EnforcementActions actions = new EnforcementActions(this.server, sections, state, this.config, clock, screens, servers);
         PunishmentSyncHandler syncHandler = new PunishmentSyncHandler(mirror, actions);
+        KickHandler kickHandler = new KickHandler(actions, sections, servers, screens, backend, proxyIdOf(cloudNetConfig, cloudNet));
+        // The staff side of a kick: the backend call and the wait for the proxies run off the server thread.
+        KickRunner kickRunner = new KickRunner(backend, CompletableFuture::runAsync,
+                (delay, task) -> this.server.getScheduler().buildTask(this, task).delay(delay).schedule(),
+                clock, () -> UUID.randomUUID().toString(), KICK_POLL, KICK_GIVE_UP);
         ChatBuffer chatBuffer = new ChatBuffer(clock, chatCapture);
         ChatEvidence chatEvidence = ChatEvidence.create(new ChatSnapshotBuilder(chatBuffer, chatCapture), backend, chatCapture);
         EvidenceCounts evidenceCounts = new CachedEvidenceCounts(backend, clock, chatCapture.getTimeout());
@@ -210,7 +223,10 @@ public class BlackholeVelocity {
                 // The reload calls the backend, so it must not run on the NATS thread.
                 () -> CompletableFuture.runAsync(sections::reload),
                 reportNotifier::reportCreated,
-                owner -> reportFeedback.poked(owner, this.server.getAllPlayers())), eventThread);
+                owner -> reportFeedback.poked(owner, this.server.getAllPlayers()),
+                // The handlers read the reason and answer over HTTP, so they must not run on the NATS thread.
+                kick -> CompletableFuture.runAsync(() -> kickHandler.kick(kick)),
+                kick -> CompletableFuture.runAsync(() -> kickHandler.mass(kick))), eventThread);
         sync.set(natsSync);
         ClientRulesConfig clientRulesConfig = this.config.getClientRules().withEnvironment(System::getenv);
         ClientRuleBackend ruleBackend = new HttpClientRuleBackend(this.client);
@@ -247,7 +263,7 @@ public class BlackholeVelocity {
         Injector childInjector = this.injector.createChildInjector(
                 new BlackholeClientModule(this.client, this.config, sections, mirror, state,
                         syncHandler, actions, backend, punishService, clock, screens, chatBuffer, evidenceCounts, chatDenial,
-                        new MuteNotices(screens, new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN)), servers, reportService, reportNotifier, reportFeedback).asModule(),
+                        new MuteNotices(screens, new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN)), servers, reportService, reportNotifier, reportFeedback, kickRunner).asModule(),
                 new CloudInjectionModule<>(
                         CommandSource.class,
                         ExecutionCoordinator.simpleCoordinator(),
@@ -266,6 +282,8 @@ public class BlackholeVelocity {
         annotationParser.parse(childInjector.getInstance(PunishCommand.class));
         annotationParser.parse(childInjector.getInstance(PunishInfoCommand.class));
         annotationParser.parse(childInjector.getInstance(PardonCommand.class));
+        annotationParser.parse(childInjector.getInstance(KickCommand.class));
+        annotationParser.parse(childInjector.getInstance(KickAllCommand.class));
         annotationParser.parse(childInjector.getInstance(EloCommand.class));
         annotationParser.parse(childInjector.getInstance(LinkCommand.class));
         annotationParser.parse(childInjector.getInstance(ReportCommand.class));
@@ -299,16 +317,22 @@ public class BlackholeVelocity {
         ClientRuleEnforcer enforcer = new ClientRuleEnforcer(traitCollector, ruleRegistry, ruleEngine, hitReporter);
         TraitTally tally = new TraitTally(clock, Duration.ofHours(24));
         FingerprintSubmitter fingerprints = new FingerprintSubmitter(traitCollector, ruleBackend, timer, clock, rulesConfig.getSettle(), async);
-        String proxyId = cloudNetConfig.getProxyId().or(cloudNet::ownName).orElse("velocity").replaceAll("[^A-Za-z0-9_.-]", "-");
+        String proxyId = proxyIdOf(cloudNetConfig, cloudNet);
         CommandCatalogue commands = new CommandCatalogue();
         ClientRuleCatalogueReporter catalogue = new ClientRuleCatalogueReporter(tally, commands::words, ruleBackend, timer,
-                proxyId.length() > 64 ? proxyId.substring(0, 64) : proxyId, rulesConfig.getCatalogue().getMinPlayers(),
+                proxyId, rulesConfig.getCatalogue().getMinPlayers(),
                 rulesConfig.getSettle(), rulesConfig.getCatalogue().getHeartbeat());
         catalogue.start();
         MuteChatDenial signed = new MuteChatDenial(this.server.getPluginManager().isLoaded(MuteChatDenial.RELAY_PLUGIN_ID));
         CommandRuleEnforcer commandRules = new CommandRuleEnforcer(ruleRegistry, ruleEngine, hitReporter, new CommandDenial(signed.relayPresent()), clock);
         this.commandRuleListener = new CommandRuleListener(commandRules, commands, catalogue);
         return new ClientRuleListener(traitCollector, enforcer, tally, fingerprints, catalogue);
+    }
+
+    /** The name this proxy reports under (client rule catalogue, kick acknowledgements): at most 64 safe characters. */
+    private static String proxyIdOf(CloudNetConfig cloudNetConfig, CloudNetView cloudNet) {
+        String proxyId = cloudNetConfig.getProxyId().or(cloudNet::ownName).orElse("velocity").replaceAll("[^A-Za-z0-9_.-]", "-");
+        return proxyId.length() > 64 ? proxyId.substring(0, 64) : proxyId;
     }
 
     /** Velocity's scheduler as the timer of the periodic reporters. */

@@ -100,7 +100,7 @@ nsc add user blackhole-velocity --account BLACKHOLE \
   --deny-pub '>' \
   --allow-sub 'blackhole.events.punishment.*' --allow-sub 'blackhole.events.appeal.resolved' \
   --allow-sub 'blackhole.events.section.changed' --allow-sub 'blackhole.events.report.created' \
-  --allow-sub 'blackhole.events.report.feedback'
+  --allow-sub 'blackhole.events.report.feedback' --allow-sub 'blackhole.events.kick.mass'
 nsc edit user blackhole-velocity --account BLACKHOLE --conn-type WEBSOCKET
 nsc edit user blackhole-backend  --account BLACKHOLE --conn-type STANDARD
 nsc edit user blackhole-discord  --account BLACKHOLE --conn-type STANDARD

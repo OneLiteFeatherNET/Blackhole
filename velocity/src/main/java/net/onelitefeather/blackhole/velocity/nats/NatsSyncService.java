@@ -2,6 +2,8 @@ package net.onelitefeather.blackhole.velocity.nats;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import net.onelitefeather.blackhole.velocity.enforcement.KickMessage;
+import net.onelitefeather.blackhole.velocity.enforcement.MassKickMessage;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncMessage;
@@ -50,11 +52,14 @@ public final class NatsSyncService implements BusClient.Listener, PunishmentStat
      * @param sectionChange the section list changed
      * @param reportCreated a report was filed
      * @param reportFeedback a reporter (their owner hash) has feedback waiting
+     * @param kick          one player is to be taken off the network, a server or a section; never touches the cache
+     * @param kickMass      everybody is to be taken off a server or section; never touches the cache
      */
     public record Reactions(
             @NotNull Consumer<PunishmentSyncMessage> punishment, @NotNull Consumer<String> evictOwner,
             @NotNull Runnable sectionChange, @NotNull Consumer<ReportCreated> reportCreated,
-            @NotNull Consumer<String> reportFeedback
+            @NotNull Consumer<String> reportFeedback, @NotNull Consumer<KickMessage> kick,
+            @NotNull Consumer<MassKickMessage> kickMass
     ) {
     }
 
@@ -116,6 +121,10 @@ public final class NatsSyncService implements BusClient.Listener, PunishmentStat
             switch (subject) {
                 case Subjects.PUNISHMENT_CREATED, Subjects.PUNISHMENT_UPDATED -> punishment(payload, true);
                 case Subjects.PUNISHMENT_EXPIRED, Subjects.PUNISHMENT_REVOKED -> punishment(payload, false);
+                // A kick is a moment, not a punishment: it is named here so it never reaches the cache path
+                // above, and the wildcard's other suffixes stay unknown.
+                case Subjects.PUNISHMENT_KICK -> kick(payload);
+                case Subjects.KICK_MASS -> kickMass(payload);
                 case Subjects.APPEAL_RESOLVED -> {
                     // A full lift ends the ban, a reduction is followed by punishment.updated; either way the
                     // owner's state changed, so the cache forgets it and the next check reads the backend.
@@ -154,6 +163,28 @@ public final class NatsSyncService implements BusClient.Listener, PunishmentStat
                 : new PunishmentSyncMessage(owner, section, text(payload, "enforcement"), PunishmentSyncMessage.STATE_CLEARED,
                 text(payload, "punishmentIdentifier"), null, null, null, false);
         this.reactions.punishment().accept(message);
+    }
+
+    private void kick(JsonNode payload) {
+        String kickId = text(payload, "kickId");
+        String owner = text(payload, "owner");
+        String scope = text(payload, "scope");
+        if (kickId == null || owner == null || scope == null) {
+            LOGGER.warn("Ignoring a kick event without kick id, owner or scope");
+            return;
+        }
+        this.reactions.kick().accept(new KickMessage(kickId, owner, scope, text(payload, "target")));
+    }
+
+    private void kickMass(JsonNode payload) {
+        String actionId = text(payload, "actionId");
+        String scope = text(payload, "scope");
+        String target = text(payload, "target");
+        if (actionId == null || scope == null || target == null) {
+            LOGGER.warn("Ignoring a mass kick event without action id, scope or target");
+            return;
+        }
+        this.reactions.kickMass().accept(new MassKickMessage(actionId, scope, target));
     }
 
     private void reportCreated(JsonNode payload) {

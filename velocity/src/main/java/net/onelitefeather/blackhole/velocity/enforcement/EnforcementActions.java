@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -62,6 +63,11 @@ public final class EnforcementActions {
             }
         }
         return Optional.empty();
+    }
+
+    /** @return every player connected to this proxy */
+    public Collection<Player> onlinePlayers() {
+        return this.proxy.getAllPlayers();
     }
 
     /**

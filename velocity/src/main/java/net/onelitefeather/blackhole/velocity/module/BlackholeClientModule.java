@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.velocity.module;
 
 import com.google.inject.AbstractModule;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
+import net.onelitefeather.blackhole.velocity.command.KickRunner;
 import net.onelitefeather.blackhole.velocity.cloudnet.ServerResolver;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
@@ -46,6 +47,7 @@ import java.time.Clock;
  * @param reports     the decisions behind {@code /report}
  * @param reportNotifier tells online staff about new reports
  * @param reportFeedback tells reporters what became of their reports
+ * @param kickRunner  sends a staff member's kick and follows it to its outcome
  */
 public record BlackholeClientModule(
         @NotNull ApiClient apiClient,
@@ -66,7 +68,8 @@ public record BlackholeClientModule(
         @NotNull ServerResolver servers,
         @NotNull ReportService reports,
         @NotNull ReportNotifier reportNotifier,
-        @NotNull ReportFeedbackDelivery reportFeedback
+        @NotNull ReportFeedbackDelivery reportFeedback,
+        @NotNull KickRunner kickRunner
 ) {
 
     /**
@@ -95,6 +98,7 @@ public record BlackholeClientModule(
                 bind(ReportService.class).toInstance(reports);
                 bind(ReportNotifier.class).toInstance(reportNotifier);
                 bind(ReportFeedbackDelivery.class).toInstance(reportFeedback);
+                bind(KickRunner.class).toInstance(kickRunner);
             }
         };
     }

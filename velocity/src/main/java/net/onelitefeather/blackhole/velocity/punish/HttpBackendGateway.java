@@ -7,7 +7,14 @@ import net.onelitefeather.blackhole.client.api.PunishmentApi;
 import net.onelitefeather.blackhole.client.api.PunishmentTemplatesApi;
 import net.onelitefeather.blackhole.client.api.ReportApi;
 import net.onelitefeather.blackhole.client.api.DiscordLinkApi;
+import net.onelitefeather.blackhole.client.api.KickApi;
 import net.onelitefeather.blackhole.client.api.StaffLinkApi;
+import net.onelitefeather.blackhole.client.model.KickAccepted;
+import net.onelitefeather.blackhole.client.model.KickAck;
+import net.onelitefeather.blackhole.client.model.KickCreateRequest;
+import net.onelitefeather.blackhole.client.model.KickMassCreateRequest;
+import net.onelitefeather.blackhole.client.model.KickResponse;
+import net.onelitefeather.blackhole.client.model.KickScope;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.DiscordLinkCodeResponse;
@@ -59,6 +66,7 @@ public final class HttpBackendGateway implements BackendGateway {
     private final StaffLinkApi staffLinkApi;
     private final ReportApi reportApi;
     private final DiscordLinkApi discordLinkApi;
+    private final KickApi kickApi;
     private volatile CachedList cachedTemplates;
     private final Clock clock;
 
@@ -71,6 +79,7 @@ public final class HttpBackendGateway implements BackendGateway {
         this.staffLinkApi = new StaffLinkApi(client);
         this.reportApi = new ReportApi(client);
         this.discordLinkApi = new DiscordLinkApi(client);
+        this.kickApi = new KickApi(client);
         this.clock = clock;
     }
 
@@ -198,5 +207,25 @@ public final class HttpBackendGateway implements BackendGateway {
     @Override
     public DiscordLinkCodeResponse issueDiscordLinkCode(String owner) throws ApiException {
         return this.discordLinkApi.issuePlayerDiscordLinkCode(new DiscordLinkPlayerCodeRequest().owner(owner));
+    }
+
+    @Override
+    public KickAccepted kick(String idempotencyKey, String owner, KickScope scope, String target, String reason) throws ApiException {
+        return this.kickApi.kickPlayer(idempotencyKey, new KickCreateRequest().owner(owner).scope(scope).target(target).reason(reason));
+    }
+
+    @Override
+    public KickAccepted kickMass(String idempotencyKey, KickScope scope, String target, String reason) throws ApiException {
+        return this.kickApi.kickMass(idempotencyKey, new KickMassCreateRequest().scope(scope).target(target).reason(reason));
+    }
+
+    @Override
+    public KickResponse kickStatus(String id) throws ApiException {
+        return this.kickApi.getKick(id);
+    }
+
+    @Override
+    public void acknowledgeKick(String id, String proxyId, boolean found, boolean moved) throws ApiException {
+        this.kickApi.acknowledgeKick(id, new KickAck().proxyId(proxyId).found(found).moved(moved));
     }
 }
