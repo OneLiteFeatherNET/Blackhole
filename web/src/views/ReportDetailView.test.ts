@@ -79,8 +79,9 @@ describe('ReportDetailView: page template', () => {
     const { wrapper } = await mount()
 
     const crumbs = wrapper.findAll('nav[aria-label="Breadcrumbs"] a')
-    expect(crumbs.map((crumb) => crumb.text())).toEqual(['Reports'])
-    expect(crumbs[0]!.attributes('href')).toBe('/reports')
+    // The default test user is an administrator, so the workspace leads the trail; the list is the link before the report.
+    expect(crumbs.map((crumb) => crumb.text())).toEqual(['Moderation', 'Reports'])
+    expect(crumbs[1]!.attributes('href')).toBe('/reports')
     expect(wrapper.get('nav[aria-label="Breadcrumbs"] [aria-current="page"]').text()).toBe(`#${ID.slice(0, 8)}`)
     expect(wrapper.findAll('a').map((link) => link.text())).not.toContain('Back to reports')
 

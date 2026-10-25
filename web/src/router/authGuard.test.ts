@@ -108,7 +108,7 @@ describe('router guard', () => {
     await router.push('/players')
     await router.push('/templates')
 
-    expect(router.currentRoute.value.name).toBe('templates')
+    expect(router.currentRoute.value.name).toBe('admin-templates')
     expect(me, 'calls of /auth/me').toHaveBeenCalledTimes(1)
     expect(session.displayName).toBe('Dev Admin')
   })
@@ -160,7 +160,7 @@ describe('router guard', () => {
 
     await router.push('/admin')
 
-    expect(router.currentRoute.value.name).toBe('admin')
+    expect(router.currentRoute.value.name).toBe('admin-templates')
   })
 
   it.each([

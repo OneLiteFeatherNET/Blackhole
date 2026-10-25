@@ -17,7 +17,8 @@
       "work": "Arbeit",
       "players": "Spieler",
       "configuration": "Konfiguration",
-      "administration": "Verwaltung"
+      "administration": "Verwaltung",
+      "system": "System"
     },
     "brand": "Blackhole",
     "open": "Navigation öffnen",
@@ -30,7 +31,10 @@
       "cases": "{n} offener Fall | {n} offene Fälle",
       "appeals": "{n} Einspruch wartet auf Prüfung | {n} Einsprüche warten auf Prüfung",
       "reports": "{n} ungelöste Meldung | {n} ungelöste Meldungen"
-    }
+    },
+    "staffAccounts": "Teamkonten",
+    "imports": "Importe",
+    "cloudnet": "CloudNet"
   },
   "settings": {
     "theme": {
@@ -1537,5 +1541,10 @@
   },
   "rowMenu": {
     "more": "Weitere Aktionen für {name}"
+  },
+  "workspace": {
+    "moderation": "Moderation",
+    "administration": "Verwaltung",
+    "switch": "Arbeitsbereich"
   }
 }

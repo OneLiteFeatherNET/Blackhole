@@ -7,13 +7,14 @@ import { useAuth, useSignOut } from './auth/inject'
 import AccountLinkDialog from './components/account/AccountLinkDialog.vue'
 import AccountMenu from './components/account/AccountMenu.vue'
 import GlobalSearch from './components/search/GlobalSearch.vue'
+import WorkspaceSwitcher from './components/WorkspaceSwitcher.vue'
 import MdIconButton from './components/md/MdIconButton.vue'
 import MdNavigationDrawer from './components/md/MdNavigationDrawer.vue'
 import MdSnackbar from './components/md/MdSnackbar.vue'
 import MdTopAppBar from './components/md/MdTopAppBar.vue'
 import MdTransition from './motion/MdTransition.vue'
 import { badgeText, useNavCountsStore, type CountKey } from './nav/navCounts'
-import { visibleGroups } from './nav/navigation'
+import { visibleGroups, type WorkspaceKey } from './nav/navigation'
 import { useTicker } from './nav/ticker'
 import { useBreakpoint } from './nav/useBreakpoint'
 import { useSessionStore } from './stores/session'
@@ -51,9 +52,11 @@ function badgeFor(key: CountKey | undefined) {
   return key && text ? { text, label: t(`nav.badge.${key}`, { n: count }, count ?? 0) } : undefined
 }
 
-// Only an admin is offered the admin page; the backend stays authoritative.
+// The rail is the workspace of the current route (Moderation unless the route says otherwise). The administration rail
+// is offered to ADMIN only; the backend and the router guard stay authoritative.
+const workspace = computed<WorkspaceKey>(() => (route.meta.workspace as WorkspaceKey | undefined) ?? 'moderation')
 const groups = computed(() =>
-  visibleGroups({ hasAccess: session.hasAccess, administrator: session.administrator }).map((group) => ({
+  visibleGroups({ hasAccess: session.hasAccess, administrator: session.administrator }, workspace.value).map((group) => ({
     key: group.key,
     heading: group.heading ? t(`nav.groups.${group.key}`) : undefined,
     items: group.items.map((item) => ({ to: item.to, icon: item.icon, label: t(`nav.${item.key}`), badge: badgeFor(item.count) })),
@@ -119,6 +122,7 @@ onBeforeUnmount(() => stopTicker?.())
           :aria-expanded="menuButton.expanded"
           @click="onMenuButton"
         />
+        <WorkspaceSwitcher v-if="resolved" />
       </template>
       <template #search>
         <GlobalSearch v-if="showNav" />

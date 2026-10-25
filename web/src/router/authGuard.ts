@@ -1,6 +1,8 @@
 import type { Router } from 'vue-router'
 import type { BlackholeApi } from '../api/blackhole'
 import type { AuthService } from '../auth/authService'
+import { readStoredWorkspace, storeWorkspace, workspaceByKey } from '../nav/workspaces'
+import type { WorkspaceKey } from '../nav/navigation'
 import type { useSessionStore } from '../stores/session'
 
 export interface AuthGuardDeps {
@@ -16,7 +18,7 @@ export interface AuthGuardDeps {
  * Pages marked `meta.admin` need the ADMIN role.
  */
 export function installAuthGuard(router: Router, { auth, session, api }: AuthGuardDeps): void {
-  router.beforeEach(async (to) => {
+  router.beforeEach(async (to, from) => {
     if (to.name === 'auth-callback') {
       try {
         return await auth.completeSignIn(new URL(to.fullPath, window.location.origin).href)
@@ -45,6 +47,15 @@ export function installAuthGuard(router: Router, { auth, session, api }: AuthGua
     // Admin-only pages are not offered to other roles; a direct visit lands on the no-access page, which says why.
     if (to.meta.admin && !session.administrator) return { name: 'no-access', query: { reason: 'admin' } }
     if (to.name === 'no-access') return to.query.reason === 'admin' ? true : '/'
+    // The stored workspace only decides the first landing on the bare root; an explicit route (and the Inbox link) wins.
+    if (from.matched.length === 0 && to.path === '/' && session.administrator && readStoredWorkspace() === 'administration') {
+      return workspaceByKey('administration').home
+    }
     return true
+  })
+
+  // The workspace of every page is remembered for the next visit (convenience only, see `workspaces.ts`).
+  router.afterEach((to) => {
+    if (to.meta.workspace) storeWorkspace(to.meta.workspace as WorkspaceKey)
   })
 }

@@ -14,9 +14,12 @@ import {
 } from '../icons'
 
 /*
- * The destinations of the side navigation: the inbox first, without a heading, then four headed groups.
- * Labels are glossary terms (see the redesign design, section 1); which of them a viewer sees follows the role matrix.
+ * The destinations of the side navigation, one rail per workspace (see the redesign design, "Decision 2026-10-25").
+ * Moderation: the inbox first, without a heading, then Work and Players. Administration (ADMIN only): Configuration
+ * and System. Labels are glossary terms; the workspace decides which rail is shown, the router guard decides access.
  */
+
+export type WorkspaceKey = 'moderation' | 'administration'
 
 export interface NavDestination {
   to: string
@@ -24,8 +27,6 @@ export interface NavDestination {
   key: string
   /** Material Symbols-style path (24dp); decorative, the text labels the item. */
   icon: string
-  /** Offered to ADMIN only; the backend stays authoritative. */
-  admin?: boolean
   /** The open-work count shown as a badge. */
   count?: CountKey
 }
@@ -38,7 +39,7 @@ export interface NavGroup {
   items: NavDestination[]
 }
 
-export const NAV_GROUPS: NavGroup[] = [
+export const MODERATION_GROUPS: NavGroup[] = [
   {
     key: 'home',
     heading: false,
@@ -61,27 +62,43 @@ export const NAV_GROUPS: NavGroup[] = [
       { to: '/punished', key: 'activePunishments', icon: PUNISHED_ICON },
     ],
   },
+]
+
+export const ADMINISTRATION_GROUPS: NavGroup[] = [
   {
     key: 'configuration',
     heading: true,
     items: [
-      { to: '/sections', key: 'sections', icon: SECTIONS_ICON },
-      { to: '/templates', key: 'templates', icon: TEMPLATES_ICON },
-      { to: '/appeal-conditions', key: 'appealTerms', icon: APPEAL_CONDITIONS_ICON },
-      { to: '/client-rules', key: 'clientRules', icon: CLIENT_RULES_ICON },
+      { to: '/admin/templates', key: 'templates', icon: TEMPLATES_ICON },
+      { to: '/admin/sections', key: 'sections', icon: SECTIONS_ICON },
+      { to: '/admin/client-rules', key: 'clientRules', icon: CLIENT_RULES_ICON },
+      { to: '/admin/appeal-terms', key: 'appealTerms', icon: APPEAL_CONDITIONS_ICON },
     ],
   },
   {
-    key: 'administration',
+    key: 'system',
     heading: true,
-    items: [{ to: '/admin', key: 'administration', admin: true, icon: ADMIN_ICON }],
+    items: [
+      { to: '/admin/staff', key: 'staffAccounts', icon: ADMIN_ICON },
+      { to: '/admin/imports', key: 'imports', icon: ADMIN_ICON },
+      { to: '/admin/cloudnet', key: 'cloudnet', icon: ADMIN_ICON },
+    ],
   },
 ]
 
-/** The groups a viewer may use: nothing without access, no admin entry for other roles, and no empty group. */
-export function visibleGroups(access: { hasAccess: boolean; administrator: boolean }): NavGroup[] {
+const GROUPS_BY_WORKSPACE: Record<WorkspaceKey, NavGroup[]> = {
+  moderation: MODERATION_GROUPS,
+  administration: ADMINISTRATION_GROUPS,
+}
+
+export interface Access {
+  hasAccess: boolean
+  administrator: boolean
+}
+
+/** The groups of a workspace a viewer may use: nothing without access, and the administration rail for ADMIN only. */
+export function visibleGroups(access: Access, workspace: WorkspaceKey): NavGroup[] {
   if (!access.hasAccess) return []
-  return NAV_GROUPS.map((group) => ({ ...group, items: group.items.filter((item) => !item.admin || access.administrator) })).filter(
-    (group) => group.items.length > 0,
-  )
+  if (workspace === 'administration' && !access.administrator) return []
+  return GROUPS_BY_WORKSPACE[workspace]
 }

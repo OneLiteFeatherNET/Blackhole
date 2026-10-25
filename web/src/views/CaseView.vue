@@ -17,6 +17,7 @@ import TranscriptExport from '../components/case/TranscriptExport.vue'
 import MdSnackbar from '../components/md/MdSnackbar.vue'
 import ResourceState from '../components/ResourceState.vue'
 import { useResource } from '../composables/useResource'
+import { withWorkspace } from '../nav/workspaces'
 import { useSessionStore } from '../stores/session'
 
 const props = defineProps<{ reference: string }>()
@@ -29,6 +30,8 @@ const detail = useResource(() => api.caseDetail(props.reference))
 
 // The page title is the case itself; the trail back to the list is the breadcrumbs.
 const title = computed(() => (detail.data.value ? t('case.header.heading', { id: detail.data.value.shortId }) : t('case.title')))
+// The workspace leads the trail for an administrator (the switcher is shown to them only).
+const trail = (items: { label: string; to?: string }[]) => withWorkspace(items, { show: session.administrator, workspace: 'moderation', translate: (key) => t(key) })
 const crumbs = computed(() => [
   { label: t('nav.cases'), to: '/cases' },
   { label: detail.data.value?.shortId ?? props.reference },
@@ -76,7 +79,7 @@ async function addNote(text: string): Promise<ApiResult<unknown>> {
 <template>
   <PageShell :title="title">
     <template #breadcrumbs>
-      <Breadcrumbs :items="crumbs" />
+      <Breadcrumbs :items="trail(crumbs)" />
     </template>
 
     <SkeletonBlock v-if="detail.loading.value && detail.data.value === null" height="12rem" />
