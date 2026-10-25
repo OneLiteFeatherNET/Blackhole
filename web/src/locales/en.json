@@ -1284,13 +1284,12 @@
     }
   },
   "punished": {
-    "title": "Punished players",
-    "filters": "Filters for punished players",
+    "title": "Active punishments",
     "kind": {
       "label": "Kind",
       "all": "All",
-      "BAN": "Bans",
-      "MUTE": "Mutes",
+      "BAN": "Ban",
+      "MUTE": "Mute",
       "SERVER": "Server"
     },
     "term": {
@@ -1311,15 +1310,16 @@
     "allSections": "All sections",
     "sort": {
       "label": "Sort by",
-      "CREATED": "Issued on",
-      "EXPIRES": "Expires",
-      "ASC": "Ascending",
-      "DESC": "Descending",
-      "direction": "Sort direction"
+      "options": {
+        "created-desc": "Issued, newest first",
+        "created-asc": "Issued, oldest first",
+        "expires-desc": "Expires, latest first",
+        "expires-asc": "Expires, soonest first"
+      }
     },
     "search": {
-      "label": "Search players in this list",
-      "hint": "Name (known names only), hash prefix, case ID or reason"
+      "label": "Search this page",
+      "hint": "Searches only the players on this page, by name (known names only), hash prefix, case ID or reason."
     },
     "columns": {
       "player": "Player",
@@ -1342,7 +1342,7 @@
     "empty": "No player is punished right now.",
     "emptyFiltered": "No punished players for these filters.",
     "emptySearch": "No player on this page matches the search.",
-    "total": "{count} active punishments",
+    "clearSearch": "Clear search",
     "paging": "Pages of punished players"
   },
   "notFound": {

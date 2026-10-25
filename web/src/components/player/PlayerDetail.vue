@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
 import { useApi } from '../../api/inject'
 import type { ApiError, EloEvent, EloProfile, EloSectionScore, Punishment, PunishmentProfile } from '../../api/types'
 import { useResource } from '../../composables/useResource'
-import { shortHash } from '../../format'
-import { useLookupStore } from '../../stores/lookup'
 import { useSessionStore } from '../../stores/session'
 import MdButton from '../md/MdButton.vue'
 import MdSnackbar from '../md/MdSnackbar.vue'
@@ -25,10 +22,8 @@ const props = defineProps<{ owner: string }>()
 
 const { t } = useI18n()
 const api = useApi()
-const lookup = useLookupStore()
 const session = useSessionStore()
 
-const title = computed(() => lookup.nameOf(props.owner) ?? shortHash(props.owner))
 
 // Profile and scores are loaded together so every action can refresh both with one reload.
 const player = useResource(async () => {
@@ -99,18 +94,14 @@ async function finished(done: string): Promise<void> {
     @retry="player.reload"
   >
     <div v-if="player.data.value" class="flex flex-col gap-8">
-      <header class="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <h2 data-testid="player-title" :title="owner" class="text-headline-medium">{{ title }}</h2>
-        <RouterLink to="/players" class="text-label-large text-primary underline underline-offset-2">
-          {{ t('player.backToSearch') }}
-        </RouterLink>
-        <MdButton v-if="session.moderator" class="ml-auto" variant="tonal" data-testid="open-apply" @click="applyOpen = true">
+      <header v-if="session.moderator" class="flex justify-end">
+        <MdButton variant="tonal" data-testid="open-apply" @click="applyOpen = true">
           {{ t('actions.apply.open') }}
         </MdButton>
       </header>
 
       <section aria-labelledby="scores-heading">
-        <h2 id="scores-heading" class="mb-3 text-title-large">{{ t('player.scores') }}</h2>
+        <h2 id="scores-heading" class="mb-3 text-title-medium">{{ t('player.scores') }}</h2>
         <SectionScores :scores="player.data.value.elo.sections">
           <template #actions="{ entry }">
             <div v-if="session.moderator" class="mt-3 flex justify-end">
@@ -123,7 +114,7 @@ async function finished(done: string): Promise<void> {
       </section>
 
       <section aria-labelledby="active-heading">
-        <h2 id="active-heading" class="mb-3 text-title-large">{{ t('player.active') }}</h2>
+        <h2 id="active-heading" class="mb-3 text-title-medium">{{ t('player.active') }}</h2>
         <ActivePunishments :active="player.data.value.profile.active">
           <template #actions="{ section: key, punishment }">
             <div v-if="session.moderator" class="mt-3 flex justify-end">
@@ -136,12 +127,12 @@ async function finished(done: string): Promise<void> {
       </section>
 
       <section aria-labelledby="history-heading">
-        <h2 id="history-heading" class="mb-3 text-title-large">{{ t('player.history') }}</h2>
+        <h2 id="history-heading" class="mb-3 text-title-medium">{{ t('player.history') }}</h2>
         <PunishmentHistory :history="player.data.value.profile.history" />
       </section>
 
       <section aria-labelledby="elo-heading">
-        <h2 id="elo-heading" class="mb-3 text-title-large">{{ t('player.eloHistory') }}</h2>
+        <h2 id="elo-heading" class="mb-3 text-title-medium">{{ t('player.eloHistory') }}</h2>
         <EloHistory
           v-model:section="section"
           :sections="sectionOptions"
@@ -152,12 +143,12 @@ async function finished(done: string): Promise<void> {
       </section>
 
       <section aria-labelledby="evasion-heading">
-        <h2 id="evasion-heading" class="mb-3 text-title-large">{{ t('player.evasion.title') }}</h2>
+        <h2 id="evasion-heading" class="mb-3 text-title-medium">{{ t('player.evasion.title') }}</h2>
         <EvasionHints :owner="owner" />
       </section>
 
       <section aria-labelledby="client-rules-heading">
-        <h2 id="client-rules-heading" class="mb-3 text-title-large">{{ t('clientRules.player.title') }}</h2>
+        <h2 id="client-rules-heading" class="mb-3 text-title-medium">{{ t('clientRules.player.title') }}</h2>
         <ClientRuleHits :owner="owner" />
       </section>
 

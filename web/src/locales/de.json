@@ -1284,13 +1284,12 @@
     }
   },
   "punished": {
-    "title": "Gesperrte Spieler",
-    "filters": "Filter der gesperrten Spieler",
+    "title": "Aktive Strafen",
     "kind": {
       "label": "Art",
       "all": "Alle",
-      "BAN": "Bans",
-      "MUTE": "Mutes",
+      "BAN": "Sperre",
+      "MUTE": "Stummschaltung",
       "SERVER": "Server"
     },
     "term": {
@@ -1311,15 +1310,16 @@
     "allSections": "Alle Bereiche",
     "sort": {
       "label": "Sortieren nach",
-      "CREATED": "Verhängt am",
-      "EXPIRES": "Läuft ab",
-      "ASC": "Aufsteigend",
-      "DESC": "Absteigend",
-      "direction": "Sortierrichtung"
+      "options": {
+        "created-desc": "Verhängt, neueste zuerst",
+        "created-asc": "Verhängt, älteste zuerst",
+        "expires-desc": "Läuft ab, späteste zuerst",
+        "expires-asc": "Läuft ab, früheste zuerst"
+      }
     },
     "search": {
-      "label": "Spieler in dieser Liste suchen",
-      "hint": "Name (nur bekannte Namen), Hash-Anfang, Fall-ID oder Grund"
+      "label": "Diese Seite durchsuchen",
+      "hint": "Durchsucht nur die Spieler auf dieser Seite: nach Name (nur bekannte Namen), Hash-Anfang, Fall-ID oder Grund."
     },
     "columns": {
       "player": "Spieler",
@@ -1342,7 +1342,7 @@
     "empty": "Aktuell ist kein Spieler gesperrt.",
     "emptyFiltered": "Keine gesperrten Spieler für diese Filter.",
     "emptySearch": "Auf dieser Seite passt kein Spieler zur Suche.",
-    "total": "{count} aktive Strafen",
+    "clearSearch": "Suche löschen",
     "paging": "Seiten der gesperrten Spieler"
   },
   "notFound": {

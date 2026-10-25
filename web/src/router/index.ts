@@ -23,9 +23,9 @@ export const routes: RouteRecordRaw[] = [
   // The inbox is the front page. `pageShell` means the page renders its own single heading (PageShell).
   { path: '/', name: 'inbox', component: InboxView, meta: { titleKey: 'inbox.title', pageShell: true } },
   // `nav` names the navigation destination a page belongs to, so the detail pages keep their group marked.
-  { path: '/punished', name: 'punished', component: PunishedPlayersView, meta: { titleKey: 'nav.activePunishments' } },
-  { path: '/players', name: 'players', component: PlayersView, meta: { titleKey: 'nav.playerLookup' } },
-  { path: '/players/:owner', name: 'player', component: PlayerDetailView, props: true, meta: { titleKey: 'nav.playerLookup', nav: '/players' } },
+  { path: '/punished', name: 'punished', component: PunishedPlayersView, meta: { titleKey: 'nav.activePunishments', pageShell: true } },
+  { path: '/players', name: 'players', component: PlayersView, meta: { titleKey: 'nav.playerLookup', pageShell: true } },
+  { path: '/players/:owner', name: 'player', component: PlayerDetailView, props: true, meta: { titleKey: 'nav.playerLookup', nav: '/players', pageShell: true } },
   { path: '/templates', name: 'templates', component: TemplatesView, meta: { titleKey: 'nav.templates' } },
   { path: '/client-rules', name: 'client-rules', component: ClientRulesView, meta: { titleKey: 'nav.clientRules' } },
   { path: '/sections', name: 'sections', component: SectionsView, meta: { titleKey: 'nav.sections' } },
