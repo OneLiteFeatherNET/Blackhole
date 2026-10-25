@@ -393,6 +393,8 @@
     "filterOpen": "Open",
     "filterAll": "All",
     "empty": "No open reports.",
+    "showAll": "Show all reports",
+    "noneYet": "No reports yet.",
     "resolved": "Report resolved.",
     "columns": {
       "when": "Received",
@@ -434,7 +436,6 @@
       "confirm": "Save decision"
     },
     "detail": {
-      "back": "Back to reports",
       "open": "Details",
       "title": "Report",
       "summary": "Summary",
@@ -471,6 +472,8 @@
     "filterPending": "Pending",
     "filterAll": "All",
     "empty": "No pending appeals.",
+    "showAll": "Show all appeals",
+    "noneYet": "No appeals yet.",
     "decided": "Appeal decided.",
     "columns": {
       "when": "Received",

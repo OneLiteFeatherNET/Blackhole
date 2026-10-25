@@ -137,7 +137,7 @@ describe('AppealsView: page template', () => {
     const { mount } = setup({ appeals: vi.fn(() => new Promise(() => {})) })
     const { wrapper } = await mount()
 
-    expect(wrapper.get('[aria-busy="true"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-busy="true"]').exists()).toBe(true)
     expect(wrapper.findAll('tbody tr')).toHaveLength(0)
 
     wrapper.unmount()

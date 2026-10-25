@@ -23,7 +23,7 @@ describe('DefinitionList', () => {
   it('renders a value slot for a value that is a link, with the item it belongs to', async () => {
     const { wrapper } = await mountWithApp(DefinitionList, {
       props: { items: [{ term: 'Player', value: 'abcdef12…' }] },
-      slots: { value: ({ item }: { item: { term: string } }) => h('a', { href: '/players/abcdef12' }, `Open ${item.term}`) },
+      slots: { value: ({ item }: { item: { term: string } }) => [h('a', { href: '/players/abcdef12' }, `Open ${item.term}`)] },
     })
 
     expect(wrapper.get('dd a').attributes('href')).toBe('/players/abcdef12')

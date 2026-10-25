@@ -5,9 +5,13 @@
 // it with a note. Both use the resolve route. The reporter is shown by hash only, never by name or UUID.
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
 import { useApi } from '../api/inject'
 import type { Evidence, Punishment, Report, ReportStatus } from '../api/types'
+import Breadcrumbs from '../components/Breadcrumbs.vue'
+import DefinitionList from '../components/DefinitionList.vue'
+import PageShell from '../components/PageShell.vue'
+import SkeletonBlock from '../components/SkeletonBlock.vue'
+import TextLink from '../components/TextLink.vue'
 import DeleteEvidenceDialog from '../components/evidence/DeleteEvidenceDialog.vue'
 import EvidenceList from '../components/evidence/EvidenceList.vue'
 import MdButton from '../components/md/MdButton.vue'
@@ -49,6 +53,24 @@ const isOpen = computed(() => OPEN.includes(current.value?.status ?? 'OPEN'))
 const canResolve = computed(() => session.moderator && isOpen.value && Boolean(current.value?.identifier))
 const playerName = computed(() => (current.value ? lookup.nameOf(current.value.reportedHash) : null))
 
+// The trail back to the list is the breadcrumbs; the title of the page is the report itself.
+const crumbs = computed(() => [{ label: t('nav.reports'), to: '/reports' }, { label: `#${props.id.slice(0, 8)}` }])
+
+const summaryItems = computed(() => {
+  const loaded = current.value
+  if (!loaded) return []
+  return [
+    { key: 'reported', term: t('reports.detail.reportedPlayer'), value: playerName.value ?? shortHash(loaded.reportedHash) },
+    { key: 'reporter', term: t('reports.detail.reporter'), value: shortHash(loaded.reporterHash) },
+    { key: 'category', term: t('reports.columns.category'), value: t(`reports.category.${loaded.category}`) },
+    { key: 'reason', term: t('reports.detail.reason'), value: loaded.description || t('reports.detail.noReason'), testid: 'reason' },
+    { key: 'when', term: t('reports.columns.when'), value: formatDateTime(loaded.createdAt, locale.value) },
+    ...(isOpen.value
+      ? []
+      : [{ key: 'resolution', term: t('reports.detail.resolutionNote'), value: loaded.resolutionNote || t('reports.detail.noNote'), testid: 'resolution-note' }]),
+  ]
+})
+
 watch(
   () => props.id,
   () => void report.reload(),
@@ -89,47 +111,33 @@ async function done(text: string): Promise<void> {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
-    <RouterLink to="/reports" class="w-fit text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary">
-      {{ t('reports.detail.back') }}
-    </RouterLink>
+  <PageShell :title="t('reports.detail.title')">
+    <template #breadcrumbs>
+      <Breadcrumbs :items="crumbs" />
+    </template>
+
+    <SkeletonBlock v-if="report.loading.value && report.data.value === null" height="12rem" />
 
     <ResourceState :loading="report.loading.value" :error="report.error.value" :has-data="current !== null" @retry="report.reload">
       <div v-if="current" class="flex flex-col gap-8">
-        <header class="flex flex-wrap items-center gap-3">
-          <h2 class="text-headline-small">{{ t('reports.detail.title') }}</h2>
+        <div>
           <StatusPill :label="t(`reports.status.${current.status ?? 'OPEN'}`)" :tone="isOpen ? 'tertiary' : 'neutral'" data-testid="status" />
-        </header>
+        </div>
 
         <section aria-labelledby="report-summary" class="flex flex-col gap-3">
-          <h3 id="report-summary" class="text-title-medium">{{ t('reports.detail.summary') }}</h3>
-          <dl class="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-body-large" data-testid="summary">
-            <dt class="text-on-surface-variant">{{ t('reports.detail.reportedPlayer') }}</dt>
-            <dd>
-              <RouterLink
-                :to="`/players/${current.reportedHash}`"
-                :title="current.reportedHash"
-                class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
-              >
-                {{ playerName ?? shortHash(current.reportedHash) }}
-              </RouterLink>
-            </dd>
-            <dt class="text-on-surface-variant">{{ t('reports.detail.reporter') }}</dt>
-            <dd :title="current.reporterHash">
-              {{ shortHash(current.reporterHash) }}
-              <span class="text-body-small text-on-surface-variant">{{ t('reports.detail.pseudonymous') }}</span>
-            </dd>
-            <dt class="text-on-surface-variant">{{ t('reports.columns.category') }}</dt>
-            <dd>{{ t(`reports.category.${current.category}`) }}</dd>
-            <dt class="text-on-surface-variant">{{ t('reports.detail.reason') }}</dt>
-            <dd class="break-words" data-testid="reason">{{ current.description || t('reports.detail.noReason') }}</dd>
-            <dt class="text-on-surface-variant">{{ t('reports.columns.when') }}</dt>
-            <dd>{{ formatDateTime(current.createdAt, locale) }}</dd>
-            <template v-if="!isOpen">
-              <dt class="text-on-surface-variant">{{ t('reports.detail.resolutionNote') }}</dt>
-              <dd class="break-words" data-testid="resolution-note">{{ current.resolutionNote || t('reports.detail.noNote') }}</dd>
+          <h2 id="report-summary" class="text-title-medium">{{ t('reports.detail.summary') }}</h2>
+          <DefinitionList data-testid="summary" :items="summaryItems">
+            <template #value="{ item }">
+              <TextLink v-if="item.key === 'reported'" :to="`/players/${current.reportedHash}`">
+                {{ item.value }}
+              </TextLink>
+              <template v-else-if="item.key === 'reporter'">
+                <span aria-describedby="report-reporter-note">{{ item.value }}</span>
+                <span id="report-reporter-note" class="ml-2 text-body-small text-on-surface-variant">{{ t('reports.detail.pseudonymous') }}</span>
+              </template>
+              <template v-else>{{ item.value }}</template>
             </template>
-          </dl>
+          </DefinitionList>
           <div v-if="canResolve" class="flex flex-wrap gap-2" role="group" :aria-label="t('reports.detail.actions')">
             <MdButton data-testid="apply-template" @click="applying = true">{{ t('reports.detail.applyTemplate') }}</MdButton>
             <MdButton variant="outlined" data-testid="dismiss" @click="dismissing = true">{{ t('reports.detail.dismiss') }}</MdButton>
@@ -137,7 +145,7 @@ async function done(text: string): Promise<void> {
         </section>
 
         <section aria-labelledby="report-evidence" class="flex flex-col gap-3">
-          <h3 id="report-evidence" class="text-title-medium">{{ t('reports.detail.evidence') }}</h3>
+          <h2 id="report-evidence" class="text-title-medium">{{ t('reports.detail.evidence') }}</h2>
           <p v-if="failed.includes('evidence')" role="alert" class="rounded-md-md bg-error-container p-3 text-on-error-container" data-testid="evidence-missing">
             {{ t('reports.detail.evidenceMissing', { n: missingEvidence }, missingEvidence) }}
           </p>
@@ -145,30 +153,27 @@ async function done(text: string): Promise<void> {
         </section>
 
         <section aria-labelledby="report-others" class="flex flex-col gap-3">
-          <h3 id="report-others" class="text-title-medium">{{ t('reports.detail.others') }}</h3>
+          <h2 id="report-others" class="text-title-medium">{{ t('reports.detail.others') }}</h2>
           <p v-if="failed.includes('others')" role="alert" class="rounded-md-md bg-error-container p-3 text-on-error-container">{{ t('reports.detail.loadFailed') }}</p>
           <p v-else-if="others.length === 0" class="text-body-large text-on-surface-variant" data-testid="others-empty">{{ t('reports.detail.othersEmpty') }}</p>
           <ul v-else class="flex flex-col gap-2" data-testid="others">
             <li v-for="entry in others" :key="entry.identifier ?? entry.createdAt" class="flex flex-wrap items-center gap-3">
-              <RouterLink
-                :to="`/reports/${entry.identifier}`"
-                class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
-              >
+              <TextLink :to="`/reports/${entry.identifier}`">
                 {{ t(`reports.category.${entry.category}`) }} · {{ formatDateTime(entry.createdAt, locale) }}
-              </RouterLink>
+              </TextLink>
               <StatusPill :label="t(`reports.status.${entry.status ?? 'OPEN'}`)" :tone="OPEN.includes(entry.status ?? 'OPEN') ? 'tertiary' : 'neutral'" />
             </li>
           </ul>
         </section>
 
         <section aria-labelledby="report-active" class="flex flex-col gap-3">
-          <h3 id="report-active" class="text-title-medium">{{ t('reports.detail.active') }}</h3>
+          <h2 id="report-active" class="text-title-medium">{{ t('reports.detail.active') }}</h2>
           <p v-if="failed.includes('active')" role="alert" class="rounded-md-md bg-error-container p-3 text-on-error-container">{{ t('reports.detail.loadFailed') }}</p>
           <ActivePunishments v-else :active="active" />
         </section>
       </div>
     </ResourceState>
-  </div>
+  </PageShell>
 
   <ApplyTemplateDialog v-if="current" :open="applying" :owner="current.reportedHash" :report="current" @close="applying = false" @done="done" />
   <ReportDismissDialog :open="dismissing" :report="current" @close="dismissing = false" @done="done" />

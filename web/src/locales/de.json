@@ -393,6 +393,8 @@
     "filterOpen": "Offen",
     "filterAll": "Alle",
     "empty": "Keine offenen Meldungen.",
+    "showAll": "Alle Meldungen anzeigen",
+    "noneYet": "Noch keine Meldungen.",
     "resolved": "Meldung bearbeitet.",
     "columns": {
       "when": "Eingegangen",
@@ -434,7 +436,6 @@
       "confirm": "Entscheidung speichern"
     },
     "detail": {
-      "back": "Zurück zu den Meldungen",
       "open": "Details",
       "title": "Meldung",
       "summary": "Übersicht",
@@ -471,6 +472,8 @@
     "filterPending": "Offen",
     "filterAll": "Alle",
     "empty": "Keine offenen Einsprüche.",
+    "showAll": "Alle Einsprüche anzeigen",
+    "noneYet": "Noch keine Einsprüche.",
     "decided": "Einspruch entschieden.",
     "columns": {
       "when": "Eingegangen",

@@ -92,7 +92,7 @@ async function confirm(): Promise<void> {
 
 <template>
   <MdDialog :open="open" wide :headline="t('appeals.decide.title')" @close="emit('close')">
-    <div class="flex flex-col gap-5 pt-2">
+    <div class="flex flex-col gap-4 pt-2">
       <p v-if="appeal" class="text-body-medium text-on-surface-variant">{{ appeal.statement }}</p>
       <!-- Read-only: the reviewer sees the evidence and can remove wrong items, but adds none. -->
       <EvidencePanel v-if="appeal" :key="appeal.identifier" :punishment="appeal.punishmentIdentifier" readonly />

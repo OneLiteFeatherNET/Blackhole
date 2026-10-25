@@ -102,7 +102,7 @@ describe('ReportsView: page template', () => {
     const { wrapper } = await mountWithApp(ReportsView, { api: mockApi(api), path: '/reports', roles: ['VIEWER'] })
 
     expect(wrapper.find('[aria-haspopup="menu"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="details-r-1"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="details-r-1"]').exists()).toBe(true)
 
     wrapper.unmount()
   })
@@ -152,7 +152,7 @@ describe('ReportsView: page template', () => {
     const { mount } = setup({ reports: vi.fn(() => new Promise(() => {})) })
     const { wrapper } = await mount()
 
-    expect(wrapper.get('[aria-busy="true"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-busy="true"]').exists()).toBe(true)
 
     wrapper.unmount()
   })
