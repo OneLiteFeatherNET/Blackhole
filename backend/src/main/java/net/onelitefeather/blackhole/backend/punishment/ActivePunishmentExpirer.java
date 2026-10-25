@@ -70,7 +70,7 @@ public class ActivePunishmentExpirer {
         List<PunishmentEntity> expired = new ArrayList<>();
         boolean lostRace = false;
         for (Map.Entry<String, PunishmentEntity> entry : List.copyOf(profile.getActive().entrySet())) {
-            if (!PunishmentExpiry.isExpired(entry.getValue(), now)) {
+            if (!entry.getValue().canBeActive() || !PunishmentExpiry.isExpired(entry.getValue(), now)) {
                 continue;
             }
             if (this.slots.clearIf(owner, entry.getKey(), entry.getValue().getIdentifier())) {

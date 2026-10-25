@@ -4,6 +4,8 @@ import io.micronaut.serde.annotation.Serdeable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.ManyToOne;
@@ -88,6 +90,19 @@ public class PunishmentEntity {
 
     /** The ELO deducted when this punishment was applied; what a lifting appeal gives back. */
     private Integer eloCost;
+
+    /** Whether this row is a punishment or a kick. Kicks never occupy an active slot but count for escalation. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "kind", length = 16, nullable = false)
+    private PunishmentKind kind = PunishmentKind.PUNISHMENT;
+
+    /** The scope a kick was applied at; {@code null} for a punishment. */
+    @Column(name = "kick_scope", length = 16)
+    private String kickScope;
+
+    /** The server or section a scoped kick targeted; {@code null} for a punishment or a network kick. */
+    @Column(name = "kick_target")
+    private String kickTarget;
 
     @ManyToOne
     private PunishmentTemplateEntity template;
@@ -256,6 +271,30 @@ public class PunishmentEntity {
 
     public Integer getEloCost() {
         return eloCost;
+    }
+
+    public PunishmentKind getKind() {
+        return kind;
+    }
+
+    public String getKickScope() {
+        return kickScope;
+    }
+
+    public String getKickTarget() {
+        return kickTarget;
+    }
+
+    /** Marks this row as a kick at {@code scope}; {@code target} is {@code null} for a network kick. */
+    public void recordKick(String scope, String target) {
+        this.kind = PunishmentKind.KICK;
+        this.kickScope = scope;
+        this.kickTarget = target;
+    }
+
+    /** Whether this row can be an active punishment, i.e. is not a kick. */
+    public boolean canBeActive() {
+        return this.kind != PunishmentKind.KICK;
     }
 
     public PunishmentTemplateEntity getTemplate() {

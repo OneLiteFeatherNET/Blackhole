@@ -64,7 +64,7 @@ public class PunishmentTemplateEntity {
         return new PunishmentTemplateEntity(
                 template.identifier(), template.key(), template.reason(), template.section(), template.escalationGroup(),
                 template.escalationWindow(),
-                template.steps().stream().map(step -> new TemplateStep(step.duration(), step.eloCost())).toList(),
+                template.steps().stream().map(step -> new TemplateStep(step.kind(), step.duration(), step.eloCost())).toList(),
                 template.metaData()
         );
     }
@@ -134,7 +134,7 @@ public class PunishmentTemplateEntity {
                 this.sectionKey,
                 this.escalationGroup,
                 this.escalationWindow,
-                this.steps.stream().map(step -> new PunishTemplateDTO.Step(step.getDuration(), step.getEloCost())).toList(),
+                this.steps.stream().map(step -> new PunishTemplateDTO.Step(step.getDuration(), step.getEloCost(), step.getKind())).toList(),
                 this.metaData
         );
     }

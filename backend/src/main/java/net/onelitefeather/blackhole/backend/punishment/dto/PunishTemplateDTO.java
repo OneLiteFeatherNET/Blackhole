@@ -8,6 +8,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import net.onelitefeather.blackhole.backend.punishment.StepKind;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.response.ErrorResponse;
 
@@ -62,7 +63,12 @@ public sealed interface PunishTemplateDTO {
     @Schema(name = "PunishTemplateStep")
     @Serdeable
     @ReflectiveAccess
-    record Step(@NonNull @NotBlank String duration, int eloCost) {
+    record Step(@Nullable String duration, int eloCost, @Nullable StepKind kind) {
+
+        /** A timed punishment step, the only kind before kicks existed. */
+        public Step(String duration, int eloCost) {
+            this(duration, eloCost, StepKind.PUNISH);
+        }
     }
 
     /**

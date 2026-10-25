@@ -26,7 +26,7 @@ public class JdbcDashboardSource implements DashboardSource {
     private static final String ACTIVE_BY_SECTION = """
             SELECT a.section_key, count(*)
             FROM active_punishments a JOIN punishments p ON p.identifier = a.punishment_identifier
-            WHERE p.meta_data ->> ? IS NULL OR (p.meta_data ->> ?)::bigint >= ?
+            WHERE p.kind = 'PUNISHMENT' AND (p.meta_data ->> ? IS NULL OR (p.meta_data ->> ?)::bigint >= ?)
             GROUP BY a.section_key
             """;
     private static final String OPEN_REPORTS = "SELECT count(*) FROM reports WHERE status IN (?, ?)";

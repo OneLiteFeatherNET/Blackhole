@@ -2,6 +2,8 @@ package net.onelitefeather.blackhole.backend.punishment;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 
 import java.time.Duration;
 
@@ -12,8 +14,13 @@ import java.time.Duration;
 @Embeddable
 public class TemplateStep {
 
+    /** {@code null} for a {@link StepKind#KICK} step. */
     @Column(name = "duration")
     private String duration;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "kind", length = 16, nullable = false)
+    private StepKind kind = StepKind.PUNISH;
 
     @Column(name = "elo_cost")
     private int eloCost;
@@ -23,8 +30,17 @@ public class TemplateStep {
     }
 
     public TemplateStep(String duration, int eloCost) {
+        this(StepKind.PUNISH, duration, eloCost);
+    }
+
+    public TemplateStep(StepKind kind, String duration, int eloCost) {
+        this.kind = kind == null ? StepKind.PUNISH : kind;
         this.duration = duration;
         this.eloCost = eloCost;
+    }
+
+    public StepKind getKind() {
+        return kind;
     }
 
     /** The ISO-8601 duration text. */

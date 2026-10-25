@@ -170,7 +170,7 @@ public class PunishmentTemplateService {
         return new PunishmentTemplateEntity(
                 identifier, spec.key(), spec.reason(), spec.section(), spec.effectiveGroup(),
                 spec.escalationWindow() == null || spec.escalationWindow().isBlank() ? null : spec.escalationWindow().trim(),
-                spec.steps().stream().map(step -> new TemplateStep(step.duration().trim(), step.eloCost())).toList(),
+                spec.steps().stream().map(step -> new TemplateStep(step.kind(), step.duration() == null ? null : step.duration().trim(), step.eloCost())).toList(),
                 spec.metaData() == null ? new HashMap<>() : new HashMap<>(spec.metaData())
         );
     }
