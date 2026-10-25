@@ -424,6 +424,21 @@
             }
           }
         },
+        "machineClients": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "proxy": {
+              "type": "string"
+            },
+            "metrics": {
+              "type": "string"
+            },
+            "discord": {
+              "type": "string"
+            }
+          }
+        },
         "rolesClaimHuman": {
           "type": "string",
           "minLength": 1
