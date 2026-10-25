@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
 import { useApi } from '../api/inject'
 import type { ApiResult, Case } from '../api/types'
+import Breadcrumbs from '../components/Breadcrumbs.vue'
+import PageShell from '../components/PageShell.vue'
+import SkeletonBlock from '../components/SkeletonBlock.vue'
 import BanIdPanel from '../components/case/BanIdPanel.vue'
 import CaseHeader from '../components/case/CaseHeader.vue'
 import CaseTimeline from '../components/case/CaseTimeline.vue'
@@ -24,6 +26,13 @@ const api = useApi()
 const session = useSessionStore()
 
 const detail = useResource(() => api.caseDetail(props.reference))
+
+// The page title is the case itself; the trail back to the list is the breadcrumbs.
+const title = computed(() => (detail.data.value ? t('case.header.heading', { id: detail.data.value.shortId }) : t('case.title')))
+const crumbs = computed(() => [
+  { label: t('nav.cases'), to: '/cases' },
+  { label: detail.data.value?.shortId ?? props.reference },
+])
 const timeline = ref<InstanceType<typeof CaseTimeline> | null>(null)
 const conversation = ref<InstanceType<typeof ConversationSection> | null>(null)
 const message = ref('')
@@ -65,10 +74,12 @@ async function addNote(text: string): Promise<ApiResult<unknown>> {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
-    <RouterLink to="/cases" class="w-fit text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary">
-      {{ t('case.back') }}
-    </RouterLink>
+  <PageShell :title="title">
+    <template #breadcrumbs>
+      <Breadcrumbs :items="crumbs" />
+    </template>
+
+    <SkeletonBlock v-if="detail.loading.value && detail.data.value === null" height="12rem" />
 
     <ResourceState :loading="detail.loading.value" :error="detail.error.value" :has-data="detail.data.value !== null" @retry="detail.reload">
       <div v-if="detail.data.value" class="flex flex-col gap-6">
@@ -88,7 +99,7 @@ async function addNote(text: string): Promise<ApiResult<unknown>> {
         />
 
         <section :aria-label="t('case.notes.title')" class="flex flex-col gap-3">
-          <h3 class="text-title-medium">{{ t('case.notes.title') }}</h3>
+          <h2 class="text-title-medium">{{ t('case.notes.title') }}</h2>
           <NoteEditor v-if="session.moderator" :label="t('case.notes.newLabel')" :submit-label="t('case.notes.add')" :save="addNote" />
           <p v-else class="text-body-medium text-on-surface-variant" data-testid="notes-read-only">{{ t('case.notes.readOnly') }}</p>
         </section>
@@ -104,5 +115,5 @@ async function addNote(text: string): Promise<ApiResult<unknown>> {
     </ResourceState>
 
     <MdSnackbar :open="message !== ''" :message="message" @close="message = ''" />
-  </div>
+  </PageShell>
 </template>

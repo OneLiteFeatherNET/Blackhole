@@ -36,8 +36,8 @@ export const routes: RouteRecordRaw[] = [
   { path: '/admin', name: 'admin', component: AdminView, meta: { titleKey: 'nav.administration', admin: true } },
   // The staff accounts tab of the administration area; the same page until the tabs of the area land.
   { path: '/admin/staff', name: 'admin-staff', component: AdminView, meta: { titleKey: 'nav.administration', admin: true, nav: '/admin' } },
-  { path: '/cases', name: 'cases', component: CasesView, meta: { titleKey: 'nav.cases' } },
-  { path: '/cases/:reference', name: 'case', component: CaseView, props: true, meta: { titleKey: 'case.title', nav: '/cases' } },
+  { path: '/cases', name: 'cases', component: CasesView, meta: { titleKey: 'nav.cases', pageShell: true } },
+  { path: '/cases/:reference', name: 'case', component: CaseView, props: true, meta: { titleKey: 'case.title', nav: '/cases', pageShell: true } },
   { path: '/no-access', name: 'no-access', component: NoAccessView, meta: { titleKey: 'auth.noAccess.title' } },
   { path: '/auth/callback', name: 'auth-callback', component: AuthCallbackView, meta: { public: true, titleKey: 'auth.signingIn' } },
   { path: '/auth/error', name: 'auth-error', component: AuthErrorView, meta: { public: true, titleKey: 'auth.error.heading' } },
