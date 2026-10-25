@@ -50,45 +50,45 @@ Commit: `feat(punishment): add the kick punishment kind and template step kind`.
 
 Branch `feat/kick-api`. Depends on PR 1.
 
-- [ ] 2.1 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/kick/KickStatusTest.java`:
+- [x] 2.1 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/kick/KickStatusTest.java`:
   a fixed `Clock`; `PENDING` before `deadlineAt`; `NOT_ONLINE` at and after `deadlineAt` with no
   positive ack; `DELIVERED` on a positive ack even before the deadline; `NOT_ON_TARGET` when only
   `found=true, moved=false` is stored.
-- [ ] 2.2 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/kick/KickRequestValidatorTest.java`:
+- [x] 2.2 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/kick/KickRequestValidatorTest.java`:
   reason 1..200; UUID, IP and Ban ID refused (reuse `PiiGuard`); scope SERVER/SECTION without target
   is 422 `KICK_TARGET_INVALID`; missing `Idempotency-Key` refused.
-- [ ] 2.3 Create the package `backend/src/main/java/net/onelitefeather/blackhole/backend/kick/` with:
+- [x] 2.3 Create the package `backend/src/main/java/net/onelitefeather/blackhole/backend/kick/` with:
   `controller/KickApi.java` (OpenAPI annotations, routes `POST /kick`, `POST /kick/mass`,
   `GET /kick/{id}`, `POST /kick/{id}/deliveries`), `controller/KickController.java` (thin, one service
   call per method), `dto/KickDTO.java` (sealed marker interface: `CreateRequest`, `MassCreateRequest`,
   `Accepted`, `Response`, `Ack`, `Error`), `service/KickService.java` (`@Singleton`, returns the
   `Error` variant, never throws for expected failures), `KickStatus.java`, `KickValidator.java`,
   `KickDeadline.java` (pure function of `Clock`, `blackhole.kick.ack-timeout`).
-- [ ] 2.4 Red then implement `backend/src/test/java/net/onelitefeather/blackhole/backend/kick/KickDeliveryIdempotencyTest.java`:
+- [x] 2.4 Red then implement `backend/src/test/java/net/onelitefeather/blackhole/backend/kick/KickDeliveryIdempotencyTest.java`:
   the same proxy acknowledging twice stores one `kick_delivery` row (JDBC, the existing test support).
-- [ ] 2.5 Red then implement `backend/src/test/java/net/onelitefeather/blackhole/backend/kick/KickNotActiveIntegrationTest.java`:
+- [x] 2.5 Red then implement `backend/src/test/java/net/onelitefeather/blackhole/backend/kick/KickNotActiveIntegrationTest.java`:
   a kick is not in active lists, not enforced on login, counted for escalation, and a repeated
   `Idempotency-Key` writes nothing; a kick of a player already permanently banned in the target
   section is accepted with a `warnings` entry (202, not 409) and leaves the ban unchanged.
-- [ ] 2.6 Red then implement `backend/src/test/java/net/onelitefeather/blackhole/backend/kick/MassKickWritesNoPunishmentTest.java`:
+- [x] 2.6 Red then implement `backend/src/test/java/net/onelitefeather/blackhole/backend/kick/MassKickWritesNoPunishmentTest.java`:
   `POST /kick/mass` writes one `kick_action` and no `punishments` row, no `case_event`, no ELO event.
-- [ ] 2.7 Events: add `punishment.kick` and `kick.mass` to the subject builder used by
+- [x] 2.7 Events: add `punishment.kick` and `kick.mass` to the subject builder used by
   `backend/src/main/java/net/onelitefeather/blackhole/backend/events/` (follow the existing
   `DomainEvent` pattern); payload records `KickEvent` and `MassKickEvent` contain no reason text.
   Red first: `backend/src/test/java/net/onelitefeather/blackhole/backend/kick/KickEventsNoLeakTest.java`
   (scans published payloads for UUIDs, IPs and reason text; a captured appender asserts a publish
   failure is logged without the reason).
-- [ ] 2.8 `CaseTimeline.kicked(...)` in `backend/src/main/java/net/onelitefeather/blackhole/backend/casetimeline/CaseTimeline.java`
+- [x] 2.8 `CaseTimeline.kicked(...)` in `backend/src/main/java/net/onelitefeather/blackhole/backend/casetimeline/CaseTimeline.java`
   with dedupe key `kicked:<id>`; add `Kicked(scope, target, eloCost)` to `CaseEventPayload.java`
   and to `CaseDrafts` (both the live flow and the reconciler). Red first:
   `backend/src/test/java/net/onelitefeather/blackhole/backend/casetimeline/KickedEventTest.java`.
-- [ ] 2.9 Client spec: bump to the next free `client/specs/blackhole-api-*.yml`, add `KICK` to the
+- [x] 2.9 Client spec: bump to the next free `client/specs/blackhole-api-*.yml`, add `KICK` to the
   punishment and template step kind enums, add the kick paths and schemas, and set `inputSpec` in
   `client/build.gradle.kts`. Run `./gradlew :client:openApiGenerate` and `./gradlew :client:compileJava`.
   Do not edit generated sources.
-- [ ] 2.10 `application.yml`: add `blackhole.kick.ack-timeout: ${BLACKHOLE_KICK_ACK_TIMEOUT:PT5S}` with
+- [x] 2.10 `application.yml`: add `blackhole.kick.ack-timeout: ${BLACKHOLE_KICK_ACK_TIMEOUT:PT5S}` with
   a comment (per the env-var convention).
-- [ ] 2.11 Tests green: `./gradlew :backend:test` and `./gradlew :client:compileJava`.
+- [x] 2.11 Tests green: `./gradlew :backend:test` and `./gradlew :client:compileJava`.
 
 Commit: `feat(punishment): add the kick routes, delivery acknowledgement and NATS events`.
 Body notes: `BREAKING` for the generated client (enum values), see `design.md` decision 9.
