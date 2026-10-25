@@ -23,6 +23,9 @@ secretKeyRef entries in the Deployment.
       "BLACKHOLE_AUTH_MACHINE_ROLE_PROXY" .Values.auth.machineRoles.proxy
       "BLACKHOLE_AUTH_MACHINE_ROLE_METRICS" .Values.auth.machineRoles.metrics
       "BLACKHOLE_AUTH_MACHINE_ROLE_DISCORD" .Values.auth.machineRoles.discord
+      "BLACKHOLE_AUTH_MACHINE_CLIENTS_PROXY" .Values.auth.machineClients.proxy
+      "BLACKHOLE_AUTH_MACHINE_CLIENTS_METRICS" .Values.auth.machineClients.metrics
+      "BLACKHOLE_AUTH_MACHINE_CLIENTS_DISCORD" .Values.auth.machineClients.discord
       "BLACKHOLE_EVIDENCE_FILES_STORAGE" "s3"
       "BLACKHOLE_EVIDENCE_FILES_MAX_VIDEO_BYTES" $v.evidence.maxVideoBytes
       "BLACKHOLE_EVIDENCE_S3_ENDPOINT" .Values.s3.endpoint

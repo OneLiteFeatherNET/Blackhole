@@ -43,6 +43,16 @@ public final class TestJwtIssuer {
     public static final String METRICS_ROLE = "Blackhole.Metrics";
     public static final String DISCORD_ROLE = "Blackhole.Discord";
 
+    /**
+     * Fake client ids (the {@code azp} of app-only tokens) the test environment allow-lists for each
+     * machine role; they match docker/mock-oauth/config.json.
+     */
+    public static final String PROXY_CLIENT = "00000000-0000-4000-8000-0000000000c1";
+    public static final String METRICS_CLIENT = "00000000-0000-4000-8000-0000000000c2";
+    public static final String DISCORD_CLIENT = "00000000-0000-4000-8000-0000000000c3";
+    /** A client id on no allow-list. */
+    public static final String UNLISTED_CLIENT = "00000000-0000-4000-8000-0000000000ee";
+
     private static final Duration LIFETIME = Duration.ofHours(1);
 
     private final Clock clock;
@@ -63,7 +73,11 @@ public final class TestJwtIssuer {
 
     /** Properties that make the application trust this issuer's key. */
     public Map<String, Object> contextProperties() {
-        return Map.of("blackhole.test.jwks", new JWKSet(this.key.toPublicJWK()).toString());
+        return Map.of(
+                "blackhole.test.jwks", new JWKSet(this.key.toPublicJWK()).toString(),
+                "blackhole.security.roles.machine-clients.proxy", PROXY_CLIENT,
+                "blackhole.security.roles.machine-clients.metrics", METRICS_CLIENT,
+                "blackhole.security.roles.machine-clients.discord", DISCORD_CLIENT);
     }
 
     /** A token under construction; start from {@link #delegated()} or {@link #appOnly()}. */
@@ -92,15 +106,15 @@ public final class TestJwtIssuer {
     }
 
     public String proxy() {
-        return appOnly().roles(PROXY_ROLE).sign();
+        return appOnly().azp(TestJwtIssuer.PROXY_CLIENT).azp(PROXY_CLIENT).roles(PROXY_ROLE).sign();
     }
 
     public String discord() {
-        return appOnly().roles(DISCORD_ROLE).sign();
+        return appOnly().azp(TestJwtIssuer.DISCORD_CLIENT).azp(DISCORD_CLIENT).roles(DISCORD_ROLE).sign();
     }
 
     public String metrics() {
-        return appOnly().roles(METRICS_ROLE).sign();
+        return appOnly().azp(METRICS_CLIENT).roles(METRICS_ROLE).sign();
     }
 
     private Token base() {
@@ -134,6 +148,11 @@ public final class TestJwtIssuer {
         public Token without(String name) {
             this.claims.remove(name);
             return this;
+        }
+
+        /** The authorized party: the client id of the app that obtained an app-only token. */
+        public Token azp(String clientId) {
+            return claim("azp", clientId);
         }
 
         public Token groups(String... groups) {

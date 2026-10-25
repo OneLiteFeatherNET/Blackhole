@@ -53,7 +53,7 @@ class DiscordTicketApiIntegrationTest extends ApiIntegrationTest {
     }
 
     private String bot() {
-        return this.jwt.appOnly().claim("oid", UUID.randomUUID().toString()).roles(TestJwtIssuer.DISCORD_ROLE).sign();
+        return this.jwt.appOnly().azp(TestJwtIssuer.DISCORD_CLIENT).claim("oid", UUID.randomUUID().toString()).roles(TestJwtIssuer.DISCORD_ROLE).sign();
     }
 
     private String moderator(UUID oid) {

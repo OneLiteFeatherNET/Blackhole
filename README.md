@@ -140,7 +140,9 @@ order (between steps 2 and 4 the plugin and UI cannot reach the backend):
 2. **Backend.** Set `BLACKHOLE_AUTH_TENANT_ID`, `BLACKHOLE_AUTH_AUDIENCE` (API client id),
    `BLACKHOLE_AUTH_ISSUER` (`https://login.microsoftonline.com/<tenant-id>/v2.0`),
    `BLACKHOLE_AUTH_JWKS_URL` (`https://login.microsoftonline.com/<tenant-id>/discovery/v2.0/keys`) and
-   `BLACKHOLE_AUTH_ROLE_ADMIN`, `_MODERATOR`, `_VIEWER`, `_METRICS` (group object ids). The defaults
+   `BLACKHOLE_AUTH_ROLE_ADMIN`, `_MODERATOR`, `_VIEWER`, `_METRICS` (group object ids) and
+   `BLACKHOLE_AUTH_MACHINE_CLIENTS_PROXY`, `_METRICS`, `_DISCORD` (client ids, the `azp` of the
+   app-only tokens; a machine role is refused for any other client). The defaults
    point at a local mock server and are refused outside dev. Optional: `BLACKHOLE_AUTH_ROLES_CLAIM_HUMAN`
    (`groups`), `BLACKHOLE_AUTH_ROLES_CLAIM_MACHINE` (`roles`), `BLACKHOLE_AUTH_MACHINE_ROLE_PROXY`,
    `BLACKHOLE_AUTH_MACHINE_ROLE_METRICS`, `BLACKHOLE_DOCS_ENABLED` (Swagger UI, default `false`), `BLACKHOLE_STAFF_LINK_TTL` (link code lifetime,

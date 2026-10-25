@@ -1,3 +1,10 @@
 blackhole:
   docs:
     enabled: true
+  security:
+    roles:
+      # Fake client ids (azp) emitted by docker/mock-oauth/config.json for the machine callbacks.
+      machine-clients:
+        proxy: ${BLACKHOLE_AUTH_MACHINE_CLIENTS_PROXY:00000000-0000-4000-8000-0000000000c1}
+        metrics: ${BLACKHOLE_AUTH_MACHINE_CLIENTS_METRICS:00000000-0000-4000-8000-0000000000c2}
+        discord: ${BLACKHOLE_AUTH_MACHINE_CLIENTS_DISCORD:00000000-0000-4000-8000-0000000000c3}

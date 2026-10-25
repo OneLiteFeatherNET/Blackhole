@@ -97,7 +97,7 @@ class ChatApiIntegrationTest extends ApiIntegrationTest {
     }
 
     private String discordBot() {
-        return this.jwt.appOnly().claim("oid", UUID.randomUUID().toString()).roles(net.onelitefeather.blackhole.backend.security.TestJwtIssuer.DISCORD_ROLE).sign();
+        return this.jwt.appOnly().azp(net.onelitefeather.blackhole.backend.security.TestJwtIssuer.DISCORD_CLIENT).claim("oid", UUID.randomUUID().toString()).roles(net.onelitefeather.blackhole.backend.security.TestJwtIssuer.DISCORD_ROLE).sign();
     }
 
     @Test

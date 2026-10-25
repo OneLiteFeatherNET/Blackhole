@@ -19,7 +19,8 @@ import java.util.Set;
  * <p>The token kind selects the claim: a delegated token (it carries {@code scp}) is read from the
  * human claim and can only be granted ADMIN, MODERATOR, VIEWER or METRICS; an app-only token is read
  * from the machine claim and can only be granted PROXY, METRICS or DISCORD. A value in the claim of the
- * other kind grants nothing. ADMIN implies MODERATOR implies VIEWER.
+ * other kind grants nothing. An app-only token is granted a machine role only when its {@code azp}
+ * is on the allow-list of that role ({@link MachineClientProperties}). ADMIN implies MODERATOR implies VIEWER.
  *
  * <p>A delegated token whose group list was replaced by an overage marker has no role: the groups
  * are not resolved through Microsoft Graph.
@@ -34,10 +35,14 @@ public class BlackholeRolesFinder implements RolesFinder {
     static final String GROUPS_CLAIM = "groups";
     static final String OBJECT_ID_CLAIM = "oid";
 
-    private final RoleMappingProperties mapping;
+    static final String AUTHORIZED_PARTY_CLAIM = "azp";
 
-    public BlackholeRolesFinder(RoleMappingProperties mapping) {
+    private final RoleMappingProperties mapping;
+    private final MachineClientProperties machineClients;
+
+    public BlackholeRolesFinder(RoleMappingProperties mapping, MachineClientProperties machineClients) {
         this.mapping = mapping;
+        this.machineClients = machineClients;
     }
 
     @Override
@@ -61,9 +66,10 @@ public class BlackholeRolesFinder implements RolesFinder {
         }
         Set<String> claimValues = values(claims.get(this.mapping.claimMachine()));
         Set<String> roles = new LinkedHashSet<>();
-        grant(roles, claimValues, this.mapping.machineProxy(), Roles.PROXY);
-        grant(roles, claimValues, this.mapping.machineMetrics(), Roles.METRICS);
-        grant(roles, claimValues, this.mapping.machineDiscord(), Roles.DISCORD);
+        Object azp = claims.get(AUTHORIZED_PARTY_CLAIM);
+        grantMachine(roles, claimValues, azp, this.mapping.machineProxy(), this.machineClients.proxy(), Roles.PROXY);
+        grantMachine(roles, claimValues, azp, this.mapping.machineMetrics(), this.machineClients.metrics(), Roles.METRICS);
+        grantMachine(roles, claimValues, azp, this.mapping.machineDiscord(), this.machineClients.discord(), Roles.DISCORD);
         return List.copyOf(roles);
     }
 
@@ -84,6 +90,20 @@ public class BlackholeRolesFinder implements RolesFinder {
             return true;
         }
         return claims.get("_claim_names") instanceof Map<?, ?> names && names.containsKey(GROUPS_CLAIM);
+    }
+
+    /** Grants a machine role only to an allow-listed client; {@code appid} is never read. */
+    private static void grantMachine(Set<String> roles, Set<String> claimValues, Object azp,
+                                     List<String> accepted, List<String> allowedClients, String role) {
+        if (!(azp instanceof String client) || client.isBlank()
+                || allowedClients.stream().noneMatch(allowed -> client.equals(allowed.trim()))) {
+            if (accepted.stream().anyMatch(value -> claimValues.contains(value.trim()))) {
+                LOG.warn("App-only token of client {} carries the {} app role but is not an allowed client: no role granted",
+                        azp, role);
+            }
+            return;
+        }
+        grant(roles, claimValues, accepted, role);
     }
 
     private static void grant(Set<String> roles, Set<String> claimValues, List<String> accepted, String role) {
