@@ -1,7 +1,7 @@
 import { flushPromises } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import type { StaffLink } from '../../api/types'
-import { fail, mockApi, mountWithApp, ok } from '../../test/mount'
+import { chooseRowMenuItem, fail, mockApi, mountWithApp, ok } from '../../test/mount'
 import StaffLinksPanel from './StaffLinksPanel.vue'
 
 const ada: StaffLink = { oid: '00000000-0000-4000-8000-0000000000b2', displayName: 'Ada', minecraftUuid: '11111111-1111-4111-8111-111111111111', linkedAt: Date.UTC(2026, 9, 23) }
@@ -29,6 +29,15 @@ describe('StaffLinksPanel', () => {
     wrapper.unmount()
   })
 
+  it('offers the removal in the row menu, not as a button in the row', async () => {
+    const { wrapper } = await setup().mount()
+
+    const buttons = wrapper.findAll('tbody tr')[0]!.findAll('button').map((button) => button.attributes('aria-haspopup'))
+    expect(buttons, 'only the menu trigger').toEqual(['menu'])
+
+    wrapper.unmount()
+  })
+
   it('says so when nothing is linked', async () => {
     const { wrapper } = await setup({ staffLinks: vi.fn(async () => ok([])) }).mount()
 
@@ -41,7 +50,7 @@ describe('StaffLinksPanel', () => {
     const { api, mount } = setup()
     const { wrapper } = await mount()
 
-    await wrapper.get(`[data-testid="unlink-${ada.oid}"]`).trigger('click')
+    await chooseRowMenuItem(wrapper, 0, 'Remove link')
     await wrapper.get('[data-testid="cancel"]').trigger('click')
 
     expect(api.unlinkStaffLink).not.toHaveBeenCalled()
@@ -54,7 +63,7 @@ describe('StaffLinksPanel', () => {
     const { api, mount } = setup({ staffLinks: list })
     const { wrapper } = await mount()
 
-    await wrapper.get(`[data-testid="unlink-${ada.oid}"]`).trigger('click')
+    await chooseRowMenuItem(wrapper, 0, 'Remove link')
     expect(wrapper.text()).toContain('Remove the link of Ada?')
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
@@ -68,7 +77,7 @@ describe('StaffLinksPanel', () => {
   it('keeps the dialog open with the backend message when removing fails', async () => {
     const { wrapper } = await setup({ unlinkStaffLink: vi.fn(async () => fail('link not found', 404, 'NOT_FOUND')) }).mount()
 
-    await wrapper.get(`[data-testid="unlink-${ada.oid}"]`).trigger('click')
+    await chooseRowMenuItem(wrapper, 0, 'Remove link')
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
 

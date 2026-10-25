@@ -34,7 +34,7 @@ const reportedAt = computed(() => {
 <template>
   <section aria-labelledby="cloudnet-title" class="flex flex-col gap-4" data-testid="cloudnet-catalogue">
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <h2 id="cloudnet-title" class="text-title-large">{{ t('cloudnetCatalogue.title') }}</h2>
+      <h2 id="cloudnet-title" class="text-title-medium">{{ t('cloudnetCatalogue.title') }}</h2>
       <MdButton variant="outlined" data-testid="reload" :disabled="catalogue.loading.value" @click="catalogue.reload">{{ t('cloudnetCatalogue.reload') }}</MdButton>
     </div>
     <p class="text-body-large text-on-surface-variant">{{ t('cloudnetCatalogue.intro') }}</p>

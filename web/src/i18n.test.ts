@@ -32,6 +32,22 @@ describe('terminology of the configuration pages', () => {
   })
 })
 
+/** Every German text value, without the keys: a key such as `banner` is not wording. */
+function leafValues(value: unknown): string[] {
+  if (typeof value === 'string') return [value]
+  if (typeof value !== 'object' || value === null) return []
+  return Object.values(value).flatMap((child) => leafValues(child))
+}
+
+describe('German ban wording follows the glossary', () => {
+  // "banned-players.json" is a file name the import reads, so it is not wording.
+  it('names a ban Sperre and bans Sperren, never Bann or Banns', () => {
+    const offending = leafValues(de).filter((text) => /bann(?!ed-)/i.test(text))
+
+    expect(offending, 'German texts that still say Bann').toEqual([])
+  })
+})
+
 describe('default language', () => {
   afterEach(() => {
     i18n.global.locale.value = 'en'

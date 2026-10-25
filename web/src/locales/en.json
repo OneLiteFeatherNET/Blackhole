@@ -770,7 +770,12 @@
   },
   "admin": {
     "title": "Administration",
-    "intro": "Tools for administrators."
+    "intro": "Tools for administrators.",
+    "tabs": {
+      "staff": "Staff accounts",
+      "imports": "Imports",
+      "cloudnet": "CloudNet"
+    }
   },
   "staffActors": {
     "title": "Staff",

@@ -1,7 +1,7 @@
 import { flushPromises } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import type { DiscordLink } from '../../api/types'
-import { fail, mockApi, mountWithApp, ok } from '../../test/mount'
+import { chooseRowMenuItem, fail, mockApi, mountWithApp, ok } from '../../test/mount'
 import DiscordLinksPanel from './DiscordLinksPanel.vue'
 
 const staff: DiscordLink = { id: '00000000-0000-4000-8000-0000000000d1', kind: 'STAFF', subject: '00000000-0000-4000-8000-0000000000b2', displayName: 'Ada', linkedAt: Date.UTC(2026, 9, 23) }
@@ -40,6 +40,15 @@ describe('DiscordLinksPanel', () => {
     wrapper.unmount()
   })
 
+  it('offers the removal in the row menu, not as a button in the row', async () => {
+    const { wrapper } = await setup().mount()
+
+    const buttons = wrapper.findAll('tbody tr')[0]!.findAll('button').map((button) => button.attributes('aria-haspopup'))
+    expect(buttons, 'only the menu trigger').toEqual(['menu'])
+
+    wrapper.unmount()
+  })
+
   it('says so when nothing is linked', async () => {
     const { wrapper } = await setup({ discordLinks: vi.fn(async () => ok([])) }).mount()
 
@@ -61,7 +70,7 @@ describe('DiscordLinksPanel', () => {
     const { api, mount } = setup()
     const { wrapper } = await mount()
 
-    await wrapper.get(`[data-testid="discord-remove-${staff.id}"]`).trigger('click')
+    await chooseRowMenuItem(wrapper, 0, 'Remove link')
     await wrapper.get('[data-testid="discord-cancel"]').trigger('click')
 
     expect(api.removeDiscordLink).not.toHaveBeenCalled()
@@ -74,7 +83,7 @@ describe('DiscordLinksPanel', () => {
     const { api, mount } = setup({ discordLinks: list })
     const { wrapper } = await mount()
 
-    await wrapper.get(`[data-testid="discord-remove-${staff.id}"]`).trigger('click')
+    await chooseRowMenuItem(wrapper, 0, 'Remove link')
     expect(wrapper.text()).toContain('Remove the Discord link of Ada?')
     await wrapper.get('[data-testid="discord-confirm"]').trigger('click')
     await flushPromises()
@@ -88,7 +97,7 @@ describe('DiscordLinksPanel', () => {
   it('keeps the dialog open with the backend message when removing fails', async () => {
     const { wrapper } = await setup({ removeDiscordLink: vi.fn(async () => fail('link not found', 404, 'NOT_FOUND')) }).mount()
 
-    await wrapper.get(`[data-testid="discord-remove-${staff.id}"]`).trigger('click')
+    await chooseRowMenuItem(wrapper, 0, 'Remove link')
     await wrapper.get('[data-testid="discord-confirm"]').trigger('click')
     await flushPromises()
 

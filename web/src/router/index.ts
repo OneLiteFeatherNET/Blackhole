@@ -33,9 +33,11 @@ export const routes: RouteRecordRaw[] = [
   { path: '/reports', name: 'reports', component: ReportsView, meta: { titleKey: 'nav.reports', pageShell: true } },
   { path: '/reports/:id', name: 'report', component: ReportDetailView, props: true, meta: { titleKey: 'reports.detail.title', nav: '/reports', pageShell: true } },
   { path: '/appeals', name: 'appeals', component: AppealsView, meta: { titleKey: 'nav.appeals', pageShell: true } },
-  { path: '/admin', name: 'admin', component: AdminView, meta: { titleKey: 'nav.administration', admin: true } },
-  // The staff accounts tab of the administration area; the same page until the tabs of the area land.
-  { path: '/admin/staff', name: 'admin-staff', component: AdminView, meta: { titleKey: 'nav.administration', admin: true, nav: '/admin' } },
+  // The administration area: one page with three tabs, each a route. `/admin` opens the staff accounts tab.
+  { path: '/admin', name: 'admin', component: AdminView, meta: { titleKey: 'nav.administration', admin: true, pageShell: true, adminTab: 'staff' } },
+  { path: '/admin/staff', name: 'admin-staff', component: AdminView, meta: { titleKey: 'nav.administration', admin: true, nav: '/admin', pageShell: true, adminTab: 'staff' } },
+  { path: '/admin/imports', name: 'admin-imports', component: AdminView, meta: { titleKey: 'nav.administration', admin: true, nav: '/admin', pageShell: true, adminTab: 'imports' } },
+  { path: '/admin/cloudnet', name: 'admin-cloudnet', component: AdminView, meta: { titleKey: 'nav.administration', admin: true, nav: '/admin', pageShell: true, adminTab: 'cloudnet' } },
   { path: '/cases', name: 'cases', component: CasesView, meta: { titleKey: 'nav.cases', pageShell: true } },
   { path: '/cases/:reference', name: 'case', component: CaseView, props: true, meta: { titleKey: 'case.title', nav: '/cases', pageShell: true } },
   { path: '/no-access', name: 'no-access', component: NoAccessView, meta: { titleKey: 'auth.noAccess.title' } },

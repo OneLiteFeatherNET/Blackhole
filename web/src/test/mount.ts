@@ -70,3 +70,11 @@ export async function mountWithApp(component: Component, options: { api?: Blackh
   await flushPromises()
   return { wrapper, router }
 }
+
+/** Opens the overflow of a table row and chooses the item with the given label (the row pattern's menu). */
+export async function chooseRowMenuItem(wrapper: VueWrapper, row: number, label: string): Promise<void> {
+  await wrapper.findAll('tbody tr')[row]!.get('button[aria-haspopup="menu"]').trigger('click')
+  const item = wrapper.findAll('[role="menuitem"]').find((candidate) => candidate.text() === label)
+  if (!item) throw new Error(`no row menu item "${label}"`)
+  await item.trigger('click')
+}

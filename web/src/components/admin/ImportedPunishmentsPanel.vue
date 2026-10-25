@@ -67,7 +67,7 @@ async function confirm(): Promise<void> {
 
 <template>
   <section aria-labelledby="imported-punishments-title" class="flex flex-col gap-3" data-testid="imported-punishments">
-    <h2 id="imported-punishments-title" class="text-title-large">{{ t('importedPunishments.title') }}</h2>
+    <h2 id="imported-punishments-title" class="text-title-medium">{{ t('importedPunishments.title') }}</h2>
     <p class="text-body-large text-on-surface-variant">{{ t('importedPunishments.intro') }}</p>
     <p v-if="templates.error.value" role="alert" data-testid="templates-problem" class="rounded-md-md bg-error-container p-3 text-on-error-container">
       {{ templates.error.value.message }}
