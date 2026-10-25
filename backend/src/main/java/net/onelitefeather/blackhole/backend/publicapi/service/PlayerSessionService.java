@@ -27,7 +27,7 @@ import java.util.Optional;
 /**
  * Logs a player in with the Ban ID, checks a session token on every request and ends sessions. The Ban ID
  * exists here as a method argument only: it is looked up and dropped, never stored, logged or counted. The
- * token is shown once; only its SHA-256 is stored. Every time is read from the injected clock.
+ * token and the CSRF value are shown once; only their SHA-256 is stored. Every time is read from the injected clock.
  */
 @Singleton
 public class PlayerSessionService {
@@ -94,7 +94,7 @@ public class PlayerSessionService {
         String csrf = randomText(CSRF_BYTES);
         long now = this.clock.millis();
         long expiresAt = now + this.properties.absolute().toMillis();
-        this.store.insert(hash(token), identifier, scope, csrf, now, expiresAt);
+        this.store.insert(hash(token), identifier, scope, hash(csrf), now, expiresAt);
         count(leaked ? "limited" : "success");
         return new PublicSessionDTO.Created(token, csrf, Instant.ofEpochMilli(expiresAt).toString(), scope);
     }
@@ -112,6 +112,18 @@ public class PlayerSessionService {
     /** The session behind a request, for the portal's bootstrap. */
     public PublicSessionDTO.Current current(PlayerSession session) {
         return new PublicSessionDTO.Current(session.csrf(), Instant.ofEpochMilli(session.expiresAt()).toString(), session.scope());
+    }
+
+    /**
+     * Whether the raw CSRF value a request presents belongs to the session. The store holds only the SHA-256 of
+     * the value, so the presented value is hashed and the two digests are compared in constant time.
+     */
+    public boolean csrfMatches(PlayerSession session, @Nullable String presented) {
+        if (presented == null || presented.isEmpty()) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                hash(presented).getBytes(StandardCharsets.UTF_8), session.csrf().getBytes(StandardCharsets.UTF_8));
     }
 
     /** Ends the session; the token stops working at once. */

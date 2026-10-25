@@ -28,8 +28,8 @@ reads except with explicit offsets of at least 30 seconds, and they assert on be
 
 ## 4. Hash the portal CSRF token at rest (PR type `fix(security)`)
 
-- [ ] 4.1 Write a failing test in `publicapi/PlayerSessionServiceTest` that the stored `csrf` value is a SHA-256 digest and never the raw token, and that a request with the correct raw token still passes. Verify: test fails first.
-- [ ] 4.2 Add the new Flyway migration `V25__player_session_csrf_hash.sql` (append-only; V16 is not edited) that replaces each `player_session.csrf` with its SHA-256 digest, and change `PlayerSessionService.java:94` to store the digest. Verify: `./gradlew :backend:test` is green, and the migration runs against a scratch PostgreSQL (see `.claude/rules/database.md`).
+- [x] 4.1 Write a failing test in `publicapi/PlayerSessionServiceTest` that the stored `csrf` value is a SHA-256 digest and never the raw token, and that a request with the correct raw token still passes. Verify: test fails first.
+- [x] 4.2 Add the new Flyway migration `V25__player_session_csrf_hash.sql` (append-only; V16 is not edited) that replaces each `player_session.csrf` with its SHA-256 digest, and change `PlayerSessionService.java:94` to store the digest. Verify: `./gradlew :backend:test` is green, and the migration runs against a scratch PostgreSQL (see `.claude/rules/database.md`).
 
 ## 5. Panel OIDC client (PR type `fix(security)`, `web/`)
 

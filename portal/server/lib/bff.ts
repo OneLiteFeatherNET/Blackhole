@@ -297,6 +297,11 @@ export function createBffHandler({ config, fetchImpl }: Declared) {
     if (upstream.status === 204) return respond(event, 204)
     const json = await parseJson(upstream)
     if (json === undefined) return fail(event, 503, 'UNAVAILABLE')
+    if (route.path === '/api/session' && route.method === 'GET' && typeof json === 'object' && json !== null) {
+      // The backend keeps only a digest of the CSRF value and cannot answer it; the raw value is in the cookie.
+      const csrf = getCookie(event, CSRF_COOKIE)
+      if (csrf !== undefined && CSRF_SHAPE.test(csrf)) return respond(event, 200, { ...json, csrf })
+    }
     return respond(event, 200, json)
   })
 }
