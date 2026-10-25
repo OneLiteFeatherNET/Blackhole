@@ -113,33 +113,33 @@ Commit: `feat(template): apply kick steps with ELO cost and escalation`.
 Branch `feat/kick-velocity`. Depends on PR 2 (client bump merged) and on the NATS subscriber of
 `switch-event-bus-to-nats` being on `main`; if it is not, stop and report.
 
-- [ ] 4.1 Red: `velocity/src/test/java/net/onelitefeather/blackhole/velocity/command/KickCommandParsingTest.java`:
+- [x] 4.1 Red: `velocity/src/test/java/net/onelitefeather/blackhole/velocity/command/KickCommandParsingTest.java`:
   `/kick <user> [server|section] <reason>` parses target and reason; missing reason is refused.
-- [ ] 4.2 Red: `velocity/src/test/java/net/onelitefeather/blackhole/velocity/enforcement/KickHandlerDecisionTest.java`
+- [x] 4.2 Red: `velocity/src/test/java/net/onelitefeather/blackhole/velocity/enforcement/KickHandlerDecisionTest.java`
   with a stub proxy facade (no real server): not connected gives `found=false`; NETWORK disconnects
   with the kick screen; a covered server moves to the fallback; an uncovered server gives
   `NOT_ON_TARGET`; fallback equal to the target disconnects.
-- [ ] 4.3 Red: `velocity/src/test/java/net/onelitefeather/blackhole/velocity/enforcement/FallbackMoveTest.java`:
+- [x] 4.3 Red: `velocity/src/test/java/net/onelitefeather/blackhole/velocity/enforcement/FallbackMoveTest.java`:
   the server punishment path and the kick path use the same fallback rule (`moveToFallback`).
-- [ ] 4.4 Extract the fallback part of `velocity/src/main/java/net/onelitefeather/blackhole/velocity/enforcement/EnforcementActions.java`
+- [x] 4.4 Extract the fallback part of `velocity/src/main/java/net/onelitefeather/blackhole/velocity/enforcement/EnforcementActions.java`
   (`moveOffCoveredServer`, around lines 89-110) into `moveToFallback(player, screenSupplier)`. This is a
   refactor inside `feat(velocity)`; the existing enforcement tests must stay green before the new code.
-- [ ] 4.5 `velocity/src/main/java/net/onelitefeather/blackhole/velocity/enforcement/KickHandler.java`:
+- [x] 4.5 `velocity/src/main/java/net/onelitefeather/blackhole/velocity/enforcement/KickHandler.java`:
   handles `punishment.kick` and `kick.mass`, calls `BackendGateway` to read the reason, acts, then
   acknowledges. Add `kick(...)`, `kickStatus(...)`, `acknowledgeKick(...)` to
   `velocity/src/main/java/net/onelitefeather/blackhole/velocity/punish/BackendGateway.java` and
   implement them in `HttpBackendGateway.java`.
-- [ ] 4.6 `velocity/src/main/java/net/onelitefeather/blackhole/velocity/command/KickCommand.java` and
+- [x] 4.6 `velocity/src/main/java/net/onelitefeather/blackhole/velocity/command/KickCommand.java` and
   `KickAllCommand.java` (Cloud, `requiredSender = Player.class`, permissions `blackhole.kick` and
   `blackhole.kick.mass`, suggestions for players and targets). Calls run on the async pool; the
   result is polled with a delay, never on the server thread. Red first: `KickCommandAsyncTest.java`
   (no blocking call on the calling thread; the poll stops when settled).
-- [ ] 4.7 `velocity/src/main/java/net/onelitefeather/blackhole/velocity/component/PunishmentScreens.java`:
+- [x] 4.7 `velocity/src/main/java/net/onelitefeather/blackhole/velocity/component/PunishmentScreens.java`:
   add `Surface.KICK`, English only. Red first: `PunishmentScreensKickTest.java` (German client gets English).
-- [ ] 4.8 Subscribe to `blackhole.events.punishment.kick` and `blackhole.events.kick.mass` in the NATS
+- [x] 4.8 Subscribe to `blackhole.events.punishment.kick` and `blackhole.events.kick.mass` in the NATS
   subscriber (the existing class from `switch-event-bus-to-nats`); the `punishment.*` cache path
   ignores the `kick` suffix. Red first: `KickSubscriptionCacheTest.java`.
-- [ ] 4.9 Tests green: `./gradlew :velocity:test`.
+- [x] 4.9 Tests green: `./gradlew :velocity:test`.
 
 Commit: `feat(velocity): add the kick and kickall commands and the kick handler`.
 Body notes: `BREAKING` for the plugin: it needs the kick-aware backend and client.
