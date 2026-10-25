@@ -29,7 +29,19 @@ public enum ErrorKind {
     INVALID_CODE(HttpStatus.BAD_REQUEST),
 
     /** A dependency the request needs, such as the shared cache, is down; the caller may retry (503). */
-    UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE);
+    UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE),
+
+    /** A staff display name breaks a rule of its own (422). */
+    NAME_NOT_ALLOWED(HttpStatus.UNPROCESSABLE_ENTITY),
+
+    /** The staff notice was not acknowledged before the display name was saved (422). */
+    NOTICE_REQUIRED(HttpStatus.UNPROCESSABLE_ENTITY),
+
+    /** Another staff member already uses this display name, ignoring case and normalisation (409). */
+    NAME_TAKEN(HttpStatus.CONFLICT),
+
+    /** A staff account without a display name may not write anything a player can see (409). */
+    STAFF_PROFILE_REQUIRED(HttpStatus.CONFLICT);
 
     private final HttpStatus status;
 

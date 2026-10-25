@@ -47,6 +47,17 @@ endpoints:
     sensitive: false
 
 blackhole:
+  staff:
+    avatar:
+      # HMAC secret that derives the public avatar key from a Minecraft UUID (staff-profile). The key is what a
+      # player's browser sees, so the UUID cannot be recovered from it. SECRET: the default is for local
+      # development only; production must set BLACKHOLE_STAFF_AVATAR_KEY. Changing it changes every avatar key.
+      key: ${BLACKHOLE_STAFF_AVATAR_KEY:local-dev-only-staff-avatar-secret}
+      # Session server that serves a linked account's skin. Must be an https URL (checked at startup). The skin
+      # texture is always fetched from the fixed texture host, whatever this points at.
+      source-url: ${BLACKHOLE_STAFF_AVATAR_SOURCE_URL:`https://sessionserver.mojang.com`}
+      # When the cached heads of linked staff accounts are refreshed (cron, weekly by default).
+      refresh-cron: ${BLACKHOLE_STAFF_AVATAR_REFRESH_CRON:0 30 3 * * MON}
   # NATS JetStream backs the domain event bus: events go to the subjects blackhole.events.<event type> and are
   # captured by the stream BLACKHOLE_EVENTS (see net.onelitefeather.blackhole.backend.events). The backend creates
   # or updates the stream and its durable consumer blackhole-redis-sync at startup. An unreachable server or an

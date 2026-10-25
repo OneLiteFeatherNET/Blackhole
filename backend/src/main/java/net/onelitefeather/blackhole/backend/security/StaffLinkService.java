@@ -4,6 +4,7 @@ import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.security.dto.StaffLinkDTO;
+import net.onelitefeather.blackhole.backend.staffprofile.StaffAvatarJob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +50,7 @@ public class StaffLinkService {
     private final DomainEventPublisher events;
     private final StaffLinkProperties properties;
     private final Clock clock;
+    private final StaffAvatarJob avatars;
 
     public StaffLinkService(
             StaffLinkRepository links,
@@ -57,7 +59,8 @@ public class StaffLinkService {
             StaffLinkCodeGenerator generator,
             DomainEventPublisher events,
             StaffLinkProperties properties,
-            Clock clock
+            Clock clock,
+            StaffAvatarJob avatars
     ) {
         this.links = links;
         this.codes = codes;
@@ -66,6 +69,7 @@ public class StaffLinkService {
         this.events = events;
         this.properties = properties;
         this.clock = clock;
+        this.avatars = avatars;
     }
 
     /**
@@ -153,6 +157,7 @@ public class StaffLinkService {
             }
             LOG.info("Linked staff member {} to a Minecraft account", oid);
             this.events.publish(CREATED_EVENT, Map.of("oid", oid.toString(), "linkedBy", proxy.oid().toString()));
+            this.avatars.onLinked(oid, minecraftUuid);
         }
         return new StaffLinkDTO.LinkedResponse(oid, displayName(oid).orElse(null), link.getMinecraftUuid(), link.getLinkedAt());
     }
@@ -234,6 +239,7 @@ public class StaffLinkService {
 
     private void remove(StaffLinkEntity link, RemovalReason reason, UUID removedBy) {
         this.links.delete(link);
+        this.avatars.onUnlinked(link.getOid());
         LOG.info("Removed the staff link of {} ({})", link.getOid(), reason);
         this.events.publish(REMOVED_EVENT, Map.of(
                 "oid", link.getOid().toString(), "removedBy", removedBy.toString(), "reason", reason.name()));

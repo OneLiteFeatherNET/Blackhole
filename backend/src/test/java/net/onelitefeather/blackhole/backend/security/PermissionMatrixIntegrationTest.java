@@ -336,6 +336,22 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void theStaffProfileIsForAnySignedInStaffMemberAndNotForTheProxy() {
+        assertAuthorized(get("/staff-profile/me", this.jwt.viewer()), "a viewer on the own staff profile");
+        assertEquals(403, get("/staff-profile/me", this.jwt.proxy()).status(), "the proxy has no staff profile");
+        assertEquals(403, put("/staff-profile/me", Map.of("displayName", "Mia K.", "noticeAcknowledged", true), this.jwt.proxy()).status(),
+                "the proxy may not save a staff name");
+    }
+
+    @Test
+    void theStaffAvatarIsForAPlayerSessionOnlyAndNotForStaffTokens() {
+        for (String token : java.util.List.of(this.jwt.admin(), this.jwt.moderator(), this.jwt.viewer(), this.jwt.proxy())) {
+            int status = get("/public/staff-avatar/abcdefghijklmnopqrstuv", token).status();
+            assertTrue(status == 401 || status == 403, "a staff or proxy token on the player avatar must be refused, got " + status);
+        }
+    }
+
+    @Test
     void theCaseStreamIsForViewersAndAboveAndDeniedToTheProxyAndTheBot() {
         String stream = "/case/unknown-punishment/events";
         assertEquals(404, get(stream, this.jwt.viewer()).status(), "a viewer may open it: the case is just unknown");

@@ -199,38 +199,38 @@ update. Each PR removes its files from `web/tests/design-baseline.json`.
 
 PR title: `feat(staff): add the staff display name and avatar profile`
 
-- [ ] 4a.1 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/staffprofile/StaffNameRulesTest.java`
+- [x] 4a.1 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/staffprofile/StaffNameRulesTest.java`
   (length 2 and 32 accepted, 1 and 33 rejected; allowed characters; markup characters rejected; a URL, an IP, a
   UUID and a Ban ID lookalike rejected; every reserved word rejected in any case; NFKC folding), and
   `StaffProfileServiceTest.java` (save with name; `NAME_TAKEN` on folded duplicate; `NAME_NOT_ALLOWED` on a reserved
   word; `422` without the notice; the Entra name is never the default; a service principal is refused).
   `StaffAvatarKeysTest.java` (the key is stable for the same UUID, differs between UUIDs, contains no UUID text, has 22
   characters). Fixed clock. Run and see them fail.
-- [ ] 4a.2 Migration `backend/src/main/resources/db/migration/V<n>__staff_profile.sql` (next free number at
+- [x] 4a.2 Migration `backend/src/main/resources/db/migration/V<n>__staff_profile.sql` (next free number at
   implementation time; main is at V24): table `staff_profile` (columns of design section 4.3, partial unique index
   on `display_name_folded`), table `staff_avatar`. No backfill. Append-only (`liquibase-checker` style rules do not
   apply; this is Flyway). Red first: a migration test that runs the script on an empty schema and checks the unique
   index.
-- [ ] 4a.3 Green, in `backend/src/main/java/net/onelitefeather/blackhole/backend/staffprofile/`:
+- [x] 4a.3 Green, in `backend/src/main/java/net/onelitefeather/blackhole/backend/staffprofile/`:
   `StaffNameRules.java` (pure validation), `StaffAvatarKeys.java` (HMAC-SHA256 with `BLACKHOLE_STAFF_AVATAR_KEY`,
   base64url, 22 characters), `StaffProfileService.java` (`@Singleton`, get, save, the notice check, the sealed
   `StaffProfileDTO` variants), `StaffProfileDTO.java` (sealed marker: `UpdateRequest`, `Response`, `Error`),
   `StaffProfileApi.java` (annotations), `StaffProfileController.java` (thin, `GET` and `PUT /staff-profile/me`),
   `StaffProfileRepository.java` (JDBC).
-- [ ] 4a.4 Avatar job: `backend/src/main/java/net/onelitefeather/blackhole/backend/staffprofile/StaffAvatarJob.java`
+- [x] 4a.4 Avatar job: `backend/src/main/java/net/onelitefeather/blackhole/backend/staffprofile/StaffAvatarJob.java`
   (red first: `StaffAvatarJobTest.java` with a fake source client: a fetch stores a 64 px PNG, a failed fetch keeps
   the old PNG, unlink deletes the row). The source client is an interface `StaffAvatarSource` with the production
   implementation calling the URL from `BLACKHOLE_STAFF_AVATAR_SOURCE_URL` (validated at startup as an `https` URL).
   The job runs on link and weekly. Tests never use the network.
-- [ ] 4a.5 Hook the link service: the staff-link confirm path (the service that binds a Minecraft UUID to an `oid`,
+- [x] 4a.5 Hook the link service: the staff-link confirm path (the service that binds a Minecraft UUID to an `oid`,
   `staff-account-link` spec) computes and stores `avatar_key` and triggers the avatar job. Red first in its test.
-- [ ] 4a.6 Configuration: `backend/src/main/resources/application.yml` gets `BLACKHOLE_STAFF_AVATAR_KEY` (local-dev
+- [x] 4a.6 Configuration: `backend/src/main/resources/application.yml` gets `BLACKHOLE_STAFF_AVATAR_KEY` (local-dev
   default, commented as a secret that must be set in production) and `BLACKHOLE_STAFF_AVATAR_SOURCE_URL` (default the
   session server), with comments as the project convention requires.
-- [ ] 4a.7 Anonymisation: extend the existing staff-actor anonymise service (`POST /admin/staff-actor/{oid}/anonymize`;
+- [x] 4a.7 Anonymisation: extend the existing staff-actor anonymise service (`POST /admin/staff-actor/{oid}/anonymize`;
   locate the class under `backend/src/main/java/.../staff*` before editing) to clear the profile name, the avatar key
   and the avatar row. Red first. Name snapshots and protocols follow in 4b.
-- [ ] 4a.8 Client spec: `client/specs/blackhole-api-<next>.yml` with `/staff-profile/me`; bump `client/build.gradle.kts`.
+- [x] 4a.8 Client spec: `client/specs/blackhole-api-<next>.yml` with `/staff-profile/me`; bump `client/build.gradle.kts`.
   Run `./gradlew :backend:test` and `./gradlew :client:openApiGenerate`.
 
 ### 4b. Conversation snapshot, public DTO and protocol v2 (`feat(case)`)
