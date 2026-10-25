@@ -12,10 +12,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +26,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Login, the session store and its expiry against a real PostgreSQL schema, on a clock the test moves by hand. */
@@ -92,6 +96,36 @@ class PlayerSessionServiceIntegrationTest extends PostgresIntegrationTest {
         assertFalse(everything.contains(banId), "no Ban ID in the table");
         assertEquals(64L, db.count("SELECT length(token_hash) FROM player_session"), "a SHA-256 in hex");
         assertEquals(1, db.count("SELECT count(*) FROM player_session WHERE punishment_identifier = ?", ID));
+    }
+
+    @Test
+    void theStoredCsrfValueIsTheSha256DigestOfTheRawValueAndNeverTheRawValue() throws NoSuchAlgorithmException {
+        PublicSessionDTO.Created created = login();
+
+        String stored = db.text("SELECT csrf FROM player_session WHERE punishment_identifier = ?", ID);
+        String digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(created.csrf().getBytes(StandardCharsets.UTF_8)));
+        assertNotEquals(created.csrf(), stored, "the raw csrf value is not stored");
+        assertEquals(digest, stored, "the stored value is the SHA-256 of the raw value, in hex");
+        assertEquals(64, stored.length(), "a SHA-256 in hex fills the column");
+    }
+
+    @Test
+    void theRawCsrfValueMatchesTheSessionItWasIssuedWith() {
+        PublicSessionDTO.Created created = login();
+        PlayerSession session = authenticate(created.token()).orElseThrow();
+
+        assertTrue(service.csrfMatches(session, created.csrf()), "the raw value the portal holds passes the check");
+    }
+
+    @Test
+    void aWrongMissingOrStoredDigestCsrfValueDoesNotMatch() {
+        PublicSessionDTO.Created created = login();
+        PlayerSession session = authenticate(created.token()).orElseThrow();
+
+        assertFalse(service.csrfMatches(session, created.csrf() + "x"), "a wrong value fails");
+        assertFalse(service.csrfMatches(session, null), "a missing value fails");
+        assertFalse(service.csrfMatches(session, ""), "an empty value fails");
+        assertFalse(service.csrfMatches(session, session.csrf()), "the stored digest is not a credential");
     }
 
     @Test

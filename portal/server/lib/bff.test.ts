@@ -225,6 +225,15 @@ describe('login', () => {
     expect(JSON.parse(text)).toEqual({ csrf: CSRF, expiresAt: LOGIN_OK.expiresAt, scope: 'FULL' })
   })
 
+  it('answers the raw csrf value from the cookie on a session read, because the backend keeps only its digest', async () => {
+    const digest = 'a'.repeat(64)
+    const { send } = bff([{ body: { csrf: digest, expiresAt: LOGIN_OK.expiresAt, scope: 'FULL' } }])
+
+    const response = await send('/api/session', { headers: { cookie: session } })
+
+    expect(await response.json()).toEqual({ csrf: CSRF, expiresAt: LOGIN_OK.expiresAt, scope: 'FULL' })
+  })
+
   it('answers every failure with the same status and the same body', async () => {
     const answers: Array<{ status: number; body: string }> = []
     for (const reply of [{ status: 401 }, { status: 400, body: { detail: 'bad length' } }, { status: 404 }, { status: 422, body: { x: 1 } }, { status: 401, body: { code: 'INVALID_BAN_ID' } }] as Reply[]) {

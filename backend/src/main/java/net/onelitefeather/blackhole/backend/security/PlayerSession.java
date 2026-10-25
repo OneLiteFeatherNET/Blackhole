@@ -14,7 +14,7 @@ import java.util.Optional;
  * @param tokenHash          the SHA-256 (hex) of the session token, to find the row again; never the token
  * @param punishmentIdentifier the session's own punishment
  * @param scope              what the session may do right now ({@link PlayerScope#LIMITED} once the Ban ID is marked leaked)
- * @param csrf               the value the portal sends back on every state-changing request
+ * @param csrf               the SHA-256 (hex) of the value the portal sends back on every state-changing request
  * @param expiresAt          the absolute end of the session, epoch millis
  */
 public record PlayerSession(String tokenHash, String punishmentIdentifier, PlayerScope scope, String csrf, long expiresAt) {
