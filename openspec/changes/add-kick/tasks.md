@@ -171,13 +171,13 @@ Commit: `feat(web): add the kick dialog and the mass kick in the admin area`.
 
 Branch `docs/add-kick`. This PR.
 
-- [ ] 6.1 Add `.claude/rules/kick.md` with `paths:` frontmatter for `backend/src/main/java/**/kick/**/*.java`
+- [x] 6.1 Add `.claude/rules/kick.md` with `paths:` frontmatter for `backend/src/main/java/**/kick/**/*.java`
   and `velocity/src/main/java/**/enforcement/KickHandler.java`: the rules of `design.md` decisions 1,
   3 and 5 in short form (kick is never active; mass kick writes no punishment; event payloads carry no
   reason text). Keep it under 60 lines.
-- [ ] 6.2 Add one line to `CLAUDE.md` under "Backend architecture" pointing to `.claude/rules/kick.md`.
+- [x] 6.2 Add one line to `CLAUDE.md` under "Backend architecture" pointing to `.claude/rules/kick.md`.
   Keep `CLAUDE.md` under 200 lines.
-- [ ] 6.3 Run `openspec validate --all --strict`.
+- [x] 6.3 Run `openspec validate --all --strict`.
 - [ ] 6.4 Open the pull requests in order (PR 1 first). Each PR title is its commit title, and each body
   ends with `https://claude.ai/code/session_01TFcvDovaYNHZewdbM2f8Ru`. Use `gh pr create --base main`.
   Run `gh pr checks --watch` on each. Do not merge.
