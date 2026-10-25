@@ -42,6 +42,14 @@ function setup(overrides: Record<string, unknown> = {}) {
 
 type Wrapper = Awaited<ReturnType<ReturnType<typeof setup>['mount']>>['wrapper']
 
+/** Chooses an item of the row menu, which holds the actions beyond edit. */
+async function rowAction(wrapper: Wrapper, label: string): Promise<void> {
+  await wrapper.get('tbody tr button[aria-haspopup="menu"]').trigger('click')
+  const item = wrapper.findAll('[role="menuitem"]').find((candidate) => candidate.text() === label)
+  if (!item) throw new Error(`no menu item ${label}`)
+  await item.trigger('click')
+}
+
 const dialogInput = (wrapper: Wrapper, label: string) => {
   const field = wrapper.findAll('[role="dialog"] label').find((l) => l.text().startsWith(label))
   if (!field) throw new Error(`no field labelled ${label}`)
@@ -283,7 +291,7 @@ describe('TemplatesView: delete', () => {
     const { api, mount } = setup({ templates })
     const { wrapper } = await mount()
 
-    await wrapper.get('[data-testid="delete-hacking"]').trigger('click')
+    await rowAction(wrapper, 'Delete')
     expect(api.deleteTemplate, 'asks first').not.toHaveBeenCalled()
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
@@ -302,7 +310,7 @@ describe('TemplatesView: delete', () => {
     const { mount } = setup({ deleteTemplate })
     const { wrapper } = await mount()
 
-    await wrapper.get('[data-testid="delete-hacking"]').trigger('click')
+    await rowAction(wrapper, 'Delete')
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
 
@@ -363,6 +371,61 @@ describe('TemplatesView: editor structure', () => {
     await flushPromises()
 
     expect(api.updateTemplate).toHaveBeenCalledWith('id-hacking', expect.objectContaining({ escalationWindow: 'P14D' }))
+
+    wrapper.unmount()
+  })
+})
+
+describe('TemplatesView: page template', () => {
+  it('titles the page Templates with the one level-one heading', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    expect(wrapper.findAll('h1').map((heading) => heading.text())).toEqual(['Templates'])
+
+    wrapper.unmount()
+  })
+
+  it('names the ELO unit of every step cost', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    const row = wrapper.get('tbody tr')
+    expect(row.text()).toContain('1 day / 100 ELO')
+    expect(row.text()).toContain('1 week / 150 ELO')
+
+    wrapper.unmount()
+  })
+
+  it('keeps edit in the row and moves delete into the row menu', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+    const row = wrapper.get('tbody tr')
+
+    expect(row.find('[data-testid="edit-hacking"]').exists(), 'edit stays in the row').toBe(true)
+    expect(row.find('[data-testid="delete-hacking"]').exists(), 'delete is not a row button').toBe(false)
+    await row.get('button[aria-haspopup="menu"]').trigger('click')
+    expect(wrapper.findAll('[role="menuitem"]').map((item) => item.text())).toEqual(['Delete'])
+
+    wrapper.unmount()
+  })
+
+  it('confirms the delete with the error button', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+    await wrapper.get('tbody tr button[aria-haspopup="menu"]').trigger('click')
+    await wrapper.get('[role="menuitem"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="confirm"]').classes(), 'destructive confirm').toContain('bg-error')
+
+    wrapper.unmount()
+  })
+
+  it('shows the empty state with its create action for an empty list', async () => {
+    const { mount } = setup({ templates: vi.fn(async () => ok([])) })
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-variant="no-items"]').text()).toContain('There are no templates yet.')
 
     wrapper.unmount()
   })

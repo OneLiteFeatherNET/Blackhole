@@ -30,6 +30,20 @@ const elo = {
   sections: [{ section: 'network', displayName: 'Network', enforcement: 'BAN', score: 900, baseScore: 1000, softThreshold: 700, permanentThreshold: 300, pardonScore: 700 }],
 } as unknown as EloProfile
 
+/** Labels of the items in the first row's menu, opened; empty when that row offers no menu. */
+async function firstRowMenu(view: Parameters<typeof mountWithApp>[0], api: ReturnType<typeof mockApi>, roles: string[], path: string): Promise<string[]> {
+  const { wrapper } = await mountWithApp(view, { api, roles, path })
+  const trigger = wrapper.find('tbody tr button[aria-haspopup="menu"]')
+  if (!trigger.exists()) {
+    wrapper.unmount()
+    return []
+  }
+  await trigger.trigger('click')
+  const labels = wrapper.findAll('[role="menuitem"]').map((item) => item.text())
+  wrapper.unmount()
+  return labels
+}
+
 async function controls(view: Parameters<typeof mountWithApp>[0], api: ReturnType<typeof mockApi>, roles: string[], testIds: string[], options: { path: string; props?: Record<string, unknown> }) {
   const { wrapper } = await mountWithApp(view, { api, roles, path: options.path, props: options.props })
   const offered = testIds.filter((id) => wrapper.find(`[data-testid="${id}"]`).exists())
@@ -66,30 +80,46 @@ describe('role-aware controls', () => {
     ['none', NONE, []],
     ['viewer', VIEWER, []],
     ['moderator', MODERATOR, []],
-    ['admin', ADMIN, ['new-section', 'edit-network', 'disable-network']],
+    ['admin', ADMIN, ['new-section', 'edit-network']],
   ])('sections for %s', (_label, roles, expected) => {
-    it('offers create, edit and disable only to admins', async () => {
+    it('offers create and edit only to admins', async () => {
       const api = mockApi({ sections: vi.fn(async () => ok([section])), staffLinks: vi.fn(async () => ok([])), discordLinks: vi.fn(async () => ok([])) })
 
-      const offered = await controls(SectionsView, api, roles, ['new-section', 'edit-network', 'disable-network'], { path: '/sections' })
+      const offered = await controls(SectionsView, api, roles, ['new-section', 'edit-network'], { path: '/sections' })
 
       expect(offered).toEqual(expected)
+    })
+
+    it('offers disable only in the row menu, and only to admins', async () => {
+      const api = mockApi({ sections: vi.fn(async () => ok([section])), staffLinks: vi.fn(async () => ok([])), discordLinks: vi.fn(async () => ok([])) })
+
+      const items = await firstRowMenu(SectionsView, api, roles, '/sections')
+
+      expect(items).toEqual(roles === ADMIN ? ['Disable'] : [])
     })
   })
 
   // Without any role the app shows the no-access page and never the view; the view itself only gates writes.
   describe.each([
-    ['none', NONE, ['hits-meteor']],
-    ['viewer', VIEWER, ['hits-meteor']],
-    ['moderator', MODERATOR, ['hits-meteor']],
-    ['admin', ADMIN, ['new-client-rule', 'edit-meteor', 'delete-meteor', 'hits-meteor']],
+    ['none', NONE, []],
+    ['viewer', VIEWER, []],
+    ['moderator', MODERATOR, []],
+    ['admin', ADMIN, ['new-client-rule', 'edit-meteor']],
   ])('client rules for %s', (_label, roles, expected) => {
-    it('offers create, edit and delete only to admins while every team role reads the hits', async () => {
+    it('offers create and edit only to admins', async () => {
       const api = mockApi({ clientRules: vi.fn(async () => ok([clientRule()])) })
 
-      const offered = await controls(ClientRulesView, api, roles, ['new-client-rule', 'edit-meteor', 'delete-meteor', 'hits-meteor'], { path: '/client-rules' })
+      const offered = await controls(ClientRulesView, api, roles, ['new-client-rule', 'edit-meteor'], { path: '/client-rules' })
 
       expect(offered).toEqual(expected)
+    })
+
+    it('reads the hits in the row menu for every team role and offers delete there only to admins', async () => {
+      const api = mockApi({ clientRules: vi.fn(async () => ok([clientRule()])) })
+
+      const items = await firstRowMenu(ClientRulesView, api, roles, '/client-rules')
+
+      expect(items).toEqual(roles === ADMIN ? ['Show hits', 'Delete'] : ['Show hits'])
     })
   })
 
@@ -97,14 +127,22 @@ describe('role-aware controls', () => {
     ['none', NONE, []],
     ['viewer', VIEWER, []],
     ['moderator', MODERATOR, []],
-    ['admin', ADMIN, ['new-template', 'edit-hacking', 'delete-hacking']],
+    ['admin', ADMIN, ['new-template', 'edit-hacking']],
   ])('templates for %s', (_label, roles, expected) => {
-    it('offers create, edit and delete only to admins', async () => {
+    it('offers create and edit only to admins', async () => {
       const api = mockApi({ templates: vi.fn(async () => ok([template])), sections: vi.fn(async () => ok([section])) })
 
-      const offered = await controls(TemplatesView, api, roles, ['new-template', 'edit-hacking', 'delete-hacking'], { path: '/templates' })
+      const offered = await controls(TemplatesView, api, roles, ['new-template', 'edit-hacking'], { path: '/templates' })
 
       expect(offered).toEqual(expected)
+    })
+
+    it('offers delete only in the row menu, and only to admins', async () => {
+      const api = mockApi({ templates: vi.fn(async () => ok([template])), sections: vi.fn(async () => ok([section])) })
+
+      const items = await firstRowMenu(TemplatesView, api, roles, '/templates')
+
+      expect(items).toEqual(roles === ADMIN ? ['Delete'] : [])
     })
   })
 

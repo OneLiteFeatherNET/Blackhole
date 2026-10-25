@@ -109,7 +109,7 @@
   },
   "enforcement": {
     "MUTE": "Stummschaltung",
-    "BAN": "Bann",
+    "BAN": "Sperre",
     "SERVER": "Server-Sperre"
   },
   "elo": {
@@ -237,7 +237,7 @@
     }
   },
   "templates": {
-    "title": "Strafvorlagen",
+    "title": "Vorlagen",
     "intro": "Vorlagen beschreiben die Strafen, die das Team verhängen kann. Jede Vorlage hat Eskalationsstufen: Das n-te Vergehen in ihrer Gruppe nutzt die n-te Stufe.",
     "new": "Neue Vorlage",
     "edit": "Bearbeiten",
@@ -245,6 +245,7 @@
     "saved": "Vorlage gespeichert.",
     "deleted": "Vorlage gelöscht.",
     "stepCount": "keine Stufen | 1 Stufe | {count} Stufen",
+    "stepLine": "{n}. {duration} / {cost} ELO",
     "columns": {
       "key": "Schlüssel",
       "reason": "Grund",
@@ -1362,7 +1363,7 @@
     "report": "Meldung {id} öffnen"
   },
   "appealConditions": {
-    "title": "Rahmenbedingungen",
+    "title": "Einspruchsbedingungen",
     "intro": "Spieler lesen diese Bedingungen und bestätigen sie, bevor sie einen Einspruch einreichen. Jedes Speichern erzeugt eine neue Version; frühere Versionen bleiben erhalten.",
     "current": "Aktuelle Version {version}",
     "editorLabel": "Text der nächsten Version",
@@ -1370,6 +1371,7 @@
     "save": "Als neue Version speichern",
     "saved": "Als Version {version} gespeichert.",
     "conflict": "Die Bedingungen wurden währenddessen von jemand anderem geändert. Die aktuelle Version steht oben; prüfe sie und speichere erneut.",
+    "tooLong": "{count}: über dem Limit, bitte kürzen.",
     "history": "Frühere Versionen",
     "versionLine": "Version {version}, {when}"
   },
@@ -1394,6 +1396,7 @@
     "hidden": "In der Tab-Vervollständigung versteckt",
     "acknowledged": "Bestraft auf einen Wert, den der Client fälschen kann (bestätigt)",
     "hitCount": "Treffer: {n}",
+    "showHits": "Treffer anzeigen",
     "columns": {
       "rule": "Regel",
       "match": "Trifft auf",
