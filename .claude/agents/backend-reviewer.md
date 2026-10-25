@@ -24,7 +24,8 @@ For each file you review, check:
   interface the controller implements, never directly on the controller class.
 
 Also flag anything that contradicts this repo's known architectural decisions (check CLAUDE.md
-if unsure): no `@Secured`/auth annotations (deliberately removed), no new app-level rate
+if unsure): every route except `/health` is JWT-guarded (`@Secured` with the Entra roles, see
+CLAUDE.md and `.claude/rules/security.md`), no new app-level rate
 limiting, no `@Transactional` (currently unusable — bean-ambiguity issue), and any new
 caller-controlled-URL feature added without SSRF hardening (there's no such feature today — the
 connector/webhook framework that used to need this was removed 2026-07-09 — but if one comes
