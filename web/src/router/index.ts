@@ -30,9 +30,9 @@ export const routes: RouteRecordRaw[] = [
   { path: '/client-rules', name: 'client-rules', component: ClientRulesView, meta: { titleKey: 'nav.clientRules' } },
   { path: '/sections', name: 'sections', component: SectionsView, meta: { titleKey: 'nav.sections' } },
   { path: '/appeal-conditions', name: 'appeal-conditions', component: AppealConditionsView, meta: { titleKey: 'nav.appealTerms' } },
-  { path: '/reports', name: 'reports', component: ReportsView, meta: { titleKey: 'nav.reports' } },
-  { path: '/reports/:id', name: 'report', component: ReportDetailView, props: true, meta: { titleKey: 'reports.detail.title', nav: '/reports' } },
-  { path: '/appeals', name: 'appeals', component: AppealsView, meta: { titleKey: 'nav.appeals' } },
+  { path: '/reports', name: 'reports', component: ReportsView, meta: { titleKey: 'nav.reports', pageShell: true } },
+  { path: '/reports/:id', name: 'report', component: ReportDetailView, props: true, meta: { titleKey: 'reports.detail.title', nav: '/reports', pageShell: true } },
+  { path: '/appeals', name: 'appeals', component: AppealsView, meta: { titleKey: 'nav.appeals', pageShell: true } },
   { path: '/admin', name: 'admin', component: AdminView, meta: { titleKey: 'nav.administration', admin: true } },
   // The staff accounts tab of the administration area; the same page until the tabs of the area land.
   { path: '/admin/staff', name: 'admin-staff', component: AdminView, meta: { titleKey: 'nav.administration', admin: true, nav: '/admin' } },

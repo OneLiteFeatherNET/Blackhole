@@ -46,7 +46,7 @@ async function confirm(): Promise<void> {
 
 <template>
   <MdDialog :open="open" :headline="t('reports.detail.dismissTitle')" @close="emit('close')">
-    <div class="flex flex-col gap-5 pt-2">
+    <div class="flex flex-col gap-4 pt-2">
       <p class="text-body-medium text-on-surface-variant">{{ t('reports.detail.dismissHint') }}</p>
       <MdTextField v-model="note" required :label="t('reports.detail.dismissNote')" :supporting-text="t('reports.detail.dismissNoteHint')" />
       <p v-if="error" data-testid="error" role="alert" class="rounded-md-md bg-error-container p-3 text-on-error-container">

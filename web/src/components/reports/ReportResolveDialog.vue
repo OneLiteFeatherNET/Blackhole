@@ -73,7 +73,7 @@ async function confirm(): Promise<void> {
 
 <template>
   <MdDialog :open="open" :headline="t('reports.resolve.title')" @close="emit('close')">
-    <div class="flex flex-col gap-5 pt-2">
+    <div class="flex flex-col gap-4 pt-2">
       <p v-if="report" class="text-body-medium">
         {{ t('reports.resolve.about', { player: shortHash(report.reportedHash) }) }}
         <span v-if="report.description" class="block text-on-surface-variant">{{ report.description }}</span>

@@ -45,6 +45,119 @@ const dialogField = (wrapper: Wrapper, label: string) => {
   return wrapper.get(`[role="dialog"] [id="${found.attributes('for')}"]`)
 }
 
+async function openResolve(wrapper: Wrapper): Promise<void> {
+  await wrapper.get('[aria-haspopup="menu"]').trigger('click')
+  const item = wrapper.findAll('[role="menuitem"]').find((entry) => entry.text() === 'Resolve')
+  if (!item) throw new Error('no Resolve item in the row menu')
+  await item.trigger('click')
+}
+
+describe('ReportsView: page template', () => {
+  it('shows the page title as its only h1', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    expect(wrapper.findAll('h1').map((heading) => heading.text())).toEqual(['Reports'])
+
+    wrapper.unmount()
+  })
+
+  it('keeps the open and all choice as the toggle group of the filter toolbar', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    const group = wrapper.get('[data-testid="filter-toolbar"] [data-testid="show"]')
+    expect(group.attributes('aria-label')).toBe('Which reports to show')
+    expect(group.find('[data-testid="filter-open"]').attributes('aria-pressed')).toBe('true')
+
+    wrapper.unmount()
+  })
+
+  it('starts with every report when the route query asks for all', async () => {
+    const { api } = setup()
+    const { wrapper } = await mountWithApp(ReportsView, { api: mockApi(api), path: '/reports?show=all' })
+
+    expect(wrapper.findAll('tbody tr')).toHaveLength(2)
+
+    wrapper.unmount()
+  })
+
+  it('gives each row one primary action, opening the report, and puts resolving in the row menu', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    const actions = wrapper.findAll('tbody tr')[0]!.findAll('td').at(-1)!
+    expect(actions.findAll('a').map((link) => link.text())).toEqual(['Details'])
+    expect(actions.findAll('button')).toHaveLength(1)
+    expect(actions.get('button').attributes('aria-haspopup')).toBe('menu')
+
+    await actions.get('button').trigger('click')
+    expect(wrapper.findAll('[role="menuitem"]').map((item) => item.text())).toEqual(['Resolve'])
+
+    wrapper.unmount()
+  })
+
+  it('offers no row menu to a viewer', async () => {
+    const { api } = setup()
+    const { wrapper } = await mountWithApp(ReportsView, { api: mockApi(api), path: '/reports', roles: ['VIEWER'] })
+
+    expect(wrapper.find('[aria-haspopup="menu"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="details-r-1"]').exists()).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('offers no row menu for a report that is already resolved', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="filter-all"]').trigger('click')
+
+    expect(wrapper.findAll('[aria-haspopup="menu"]')).toHaveLength(1)
+
+    wrapper.unmount()
+  })
+
+  it('says that no open report exists and offers to show all of them', async () => {
+    const { mount } = setup({ reports: vi.fn(async () => ok([report({ status: 'ACTIONED' })])) })
+    const { wrapper } = await mount()
+
+    const empty = wrapper.get('[data-testid="reports-empty"]')
+    expect(empty.attributes('data-variant')).toBe('no-matches')
+    expect(empty.text()).toContain('No open reports.')
+
+    await wrapper.get('[data-testid="empty-show-all"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1)
+
+    wrapper.unmount()
+  })
+
+  it('says that no report exists yet when the list is empty and all are shown', async () => {
+    const { mount } = setup({ reports: vi.fn(async () => ok([])) })
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="filter-all"]').trigger('click')
+    await flushPromises()
+
+    const empty = wrapper.get('[data-testid="reports-empty"]')
+    expect(empty.attributes('data-variant')).toBe('no-items')
+    expect(empty.text()).toContain('No reports yet.')
+
+    wrapper.unmount()
+  })
+
+  it('shows skeleton rows, marked busy, while the first load runs', async () => {
+    const { mount } = setup({ reports: vi.fn(() => new Promise(() => {})) })
+    const { wrapper } = await mount()
+
+    expect(wrapper.find('[aria-busy="true"]').exists()).toBe(true)
+
+    wrapper.unmount()
+  })
+})
+
 describe('ReportsView', () => {
   it('lists the open reports and hides resolved ones by default', async () => {
     const { mount } = setup()
@@ -126,7 +239,7 @@ describe('ReportsView: resolving', () => {
     const { api, mount } = setup({ reports })
     const { wrapper } = await mount()
 
-    await wrapper.get('[data-testid="resolve-r-1"]').trigger('click')
+    await openResolve(wrapper)
     await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'DISMISSED')
     await dialogField(wrapper, 'Note').setValue('no evidence')
     await wrapper.get('[data-testid="confirm"]').trigger('click')
@@ -143,7 +256,7 @@ describe('ReportsView: resolving', () => {
     const { api, mount } = setup()
     const { wrapper } = await mount()
 
-    await wrapper.get('[data-testid="resolve-r-1"]').trigger('click')
+    await openResolve(wrapper)
     expect(wrapper.findAll('[role="dialog"] [role="combobox"]'), 'no template choice before a decision is made').toHaveLength(1)
     await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'ACTIONED')
     await chooseOption(wrapper.findAll('[role="dialog"] [role="combobox"]')[1]!, 'tpl-1')
@@ -158,7 +271,7 @@ describe('ReportsView: resolving', () => {
   it('does not send a template for a dismissal even if one was chosen before', async () => {
     const { api, mount } = setup()
     const { wrapper } = await mount()
-    await wrapper.get('[data-testid="resolve-r-1"]').trigger('click')
+    await openResolve(wrapper)
     await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'ACTIONED')
     await chooseOption(wrapper.findAll('[role="dialog"] [role="combobox"]')[1]!, 'tpl-1')
 
@@ -175,7 +288,7 @@ describe('ReportsView: resolving', () => {
     const resolveReport = vi.fn(async () => fail('the player is already permanently punished in section network', 409, 'CONFLICT'))
     const { mount } = setup({ resolveReport })
     const { wrapper } = await mount()
-    await wrapper.get('[data-testid="resolve-r-1"]').trigger('click')
+    await openResolve(wrapper)
     await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'ACTIONED')
     await chooseOption(wrapper.findAll('[role="dialog"] [role="combobox"]')[1]!, 'tpl-1')
 

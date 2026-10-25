@@ -117,7 +117,10 @@ describe('role-aware controls', () => {
     it('offers to resolve a report only to moderators and admins', async () => {
       const api = mockApi({ reports: vi.fn(async () => ok([report])), templates: vi.fn(async () => ok([template])) })
 
-      const offered = await controls(ReportsView, api, roles, ['resolve-r-1'], { path: '/reports' })
+      // Resolving is in the row menu, which only moderators and admins get; its trigger is the control here.
+      const { wrapper } = await mountWithApp(ReportsView, { api, roles, path: '/reports' })
+      const offered = wrapper.find('[aria-haspopup="menu"]').exists() ? ['resolve-r-1'] : []
+      wrapper.unmount()
 
       expect(offered).toEqual(expected)
     })

@@ -137,14 +137,14 @@ update. Each PR removes its files from `web/tests/design-baseline.json`.
 
 ### 3b. Appeals and reports (`refactor(web)`)
 
-- [ ] 3b.1 Red: `web/src/views/AppealsView.test.ts` and `web/src/views/ReportsView.test.ts` assert: one primary action
+- [x] 3b.1 Red: `web/src/views/AppealsView.test.ts` and `web/src/views/ReportsView.test.ts` assert: one primary action
   per row, the overflow menu holds the secondary actions, the pending/all toggle is the `toggle-group` filter, the
   empty states. Note that the silent failure at `AppealsView.vue:46` is fixed in 9b, not here.
-- [ ] 3b.2 Migrate `web/src/views/AppealsView.vue` (lines 78-81 toggle, 108-119 row actions: "Open case" becomes a
+- [x] 3b.2 Migrate `web/src/views/AppealsView.vue` (lines 78-81 toggle, 108-119 row actions: "Open case" becomes a
   link, "Decide" the primary action, line 83 announcement moved to once per load, 84 empty state).
-- [ ] 3b.3 Migrate `web/src/views/ReportsView.vue` (lines 59-62 toggle, 84-95 link styled as a button becomes
+- [x] 3b.3 Migrate `web/src/views/ReportsView.vue` (lines 59-62 toggle, 84-95 link styled as a button becomes
   `as="link"`, `RouterLink`s with button classes removed).
-- [ ] 3b.4 Migrate `web/src/views/ReportDetailView.vue` (line 100 duplicate `h2` removed; line 105 heading; lines
+- [x] 3b.4 Migrate `web/src/views/ReportDetailView.vue` (line 100 duplicate `h2` removed; line 105 heading; lines
   93-95 back link becomes breadcrumbs; lines 112, 155 text links become `TextLink`; lines 118-120 reporter hash gets
   `aria-describedby` instead of `title`) and the components `web/src/components/reports/*` and
   `web/src/components/appeals/*` that the views render (read them in full first; they were sampled in the audit).
