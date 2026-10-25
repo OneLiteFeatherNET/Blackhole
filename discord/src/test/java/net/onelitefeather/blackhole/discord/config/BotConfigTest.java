@@ -77,6 +77,7 @@ class BotConfigTest {
     void aTokenUrlOverrideReplacesTheTenant() throws Exception {
         Map<String, String> env = complete();
         env.remove("BLACKHOLE_DISCORD_TENANT_ID");
+        env.put("MICRONAUT_ENVIRONMENTS", "dev");
         env.put("BLACKHOLE_DISCORD_TOKEN_URL", "http://localhost:18090/blackhole/token");
 
         BotConfig config = BotConfig.fromEnvironment(env::get);

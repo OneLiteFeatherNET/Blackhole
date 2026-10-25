@@ -140,7 +140,7 @@ It is safe to run again and keeps other lines of the env file, such as `DISCORD_
 | `DISCORD_STAFF_RECONCILE_INTERVAL` | Optional, default `PT5M` (at least `PT30S`): how often channel access is reconciled with staff links and the role. |
 | `NATS_URL` | The NATS server the backend publishes its events to: `nats://`, `tls://`, `ws://` or `wss://`, comma separated for several. |
 | `NATS_CREDS_FILE` | Optional: path of the `.creds` file of the bot's NATS user (readable; empty for a server without authentication). |
-| `BLACKHOLE_DISCORD_TOKEN_URL` | Optional, development: a mock token endpoint instead of Entra. |
+| `BLACKHOLE_DISCORD_TOKEN_URL` | Optional, development: a mock token endpoint instead of Entra. Must be `https`; `http` to loopback only with `MICRONAUT_ENVIRONMENTS=dev` or `test`. |
 | `DISCORD_HEALTH_PORT` | Optional, default `8082`, `0` turns the health endpoint off. |
 
 A wrong or missing value stops the bot at start (exit code 2) with every problem named.

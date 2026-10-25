@@ -21,6 +21,8 @@ public final class AuthConfig {
     public static final String ENV_CLIENT_SECRET = "BLACKHOLE_CLIENT_SECRET";
     public static final String ENV_SCOPE = "BLACKHOLE_AUTH_SCOPE";
     public static final String ENV_TOKEN_URL = "BLACKHOLE_TOKEN_URL";
+    /** The same variable the backend reads for its active environments, e.g. {@code dev} or {@code prod}. */
+    public static final String ENV_ENVIRONMENTS = "MICRONAUT_ENVIRONMENTS";
 
     private static final Pattern TENANT = Pattern.compile("[A-Za-z0-9.-]+");
 
@@ -39,11 +41,16 @@ public final class AuthConfig {
     /** Development only: the token endpoint to use instead of Entra's, e.g. of a mock server. */
     private String tokenUrl;
 
+    /** Whether {@link #ENV_ENVIRONMENTS} names {@code dev} or {@code test}; never read from or written to the file. */
+    private transient boolean localEnvironment;
+
     /** Creates a configuration with no credentials. */
     public AuthConfig() {
     }
 
-    private AuthConfig(String tenantId, String clientId, String clientSecret, String scope, String tokenUrl) {
+    private AuthConfig(String tenantId, String clientId, String clientSecret, String scope, String tokenUrl,
+                       boolean localEnvironment) {
+        this.localEnvironment = localEnvironment;
         this.tenantId = tenantId;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
@@ -82,7 +89,8 @@ public final class AuthConfig {
                 override(env, ENV_CLIENT_ID, getClientId()),
                 override(env, ENV_CLIENT_SECRET, getClientSecret()),
                 override(env, ENV_SCOPE, getScope()),
-                override(env, ENV_TOKEN_URL, getTokenUrl()));
+                override(env, ENV_TOKEN_URL, getTokenUrl()),
+                isLocal(env.apply(ENV_ENVIRONMENTS)));
     }
 
     /**
@@ -114,7 +122,7 @@ public final class AuthConfig {
 
     /**
      * @return the token endpoint: the dev override if set, otherwise Entra's for the tenant
-     * @throws IllegalArgumentException if the override is not an http(s) URL or the tenant is not a plain id or domain
+     * @throws IllegalArgumentException if the override is not an https URL (http to loopback only in dev/test) or the tenant is not a plain id or domain
      */
     public @NotNull URI tokenUri() {
         String override = getTokenUrl();
@@ -128,6 +136,10 @@ public final class AuthConfig {
             String scheme = uri.getScheme();
             if (uri.getHost() == null || scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
                 throw new IllegalArgumentException("Invalid auth.tokenUrl '" + override + "': expected an http(s) URL");
+            }
+            if (scheme.equalsIgnoreCase("http") && !(this.localEnvironment && isLoopback(uri.getHost()))) {
+                throw new IllegalArgumentException("Refusing " + ENV_TOKEN_URL + " (auth.tokenUrl): the client secret is only sent "
+                        + "over https. http to a loopback host is allowed only when " + ENV_ENVIRONMENTS + " is dev or test.");
             }
             return uri;
         }
@@ -143,6 +155,24 @@ public final class AuthConfig {
         return "AuthConfig{tenantId='" + getTenantId() + "', clientId='" + getClientId()
                 + "', clientSecret=" + (getClientSecret().isEmpty() ? "<unset>" : "<redacted>")
                 + ", scope='" + getScope() + "', tokenUrl=" + getTokenUrl() + "}";
+    }
+
+    private static boolean isLocal(String environments) {
+        if (environments == null) {
+            return false;
+        }
+        for (String name : environments.split(",")) {
+            String trimmed = name.strip();
+            if (trimmed.equalsIgnoreCase("dev") || trimmed.equalsIgnoreCase("test")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isLoopback(String host) {
+        return host.equalsIgnoreCase("localhost") || host.equals("127.0.0.1")
+                || host.equals("[::1]") || host.equals("::1");
     }
 
     private static String clean(String value) {

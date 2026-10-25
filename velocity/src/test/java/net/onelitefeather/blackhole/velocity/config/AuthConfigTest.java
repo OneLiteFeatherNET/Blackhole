@@ -137,6 +137,7 @@ class AuthConfigTest {
     @Test
     void theTokenUrlOverrideWinsAndNeedsNoTenant() {
         AuthConfig auth = new AuthConfig().withEnvironment(Map.of(
+                AuthConfig.ENV_ENVIRONMENTS, "dev",
                 AuthConfig.ENV_TOKEN_URL, "http://localhost:18090/blackhole/token",
                 AuthConfig.ENV_CLIENT_ID, "c", AuthConfig.ENV_CLIENT_SECRET, "s", AuthConfig.ENV_SCOPE, "x")::get);
 
@@ -149,6 +150,52 @@ class AuthConfigTest {
         AuthConfig auth = new AuthConfig().withEnvironment(Map.of(AuthConfig.ENV_TENANT_ID, "evil.example/../x?")::get);
 
         assertThrows(IllegalArgumentException.class, auth::tokenUri);
+    }
+
+    private static AuthConfig withTokenUrl(String environments, String tokenUrl) {
+        Map<String, String> env = new java.util.HashMap<>();
+        env.put(AuthConfig.ENV_TOKEN_URL, tokenUrl);
+        if (environments != null) {
+            env.put(AuthConfig.ENV_ENVIRONMENTS, environments);
+        }
+        return new AuthConfig().withEnvironment(env::get);
+    }
+
+    @Test
+    void anHttpTokenUrlIsRefusedWhenNoEnvironmentIsSet() {
+        AuthConfig auth = withTokenUrl(null, "http://localhost:18090/blackhole/token");
+
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, auth::tokenUri,
+                "the secret must not travel over http outside dev");
+
+        assertTrue(e.getMessage().contains(AuthConfig.ENV_TOKEN_URL), "names the setting: " + e.getMessage());
+    }
+
+    @Test
+    void anHttpTokenUrlIsRefusedInProduction() {
+        AuthConfig auth = withTokenUrl("prod", "http://localhost:18090/blackhole/token");
+
+        assertThrows(IllegalArgumentException.class, auth::tokenUri, "prod requires https");
+    }
+
+    @Test
+    void anHttpTokenUrlToALoopbackHostIsAllowedInDevAndTest() {
+        assertEquals(URI.create("http://localhost:18090/t"), withTokenUrl("dev", "http://localhost:18090/t").tokenUri(), "dev");
+        assertEquals(URI.create("http://127.0.0.1:18090/t"), withTokenUrl("test", "http://127.0.0.1:18090/t").tokenUri(), "test");
+        assertEquals(URI.create("http://[::1]:18090/t"), withTokenUrl("prod,dev", "http://[::1]:18090/t").tokenUri(), "ipv6");
+    }
+
+    @Test
+    void anHttpTokenUrlToARemoteHostIsRefusedEvenInDev() {
+        AuthConfig auth = withTokenUrl("dev", "http://idp.example.com/token");
+
+        assertThrows(IllegalArgumentException.class, auth::tokenUri, "only loopback may use http");
+    }
+
+    @Test
+    void anHttpsTokenUrlIsAllowedInEveryEnvironment() {
+        assertEquals(URI.create("https://idp.example.com/token"), withTokenUrl("prod", "https://idp.example.com/token").tokenUri(),
+                "https is always fine");
     }
 
     @Test

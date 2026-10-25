@@ -13,9 +13,9 @@ reads except with explicit offsets of at least 30 seconds, and they assert on be
 
 ## 2. Machine clients require https token endpoints (PR type `fix(security)`)
 
-- [ ] 2.1 Write failing tests: `velocity/src/test/.../config/AuthConfigTest` asserts that `BLACKHOLE_TOKEN_URL=http://...` is refused outside `dev`; `discord/src/test/.../auth/TokenSettingsTest` asserts the same. Verify: `./gradlew :velocity:test --tests "*AuthConfigTest*"` and `./gradlew :discord:test --tests "*TokenSettingsTest*"` fail first.
-- [ ] 2.2 Implement the gate in `velocity/.../config/AuthConfig.java:129-130` and `discord/.../auth/TokenSettings.java:86-89`. Verify: the two tests pass.
-- [ ] 2.3 Test that no request carries the secret to an `http` endpoint, using a fake transport. Verify: `ClientCredentialsTokenProviderTest` asserts zero transport calls for an `http` endpoint.
+- [x] 2.1 Write failing tests: `velocity/src/test/.../config/AuthConfigTest` asserts that `BLACKHOLE_TOKEN_URL=http://...` is refused outside `dev`; `discord/src/test/.../auth/TokenSettingsTest` asserts the same. Verify: `./gradlew :velocity:test --tests "*AuthConfigTest*"` and `./gradlew :discord:test --tests "*TokenSettingsTest*"` fail first.
+- [x] 2.2 Implement the gate in `velocity/.../config/AuthConfig.java:129-130` and `discord/.../auth/TokenSettings.java:86-89`. Verify: the two tests pass.
+- [x] 2.3 Test that no request carries the secret to an `http` endpoint, using a fake transport. Verify: `ClientCredentialsTokenProviderTest` asserts zero transport calls for an `http` endpoint.
 
 ## 3. Backend JWT hardening (PR type `fix(security)`, one PR per numbered item, each BREAKING where noted)
 

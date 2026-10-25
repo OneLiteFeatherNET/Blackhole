@@ -159,9 +159,9 @@ public record BotConfig(
         long staffRoleId = snowflake(env, ENV_STAFF_ROLE_ID, problems);
         String backendUrl = url(env, ENV_BACKEND_URL, problems);
         String panelUrl = url(env, ENV_PANEL_URL, problems);
-        TokenSettings auth = new TokenSettings(
+        TokenSettings auth = TokenSettings.of(
                 value(env, ENV_TENANT_ID), value(env, ENV_CLIENT_ID), value(env, ENV_CLIENT_SECRET),
-                value(env, ENV_AUTH_SCOPE), value(env, ENV_TOKEN_URL));
+                value(env, ENV_AUTH_SCOPE), value(env, ENV_TOKEN_URL), env);
         problems.addAll(auth.missing());
         if (auth.isComplete()) {
             try {

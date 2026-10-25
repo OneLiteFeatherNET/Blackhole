@@ -239,6 +239,18 @@ class ClientCredentialsTokenProviderTest {
     }
 
     @Test
+    void noRequestCarriesTheSecretToAnHttpEndpoint() {
+        TokenSettings http = new TokenSettings("", "client-1", SECRET, "x", "http://idp.example.com/token");
+        FakeTransport transport = new FakeTransport().ok("tok", 3600);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> new ClientCredentialsTokenProvider(http, transport, new MutableClock()).token(),
+                "a provider for an http endpoint cannot be built");
+
+        assertEquals(0, transport.calls(), "nothing was sent to the http endpoint");
+    }
+
+    @Test
     void incompleteCredentialsAreRefusedAtConstruction() {
         TokenSettings incomplete = new TokenSettings("", "", "", "", null);
 
