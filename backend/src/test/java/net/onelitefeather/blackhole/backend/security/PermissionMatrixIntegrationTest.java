@@ -346,7 +346,7 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     private String discordBot() {
-        return this.jwt.appOnly().claim("oid", UUID.randomUUID().toString()).roles(TestJwtIssuer.DISCORD_ROLE).sign();
+        return this.jwt.appOnly().azp(TestJwtIssuer.DISCORD_CLIENT).claim("oid", UUID.randomUUID().toString()).roles(TestJwtIssuer.DISCORD_ROLE).sign();
     }
 
     @Test
@@ -362,7 +362,7 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     private static final String TICKET = UUID.randomUUID().toString();
 
     private String bot() {
-        return this.jwt.appOnly().claim("oid", UUID.randomUUID().toString()).roles(TestJwtIssuer.DISCORD_ROLE).sign();
+        return this.jwt.appOnly().azp(TestJwtIssuer.DISCORD_CLIENT).claim("oid", UUID.randomUUID().toString()).roles(TestJwtIssuer.DISCORD_ROLE).sign();
     }
 
     /** Every /discord/** call of the ticket facade, as {method, path, body}. */

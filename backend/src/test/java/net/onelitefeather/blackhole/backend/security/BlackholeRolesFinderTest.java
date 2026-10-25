@@ -20,6 +20,9 @@ class BlackholeRolesFinderTest {
     private static final String VIEWER = "group-viewer";
     private static final String METRICS = "group-metrics";
 
+    private static final MachineClientProperties CLIENTS = new MachineClientProperties(
+            List.of("client-proxy"), List.of("client-metrics"), List.of("client-discord"));
+
     private static final RoleMappingProperties GROUPS = new RoleMappingProperties(
             "groups", "roles", List.of(ADMIN), List.of(MODERATOR), List.of(VIEWER), List.of(METRICS),
             List.of("Blackhole.Proxy"), List.of("Blackhole.Metrics"), List.of("Blackhole.Discord"));
@@ -61,11 +64,15 @@ class BlackholeRolesFinderTest {
                 scenario("overage marker _claim_names grants nothing", GROUPS,
                         Map.of("scp", "access_as_user", "_claim_names", Map.of("groups", "src1"))),
                 scenario("app-only proxy role grants proxy", GROUPS,
-                        Map.of("roles", List.of("Blackhole.Proxy")), "PROXY"),
+                        Map.of("azp", "client-proxy", "roles", List.of("Blackhole.Proxy")), "PROXY"),
                 scenario("app-only metrics role grants metrics", GROUPS,
-                        Map.of("roles", List.of("Blackhole.Metrics")), "METRICS"),
+                        Map.of("azp", "client-metrics", "roles", List.of("Blackhole.Metrics")), "METRICS"),
                 scenario("app-only discord role grants discord and nothing implied", GROUPS,
-                        Map.of("roles", List.of("Blackhole.Discord")), "DISCORD"),
+                        Map.of("azp", "client-discord", "roles", List.of("Blackhole.Discord")), "DISCORD"),
+                scenario("app-only proxy role from an unlisted client grants nothing", GROUPS,
+                        Map.of("azp", "someone-else", "roles", List.of("Blackhole.Proxy"))),
+                scenario("app-only proxy role with only appid grants nothing", GROUPS,
+                        Map.of("appid", "client-proxy", "roles", List.of("Blackhole.Proxy"))),
                 scenario("delegated token with the discord value in roles grants nothing", GROUPS,
                         Map.of("scp", "access_as_user", "roles", List.of("Blackhole.Discord"))),
                 scenario("delegated token with the discord value in groups grants nothing", GROUPS,
@@ -93,7 +100,7 @@ class BlackholeRolesFinderTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("scenarios")
     void claimsAreMappedToTheExpectedRoles(RoleMappingProperties mapping, Map<String, Object> claims, Set<String> expected) {
-        List<String> roles = new BlackholeRolesFinder(mapping).resolveRoles(claims);
+        List<String> roles = new BlackholeRolesFinder(mapping, CLIENTS).resolveRoles(claims);
 
         assertEquals(expected, Set.copyOf(roles), "roles for claims " + claims.keySet());
     }
@@ -112,6 +119,6 @@ class BlackholeRolesFinderTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("overage")
     void groupsOverageIsRecognisedOnlyForDelegatedTokensWithoutGroups(RoleMappingProperties mapping, Map<String, Object> claims, boolean expected) {
-        assertEquals(expected, new BlackholeRolesFinder(mapping).isGroupsOverage(claims), "overage for " + claims);
+        assertEquals(expected, new BlackholeRolesFinder(mapping, CLIENTS).isGroupsOverage(claims), "overage for " + claims);
     }
 }

@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 class DiscordNotificationApiIntegrationTest extends ApiIntegrationTest {
 
     private String proxy() {
-        return this.jwt.appOnly().claim("oid", UUID.randomUUID().toString()).roles(TestJwtIssuer.PROXY_ROLE).sign();
+        return this.jwt.appOnly().azp(TestJwtIssuer.PROXY_CLIENT).claim("oid", UUID.randomUUID().toString()).roles(TestJwtIssuer.PROXY_ROLE).sign();
     }
 
     @Test

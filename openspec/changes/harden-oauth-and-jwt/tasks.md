@@ -24,7 +24,7 @@ reads except with explicit offsets of at least 30 seconds, and they assert on be
 - [x] 3.3 Reject `ver` other than `2.0`: write `security/TokenVersionTest` (a `ver: "1.0"` token expects 401), then add the check. Verify: test green.
 - [x] 3.4 Bound clock skew at 60 s: write `security/ClockSkewTest` (`nbf` 2 min ahead → 401; `exp` 30 s past → 200), then set the leeway in `application.yml`. Verify: test green.
 - [x] 3.5 Mandatory audience and tenant outside dev: write `security/StartupRequirementsTest` (empty audience, `blackhole-api`, and `api://<guid>` each fail to start in a non-dev environment), then implement the guard beside `InsecureIssuerGuard.java:80-107`. Verify: test green. BREAKING.
-- [ ] 3.6 Bind machine roles to `azp`: write `security/MachineClientBindingTest` (a listed `azp` gets `PROXY`; an unlisted one gets nothing), then add `blackhole.security.roles.machine-clients.*` and the check in `BlackholeRolesFinder.java:62-66`. Update `PermissionMatrixIntegrationTest` for the new config. Verify: green. BREAKING.
+- [x] 3.6 Bind machine roles to `azp`: write `security/MachineClientBindingTest` (a listed `azp` gets `PROXY`; an unlisted one gets nothing), then add `blackhole.security.roles.machine-clients.*` and the check in `BlackholeRolesFinder.java:62-66`. Update `PermissionMatrixIntegrationTest` for the new config. Verify: green. BREAKING.
 
 ## 4. Hash the portal CSRF token at rest (PR type `fix(security)`)
 

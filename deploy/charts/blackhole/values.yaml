@@ -82,6 +82,12 @@ auth:
     proxy: Blackhole.Proxy
     metrics: Blackhole.Metrics
     discord: Blackhole.Discord
+  # Client ids (azp) allowed to act with each machine role, comma separated. Required: an empty
+  # list grants the role to nobody, so the proxy, the scraper and the bot are refused.
+  machineClients:
+    proxy: ""
+    metrics: ""
+    discord: ""
   rolesClaimHuman: groups
   rolesClaimMachine: roles
   # Must stay false. Only the local mock OIDC server of docker-compose needs it.

@@ -100,7 +100,7 @@ class AuthenticationIntegrationTest extends ApiIntegrationTest {
 
     @Test
     void meDescribesAMachineTokenWithoutADisplayName() {
-        Reply reply = get("/auth/me", this.jwt.appOnly().without("name").roles(TestJwtIssuer.PROXY_ROLE).sign());
+        Reply reply = get("/auth/me", this.jwt.appOnly().azp(TestJwtIssuer.PROXY_CLIENT).without("name").roles(TestJwtIssuer.PROXY_ROLE).sign());
 
         assertEquals(200, reply.status(), reply.body());
         assertEquals(List.of("PROXY"), reply.json().get("roles"));

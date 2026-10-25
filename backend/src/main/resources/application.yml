@@ -113,6 +113,13 @@ blackhole:
       machine-metrics: ${BLACKHOLE_AUTH_MACHINE_ROLE_METRICS:Blackhole.Metrics}
       # The Discord bot (discord module) acts with this app role; it only reaches /discord/**.
       machine-discord: ${BLACKHOLE_AUTH_MACHINE_ROLE_DISCORD:Blackhole.Discord}
+      # Client ids (the azp claim, never appid) allowed to act with each machine role. An app-only
+      # token with the role value but another azp gets no role. Comma separated; empty means nobody,
+      # so production must set these. The dev defaults are in application-dev.yml.
+      machine-clients:
+        proxy: ${BLACKHOLE_AUTH_MACHINE_CLIENTS_PROXY:}
+        metrics: ${BLACKHOLE_AUTH_MACHINE_CLIENTS_METRICS:}
+        discord: ${BLACKHOLE_AUTH_MACHINE_CLIENTS_DISCORD:}
   # Ban ID: the 8 character credential a player opens the appeal portal with. It is stored only as an
   # HMAC (login lookup) and an AES-GCM ciphertext (staff reveal), both derived from this one secret:
   # 32 random bytes, base64 (openssl rand -base64 32). Unset is allowed

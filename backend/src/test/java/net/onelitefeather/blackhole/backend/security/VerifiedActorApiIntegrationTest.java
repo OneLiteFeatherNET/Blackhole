@@ -75,7 +75,7 @@ class VerifiedActorApiIntegrationTest extends ApiIntegrationTest {
     }
 
     private String proxy() {
-        return this.jwt.appOnly().claim("oid", PROXY_OID.toString()).roles(TestJwtIssuer.PROXY_ROLE).sign();
+        return this.jwt.appOnly().azp(TestJwtIssuer.PROXY_CLIENT).claim("oid", PROXY_OID.toString()).roles(TestJwtIssuer.PROXY_ROLE).sign();
     }
 
     @SuppressWarnings("unchecked")
