@@ -67,12 +67,12 @@ PR title: `refactor(web): consolidate design tokens and base components`
 
 PR title: `feat(api): add the inbox summary for the staff panel`
 
-- [ ] 2a.1 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/inbox/InboxServiceTest.java`. Tests, one
+- [x] 2a.1 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/inbox/InboxServiceTest.java`. Tests, one
   behaviour each: counts of the four sections; at most ten items per section; oldest first in each section; a case
   with an assignee is not in "Unassigned cases"; an appeal with a decision is not in "Open appeals"; a chat whose last
   visible message is staff's is not in "Needs an answer". Use a fixed `java.time.Clock` and an in-memory fixture
   (no database). Run `./gradlew :backend:test --tests "*InboxServiceTest"` and see it fail.
-- [ ] 2a.2 Green: create `backend/src/main/java/net/onelitefeather/blackhole/backend/inbox/`:
+- [x] 2a.2 Green: create `backend/src/main/java/net/onelitefeather/blackhole/backend/inbox/`:
   - `InboxService.java` (`@Singleton`, one method `summary()` returning the sealed `InboxDTO.Response` or `InboxDTO.Error`).
   - `InboxDTO.java` (sealed marker interface with `Response` and `Error` records, the micronaut-dto-contract shape).
   - `InboxQueries.java` (JDBC, four queries, the "needs an answer" query reads `case_event` for `message.added`
@@ -80,10 +80,10 @@ PR title: `feat(api): add the inbox summary for the staff panel`
   - `InboxApi.java` (the `@Operation` and `@ApiResponse` annotations, micronaut-openapi-contract) and
     `InboxController.java` (thin: one service call, map to `HttpResponse`).
   - Route `GET /inbox`, `@Version` per the controller convention (`.claude/rules/controller-versioning.md`).
-- [ ] 2a.3 Client spec: copy the latest `client/specs/blackhole-api-0.0.40.yml` to
+- [x] 2a.3 Client spec: copy the latest `client/specs/blackhole-api-0.0.40.yml` to
   `client/specs/blackhole-api-<next>.yml` (next free at implementation time), add `/inbox`, and bump `inputSpec` in
   `client/build.gradle.kts`. Run `./gradlew :client:openApiGenerate`.
-- [ ] 2a.4 Red then green: `InboxControllerTest` (the controller answers 200 with the service result and nothing else).
+- [x] 2a.4 Red then green: `InboxControllerTest` (the controller answers 200 with the service result and nothing else).
   Run `./gradlew :backend:test`.
 
 ### 2b. Navigation, page shell and Inbox page (`feat(web)`)

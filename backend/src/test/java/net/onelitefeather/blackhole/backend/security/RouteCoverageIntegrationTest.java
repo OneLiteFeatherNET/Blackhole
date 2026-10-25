@@ -53,6 +53,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /template", VP),
             Map.entry("GET /template/{identifier}", VP),
             Map.entry("GET /dashboard/summary", V),
+            Map.entry("GET /inbox", V),
             Map.entry("GET /player/resolve/{name}", VP),
             Map.entry("GET /punishment/{reference}/evidence", VP),
             Map.entry("GET /punishment/{reference}/evidence/count", VP),
