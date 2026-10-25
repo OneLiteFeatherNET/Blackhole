@@ -41,9 +41,13 @@ describe('AccountMenu', () => {
     expect(wrapper.get('[data-testid="signed-in-as"]').text()).toBe('Angemeldet als Dev Admin')
     expect(wrapper.findAll('[role="combobox"]'), 'theme and language').toHaveLength(2)
 
-    await wrapper.get('[data-testid="account"]').trigger('click')
-    expect(wrapper.emitted('account'), 'account').toHaveLength(1)
+    await wrapper.get('[data-testid="link-minecraft"]').trigger('click')
+    expect(wrapper.emitted('account'), 'minecraft link').toEqual([['minecraft']])
     expect(wrapper.find('[data-testid="sign-out"]').exists(), 'closed after a choice').toBe(false)
+
+    await wrapper.get('[data-testid="account-menu"]').trigger('click')
+    await wrapper.get('[data-testid="link-discord"]').trigger('click')
+    expect(wrapper.emitted('account')?.[1], 'discord link').toEqual(['discord'])
 
     await wrapper.get('[data-testid="account-menu"]').trigger('click')
     await wrapper.get('[data-testid="sign-out"]').trigger('click')
@@ -86,7 +90,8 @@ describe('AccountMenu', () => {
 
     expect(wrapper.findAll('[role="combobox"]')).toHaveLength(2)
     expect(wrapper.find('[data-testid="sign-out"]').exists(), 'sign-out').toBe(false)
-    expect(wrapper.find('[data-testid="account"]').exists(), 'account').toBe(false)
+    expect(wrapper.find('[data-testid="link-minecraft"]').exists(), 'minecraft link').toBe(false)
+    expect(wrapper.find('[data-testid="link-discord"]').exists(), 'discord link').toBe(false)
 
     wrapper.unmount()
   })

@@ -20,7 +20,15 @@ interface Numbers {
 
 async function mountApp(numbers: Numbers, path = '/players') {
   const current = { ...numbers }
-  const dashboard = vi.fn(async () => ok({ activePunishmentsBySection: [], latestEscalations: [], pendingAppeals: current.appeals, openReports: current.reports }))
+  const inbox = vi.fn(async () =>
+    ok({
+      generatedAt: 0,
+      needsAnswer: { count: 0, items: [] },
+      openAppeals: { count: current.appeals, items: [] },
+      newReports: { count: current.reports, items: [] },
+      unassignedCases: { count: 0, items: [] },
+    }),
+  )
   const cases = vi.fn(async () => ok({ items: [], page: 0, size: 1, totalSize: current.cases, totalPages: current.cases }))
   const clock = fakeTicker()
   const router = createAppRouter(createMemoryHistory())
@@ -32,7 +40,7 @@ async function mountApp(numbers: Numbers, path = '/players') {
       provide: {
         [AUTH_KEY as symbol]: fakeAuthService().service,
         [API_KEY as symbol]: mockApi({
-          dashboard,
+          inbox,
           cases,
           profile: async () => ok({ active: {}, history: [] }),
           staffLinkStatus: async () => ok({ linked: false }),
@@ -44,7 +52,7 @@ async function mountApp(numbers: Numbers, path = '/players') {
     attachTo: document.body,
   })
   await flushPromises()
-  return { wrapper, router, clock, dashboard, cases, set: (next: Partial<Numbers>) => Object.assign(current, next) }
+  return { wrapper, router, clock, inbox, cases, set: (next: Partial<Numbers>) => Object.assign(current, next) }
 }
 
 const link = (wrapper: Awaited<ReturnType<typeof mountApp>>['wrapper'], label: string) => wrapper.findAll('nav a').find((a) => a.text().includes(label))!
@@ -77,10 +85,18 @@ describe('navigation badges', () => {
     wrapper.unmount()
   })
 
-  it('hides a badge at 0', async () => {
-    const { wrapper } = await mountApp({ cases: 0, appeals: 0, reports: 2 })
+  it('badges the inbox with the total of its open items, appeals and reports', async () => {
+    const { wrapper } = await mountApp({ cases: 7, appeals: 3, reports: 5 })
 
-    expect(wrapper.findAll('[data-testid="nav-badge"]')).toHaveLength(1)
+    expect(link(wrapper, 'Posteingang').get('[data-testid="nav-badge"]').text()).toBe('8')
+
+    wrapper.unmount()
+  })
+
+  it('hides a badge at 0', async () => {
+    const { wrapper } = await mountApp({ cases: 0, appeals: 0, reports: 0 })
+
+    expect(wrapper.findAll('[data-testid="nav-badge"]')).toHaveLength(0)
     expect(link(wrapper, 'Fälle').text()).toBe('Fälle')
 
     wrapper.unmount()
@@ -108,15 +124,15 @@ describe('navigation badges', () => {
   })
 
   it('refreshes once a minute through the injected timer', async () => {
-    const { wrapper, clock, dashboard, cases, set } = await mountApp({ cases: 1, appeals: 1, reports: 1 })
+    const { wrapper, clock, inbox, cases, set } = await mountApp({ cases: 1, appeals: 1, reports: 1 })
     expect(clock.periods).toEqual([60_000])
-    expect(dashboard).toHaveBeenCalledTimes(1)
+    expect(inbox).toHaveBeenCalledTimes(1)
 
     set({ cases: 12, reports: 0 })
     clock.tick()
     await flushPromises()
 
-    expect(dashboard).toHaveBeenCalledTimes(2)
+    expect(inbox).toHaveBeenCalledTimes(2)
     expect(cases).toHaveBeenCalledTimes(2)
     expect(link(wrapper, 'Fälle').get('[data-testid="nav-badge"]').text()).toBe('12')
     expect(link(wrapper, 'Meldungen').find('[data-testid="nav-badge"]').exists(), 'reports now zero').toBe(false)
