@@ -67,19 +67,20 @@ describe('CasesView', () => {
     wrapper.unmount()
   })
 
-  it('filters by tag and refuses a tag that cannot exist', async () => {
+  it('filters by tag on submit and refuses a tag that cannot exist', async () => {
     const { cases, mount } = setup([[item()], [item()]])
     const { wrapper } = await mount()
 
     await wrapper.get('[data-testid="tag-filter"] input').setValue('Not A Tag')
-    await wrapper.get('[data-testid="apply-tag"]').trigger('click')
+    await wrapper.get('[data-testid="tag-filter"]').trigger('submit')
     await flushPromises()
     expect(cases).toHaveBeenCalledTimes(1)
 
     await wrapper.get('[data-testid="tag-filter"] input').setValue('Spam')
-    await wrapper.get('[data-testid="apply-tag"]').trigger('click')
+    await wrapper.get('[data-testid="tag-filter"]').trigger('submit')
     await flushPromises()
     expect(cases).toHaveBeenLastCalledWith(expect.objectContaining({ tag: 'spam' }))
+    expect(wrapper.get('[data-testid="applied-filters"]').text()).toContain('Tag: spam')
 
     wrapper.unmount()
   })
@@ -99,11 +100,41 @@ describe('CasesView', () => {
     wrapper.unmount()
   })
 
-  it('says when no case matches', async () => {
+  it('says that there are no cases yet when no filter is applied', async () => {
     const { mount } = setup([[]])
     const { wrapper } = await mount()
 
-    expect(wrapper.get('[data-testid="cases-empty"]').text()).toBe('No cases match.')
+    const empty = wrapper.get('[data-testid="cases-empty"]')
+    expect(empty.attributes('data-variant')).toBe('no-items')
+    expect(empty.text()).toContain('No cases yet.')
+
+    wrapper.unmount()
+  })
+
+  it('says that no case matches when the filters hide everything, and clears them from there', async () => {
+    const { cases, mount } = setup([[item()], [], [item()]])
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="status-CLOSED"]').trigger('click')
+    await flushPromises()
+    const empty = wrapper.get('[data-testid="cases-empty"]')
+    expect(empty.attributes('data-variant')).toBe('no-matches')
+    expect(empty.text()).toContain('No cases match.')
+
+    await wrapper.get('[data-testid="empty-clear-filters"]').trigger('click')
+    await flushPromises()
+
+    expect(cases).toHaveBeenLastCalledWith(expect.objectContaining({ status: undefined, page: 0 }))
+    expect(wrapper.get('[data-testid="status-all"]').attributes('aria-pressed')).toBe('true')
+
+    wrapper.unmount()
+  })
+
+  it('shows the page title as its only h1', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    expect(wrapper.findAll('h1').map((heading) => heading.text())).toEqual(['Cases'])
 
     wrapper.unmount()
   })

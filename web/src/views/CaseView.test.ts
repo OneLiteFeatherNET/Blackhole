@@ -30,8 +30,29 @@ describe('CaseView: loading', () => {
 
     expect(api.caseDetail).toHaveBeenCalledWith('p-0001')
     expect(api.caseTimeline).toHaveBeenCalledWith('p-0001', expect.anything())
-    expect(wrapper.get('h2').text()).toBe('Case #AB12CD')
+    expect(wrapper.get('h1').text()).toBe('Case #AB12CD')
     expect(wrapper.findAll('[data-testid^="event-"][data-type]')).toHaveLength(1)
+
+    wrapper.unmount()
+  })
+
+  it('leads back to the cases through breadcrumbs, not a text link', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    const crumbs = wrapper.findAll('nav[aria-label="Breadcrumbs"] a')
+    expect(crumbs.map((crumb) => crumb.text())).toEqual(['Cases'])
+    expect(crumbs[0]!.attributes('href')).toBe('/cases')
+    expect(wrapper.get('nav[aria-label="Breadcrumbs"] [aria-current="page"]').text()).toBe('#AB12CD')
+
+    wrapper.unmount()
+  })
+
+  it('puts the notes under a second-level heading', async () => {
+    const { mount } = setup({ roles: ['MODERATOR', 'VIEWER'] })
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('section[aria-label="Notes"] > h2').text()).toBe('Notes')
 
     wrapper.unmount()
   })
