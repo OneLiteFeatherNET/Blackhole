@@ -107,6 +107,7 @@ public final class TestJwtIssuer {
         Instant now = this.clock.instant();
         return new Token(this.key)
                 .claim("iss", ISSUER)
+                .claim("ver", "2.0")
                 .claim("aud", AUDIENCE)
                 .claim("sub", UUID.randomUUID().toString())
                 .claim("oid", UUID.randomUUID().toString())

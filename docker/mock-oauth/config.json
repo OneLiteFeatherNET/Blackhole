@@ -10,6 +10,7 @@
           "requestParam": "subject",
           "match": "admin",
           "claims": {
+            "ver": "2.0",
             "sub": "${subject}",
             "oid": "00000000-0000-4000-8000-0000000000a1",
             "name": "Dev Admin",
@@ -22,6 +23,7 @@
           "requestParam": "subject",
           "match": "moderator",
           "claims": {
+            "ver": "2.0",
             "sub": "${subject}",
             "oid": "00000000-0000-4000-8000-0000000000a2",
             "name": "Dev Moderator",
@@ -34,6 +36,7 @@
           "requestParam": "subject",
           "match": "viewer",
           "claims": {
+            "ver": "2.0",
             "sub": "${subject}",
             "oid": "00000000-0000-4000-8000-0000000000a3",
             "name": "Dev Viewer",
@@ -46,6 +49,7 @@
           "requestParam": "subject",
           "match": "nogroup",
           "claims": {
+            "ver": "2.0",
             "sub": "${subject}",
             "oid": "00000000-0000-4000-8000-0000000000a4",
             "name": "Dev No Group",
@@ -58,6 +62,7 @@
           "requestParam": "client_id",
           "match": "blackhole-proxy",
           "claims": {
+            "ver": "2.0",
             "sub": "00000000-0000-4000-8000-0000000000b1",
             "oid": "00000000-0000-4000-8000-0000000000b1",
             "aud": ["blackhole-api"],
@@ -68,6 +73,7 @@
           "requestParam": "client_id",
           "match": "blackhole-metrics",
           "claims": {
+            "ver": "2.0",
             "sub": "00000000-0000-4000-8000-0000000000b2",
             "oid": "00000000-0000-4000-8000-0000000000b2",
             "aud": ["blackhole-api"],
