@@ -193,6 +193,61 @@ update. Each PR removes its files from `web/tests/design-baseline.json`.
 
 ---
 
+### 3f. Workspaces: Moderation and Administration (`docs(openspec)`, then `feat(web)`)
+
+Decision of 2026-10-25 in `design.md` section 1 ("Decision 2026-10-25"). Two PRs, stacked.
+
+PR 1 title: `docs(openspec): split the panel into moderation and administration workspaces` (this spec update).
+PR 2 title: `feat(web): split the panel into moderation and administration workspaces`, based on PR 1's branch.
+
+- [ ] 3f.1 Red, PR 2 (`web/`, all Vitest, F.I.R.S.T., fake fetch, no timers):
+  - `web/src/nav/navigation.test.ts`: replace the single-rail shape with the two workspaces. Moderation for ADMIN and
+    MODERATOR: Inbox, Work (Cases, Appeals, Reports), Players (Player lookup, Active punishments). Administration for
+    ADMIN only: Configuration (Templates, Sections, Client rules, Appeal terms), System (Staff accounts, Imports,
+    CloudNet). No "System status" item.
+  - `web/src/nav/workspaces.test.ts` (new): the switcher lists both workspaces for ADMIN and only Moderation for
+    MODERATOR and VIEWER; the Administration home is `/admin/templates`; the workspace of a route comes from
+    `meta.workspace`.
+  - `web/src/components/WorkspaceSwitcher.test.ts` (new): shown only to ADMIN; choosing Administration navigates to
+    `/admin/templates`; the stored workspace is written in try/catch and the component renders when storage throws.
+  - `web/src/router/workspaceRoutes.test.ts` (new, uses `createAppRouter` with a memory history and the auth guard):
+    `/templates?page=2` lands on `/admin/templates?page=2`; `/admin` lands on `/admin/templates`; `/sections`,
+    `/client-rules` and `/appeal-conditions` land on their `/admin/*` successors; a MODERATOR opening `/admin/templates`
+    or `/sections` lands on `no-access`; an ADMIN opening `/admin/staff`, `/admin/imports`, `/admin/cloudnet` reaches
+    the page.
+  - `web/src/App.test.ts`: replace the admin-page assertions (lines 110-125, 181-199) with: no switcher and no
+    Administration item for MODERATOR; switcher and Administration rail for ADMIN.
+  - `web/src/components/player/ApplyTemplateDialog.test.ts`: a MODERATOR can open
+    the template picker and see templates (regression guard for the moderator path).
+  - `web/src/components/reports/ReportResolveDialog.test.ts`: the same for the template list, as MODERATOR.
+  - `web/src/components/Breadcrumbs.test.ts` and `web/src/views/CaseView.test.ts`, `ReportDetailView.test.ts`,
+    `PlayerDetailView.test.ts`: with the switcher shown (ADMIN), the first crumb is the workspace name; without it
+    (MODERATOR) the trail is unchanged.
+- [ ] 3f.2 Green, PR 2:
+  - `web/src/nav/navigation.ts`: `NAV_GROUPS` becomes two exports, `MODERATION_GROUPS` and `ADMINISTRATION_GROUPS`
+    (lines 25-88 and `visibleGroups` lines 91-96). Each `NavDestination` gets no `admin` flag; the workspace does.
+  - `web/src/nav/workspaces.ts` (new): the two workspaces with key, home route, label key, groups and the admin flag.
+  - `web/src/router/index.ts` (lines 23-43): `meta.workspace` on every route; `/admin/templates`, `/admin/sections`,
+    `/admin/client-rules`, `/admin/appeal-terms` added; `/admin` redirects to `/admin/templates`; the four old
+    configuration routes redirect (query kept); `/admin/staff`, `/admin/imports`, `/admin/cloudnet` keep their paths.
+  - `web/src/router/authGuard.ts`: unchanged rule (`meta.admin` needs ADMIN); the new admin routes carry `meta.admin`.
+  - `web/src/components/WorkspaceSwitcher.vue` (new), placed in `web/src/App.vue` at the top left of the app bar
+    (`MdTopAppBar.vue` leading slot), shown only with `session.administrator`.
+  - `web/src/App.vue` (lines 46-65 `groups` computed): groups come from the active workspace of the route.
+  - `web/src/views/AdminView.vue` (lines 13-19 tabs): tab strip removed; the three panels move to their own views
+    (`StaffAccountsView.vue` exists; add `ImportsView.vue` and `CloudNetView.vue` if no view exists, `TemplatesView`,
+    `SectionsView`, `ClientRulesView`, `AppealConditionsView` already exist and are reused).
+  - `web/src/locales/en.json` and `de.json`: `workspace.moderation` (Moderation / Moderation), `workspace.administration`
+    (Administration / Verwaltung), `workspace.switch`, `nav.groups.system` (System / System), and the keys for the
+    Administration items (`nav.staffAccounts`, `nav.imports`, `nav.cloudnet`). Key parity test passes.
+- [ ] 3f.3 Refactor, PR 2: `web/tests/design-baseline.json` may only shrink (a file migrated in this PR may be removed,
+  none may be added). Remove the `AdminView` tab helpers that are now unused.
+- [ ] 3f.4 Verify, PR 2, in `web/`: `npm ci`, `npm test`, `npx vue-tsc --noEmit`, `npm run build`.
+- [ ] 3f.5 Open the pull requests: PR 1 against `main`, PR 2 against PR 1's branch (`docs/ux-workspaces`), each body
+  ending with the session URL; wait for `gh pr checks`; do not merge.
+
+---
+
 ## 4. Staff identity backend (`feat(staff)`, then `feat(case)`)
 
 ### 4a. Migration, profile API and avatars (`feat(staff)`)
