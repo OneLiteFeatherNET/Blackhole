@@ -66,14 +66,13 @@ function onKeydown(event: KeyboardEvent) {
       class="fixed inset-0 z-50 flex items-center justify-center p-4"
       :class="{ 'max-sm:p-0': props.wide }"
     >
-      <div class="absolute inset-0 bg-scrim/[0.32]" @click="emit('close')" />
+      <div class="absolute inset-0 bg-scrim/(--md-sys-scrim-opacity)" @click="emit('close')" />
       <div
         ref="panel"
         role="dialog"
         aria-modal="true"
         :aria-labelledby="titleId"
         tabindex="-1"
-        style="--md-field-bg: var(--color-surface-container-high)"
         class="relative flex max-h-[90dvh] w-full flex-col overflow-y-auto rounded-md-xl bg-surface-container-high p-6 text-on-surface shadow-md-3 outline-none"
         :class="props.wide ? 'max-w-2xl max-sm:h-dvh max-sm:max-h-none max-sm:rounded-none' : 'max-w-md'"
         @keydown="onKeydown"

@@ -104,8 +104,8 @@ function onKeydown(event: KeyboardEvent): void {
         class="flex shrink-0 flex-col overflow-y-auto bg-surface-container-low text-on-surface"
         :class="{
           'md-fade-in': props.mode !== 'modal',
-          'sticky top-16 h-[calc(100dvh-4rem)] w-72 gap-1 px-3 py-3': props.mode === 'drawer',
-          'sticky top-16 h-[calc(100dvh-4rem)] w-20 items-center gap-1 py-3': props.mode === 'rail',
+          'sticky top-16 h-(--md-drawer-height) w-72 gap-1 px-3 py-3': props.mode === 'drawer',
+          'sticky top-16 h-(--md-drawer-height) w-20 items-center gap-1 py-3': props.mode === 'rail',
           'relative h-full w-80 max-w-[85vw] gap-1 rounded-r-md-xl px-3 py-3 shadow-md-3': props.mode === 'modal',
         }"
         @keydown="onKeydown"

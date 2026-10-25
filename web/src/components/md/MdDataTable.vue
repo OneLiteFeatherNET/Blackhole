@@ -17,7 +17,7 @@ defineProps<{
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(row, index) in rows" :key="index" class="md-enter md-colors border-t border-outline-variant hover:bg-on-surface/[0.08]" :style="{ '--md-i': index }">
+        <tr v-for="(row, index) in rows" :key="index" class="md-enter md-colors border-t border-outline-variant hover:bg-on-surface/(--md-sys-state-hover-opacity)" :style="{ '--md-i': index }">
           <td v-for="column in columns" :key="column.key" class="px-4 py-3">
             <slot name="cell" :row="row" :column="column">{{ row[column.key] }}</slot>
           </td>

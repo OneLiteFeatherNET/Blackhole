@@ -25,8 +25,10 @@ const props = withDefaults(
     supportingText?: string
     error?: string
     disabled?: boolean
+    /** Height 40 px, used only inside a filter toolbar or a compact dialog. */
+    dense?: boolean
   }>(),
-  { disabled: false, required: false },
+  { disabled: false, required: false, dense: false },
 )
 const model = defineModel<string>({ default: '' })
 
@@ -225,8 +227,9 @@ function toggle(): void {
         :aria-invalid="props.error ? 'true' : undefined"
         :aria-describedby="message ? messageId : undefined"
         :disabled="props.disabled"
-        class="flex h-14 w-full cursor-pointer items-center rounded-md-xs border bg-transparent pl-4 pr-12 text-left text-body-large text-on-surface outline-none disabled:cursor-default disabled:opacity-[0.38] focus-visible:border-2 focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-primary"
+        class="flex w-full cursor-pointer items-center rounded-md-xs border bg-transparent pr-12 text-left text-body-large text-on-surface outline-none disabled:cursor-default disabled:opacity-(--md-sys-state-disabled-opacity) focus-visible:border-2 focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-primary"
         :class="[
+          props.dense ? 'h-10 pl-3' : 'h-14 pl-4',
           props.error ? 'border-error border-2' : open ? 'border-2 border-primary' : 'border-outline hover:border-on-surface',
         ]"
         @click="toggle"
@@ -270,7 +273,7 @@ function toggle(): void {
           role="listbox"
           tabindex="-1"
           :aria-labelledby="labelId"
-          class="fixed z-[60] overflow-y-auto rounded-md-xs bg-surface-container py-2 text-on-surface shadow-md-2"
+          class="fixed z-(--z-menu) overflow-y-auto rounded-md-xs bg-surface-container py-2 text-on-surface shadow-md-2"
           :style="{
             left: `${placement.left}px`,
             width: `${placement.width}px`,

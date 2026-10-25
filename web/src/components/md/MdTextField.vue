@@ -31,8 +31,11 @@ const message = computed(() => props.error || props.supportingText)
         :disabled="props.disabled"
         :aria-invalid="props.error ? 'true' : undefined"
         :aria-describedby="message ? messageId : undefined"
-        class="w-full rounded-md-xs border bg-transparent px-4 text-body-large text-on-surface outline-none disabled:opacity-[0.38] focus:border-2 focus:-outline-offset-2 focus:outline-2 focus:outline-primary"
-        :class="[props.dense ? 'h-10' : 'h-14', props.error ? 'border-error border-2' : 'border-outline hover:border-on-surface']"
+        class="w-full rounded-md-xs border bg-transparent text-body-large text-on-surface outline-none disabled:opacity-(--md-sys-state-disabled-opacity) focus:border-2 focus:-outline-offset-2 focus:outline-2 focus:outline-primary"
+        :class="[
+          props.dense ? 'h-10 px-3' : 'h-14 px-4',
+          props.error ? 'border-error border-2' : 'border-outline hover:border-on-surface',
+        ]"
       />
       <label
         :for="inputId"

@@ -15,6 +15,8 @@ FROM node:24-alpine AS build
 WORKDIR /app
 # package.json points openapi-typescript at ../client/specs/<pinned spec>.
 COPY client/specs ./client/specs
+# The token source (design/tokens) is read by the prebuild step that generates web/src/styles/md3-tokens.generated.css.
+COPY design/tokens ./design/tokens
 COPY web/package.json web/package-lock.json ./web/
 RUN cd web && npm ci
 COPY web ./web

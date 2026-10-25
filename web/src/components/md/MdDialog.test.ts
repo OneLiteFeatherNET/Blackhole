@@ -67,13 +67,23 @@ describe('MdDialog', () => {
     expect(wrapper.emitted('outer'), 'the outer dialog stays open').toBeUndefined()
   })
 
-  it('hands its own surface color to outlined fields so their label notch matches the dialog', async () => {
+  it('leaves the field background to the surface token instead of setting it inline', async () => {
     const wrapper = mount(MdDialog, { props: { open: true, headline: 'x' }, attachTo: document.body })
     mounted.push(wrapper)
 
     const panel = wrapper.get('[role="dialog"]')
 
     expect(panel.classes()).toContain('bg-surface-container-high')
-    expect(panel.attributes('style')).toContain('--md-field-bg: var(--color-surface-container-high)')
+    expect(panel.attributes('style'), 'no inline --md-field-bg').toBeUndefined()
+  })
+
+  it('draws the scrim with the scrim token, not a fixed opacity', () => {
+    const wrapper = mount(MdDialog, { props: { open: true, headline: 'x' }, attachTo: document.body })
+    mounted.push(wrapper)
+
+    const scrim = wrapper.get('[role="dialog"]').element.parentElement!.querySelector('div.absolute')!
+
+    expect(scrim.className).toContain('bg-scrim/(--md-sys-scrim-opacity)')
+    expect(scrim.className).not.toContain('bg-scrim/[0.32]')
   })
 })

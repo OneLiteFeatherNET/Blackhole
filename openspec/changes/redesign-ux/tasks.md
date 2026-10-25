@@ -21,20 +21,20 @@ the Problem Details shape of that same API change.
 
 PR title: `refactor(web): consolidate design tokens and base components`
 
-- [ ] 1.1 Red: create `web/tests/design-system.test.ts` with three tests. (a) a retired-class scan of `web/src/**/*.vue`
+- [x] 1.1 Red: create `web/tests/design-system.test.ts` with three tests. (a) a retired-class scan of `web/src/**/*.vue`
   for the classes in `redesign-ux` design section 2 (`p-5`, `gap-5`, `*-0.5`, `*-1.5`, `rounded-md-sm` on buttons,
   `text-title-large`, `text-headline-medium`, `text-headline-large`, `text-label-small`, arbitrary `[...]` spacing);
   the scan reads `web/tests/design-baseline.json`, which lists the files still to migrate, and fails on any retired
   class in a file not in the baseline. (b) the spacing tokens exist in `web/src/styles/main.css`. (c) the parity test
   `web/tests/tokens-parity.test.ts` compares `web/src/styles/md3-tokens.generated.css` with the output of the
   generator for the source in `design/tokens/`. Run `npm test` in `web/` and see them fail.
-- [ ] 1.2 Create the token source directory `design/tokens/` at the repo root with `seed.json` (seed `#6750A4`), the
+- [x] 1.2 Create the token source directory `design/tokens/` at the repo root with `seed.json` (seed `#6750A4`), the
   brand token file (portal gradient colours, from `portal/src/styles/utilities.css`) and `README.md` for the token
   rules. Move `web/scripts/generate-md3-tokens.mjs` to read from `design/tokens/`, keep its output path
   `web/src/styles/md3-tokens.generated.css`, and add the `prebuild` step to `web/package.json`. Make 1.1 (c) green.
-- [ ] 1.3 Add the spacing and type role tokens to `web/src/styles/main.css` (`--space-1` 4 px to `--space-8` 32 px,
+- [x] 1.3 Add the spacing and type role tokens to `web/src/styles/main.css` (`--space-1` 4 px to `--space-8` 32 px,
   the role names of design section 2). Keep the existing `--text-*` tokens; add no raw font sizes.
-- [ ] 1.4 Components, each with its own failing test first (`*.test.ts` next to the component):
+- [x] 1.4 Components, each with its own failing test first (`*.test.ts` next to the component):
   - `web/src/components/md/MdButton.vue` (lines 11-16, 23): add variants `tonal`, `outlined`, `text`, `error`
     (filled, error roles); `as="link"` renders `RouterLink` with the same classes; disabled uses the state token,
     not `opacity-[0.38]`.
@@ -50,13 +50,13 @@ PR title: `refactor(web): consolidate design tokens and base components`
   - `web/src/components/md/MdCard.vue` (line 14): body `p-4` stays; `web/src/components/ProtocolSection.vue` (lines
     134, 147): `p-3` and `p-4` become `p-4`.
   - `web/src/components/md/MdNavigationDrawer.vue` (line 107-108): `h-[calc(100dvh-4rem)]` becomes a token.
-- [ ] 1.5 New components (red test first, then the component): `web/src/components/TextLink.vue` (replaces the
+- [x] 1.5 New components (red test first, then the component): `web/src/components/TextLink.vue` (replaces the
   copied class string used about 15 times, audit 2 "Text links"), `web/src/components/EmptyState.vue` (variants
   `no-items`, `no-matches`, `no-access`), `web/src/components/SkeletonRows.vue`, `web/src/components/SkeletonBlock.vue`.
-- [ ] 1.6 Extract the inline SVG icon paths from `web/src/nav/navigation.ts` (lines 29-84) and `web/src/App.vue`
+- [x] 1.6 Extract the inline SVG icon paths from `web/src/nav/navigation.ts` (lines 29-84) and `web/src/App.vue`
   (line 22) into `web/src/icons/index.ts` with one named export per icon. The navigation file imports names, not
   paths. Keep the brand mark in `web/src/components/md/MdTopAppBar.vue` (lines 16-19).
-- [ ] 1.7 Update `web/tests/design-baseline.json` to remove any file already migrated in this PR. Run the full `web/`
+- [x] 1.7 Update `web/tests/design-baseline.json` to remove any file already migrated in this PR. Run the full `web/`
   test suite and the contrast test (`web/tests/contrast.test.ts`) after `npm run generate`.
 
 ---

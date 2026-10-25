@@ -34,6 +34,14 @@ async function setup(props: Record<string, unknown> = {}, path = '/') {
 }
 
 describe('MdNavigationDrawer', () => {
+  it('sizes a drawer to the viewport minus the app bar with the layout token', async () => {
+    const { wrapper } = await setup()
+
+    const classes = wrapper.get('nav').classes()
+    expect(classes).toContain('h-(--md-drawer-height)')
+    expect(classes.some((name) => name.startsWith('h-[calc'))).toBe(false)
+  })
+
   it('is a labelled navigation landmark with headed groups', async () => {
     const { wrapper } = await setup()
 

@@ -1,0 +1,4 @@
+{
+  "$comment": "MD3 colour seed for web/ and portal/. Read by web/scripts/generate-md3-tokens.mjs. Change it here only.",
+  "seed": "#6750A4"
+}
