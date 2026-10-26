@@ -57,10 +57,10 @@ resets the leak and leaves its trace in the timeline. No new appeal status.
   on the portal; a leak with no open appeal sets the case `CLOSED` with closing reason `BAN_ID_LEAKED`, appends one closing
   comment (author `SYSTEM`, visibility `PLAYER`) and `case.status`; a repeat mark changes nothing; a decision on the frozen appeal
   closes the case once with the comment and a repeat decision appends nothing; the Ban ID value appears in no `case_event`,
-  session or log line (extend `BanIdNoLeakTest`). `ReissueResetIntegrationTest`: a reissue clears the leak, leaves an undecided
+  session or log line (extend `BanIdNoLeakTest`). `ReissueResetIntegrationTest`: an innocent reissue (`NOT_PLAYERS_FAULT`) clears the leak, leaves an undecided
   frozen appeal open, restores an unfiled pre-filing right, reopens a leak-closed case to `OPEN`, clears the closing reason,
   appends `message.deleted` for the closing comment (so the player no longer sees it), keeps every earlier event in the timeline,
-  and leaves a decided appeal's decision unchanged. `CaseStatusLockTest`: a status change while the leak is set answers
+  and leaves a decided appeal's decision unchanged. `ReissueOtherReasonsIntegrationTest` (Postgres): `OTHER` and `KEY_ROTATION` issue a new Ban ID, keep the leak state, the case status, the closing comment and the appeal state and rights unchanged, record the reason on `ban_id.reissued`, and `KEY_ROTATION` never reopens a case or revives an appeal. `CaseStatusLockTest`: a status change while the leak is set answers
   `CASE_LEAKED`; assignee, tags and priority still change. `FrozenAppealTest`: a player response (`FROZEN`) and a shared item
   (`FROZEN`) are refused while frozen. `PublicLimitedClosingIntegrationTest`: the `closing` field is absent while frozen and
   present once closed, and the conversation read stays 403. `PublicAppealFilingAfterLeakTest`: before filing, filing answers
@@ -76,10 +76,10 @@ resets the leak and leaves its trace in the timeline. No new appeal status.
   appeal decision is recorded, through the same path as the other lifecycle recordings: a failure is logged and counted in
   `blackhole.case.record.failures`, never fails the decision. `CaseReconciler` also finishes leaked cases that have no undecided
   appeal and are not closed.
-- [ ] 3.5 Reissue (`reissueBanId`, `reissueBanIdAtGeneration`): the same statement clears the leak state; a case closed by the
+- [ ] 3.5 Reissue (`reissueBanId`, `reissueBanIdAtGeneration`): for reason `NOT_PLAYERS_FAULT` only, the same statement clears the leak state; a case closed by the
   leak is reopened to `OPEN` with the closing reason cleared; the closing comment is withdrawn with `message.deleted:<id>`
   (the event and the message stay in the timeline); `case.status` is appended. A frozen appeal needs no write (its `FROZEN`
-  state is derived); a decided appeal is not touched.
+  state is derived); a decided appeal is not touched. For reasons `OTHER` and `KEY_ROTATION` the statement writes only the new Ban ID and `ban_id.reissued` with the reason; the leak state, the case and the appeal are not touched.
 - [ ] 3.6 `CaseService`: a status change while `ban_id_leaked_at` is set answers `409 CASE_LEAKED`. Filing and presentations
   answer `409 FROZEN` while the appeal is frozen; the appeal path refuses `FORFEITED` before filing.
 - [ ] 3.7 Public punishment answer for `LIMITED` sessions gains `closing {code, text, closedAt}` only once the case is closed

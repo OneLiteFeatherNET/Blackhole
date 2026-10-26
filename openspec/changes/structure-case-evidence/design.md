@@ -59,7 +59,7 @@ Rules:
 
 ### Ban ID state and status lock
 
-- A leaked Ban ID freezes an open appeal or closes the case (decision 8). From the leak until a reissue, a status change
+- A leaked Ban ID freezes an open appeal or closes the case (decision 8). From the leak until an innocent reissue, a status change
   answers `409 CASE_LEAKED`. Assignee, tags and priority stay editable.
 
 ---
@@ -282,7 +282,7 @@ case close and the reset; it adds no appeal status.
   (`409 FROZEN`).
 - With **no undecided appeal** (the right was forfeited before filing), the case closes at once with the closing comment.
 - With a **frozen appeal**, the case closes when the team decides that appeal, with the same closing comment.
-- A **reissue resets everything** as if the leak had not happened (below).
+- An **innocent reissue** (`NOT_PLAYERS_FAULT`) resets everything as if the leak had not happened (below). Other reissues never reset (below).
 - Every step stays in the timeline.
 
 **The leak is one statement** (`JdbcCaseWriter.MARK_LEAKED`, one data-modifying CTE):
@@ -318,9 +318,9 @@ catalog gives for the player, and stored with the message.
   only once the case is closed. No staff data. Conversation and appeal reads stay 403.
 - The `FULL` session is deleted by the leak. The closing comment reaches the protocol and the admin transcript as a
   `SYSTEM` message.
-- Status changes are refused (`409 CASE_LEAKED`) from the leak until a reissue. Assignee, tags and priority stay changeable.
+- Status changes are refused (`409 CASE_LEAKED`) from the leak until an innocent reissue. Assignee, tags and priority stay changeable.
 
-**Reset on reissue** (`ADMIN`, existing `reissueBanId` and `reissueBanIdAtGeneration` CTEs). One statement:
+**Reset on an innocent reissue** (`ADMIN`, reason `NOT_PLAYERS_FAULT`, existing `reissueBanId` and `reissueBanIdAtGeneration` CTEs). One statement:
 
 - clears the leak state and raises the generation (existing);
 - a case closed by the leak is reopened to `OPEN` and its closing reason is cleared, and `case.status` is appended;
@@ -332,8 +332,11 @@ catalog gives for the player, and stored with the message.
 - `ban_id.leak_marked`, the closing comment's events and `ban_id.reissued` all stay in the timeline, so the audit shows the
   leak and the reset.
 
-The reset applies to every reissue of a leaked Ban ID. The reason code (`NOT_PLAYERS_FAULT` or `OTHER`) is recorded on
-`ban_id.reissued`.
+**Other reasons never reset.** `OTHER` and `KEY_ROTATION` issue a new Ban ID and nothing else changes: the case status, the
+closing comment, the appeal, its state and its rights stay as they were. The leak state stays on the case, so the new Ban ID
+keeps its `LIMITED` scope and status changes stay refused until an innocent reissue. `KEY_ROTATION` (the reissue of every Ban ID
+after `BLACKHOLE_BANID_KEY` changed) never reopens a case and never revives an appeal. Every reason is recorded on
+`ban_id.reissued` and every reissue stays in the timeline.
 
 **Why `ADMIN` reissues, `MODERATOR` marks:** marking is a protective, reversible act; reissue restores the right and mints a
 credential (unchanged from `add-appeal-portal`).
@@ -428,7 +431,7 @@ stores for unit tests, one Postgres integration test per SQL change, fresh fixtu
   `CaseItemReader` provenance and verification table; `CannedReasonService` rules (code format, system reason, deactivate,
   PiiGuard, MessageRules, `CODE_TAKEN`); `CannedReasonText` fallback; picker selection rules (20-line cap, sorted indexes).
 - Integration (Postgres): the leak CTE (idempotent repeat, frozen appeal untouched, sessions deleted, closing message and events, one close after a decision, reset on reissue
-  present, no Ban ID in any row or event); reissue resets the leak and reopens only a leak-closed case; a leaked case refuses the filing with
+  present, no Ban ID in any row or event); an innocent reissue resets the leak and reopens only a leak-closed case; `OTHER` and `KEY_ROTATION` do not reset; a leaked case refuses the filing with
   `FORFEITED` before the reopen rule; case-file dedupe; thread query uses the index; `LIMITED` answer carries `closing`
   and nothing else.
 - Route coverage: `RouteCoverageIntegrationTest` and `PermissionMatrixIntegrationTest` get every new route.
@@ -469,8 +472,8 @@ Provenance and verification are not stored, so no backfill exists for them. Exis
 
 - **A frozen appeal keeps the case open while the player is locked out.** The team decides it or waits; the case stays in the
   appeal queue. The leak dialog says so.
-- **A reissue can withdraw a closing comment the player has already read.** Deliberate: the reset restores the state as if the
-  leak had not happened. The timeline keeps the comment, the leak and the reissue.
+- **An innocent reissue can withdraw a closing comment the player has already read.** Deliberate, and only for reason
+  `NOT_PLAYERS_FAULT`: the reset restores the state as if the leak had not happened. The timeline keeps the comment, the leak and the reissue.
 - **Minimisation can fail in a preview-only path.** Mitigation: the picker preview calls the same renderer as the player path;
   the confirmation is required server side.
 - **Staff see locked rows** (anticheat, evasion). That is intended: staff must know the evidence exists. Player-facing output
@@ -489,7 +492,8 @@ These replace the open questions of the first draft. They were decided by the us
    comment when there is no open appeal (at once on the leak) or once the frozen appeal is decided. The new terminal status
    `FORFEITED_BAN_ID_LEAKED` is removed. The "leak before filing" path keeps the derived `FORFEITED` state: the right is forfeited
    and no appeal exists. See decision 8.
-2. **Reissue after an innocent leak: reset everything.** The case reopens, the frozen appeal is open again, a forfeited right is
+2. **Reissue after an innocent leak: reset everything, for `NOT_PLAYERS_FAULT` only.** `OTHER` and `KEY_ROTATION` never reset (they
+   issue a new Ban ID and nothing else; `KEY_ROTATION` never reopens a case or revives an appeal). All reasons stay recorded in the timeline. The case reopens, the frozen appeal is open again, a forfeited right is
    available again, and the leak and the reissue stay visible in the timeline. The closing comment is withdrawn for the player
    and kept in the timeline. A decided appeal keeps its decision. See decision 8.
 3. **Case file presentations: only with an open appeal, and no Discord relay in v1.** Kept as proposed.
