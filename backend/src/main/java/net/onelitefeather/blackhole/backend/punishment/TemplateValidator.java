@@ -55,7 +55,11 @@ public final class TemplateValidator {
                 errors.add("step " + (i + 1) + " is missing");
                 continue;
             }
-            if (Durations.parsePositive(step.duration()).isEmpty()) {
+            if (step.kind() == StepKind.KICK) {
+                if (step.duration() != null && !step.duration().isBlank()) {
+                    errors.add("step " + (i + 1) + " is a KICK step and must not have a duration");
+                }
+            } else if (step.duration() == null || Durations.parsePositive(step.duration()).isEmpty()) {
                 errors.add("step " + (i + 1) + " needs a duration that is a positive ISO-8601 duration");
             }
             if (step.eloCost() < 0) {

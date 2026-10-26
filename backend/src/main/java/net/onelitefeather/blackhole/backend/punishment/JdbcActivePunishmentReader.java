@@ -39,7 +39,7 @@ public class JdbcActivePunishmentReader implements ActivePunishmentReader {
               LEFT JOIN punishment_templates t ON t.identifier = p.template_identifier
               LEFT JOIN punishment_case c ON c.punishment_identifier = p.identifier
               LEFT JOIN staff_actor st ON st.oid = COALESCE(p.actor_oid, p.recorded_by_oid)
-              WHERE NOT p.lifted
+              WHERE NOT p.lifted AND p.kind = 'PUNISHMENT'
             ) q WHERE (q.expires_at IS NULL OR q.expires_at > ?)""";
 
     private final DataSource dataSource;

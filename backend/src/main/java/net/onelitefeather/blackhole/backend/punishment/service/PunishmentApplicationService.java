@@ -379,6 +379,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
     public boolean hasActivePermanent(String owner, String sectionKey) {
         return this.profileRepository.findById(owner)
                 .map(profile -> profile.getActive().get(sectionKey))
+                .filter(PunishmentEntity::canBeActive)
                 .map(PunishmentEntity::isPermanent)
                 .orElse(false);
     }
