@@ -8890,6 +8890,7 @@ components:
       - removed
       - seq
       - share
+      - staff
       - text
       type: object
       properties:
@@ -8926,6 +8927,18 @@ components:
           nullable: true
           allOf:
           - $ref: "#/components/schemas/PublicConversationShare"
+        staff:
+          $ref: "#/components/schemas/PublicConversationStaff"
+    PublicConversationStaff:
+      type: object
+      description: The staff member of an entry, as the player may see them
+      properties:
+        displayName:
+          type: string
+          nullable: true
+        avatarKey:
+          type: string
+          nullable: true
     PublicConversationShare:
       required:
       - shareId
