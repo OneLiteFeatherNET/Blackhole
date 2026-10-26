@@ -346,7 +346,9 @@ public record ProtocolModel(
                     ? this.texts.stream().map(text -> new Text(text.seq(), text.at(), null)).toList()
                     : List.copyOf(this.texts);
             String current = this.redacted ? null : this.texts.getLast().text();
-            Author author = new Author(authorLabel(this.added.authorKind(), event.actorTrust(), this.first.actorName()),
+            // A message written under a display name shows that snapshot; a legacy message keeps the stored label.
+            String name = this.added.staffDisplayName() != null ? this.added.staffDisplayName() : this.first.actorName();
+            Author author = new Author(authorLabel(this.added.authorKind(), event.actorTrust(), name),
                     this.added.authorKind().name(), event.actorTrust().name(), this.added.participantId());
             return new MessageEntry(event.seq(), event.occurredAt(), this.added.channel().name(), author, event.visibility(), current, shown,
                     this.deletedAt, this.redacted, attachments(event.body(), this.fileDigests), embeds(event.body()));

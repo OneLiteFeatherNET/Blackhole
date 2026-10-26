@@ -54,7 +54,7 @@ class CaseConversationFilesTest {
     private final BanIdTestBed banIds = new BanIdTestBed(this.punishments.repository());
     private final CaseConversationService service = new CaseConversationService(
             this.punishments.repository(), this.store, this.store, this.log, this.events, this.clock, this.banIds.service,
-            new RecordingProtocols(), ParticipantErasure.NONE, this.files);
+            new RecordingProtocols(), ParticipantErasure.NONE, this.files, null);
 
     private void givenPunishment() {
         this.punishments.given(new PunishmentEntity(ID, UUID.randomUUID(), OWNER, "network", false, 1L, null, new HashMap<>()), ID);

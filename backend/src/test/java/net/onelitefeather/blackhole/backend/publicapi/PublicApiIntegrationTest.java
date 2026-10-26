@@ -168,7 +168,7 @@ class PublicApiIntegrationTest extends PublicApiTestBase {
         String appealId = appealIdOf(punishment);
 
         Reply review = post("/appeal/" + appealId + "/review", Map.of("decision", "DENIED", "decisionNote", "INTERNAL-NOTE-XYZ",
-                "playerMessage", "We looked again and the ban stays."), this.jwt.moderator());
+                "playerMessage", "We looked again and the ban stays."), named(this.jwt.moderator()));
         assertEquals(200, review.status(), review.body());
 
         Raw appeal = playerGet("/public/appeal", token);
@@ -216,7 +216,7 @@ class PublicApiIntegrationTest extends PublicApiTestBase {
         String punishment = punish("c2".repeat(64), "pub-thread");
         String token = sessionFor(punishment);
         fileAppeal(token);
-        assertEquals(200, post("/case/" + punishment + "/messages", Map.of("text", "Please tell us more."), this.jwt.moderator()).status());
+        assertEquals(200, post("/case/" + punishment + "/messages", Map.of("text", "Please tell us more."), named(this.jwt.moderator())).status());
 
         Raw posted = playerPost("/public/messages", token, Map.of("text", "  It was a joke between friends.  "), "k-1");
         Raw repeated = playerPost("/public/messages", token, Map.of("text", "  It was a joke between friends.  "), "k-1");
@@ -231,7 +231,7 @@ class PublicApiIntegrationTest extends PublicApiTestBase {
         assertEquals(List.of("SYSTEM", "STAFF", "PLAYER"), entries.stream().map(e -> e.get("author")).toList());
         assertEquals("Please tell us more.", entries.get(1).get("text"));
         assertEquals("It was a joke between friends.", entries.get(2).get("text"), "trimmed");
-        assertEquals(Set.of("seq", "occurredAt", "kind", "author", "messageId", "text", "blocks", "removed", "attachments", "share"),
+        assertEquals(Set.of("seq", "occurredAt", "kind", "author", "messageId", "text", "blocks", "removed", "attachments", "share", "staff"),
                 entries.get(1).keySet());
         assertFalse(page.body().contains("Staff"), "no staff names");
     }
@@ -285,7 +285,7 @@ class PublicApiIntegrationTest extends PublicApiTestBase {
         String punishment = punish("c4".repeat(64), "pub-staffonly");
         String token = sessionFor(punishment);
         fileAppeal(token);
-        assertEquals(200, post("/case/" + punishment + "/notes", Map.of("text", "SECRET-STAFF-NOTE"), this.jwt.moderator()).status());
+        assertEquals(200, post("/case/" + punishment + "/notes", Map.of("text", "SECRET-STAFF-NOTE"), named(this.jwt.moderator())).status());
 
         Raw page = playerGet("/public/conversation", token);
 
@@ -347,7 +347,7 @@ class PublicApiIntegrationTest extends PublicApiTestBase {
         assertFalse(conversation.body().contains("my private statement"));
         assertEquals(403, playerGet("/public/appeal", limited).status());
         assertEquals(200, playerGet("/public/punishment", limited).status(), "the facts and the notice stay");
-        assertEquals(200, post("/case/" + punishment + "/messages", Map.of("text", "the team can still write"), this.jwt.moderator()).status());
+        assertEquals(200, post("/case/" + punishment + "/messages", Map.of("text", "the team can still write"), named(this.jwt.moderator())).status());
     }
 
     @Test

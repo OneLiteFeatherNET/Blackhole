@@ -321,7 +321,7 @@ PR title: `feat(case): record staff names in the appeal chat and protocol`
   - `backend/src/main/java/net/onelitefeather/blackhole/backend/casetimeline/protocol/ProtocolRedaction.java`: clears
     the snapshot on anonymisation and marks superseded versions.
   - The staff message service and the appeal review service: refuse with `STAFF_PROFILE_REQUIRED` (sealed `Error`).
-- [ ] 4b.3 Client spec: bump with the conversation DTO change; regenerate.
+- [x] 4b.3 Client spec: bump with the conversation DTO change; regenerate.
 - [ ] 4b.4 Refactor: the `who()` duplication between `PublicProtocolService` and `ProtocolModel` removed by one
   function, with the existing tests green.
 

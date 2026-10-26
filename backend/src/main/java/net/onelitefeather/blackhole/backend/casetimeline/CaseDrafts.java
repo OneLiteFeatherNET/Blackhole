@@ -102,8 +102,19 @@ public final class CaseDrafts {
     public static CaseEventDraft staffMessage(String punishmentIdentifier, String messageId, @Nullable String appealId, String text,
                                               java.util.List<MessageAttachment> attachments, MessageChannel channel, CaseActor actor,
                                               CaseEventOrigin origin, long occurredAt) {
+        return staffMessage(punishmentIdentifier, messageId, appealId, text, attachments, channel, actor, origin, occurredAt, null);
+    }
+
+    /**
+     * The same with the display name the staff member had when writing: a snapshot, so a later rename does not rewrite the
+     * message. {@code staffDisplayName} is {@code null} for a message that must not carry a name.
+     */
+    public static CaseEventDraft staffMessage(String punishmentIdentifier, String messageId, @Nullable String appealId, String text,
+                                              java.util.List<MessageAttachment> attachments, MessageChannel channel, CaseActor actor,
+                                              CaseEventOrigin origin, long occurredAt, @Nullable String staffDisplayName) {
         return new CaseEventDraft(punishmentIdentifier,
-                new CaseEventPayload.MessageAdded(messageId, appealId, MessageAuthorKind.STAFF, null, channel, text, attachments, java.util.List.of()),
+                new CaseEventPayload.MessageAdded(messageId, appealId, MessageAuthorKind.STAFF, null, channel, text, attachments,
+                        java.util.List.of(), staffDisplayName),
                 occurredAt, origin, actor, messageId, "message:" + messageId, CaseEventDraft.PLAYER);
     }
 

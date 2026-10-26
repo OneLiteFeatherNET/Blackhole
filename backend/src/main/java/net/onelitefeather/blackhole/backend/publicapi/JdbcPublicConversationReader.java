@@ -32,7 +32,8 @@ public class JdbcPublicConversationReader implements PublicConversationReader {
                            WHERE d.punishment_identifier = e.punishment_identifier AND d.subject_id = e.subject_id
                              AND d.type = 'message.deleted' AND d.visibility = 'PLAYER'),
                    orig.attachments, e.payload ->> 'shareId', s.mode, s.revoked_at IS NOT NULL,
-                   array_to_string(s.selection, ','), s.appellant_speaker, ev.payload::text, ev.identifier IS NOT NULL
+                   array_to_string(s.selection, ','), s.appellant_speaker, ev.payload::text, ev.identifier IS NOT NULL,
+                   orig.staff_name, CASE WHEN sp.avatar_mode = 'AUTO' THEN sp.avatar_key END
             FROM case_event e
             LEFT JOIN LATERAL (
                 SELECT x.payload ->> 'text' AS text, x.redacted_at IS NOT NULL AS redacted
@@ -42,12 +43,14 @@ public class JdbcPublicConversationReader implements PublicConversationReader {
                 ORDER BY x.seq DESC LIMIT 1
             ) cur ON e.type LIKE 'message.%'
             LEFT JOIN LATERAL (
-                SELECT x.payload #>> '{author,kind}' AS author_kind, (x.payload -> 'attachments')::text AS attachments
+                SELECT x.payload #>> '{author,kind}' AS author_kind, (x.payload -> 'attachments')::text AS attachments,
+                       x.payload #>> '{author,staffDisplayName}' AS staff_name, x.actor_oid AS actor_oid
                 FROM case_event x
                 WHERE x.punishment_identifier = e.punishment_identifier AND x.subject_id = e.subject_id
                   AND x.type = 'message.added' AND x.visibility = 'PLAYER'
                 ORDER BY x.seq LIMIT 1
             ) orig ON e.type LIKE 'message.%'
+            LEFT JOIN staff_profile sp ON sp.oid = orig.actor_oid AND sp.anonymized_at IS NULL
             LEFT JOIN evidence_share s ON s.punishment_identifier = e.punishment_identifier AND s.share_id::text = e.payload ->> 'shareId'
             LEFT JOIN evidence_items ev ON ev.identifier = s.evidence_id
             WHERE e.punishment_identifier = ? AND e.seq > ?
@@ -116,7 +119,10 @@ public class JdbcPublicConversationReader implements PublicConversationReader {
                         || rows.getBoolean(7) || rows.getBoolean(9) || text == null;
                 String author = "PLAYER".equals(rows.getString(8)) ? "PLAYER" : "STAFF";
                 String files = removed ? null : rows.getString(10);
-                return new Entry(seq, occurredAt, "MESSAGE", author, messageId, removed ? null : text, removed, files, null);
+                // The snapshot name of the message and the live avatar of the account: NULL for a player and for a legacy message.
+                PublicConversationReader.Staff staff = "STAFF".equals(author)
+                        ? new PublicConversationReader.Staff(rows.getString(18), rows.getString(19)) : null;
+                return new Entry(seq, occurredAt, "MESSAGE", author, messageId, removed ? null : text, removed, files, null, staff);
             case CaseEventPayload.EVIDENCE_SHARED:
                 return shareEntry(rows, seq, occurredAt, "SHARE", false);
             case CaseEventPayload.EVIDENCE_SHARE_REVOKED:

@@ -140,7 +140,7 @@ class LiveStreamApiIntegrationTest extends PublicApiTestBase {
     }
 
     private String staffMessage(String punishment, String text) {
-        var posted = post("/case/" + punishment + "/messages", Map.of("text", text), this.jwt.moderator());
+        var posted = post("/case/" + punishment + "/messages", Map.of("text", text), named(this.jwt.moderator()));
         assertEquals(200, posted.status(), posted.body());
         return (String) posted.json().get("messageId");
     }
@@ -182,7 +182,7 @@ class LiveStreamApiIntegrationTest extends PublicApiTestBase {
         String token = sessionFor(punishment);
         Stream player = open("/public/conversation/events", token, null);
         player.next("ready");
-        assertEquals(200, post("/case/" + punishment + "/notes", Map.of("text", "internal only"), this.jwt.moderator()).status());
+        assertEquals(200, post("/case/" + punishment + "/notes", Map.of("text", "internal only"), named(this.jwt.moderator())).status());
         staffMessage(punishment, "This one the player may read.");
         Raw read = playerGet("/public/conversation", token);
         @SuppressWarnings("unchecked") List<Map<String, Object>> entries = (List<Map<String, Object>>) read.json().get("entries");

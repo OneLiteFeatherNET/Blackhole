@@ -32,6 +32,7 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentShortId;
 import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.staffprofile.StaffProfileService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,13 +75,15 @@ public class CaseConversationService {
     private final ProtocolRedaction protocols;
     private final ParticipantErasure participants;
     private final ChatFiles files;
+    /** Null where the staff name rule is not applied (direct construction in tests); injected in production. */
+    private final @Nullable StaffProfileService staffProfiles;
 
     /** Without Discord participants to erase and without chat files. */
     public CaseConversationService(
             PunishmentRepository punishments, CaseReader reader, CaseChanges changes, CaseEventRepository events,
             DomainEventPublisher publisher, Clock clock, BanIdService banIds, ProtocolRedaction protocols
     ) {
-        this(punishments, reader, changes, events, publisher, clock, banIds, protocols, ParticipantErasure.NONE, ChatFiles.NONE);
+        this(punishments, reader, changes, events, publisher, clock, banIds, protocols, ParticipantErasure.NONE, ChatFiles.NONE, null);
     }
 
     /** Without chat files. */
@@ -88,16 +91,18 @@ public class CaseConversationService {
             PunishmentRepository punishments, CaseReader reader, CaseChanges changes, CaseEventRepository events,
             DomainEventPublisher publisher, Clock clock, BanIdService banIds, ProtocolRedaction protocols, ParticipantErasure participants
     ) {
-        this(punishments, reader, changes, events, publisher, clock, banIds, protocols, participants, ChatFiles.NONE);
+        this(punishments, reader, changes, events, publisher, clock, banIds, protocols, participants, ChatFiles.NONE, null);
     }
 
     @Inject
     public CaseConversationService(
             PunishmentRepository punishments, CaseReader reader, CaseChanges changes, CaseEventRepository events,
             DomainEventPublisher publisher, Clock clock, BanIdService banIds, ProtocolRedaction protocols, ParticipantErasure participants,
-            ChatFiles files
+            ChatFiles files,
+            @Nullable StaffProfileService staffProfiles
     ) {
         this.files = files;
+        this.staffProfiles = staffProfiles;
         this.references = new CaseReference(punishments);
         this.reader = reader;
         this.changes = changes;
@@ -131,6 +136,15 @@ public class CaseConversationService {
         if (invalid != null) {
             return invalid;
         }
+        // A staff member without a display name may not write anything a player can see: refused before any event is written.
+        String displayName = null;
+        if (this.staffProfiles != null) {
+            Optional<String> named = this.staffProfiles.namedDisplayName(actor.oid());
+            if (named.isEmpty()) {
+                return error(CaseErrorKind.STAFF_PROFILE_REQUIRED, "set your display name before you reply to the player");
+            }
+            displayName = named.get();
+        }
         PunishmentEntity punishment = found.punishment();
         String id = punishment.getIdentifier();
         String messageId = idempotencyKey == null ? UUID.randomUUID().toString()
@@ -147,7 +161,8 @@ public class CaseConversationService {
         if (!resolved.ok()) {
             return error(CaseErrorKind.VALIDATION, resolved.problem());
         }
-        CaseEventDraft draft = CaseDrafts.staffMessage(id, messageId, null, text, attachmentsOf(resolved), MessageChannel.PANEL, by, CaseEventOrigin.LIVE, now);
+        CaseEventDraft draft = CaseDrafts.staffMessage(id, messageId, null, text, attachmentsOf(resolved), MessageChannel.PANEL, by, CaseEventOrigin.LIVE, now,
+                displayName);
         return store(punishment, draft, false, by, now, claimOf(attachmentIds, scope));
     }
 

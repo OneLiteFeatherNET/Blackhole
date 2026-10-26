@@ -27,8 +27,8 @@ import java.util.Map;
  * The player's copy of the appeal protocol, rendered on demand from the same query and allow-list as the portal
  * conversation ({@link PublicConversationReader}: visibility {@code PLAYER}, allow-listed types, filtered in SQL).
  * It is derived, never stored, so it cannot be stale and needs no redaction coupling; the stored staff protocol
- * (which holds {@code STAFF} entries and staff names) is never read here. The player is "You", staff are
- * "Moderation team", nobody is named.
+ * (which holds {@code STAFF} entries and staff names) is never read here. The player is "You"; staff are named by the
+ * display name they chose when they wrote, or "Moderation team" for a legacy message. No UUID or sign-in name appears.
  */
 @Singleton
 public class PublicProtocolService {
@@ -90,10 +90,14 @@ public class PublicProtocolService {
                 json ? "application/json" : "text/plain; charset=utf-8", content);
     }
 
-    private static String who(String author) {
-        return switch (author) {
+    /**
+     * The label of an entry's author. A staff message written under a display name shows that name (the snapshot taken at
+     * write time); a message written before names existed keeps "Moderation team".
+     */
+    private static String who(PublicConversationReader.Entry entry) {
+        return switch (entry.author()) {
             case "PLAYER" -> "You";
-            case "STAFF" -> "Moderation team";
+            case "STAFF" -> entry.staff() != null && entry.staff().displayName() != null ? entry.staff().displayName() : "Moderation team";
             default -> "System";
         };
     }
@@ -114,7 +118,7 @@ public class PublicProtocolService {
         for (PublicConversationReader.Entry entry : entries) {
             out.append('\n').append(Instant.ofEpochMilli(entry.occurredAt())).append("  ");
             if (entry.kind().equals("MESSAGE")) {
-                out.append(who(entry.author())).append('\n');
+                out.append(who(entry)).append('\n');
                 String body = entry.removed() || entry.text() == null ? REMOVED : entry.text();
                 body.lines().forEach(line -> out.append("    ").append(line).append('\n'));
             } else {
@@ -134,7 +138,7 @@ public class PublicProtocolService {
             item.put("at", Instant.ofEpochMilli(entry.occurredAt()).toString());
             item.put("kind", entry.kind());
             if (entry.kind().equals("MESSAGE")) {
-                item.put("author", who(entry.author()));
+                item.put("author", who(entry));
                 item.put("removed", entry.removed());
                 item.put("format", "markdown");
                 item.put("text", entry.removed() ? null : entry.text());

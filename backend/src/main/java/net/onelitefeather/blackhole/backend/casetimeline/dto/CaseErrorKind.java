@@ -26,6 +26,9 @@ public enum CaseErrorKind {
     /** The request is understood but names something unknown, such as an assignee who is no staff member (422). */
     UNPROCESSABLE(HttpStatus.UNPROCESSABLE_ENTITY),
 
+    /** The staff account has no display name yet, so nothing it writes may reach a player (409). */
+    STAFF_PROFILE_REQUIRED(HttpStatus.CONFLICT),
+
     /** Something the request needs cannot be produced right now, such as a free Ban ID candidate (503). */
     UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE);
 

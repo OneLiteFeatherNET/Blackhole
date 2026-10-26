@@ -127,7 +127,7 @@ class CaseEventPayloadsTest {
     void aMessageOfAFutureVersionIsKeptOpaque() {
         Map<String, Object> body = Map.of("messageId", "m-1", "author", Map.of("kind", "PLAYER"), "channel", "PORTAL", "text", "x");
 
-        assertInstanceOf(CaseEventPayload.Unknown.class, CaseEventPayloads.read(CaseEventPayload.MESSAGE_ADDED, 2, body));
+        assertInstanceOf(CaseEventPayload.Unknown.class, CaseEventPayloads.read(CaseEventPayload.MESSAGE_ADDED, 3, body));
     }
 
     @Test

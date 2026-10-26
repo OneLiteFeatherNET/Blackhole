@@ -24,14 +24,14 @@ class CaseEventRepositorySurfaceTest {
     }
 
     @Test
-    void theRepositoryInterfaceOffersOnlyAppendRedactAndDeleteForPunishment() {
-        assertEquals(Set.of("append", "deleteForPunishment", "redact"), publicMethods(CaseEventRepository.class),
-                "a new write path on the case event log needs a design decision, not just a method");
+    void theRepositoryInterfaceOffersOnlyTheDocumentedWritePaths() {
+        assertEquals(Set.of("append", "clearStaffNameSnapshots", "deleteForPunishment", "redact"), publicMethods(CaseEventRepository.class),
+                "a new write path on the case event log needs a design decision (staff erasure, design 4.8), not just a method");
     }
 
     @Test
     void theJdbcRepositoryOffersNothingBeyondTheInterface() {
-        assertEquals(Set.of("append", "deleteForPunishment", "redact"), publicMethods(JdbcCaseEventRepository.class),
+        assertEquals(Set.of("append", "clearStaffNameSnapshots", "deleteForPunishment", "redact"), publicMethods(JdbcCaseEventRepository.class),
                 "the implementation must not smuggle in another mutation");
     }
 

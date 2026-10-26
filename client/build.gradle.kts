@@ -20,7 +20,7 @@ dependencies {
 openApiGenerate {
     generatorName.set("java")
     library.set("native")
-    inputSpec.set("$projectDir/specs/blackhole-api-0.0.42.yml")
+    inputSpec.set("$projectDir/specs/blackhole-api-0.0.43.yml")
     outputDir.set(outDir.get().asFile.absolutePath)
     apiPackage.set("net.onelitefeather.blackhole.client.api")
     invokerPackage.set("net.onelitefeather.blackhole.client.invoker")

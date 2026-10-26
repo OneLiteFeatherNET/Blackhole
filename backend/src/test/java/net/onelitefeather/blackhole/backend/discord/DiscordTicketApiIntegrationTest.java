@@ -57,7 +57,7 @@ class DiscordTicketApiIntegrationTest extends ApiIntegrationTest {
     }
 
     private String moderator(UUID oid) {
-        return this.jwt.delegated().groups(TestJwtIssuer.MODERATOR_GROUP).claim("oid", oid.toString()).claim("name", "Staff Alice").sign();
+        return named(this.jwt.delegated().groups(TestJwtIssuer.MODERATOR_GROUP).claim("oid", oid.toString()).claim("name", "Staff Alice").sign());
     }
 
     private String punishment(String owner, String key) {
@@ -70,7 +70,7 @@ class DiscordTicketApiIntegrationTest extends ApiIntegrationTest {
     }
 
     private String banId(String punishment) {
-        return (String) get("/punishment/" + punishment + "/ban-id", this.jwt.moderator()).json().get("banId");
+        return (String) get("/punishment/" + punishment + "/ban-id", named(this.jwt.moderator())).json().get("banId");
     }
 
     private Reply open(String banId, String discordUser, String statement) {
@@ -352,13 +352,13 @@ class DiscordTicketApiIntegrationTest extends ApiIntegrationTest {
         ingest(ticket, Map.of("items", List.of(message("1000", user, false, "hello", 5_000L))));
         String participant = participantIdOf(punishment);
 
-        Reply erased = post("/case/" + punishment + "/participants/" + participant + "/erase", Map.of(), this.jwt.admin());
+        Reply erased = post("/case/" + punishment + "/participants/" + participant + "/erase", Map.of(), named(this.jwt.admin()));
 
         assertEquals(200, erased.status(), erased.body());
         assertEquals(true, erased.json().get("erased"));
         assertNull(get("/discord/tickets/" + ticket, bot()).json().get("playerDiscordUserId"));
-        assertEquals(false, post("/case/" + punishment + "/participants/" + participant + "/erase", Map.of(), this.jwt.admin()).json().get("erased"));
-        assertEquals(404, post("/case/" + punishment + "/participants/" + UUID.randomUUID() + "/erase", Map.of(), this.jwt.admin()).status());
+        assertEquals(false, post("/case/" + punishment + "/participants/" + participant + "/erase", Map.of(), named(this.jwt.admin())).json().get("erased"));
+        assertEquals(404, post("/case/" + punishment + "/participants/" + UUID.randomUUID() + "/erase", Map.of(), named(this.jwt.admin())).status());
         assertTrue(types(punishment).contains("message.added"), "the timeline keeps its structure");
     }
 

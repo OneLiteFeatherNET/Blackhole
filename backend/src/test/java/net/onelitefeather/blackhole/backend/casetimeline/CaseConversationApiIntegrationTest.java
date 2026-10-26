@@ -26,11 +26,11 @@ class CaseConversationApiIntegrationTest extends ApiIntegrationTest {
     private static final String STAFF = UUID.nameUUIDFromBytes("staff".getBytes()).toString();
 
     private String moderator(UUID oid) {
-        return this.jwt.delegated().groups(TestJwtIssuer.MODERATOR_GROUP).claim("oid", oid.toString()).claim("name", "Staff " + oid.toString().substring(0, 4)).sign();
+        return named(this.jwt.delegated().groups(TestJwtIssuer.MODERATOR_GROUP).claim("oid", oid.toString()).claim("name", "Staff " + oid.toString().substring(0, 4)).sign());
     }
 
     private String admin(UUID oid) {
-        return this.jwt.delegated().groups(TestJwtIssuer.ADMIN_GROUP).claim("oid", oid.toString()).sign();
+        return named(this.jwt.delegated().groups(TestJwtIssuer.ADMIN_GROUP).claim("oid", oid.toString()).sign());
     }
 
     private String applyPunishment(String owner, String key) {
@@ -43,7 +43,7 @@ class CaseConversationApiIntegrationTest extends ApiIntegrationTest {
     }
 
     private String banId(String punishment) {
-        return (String) get("/punishment/" + punishment + "/ban-id", this.jwt.moderator()).json().get("banId");
+        return (String) get("/punishment/" + punishment + "/ban-id", named(this.jwt.moderator())).json().get("banId");
     }
 
     @SuppressWarnings("unchecked")
@@ -190,8 +190,8 @@ class CaseConversationApiIntegrationTest extends ApiIntegrationTest {
         assertFalse(reissued.body().contains(oldBanId));
         String newBanId = banId(id);
         assertNotEquals(oldBanId, newBanId);
-        assertEquals(404, post("/punishment/lookup", Map.of("banId", oldBanId), this.jwt.moderator()).status(), "the old Ban ID is dead");
-        assertEquals(200, post("/punishment/lookup", Map.of("banId", newBanId), this.jwt.moderator()).status());
+        assertEquals(404, post("/punishment/lookup", Map.of("banId", oldBanId), named(this.jwt.moderator())).status(), "the old Ban ID is dead");
+        assertEquals(200, post("/punishment/lookup", Map.of("banId", newBanId), named(this.jwt.moderator())).status());
         assertTrue(get("/case/" + id).json().get("banIdLeakedAt") == null, "the leak is cleared");
         assertFalse(get("/case/" + id + "/timeline").body().contains(newBanId));
         assertFalse(get("/case/" + id + "/timeline").body().contains(oldBanId));

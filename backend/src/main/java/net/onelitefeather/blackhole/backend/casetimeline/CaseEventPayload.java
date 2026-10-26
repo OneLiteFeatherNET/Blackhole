@@ -19,6 +19,12 @@ public sealed interface CaseEventPayload {
     /** The schema version every payload of this release is written with. */
     int CURRENT_VERSION = 1;
 
+    /**
+     * The version of a {@code message.added} by a staff member who had a display name at write time: the author carries
+     * {@code staffDisplayName}. Renames never rewrite it. Every other payload stays at {@link #CURRENT_VERSION}.
+     */
+    int NAMED_STAFF_MESSAGE_VERSION = 2;
+
     String APPLIED = "punishment.applied";
     String REVOKED = "punishment.revoked";
     String LIFTED = "punishment.lifted";
@@ -439,7 +445,8 @@ public sealed interface CaseEventPayload {
      * kind, channel and ids stay. The one payload (with the edit) that holds a player's words.
      */
     record MessageAdded(String messageId, @Nullable String appealId, MessageAuthorKind authorKind, @Nullable String participantId,
-                        MessageChannel channel, @Nullable String text, List<MessageAttachment> attachments, List<MessageEmbed> embeds)
+                        MessageChannel channel, @Nullable String text, List<MessageAttachment> attachments, List<MessageEmbed> embeds,
+                        @Nullable String staffDisplayName)
             implements CaseEventPayload {
 
         public MessageAdded {
@@ -447,10 +454,16 @@ public sealed interface CaseEventPayload {
             embeds = embeds == null ? List.of() : List.copyOf(embeds);
         }
 
+        /** Without a display name snapshot (every message written before staff profiles, and every player message). */
+        public MessageAdded(String messageId, @Nullable String appealId, MessageAuthorKind authorKind, @Nullable String participantId,
+                            MessageChannel channel, @Nullable String text, List<MessageAttachment> attachments, List<MessageEmbed> embeds) {
+            this(messageId, appealId, authorKind, participantId, channel, text, attachments, embeds, null);
+        }
+
         /** A message without attachments or embeds, which is every portal and panel message. */
         public MessageAdded(String messageId, @Nullable String appealId, MessageAuthorKind authorKind, @Nullable String participantId,
                             MessageChannel channel, @Nullable String text) {
-            this(messageId, appealId, authorKind, participantId, channel, text, List.of(), List.of());
+            this(messageId, appealId, authorKind, participantId, channel, text, List.of(), List.of(), null);
         }
 
         @Override
@@ -460,7 +473,7 @@ public sealed interface CaseEventPayload {
 
         @Override
         public int version() {
-            return CURRENT_VERSION;
+            return staffDisplayName != null && authorKind == MessageAuthorKind.STAFF ? NAMED_STAFF_MESSAGE_VERSION : CURRENT_VERSION;
         }
 
         @Override
@@ -471,6 +484,7 @@ public sealed interface CaseEventPayload {
             Map<String, Object> author = new LinkedHashMap<>();
             author.put("kind", authorKind.name());
             put(author, "participantId", participantId);
+            put(author, "staffDisplayName", staffDisplayName);
             map.put("author", author);
             map.put("channel", channel.name());
             put(map, "text", text);

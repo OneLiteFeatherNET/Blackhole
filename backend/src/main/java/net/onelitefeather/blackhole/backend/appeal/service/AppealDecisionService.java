@@ -31,6 +31,7 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.section.SectionService;
 import net.onelitefeather.blackhole.backend.section.dto.SectionDTO;
 import net.onelitefeather.phoca.metadata.Expirable;
+import net.onelitefeather.blackhole.backend.staffprofile.StaffProfileService;
 import net.onelitefeather.phoca.metadata.Metadata;
 
 import org.slf4j.Logger;
@@ -79,6 +80,7 @@ public class AppealDecisionService {
     private final CaseTimeline caseTimeline;
     private final BanIdService banIds;
     private final AppealProtocolGenerator protocols;
+    private final StaffProfileService staffProfiles;
     private final Clock clock;
 
     public AppealDecisionService(
@@ -95,8 +97,10 @@ public class AppealDecisionService {
             CaseTimeline caseTimeline,
             BanIdService banIds,
             AppealProtocolGenerator protocols,
+            StaffProfileService staffProfiles,
             Clock clock
     ) {
+        this.staffProfiles = staffProfiles;
         this.appealRepository = appealRepository;
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
@@ -136,6 +140,10 @@ public class AppealDecisionService {
             String problem = MessageRules.check(review.playerMessage(), this.banIds);
             if (problem != null) {
                 return AppealReviewResult.invalidPlayerMessage(problem);
+            }
+            // A message to the player is written under the reviewer's name: without one, nothing is decided.
+            if (this.staffProfiles.namedDisplayName(reviewer.oid()).isEmpty()) {
+                return AppealReviewResult.staffProfileRequired();
             }
         }
 

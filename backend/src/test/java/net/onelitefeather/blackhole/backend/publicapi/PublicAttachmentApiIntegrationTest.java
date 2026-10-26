@@ -238,7 +238,7 @@ class PublicAttachmentApiIntegrationTest extends PublicApiTestBase {
         String message = send(token[0], "Here is the screenshot.", attachment);
         assertEquals(200, download(DOWNLOAD + attachment, token[0]).status());
 
-        Reply redacted = post("/case/" + punishment + "/messages/" + message + "/redact", Map.of("reason", "OTHER"), this.jwt.admin());
+        Reply redacted = post("/case/" + punishment + "/messages/" + message + "/redact", Map.of("reason", "OTHER"), named(this.jwt.admin()));
 
         assertEquals(200, redacted.status(), redacted.body());
         assertEquals(404, download(DOWNLOAD + attachment, token[0]).status());
@@ -314,19 +314,19 @@ class PublicAttachmentApiIntegrationTest extends PublicApiTestBase {
     void aSharedImageDownloadsByItsShareIdAndAWithdrawnShareIsNotFound() {
         String[] token = new String[1];
         String punishment = appealedPlayer("e3".repeat(64), "pub-share", token);
-        String staffFile = (String) multipart("/case/" + punishment + "/attachments", this.jwt.moderator(), png(), "capture.png")
+        String staffFile = (String) multipart("/case/" + punishment + "/attachments", named(this.jwt.moderator()), png(), "capture.png")
                 .json().get("attachmentId");
         assertEquals(200, post("/case/" + punishment + "/messages", Map.of("text", "see the capture", "attachmentIds", List.of(staffFile)),
-                this.jwt.moderator()).status());
+                named(this.jwt.moderator())).status());
         Reply shared = post("/case/" + punishment + "/evidence-shares",
-                Map.of("evidenceId", staffFile, "selection", List.of(), "confirmedMinimised", true), this.jwt.moderator());
+                Map.of("evidenceId", staffFile, "selection", List.of(), "confirmedMinimised", true), named(this.jwt.moderator()));
         assertEquals(200, shared.status(), shared.body());
         String shareId = (String) shared.json().get("shareId");
 
         assertEquals(200, download(DOWNLOAD + shareId, token[0]).status(), "the active share is downloadable");
 
         assertEquals(200, post("/case/" + punishment + "/evidence-shares/" + shareId + "/revoke", Map.of("reason", "OTHER"),
-                this.jwt.moderator()).status());
+                named(this.jwt.moderator())).status());
         assertEquals(404, download(DOWNLOAD + shareId, token[0]).status(), "a withdrawn share is not found");
     }
 }
