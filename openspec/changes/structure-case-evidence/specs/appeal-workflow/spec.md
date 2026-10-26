@@ -44,7 +44,10 @@ A `LIMITED` session of a leaked Ban ID SHALL receive a `closing` object (code `B
 - **THEN** the answer includes `closing` with the stored text
 
 ### Requirement: Only an innocent reissue resets the leak
-A Ban ID reissue with reason `NOT_PLAYERS_FAULT` SHALL reset the leak as if it had not happened: the leak state is cleared; a frozen appeal is open again; a right forfeited by the leak is available again for filing; a case closed by the leak is reopened to `OPEN` with its closing reason cleared; and the closing comment is withdrawn for the player with `message.deleted`. A decided appeal keeps its decision. A reissue with reason `OTHER` or `KEY_ROTATION` MUST NOT reset anything: it issues a new Ban ID and leaves the case status, the closing comment, the appeal, its state and its rights as they were, and the leak state stays on the case. Every reason MUST be recorded on `ban_id.reissued` and every reissue MUST remain in the timeline.
+A Ban ID reissue with reason `NOT_PLAYERS_FAULT` SHALL reset the leak as if it had not happened: the leak state is cleared; a frozen appeal is open again; a right forfeited by the leak is available again for filing; a case closed by the leak is reopened to `OPEN` with its closing reason cleared; and the closing comment is withdrawn for the player with `message.deleted`. A decided appeal keeps its decision.
+
+### Requirement: Other reissues never reset the leak
+A reissue with reason `OTHER` or `KEY_ROTATION` SHALL issue a new Ban ID and nothing else: the case status, the closing comment, the appeal, its state and its rights stay as they were, and the leak state stays on the case. Every reason MUST be recorded on `ban_id.reissued` and every reissue MUST remain in the timeline.
 
 #### Scenario: Innocent reissue of a frozen appeal
 - **WHEN** an administrator reissues with reason `NOT_PLAYERS_FAULT` the Ban ID of a case whose appeal is frozen
