@@ -12,6 +12,9 @@ import net.onelitefeather.blackhole.backend.elo.EloScoring;
 import net.onelitefeather.blackhole.backend.elo.service.EloService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.evidence.service.PunishmentEvidenceGateway;
+import net.onelitefeather.blackhole.backend.kick.KickValidator;
+import net.onelitefeather.blackhole.backend.kick.dto.KickDTO;
+import net.onelitefeather.blackhole.backend.kick.service.KickService;
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
 import net.onelitefeather.blackhole.backend.profile.ProfileSlots;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
@@ -24,6 +27,7 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentShortId;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateRepository;
 import net.onelitefeather.blackhole.backend.punishment.SectionPunisher;
+import net.onelitefeather.blackhole.backend.punishment.StepKind;
 import net.onelitefeather.blackhole.backend.punishment.StepSelector;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishEntryDTO;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishmentDTO;
@@ -96,6 +100,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
     private final StaffLinkService staffLinks;
     private final Clock clock;
     private final BanIdService banIds;
+    private final KickService kicks;
     private final Duration defaultEscalationWindow;
 
     /**
@@ -117,6 +122,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
             StaffLinkService staffLinks,
             Clock clock,
             BanIdService banIds,
+            KickService kicks,
             @Value("${blackhole.punishment.escalation.default-window:P365D}") Duration defaultEscalationWindow
     ) {
         this.punishmentRepository = punishmentRepository;
@@ -132,6 +138,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         this.staffLinks = staffLinks;
         this.clock = clock;
         this.banIds = banIds;
+        this.kicks = kicks;
         this.defaultEscalationWindow = defaultEscalationWindow;
     }
 
@@ -208,19 +215,28 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         }
 
         String owner = request.owner();
-        PunishmentProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
-        PunishmentEntity current = profile == null ? null : profile.getActive().get(section.key());
-        if (current != null && current.isPermanent()) {
-            return failed(ErrorKind.CONFLICT, "the player is already permanently punished in section '" + section.key() + "'");
-        }
-
         long now = this.clock.millis();
         String group = template.getEscalationGroup() != null ? template.getEscalationGroup() : template.getTemplateKey();
         Duration window = Durations.parsePositive(template.getEscalationWindow()).orElse(this.defaultEscalationWindow);
+        // Kicks are counted too: the query does not look at the kind, so a kick is an earlier step of its group.
         long counted = this.punishmentRepository.countByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals(
                 owner, group, now - window.toMillis()
         );
         StepSelector.Selection selection = StepSelector.select(template.getSteps(), counted);
+
+        if (selection.step().getKind() == StepKind.KICK) {
+            // A kick never takes the slot, so an existing permanent punishment does not stand in its way.
+            Optional<KickDTO.Error> invalid = this.kicks.checkTemplateKick(owner, request.scope(), request.target(), kickReason(template));
+            if (invalid.isPresent()) {
+                return failed(invalid.get().kind(), invalid.get().errorMessage());
+            }
+        } else {
+            PunishmentProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
+            PunishmentEntity current = profile == null ? null : profile.getActive().get(section.key());
+            if (current != null && current.isPermanent()) {
+                return failed(ErrorKind.CONFLICT, "the player is already permanently punished in section '" + section.key() + "'");
+            }
+        }
         return new Planned(new Plan(template, section, now, group, selection, attribution), null);
     }
 
@@ -286,21 +302,28 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         Attribution attribution = this.staffLinks.withLinkedActor(plan.attribution());
         int cost = selection.step().getEloCost();
 
-        Map<String, Object> metadata = new HashMap<>(extraMetadata);
-        metadata.put(Metadata.META_DATA_KEY_CREATION_DATE, now);
-        metadata.put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
-        metadata.put(Expirable.META_DATA_KEY_EXPIRATION_DATE, now + selection.step().parsedDuration().toMillis());
+        PunishmentEntity saved;
+        if (selection.step().getKind() == StepKind.KICK) {
+            // The kick path: a KICK row of the group, no Ban ID, no slot, nothing active. Only the cost below is shared.
+            saved = this.kicks.kickForTemplate(owner, request.scope(), request.target(), kickReason(template), attribution,
+                    template, group, selection.index(), selection.stepCount(), cost);
+        } else {
+            Map<String, Object> metadata = new HashMap<>(extraMetadata);
+            metadata.put(Metadata.META_DATA_KEY_CREATION_DATE, now);
+            metadata.put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
+            metadata.put(Expirable.META_DATA_KEY_EXPIRATION_DATE, now + selection.step().parsedDuration().toMillis());
 
-        PunishmentEntity punishment = new PunishmentEntity(
-                IdGenerator.generateId(), attribution.source(), owner, section.key(), false, now, template, metadata
-        );
-        punishment.setRecordedByOid(attribution.recordedByOid());
-        punishment.setActorOid(attribution.actorOid());
-        punishment.recordEscalation(group, selection.index(), selection.stepCount(), cost);
-        PunishmentEntity saved = this.punishmentRepository.save(punishment);
-        this.banIds.issue(saved.getIdentifier());
-        if (!place(owner, section, saved)) {
-            return error(ErrorKind.CONFLICT, "the player is already permanently punished in section '" + section.key() + "'");
+            PunishmentEntity punishment = new PunishmentEntity(
+                    IdGenerator.generateId(), attribution.source(), owner, section.key(), false, now, template, metadata
+            );
+            punishment.setRecordedByOid(attribution.recordedByOid());
+            punishment.setActorOid(attribution.actorOid());
+            punishment.recordEscalation(group, selection.index(), selection.stepCount(), cost);
+            saved = this.punishmentRepository.save(punishment);
+            this.banIds.issue(saved.getIdentifier());
+            if (!place(owner, section, saved)) {
+                return error(ErrorKind.CONFLICT, "the player is already permanently punished in section '" + section.key() + "'");
+            }
         }
         claimEvidence(request.evidenceCorrelationId(), owner, saved);
 
@@ -332,11 +355,19 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
             scoreAfter = scoreBefore;
         }
 
-        this.caseTimeline.applied(saved, scoreBefore, scoreAfter);
+        if (selection.step().getKind() != StepKind.KICK) {
+            this.caseTimeline.applied(saved, scoreBefore, scoreAfter);
+        }
         return new PunishmentDTO.ApplyResponse(
                 withEvidenceCount(saved), section.key(), section.enforcement(),
                 selection.index() + 1, selection.stepCount(), scoreBefore, scoreAfter, escalation
         );
+    }
+
+    /** The reason a template kick shows the player: the template's reason, cut to what a kick may carry. */
+    private static String kickReason(PunishmentTemplateEntity template) {
+        String reason = template.getReason() == null ? "" : template.getReason().strip();
+        return reason.length() > KickValidator.MAX_REASON_LENGTH ? reason.substring(0, KickValidator.MAX_REASON_LENGTH) : reason;
     }
 
     /**

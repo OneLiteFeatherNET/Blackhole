@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import net.onelitefeather.blackhole.backend.kick.KickScope;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.response.ErrorResponse;
 import net.onelitefeather.blackhole.backend.section.EnforcementKind;
@@ -30,6 +31,9 @@ public sealed interface PunishmentDTO {
      *                              from the {@code PROXY} role (HTTP 400 otherwise)
      * @param evidenceCorrelationId the key evidence was sent under before this punishment existed;
      *                              the pending evidence of this owner with that key is attached to the new punishment
+     * @param scope                 where a {@code KICK} step takes the player from; {@code NETWORK} when absent.
+     *                              Ignored by a step that punishes
+     * @param target                the server name or section key for a {@code SERVER} or {@code SECTION} scope
      */
     @Schema(name = "PunishmentApplyRequest")
     @Serdeable
@@ -39,12 +43,19 @@ public sealed interface PunishmentDTO {
             @Nullable String templateKey,
             @Nullable UUID templateId,
             @Nullable UUID onBehalfOf,
-            @Nullable @Size(max = 64) String evidenceCorrelationId
+            @Nullable @Size(max = 64) String evidenceCorrelationId,
+            @Nullable KickScope scope,
+            @Nullable String target
     ) implements PunishmentDTO {
 
         /** An apply request that claims no pending evidence. */
         public ApplyRequest(String owner, String templateKey, UUID templateId, UUID onBehalfOf) {
-            this(owner, templateKey, templateId, onBehalfOf, null);
+            this(owner, templateKey, templateId, onBehalfOf, null, null, null);
+        }
+
+        /** An apply request that names no kick scope: a kick step kicks from the network. */
+        public ApplyRequest(String owner, String templateKey, UUID templateId, UUID onBehalfOf, String evidenceCorrelationId) {
+            this(owner, templateKey, templateId, onBehalfOf, evidenceCorrelationId, null, null);
         }
     }
 
@@ -83,7 +94,7 @@ public sealed interface PunishmentDTO {
      * @param enforcement          how the section is enforced
      * @param step                 the escalation step that would apply, starting at 1
      * @param stepCount            how many steps the template has
-     * @param duration             the ISO-8601 duration of the step
+     * @param duration             the ISO-8601 duration of the step; absent for a kick step
      * @param eloCost              the ELO the step would deduct
      * @param scoreBefore          the section score now
      * @param scoreAfter           the section score after the deduction
@@ -98,7 +109,7 @@ public sealed interface PunishmentDTO {
             @NonNull EnforcementKind enforcement,
             int step,
             int stepCount,
-            @NonNull String duration,
+            @Nullable String duration,
             int eloCost,
             int scoreBefore,
             int scoreAfter,
