@@ -71,6 +71,17 @@ public class CaseTimeline {
         });
     }
 
+    /**
+     * A player was kicked. The kick is a punishment row of kind {@code KICK} and sits in its own case; the
+     * event names the scope, the target and the ELO cost of its template step, if it had one.
+     */
+    public void kicked(PunishmentEntity kick) {
+        recordSafely(() -> {
+            SourceRows.KickRow row = SourceRows.KickRow.of(kick);
+            return CaseDrafts.kicked(row, CaseEventOrigin.LIVE, row.createdAt());
+        });
+    }
+
     /** Staff revoked the punishment. */
     public void revoked(PunishmentEntity punishment, Attribution by) {
         recordSafely(() -> CaseDrafts.ended(PunishmentRow.of(punishment), CaseActor.of(by), false, CaseEventOrigin.LIVE, this.clock.millis()));

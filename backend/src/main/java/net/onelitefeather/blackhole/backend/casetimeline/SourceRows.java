@@ -68,6 +68,29 @@ public final class SourceRows {
         }
     }
 
+    /**
+     * A kick: a punishment row of kind {@code KICK}. It has no section step, expiry or lift, so it is not a
+     * {@link PunishmentRow}: the lifecycle queries never see it.
+     *
+     * @param scope  {@code NETWORK}, {@code SERVER} or {@code SECTION}
+     * @param target the server or section of a scoped kick
+     */
+    public record KickRow(
+            String identifier, @Nullable UUID source, @Nullable UUID recordedByOid, @Nullable UUID actorOid,
+            @Nullable String scope, @Nullable String target, @Nullable Integer eloCost, long createdAt
+    ) {
+
+        public static KickRow of(PunishmentEntity kick) {
+            return new KickRow(kick.getIdentifier(), kick.getSource(), kick.getRecordedByOid(), kick.getActorOid(),
+                    kick.getKickScope(), kick.getKickTarget(), kick.getEloCost(), kick.getCreatedAt() == null ? 0 : kick.getCreatedAt());
+        }
+
+        /** Who kicked. */
+        public CaseActor kickedBy() {
+            return CaseActor.ofRow(this.source, this.recordedByOid, this.actorOid);
+        }
+    }
+
     /** An appeal. */
     public record AppealRow(
             UUID identifier, String punishmentIdentifier, AppealStatus status, @Nullable UUID decidedBy,

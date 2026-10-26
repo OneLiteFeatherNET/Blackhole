@@ -41,7 +41,10 @@ public enum ErrorKind {
     NAME_TAKEN(HttpStatus.CONFLICT),
 
     /** A staff account without a display name may not write anything a player can see (409). */
-    STAFF_PROFILE_REQUIRED(HttpStatus.CONFLICT);
+    STAFF_PROFILE_REQUIRED(HttpStatus.CONFLICT),
+
+    /** A kick's scope and target do not fit: a scoped kick without a target, a target that is no server or section (422). */
+    KICK_TARGET_INVALID(HttpStatus.UNPROCESSABLE_ENTITY);
 
     private final HttpStatus status;
 

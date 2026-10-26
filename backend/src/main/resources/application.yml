@@ -262,6 +262,11 @@ blackhole:
     # (ISO-8601). A template can carry its own window; this is the fallback for templates without one.
     escalation:
       default-window: ${BLACKHOLE_PUNISHMENT_ESCALATION_DEFAULT_WINDOW:P365D}
+  # Kicks: how long a kick waits for a proxy to acknowledge it (ISO-8601). The backend never waits in
+  # a request; the deadline is stored with the kick and its status is derived when read: PENDING before
+  # it, NOT_ONLINE (NO_PROXY_ANSWER for a mass kick) at or after it when no proxy answered positively.
+  kick:
+    ack-timeout: ${BLACKHOLE_KICK_ACK_TIMEOUT:PT5S}
   # Punishment case: an append-only timeline of what happens to each punishment. The flows record
   # their events after their own write; a failed recording is counted in
   # blackhole.case.record.failures and never fails the write. CaseReconciler repairs lost recordings

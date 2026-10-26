@@ -73,6 +73,11 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /case/{reference}/protocol/{evidenceId}", V),
             Map.entry("GET /case/{reference}/protocol/{evidenceId}/download", V),
             Map.entry("GET /evasion/{owner}/sightings", V),
+            // kicks: a moderator starts one (the proxy is denied), an admin starts a mass kick, the proxy reports deliveries
+            Map.entry("POST /kick", M),
+            Map.entry("POST /kick/mass", A),
+            Map.entry("GET /kick/{id}", VP),
+            Map.entry("POST /kick/{id}/deliveries", P),
             // moderation
             Map.entry("PATCH /case/{reference}", M),
             Map.entry("POST /case/{reference}/notes", M),

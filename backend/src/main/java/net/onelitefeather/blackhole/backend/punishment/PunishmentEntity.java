@@ -132,6 +132,9 @@ public class PunishmentEntity {
         entity.stepCount = entry.stepCount();
         entity.eloCost = entry.eloCost();
         entity.template = entry.template() == null ? null : PunishmentTemplateEntity.toEntity(entry.template());
+        if (entry.kind() == PunishmentKind.KICK) {
+            entity.recordKick(entry.kickScope(), entry.kickTarget());
+        }
         entity.metaData = entry.metaData();
         return entity;
     }
@@ -325,6 +328,9 @@ public class PunishmentEntity {
                 this.eloCost,
                 this.template == null ? null : this.template.toDTO(),
                 null,
+                this.kind,
+                this.kickScope,
+                this.kickTarget,
                 this.metaData
         );
     }

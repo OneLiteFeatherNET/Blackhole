@@ -138,6 +138,23 @@ public class JdbcProfileSlots implements ProfileSlots {
     }
 
     @Override
+    public void appendHistory(String owner, String punishmentIdentifier) {
+        try (Connection connection = this.dataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                update(connection, ENSURE_PROFILE, owner);
+                update(connection, ADD_HISTORY, owner, punishmentIdentifier);
+                connection.commit();
+            } catch (SQLException | RuntimeException e) {
+                connection.rollback();
+                throw e;
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("could not add to the history", e);
+        }
+    }
+
+    @Override
     public void mergeSessionInfo(String owner, Map<String, Object> fields) {
         String json;
         try {

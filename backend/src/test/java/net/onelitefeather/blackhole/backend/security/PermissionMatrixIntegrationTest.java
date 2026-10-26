@@ -153,6 +153,35 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void aModeratorMayKickButAViewerAndTheProxyMayNot() {
+        Map<String, Object> body = Map.of("owner", "ab".repeat(64), "reason", "x");
+        Map<String, String> key = Map.of("Idempotency-Key", "matrix-kick");
+        assertAuthorized(post("/kick", body, this.jwt.moderator(), key), "moderator on POST /kick");
+        assertEquals(403, post("/kick", body, this.jwt.viewer(), key).status(), "viewer on POST /kick");
+        assertEquals(403, post("/kick", body, this.jwt.proxy(), key).status(), "proxy on POST /kick");
+    }
+
+    @Test
+    void onlyAnAdminMayMassKick() {
+        Map<String, Object> body = Map.of("scope", "SERVER", "target", "Lobby-1", "reason", "x");
+        Map<String, String> key = Map.of("Idempotency-Key", "matrix-mass");
+        assertEquals(403, post("/kick/mass", body, this.jwt.moderator(), key).status(), "moderator on a mass kick");
+        assertEquals(403, post("/kick/mass", body, this.jwt.proxy(), key).status(), "proxy on a mass kick");
+        assertAuthorized(post("/kick/mass", body, this.jwt.admin(), key), "admin on a mass kick");
+    }
+
+    @Test
+    void aViewerAndTheProxyMayReadAKickAndOnlyTheProxyMayReportADelivery() {
+        String id = UUID.randomUUID().toString();
+        assertEquals(404, get("/kick/" + id, this.jwt.viewer()).status(), "viewer on GET /kick/{id}");
+        assertEquals(404, get("/kick/" + id, this.jwt.proxy()).status(), "proxy on GET /kick/{id}");
+        Map<String, Object> ack = Map.of("proxyId", "Proxy-1", "found", true, "moved", true);
+        assertEquals(404, post("/kick/" + id + "/deliveries", ack, this.jwt.proxy()).status(), "proxy on the delivery report");
+        assertEquals(403, post("/kick/" + id + "/deliveries", ack, this.jwt.admin()).status(), "admin on the delivery report");
+        assertEquals(403, post("/kick/" + id + "/deliveries", ack, this.jwt.moderator()).status(), "moderator on the delivery report");
+    }
+
+    @Test
     void aViewerMayListTheActivePunishments() {
         assertEquals(200, get("/punishment/active", this.jwt.viewer()).status(), "viewer on the active punishment overview");
     }

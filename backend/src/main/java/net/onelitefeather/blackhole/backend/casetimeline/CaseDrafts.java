@@ -3,6 +3,7 @@ package net.onelitefeather.blackhole.backend.casetimeline;
 import io.micronaut.core.annotation.Nullable;
 import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.AppealRow;
 import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.EvidenceRow;
+import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.KickRow;
 import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.PunishmentRow;
 
 /**
@@ -40,6 +41,12 @@ public final class CaseDrafts {
                                              CaseActor actor, CaseEventOrigin origin, long occurredAt) {
         return new CaseEventDraft(punishmentIdentifier, new CaseEventPayload.Retemplated(templateId, fromTemplateId), occurredAt, origin,
                 actor, templateId, "retemplated:" + punishmentIdentifier + ":" + templateId);
+    }
+
+    /** {@code punishment.kicked}, once per kick; the delivery outcome is the kick's status, never a timeline event. */
+    public static CaseEventDraft kicked(KickRow row, CaseEventOrigin origin, long occurredAt) {
+        return new CaseEventDraft(row.identifier(), new CaseEventPayload.Kicked(row.scope(), row.target(), row.eloCost()),
+                occurredAt, origin, row.kickedBy(), null, "kicked:" + row.identifier());
     }
 
     /** {@code punishment.expired}, always by the system. */
