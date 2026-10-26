@@ -49,12 +49,16 @@ A use of a canned reason (a chat message, a decision message, a closing comment,
 - **WHEN** an admin edits the body of a reason that a message used
 - **THEN** the message text is unchanged and the reason's body is the new text
 
-### Requirement: Translation through the i18n platform
-Canned texts SHALL be translatable through the translation storage of the `add-i18n-platform` change. Until that change provides translations, the English body is the only text and it is returned for every locale. This capability MUST NOT store translations itself.
+### Requirement: Translation through the i18n catalog
+Canned texts SHALL be translated through the catalog of `add-i18n-platform` (PR #388), under the keys `canned.<kind>.<id>`. The English body is the source text and the fallback: when the catalog has no value for the viewer's locale, or the catalog is not available, the English body is returned. This capability MUST NOT store translations itself.
 
-#### Scenario: No translation yet
-- **WHEN** a closing comment is rendered for any locale before `add-i18n-platform` is on `main`
+#### Scenario: No catalog value
+- **WHEN** a closing comment is rendered for a locale that has no catalog value for `canned.CLOSING.<id>`
 - **THEN** the English body is used
+
+#### Scenario: Catalog value exists
+- **WHEN** the catalog has a value for the viewer's locale
+- **THEN** that value is used
 
 ### Requirement: Reasons in chat replies
 A `REPLY` canned reason SHALL be inserted into the staff composer as text that the person can edit before sending. It MUST NOT be sent automatically. A sent message SHALL record `cannedReasonCode` in its payload when the text came from a reason.

@@ -1,6 +1,6 @@
 # Proposal
 
-**Ships as:** `feat(case)` (canned reasons, leak closes the case, case model and case file API, counter-evidence
+**Ships as:** `feat(case)` (canned reasons, leak freezes the appeal and closes the case once settled, case model and case file API, counter-evidence
 API), `feat(web)` (case layout, evidence picker, canned reasons page), `feat(portal)` (case file and counter-evidence),
 `feat(discord)` (only the ticket state on a leak close), and `docs(case)` (rules). This proposal itself ships as
 `docs(openspec)`. One type per commit; the PR plan is in `tasks.md`.
@@ -12,9 +12,9 @@ API), `feat(web)` (case layout, evidence picker, canned reasons page), `feat(por
 them is on `main`; their change folders still exist. This change is implemented only after they are archived or
 their specs are synced, so that the deltas here apply to real capability specs.
 
-**Depends on, not defined here:** `add-i18n-platform` (translation storage). That change does not exist on `main`
-or on any remote branch as of 2026-10-26 (see open question 2). This change only names it as the translation
-store for canned reason text.
+**Depends on, not defined here:** `add-i18n-platform` (PR #388, branch `docs/i18n-platform`). Its catalog holds the canned
+texts under the keys `canned.<kind>.<id>`. This change reads them through the `CannedReasonText` port and falls back to the
+English body until #388 is on `main`. It does not define those keys.
 
 ## Why
 
@@ -26,7 +26,7 @@ under the app `h1`, and inline text links for its back navigation. Evidence is o
 the conversation and the shares that a moderator made one at a time; nothing lets the player answer a specific
 piece of evidence, and nothing says who brought which item.
 
-Closing a case has the same gap. A leaked Ban ID already forfeits the right to appeal (decision of `add-appeal-portal`),
+Closing a case has the same gap. A leaked Ban ID already forfeits the right to appeal before filing and freezes an open appeal (decision 8 of `add-appeal-portal`),
 but the case itself stays open and the player receives no explanation. Reasons for closing, deciding and replying are
 typed fresh every time, so their wording drifts and cannot be translated.
 
@@ -55,12 +55,12 @@ predefined comment, and introduces canned reasons that admins maintain.
   reply, inserted into the composer and sent by the person) and `ALLEGATION` (the opener of a case file). Admins
   maintain them in the Administration workspace; moderators read active ones in every picker. Texts are translatable
   through `add-i18n-platform`, with the stored English text as the fallback.
-- **Leaked Ban ID closes the case** (`appeal-workflow`, `case-structure`): marking a Ban ID leaked sets the case to
-  `CLOSED` with the closing reason `BAN_ID_LEAKED` in the same statement that marks it, forfeits an open appeal as
-  the new terminal status `FORFEITED_BAN_ID_LEAKED`, and appends one player-visible closing comment with the
+- **Leaked Ban ID freezes, then closes** (`appeal-workflow`, `case-structure`): marking a Ban ID leaked freezes an open
+  appeal (the team can still decide it). With no open appeal, or once the frozen appeal is decided, the case closes with the
+  closing reason `BAN_ID_LEAKED` and one player-visible closing comment with the
   predefined text. The player's `LIMITED` session shows the same comment. The closing comment never contains the
   Ban ID.
-- **Discord** (`feat(discord)`, conditional): a ticket that is open when a leak closes the case moves to `CLOSING`,
+- **Discord** (`feat(discord)`, conditional): a ticket that is open when the case closes moves to `CLOSING`,
   so the bot posts the closing comment and closes the channel. No other relay changes.
 
 Not breaking. All routes and fields are additive. The generated client gains operations and fields; the Velocity
@@ -96,18 +96,18 @@ public punishment answer is additive.
 
 - `punishment-evidence`: adds the shareability rule per data type, the brought-by and verification read model, and
   the rule that the evidence count still counts team items only.
-- `appeal-workflow`: adds the terminal status `FORFEITED_BAN_ID_LEAKED`, the leak close of the case, and the
-  guarantee that a leaked case cannot be reopened except by a reissue.
+- `appeal-workflow`: adds the freeze of an open appeal by a leak, the close of the case once settled, the closing comment
+  for a `LIMITED` session, and the reset on reissue. No appeal status is added.
 - `admin-web-ui`: adds the case page layout reference, the evidence picker entry point and the Canned reasons page in
   the Administration workspace.
 
 ## Impact
 
 - Backend: new packages `cannedreason/` and `casefile/`; changes in `casetimeline/` (`JdbcCaseWriter` leak statement,
-  allegation event, closing reason), `appeal/` (`AppealStatus`), `publicapi/` (`closing` field, case file routes),
+  allegation event, closing reason), `appeal/` (decision path only), `publicapi/` (`closing` field, case file routes),
   `evidence/share/` (called, not changed), `discord/ticket` (conditional).
-- Database: two Flyway migrations, numbers taken at implementation (see `design.md`, Flyway migrations). Append-only
-  ordinal for `AppealStatus` (smallint).
+- Database: two Flyway migrations, numbers taken at implementation (see `design.md`, Flyway migrations). No appeal status is
+  added.
 - Client spec: bumped once per API PR, numbers taken at implementation.
 - Web and portal: new components as listed in `tasks.md`, reusing `redesign-ux` components.
 - Ops: no new configuration except `blackhole.casefile.*` limits, documented in `application.yml` when added.

@@ -58,7 +58,7 @@ The preview of a case file draft SHALL render the player's view with the same re
 - **THEN** the answer contains the player rendering and the case file count is unchanged
 
 ### Requirement: Presenting a case file
-Presenting a case file SHALL require an open appeal on the case (HTTP 409 `NO_APPEAL` otherwise), a case that is not closed (HTTP 409 `CASE_CLOSED`) and a staff display name (HTTP 409 `STAFF_PROFILE_REQUIRED`). Presentation MUST be idempotent on its `Idempotency-Key`, MUST create the items in one data-modifying statement and MUST append `case.file_presented` plus one `evidence.shared` per file or excerpt, without content.
+Presenting a case file SHALL require an open appeal on the case (HTTP 409 `NO_APPEAL` otherwise), a case that is not closed (HTTP 409 `CASE_CLOSED`) and whose appeal is not frozen (HTTP 409 `FROZEN`) and a staff display name (HTTP 409 `STAFF_PROFILE_REQUIRED`). Presentation MUST be idempotent on its `Idempotency-Key`, MUST create the items in one data-modifying statement and MUST append `case.file_presented` plus one `evidence.shared` per file or excerpt, without content.
 
 #### Scenario: No appeal
 - **WHEN** a moderator presents a case file on a case with no appeal
@@ -86,8 +86,12 @@ A player answer to a presented item SHALL be a `message.added` event with author
 - **WHEN** a player answers an item id that belongs to another punishment
 - **THEN** the answer is HTTP 404 and nothing is stored
 
-#### Scenario: Leaked case
-- **WHEN** a player answers an item after the Ban ID was marked leaked
+#### Scenario: Frozen appeal
+- **WHEN** a player answers an item while the appeal is frozen by a leak
+- **THEN** the answer is HTTP 409 `FROZEN` and nothing is stored
+
+#### Scenario: Closed case
+- **WHEN** a player answers an item after the leaked case closed
 - **THEN** the answer is HTTP 409 `CASE_CLOSED`
 
 ### Requirement: Threaded staff view

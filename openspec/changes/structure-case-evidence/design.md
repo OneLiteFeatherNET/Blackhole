@@ -59,9 +59,8 @@ Rules:
 
 ### Ban ID state and status lock
 
-- A leaked Ban ID puts the case in `CLOSED` with the closing reason `BAN_ID_LEAKED` (decision 8). While that reason is set,
-  `PATCH` of the status answers `409 CASE_LEAKED`; assignee, tags and priority stay editable. Only a reissue changes the
-  status again.
+- A leaked Ban ID freezes an open appeal or closes the case (decision 8). From the leak until a reissue, a status change
+  answers `409 CASE_LEAKED`. Assignee, tags and priority stay editable.
 
 ---
 
@@ -145,7 +144,7 @@ Enforcement:
 ## Decision 4. The picker: flow
 
 Entry point: the Evidence section header has "Present a case file" for `MODERATOR`. It is disabled with its reason when
-the case has no open appeal (`NO_APPEAL`), when the case is closed (`CASE_CLOSED`) or when the staff profile has no
+the case has no open appeal (`NO_APPEAL`), when the appeal is frozen (`FROZEN`), when the case is closed (`CASE_CLOSED`) or when the staff profile has no
 display name (`STAFF_PROFILE_REQUIRED`, with a link to "My profile").
 
 1. **Open.** A side panel on desktop (the `PageShell` aside slot, 320 px min, 560 px for the picker), a full-screen dialog
@@ -229,7 +228,7 @@ a `message.added` event with author `PLAYER` and visibility `PLAYER`, plus two o
 
 **Limits.** One stance per response; many responses per item allowed (the player may add more files later). Responses are
 never edited by the player; redaction stays the only change, as for every player message. A withdrawn item takes no
-new responses (`409 ITEM_WITHDRAWN`). A leaked case takes no responses (`409 CASE_CLOSED`).
+new responses (`409 ITEM_WITHDRAWN`). A frozen appeal takes no responses (`409 FROZEN`); a closed case takes none (`409 CASE_CLOSED`).
 
 ---
 
@@ -259,10 +258,10 @@ code depends on), `active boolean`, `sort_order int`, `updated_at timestamptz`, 
 - Moderators read `GET /canned-reasons?kind=` (active only). Administrators may add `includeInactive=true` on the admin
   page. The list is small and bounded (at most 200), so it is not paginated.
 
-**Translation.** `add-i18n-platform` owns translation storage. This change defines one port, `CannedReasonText.resolve(reason,
-locale)`, which asks the i18n platform for a translation keyed by (`canned_reason`, `id`, locale) and falls back to `body`.
-Until that change lands, the port returns `body` for every locale, and the English text is the only text. The port does not
-store anything. Translations are edited on the Canned reasons page with the i18n platform's editor, not in this change.
+**Translation.** Translations live in the catalog of `add-i18n-platform` (PR #388, branch `docs/i18n-platform`), under the storage
+keys `canned.<kind>.<id>`. This change defines one port, `CannedReasonText.resolve(reason, locale)`. It reads the catalog value
+for the key and the locale and falls back to the English `body` when there is no value or the catalog is not on `main`. The port
+stores nothing. Canned texts are translated in the catalog editor of #388, not on the Canned reasons page.
 
 **Admin UI.** A page `/admin/canned-reasons` in the Administration workspace, Configuration group, between Templates and Sections
 (`redesign-ux`, two-workspace decision). Tabs by kind are filters (`FilterToolbar`). Each row: code (mono), kind, active state,
@@ -271,62 +270,81 @@ explains why deactivation is blocked.
 
 ---
 
-## Decision 8. Leaked Ban ID closes the case
+## Decision 8. Leaked Ban ID freezes the appeal and closes the case once settled
 
-**Current state.** A leak marks the Ban ID, deletes sessions and appends `ban_id.leak_marked`. The case stays as it was and
-an open appeal stays open (the portal shows it as `FROZEN`). This change replaces that for the appeal and the case.
+**Current state.** A leak marks the Ban ID, deletes sessions and appends `ban_id.leak_marked`. The case stays as it was. The
+portal derives `FORFEITED` (no appeal filed) or `FROZEN` (appeal filed) from the leak state on read. This change adds the
+case close and the reset; it adds no appeal status.
 
-**The close is one statement.** `JdbcCaseWriter.MARK_LEAKED` becomes one data-modifying CTE (the rule for case-own changes):
+**Rule (decided 2026-10-26).**
 
-1. `UPDATE punishment_case SET ban_id_leaked_at, ban_id_leak_reason, status = 'CLOSED', closing_reason_code =
-   'BAN_ID_LEAKED', updated_at WHERE punishment_identifier = ? AND ban_id_leaked_at IS NULL` (returns the row when it
-   changed; a repeat mark changes nothing and writes nothing).
-2. If (1) changed a row and the case has an appeal not yet decided (`SUBMITTED`, `ELIGIBLE_PENDING_REVIEW`, `IN_REVIEW`),
-   `UPDATE appeals SET status = 'FORFEITED_BAN_ID_LEAKED'` (new terminal status, appended ordinal). A forfeited appeal has
-   no merits decision, no repeat-appeal cooldown and does not change the punishment.
-3. `DELETE FROM player_session` for the punishment (unchanged).
-4. Appends `ban_id.leak_marked` (unchanged), `case.status` (from the previous status to `CLOSED`, reason
-   `BAN_ID_LEAKED`, no text), and the closing comment `message.added` with author `SYSTEM`, visibility `PLAYER`, the
-   closing text as it is at close (decision 7), and the locale used. Dedupe keys: `leak-close:<punishmentId>:<generation>`.
+- A leak **freezes** an undecided appeal. The team can still decide it. The player cannot post, file evidence or respond
+  (`409 FROZEN`).
+- With **no undecided appeal** (the right was forfeited before filing), the case closes at once with the closing comment.
+- With a **frozen appeal**, the case closes when the team decides that appeal, with the same closing comment.
+- A **reissue resets everything** as if the leak had not happened (below).
+- Every step stays in the timeline.
 
-The guard in (1) makes the whole statement idempotent. The closing comment text is `CannedReasonText.resolve` of the
-`BAN_ID_LEAKED` closing reason, in English until the i18n platform provides another locale.
+**The leak is one statement** (`JdbcCaseWriter.MARK_LEAKED`, one data-modifying CTE):
 
-**Predefined closing text (proposed, English):**
+1. `UPDATE punishment_case SET ban_id_leaked_at, ban_id_leak_reason, updated_at WHERE punishment_identifier = ? AND
+   ban_id_leaked_at IS NULL` (a repeat mark changes nothing and writes nothing).
+2. `DELETE FROM player_session` for the punishment (unchanged).
+3. Appends `ban_id.leak_marked` (unchanged).
+4. When no undecided appeal exists (`NOT EXISTS` over `SUBMITTED`, `ELIGIBLE_PENDING_REVIEW`, `IN_REVIEW`), the same CTE also
+   sets `status = 'CLOSED'` and `closing_reason_code = 'BAN_ID_LEAKED'` (guarded by step 1's change), appends `case.status`
+   and the closing comment (`message.added`, author `SYSTEM`, visibility `PLAYER`, dedupe `leak-close:<punishmentId>:<generation>`).
+
+**The close after a decision.** `CaseChanges.closeLeakedCase` is one CTE with the guard "leaked, not closed, no undecided
+appeal" and the same dedupe key. The appeal decision flow calls it after its own write, through the path that records
+lifecycle events: a failure is logged and counted in `blackhole.case.record.failures` and never fails the decision.
+`CaseReconciler` finishes leaked cases that have no undecided appeal and are not closed, so a lost call heals itself.
+
+**Predefined closing text (proposed, English; translated through the catalog key `canned.CLOSING.BAN_ID_LEAKED`, PR #388):**
 
 > This appeal is closed. The Ban ID of this punishment has been shared, so it can no longer be used to appeal. Keep your
 > Ban ID private; it is the only key to your appeal.
 
-It names no Ban ID and no staff member; it passes `MessageRules`.
+It names no Ban ID and no staff member; it passes `MessageRules`. The text is resolved when the case closes, in the locale the
+catalog gives for the player, and stored with the message.
 
-**Effects, by session:**
+**Effects, by state:**
 
-- Before any appeal exists: the right is forfeited (as decided). `POST /public/appeal` answers `409 FORFEITED` as today.
-- After filing: the appeal becomes `FORFEITED_BAN_ID_LEAKED`, which the portal shows as `FORFEITED` (not `FROZEN`).
-  This replaces the `FROZEN` path of `add-appeal-portal`, decision 8. See open question 1.
-- The `LIMITED` session (a leaked Ban ID still logs in): `GET /public/punishment` gets a `closing` field `{code, text, closedAt}`
-  from the stored closing comment. No staff data, no conversation, no decision text. The `LIMITED` rule for conversation and
-  appeal reads (403) is unchanged.
-- The `FULL` session is deleted by the leak, so the closing comment reaches a `FULL` player only through the protocol
-  (`ProtocolModel` lists `message.added` of `SYSTEM`) and the admin transcript.
+- No appeal filed (forfeited right): `POST /public/appeal` answers `409 FORFEITED`, as decided before. The case closes at
+  once with the closing comment.
+- Appeal frozen: `FROZEN` for posts, responses, presentations and filing. The team can decide. No `closing` field yet.
+- Appeal decided after the leak, or no appeal: the case is `CLOSED`, the `LIMITED` answer carries `closing`.
+- `LIMITED` session (a leaked Ban ID still logs in): `GET /public/punishment` gets a `closing` field `{code, text, closedAt}`
+  only once the case is closed. No staff data. Conversation and appeal reads stay 403.
+- The `FULL` session is deleted by the leak. The closing comment reaches the protocol and the admin transcript as a
+  `SYSTEM` message.
+- Status changes are refused (`409 CASE_LEAKED`) from the leak until a reissue. Assignee, tags and priority stay changeable.
 
-**Reopen and reissue.**
+**Reset on reissue** (`ADMIN`, existing `reissueBanId` and `reissueBanIdAtGeneration` CTEs). One statement:
 
-- A leaked case cannot be reopened by a filed appeal (the appeal is refused as `FORFEITED` before the reopen rule runs), and
-  a status change answers `409 CASE_LEAKED`.
-- `ADMIN` reissue (existing `reissueBanId` and `reissueBanIdAtGeneration` CTEs) clears the leak and, when
-  `closing_reason_code = 'BAN_ID_LEAKED'`, sets `status = 'OPEN'`, clears the closing reason and appends `case.status`.
-  The forfeited appeal stays forfeited. Whether a new appeal right comes back is open question 3.
+- clears the leak state and raises the generation (existing);
+- a case closed by the leak is reopened to `OPEN` and its closing reason is cleared, and `case.status` is appended;
+- the closing comment is withdrawn for the player with `message.deleted:<id>` (the message and its event stay in the timeline);
+- a frozen appeal needs no write: its `FROZEN` state was derived from the leak and is gone with it, so it is open again;
+- a right forfeited by the leak is available again for filing;
+- a decided appeal keeps its decision (a team decision on the merits is not undone); the case is reopened to `OPEN` for
+  follow-up;
+- `ban_id.leak_marked`, the closing comment's events and `ban_id.reissued` all stay in the timeline, so the audit shows the
+  leak and the reset.
 
-**Discord.** `LeakCheckService` calls the same `CaseChanges.markBanIdLeaked`, so a leak from the bot closes the case in the
-same way. The open ticket moves to `CLOSING` (conditional PR, `feat(discord)`), and the outbox relays the closing comment.
+The reset applies to every reissue of a leaked Ban ID. The reason code (`NOT_PLAYERS_FAULT` or `OTHER`) is recorded on
+`ban_id.reissued`.
 
----
+**Why `ADMIN` reissues, `MODERATOR` marks:** marking is a protective, reversible act; reissue restores the right and mints a
+credential (unchanged from `add-appeal-portal`).
+
+**Discord.** `LeakCheckService` calls the same `CaseChanges.markBanIdLeaked`. A bot leak freezes the appeal in the same way. The
+ticket moves to `CLOSING` only when the case closes (decision 11).
 
 ## Decision 9. Layering, routes and contracts
 
 Packages (new): `casefile/` and `cannedreason/`, each with `controller`, `service`, `dto` and a JDBC store. `casetimeline/`
-gains `CaseItemReader` and the allegation write. `appeal/` gains the status. `publicapi/` gains the closing field and the
+gains `CaseItemReader` and the allegation write. `appeal/` changes only in the decision path, which calls the close. `publicapi/` gains the closing field and the
 case file routes. `evidence/share/` is called through `EvidenceShareService` and is not changed.
 
 Rules followed (micronaut-controller-layer, micronaut-dto-contract, micronaut-service-layer, micronaut-openapi-contract):
@@ -370,7 +388,7 @@ Contracts:
   routes use Problem Details once the standardization is on `main`; until then they use the same `code` values.
 - Every `POST` that writes accepts `Idempotency-Key` (1 to 80 of `[A-Za-z0-9._:-]`). A repeat with the same key answers the
   first result with `repeated: true`.
-- Errors used: `NO_APPEAL` 409, `CASE_CLOSED` 409, `CASE_LEAKED` 409, `STAFF_PROFILE_REQUIRED` 409, `NOT_CONFIRMED` 400,
+- Errors used: `NO_APPEAL` 409, `FROZEN` 409, `CASE_CLOSED` 409, `CASE_LEAKED` 409, `STAFF_PROFILE_REQUIRED` 409, `NOT_CONFIRMED` 400,
   `SELECTION_TOO_LONG` 400, `NOT_SHAREABLE` 422, `PII_REJECTED` 422, `ITEM_WITHDRAWN` 409, `SYSTEM_REASON` 409, `CODE_TAKEN`
   409, `VERSION_CONFLICT` 409, `NOT_FOUND` 404 (uniform for unknown and foreign ids).
 - The generated client (`client/specs/blackhole-api-*.yml`) is regenerated in every API PR, with the spec number taken at
@@ -396,12 +414,10 @@ Contracts:
 
 ## Decision 11. Discord
 
-Only one transition changes. When a leak closes a case whose appeal ticket is open, the ticket moves to `CLOSING`, and the
-bot closes the channel after the outbox relay has posted the closing comment (`ticket` state machine, `add-appeal-chat`
-decision 11). The bot needs no other change. Presentations and responses are not relayed to Discord in v1; the Discord
-channel shows them only through the portal. This keeps `feat(discord)` to one PR and no new relay label.
-
----
+When a case closes (decision 8: at once when no appeal is open, or when the frozen appeal is decided), an open appeal ticket
+moves to `CLOSING`. The bot then posts the closing comment through the outbox and closes the channel. A leak that only
+freezes the appeal leaves the ticket open. No presentations or responses are relayed to Discord in v1 (decided 2026-10-26).
+This keeps `feat(discord)` to one transition and no new relay label.
 
 ## Decision 12. Tests (F.I.R.S.T.)
 
@@ -411,8 +427,8 @@ stores for unit tests, one Postgres integration test per SQL change, fresh fixtu
 - Unit: `ShareableKind` covers every row of decision 3; `CaseFileRenderer` renders only shareable kinds; summary whitelists;
   `CaseItemReader` provenance and verification table; `CannedReasonService` rules (code format, system reason, deactivate,
   PiiGuard, MessageRules, `CODE_TAKEN`); `CannedReasonText` fallback; picker selection rules (20-line cap, sorted indexes).
-- Integration (Postgres): the leak CTE (idempotent repeat, appeal forfeited, sessions deleted, closing message and events
-  present, no Ban ID in any row or event); reissue reopens only a leak-closed case; a leaked case refuses the filing with
+- Integration (Postgres): the leak CTE (idempotent repeat, frozen appeal untouched, sessions deleted, closing message and events, one close after a decision, reset on reissue
+  present, no Ban ID in any row or event); reissue resets the leak and reopens only a leak-closed case; a leaked case refuses the filing with
   `FORFEITED` before the reopen rule; case-file dedupe; thread query uses the index; `LIMITED` answer carries `closing`
   and nothing else.
 - Route coverage: `RouteCoverageIntegrationTest` and `PermissionMatrixIntegrationTest` get every new route.
@@ -431,8 +447,7 @@ change takes V27 when it lands):
 
 1. `V<n>__canned_reasons.sql`: creates `canned_reason` with `unique (kind, code)`; seeds `CLOSING / BAN_ID_LEAKED` (system,
    active, body as in decision 8); adds `punishment_case.closing_reason_code varchar(32) null`. Existing cases get `NULL`.
-   No backfill. `AppealStatus` gets a new ordinal (smallint); if a check constraint on `appeals.status` exists, the same
-   migration widens it, otherwise the range is enforced by the application (database rule).
+   No backfill. No change to `appeals.status`: the leak adds no appeal status (decision 8).
 2. `V<n+1>__case_file.sql`: creates `case_file` and `case_file_item` (both with `punishment_identifier` and `appeal_id`
    indexes, `dedupe_key` unique, cascade from file to item), and a partial expression index on `case_event`
    `((payload->>'caseFileItemId'))` where `type = 'message.added'`. Existing rows: no files, no responses; nothing to migrate.
@@ -441,43 +456,51 @@ Provenance and verification are not stored, so no backfill exists for them. Exis
 
 ## Migration plan
 
-1. Land `docs(openspec)` (this proposal) and archive the in-flight changes it depends on (or sync their specs) first.
+1. Land `docs(openspec)` (this change, PR #389) with the decisions commit. Archive or sync the in-flight changes it depends on
+   first (`add-appeal-chat`, `add-appeal-portal`, `add-punishment-case-timeline`, `redesign-ux`, `standardize-api-pagination-and-problems`).
 2. PR order is in `tasks.md`. Each API PR regenerates the client spec and merges with the Velocity plugin untouched.
-3. The leak close changes an existing behaviour. It ships behind no flag, because the rule was already decided. The panel's
-   leak dialog states the close and the forfeit before the moderator confirms (PR 7, `feat(web)`), and the release notes name
-   the change.
-4. Rollback: the migrations are additive; code can be reverted without schema rollback. A reverted leak close leaves
-   `CLOSED` cases in place, which staff can reopen manually.
+3. The leak changes an existing behaviour in one case only: a leak with no undecided appeal now closes the case at once. Staff
+   see the consequence in the leak dialog (PR 8) before they confirm.
+4. Rollback: the migrations are additive; code can be reverted without schema rollback. A reverted leak close leaves `CLOSED`
+   cases in place, which staff can reopen manually.
+5. Implementation is done by Haiku agents, one per PR (user rule, 2026-10-26).
 
 ## Risks / Trade-offs
 
-- **A leak now ends an appeal the team could have read.** This follows the decided rule that a leaked Ban ID forfeits the
-  right, and it removes the frozen-but-open state. Mitigation: open question 1 asks for confirmation before PR 3 merges.
-- **Minimisation can fail in a preview-only path.** Mitigation: the picker preview calls the same renderer as the player
-  path; the confirmation is required server side.
-- **Staff see locked rows** (anticheat, evasion). That is intended: staff must know the evidence exists. Player-facing
-  output has no branch for them.
-- **Canned text is written by admins and sent to players.** Mitigation: `PiiGuard`, `MessageRules`, the system marker and
-  the audit fields.
-- **Translations are not ready.** The English fallback ships; the translation port is a seam.
+- **A frozen appeal keeps the case open while the player is locked out.** The team decides it or waits; the case stays in the
+  appeal queue. The leak dialog says so.
+- **A reissue can withdraw a closing comment the player has already read.** Deliberate: the reset restores the state as if the
+  leak had not happened. The timeline keeps the comment, the leak and the reissue.
+- **Minimisation can fail in a preview-only path.** Mitigation: the picker preview calls the same renderer as the player path;
+  the confirmation is required server side.
+- **Staff see locked rows** (anticheat, evasion). That is intended: staff must know the evidence exists. Player-facing output
+  has no branch for them.
+- **Canned text is written by admins and sent to players.** Mitigation: `PiiGuard`, `MessageRules`, the system marker and the
+  audit fields.
 - **Summaries are snapshots**, so a corrected report outcome does not reach the player until a new presentation. This is
-  deliberate (open question 4 covers a refresh action).
+  deliberate (decision 4).
+
+## Decisions (2026-10-26)
+
+These replace the open questions of the first draft. They were decided by the user on 2026-10-26.
+
+1. **Leak after filing: freeze, and the team decides.** The open appeal becomes `FROZEN` (the existing derived state of
+   `add-appeal-portal`, decision 8, kept). The team can still decide it. The case closes with the predefined `BAN_ID_LEAKED`
+   comment when there is no open appeal (at once on the leak) or once the frozen appeal is decided. The new terminal status
+   `FORFEITED_BAN_ID_LEAKED` is removed. The "leak before filing" path keeps the derived `FORFEITED` state: the right is forfeited
+   and no appeal exists. See decision 8.
+2. **Reissue after an innocent leak: reset everything.** The case reopens, the frozen appeal is open again, a forfeited right is
+   available again, and the leak and the reissue stay visible in the timeline. The closing comment is withdrawn for the player
+   and kept in the timeline. A decided appeal keeps its decision. See decision 8.
+3. **Case file presentations: only with an open appeal, and no Discord relay in v1.** Kept as proposed.
+4. **Snapshots and translations.** Presented snapshots are never refreshed. Translations fall back to English through the
+   `CannedReasonText` port until `add-i18n-platform` provides them.
+5. **Dependency.** `add-i18n-platform` is PR #388 (branch `docs/i18n-platform`). Its catalog holds the canned texts under the
+   keys `canned.<kind>.<id>`. This change references it and does not define those keys.
+6. **Agent model.** The user's standing rule: all implementation is done by Haiku agents. Every Sonnet assignment in `tasks.md`
+   is replaced with Haiku.
 
 ## Open questions
 
-Each question has a recommended default that the tasks assume. The team answers them before PR 3 and PR 4.
-
-1. **Leak after filing.** Default: close the case and forfeit the open appeal (`FORFEITED_BAN_ID_LEAKED`) with the closing
-   text, as the brief asks. This replaces the `FROZEN` path of `add-appeal-portal`, decision 8, which said the team keeps
-   deciding. Alternative: keep `FROZEN` and only close the case; the team then decides without player messages.
-2. **Translation dependency missing.** `add-i18n-platform` is not on `main` or any branch on 2026-10-26. Default: this change
-   ships English-only canned texts behind the `CannedReasonText` port; the port returns the English body until the i18n
-   platform lands, and the closing comment stays English.
-3. **Right after a reissue.** Default: a reissue reopens a leak-closed case to `OPEN`, and a forfeited appeal stays
-   forfeited, so a new appeal right does not come back for that punishment. Alternative: a reissue restores an appeal right
-   that was never filed.
-4. **Summary refresh.** Default: presented summaries are snapshots and are not refreshed. Alternative: a "refresh" action
-   that creates a new item with the current snapshot.
-5. **Presentation before an appeal, and a Discord relay.** Default: no presentations without an open appeal (`NO_APPEAL`),
-   and no relay of presentations or responses to Discord in v1. Alternative: allow a presentation on an open case with a
-   "pre-appeal" flag, and relay responses to the ticket channel.
+None. The first draft's questions are closed as follows: question 1 by decision 1; question 2 by decisions 4 and 5; question 3
+by decision 2; question 4 by decision 4; question 5 by decision 3.

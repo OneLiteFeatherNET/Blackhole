@@ -61,8 +61,8 @@ The case SHALL hold one current allegation, written by `MODERATOR` as an append-
 - **WHEN** a player reads the conversation, the case file or the public punishment
 - **THEN** the allegation text is absent from every answer
 
-### Requirement: Status is locked after a leak close
-While a case carries the closing reason `BAN_ID_LEAKED`, a status change MUST answer HTTP 409 `CASE_LEAKED`. Assignee, tags and priority MUST remain changeable. Only a Ban ID reissue MAY change the status again.
+### Requirement: Status is locked from a leak until reissue
+From the moment a Ban ID is marked leaked until it is reissued, a status change MUST answer HTTP 409 `CASE_LEAKED`. Assignee, tags and priority MUST remain changeable.
 
 #### Scenario: Status change refused
 - **WHEN** a moderator sets a leaked case to `IN_REVIEW`
@@ -72,26 +72,34 @@ While a case carries the closing reason `BAN_ID_LEAKED`, a status change MUST an
 - **WHEN** a moderator assigns a leaked case to another staff member
 - **THEN** the assignee changes and one event is appended
 
-### Requirement: Leak close is one statement
-Marking a Ban ID leaked SHALL set the case to `CLOSED` with closing reason `BAN_ID_LEAKED`, forfeit an undecided appeal, delete the punishment's player sessions and append its events, all in one data-modifying statement.
+### Requirement: Leak is one statement
+Marking a Ban ID leaked SHALL set the leak state, delete the punishment's player sessions and append `ban_id.leak_marked`, in one data-modifying statement. When the case has no undecided appeal, the same statement SHALL also close the case with closing reason `BAN_ID_LEAKED`. An undecided appeal MUST be left in its status (shown as `FROZEN`).
 
 #### Scenario: One statement
-- **WHEN** the leak close runs against a case with an open appeal
-- **THEN** the status, the closing reason, the appeal status, the session deletion and the events are written by one statement, and a failure of any part leaves all of them unwritten
+- **WHEN** the leak runs against a case with no undecided appeal
+- **THEN** the leak state, the sessions, the closing reason, the status and the events are written by one statement, and a failure of any part leaves all of them unwritten
+
+#### Scenario: Frozen appeal keeps the status
+- **WHEN** the leak runs against a case with an undecided appeal
+- **THEN** the case status is unchanged and no closing comment is written
 
 ### Requirement: Closing comment is a player-visible system message
-The leak close SHALL append exactly one closing comment: a `message.added` with author `SYSTEM` and visibility `PLAYER`, whose text is the predefined `BAN_ID_LEAKED` closing reason as it is at that moment. A repeat mark MUST change nothing and append nothing.
+A case close caused by a leak SHALL append exactly one closing comment: a `message.added` with author `SYSTEM` and visibility `PLAYER`, whose text is the predefined `BAN_ID_LEAKED` closing reason as it is at that moment. A repeat leak or a repeat decision MUST change nothing and append nothing.
 
-#### Scenario: First mark
-- **WHEN** a moderator marks an open case with a filed appeal as leaked
-- **THEN** the case is `CLOSED` with closing reason `BAN_ID_LEAKED`, the appeal is `FORFEITED_BAN_ID_LEAKED`, and the closing comment exists once
+#### Scenario: Leak with no open appeal
+- **WHEN** a moderator marks a case with no undecided appeal as leaked
+- **THEN** the case is `CLOSED` with closing reason `BAN_ID_LEAKED` and the closing comment exists once
+
+#### Scenario: Frozen appeal decided
+- **WHEN** the team decides the frozen appeal of a leaked case
+- **THEN** the case is `CLOSED` with closing reason `BAN_ID_LEAKED` and the closing comment exists once
 
 #### Scenario: Repeated mark
 - **WHEN** the same Ban ID is marked leaked again
 - **THEN** no row changes, no event is appended and the answer is `changed: false`
 
 #### Scenario: No Ban ID in the record
-- **WHEN** the leak close has run
+- **WHEN** the leak has run
 - **THEN** no event, closing comment, log line or metric label contains the Ban ID value
 
 ### Requirement: Case page is reached from the workspace
