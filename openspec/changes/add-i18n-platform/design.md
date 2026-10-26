@@ -12,8 +12,9 @@ See proposal.md - Why. Current state, verified in the repository on 2026-10-26:
   only, no reason. The escalation model (template steps as their own table, `escalation_group`) is in the
   unmerged change `staff-temp-bans-elo-escalation`. Appeal conditions are an append-only table
   (`V19__appeal_conditions.sql`, version 1 seeded in English).
-- **Web** (`web/`) and **portal** (`portal/`): vue-i18n 11, `en.json`/`de.json`. The portal's `i18n.ts` deliberately
-  does not read the browser language. The panel spec `admin-web-ui` says "defaulting to German"; the code defaults to `en`.
+- **Web** (`web/`) and **portal** (`portal/`): vue-i18n 11, `en.json`/`de.json`. The panel's default language is `en`
+  (decision of 2026-10-24, see "Decisions (2026-10-26)"). The portal's `i18n.ts` did not read the browser language; this
+  change supersedes that (decision 3 below).
 - **Discord** (`discord/`): `Lang` (EN/DE) from the Discord locale; reply strings in `Messages`.
 - **Event bus**: NATS JetStream (`switch-event-bus-to-nats`). Velocity is subscribe-only. Subjects are
   `blackhole.events.<type>` (D1 of that change).
@@ -98,7 +99,7 @@ not in the step row. Reordering steps does not change keys. A step can only be s
 This depends on `staff-temp-bans-elo-escalation` (the step table); the step column is appended in a later migration.
 
 ### D4. Catalog export: `GET /i18n/catalog`
-- **Role:** PROXY (and, if decided in question 3, BOT). Denied by default otherwise.
+- **Role:** PROXY and DISCORD (decision 4 below; no new BOT role). Denied by default otherwise.
 - **Query:** `since` (long, default 0) and the cursor and size of the standard page model. Ordered by `catalog_version`.
 - **Response:** `{ "version": <current catalog version>, "entries": [{"key", "locale", "version", "text"}], "nextCursor" }`.
   `entries` never contains PII; the text is the current version of each key and locale with `catalog_version > since`.
@@ -113,7 +114,7 @@ Under `/i18n` (versioned like the other controllers, the controller/service/DTO 
 - `GET /i18n/texts` cursor-paged list, one row per key with the `en` and `de` current text, the version, and a
   `missing` and `parityViolation` flag per locale.
 - `GET /i18n/texts/{key}/history` (append-only list).
-- `PUT /i18n/texts/{key}/{locale}` body `{ "text": "..." }`. Creates a new version. Expected failures use the
+- `PUT /i18n/texts/{key}/{locale}` (ADMIN only) body `{ "text": "..." }`. Creates a new version. Expected failures use the
   Problem Details codes of `standardize-api-pagination-and-problems`; validation errors list each problem with a
   `pointer` into the text.
 - The request and response DTOs follow the sealed marker interface contract (`CreateRequest`/`UpdateRequest`/`Response`/`Error`).
@@ -166,14 +167,34 @@ Under `/i18n` (versioned like the other controllers, the controller/service/DTO 
 - **Panel:** the Translation editor is a page in the Administration workspace. It uses the admin API (D5).
   The preview uses the same chain as D8 and marks any example argument as an example. UI strings stay in
   `web/src/locales/{en,de}.json`; a key-parity test covers them as today.
-- **Portal:** the locale choice is stored on the portal session (`PUT /session/locale`, validated against
-  `en`/`de`). The chosen locale selects both the UI strings (vue-i18n) and the backend content texts. Without a
-  choice both are `en`, which keeps the existing decision not to read the browser language. See question 2.
+- **Portal:** the locale is resolved in this order: a manual choice stored in the browser (cookie or `localStorage`), the
+  `Accept-Language` header when it names `en` or `de`, then `en`. The same resolved locale selects the UI strings
+  (vue-i18n) and the backend content texts, which are requested with a `locale` query parameter. The choice is never
+  stored on the server, so there is no server-side profile and no BFF route. Decision 3 below.
 
 ### D10. Discord
-`discord` loads the catalog with the same export and a bot role (question 3). A message is rendered in the guild
+`discord` loads the catalog with the same export under the existing DISCORD role (decision 4). A message is rendered in the guild
 locale, or the user locale when the guild has none, through the same chain as D8 with `en` as the last step.
 `Lang` and `Messages` stay for bot UI texts.
+
+## Decisions (2026-10-26)
+
+These settle the open questions of the first draft. Each is binding for the specs and tasks.
+
+1. **Agent model.** All implementation, tests, lookups and PR commands are done by Haiku subagents. No task names another model.
+2. **Panel default language is English.** Decided 2026-10-24: English is the default and German the second language.
+   `web/src/i18n.ts` already defaults to `en`; the `admin-web-ui` spec said German and is corrected by a MODIFIED
+   requirement in this change ("Localised interface").
+3. **Portal language.** Supersedes the earlier "English only" portal rule and the "do not read the browser language" rule.
+   The portal follows the browser's `Accept-Language` (`en` or `de`, otherwise `en`) and offers a manual selector. The
+   selector's choice is stored in a cookie or `localStorage`, with no server-side profile. Tasks 8.1 to 8.5 implement it.
+4. **Discord catalog access.** The existing `DISCORD` role is extended to read `GET /i18n/catalog`. No new BOT role.
+5. **Who saves catalog texts.** ADMIN only. Reading the catalog and its history stays open to ADMIN and MODERATOR.
+6. **Adventure version.** Task 1.1 stays the first step. If Velocity 4.3.0 bundles an Adventure below 4.20, the translator
+   implements `Translator` directly (D8).
+7. **`structure-case-evidence` consumes the contract.** That change is being written in a parallel PR. It is the consumer of
+   the storage keys `canned.<kind>.<id>` defined in the `i18n-catalog` spec and writes through the admin API (PR A2). This
+   change does not define the canned texts themselves.
 
 ## Risks / Trade-offs
 
@@ -204,11 +225,10 @@ locale, or the user locale when the guild has none, through the same chain as D8
 6. **Rollback:** the proxy's `blackhole.i18n.enabled` switch (default true) returns it to the bundles; the backend
    keeps the tables. Nothing is dropped. The `appeal_conditions` table stays read-only for one release.
 
-## Open Questions
+## Open Questions (closed 2026-10-26)
 
-1. The exact Adventure version of Velocity 4.3.0 and whether `MiniMessageTranslator` exists there (task 1.1 answers it).
-2. Portal without a language choice: browser `Accept-Language` for content only, or both `en` (default recommended)?
-3. Which role the Discord bot uses for `GET /i18n/catalog`: an extra BOT app role, or PROXY? (Recommended: BOT, read-only.)
-4. The panel's default UI language: the `admin-web-ui` spec says German, the code says `en`. This change does not change
-   it (recommended: keep German as the spec says, and record the mismatch as a separate fix).
-5. Who may save a catalog text: ADMIN only, or MODERATOR too? (Recommended: ADMIN, because a text reaches every player.)
+1. Adventure version of Velocity 4.3.0: closed by task 1.1 and the fallback in decision 6.
+2. Portal without a language choice: closed by decision 3 (browser `Accept-Language`, else `en`).
+3. Discord role for the catalog export: closed by decision 4 (existing DISCORD role).
+4. Panel default language: closed by decision 2 (English).
+5. Who may save catalog texts: closed by decision 5 (ADMIN only).

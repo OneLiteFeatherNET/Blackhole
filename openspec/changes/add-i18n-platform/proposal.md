@@ -40,10 +40,12 @@ administration workspace, and a proxy that picks up a new translation within sec
 - **Admin translation editor** in the Administration workspace of the panel: list of keys with missing-
   translation markers, edit per locale, a fallback preview (what a `de` player sees for a key with no `de`
   text), version history per key.
-- **Portal** renders backend texts in the player's language from a selector (the player's choice is stored;
-  `Accept-Language` is used only when no choice exists). UI strings stay in `portal/src/locales/*.json`.
-- **Discord** embeds use the guild or user locale where it is known, otherwise `en`. Bot UI strings stay
-  in `Lang`/`Messages`.
+- **Portal** renders backend texts in the player's language. The language follows the browser's `Accept-Language`
+  (`en` or `de`, otherwise `en`) and a manual selector overrides it. The selector's choice is stored in a cookie or
+  `localStorage`, with no server-side profile. UI strings stay in `portal/src/locales/*.json`. This supersedes the
+  portal's English-only rule.
+- **Discord** embeds use the guild or user locale where it is known, otherwise `en`. The bot reads the catalog under the
+  existing DISCORD role. Bot UI strings stay in `Lang`/`Messages`.
 - **Migration.** Current English texts become the `en` translations; existing German defaults from
   `velocity/src/main/resources/blackhole_de.properties` are imported as `de`; the existing
   `appeal_conditions` rows become the `appeal.conditions` key history (the old table stays read-only for one
@@ -69,9 +71,8 @@ administration workspace, and a proxy that picks up a new translation within sec
   "German client" stays and becomes true.
 - `punishment-management`: templates carry a reason translation key per escalation step; punishments store
   the reason key, arguments and the `en` snapshot.
-- `admin-web-ui`: adds the "Translation editor" requirement to the Administration workspace. The existing
-  "Localised interface" requirement (panel UI texts in German and English, default German) is not changed
-  here; see open question 3.
+- `admin-web-ui`: adds the "Translation editor" requirement to the Administration workspace, and changes the
+  "Localised interface" requirement so that the panel defaults to English (decision of 2026-10-24).
 
 ## Out of scope
 
@@ -81,11 +82,11 @@ administration workspace, and a proxy that picks up a new translation within sec
   These stay in the language the author typed them in.
 - More than the two locales `en` and `de`. The schema allows any BCP-47 tag, but only `en` and `de` are
   accepted by validation until a follow-up change adds one.
-- Per-player language stored in the backend. The player's choice in the portal is stored on the portal
-  session only; the proxy uses the client locale.
+- Per-player language stored in the backend. The portal choice lives in the browser only (cookie or `localStorage`);
+  the proxy uses the client locale.
 - Changing UI strings of the panel, the portal or the bot into the catalog. They stay in their bundles.
-- The `structure-case-evidence` change itself. This change provides the storage keys `canned.<kind>.<id>`
-  that the parallel change writes through; it does not define the canned comments.
+- The `structure-case-evidence` change itself. It is written in a parallel PR and consumes the storage keys
+  `canned.<kind>.<id>` that this change defines.
 - The `add-kick` change is amended by a follow-up task, not implemented here (see Impact).
 
 ## Impact

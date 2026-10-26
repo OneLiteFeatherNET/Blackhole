@@ -56,7 +56,7 @@ The system SHALL check that a non-`en` text declares the same placeholder indice
 
 ### Requirement: Catalog export for the proxy
 
-The system SHALL export the catalog to the PROXY role at `GET /i18n/catalog`, returning the entries whose catalog version is greater than `since` together with the current version. The response MUST carry an ETag and answer a matching `If-None-Match` with `304 Not Modified`.
+The system SHALL export the catalog to the PROXY and DISCORD roles at `GET /i18n/catalog`, returning the entries whose catalog version is greater than `since` together with the current version. The response MUST carry an ETag and answer a matching `If-None-Match` with `304 Not Modified`.
 
 #### Scenario: Incremental export
 - **WHEN** a proxy calls `GET /i18n/catalog?since=120` and the catalog version is 125
@@ -67,11 +67,11 @@ The system SHALL export the catalog to the PROXY role at `GET /i18n/catalog`, re
 - **THEN** the response is `304 Not Modified` without a body
 
 #### Scenario: Other roles
-- **WHEN** a caller without the PROXY role calls `GET /i18n/catalog`
+- **WHEN** a caller without the PROXY or DISCORD role calls `GET /i18n/catalog`
 - **THEN** the request is refused under the role rules of the deployment
 
 ### Requirement: Admin CRUD for catalog texts
-The system SHALL let an `ADMIN` or `MODERATOR` list the keys with their current `en` and `de` text, the version and the parity status, read the version history of a key, and save a new version for a key and locale. Listing MUST use cursor pagination. Expected failures MUST be Problem Details errors with the codes of the standard error model.
+The system SHALL let an `ADMIN` or `MODERATOR` list the keys with their current `en` and `de` text, the version and the parity status, read the version history of a key, and only an `ADMIN` may save a new version for a key and locale. Listing MUST use cursor pagination. Expected failures MUST be Problem Details errors with the codes of the standard error model.
 
 #### Scenario: Listing shows missing translations
 - **WHEN** a moderator lists the catalog and a key has an `en` text but no `de` text
@@ -124,3 +124,22 @@ The migration SHALL import the current English texts of the proxy bundle and of 
 #### Scenario: Re-run is a no-op
 - **WHEN** the migration runs a second time
 - **THEN** no new rows are added
+
+### Requirement: Portal locale
+The portal SHALL resolve its locale for UI strings and backend content texts in this order: a manual choice stored in the browser (cookie or `localStorage`), the `Accept-Language` header when it names `en` or `de`, then `en`. The choice MUST NOT be stored on the server, and a stored value other than `en` or `de` MUST be ignored.
+
+#### Scenario: Browser language German
+- **WHEN** the browser sends `de-AT,en;q=0.5` and no choice is stored
+- **THEN** the portal shows German UI strings and German content texts
+
+#### Scenario: Unsupported browser language
+- **WHEN** the browser sends `fr-FR` and no choice is stored
+- **THEN** the portal shows English
+
+#### Scenario: Manual choice overrides the header
+- **WHEN** a choice `en` is stored and the browser sends `de`
+- **THEN** the portal shows English
+
+#### Scenario: No server profile
+- **WHEN** a player picks `de` in the selector
+- **THEN** the choice is written only to the browser and no request stores it on the server

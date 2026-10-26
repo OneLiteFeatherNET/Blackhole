@@ -5,9 +5,9 @@ Conventions for every task:
   A bug fix starts with a failing reproduction test.
 - **F.I.R.S.T.** Unit tests use no sleep, no system clock (inject `Clock`), no network, no shared static state,
   and `@TempDir` for files. Scheduler and NATS are fakes that the test drives by hand.
-- **Agents.** Implementation and tests go to a Sonnet subagent (`model: "sonnet"`, `isolation: "worktree"`, branch from
-  the up-to-date `origin/main` or from the previous PR of this stack). Lookups, log triage and file searches go to a Haiku
-  subagent (`model: "haiku"`). The main session reviews each diff and test run before the next PR starts.
+- **Agents.** All implementation, tests, lookups, log triage and PR commands go to Haiku subagents (`model: "haiku"`,
+  `isolation: "worktree"`, branch from the up-to-date `origin/main` or from the previous PR of this stack). The main
+  session reviews each diff and test run before the next PR starts.
 - **Stack.** PR `N+1` is based on the branch of PR `N`. Every PR title is a valid Conventional Commit (lower case,
   no trailing period). Each commit has one type.
 - **Client spec.** Any PR that changes an HTTP operation regenerates `client/specs` and runs `./gradlew :client:openApiGenerate`.
@@ -58,13 +58,16 @@ Files: `backend/.../i18n/controller/I18nController.java` (thin), `I18nApi.java` 
 - [ ] 3.1 Red: `CatalogExportTest` - `since=120` returns entries with catalog version 121 to 125 only; `since` equal to
   the current version returns no entries; the response contains no PII; `If-None-Match` equal to the ETag gives 304
   with no body. Then green with the service method and the cursor page (`standardize-api-pagination-and-problems`).
-- [ ] 3.2 Red: `I18nControllerTest` - the endpoint requires the PROXY role (and BOT if decided); a caller without it
+- [ ] 3.2 Red: `I18nControllerTest` - the endpoint requires the PROXY or DISCORD role (no BOT role); a caller without one of them
   is refused; `PUT /i18n/texts/{key}/{locale}` with a bad text returns a Problem Details error with the pointer.
   Then green. The controller calls exactly one service method per endpoint.
 - [ ] 3.3 Red: `CatalogNatsPublisherTest` - a publish happens once after commit with `{version}` only; a rejected save
   publishes nothing. Use a fake publisher. Then green. Subject `blackhole.events.i18n.catalog_changed`.
 - [ ] 3.4 Update `client/specs/blackhole-api-<next>.yml` with the new operations and bump the spec filename in
   `client/build.gradle.kts` (`inputSpec`). Run `./gradlew :client:openApiGenerate` and `./gradlew :client:compileJava`.
+- [ ] 3.6 Red: the content read endpoints (the public appeal conditions read and the template and section reads used by
+  the portal and the panel) accept an optional `locale` query parameter (`en` or `de`, default `en`) and apply the
+  fallback chain of design D8; an unsupported value is a 400 Problem Details error. Then green.
 - [ ] 3.5 Run `./gradlew :backend:test :client:build`. Green. Commit with `feat(i18n): serve the catalog export and admin api`.
 
 ## 4. PR B: `feat(template): add a reason translation key to every escalation step` (backend)
@@ -141,18 +144,20 @@ Administration workspace router. Tests: `web/src/i18n/fallback.test.ts`, `web/sr
 
 ## 8. PR E: `feat(portal): render backend texts in the player's language` (portal)
 
-Files: `portal/src/i18n.ts` (locale from the session choice; no browser language), `portal/src/components/LocaleSelect.vue`
-(new), the BFF route `PUT /session/locale` in the portal server, `portal/src/locales/{en,de}.json`. The backend texts are
-fetched with the chosen locale through the existing content calls. Tests: `portal/src/i18n.test.ts` (parity and default),
-`portal/src/components/LocaleSelect.test.ts`, BFF route test.
+Files: `portal/src/locale/resolveLocale.ts` (new, pure: stored choice, then `Accept-Language`, then `en`), `portal/src/locale/storage.ts`
+(new: cookie or `localStorage` wrapper, every access in try/catch), `portal/src/i18n.ts` (uses the resolved locale; the
+"browser language is never read" rule is removed), `portal/src/components/LocaleSelect.vue` (new),
+`portal/src/locales/{en,de}.json`. No server route and no server-side profile. Content requests carry the resolved locale
+as a `locale` query parameter. Tests: `resolveLocale.test.ts`, `storage.test.ts`, `LocaleSelect.test.ts`, `i18n.test.ts` (parity).
 
-- [ ] 8.1 Red: BFF test - `PUT /session/locale` accepts `en` and `de`, rejects `fr` with a 400 Problem Details, and stores the
-  choice on the session only. Then green.
-- [ ] 8.2 Red: `i18n.test.ts` - with no choice both UI and content locale are `en`; with `de` both are `de`; the browser
-  language is never read. Then green.
-- [ ] 8.3 Red: `LocaleSelect.test.ts` - changing the selector re-requests the backend texts in the new locale and keeps
-  the UI strings in the same locale. Then green.
-- [ ] 8.4 Run `npm test` and the type check in `portal/`. Commit with `feat(portal): render backend texts in the player's language`.
+- [ ] 8.1 Red: `resolveLocale.test.ts` - table test: header `de-AT,en;q=0.5` gives `de`; `fr-FR` gives `en`; no header gives `en`;
+  a malformed header gives `en`; a stored `de` beats an `en` header; a stored value `fr` is ignored. Then green.
+- [ ] 8.2 Red: `storage.test.ts` - a storage that throws on every access makes the resolver fall back to the header
+  without throwing; a stored choice is written only to the browser storage and no request is made. Then green.
+- [ ] 8.3 Red: `LocaleSelect.test.ts` - choosing `de` writes the choice to the browser, switches the UI strings and makes
+  the next content request carry `locale=de`. Then green.
+- [ ] 8.4 Red: `i18n.test.ts` key parity for every new key in `en.json` and `de.json`. Then green.
+- [ ] 8.5 Run `npm test` and the type check in `portal/`. Commit with `feat(portal): render backend texts in the player's language`.
 
 ## 9. PR F: `feat(discord): localise embeds from the catalog` (discord)
 
@@ -178,4 +183,4 @@ Files: `discord/.../HttpBackendGateway.java` (catalog fetch with ETag), `discord
   A1, A2, B, C1, C2, D, E, F and the add-kick follow-up. Push the branch, then run
   `gh pr create --base <previous branch or main> --title "<commit line from proposal.md Commit plan>"`. The PR body ends
   with the line `https://claude.ai/code/session_01TFcvDovaYNHZewdbM2f8Ru`. Do not merge. Run `gh pr checks --watch` on each
-  PR once it is open. Agent: sonnet (the PR command is a commit-and-PR task under the global rules).
+  PR once it is open. Agent: haiku.

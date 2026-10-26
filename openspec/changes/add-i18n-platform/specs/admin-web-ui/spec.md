@@ -34,3 +34,16 @@ The editor SHALL show the history of a key and locale, every version with its au
 #### Scenario: History is read only
 - **WHEN** an administrator opens the history of a key
 - **THEN** every version is listed and no edit control exists for an earlier version
+
+## MODIFIED Requirements
+
+### Requirement: Localised interface
+The UI SHALL provide all texts in German and English, defaulting to English, with a language switch that is remembered.
+
+#### Scenario: Switch to English
+- **WHEN** a user selects English
+- **THEN** all navigation, labels and messages are shown in English
+
+#### Scenario: Default language is English
+- **WHEN** a user opens the panel without a remembered language
+- **THEN** the UI is shown in English
