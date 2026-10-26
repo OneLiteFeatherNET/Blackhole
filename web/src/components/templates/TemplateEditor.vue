@@ -68,7 +68,7 @@ watch(
     section.value = source?.section ?? sectionOptions.value.find((option) => !option.disabled)?.value ?? ''
     escalationGroup.value = source?.escalationGroup ?? ''
     escalationWindow.value = source?.escalationWindow ?? ''
-    steps.value = source ? source.steps.map((step) => newRow(step.duration, String(step.eloCost))) : [newRow()]
+    steps.value = source ? source.steps.map((step) => newRow(step.duration ?? '', String(step.eloCost))) : [newRow()]
     errors.value = { fields: {}, general: [] }
     // The advanced settings are rarely used: open them only when there is something in them.
     advancedOpen.value = Boolean(source?.escalationGroup || source?.escalationWindow)

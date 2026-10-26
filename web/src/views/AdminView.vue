@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import CloudNetCataloguePanel from '../components/admin/CloudNetCataloguePanel.vue'
 import ImportedPunishmentsPanel from '../components/admin/ImportedPunishmentsPanel.vue'
 import VanillaImportPanel from '../components/admin/VanillaImportPanel.vue'
+import MassKickForm from '../components/admin/MassKickForm.vue'
 import PageShell from '../components/PageShell.vue'
 import { useSessionStore } from '../stores/session'
 import StaffAccountsView from './StaffAccountsView.vue'
@@ -19,6 +20,7 @@ const PAGES = {
   staff: 'nav.staffAccounts',
   imports: 'nav.imports',
   cloudnet: 'nav.cloudnet',
+  kick: 'nav.kick',
 } as const
 
 const active = computed<keyof typeof PAGES>(() => (route.meta.adminTab as keyof typeof PAGES | undefined) ?? 'staff')
@@ -34,6 +36,7 @@ const active = computed<keyof typeof PAGES>(() => (route.meta.adminTab as keyof 
           <ImportedPunishmentsPanel />
         </template>
         <CloudNetCataloguePanel v-else-if="active === 'cloudnet'" />
+        <MassKickForm v-else-if="active === 'kick'" />
       </div>
     </template>
   </PageShell>

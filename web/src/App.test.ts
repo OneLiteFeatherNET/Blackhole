@@ -193,7 +193,7 @@ describe('App shell', () => {
     const wrapper = await mountApp('/admin/templates')
 
     expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text()), 'headings').toEqual(['Konfiguration', 'System'])
-    expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual(['Vorlagen', 'Bereiche', 'Client-Regeln', 'Einspruchsbedingungen', 'Teamkonten', 'Importe', 'CloudNet'])
+    expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual(['Vorlagen', 'Bereiche', 'Client-Regeln', 'Einspruchsbedingungen', 'Teamkonten', 'Importe', 'CloudNet', 'Massen-Kick'])
     expect(wrapper.get('[data-testid="workspace-administration"]').attributes('aria-current')).toBe('true')
 
     wrapper.unmount()

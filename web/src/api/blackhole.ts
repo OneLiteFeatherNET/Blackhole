@@ -46,6 +46,10 @@ import type {
   ApplyResult,
   DashboardSummary,
   InboxSummary,
+  KickAccepted,
+  KickMassRequest,
+  KickRequest,
+  KickResult,
   EloAdjustResult,
   EvasionSightings,
   EloEvent,
@@ -143,6 +147,12 @@ export interface BlackholeApi {
   previewApply(owner: string, templateKey: string): Promise<ApiResult<ApplyPreview>>
   applyTemplate(owner: string, templateKey: string): Promise<ApiResult<ApplyResult>>
   revoke(owner: string, section: string): Promise<ApiResult<RevokeResult>>
+  /** Takes one player off the network, a server or a section. The answer is immediate; poll {@link kick} for the outcome. A repeated key answers the same kick. */
+  kickPlayer(request: KickRequest, idempotencyKey: string): Promise<ApiResult<KickAccepted>>
+  /** ADMIN only. Kicks everybody from a server or section in one audited action. */
+  kickMass(request: KickMassRequest, idempotencyKey: string): Promise<ApiResult<KickAccepted>>
+  /** A kick and how it went; PENDING until a proxy answers or the deadline passes. */
+  kick(id: string): Promise<ApiResult<KickResult>>
   /** Other owners that shared a hashed network address with this one; hashes only, never an IP. */
   evasionSightings(owner: string): Promise<ApiResult<EvasionSightings>>
   adjustElo(owner: string, change: { section: string; delta: number; note: string }): Promise<ApiResult<EloAdjustResult>>
@@ -370,7 +380,7 @@ function templateBody(draft: TemplateDraft) {
     section: draft.section,
     escalationGroup: draft.escalationGroup?.trim() || null,
     escalationWindow: draft.escalationWindow?.trim() || null,
-    steps: draft.steps.map((step) => ({ duration: step.duration.trim(), eloCost: step.eloCost })),
+    steps: draft.steps.map((step) => ({ duration: (step.duration ?? '').trim(), eloCost: step.eloCost })),
   }
 }
 
@@ -617,6 +627,14 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     revoke: (owner, section) =>
       toResult(http.POST('/punishment/revoke', { body: { owner, section } })),
+
+    kickPlayer: (request, idempotencyKey) =>
+      toResult(http.POST('/kick', { params: { header: { 'Idempotency-Key': idempotencyKey } }, body: request })),
+
+    kickMass: (request, idempotencyKey) =>
+      toResult(http.POST('/kick/mass', { params: { header: { 'Idempotency-Key': idempotencyKey } }, body: request })),
+
+    kick: (id) => toResult(http.GET('/kick/{id}', { params: { path: { id } } })),
 
     async evasionSightings(owner) {
       const result = await toResult(http.GET('/evasion/{owner}/sightings', { params: { path: { owner } } }))

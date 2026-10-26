@@ -76,7 +76,7 @@ describe('administration routes', () => {
     expect(router.currentRoute.value.name).toBe('no-access')
   })
 
-  it.each([['/admin/staff'], ['/admin/imports'], ['/admin/cloudnet']])('opens %s for an administrator', async (path) => {
+  it.each([['/admin/staff'], ['/admin/imports'], ['/admin/cloudnet'], ['/admin/kick']])('opens %s for an administrator', async (path) => {
     const { router } = setup(['ADMIN', 'MODERATOR', 'VIEWER'])
 
     await router.push(path)

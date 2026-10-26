@@ -148,21 +148,21 @@ Body notes: `BREAKING` for the plugin: it needs the kick-aware backend and clien
 
 Branch `feat/kick-web`. Depends on PR 2 (client regenerated).
 
-- [ ] 5.1 Red: `web/tests/unit/kick/KickDialog.spec.ts`: reason validation (empty and IP refused);
+- [x] 5.1 Red: `web/tests/unit/kick/KickDialog.spec.ts`: reason validation (empty and IP refused);
   submit sends `Idempotency-Key`; the polling stops at a settled status (fake timers, no real waits).
-- [ ] 5.2 Red: `web/tests/unit/kick/KickStatusChip.spec.ts`: each status maps to its label
+- [x] 5.2 Red: `web/tests/unit/kick/KickStatusChip.spec.ts`: each status maps to its label
   (`Delivered`, `Not on that server`, `Not online`, `No proxy answered`).
-- [ ] 5.3 Red: `web/tests/unit/admin/MassKickForm.spec.ts`: submit disabled until the target name is
+- [x] 5.3 Red: `web/tests/unit/admin/MassKickForm.spec.ts`: submit disabled until the target name is
   typed exactly; no second approval step is shown; the form is not rendered for MODERATOR.
-- [ ] 5.4 Create `web/src/components/kick/KickDialog.vue` (uses `MdDialog`), `web/src/components/kick/KickStatusChip.vue`,
+- [x] 5.4 Create `web/src/components/kick/KickDialog.vue` (uses `MdDialog`), `web/src/components/kick/KickStatusChip.vue`,
   `web/src/components/kick/KickStatusPoller.ts` (pure, injected timer); `web/src/pages/admin/MassKickForm.vue`
   (in the admin area route of commit d23d7ab).
-- [ ] 5.5 Add the "Kick" action to the `RowMenu` of the player row and to the player page header
+- [ ] 5.5 (partly done: player row, player header; the case page action is open, the case response has no full owner) Add the "Kick" action to the `RowMenu` of the player row and to the player page header
   (`web/src/pages/players/...`), and to the case page actions (`web/src/pages/cases/...`). Use
   `FilterToolbar` only if the history gets a kind filter; otherwise no filter change.
-- [ ] 5.6 History: kick rows get a "Kick" badge and do not count in the active counter. Red first:
+- [x] 5.6 History: kick rows get a "Kick" badge and do not count in the active counter. Red first:
   `web/tests/unit/history/KickBadge.spec.ts`.
-- [ ] 5.7 Tests green: `npm --prefix web test` and the type check `npm --prefix web run typecheck` (or the
+- [x] 5.7 Tests green: `npm --prefix web test` and the type check `npm --prefix web run typecheck` (or the
   project's existing script).
 
 Commit: `feat(web): add the kick dialog and the mass kick in the admin area`.

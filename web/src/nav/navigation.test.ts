@@ -66,7 +66,7 @@ describe('visibleGroups for the administration workspace', () => {
   it('lists Configuration and System for an administrator, with no system status item', () => {
     expect(shape(ADMIN, 'administration')).toEqual([
       ['configuration', true, ['templates', 'sections', 'clientRules', 'appealTerms']],
-      ['system', true, ['staffAccounts', 'imports', 'cloudnet']],
+      ['system', true, ['staffAccounts', 'imports', 'cloudnet', 'kick']],
     ])
   })
 
@@ -85,6 +85,7 @@ describe('visibleGroups for the administration workspace', () => {
       ['staffAccounts', '/admin/staff'],
       ['imports', '/admin/imports'],
       ['cloudnet', '/admin/cloudnet'],
+      ['kick', '/admin/kick'],
     ])
   })
 })

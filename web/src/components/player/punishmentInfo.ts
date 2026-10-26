@@ -28,6 +28,20 @@ export function stepLabel(punishment: Punishment): string | null {
   return `${punishment.stepIndex + 1} / ${punishment.stepCount}`
 }
 
+/** A kick is a moment in the history, never a sanction: it has no end and nothing to lift. */
+export function isKick(punishment: Punishment): boolean {
+  return punishment.kind === 'KICK'
+}
+
+/** How many punishments of the history are in force at `now`; kicks, lifted and ended ones are not counted. */
+export function countActive(history: Punishment[], now: number): number {
+  return history.filter((entry) => {
+    if (isKick(entry) || entry.lifted) return false
+    const end = expiresAt(entry)
+    return entry.permanent || (end !== null && end > now)
+  }).length
+}
+
 export function isAutomatic(punishment: Punishment): boolean {
   return metaValue(punishment, 'automatic') === true
 }

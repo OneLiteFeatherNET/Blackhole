@@ -4,7 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { useApi } from '../../api/inject'
 import type { ApiError, EloEvent, EloProfile, EloSectionScore, Punishment, PunishmentProfile } from '../../api/types'
 import { useResource } from '../../composables/useResource'
+import { useLookupStore } from '../../stores/lookup'
 import { useSessionStore } from '../../stores/session'
+import KickDialog from '../kick/KickDialog.vue'
 import MdButton from '../md/MdButton.vue'
 import MdSnackbar from '../md/MdSnackbar.vue'
 import ResourceState from '../ResourceState.vue'
@@ -23,6 +25,7 @@ const props = defineProps<{ owner: string }>()
 const { t } = useI18n()
 const api = useApi()
 const session = useSessionStore()
+const lookup = useLookupStore()
 
 
 // Profile and scores are loaded together so every action can refresh both with one reload.
@@ -69,6 +72,7 @@ watch(section, loadEvents, { immediate: true })
 // ---- staff actions ----------------------------------------------------------------------------
 
 const applyOpen = ref(false)
+const kickOpen = ref(false)
 const revokeTarget = ref<{ section: string; punishment: Punishment } | null>(null)
 const adjustTarget = ref<EloSectionScore | null>(null)
 const message = ref('')
@@ -94,7 +98,8 @@ async function finished(done: string): Promise<void> {
     @retry="player.reload"
   >
     <div v-if="player.data.value" class="flex flex-col gap-8">
-      <header v-if="session.moderator" class="flex justify-end">
+      <header v-if="session.moderator" class="flex flex-wrap justify-end gap-2">
+        <MdButton variant="outlined" data-testid="open-kick" @click="kickOpen = true">{{ t('kick.open') }}</MdButton>
         <MdButton variant="tonal" data-testid="open-apply" @click="applyOpen = true">
           {{ t('actions.apply.open') }}
         </MdButton>
@@ -153,6 +158,14 @@ async function finished(done: string): Promise<void> {
       </section>
 
       <ApplyTemplateDialog :open="applyOpen" :owner="owner" @close="applyOpen = false" @done="finished" />
+      <KickDialog
+        v-if="session.moderator"
+        :open="kickOpen"
+        :owner="owner"
+        :name="lookup.nameOf(owner) ?? ''"
+        @close="kickOpen = false"
+        @done="player.reload"
+      />
       <RevokeDialog
         :open="revokeTarget !== null"
         :owner="owner"
