@@ -62,8 +62,8 @@ class JnatsBusClientTest {
     }
 
     @Test
-    void theSubscriptionsAreTheFiveSubjectGroupsOfTheProxyUser() {
+    void theSubscriptionsAreTheSixSubjectGroupsOfTheProxyUser() {
         assertEquals(List.of("blackhole.events.punishment.*", "blackhole.events.appeal.resolved", "blackhole.events.section.changed",
-                "blackhole.events.report.created", "blackhole.events.report.feedback"), Subjects.SUBSCRIPTIONS);
+                "blackhole.events.report.created", "blackhole.events.report.feedback", "blackhole.events.kick.mass"), Subjects.SUBSCRIPTIONS);
     }
 }

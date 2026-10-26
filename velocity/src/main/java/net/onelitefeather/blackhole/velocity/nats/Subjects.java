@@ -18,10 +18,15 @@ public final class Subjects {
     public static final String SECTION_CHANGED = PREFIX + "section.changed";
     public static final String REPORT_CREATED = PREFIX + "report.created";
     public static final String REPORT_FEEDBACK = PREFIX + "report.feedback";
+    /** One player is to be taken off the network, a server or a section. Matched by the punishment wildcard. */
+    public static final String PUNISHMENT_KICK = PREFIX + "punishment.kick";
+    /** Everybody is to be taken off a server or section. */
+    public static final String KICK_MASS = PREFIX + "kick.mass";
 
-    /** The subscriptions: one wildcard for the punishment events, the others singly. */
+    /** The subscriptions: one wildcard for the punishment events (kicks included), the others singly. */
     public static final List<String> SUBSCRIPTIONS = List.of(
-            PREFIX + "punishment.*", APPEAL_RESOLVED, SECTION_CHANGED, REPORT_CREATED, REPORT_FEEDBACK);
+            PREFIX + "punishment.*", APPEAL_RESOLVED, SECTION_CHANGED, REPORT_CREATED, REPORT_FEEDBACK,
+            KICK_MASS);
 
     private Subjects() {
         throw new UnsupportedOperationException("This class cannot be instantiated");

@@ -3,6 +3,10 @@ package net.onelitefeather.blackhole.velocity.punish;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.DiscordLinkCodeResponse;
 import net.onelitefeather.blackhole.client.model.EloProfileResponse;
+import net.onelitefeather.blackhole.client.model.KickAccepted;
+import net.onelitefeather.blackhole.client.model.KickResponse;
+import net.onelitefeather.blackhole.client.model.KickScope;
+import org.jetbrains.annotations.Nullable;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.ReportCategory;
 import net.onelitefeather.blackhole.client.model.ReportDTO;
@@ -122,4 +126,34 @@ public interface BackendGateway {
      * @return a one-time code to link the player's Discord account
      */
     DiscordLinkCodeResponse issueDiscordLinkCode(String owner) throws ApiException;
+
+    /**
+     * Kicks one player. The answer is immediate: nothing is delivered yet, poll {@link #kickStatus}.
+     *
+     * @param idempotencyKey makes a repeat answer the same kick
+     * @param target         the server name or section key, null for {@code NETWORK}
+     */
+    KickAccepted kick(String idempotencyKey, String owner, KickScope scope, @Nullable String target, String reason) throws ApiException;
+
+    /**
+     * Kicks everybody from a server or section, as one audited action.
+     *
+     * @param scope {@code SERVER} or {@code SECTION}
+     */
+    KickAccepted kickMass(String idempotencyKey, KickScope scope, String target, String reason) throws ApiException;
+
+    /**
+     * Reads a kick (or mass kick) with its derived status. The proxy also reads the reason here before it
+     * shows the kick screen.
+     */
+    KickResponse kickStatus(String id) throws ApiException;
+
+    /**
+     * Reports what this proxy did about a kick, over HTTP with the proxy's own token: the proxy is
+     * subscribe-only on the event bus and never publishes. Idempotent per kick and proxy.
+     *
+     * @param found whether the player was connected here (a mass kick: whether anybody was on the target)
+     * @param moved whether the player was moved or disconnected (a mass kick: whether at least one was)
+     */
+    void acknowledgeKick(String id, String proxyId, boolean found, boolean moved) throws ApiException;
 }
