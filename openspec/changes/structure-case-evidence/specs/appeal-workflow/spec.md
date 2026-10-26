@@ -46,9 +46,6 @@ A `LIMITED` session of a leaked Ban ID SHALL receive a `closing` object (code `B
 ### Requirement: Only an innocent reissue resets the leak
 A Ban ID reissue with reason `NOT_PLAYERS_FAULT` SHALL reset the leak as if it had not happened: the leak state is cleared; a frozen appeal is open again; a right forfeited by the leak is available again for filing; a case closed by the leak is reopened to `OPEN` with its closing reason cleared; and the closing comment is withdrawn for the player with `message.deleted`. A decided appeal keeps its decision.
 
-### Requirement: Other reissues never reset the leak
-A reissue with reason `OTHER` or `KEY_ROTATION` SHALL issue a new Ban ID and nothing else: the case status, the closing comment, the appeal, its state and its rights stay as they were, and the leak state stays on the case. Every reason MUST be recorded on `ban_id.reissued` and every reissue MUST remain in the timeline.
-
 #### Scenario: Innocent reissue of a frozen appeal
 - **WHEN** an administrator reissues with reason `NOT_PLAYERS_FAULT` the Ban ID of a case whose appeal is frozen
 - **THEN** the appeal is open again and the team and the player can continue it
@@ -60,6 +57,9 @@ A reissue with reason `OTHER` or `KEY_ROTATION` SHALL issue a new Ban ID and not
 #### Scenario: Innocent reissue after a decision
 - **WHEN** an administrator reissues with reason `NOT_PLAYERS_FAULT` a Ban ID whose appeal was decided after the leak
 - **THEN** the decision is unchanged and the case is reopened to `OPEN` for follow-up
+
+### Requirement: Other reissues never reset the leak
+A reissue with reason `OTHER` or `KEY_ROTATION` SHALL issue a new Ban ID and nothing else: the case status, the closing comment, the appeal, its state and its rights stay as they were, and the leak state stays on the case. Every reason MUST be recorded on `ban_id.reissued` and every reissue MUST remain in the timeline.
 
 #### Scenario: Reissue with reason OTHER does not reset
 - **WHEN** an administrator reissues with reason `OTHER` the Ban ID of a leak-closed case with a frozen appeal
