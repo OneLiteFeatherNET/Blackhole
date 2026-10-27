@@ -70,19 +70,27 @@ The URL SHALL be the source of truth for the workspace. The last workspace used 
 - **THEN** the panel works with the URL alone and shows no error
 
 ### Requirement: Workspace switcher
-The switcher SHALL sit at the top left of the app bar and SHALL list the Moderation and Administration workspaces. It SHALL be shown only to users with the ADMIN role. Users without ADMIN SHALL see neither the switcher nor any Administration item or breadcrumb.
+The switcher SHALL be a dropdown menu at the top right of the app bar, next to the account menu, and SHALL list the Moderation and Administration workspaces, each with an icon and a short description. The button SHALL show the name of the current workspace and SHALL carry `aria-haspopup="menu"` and `aria-expanded`. The current workspace SHALL be marked with a check and `aria-current`. Choosing a workspace SHALL open its home. The switcher SHALL be shown only to users with the ADMIN role. Users without ADMIN SHALL see neither the switcher nor any Administration item or breadcrumb. The brand SHALL stay at the top left, and no toggle group SHALL remain there.
 
 #### Scenario: Switcher for an administrator
 - **WHEN** an administrator opens the panel
-- **THEN** the switcher at the top left offers Moderation and Administration
+- **THEN** the dropdown at the top right of the app bar, left of the account menu, shows the current workspace name, and opening it lists Moderation and Administration
 
 #### Scenario: No switcher for a moderator
 - **WHEN** a moderator opens the panel
 - **THEN** no switcher is shown and the Moderation rail is shown alone
 
 #### Scenario: Switching
-- **WHEN** an administrator chooses Administration in the switcher
-- **THEN** the Administration home opens and the Administration rail is shown
+- **WHEN** an administrator chooses Administration in the dropdown
+- **THEN** the Administration home opens, the Administration rail is shown and the dropdown closes with the focus on its button
+
+#### Scenario: Keyboard
+- **WHEN** an administrator opens the dropdown with the keyboard
+- **THEN** the arrow keys move between the two items, Escape closes the dropdown and returns the focus to its button
+
+#### Scenario: Narrow screens
+- **WHEN** the panel is shown on a narrow screen
+- **THEN** the dropdown stays in the app bar as an icon button and the opened menu is fully visible
 
 ### Requirement: Administration access
 Every route under `/admin` SHALL require the ADMIN role. A signed-in user without ADMIN who opens such a route, or an old configuration route, SHALL be sent to the no-access page. Moderators SHALL still be able to use the template choices of the moderation dialogs, which read the templates list the VIEWER role may read.
