@@ -112,7 +112,24 @@ describe('App shell', () => {
   it('offers the administration workspace in the switcher to an admin', async () => {
     const wrapper = await mountApp('/')
 
-    expect(wrapper.findAll('a[data-testid^="workspace-"]').map((a) => a.text()), 'switcher').toEqual(['Moderation', 'Verwaltung'])
+    await wrapper.get('[data-testid="workspace-switcher"]').trigger('click')
+
+    expect(wrapper.findAll('[role="menuitem"] [data-testid="workspace-label"]').map((label) => label.text()), 'switcher').toEqual(['Moderation', 'Verwaltung'])
+
+    wrapper.unmount()
+  })
+
+  it('places the switcher in the top right of the app bar, after the brand and before the account menu', async () => {
+    const wrapper = await mountApp('/')
+    const header = wrapper.get('header').element
+    const brand = wrapper.get('header a[href="/"]').element
+    const switcher = wrapper.get('[data-testid="workspace-switcher"]').element
+    const account = wrapper.get('[data-testid="account-menu"]').element
+
+    expect(brand.compareDocumentPosition(switcher) & Node.DOCUMENT_POSITION_FOLLOWING, 'after the brand').toBeTruthy()
+    expect(switcher.compareDocumentPosition(account) & Node.DOCUMENT_POSITION_FOLLOWING, 'before the account menu').toBeTruthy()
+    expect(header.contains(switcher), 'in the app bar').toBe(true)
+    expect(wrapper.findAll('header a').filter((link) => link.attributes('data-testid')?.startsWith('workspace-')), 'no links in the bar').toHaveLength(0)
 
     wrapper.unmount()
   })
@@ -194,6 +211,7 @@ describe('App shell', () => {
 
     expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text()), 'headings').toEqual(['Konfiguration', 'System'])
     expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual(['Vorlagen', 'Bereiche', 'Client-Regeln', 'Einspruchsbedingungen', 'Teamkonten', 'Importe', 'CloudNet', 'Massen-Kick'])
+    await wrapper.get('[data-testid="workspace-switcher"]').trigger('click')
     expect(wrapper.get('[data-testid="workspace-administration"]').attributes('aria-current')).toBe('true')
 
     wrapper.unmount()

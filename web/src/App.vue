@@ -122,12 +122,12 @@ onBeforeUnmount(() => stopTicker?.())
           :aria-expanded="menuButton.expanded"
           @click="onMenuButton"
         />
-        <WorkspaceSwitcher v-if="resolved" />
       </template>
       <template #search>
         <GlobalSearch v-if="showNav" />
       </template>
       <template #actions>
+        <WorkspaceSwitcher v-if="resolved" />
         <AccountMenu v-if="resolved" :display-name="session.displayName" @account="openAccount" @sign-out="signOut" />
       </template>
     </MdTopAppBar>
