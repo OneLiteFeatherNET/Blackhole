@@ -103,7 +103,7 @@ added where stated.
 | Configuration / Konfiguration | Sections, Templates, Appeal terms, Client rules | every role with read access (editing: admins) |
 | Administration / Verwaltung | tabs: Staff accounts, Imports, CloudNet (on `/admin`) | ADMIN |
 
-**After**: a workspace switcher at the top left of the app bar. Each workspace has its own rail.
+**After**: a workspace switcher at the top right of the app bar (see the 2026-10-27 decision). Each workspace has its own rail.
 
 | Workspace (switcher) | Rail group | Item | Route | Visible to |
 |---|---|---|---|---|
@@ -164,6 +164,10 @@ Staff accounts, Imports and CloudNet).
 **Consequences.** Moderators lose the configuration pages in the navigation; a moderator who opens a configuration URL
 lands on the no-access page, which explains the admin requirement. The navigation test of `redesign-ux` task 2b.1
 (the single-rail shape) is replaced by the per-workspace shape in task 3f.1.
+
+### Decision 2026-10-27: workspace switcher is a dropdown at the top right
+
+The switcher is a dropdown menu at the top right of the app bar, left of the account menu, replacing the toggle group at the top left; the brand stays top left. The dropdown follows the ARIA menu pattern of `RowMenu` (arrow keys, Escape returns focus to the button) and is an icon button on narrow screens.
 
 ### Inbox (`/`)
 
