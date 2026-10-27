@@ -76,7 +76,10 @@ class PublicProtocolIntegrationTest extends PublicApiTestBase {
         assertTrue(copy.header("Content-Type").startsWith("text/plain"), copy.header("Content-Type"));
         assertTrue(copy.body().contains("PLAYER-WORDS I did not do it."), copy.body());
         assertTrue(copy.body().contains("TEAM-WORDS the ban stays."), copy.body());
-        assertTrue(copy.body().contains("You") && copy.body().contains("Moderation team"), copy.body());
+        // The decision message is written under the reviewer's display name (a random "Person ..." in this test), never the generic label.
+        assertTrue(copy.body().contains("You") && copy.body().contains("Person "), copy.body());
+        assertFalse(copy.body().contains("Moderation team"), copy.body());
+        assertFalse(copy.body().contains("Reviewer Rita Secretname"), "the Entra name never reaches the player");
         assertTrue(copy.body().contains("Appeal decided"), copy.body());
     }
 
