@@ -266,6 +266,8 @@ class AppealRecordingTest {
         assertEquals(MessageAuthorKind.STAFF, payload.authorKind());
         assertEquals(appeal.getIdentifier().toString(), payload.appealId());
         assertEquals("We looked at the logs and the mute stays.", payload.text());
+        assertEquals("Rae Vance", payload.staffDisplayName(), "the decision message carries the reviewer's name at the time of writing");
+        assertEquals(CaseEventPayload.NAMED_STAFF_MESSAGE_VERSION, message.payloadVersion());
     }
 
     @Test

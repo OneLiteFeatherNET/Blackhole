@@ -256,7 +256,9 @@ public class AppealDecisionService {
     private void recordDecision(AppealEntity decided, PunishmentEntity punishment, AppealReviewDTO review, Actor reviewer) {
         this.caseTimeline.appealDecided(decided, review.newExpirationAt());
         if (review.playerMessage() != null) {
-            this.caseTimeline.decisionMessage(decided, review.playerMessage(), CaseActor.of(reviewer.attribution()));
+            // The reviewer's name was checked before the decision was written; the message keeps it as a snapshot.
+            String displayName = this.staffProfiles.namedDisplayName(reviewer.oid()).orElse(null);
+            this.caseTimeline.decisionMessage(decided, review.playerMessage(), CaseActor.of(reviewer.attribution()), displayName);
         }
         if (review.decision() == AppealStatus.GRANTED_FULL_LIFT) {
             this.caseTimeline.lifted(punishment, decided.getIdentifier(), decided.getRecordedByOid());
