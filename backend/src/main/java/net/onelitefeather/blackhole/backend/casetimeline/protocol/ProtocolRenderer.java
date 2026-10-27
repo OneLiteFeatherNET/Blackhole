@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import io.micronaut.core.annotation.Nullable;
+import net.onelitefeather.blackhole.backend.casetimeline.StaffLabels;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -183,6 +184,7 @@ public final class ProtocolRenderer {
         out.append("Generated: ").append(time(generatedAt)).append('\n');
         out.append("Times are UTC. Entries are in sequence order. Visibility shows who could read an entry: PLAYER or STAFF only.\n");
         out.append("Message texts are the Markdown source exactly as written, not a rendering.\n");
+        out.append(StaffLabels.NOTICE).append('\n');
         for (ProtocolModel.Entry entry : model.entries()) {
             out.append('\n');
             switch (entry) {

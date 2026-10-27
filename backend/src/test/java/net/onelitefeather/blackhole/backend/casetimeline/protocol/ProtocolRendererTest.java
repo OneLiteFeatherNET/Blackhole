@@ -45,6 +45,15 @@ class ProtocolRendererTest {
     }
 
     @Test
+    void theTextHeaderStatesThatStaffAppearByTheirChosenNameAndThatTheNameIsRecorded() {
+        String rendered = text(model(ProtocolFixtures.simpleConversation()));
+
+        assertTrue(rendered.contains("Staff members appear by the display name they chose. Their names are recorded in this chat.\n"),
+                "every new protocol carries the staff notice, pending legal confirmation");
+        assertTrue(rendered.indexOf("Staff members appear") < rendered.indexOf("\n\n"), "the notice is part of the header");
+    }
+
+    @Test
     void theSameEventsRenderByteIdentical() {
         ProtocolModel first = model(ProtocolFixtures.simpleConversation());
         ProtocolModel second = model(ProtocolFixtures.simpleConversation());

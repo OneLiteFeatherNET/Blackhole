@@ -8,6 +8,12 @@ import io.micronaut.core.annotation.Nullable;
  */
 public final class StaffLabels {
 
+    /**
+     * The header sentence of every new protocol, both copies (design 4.7). The wording is pending legal confirmation: change
+     * it here only.
+     */
+    public static final String NOTICE = "Staff members appear by the display name they chose. Their names are recorded in this chat.";
+
     private StaffLabels() {
     }
 

@@ -117,7 +117,8 @@ public class PublicProtocolService {
 
     private static String text(String decision, List<PublicConversationReader.Entry> entries) {
         StringBuilder out = new StringBuilder("Appeal protocol\nDecision: ").append(decision).append("\nTimes are UTC.\n")
-                .append("Message texts are the Markdown source exactly as written, not a rendering.\n");
+                .append("Message texts are the Markdown source exactly as written, not a rendering.\n")
+                .append(StaffLabels.NOTICE).append('\n');
         for (PublicConversationReader.Entry entry : entries) {
             out.append('\n').append(Instant.ofEpochMilli(entry.occurredAt())).append("  ");
             if (entry.kind().equals("MESSAGE")) {
