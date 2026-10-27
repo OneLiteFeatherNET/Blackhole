@@ -1549,7 +1549,9 @@
   "workspace": {
     "moderation": "Moderation",
     "administration": "Verwaltung",
-    "switch": "Arbeitsbereich"
+    "switch": "Arbeitsbereich",
+    "moderationHint": "Fälle, Einsprüche, Meldungen und Spieler",
+    "administrationHint": "Vorlagen, Bereiche, Client-Regeln, Teamkonten und Importe"
   },
   "kick": {
     "title": "{name} kicken",

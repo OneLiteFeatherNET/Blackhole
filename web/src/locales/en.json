@@ -1549,7 +1549,9 @@
   "workspace": {
     "moderation": "Moderation",
     "administration": "Administration",
-    "switch": "Workspace"
+    "switch": "Workspace",
+    "moderationHint": "Cases, appeals, reports and players",
+    "administrationHint": "Templates, sections, client rules, staff accounts and imports"
   },
   "kick": {
     "title": "Kick {name}",
