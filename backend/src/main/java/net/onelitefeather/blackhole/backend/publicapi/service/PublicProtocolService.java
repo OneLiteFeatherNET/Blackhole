@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.appeal.AppealStatus;
+import net.onelitefeather.blackhole.backend.casetimeline.StaffLabels;
 import net.onelitefeather.blackhole.backend.publicapi.PlayerScope;
 import net.onelitefeather.blackhole.backend.publicapi.PublicAppealReader;
 import net.onelitefeather.blackhole.backend.publicapi.PublicConversationReader;
@@ -34,6 +35,8 @@ import java.util.Map;
 public class PublicProtocolService {
 
     private static final int PAGE = 500;
+    /** The player's label of a staff message written before names existed (the snapshot is absent). */
+    private static final String LEGACY_STAFF_LABEL = "Moderation team";
     private static final String REMOVED = "[removed]";
     private static final ObjectWriter JSON = new ObjectMapper().writer(printer());
 
@@ -97,7 +100,7 @@ public class PublicProtocolService {
     private static String who(PublicConversationReader.Entry entry) {
         return switch (entry.author()) {
             case "PLAYER" -> "You";
-            case "STAFF" -> entry.staff() != null && entry.staff().displayName() != null ? entry.staff().displayName() : "Moderation team";
+            case "STAFF" -> StaffLabels.named(entry.staff() == null ? null : entry.staff().displayName(), LEGACY_STAFF_LABEL);
             default -> "System";
         };
     }

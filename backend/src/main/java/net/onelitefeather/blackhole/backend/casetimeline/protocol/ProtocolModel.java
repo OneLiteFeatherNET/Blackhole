@@ -6,6 +6,7 @@ import net.onelitefeather.blackhole.backend.casetimeline.CaseEventPayload;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventRecord;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseReader;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageAuthorKind;
+import net.onelitefeather.blackhole.backend.casetimeline.StaffLabels;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -365,7 +366,7 @@ public record ProtocolModel(
             case BOT -> "Bot";
             case EXTERNAL -> "External participant";
             case STAFF -> switch (trust) {
-                case VERIFIED -> name != null && !name.isBlank() ? name : ANONYMOUS_STAFF_LABEL;
+                case VERIFIED -> StaffLabels.named(name, ANONYMOUS_STAFF_LABEL);
                 case SYSTEM -> SYSTEM_LABEL;
                 case PLAYER -> PLAYER_LABEL;
                 case UNVERIFIED -> "Unverified staff";
@@ -389,7 +390,7 @@ public record ProtocolModel(
             }
             case VERIFIED -> {
                 kind = "STAFF";
-                label = entry.actorName() != null && !entry.actorName().isBlank() ? entry.actorName() : ANONYMOUS_STAFF_LABEL;
+                label = StaffLabels.named(entry.actorName(), ANONYMOUS_STAFF_LABEL);
             }
             default -> {
                 boolean attributed = event.actorSource() != null || event.recordedByOid() != null;
