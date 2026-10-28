@@ -20,6 +20,10 @@ dependencies {
     implementation(libs.iceberg.aws)
     implementation(libs.parquet.hadoop)
 
+    // Payload columns that have no typed column are stored as one JSON object (the extra column).
+    implementation(platform(libs.jackson.bom))
+    implementation(libs.jackson.databind)
+
     testImplementation(mn.junit.jupiter.api)
     testImplementation(mn.junit.jupiter.params)
     testRuntimeOnly(mn.junit.jupiter.engine)
