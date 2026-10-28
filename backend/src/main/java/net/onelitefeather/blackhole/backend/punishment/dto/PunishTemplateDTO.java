@@ -85,9 +85,16 @@ public sealed interface PunishTemplateDTO {
             @NonNull @NotBlank String section,
             @Nullable String escalationGroup,
             @Nullable String escalationWindow,
+            @Nullable String warnWindow,
             @NonNull @NotEmpty List<Step> steps,
             @Nullable Map<String, Object> metaData
     ) implements PunishTemplateDTO {
+
+        /** A template without a warn window: warnings count within the escalation window. */
+        public CreateRequest(String key, String reason, String section, String escalationGroup, String escalationWindow,
+                             List<Step> steps, Map<String, Object> metaData) {
+            this(key, reason, section, escalationGroup, escalationWindow, null, steps, metaData);
+        }
     }
 
     @Schema(name = "PunishTemplateUpdateRequest")
@@ -100,9 +107,16 @@ public sealed interface PunishTemplateDTO {
             @NonNull @NotBlank String section,
             @Nullable String escalationGroup,
             @Nullable String escalationWindow,
+            @Nullable String warnWindow,
             @NonNull @NotEmpty List<Step> steps,
             @Nullable Map<String, Object> metaData
     ) implements PunishTemplateDTO {
+
+        /** An update without a warn window: warnings count within the escalation window. */
+        public UpdateRequest(UUID identifier, String key, String reason, String section, String escalationGroup,
+                             String escalationWindow, List<Step> steps, Map<String, Object> metaData) {
+            this(identifier, key, reason, section, escalationGroup, escalationWindow, null, steps, metaData);
+        }
     }
 
     @Schema(name = "PunishTemplateResponse")
@@ -115,6 +129,7 @@ public sealed interface PunishTemplateDTO {
             @NonNull String section,
             @NonNull String escalationGroup,
             @Nullable String escalationWindow,
+            @Nullable String warnWindow,
             @NonNull List<Step> steps,
             @NonNull Map<String, Object> metaData
     ) implements PunishTemplateDTO {

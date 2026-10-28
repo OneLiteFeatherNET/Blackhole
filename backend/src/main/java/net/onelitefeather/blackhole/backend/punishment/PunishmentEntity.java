@@ -96,6 +96,10 @@ public class PunishmentEntity {
     @Column(name = "kind", length = 16, nullable = false)
     private PunishmentKind kind = PunishmentKind.PUNISHMENT;
 
+    /** When the player acknowledged a warning (epoch millis, set once); {@code null} for anything else or while pending. */
+    @Column(name = "acknowledged_at")
+    private Long acknowledgedAt;
+
     /** The scope a kick was applied at; {@code null} for a punishment. */
     @Column(name = "kick_scope", length = 16)
     private String kickScope;
@@ -134,6 +138,9 @@ public class PunishmentEntity {
         entity.template = entry.template() == null ? null : PunishmentTemplateEntity.toEntity(entry.template());
         if (entry.kind() == PunishmentKind.KICK) {
             entity.recordKick(entry.kickScope(), entry.kickTarget());
+        } else if (entry.kind() == PunishmentKind.WARN) {
+            entity.kind = PunishmentKind.WARN;
+            entity.acknowledgedAt = entry.acknowledgedAt();
         }
         entity.metaData = entry.metaData();
         return entity;
@@ -288,6 +295,33 @@ public class PunishmentEntity {
         return kickTarget;
     }
 
+    /** Marks this row as a warning: stored like a kick, never active, acknowledged once by the player. */
+    public void recordWarning() {
+        this.kind = PunishmentKind.WARN;
+    }
+
+    public boolean isWarning() {
+        return this.kind == PunishmentKind.WARN;
+    }
+
+    /** When the player acknowledged this warning, or {@code null} while it is pending. */
+    public Long getAcknowledgedAt() {
+        return acknowledgedAt;
+    }
+
+    /**
+     * Records the player's acknowledgement once. A repeat keeps the first time.
+     *
+     * @return whether this call set the time (false when it was already acknowledged)
+     */
+    public boolean acknowledge(long at) {
+        if (this.acknowledgedAt != null) {
+            return false;
+        }
+        this.acknowledgedAt = at;
+        return true;
+    }
+
     /** Marks this row as a kick at {@code scope}; {@code target} is {@code null} for a network kick. */
     public void recordKick(String scope, String target) {
         this.kind = PunishmentKind.KICK;
@@ -295,9 +329,9 @@ public class PunishmentEntity {
         this.kickTarget = target;
     }
 
-    /** Whether this row can be an active punishment, i.e. is not a kick. */
+    /** Whether this row can be an active punishment: only a {@link PunishmentKind#PUNISHMENT} can. Kicks and warnings never are. */
     public boolean canBeActive() {
-        return this.kind != PunishmentKind.KICK;
+        return this.kind == PunishmentKind.PUNISHMENT;
     }
 
     public PunishmentTemplateEntity getTemplate() {
@@ -331,6 +365,7 @@ public class PunishmentEntity {
                 this.kind,
                 this.kickScope,
                 this.kickTarget,
+                this.acknowledgedAt,
                 this.metaData
         );
     }

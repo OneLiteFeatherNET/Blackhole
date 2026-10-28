@@ -15,21 +15,28 @@ public record TemplateSpec(
         String section,
         String escalationGroup,
         String escalationWindow,
+        String warnWindow,
         List<PunishTemplateDTO.Step> steps,
         Map<String, Object> metaData
 ) {
 
+    /** A spec without a warn window: warnings count within the escalation window. */
+    public TemplateSpec(String key, String reason, String section, String escalationGroup, String escalationWindow,
+                        List<PunishTemplateDTO.Step> steps, Map<String, Object> metaData) {
+        this(key, reason, section, escalationGroup, escalationWindow, null, steps, metaData);
+    }
+
     public static TemplateSpec of(PunishTemplateDTO.CreateRequest request) {
         return new TemplateSpec(
                 request.key(), request.reason(), request.section(), request.escalationGroup(), request.escalationWindow(),
-                request.steps(), request.metaData()
+                request.warnWindow(), request.steps(), request.metaData()
         );
     }
 
     public static TemplateSpec of(PunishTemplateDTO.UpdateRequest request) {
         return new TemplateSpec(
                 request.key(), request.reason(), request.section(), request.escalationGroup(), request.escalationWindow(),
-                request.steps(), request.metaData()
+                request.warnWindow(), request.steps(), request.metaData()
         );
     }
 

@@ -167,11 +167,13 @@ public class PunishmentTemplateService {
     }
 
     private static PunishmentTemplateEntity toEntity(UUID identifier, TemplateSpec spec) {
-        return new PunishmentTemplateEntity(
+        PunishmentTemplateEntity entity = new PunishmentTemplateEntity(
                 identifier, spec.key(), spec.reason(), spec.section(), spec.effectiveGroup(),
                 spec.escalationWindow() == null || spec.escalationWindow().isBlank() ? null : spec.escalationWindow().trim(),
                 spec.steps().stream().map(step -> new TemplateStep(step.kind(), step.duration() == null ? null : step.duration().trim(), step.eloCost())).toList(),
                 spec.metaData() == null ? new HashMap<>() : new HashMap<>(spec.metaData())
         );
+        entity.setWarnWindow(spec.warnWindow() == null || spec.warnWindow().isBlank() ? null : spec.warnWindow().trim());
+        return entity;
     }
 }

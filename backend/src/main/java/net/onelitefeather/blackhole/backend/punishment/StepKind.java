@@ -1,7 +1,8 @@
 package net.onelitefeather.blackhole.backend.punishment;
 
-/** What a template step does: a timed punishment, or a kick (no duration). */
+/** What a template step does: a timed punishment, a kick (no duration), or a warning (no duration, never active). */
 public enum StepKind {
     PUNISH,
-    KICK
+    KICK,
+    WARN
 }
