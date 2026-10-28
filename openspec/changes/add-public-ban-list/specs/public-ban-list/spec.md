@@ -131,7 +131,7 @@ Every entry SHALL carry exactly the fields `hash`, `playerHash`, `reason`, `kind
 
 ### Requirement: Player hash for partner matching
 
-Each listed entry SHALL carry `playerHash`: the lowercase hex SHA-256 digest (64 characters) of the UTF-8 input string `blackhole-ban-list-v1:` plus the player's UUID in lowercase dashed form. The hash SHALL NOT be keyed. The prefix SHALL be versioned and documented in the OpenAPI description of the field. The caller that holds the UUID SHALL compute the value and send it with the apply request; the backend SHALL store it and SHALL NOT receive or derive the UUID.
+Each listed entry SHALL carry `playerHash`: the lowercase hex SHA-256 of the UTF-8 input `blackhole-ban-list-v1:` plus the lowercase dashed UUID. The hash SHALL NOT be keyed. The backend SHALL compute it from the `playerUuid` of the apply request and SHALL store only the hash; it SHALL be null when there is no UUID. The prefix SHALL be versioned and documented in the OpenAPI description of the field.
 
 #### Scenario: Exact input string and test vector
 
@@ -153,18 +153,18 @@ Each listed entry SHALL carry `playerHash`: the lowercase hex SHA-256 digest (64
 - **WHEN** `BLACKHOLE_PUBLIC_BAN_KEY` or `BLACKHOLE_BANID_KEY` is changed
 - **THEN** every `playerHash` is unchanged
 
-#### Scenario: Malformed value is refused
+#### Scenario: Malformed UUID is refused
 
-- **WHEN** an apply request carries a `playerHash` that is not 64 hexadecimal characters
+- **WHEN** an apply request carries a `playerUuid` that is not a UUID in dashed or 32-hex-digit form
 - **THEN** the request is refused with a validation error that does not echo the value
 
 ### Requirement: Listing is opt-in per template and excludes kicks
 
-A punishment SHALL be listed only when it is of kind `PUNISHMENT`, its template has a non-blank `publicReason`, its section resolves to a section kind, and the apply request carried a valid `playerHash`. The public reason, the section kind and the `playerHash` SHALL be copied onto the punishment when it is applied. Kicks, manual punishments without a template, punishments whose template has no public reason, and punishments applied without a `playerHash` SHALL NOT be listed.
+A punishment SHALL be listed only when it is of kind `PUNISHMENT`, its template has a non-blank `publicReason`, and its section resolves to a section kind. The public reason, the section kind and the `playerHash` SHALL be copied onto the punishment when it is applied. A missing UUID does not prevent listing: the `playerHash` is then null. Kicks, manual punishments without a template, and punishments whose template has no public reason SHALL NOT be listed.
 
 #### Scenario: Template with a public reason
 
-- **WHEN** a template with `publicReason` "Cheating in competitive modes" is applied to a player in the network section with a valid `playerHash`
+- **WHEN** a template with `publicReason` "Cheating in competitive modes" is applied to a player in the network section with a `playerUuid`
 - **THEN** the punishment is listed with reason "Cheating in competitive modes" and kind `NETWORK_BAN`
 
 #### Scenario: Template without a public reason
@@ -172,10 +172,10 @@ A punishment SHALL be listed only when it is of kind `PUNISHMENT`, its template 
 - **WHEN** a template without `publicReason` is applied
 - **THEN** the punishment is not in the list and neither its entry hash nor its `playerHash` is stored
 
-#### Scenario: Application without a player hash
+#### Scenario: Application without a UUID
 
-- **WHEN** a template with a public reason is applied and the request carries no `playerHash`
-- **THEN** the punishment is not in the list and its entry hash is not computed
+- **WHEN** a template with a public reason is applied and the request carries no `playerUuid`
+- **THEN** the punishment is listed with `playerHash` null and its entry hash is computed
 
 #### Scenario: Kick is never listed
 

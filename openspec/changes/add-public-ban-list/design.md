@@ -7,10 +7,11 @@ The code this design builds on (checked on `origin/main`, 2026-10-28):
   (the hashed owner), `section_key`, `scope`, `permanent`, `lifted`, `created_at`, `escalation_group`, `elo_cost`, `kind`
   (`PUNISHMENT` or `KICK`, from `add-kick`), `meta_data`. The expiry is NOT a column: it lives in `meta_data` under
   `Expirable.META_DATA_KEY_EXPIRATION_DATE` (read by `PunishmentEvents`).
-- The `owner` is computed by the caller and is a SHA-512 hex value. `utils/OwnerHash` says "Raw player UUIDs never reach
-  the backend". The backend therefore never sees a UUID, and it cannot derive the player hash of decision 14 from
-  `owner`. The caller that holds the UUID (the Velocity plugin for in-game punishments) must compute `playerHash` and
-  send it with the apply request. Open question 17 covers the callers that do not know a UUID.
+- The `owner` is computed by the caller and is a SHA-512 hex value (`utils/OwnerHash`). It cannot give the player hash of
+  decision 14. The apply request therefore carries the raw player UUID as `playerUuid`. The backend may hold it under
+  `amend-data-protection-principle`, and `add-player-intelligence` (decision 10) already sends it from Velocity. The
+  backend computes `playerHash` from it and stores only the hash. The older rule in `OwnerHash` (raw UUIDs never reach
+  the backend) is superseded by that amendment. Open question 17 is answered in decision 14.
 - Expiry is applied lazily as well as by a sweep: `ActivePunishmentExpirer` and `PunishmentExpirySweeper` clear
   expired rows, and "Expired punishments are cleared on profile read" (punishment-management). A stored "expired"
   status would therefore lag behind the real expiry. This design derives EXPIRED from the expiry instant on read.
@@ -57,10 +58,11 @@ feed or webhook; per-client entry sets; client management UI; changing ban, mute
 A template gains `publicReason` (optional text, 1 to 200 characters, plain text, `PiiGuard` applied). The rule for a
 punishment:
 
-- `kind = PUNISHMENT`, a template with a non-blank `publicReason`, the template's section resolves to a section kind,
-  and the apply request carried a valid `playerHash` (decision 14): the punishment is listed.
-- Otherwise it is never listed: no template, a template without public reason, every `KICK` (kicks are never bans;
-  `add-kick` decision 1), and a punishment applied without a `playerHash`.
+- `kind = PUNISHMENT`, and a template with a non-blank `publicReason` whose section resolves to a section kind: the
+  punishment is listed. A missing UUID does not prevent listing; the entry is published with `playerHash` null
+  (decision 14).
+- Otherwise it is never listed: no template, a template without public reason, and every `KICK` (kicks are never bans;
+  `add-kick` decision 1).
 
 The text, the section kind and the `playerHash` are copied onto the punishment when it is applied (`public_reason`,
 `public_kind`, `public_player_hash`). Later template edits do not change listed entries. The `publicReason` on a
@@ -125,7 +127,7 @@ An entry, as returned by the list and the single read:
 | field | value | notes |
 |---|---|---|
 | `hash` | 22 characters, base64url | 128 bits of the keyed entry hash (decision 4) |
-| `playerHash` | 64 lowercase hex characters | SHA-256 of the player's UUID with the versioned prefix (decision 14) |
+| `playerHash` | 64 lowercase hex characters, or `null` | SHA-256 of the player's UUID with the versioned prefix (decision 14); `null` when the punishment had no UUID |
 | `reason` | `publicReason` snapshot | plain text, never Markdown |
 | `kind` | `NETWORK_BAN`, `MUTE`, `SERVER` | from `public_kind`: `BAN` maps to `NETWORK_BAN` |
 | `status` | `ACTIVE`, `EXPIRED`, `REVOKED` | decision 6 |
@@ -198,7 +200,7 @@ Alternatives considered:
   therefore holds the day and the hash only. Sorting on the exact instant would put the exact instant into every
   cursor.
 - The summary and the list use day granularity only.
-- Listing: the entry becomes visible when the punishment is applied with a `playerHash`. No delay is built in (open
+- Listing: the entry becomes visible when the punishment is applied (its `playerHash` is null when no UUID was sent). No delay is built in (open
   question 2).
 
 Why: clients republish, and a reader may know when a player was banned (their own ban, or a chat message). An exact
@@ -366,8 +368,7 @@ validator cannot detect a name or a case number, so that review is a documented 
 
 ### 13. Data platform and other consumers
 
-No event is published for listed entries. The list reads the punishment table directly. The Velocity plugin sends the
-`playerHash` on the apply request (decision 14) and does not read the list. The Discord bot does not read the list. The
+No event is published for listed entries. The list reads the punishment table directly. The Velocity plugin sends `playerUuid` on the apply request (decision 14) and does not read the list. The Discord bot does not read the list. The
 generated client gets the new routes, the Basic Auth scheme for them, the template field and the optional apply field
 as additive changes.
 
@@ -388,11 +389,15 @@ Test vector: UUID `123e4567-e89b-12d3-a456-426614174000` gives
 `9efc1073aa30a316b4d4930dbf73bf852be666299041e930c9763de9f0c03029`, computed with
 `printf '%s' 'blackhole-ban-list-v1:123e4567-e89b-12d3-a456-426614174000' | sha256sum`.
 
-**Who computes it.** The caller that holds the UUID. For in-game punishments that is the Velocity plugin, which already
-computes the hashed `owner` from the same UUID. It sends `playerHash` with the apply request, next to `owner`. The
-backend stores the value after a format check (64 hex characters, stored lowercase), and it never receives a UUID. This
-keeps the rule in `OwnerHash` that raw UUIDs never reach the backend. Computing the hash in the backend would have
-required the UUID there, so it was rejected.
+**Who computes it.** The backend, from the `playerUuid` of the apply request. Velocity, the backend import path, the
+admin web and the Discord bot send the raw UUID the same way, next to `owner`, when they know it. The backend normalises
+the UUID to lowercase dashed form, computes `playerHash` with the scheme above, and stores only the hash on the
+punishment. The raw UUID is not published. Internal staff views may show the raw UUID through `add-player-intelligence`
+(its decision 10). The ban list never does. One implementation serves the entry list and the test vector, so partners
+and our own code agree on the value. A punishment without a UUID gets `playerHash` null and is published without it.
+
+Prerequisites: `amend-data-protection-principle` allows the backend to hold raw UUIDs, and `add-player-intelligence`
+already sends them from Velocity. Both are required before the code PR.
 
 **Why unkeyed.** A partner network has no secret from us, so it must compute the same value from the UUIDs of its own
 players. A key shared with every partner is no key at all, and a key kept from them defeats the adoption. The prefix is
@@ -408,8 +413,9 @@ Alternatives considered:
 - *Keyed HMAC with a secret key*: rejected. Partners cannot match without the key. Sharing the key with every partner
   makes it effectively unkeyed, and withholding it leaves them unable to match.
 - *Raw UUID*: rejected by the maintainer. Anyone with list access could read who is banned.
-- *Compute the hash in the backend from a UUID it receives*: rejected. It breaks the rule that raw UUIDs never reach
-  the backend (`OwnerHash`).
+- *Velocity computes the hash and sends `playerHash`*: rejected. Velocity, imports, the admin web and the Discord bot
+  would each need the same code, and imports, the admin web and the Discord bot have no Velocity. One implementation in
+  the backend is the single place for the scheme and its test vector.
 
 Risks and trade-offs, stated plainly:
 
@@ -417,9 +423,9 @@ Risks and trade-offs, stated plainly:
   whether that player is listed. Offline-mode UUIDs are derived from the name, so a name is enough for those players.
 - **Basic Auth limits who can read the list.** It does not limit what an authorised client does with the entries it
   reads, and it does not stop a client from republishing them.
-- **The backend cannot verify the `playerHash`.** A caller that sends a wrong value lists the punishment under a hash
-  that no real player matches, so the ban is missed by partners. The Velocity plugin computes the value from the same UUID
-  as `owner`, and a test pins the test vector (task 1.2 and the Velocity group).
+- **A wrong UUID gives a wrong hash.** The backend checks the format of `playerUuid` and computes the hash, but it
+  cannot check that the UUID belongs to the player. A caller that sends another player's UUID lists the ban under that
+  player's hash. Callers send the UUID they already use for `owner`, and a test pins the test vector (task 1.2).
 - **Copies outside the list.** A partner that has copied an entry keeps its copy after erasure or revocation. The list
   cannot reach into partner systems.
 - **The hash scheme is fixed in the API.** A change of scheme means a new prefix and new hashes. Partners must follow
@@ -440,8 +446,8 @@ Risks and trade-offs, stated plainly:
   Existing rows have no `playerHash`, so they could not be listed without a source of UUIDs.
 - **The principle 2 exception is not yet ratified.** Until open question 1 is closed, this change cannot be merged on its
   own terms.
-- **Callers that do not know the UUID.** Punishments applied without a `playerHash` are not listed. Open question 17
-  asks whether those paths must be refused for listed templates instead.
+- **Callers that do not know the UUID.** Such punishments are published with `playerHash` null, so partners cannot
+  match them. Open question 17 is answered in decision 14.
 
 ## Migration plan
 
@@ -463,8 +469,7 @@ a one-shot job that copies the template's public reason onto the punishment and 
 open question 6.
 
 Client configuration needs no migration. The first deploy with the feature needs the Secret keys and the client names
-in the Helm values, and without them the routes answer 401 to everyone. The Velocity plugin needs its release before
-listed punishments carry a `playerHash`; until then no new entry is listed.
+in the Helm values, and without them the routes answer 401 to everyone. Until the callers send `playerUuid`, listed punishments carry a `playerHash` of null.
 
 Rollback: the columns and the index are unused by any other code, so dropping them restores the previous behaviour. The
 migration is not edited once applied.
@@ -513,8 +518,7 @@ migration is not edited once applied.
 16. **Scheme version per entry.** The scheme is named only by the prefix in the hash input and in the OpenAPI text. Should
     each entry carry `playerHashScheme` (for example `blackhole-ban-list-v1`), so a partner sees a scheme change without
     reading the docs? The brief asks to keep the entry fields as they are, so this is a question, not a change.
-17. **Callers without a UUID.** Punishments applied without a `playerHash` are not listed. Which paths apply punishments
-    without a UUID (the admin web, imports, the Discord bot)? Should the backend refuse a listed template when the caller
-    sends no `playerHash`, or keep the silent non-listing?
+17. **Callers without a UUID.** Answered by decision 14: the backend computes `playerHash` from the `playerUuid` of the
+    apply request. A punishment without a UUID is published with `playerHash` null. Backfill is covered by question 6.
 18. **Amendment text.** Should `amend-data-protection-principle` name the `playerHash` exception explicitly, or is the
     rule "no raw identifiers, hashes allowed" enough? This change does not edit that change.

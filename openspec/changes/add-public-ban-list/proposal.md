@@ -28,17 +28,12 @@ as a named client.
   player hash, and a stable entry hash. There is no name, no raw UUID, no Ban ID, no punishment reference, no staff
   name, no section key and no evidence.
 - **Player hash for partner matching.** Each listed entry carries `playerHash`: the SHA-256 of the UTF-8 string
-  `blackhole-ban-list-v1:` followed by the player's UUID in lowercase dashed form, as 64 lowercase hex characters.
-  It is unkeyed on purpose, so a partner network can compute it for its own players and match them against the list.
-  The prefix is versioned (`v2` would be a new scheme) and the scheme is documented in the API. The Velocity plugin,
-  which already holds the UUID, computes the value and sends it with the apply request, next to the hashed `owner`.
-  The backend never receives a raw UUID, as today. A punishment without a `playerHash` is not listed.
-- **Opt-in per template.** A template gets an optional `publicReason`. A punishment is listed only if its template
-  has one. The text is copied onto the punishment when it is applied, so a later template edit does not rewrite
-  history. Manual punishments without a template, and every kick (`kind = KICK`), are never listed.
-- **Entry hash.** A keyed HMAC-SHA256 of the internal punishment identifier, under its own secret
-  `BLACKHOLE_PUBLIC_BAN_KEY`. It lets a client cite an entry. It cannot be computed from a Ban ID or from a
-  punishment reference.
+  `blackhole-ban-list-v1:` followed by the player's UUID in lowercase dashed form, as 64 lowercase hex characters, or
+  null when the punishment had no UUID. It is unkeyed on purpose, so a partner network can compute it for its own
+  players and match them against the list. The prefix is versioned (`v2` would be a new scheme) and the scheme is
+  documented in the API. The apply request carries the raw player UUID as `playerUuid`, next to `owner`. The backend
+  computes `playerHash` from it and stores only the hash on the punishment. The ban list never shows the raw UUID.
+  A punishment without a UUID is published with `playerHash` null.
 - **Dates are rounded to the UTC day.** No exact time is returned. The cursor sort keys are the day and the hash, so
   a cursor cannot reveal an exact time either.
 - **Revoked and expired entries stay visible with their status** for a configurable retention window
@@ -55,8 +50,7 @@ as a named client.
 - **Rate limiting** stays in infrastructure (`config.yaml` principle 5). The application adds no limiter for these
   routes.
 
-Not BREAKING. Every change is additive: three routes, an optional template field, an optional `playerHash` on the
-apply request and new punishment columns. The generated client gains a new API and optional fields. Existing
+Not BREAKING. Every change is additive: three routes, an optional template field, an optional `playerUuid` on the apply request and new punishment columns. The generated client gains a new API and optional fields. Existing
 clients are unaffected.
 
 ## Capabilities
@@ -70,7 +64,7 @@ clients are unaffected.
 ### Modified Capabilities
 
 - `punishment-management`: an optional public reason on templates, the snapshot of that reason, of the section kind
-  and of the caller's `playerHash` on the punishment, and the publication fields kept current on apply, amendment and
+  and of the `playerHash` computed from the apply request's `playerUuid`, and the publication fields kept current on apply, amendment and
   revocation.
 - `staff-authentication`: the reserved `/public/**` prefix holds exactly the three Basic Auth ban-list routes. Those
   routes use their own credential check, not an Entra token and not a Ban ID session. The staff-role rule is
@@ -81,13 +75,14 @@ clients are unaffected.
 
 - **Backend**: a new `publicbans/` feature package (controller, `*Api` interface, sealed DTO marker interface,
   `@Singleton` service, JDBC reader, entry hash and day rounding helpers, Basic Auth parsing and the client
-  registry). Changes in `punishment/` (template field, the optional `playerHash` on the apply request, publication
+  registry). Changes in `punishment/` (template field, the optional `playerUuid` on the apply request, the player hash computed from it, publication
   writer on apply, amendment and revocation), in the erasure path (removes the entry with the punishment), in
   `security/` (a separate Basic Auth chain scoped to the three routes, leaving the Entra chain untouched), and in
   `application.yml` (`blackhole.ban-list.*`, `blackhole.public-bans.*`, and `BLACKHOLE_PUBLIC_BAN_KEY`, with a guard
   that refuses to start without the key outside `dev` and `test`, as `BanIdKeyGuard` does).
-- **Velocity plugin**: computes `playerHash` from the player's UUID and sends it with the apply request. This is the
-  only change outside the backend and the web panel.
+- **Callers send `playerUuid`**: the Velocity plugin sends the player's UUID with the apply request, next to `owner`.
+  The backend import path, the admin web and the Discord bot send it the same way when they know the UUID. No caller
+  computes the hash; the backend does.
 - **Password hashing**: one library for Argon2id (Bouncy Castle is the proposed choice, confirmed at implementation
   time). It is the only new runtime dependency.
 - **Database**: one new Flyway migration `V<next>__public_ban_list.sql`. The main head is `V27__kick.sql`, and the
@@ -98,15 +93,16 @@ clients are unaffected.
 - **Deploy**: `deploy/charts/blackhole` gets values for the ban-list client names and an existing Secret holding one
   password hash per client, mounted as files. `BLACKHOLE_PUBLIC_BAN_KEY` comes from a Secret too.
 - **API and client**: `GET /public/bans`, `GET /public/bans/{hash}`, `GET /public/bans/summary`, the template field
-  and the optional `playerHash` on the apply request. The spec moves to the next version after `0.0.44`
+  and the optional `playerUuid` on the apply request. The spec moves to the next version after `0.0.44`
   (`client/build.gradle.kts`), set at implementation time, and `client/` is regenerated. The generated client needs
   the Basic Auth scheme for these routes. Not breaking.
 - **Web**: the template editor field and its validation in `web/`.
 - **Docs**: `.claude/rules/public-bans.md` (path-scoped), one line in `.claude/rules/public-api.md` saying these
   routes are the Basic Auth exception to the anonymous rules and are not anonymous, and a pointer in `CLAUDE.md`.
 - **Dependencies**: `standardize-api-pagination-and-problems` must be applied before the code PR. Otherwise the code
-  uses the same envelope and is adjusted when it lands. `amend-data-protection-principle` is the published-data rule
-  this change relies on. `add-kick` is the source of the `KICK` kind, which this change excludes. The principle 2
+  uses the same envelope and is adjusted when it lands. `amend-data-protection-principle` is a prerequisite: it allows the backend to hold raw UUIDs, while the list
+  publishes only the hash. `add-player-intelligence` is a prerequisite too: its decision 10 already has Velocity send and
+  store the raw player UUID, which this change reads. `add-kick` is the source of the `KICK` kind, which this change excludes. The principle 2
   exception needs the maintainer's confirmation or an amendment of `openspec/config.yaml` (open question 1).
 
 ## Out of scope
@@ -123,8 +119,7 @@ clients are unaffected.
 - Per-locale copies of the public reason. A template has one text in this change.
 - Discord or RSS feeds of the list, and webhooks.
 - Rate limiting. The edge owns it (`config.yaml` principle 5).
-- Backfilling existing punishments. Only punishments applied after their template has a public reason and the
-  caller sends a `playerHash` are listed, unless the maintainer decides otherwise (open question 6).
+- Backfilling existing punishments. Only punishments applied after their template has a public reason are listed, unless the maintainer decides otherwise (open question 6).
 - Rotating `BLACKHOLE_PUBLIC_BAN_KEY` with a rewrite of stored hashes. This change documents that rotation changes
   every entry hash, and leaves the recompute job to a follow-up. The `playerHash` is not affected by that rotation.
 
