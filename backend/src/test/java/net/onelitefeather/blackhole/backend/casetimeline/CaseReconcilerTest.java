@@ -49,6 +49,19 @@ class CaseReconcilerTest {
             return this.kicked;
         }
 
+        final List<SourceRows.WarnRow> warned = new ArrayList<>();
+        final List<SourceRows.WarnRow> acknowledged = new ArrayList<>();
+
+        @Override
+        public List<SourceRows.WarnRow> warnedMissing(long since, int limit) {
+            return this.warned;
+        }
+
+        @Override
+        public List<SourceRows.WarnRow> acknowledgedMissing(long since, int limit) {
+            return this.acknowledged;
+        }
+
         @Override
         public List<PunishmentRow> endedMissing(long since, int limit) {
             return this.ended;
@@ -105,6 +118,32 @@ class CaseReconcilerTest {
         assertEquals(ActorTrust.VERIFIED, event.actorTrust());
         assertEquals(STAFF, event.actorOid());
         assertEquals("applied:p-1", event.dedupeKey());
+    }
+
+    @Test
+    void aLostWarnedEventIsRepairedAtTheTimeTheWarningWasWritten() {
+        long created = clock.millis() - Duration.ofHours(3).toMillis();
+        gaps.warned.add(new SourceRows.WarnRow("w-1", STAFF, STAFF, null, 0, created, null));
+
+        assertEquals(1, reconciler.reconcile());
+
+        CaseEventRecord event = bed.log.ofType("w-1", "punishment.warned").getFirst();
+        assertEquals(CaseEventOrigin.RECONSTRUCTED, event.origin());
+        assertEquals(created, event.occurredAt(), "the time of the warning row, not the time of the run");
+        assertEquals("warned:w-1", event.dedupeKey());
+    }
+
+    @Test
+    void aLostAcknowledgedEventIsRepairedAtTheTimeThePlayerConfirmedTheWarning() {
+        long created = clock.millis() - Duration.ofHours(3).toMillis();
+        long acknowledged = clock.millis() - Duration.ofHours(1).toMillis();
+        gaps.acknowledged.add(new SourceRows.WarnRow("w-1", STAFF, STAFF, null, 0, created, acknowledged));
+
+        assertEquals(1, reconciler.reconcile());
+
+        CaseEventRecord event = bed.log.ofType("w-1", "punishment.acknowledged").getFirst();
+        assertEquals(acknowledged, event.occurredAt(), "when the player confirmed it, not when it was written");
+        assertEquals("acknowledged:w-1", event.dedupeKey());
     }
 
     @Test
