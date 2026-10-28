@@ -1,5 +1,8 @@
 package net.onelitefeather.blackhole.backend.support;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import net.onelitefeather.blackhole.backend.audit.AuditPayloadGuard;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.security.StaffActorEntity;
 import net.onelitefeather.blackhole.backend.security.StaffActorRepository;
@@ -53,11 +56,17 @@ public final class StaffLinkTestBed {
     public final StaffLinkService service;
 
     public StaffLinkTestBed(DomainEventPublisher events, Clock clock) {
+        this(events, clock, new StaffAuditRecorder(new InMemoryStaffAuditStore(),
+                new DomainEventPublisher(new RecordingEventTransport(), clock), new AuditPayloadGuard(), clock, new SimpleMeterRegistry()));
+    }
+
+    /** The audit recorder is the caller's, so a test can read the entries its unlink leaves. */
+    public StaffLinkTestBed(DomainEventPublisher events, Clock clock, StaffAuditRecorder audit) {
         this.avatarJob = new StaffAvatarJob(this.profiles, this.avatars,
                 new StaffAvatarKeys("test-staff-avatar-secret"), uuid -> Optional.empty(), clock);
         this.profileService = new StaffProfileService(this.profiles, this.avatarJob, clock);
         this.service = new StaffLinkService(this.links.repository(), this.codes.repository(), this.actors.repository(),
-                new StaffLinkCodeGenerator(), events, new StaffLinkProperties(TTL), clock, this.avatarJob);
+                new StaffLinkCodeGenerator(), events, new StaffLinkProperties(TTL), clock, this.avatarJob, audit);
     }
 
     /** Stores a link as if it was confirmed earlier. */
