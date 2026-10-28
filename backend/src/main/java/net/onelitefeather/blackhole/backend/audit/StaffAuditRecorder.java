@@ -59,6 +59,7 @@ public class StaffAuditRecorder {
             this.store.insert(entry);
         } catch (RuntimeException e) {
             this.failures.increment();
+            actor.receipt().markUnrecorded();
             LOGGER.warn("Staff action {} could not be recorded in the audit log: {}", action.wireName(), e.getClass().getSimpleName());
             return new Outcome.Unrecorded();
         }

@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.security;
 
 import io.micronaut.core.annotation.Nullable;
+import net.onelitefeather.blackhole.backend.audit.AuditReceipt;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -15,20 +16,22 @@ import java.util.UUID;
  * @param admin       whether the principal holds the {@code ADMIN} role, for rules such as "the author or an admin"
  * @param panel       whether the request declares the team panel as its surface ({@code X-Blackhole-Surface: panel});
  *                    a declaration, not verified, read by {@link ActorArgumentBinder}
+ * @param receipt     whether the staff action of this request was recorded in the audit log; written by the recorder
  */
-public record Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy, boolean admin, boolean panel) {
+public record Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy, boolean admin, boolean panel,
+                    AuditReceipt receipt) {
 
     public Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy) {
-        this(oid, displayName, kind, proxy, false, false);
+        this(oid, displayName, kind, proxy, false, false, new AuditReceipt());
     }
 
     public Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy, boolean admin) {
-        this(oid, displayName, kind, proxy, admin, false);
+        this(oid, displayName, kind, proxy, admin, false, new AuditReceipt());
     }
 
-    /** This caller, with the declared surface of the request. */
+    /** This caller, with the declared surface of the request; the receipt of the request is kept. */
     public Actor withPanel(boolean panel) {
-        return new Actor(this.oid, this.displayName, this.kind, this.proxy, this.admin, panel);
+        return new Actor(this.oid, this.displayName, this.kind, this.proxy, this.admin, panel, this.receipt);
     }
 
     /** The attribution of a write the caller makes in its own name. */
