@@ -8,7 +8,7 @@ import EvidenceDialog from '../evidence/EvidenceDialog.vue'
 import MdButton from '../md/MdButton.vue'
 import MdDataTable from '../md/MdDataTable.vue'
 import StatusPill from '../StatusPill.vue'
-import { countActive, isKick, reasonOf, stepLabel } from './punishmentInfo'
+import { countActive, isKick, isWarning, reasonOf, stepLabel } from './punishmentInfo'
 
 const props = withDefaults(defineProps<{ history: Punishment[]; now?: number }>(), { now: () => Date.now() })
 
@@ -43,6 +43,12 @@ const columns = computed(() => [
       <template v-else-if="column.key === 'eloCost'">{{ row.eloCost ?? '' }}</template>
       <template v-else-if="column.key === 'lifted'">
         <StatusPill v-if="isKick(row)" :label="t('kick.badge')" tone="tertiary" data-testid="kick-badge" />
+        <template v-else-if="isWarning(row)">
+          <StatusPill :label="t('warn.badge')" tone="tertiary" data-testid="warning-badge" />
+          <span data-testid="warning-status" class="ml-2 text-body-medium text-on-surface-variant">
+            {{ row.acknowledgedAt ? t('warn.acknowledged', { when: formatDateTime(row.acknowledgedAt, locale) }) : t('warn.pending') }}
+          </span>
+        </template>
         <StatusPill v-else-if="row.lifted" :label="t('player.lifted')" />
         <StatusPill v-else-if="row.permanent" :label="t('player.permanent')" tone="error" />
         <StatusPill v-else :label="t('player.ended')" />

@@ -19,6 +19,7 @@ import EvasionHints from './EvasionHints.vue'
 import PunishmentHistory from './PunishmentHistory.vue'
 import RevokeDialog from './RevokeDialog.vue'
 import SectionScores from './SectionScores.vue'
+import WarnDialog from '../warning/WarnDialog.vue'
 
 const props = defineProps<{ owner: string }>()
 
@@ -72,6 +73,7 @@ watch(section, loadEvents, { immediate: true })
 // ---- staff actions ----------------------------------------------------------------------------
 
 const applyOpen = ref(false)
+const warnOpen = ref(false)
 const kickOpen = ref(false)
 const revokeTarget = ref<{ section: string; punishment: Punishment } | null>(null)
 const adjustTarget = ref<EloSectionScore | null>(null)
@@ -88,6 +90,12 @@ async function finished(done: string): Promise<void> {
   message.value = done
   await Promise.all([player.reload(), loadEvents()])
 }
+
+// A warning keeps its dialog open (it shows the step applied); only the history behind it is refreshed.
+async function warned(done: string): Promise<void> {
+  message.value = done
+  await Promise.all([player.reload(), loadEvents()])
+}
 </script>
 
 <template>
@@ -99,6 +107,7 @@ async function finished(done: string): Promise<void> {
   >
     <div v-if="player.data.value" class="flex flex-col gap-8">
       <header v-if="session.moderator" class="flex flex-wrap justify-end gap-2">
+        <MdButton variant="outlined" data-testid="open-warn" @click="warnOpen = true">{{ t('warn.open') }}</MdButton>
         <MdButton variant="outlined" data-testid="open-kick" @click="kickOpen = true">{{ t('kick.open') }}</MdButton>
         <MdButton variant="tonal" data-testid="open-apply" @click="applyOpen = true">
           {{ t('actions.apply.open') }}
@@ -158,6 +167,13 @@ async function finished(done: string): Promise<void> {
       </section>
 
       <ApplyTemplateDialog :open="applyOpen" :owner="owner" @close="applyOpen = false" @done="finished" />
+      <WarnDialog
+        v-if="session.moderator"
+        :open="warnOpen"
+        :owner="owner"
+        @close="warnOpen = false"
+        @done="warned"
+      />
       <KickDialog
         v-if="session.moderator"
         :open="kickOpen"

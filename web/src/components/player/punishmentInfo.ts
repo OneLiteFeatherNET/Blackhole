@@ -33,10 +33,15 @@ export function isKick(punishment: Punishment): boolean {
   return punishment.kind === 'KICK'
 }
 
-/** How many punishments of the history are in force at `now`; kicks, lifted and ended ones are not counted. */
+/** A warning is a note the player confirms once; it is never in force, so it is not counted as active. */
+export function isWarning(punishment: Punishment): boolean {
+  return punishment.kind === 'WARN'
+}
+
+/** How many punishments of the history are in force at `now`; kicks, warnings, lifted and ended ones are not counted. */
 export function countActive(history: Punishment[], now: number): number {
   return history.filter((entry) => {
-    if (isKick(entry) || entry.lifted) return false
+    if (isKick(entry) || isWarning(entry) || entry.lifted) return false
     const end = expiresAt(entry)
     return entry.permanent || (end !== null && end > now)
   }).length

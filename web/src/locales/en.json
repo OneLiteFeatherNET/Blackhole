@@ -975,6 +975,8 @@
       "punishmentLifted": "Punishment lifted by appeal",
       "punishmentRetemplated": "Linked to a template",
       "punishmentExpired": "Punishment expired",
+      "punishmentWarned": "Warning given",
+      "punishmentAcknowledged": "Warning acknowledged by the player",
       "evidenceAttached": "Evidence attached",
       "evidenceLifted": "Evidence lifted",
       "evidenceRevoked": "Evidence revoked",
@@ -1560,6 +1562,21 @@
     "switch": "Workspace",
     "moderationHint": "Cases, appeals, reports and players",
     "administrationHint": "Templates, sections, client rules, staff accounts and imports"
+  },
+  "warn": {
+    "open": "Warn",
+    "title": "Warn player",
+    "intro": "The template decides what the player gets: a warning, a kick or a punishment. A warning is shown in game and confirmed once.",
+    "submit": "Warn",
+    "applied": "Applied:",
+    "close": "Close",
+    "done": "Applied template {template}: {step}.",
+    "badge": "Warning",
+    "pending": "Pending",
+    "acknowledged": "Confirmed {when}",
+    "chip": {
+      "WARN": "Warning"
+    }
   },
   "kick": {
     "title": "Kick {name}",

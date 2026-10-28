@@ -975,6 +975,8 @@
       "punishmentLifted": "Strafe per Einspruch aufgehoben",
       "punishmentRetemplated": "Mit Vorlage verknüpft",
       "punishmentExpired": "Strafe abgelaufen",
+      "punishmentWarned": "Verwarnung erteilt",
+      "punishmentAcknowledged": "Verwarnung vom Spieler bestätigt",
       "evidenceAttached": "Beweis angehängt",
       "evidenceLifted": "Beweis aufgehoben",
       "evidenceRevoked": "Beweis widerrufen",
@@ -1560,6 +1562,21 @@
     "switch": "Arbeitsbereich",
     "moderationHint": "Fälle, Einsprüche, Meldungen und Spieler",
     "administrationHint": "Vorlagen, Bereiche, Client-Regeln, Teamkonten und Importe"
+  },
+  "warn": {
+    "open": "Verwarnen",
+    "title": "Spieler verwarnen",
+    "intro": "Die Vorlage legt fest, was der Spieler bekommt: eine Verwarnung, einen Kick oder eine Strafe. Eine Verwarnung wird im Spiel gezeigt und einmal bestätigt.",
+    "submit": "Verwarnen",
+    "applied": "Angewendet:",
+    "close": "Schließen",
+    "done": "Vorlage {template} angewendet: {step}.",
+    "badge": "Verwarnung",
+    "pending": "Offen",
+    "acknowledged": "Bestätigt {when}",
+    "chip": {
+      "WARN": "Verwarnung"
+    }
   },
   "kick": {
     "title": "{name} kicken",
