@@ -166,6 +166,8 @@ export interface TemplateDraft {
   section: string
   escalationGroup: string | null
   escalationWindow: string | null
+  /** ISO-8601; warnings older than it stop counting towards escalation. Null: the escalation window applies. */
+  warnWindow?: string | null
   steps: TemplateStep[]
 }
 

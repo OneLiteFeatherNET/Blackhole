@@ -303,7 +303,18 @@
       "summaryTitle": "Das bedeutet",
       "summaryStep": "{n}. Vergehen: {duration}, −{cost} ELO",
       "summaryRepeat": "Weitere Vergehen wiederholen die letzte Stufe.",
-      "summaryStepFree": "{n}. Vergehen: {duration}, keine ELO-Kosten"
+      "summaryStepFree": "{n}. Vergehen: {duration}, keine ELO-Kosten",
+      "kind": "Stufenart (Stufe {n})",
+      "kinds": {
+        "PUNISH": "Strafe",
+        "KICK": "Kick",
+        "WARN": "Verwarnung"
+      },
+      "noDuration": "Ein Kick oder eine Verwarnung hat keine Dauer; es gilt nur die ELO-Kosten.",
+      "warnWindow": "Verwarnungsfenster",
+      "warnWindowHint": "Optional; Verwarnungen, die älter sind, zählen nicht mehr zur nächsten Stufe, z. B. 30d. Leer: Das Eskalationsfenster gilt.",
+      "summaryKick": "{n}. Vergehen: Kick, −{cost} ELO",
+      "summaryWarn": "{n}. Vergehen: Verwarnung, −{cost} ELO"
     }
   },
   "sections": {

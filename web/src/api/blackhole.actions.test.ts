@@ -112,7 +112,8 @@ describe('template management', () => {
     section: 'network',
     escalationGroup: ' ',
     escalationWindow: 'P30D',
-    steps: [{ duration: ' P1D ', eloCost: 100 }],
+    warnWindow: ' P7D ',
+    steps: [{ kind: 'PUNISH' as const, duration: ' P1D ', eloCost: 100 }],
   }
 
   it('creates a template, trimming text and dropping a blank group', async () => {
@@ -127,8 +128,17 @@ describe('template management', () => {
       section: 'network',
       escalationGroup: null,
       escalationWindow: 'P30D',
-      steps: [{ duration: 'P1D', eloCost: 100 }],
+      warnWindow: 'P7D',
+      steps: [{ kind: 'PUNISH', duration: 'P1D', eloCost: 100 }],
     })
+  })
+
+  it('sends a warning step with its kind and no duration', async () => {
+    const { api, calls } = apiWith([{ body: { key: 'hacking' } }])
+
+    await api.createTemplate({ ...draft, warnWindow: null, steps: [{ kind: 'WARN', duration: '', eloCost: 0 }] })
+
+    expect(JSON.parse(calls[0]!.body).steps).toEqual([{ kind: 'WARN', duration: null, eloCost: 0 }])
   })
 
   it('updates a template by identifier', async () => {

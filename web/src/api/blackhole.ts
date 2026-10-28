@@ -383,7 +383,12 @@ function templateBody(draft: TemplateDraft) {
     section: draft.section,
     escalationGroup: draft.escalationGroup?.trim() || null,
     escalationWindow: draft.escalationWindow?.trim() || null,
-    steps: draft.steps.map((step) => ({ duration: (step.duration ?? '').trim(), eloCost: step.eloCost })),
+    warnWindow: draft.warnWindow?.trim() || null,
+    // Only a punishment step has a duration; a kick and a warning are moments, so they are sent without one.
+    steps: draft.steps.map((step) => {
+      const kind = step.kind ?? 'PUNISH'
+      return { kind, duration: kind === 'PUNISH' ? (step.duration ?? '').trim() : null, eloCost: step.eloCost }
+    }),
   }
 }
 

@@ -119,7 +119,8 @@ describe('TemplatesView: create', () => {
       section: 'chat',
       escalationGroup: null,
       escalationWindow: null,
-      steps: [{ duration: 'PT1H', eloCost: 0 }],
+      warnWindow: null,
+      steps: [{ kind: 'PUNISH', duration: 'PT1H', eloCost: 0 }],
     })
     expect(wrapper.find('[role="dialog"]').exists(), 'dialog closed after saving').toBe(false)
     expect(wrapper.get('tbody tr').text()).toContain('spam')
@@ -227,10 +228,11 @@ describe('TemplatesView: edit', () => {
       section: 'network',
       escalationGroup: 'cheating',
       escalationWindow: 'P90D',
+      warnWindow: null,
       steps: [
-        { duration: 'P1D', eloCost: 100 },
-        { duration: 'P7D', eloCost: 150 },
-        { duration: 'P30D', eloCost: 250 },
+        { kind: 'PUNISH', duration: 'P1D', eloCost: 100 },
+        { kind: 'PUNISH', duration: 'P7D', eloCost: 150 },
+        { kind: 'PUNISH', duration: 'P30D', eloCost: 250 },
       ],
     })
     expect(wrapper.get('tbody tr').text()).toContain('3 steps')
@@ -253,7 +255,7 @@ describe('TemplatesView: edit', () => {
     await wrapper.get('[data-testid="save"]').trigger('click')
     await flushPromises()
 
-    expect(api.updateTemplate).toHaveBeenCalledWith('id-hacking', expect.objectContaining({ steps: [{ duration: 'P1D', eloCost: 100 }] }))
+    expect(api.updateTemplate).toHaveBeenCalledWith('id-hacking', expect.objectContaining({ steps: [{ kind: 'PUNISH', duration: 'P1D', eloCost: 100 }] }))
 
     wrapper.unmount()
   })
@@ -427,6 +429,94 @@ describe('TemplatesView: page template', () => {
 
     expect(wrapper.get('[data-variant="no-items"]').text()).toContain('There are no templates yet.')
 
+    wrapper.unmount()
+  })
+})
+
+/** The kind select of step `index` (zero-based): the first combobox of the dialog is the section. */
+const stepKind = (wrapper: Wrapper, index: number) => wrapper.findAll('[role="dialog"] [role="combobox"]')[index + 1]!
+
+const hasDurationField = (wrapper: Wrapper, step: number) =>
+  wrapper.findAll('[role="dialog"] label').some((label) => label.text().startsWith(`Duration (step ${step})`))
+
+describe('TemplatesView: warning and kick steps', () => {
+  it('creates a warning step without a duration', async () => {
+    const { api, mount } = setup()
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="new-template"]').trigger('click')
+    await dialogInput(wrapper, 'Key').setValue('warn-spam')
+    await dialogInput(wrapper, 'Reason').setValue('Spam')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'chat')
+    await chooseOption(stepKind(wrapper, 0), 'WARN')
+    await dialogInput(wrapper, 'ELO cost (step 1)').setValue('0')
+    await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    expect(api.createTemplate, 'the warning step is saved').toHaveBeenCalledWith(
+      expect.objectContaining({ steps: [{ kind: 'WARN', duration: null, eloCost: 0 }] }),
+    )
+    wrapper.unmount()
+  })
+
+  it('asks for no duration once a step is a kick', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="new-template"]').trigger('click')
+    expect(hasDurationField(wrapper, 1), 'a punishment step asks for a duration').toBe(true)
+    await chooseOption(stepKind(wrapper, 0), 'KICK')
+
+    expect(hasDurationField(wrapper, 1), 'a kick step asks for no duration').toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows a warning step with its kind in the list instead of an empty duration', async () => {
+    const { mount } = setup({ templates: vi.fn(async () => ok([template({ steps: [{ kind: 'WARN', duration: null, eloCost: 0 }] } as never)])) })
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('tbody tr').text()).toContain('1. Warning / 0 ELO')
+    wrapper.unmount()
+  })
+
+  it('opens an existing warning step without a duration field and summarises it in words', async () => {
+    const { mount } = setup({ templates: vi.fn(async () => ok([template({ steps: [{ kind: 'WARN', duration: null, eloCost: 25 }] } as never)])) })
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="edit-hacking"]').trigger('click')
+
+    expect(hasDurationField(wrapper, 1), 'no duration for a warning').toBe(false)
+    expect(wrapper.get('[data-testid="summary"]').text()).toContain('Offence 1: warning, −25 ELO')
+    wrapper.unmount()
+  })
+
+  it('sends the warn window as ISO-8601 with the template', async () => {
+    const { api, mount } = setup()
+    const { wrapper } = await mount()
+    await wrapper.get('[data-testid="edit-hacking"]').trigger('click')
+
+    await dialogInput(wrapper, 'Warning window').setValue('30d')
+    await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    expect(api.updateTemplate).toHaveBeenCalledWith('id-hacking', expect.objectContaining({ warnWindow: 'P30D' }))
+    wrapper.unmount()
+  })
+
+  it('shows the backend message for a warning step that still has a duration, on its kind', async () => {
+    const message = 'step 1 is a WARN step and must not have a duration'
+    const { mount } = setup({ createTemplate: vi.fn(async () => fail(message, 400)) })
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="new-template"]').trigger('click')
+    await dialogInput(wrapper, 'Key').setValue('warn-spam')
+    await dialogInput(wrapper, 'Reason').setValue('Spam')
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'chat')
+    await chooseOption(stepKind(wrapper, 0), 'WARN')
+    await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[role="dialog"]').text()).toContain(message)
     wrapper.unmount()
   })
 })
