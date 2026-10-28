@@ -55,6 +55,14 @@ spec:
             {{- $env := dict
                   "BLACKHOLE_BACKEND_URL" (include "blackhole.backendUrl" (dict "ctx" . "url" $v.backendUrl))
                   "BLACKHOLE_PORTAL_ORIGIN" $v.origin }}
+            {{- with .Values.securityTxt }}{{- if .contact }}
+            {{- $_ := set $env "BLACKHOLE_SECURITY_CONTACT" .contact }}
+            {{- $_ := set $env "BLACKHOLE_SECURITY_EXPIRES" .expires }}
+            {{- if .encryption }}{{- $_ := set $env "BLACKHOLE_SECURITY_ENCRYPTION" .encryption }}{{- end }}
+            {{- if .acknowledgments }}{{- $_ := set $env "BLACKHOLE_SECURITY_ACKNOWLEDGMENTS" .acknowledgments }}{{- end }}
+            {{- if .policy }}{{- $_ := set $env "BLACKHOLE_SECURITY_POLICY" .policy }}{{- end }}
+            {{- $_ := set $env "BLACKHOLE_SECURITY_PREFERRED_LANGUAGES" .preferredLanguages }}
+            {{- end }}{{- end }}
             {{- range $key, $value := $v.env }}{{- $_ := set $env $key $value }}{{- end }}
             {{- include "blackhole.env" $env | nindent 12 }}
           {{- if $v.envFrom }}

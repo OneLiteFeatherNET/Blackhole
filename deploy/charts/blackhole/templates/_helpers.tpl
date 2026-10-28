@@ -217,4 +217,17 @@ nothing, so every render runs them.
 {{- end -}}
 {{- end -}}
 {{- end -}}
+{{- with .Values.securityTxt -}}
+{{- if .contact -}}
+{{- if not .expires -}}
+{{- fail "securityTxt.expires is required when securityTxt.contact is set: every deployment sets the expiry it has looked at (RFC 9116 Expires), there is no default" -}}
+{{- end -}}
+{{- if not (regexMatch "^[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?([Zz]|[+-][0-9]{2}:[0-9]{2})$" (toString .expires)) -}}
+{{- fail (printf "securityTxt.expires must be an RFC 3339 timestamp with a time zone, e.g. 2027-06-30T12:00:00Z (got: %s)" (toString .expires)) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- if and .Values.securityTxt.contact .Values.web.enabled (not .Values.web.origin) -}}
+{{- fail "web.origin is required when securityTxt.contact is set: security.txt names its Canonical URL on the panel origin" -}}
+{{- end -}}
 {{- end -}}

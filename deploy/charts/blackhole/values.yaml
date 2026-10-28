@@ -239,6 +239,18 @@ backend:
         limits:
           memory: 64Mi
 
+# RFC 9116 /.well-known/security.txt of the portal and the panel (BLACKHOLE_SECURITY_*). Clear contact to turn the
+# route off. Every deployment sets expires explicitly and renews it yearly: the apps refuse to start on a past or
+# more-than-a-year-ahead value. Unsigned in v1; empty policy is optional.
+securityTxt:
+  contact: mailto:security@onelitefeather.net
+  # RFC 3339 timestamp with a time zone, e.g. 2027-06-30T12:00:00Z. Required while contact is set; no default.
+  expires: ""
+  encryption: ""
+  acknowledgments: ""
+  policy: ""
+  preferredLanguages: en, de
+
 web:
   enabled: true
   replicaCount: 2
@@ -253,6 +265,9 @@ web:
   logFormat: plain
   # Empty: http://<release>-backend:<backend.service.port>
   backendUrl: ""
+  # Public origin of the panel (BLACKHOLE_UI_ORIGIN). Required when securityTxt.contact is set: security.txt names its
+  # Canonical URL on it.
+  origin: ""
   # The panel is a public OIDC client (PKCE): there is no secret.
   oidc:
     # Empty: derived from auth.tenantId.
