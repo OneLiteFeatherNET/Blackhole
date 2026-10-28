@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.tracing;
 
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.security.annotation.Secured;
@@ -13,6 +14,8 @@ import io.opentelemetry.sdk.trace.ReadableSpan;
  */
 @Controller("/trace-probe")
 @Secured(SecurityRule.IS_ANONYMOUS)
+// Only in the context of a test that sets tracing.probe, so no other context registers this route.
+@Requires(property = "tracing.probe", value = "true")
 class TraceProbeController {
 
     @Get

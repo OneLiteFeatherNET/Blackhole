@@ -5,6 +5,8 @@ import io.micronaut.http.client.HttpClient;
 import net.onelitefeather.blackhole.backend.ApiIntegrationTest;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -16,6 +18,11 @@ class TraceContextPropagationTest extends ApiIntegrationTest {
     private static final String TRACE_ID = "4bf92f3577b34da6a3ce929d0e0e4736";
     private static final String PARENT_SPAN_ID = "00f067aa0ba902b7";
     private static final String TRACEPARENT = "00-" + TRACE_ID + "-" + PARENT_SPAN_ID + "-01";
+
+    @Override
+    protected Map<String, Object> extraProperties() {
+        return Map.of("tracing.probe", "true");
+    }
 
     @Test
     void theServerSpanContinuesTheTraceOfTheTraceparentHeader() {
