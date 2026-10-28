@@ -6,9 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Blackhole is a ban system for a single Minecraft network, built to be GDPR-compliant by design.
 One backend deployment serves one network's staff, players, punishment history and integrations,
-while keeping personally identifiable data (IPs, raw player UUIDs) hashed or tokenized by default
-and out of anything published (principle 1 is being amended to allow clear-text storage with a
-legal basis and retention period, see `openspec/changes/amend-data-protection-principle`).
+while keeping personally identifiable data (IPs, raw player UUIDs, player names) out of anything
+published. Clear-text PII may be stored internally where a feature needs it, under a
+legitimate-interest basis, with a documented retention period and erasure on request; published
+data never carries it, and existing hashes stay where they do not block a feature (principle 1,
+`openspec/config.yaml`).
 There is no multi-tenancy - if multiple networks are ever needed, that's
 handled by running separate deployments, not by sharing one deployment across them.
 
