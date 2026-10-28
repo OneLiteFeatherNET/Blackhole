@@ -9,9 +9,14 @@ context: |
   (Micronaut backend, Velocity proxy plugin, generated Java API client, Vue admin UI).
 
   Principles (non-negotiable unless a change explicitly amends this block):
-  1. GDPR-by-design, single-tenant. PII (IPs, raw player UUIDs) is hashed/tokenized wherever
-     it is stored or published. No multi-tenancy, no tenantId discriminator; multiple
-     networks = multiple deployments.
+  1. GDPR-by-design, single-tenant. One backend deployment serves one network. Personally
+     identifiable data (IP addresses, raw player UUIDs, player names) MAY be stored in clear text
+     where a feature needs it. The legal basis is legitimate interest (GDPR Art. 6(1)(f)) for
+     network security and abuse prevention. Every store that holds such data MUST have a documented
+     retention period enforced by a sweeper. Erasure on request MUST remain possible. Published data
+     (public pages, events to third parties) MUST NOT carry IP addresses, raw UUIDs or player
+     names. Existing hashes stay where they do not block a feature. No multi-tenancy, no tenantId
+     discriminator; multiple networks = multiple deployments.
   2. Team SSO via Entra ID, verified actor, no tenancy. Every route except GET /health needs
      an Entra ID access token (JWT bearer) and is guarded by @Secured; the backend maps token
      claims to roles (groups for staff, app roles for the proxy and metrics) and denies by
