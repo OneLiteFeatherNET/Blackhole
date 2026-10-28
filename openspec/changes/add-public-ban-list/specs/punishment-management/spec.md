@@ -21,17 +21,17 @@ A punishment template SHALL carry an optional `publicReason`: plain text of 1 to
 
 ### Requirement: Public fields are snapshotted on apply
 
-Applying a template SHALL copy its `publicReason` and section kind onto the punishment. An optional `playerUuid` on the apply request SHALL be stored only as `public_player_hash`, never as the UUID. Amendments and revocations SHALL update only the expiry and revoke columns. None of these changes SHALL rewrite a copied value.
+Applying a template SHALL copy its `publicReason` and section kind onto the punishment. An optional `playerUuid` on the apply request SHALL be normalised to lowercase dashed form and stored on the punishment as `player_uuid`, as internal data that the ban list never returns. No player hash SHALL be stored; the ban list computes it on read. Amendments and revocations SHALL update only the expiry and revoke columns. None of these changes SHALL rewrite a copied value or the stored UUID.
 
 #### Scenario: Apply copies the snapshot
 
 - **WHEN** a template with a public reason is applied with a `playerUuid`
-- **THEN** the punishment stores that reason, its section kind and the `playerHash`, and an entry hash is computed once
+- **THEN** the punishment stores that reason, its section kind and the lowercase dashed `player_uuid`, and an entry hash is computed once
 
 #### Scenario: Apply without a UUID
 
 - **WHEN** a template with a public reason is applied and the request carries no `playerUuid`
-- **THEN** the punishment stores `public_player_hash` as null and an entry hash is computed
+- **THEN** the punishment stores no `player_uuid` and an entry hash is computed
 
 #### Scenario: Revocation sets the revoke instant
 

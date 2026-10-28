@@ -16,7 +16,8 @@ as a named client.
 
 - **New read API for authenticated clients** under the existing `/public` route prefix: `GET /public/bans` (cursor
   paginated, with the envelope of `standardize-api-pagination-and-problems`: `items`, `nextCursor`, `limit`,
-  `cursor`, signed cursor, `Link` header), `GET /public/bans/{hash}` for one entry, and `GET /public/bans/summary`
+  `cursor`, signed cursor, `Link` header, and an optional `playerHash` filter for one player), `GET /public/bans/{hash}`
+  for one entry, and `GET /public/bans/summary`
   for a count per public reason. All three require HTTP Basic Auth (RFC 7617) over HTTPS with a configured ban-list
   client. There is no anonymous access.
 - **Named ban-list clients.** A client is a name (for example the website or a partner network) with a password
@@ -25,15 +26,19 @@ as a named client.
   attributed to its client name in logs and in a metric label.
 - **Entries carry only** the public reason, the section kind (`NETWORK_BAN`, `MUTE` or `SERVER`), the status
   (`ACTIVE`, `EXPIRED` or `REVOKED`), the start day, the expiry day (or `permanent`), the end day once ended, the
-  player hash, and a stable entry hash. There is no name, no raw UUID, no Ban ID, no punishment reference, no staff
-  name, no section key and no evidence.
+  player hash, the name of the hash scheme, and a stable entry hash. There is no name, no raw UUID, no Ban ID, no
+  punishment reference, no staff name, no section key and no evidence.
 - **Player hash for partner matching.** Each listed entry carries `playerHash`: the SHA-256 of the UTF-8 string
   `blackhole-ban-list-v1:` followed by the player's UUID in lowercase dashed form, as 64 lowercase hex characters, or
   null when the punishment had no UUID. It is unkeyed on purpose, so a partner network can compute it for its own
-  players and match them against the list. The prefix is versioned (`v2` would be a new scheme) and the scheme is
-  documented in the API. The apply request carries the raw player UUID as `playerUuid`, next to `owner`. The backend
-  computes `playerHash` from it and stores only the hash on the punishment. The ban list never shows the raw UUID.
-  A punishment without a UUID is published with `playerHash` null.
+  players and match them against the list. The scheme is bound to the API version: a request for version 1 gets the
+  v1 hash, and a future v2 scheme is served only to requests for version 2. Each entry names its scheme in
+  `hashScheme` (`blackhole-ban-list-v1`). The apply request carries the raw player UUID as `playerUuid`, next to
+  `owner`. The backend stores that UUID on the punishment, as internal data that is never returned, and computes
+  `playerHash` when the list is read. The ban list never shows the raw UUID. A punishment without a UUID is published
+  with `playerHash` null.
+- **Filter by player.** `GET /public/bans` takes an optional `playerHash` (64 hex characters), an exact match that lets
+  a partner check one player without paging the whole list.
 - **Dates are rounded to the UTC day.** No exact time is returned. The cursor sort keys are the day and the hash, so
   a cursor cannot reveal an exact time either.
 - **Revoked and expired entries stay visible with their status** for a configurable retention window
@@ -57,15 +62,15 @@ clients are unaffected.
 
 ### New Capabilities
 
-- `public-ban-list`: the authenticated list and its entry fields, the player hash and its input format, the
-  named-client credentials and their Basic Auth check, the entry hash, the publication rule (template opt-in, kicks
+- `public-ban-list`: the authenticated list and its entry fields, the player hash, its input format, its binding to
+  the API version and the `playerHash` filter, the named-client credentials and their Basic Auth check, the entry hash, the publication rule (template opt-in, kicks
   excluded), day rounding, the retention window, the summary and its suppression, the no-store headers, and erasure.
 
 ### Modified Capabilities
 
 - `punishment-management`: an optional public reason on templates, the snapshot of that reason, of the section kind
-  and of the `playerHash` computed from the apply request's `playerUuid`, and the publication fields kept current on apply, amendment and
-  revocation.
+  and of the player UUID stored from the apply request's `playerUuid`, and the publication fields kept current on
+  apply, amendment and revocation.
 - `staff-authentication`: the reserved `/public/**` prefix holds exactly the three Basic Auth ban-list routes. Those
   routes use their own credential check, not an Entra token and not a Ban ID session. The staff-role rule is
   unchanged.
@@ -75,7 +80,7 @@ clients are unaffected.
 
 - **Backend**: a new `publicbans/` feature package (controller, `*Api` interface, sealed DTO marker interface,
   `@Singleton` service, JDBC reader, entry hash and day rounding helpers, Basic Auth parsing and the client
-  registry). Changes in `punishment/` (template field, the optional `playerUuid` on the apply request, the player hash computed from it, publication
+  registry). Changes in `punishment/` (template field, the optional `playerUuid` on the apply request, the stored player UUID, the publication
   writer on apply, amendment and revocation), in the erasure path (removes the entry with the punishment), in
   `security/` (a separate Basic Auth chain scoped to the three routes, leaving the Entra chain untouched), and in
   `application.yml` (`blackhole.ban-list.*`, `blackhole.public-bans.*`, and `BLACKHOLE_PUBLIC_BAN_KEY`, with a guard
@@ -87,8 +92,9 @@ clients are unaffected.
   time). It is the only new runtime dependency.
 - **Database**: one new Flyway migration `V<next>__public_ban_list.sql`. The main head is `V27__kick.sql`, and the
   number is taken at implementation time. It adds `punishment_template.public_reason`, and on `punishments`:
-  `public_reason`, `public_kind`, `public_player_hash`, `public_hash` (unique), `public_issued_day`,
-  `public_expires_at`, `public_revoked_at`, with an index on `(public_issued_day, public_hash)`. Additive only.
+  `player_uuid` (raw, nullable, internal only), `public_reason`, `public_kind`, `public_hash` (unique),
+  `public_issued_day`, `public_expires_at`, `public_revoked_at`, with an index on `(public_issued_day, public_hash)`.
+  Additive only.
   Existing rows stay unlisted (see `design.md`, migration plan).
 - **Deploy**: `deploy/charts/blackhole` gets values for the ban-list client names and an existing Secret holding one
   password hash per client, mounted as files. `BLACKHOLE_PUBLIC_BAN_KEY` comes from a Secret too.
@@ -109,8 +115,8 @@ clients are unaffected.
 
 - A portal page for the list. The API is consumed by trusted clients (the website backend and partner networks).
   No browser page is built, and no anonymous or session-based access is added.
-- Player search, lookup by name, UUID or Ban ID, any player page that shows the player's own entry, and a server-side
-  filter by `playerHash`. Partners match the full list on their side in v1 (open question 15).
+- Player search, lookup by name, UUID or Ban ID, and any player page that shows the player's own entry. The only
+  player lookup is the `playerHash` filter, which takes a hash and never a name or a UUID.
 - Names of players or staff, section keys and server names. A server ban shows its kind only.
 - Entries for kicks, warnings, and appeal outcomes beyond `REVOKED`.
 - Client management in the database or an admin UI. Clients are configuration plus Secret files in v1 (a later
