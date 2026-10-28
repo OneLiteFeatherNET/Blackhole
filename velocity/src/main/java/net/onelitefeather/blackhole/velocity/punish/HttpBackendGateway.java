@@ -8,6 +8,9 @@ import net.onelitefeather.blackhole.client.api.PunishmentTemplatesApi;
 import net.onelitefeather.blackhole.client.api.ReportApi;
 import net.onelitefeather.blackhole.client.api.DiscordLinkApi;
 import net.onelitefeather.blackhole.client.api.KickApi;
+import net.onelitefeather.blackhole.client.api.ProxyApi;
+import net.onelitefeather.blackhole.client.model.ProxyCapabilityReportRequest;
+import net.onelitefeather.blackhole.client.model.ProxyCapabilitySignedVelocity;
 import net.onelitefeather.blackhole.client.api.StaffLinkApi;
 import net.onelitefeather.blackhole.client.model.KickAccepted;
 import net.onelitefeather.blackhole.client.model.KickAck;
@@ -67,6 +70,7 @@ public final class HttpBackendGateway implements BackendGateway {
     private final ReportApi reportApi;
     private final DiscordLinkApi discordLinkApi;
     private final KickApi kickApi;
+    private final ProxyApi proxyApi;
     private volatile CachedList cachedTemplates;
     private final Clock clock;
 
@@ -80,6 +84,7 @@ public final class HttpBackendGateway implements BackendGateway {
         this.reportApi = new ReportApi(client);
         this.discordLinkApi = new DiscordLinkApi(client);
         this.kickApi = new KickApi(client);
+        this.proxyApi = new ProxyApi(client);
         this.clock = clock;
     }
 
@@ -227,5 +232,14 @@ public final class HttpBackendGateway implements BackendGateway {
     @Override
     public void acknowledgeKick(String id, String proxyId, boolean found, boolean moved) throws ApiException {
         this.kickApi.acknowledgeKick(id, new KickAck().proxyId(proxyId).found(found).moved(moved));
+    }
+
+    @Override
+    public void reportProxyCapabilities(String proxyId, boolean present, String version) throws ApiException {
+        ProxyCapabilitySignedVelocity signedVelocity = new ProxyCapabilitySignedVelocity().present(present);
+        if (version != null) {
+            signedVelocity.version(version);
+        }
+        this.proxyApi.reportProxyCapabilities(new ProxyCapabilityReportRequest().proxyId(proxyId).signedVelocity(signedVelocity));
     }
 }

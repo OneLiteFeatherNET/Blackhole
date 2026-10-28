@@ -5,18 +5,27 @@ import com.velocitypowered.api.network.ProtocolVersion;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Decides whether a muted player's chat message may be denied on the proxy.
+ * Stops a muted player's chat message on the proxy.
  *
- * <p>Since Minecraft 1.19.1 chat is signed and Velocity disconnects a player whose signed message a
- * plugin cancels. The SignedVelocity proxy plugin (with its backend plugin) makes that safe: it runs
- * after every other handler, turns a denied result into "allowed" and tells the backend server to
- * drop the message. It has no API of its own - denying the event as usual is all it needs. Without
- * it a signed message must never be denied, so the player is only told about the mute.
+ * <p>Since Minecraft 1.19.1 chat is signed, and Velocity disconnects a player whose signed message a
+ * plugin cancels. The SignedVelocity proxy plugin (with its backend plugin) makes a cancel safe: it runs
+ * after every other handler, turns a denied result into "allowed" and tells the backend server to drop
+ * the message. Without it a signed message cannot be stopped without the sender: the proxy denies the
+ * event and disconnects the sender with the mute screen ({@link Outcome#DISCONNECT}). Unsigned chat (before
+ * 1.19.1) is simply denied.</p>
  */
 public final class MuteChatDenial {
 
     /** The Velocity plugin id of SignedVelocity. */
     public static final String RELAY_PLUGIN_ID = "signedvelocity";
+
+    /** What the listener must do after the event was denied. */
+    public enum Outcome {
+        /** The message is denied; the player is told about the mute. */
+        DENIED,
+        /** The message is denied and the sender must be disconnected with the mute screen. */
+        DISCONNECT
+    }
 
     private final boolean relayPresent;
 
@@ -43,18 +52,15 @@ public final class MuteChatDenial {
     }
 
     /**
-     * Denies the message when that is safe: always for unsigned chat, for signed chat only when
-     * SignedVelocity is present.
+     * Denies the message. For signed chat without SignedVelocity the sender has to be disconnected as well,
+     * because that is the only way the proxy can keep the message from the other players.
      *
-     * @param event   the chat event of the muted player
+     * @param event   the chat event of the muted player; its result is set to denied
      * @param version the player's protocol version
-     * @return {@code true} if the message was denied, {@code false} if it is still delivered
+     * @return what the caller must do in addition to the denial
      */
-    public boolean deny(@NotNull PlayerChatEvent event, @NotNull ProtocolVersion version) {
-        if (signed(version) && !this.relayPresent) {
-            return false;
-        }
+    public Outcome deny(@NotNull PlayerChatEvent event, @NotNull ProtocolVersion version) {
         event.setResult(PlayerChatEvent.ChatResult.denied());
-        return true;
+        return signed(version) && !this.relayPresent ? Outcome.DISCONNECT : Outcome.DENIED;
     }
 }

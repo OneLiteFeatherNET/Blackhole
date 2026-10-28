@@ -37,6 +37,19 @@ public final class MuteNotices {
     }
 
     /**
+     * The reason a muted player is disconnected with when their signed message cannot be stopped
+     * otherwise: always the full mute screen, never the reminder.
+     *
+     * @param mute          the mute in force
+     * @param locale        the player's locale
+     * @param evidenceCount how many pieces of evidence the mute has
+     * @return the disconnect screen of the mute
+     */
+    public @NotNull Component disconnectScreen(@NotNull PunishmentSyncMessage mute, @NotNull Locale locale, long evidenceCount) {
+        return this.screens.screen(mute, locale, PunishmentScreens.Surface.DISCONNECT, false, evidenceCount);
+    }
+
+    /**
      * @param owner the owner hash of a player who left
      */
     public void forget(@NotNull String owner) {

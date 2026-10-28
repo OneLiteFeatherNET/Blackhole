@@ -156,4 +156,12 @@ public interface BackendGateway {
      * @param moved whether the player was moved or disconnected (a mass kick: whether at least one was)
      */
     void acknowledgeKick(String id, String proxyId, boolean found, boolean moved) throws ApiException;
+
+    /**
+     * Reports whether this proxy has SignedVelocity loaded; the backend shows staff a banner while it is
+     * missing. Replaces the proxy's previous report.
+     *
+     * @param version the SignedVelocity version, null if absent or unknown
+     */
+    void reportProxyCapabilities(String proxyId, boolean present, String version) throws ApiException;
 }

@@ -86,6 +86,12 @@ public class BlackholeConfig {
     private ClientRulesConfig clientRules;
 
     /**
+     * The mute settings, including the commands a mute covers. Absent in configs written before this
+     * setting existed, which {@link #getMute()} treats as the defaults.
+     */
+    private MuteConfig mute;
+
+    /**
      * Creates a new configuration with default values.
      */
     public BlackholeConfig() {
@@ -100,6 +106,13 @@ public class BlackholeConfig {
         this.cloudnet = new CloudNetConfig();
         this.clientRules = new ClientRulesConfig();
         this.nats = new NatsConfig();
+    }
+
+    /**
+     * @return the mute settings; the default command list for configs written before they existed
+     */
+    public @NotNull MuteConfig getMute() {
+        return mute == null ? new MuteConfig() : mute;
     }
 
     /**
