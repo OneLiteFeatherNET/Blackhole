@@ -170,7 +170,7 @@ views and the in-game alt lookup show the UUID and the name, because a hash cann
 is. The owner hash stays as the join key for the proxies, the legacy evasion data and the existing profile
 routes. The raw UUID follows the session retention (decision 7) and erasure on request. Nothing published carries
 it: `session.started` and `session.ended` carry the owner hash and the session id only, and the public ban list
-carries only that player hash, never the raw UUID, name or IP (see `add-public-ban-list`).
+carries only its own `playerHash` (unkeyed SHA-256 of the UUID, not the owner hash), never the raw UUID, name or IP (see `add-public-ban-list`).
 
 Rejected: hash-only UUID storage (staff cannot identify players, and the alt lookup and the name history become
 unreadable to a person); storing the UUID only in the punishment tables (a session would still show a hash).
