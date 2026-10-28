@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.punishment;
 
+import io.micronaut.data.annotation.Query;
 import io.micronaut.data.annotation.Repository;
 import io.micronaut.data.repository.PageableRepository;
 
@@ -31,6 +32,17 @@ public interface PunishmentRepository extends PageableRepository<PunishmentEntit
      * punishments count. This is the {@code n} of escalation step selection.
      */
     long countByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals(
+            String owner, String escalationGroup, long createdSince
+    );
+
+    /**
+     * The same count restricted to warnings. Escalation counts a warning only inside the template's warn window
+     * (or the escalation window when it sets none), so the caller subtracts this from the total and adds it back for
+     * the warn window.
+     */
+    @Query("SELECT COUNT(p) FROM PunishmentEntity p WHERE p.owner = :owner AND p.escalationGroup = :escalationGroup "
+            + "AND p.lifted = false AND p.createdAt >= :createdSince AND p.kind = net.onelitefeather.blackhole.backend.punishment.PunishmentKind.WARN")
+    long countWarningsByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals(
             String owner, String escalationGroup, long createdSince
     );
 }

@@ -37,6 +37,9 @@ public final class TemplateValidator {
         if (spec.escalationWindow() != null && Durations.parsePositive(spec.escalationWindow()).isEmpty()) {
             errors.add("escalationWindow must be a positive ISO-8601 duration when set");
         }
+        if (spec.warnWindow() != null && !spec.warnWindow().isBlank() && Durations.parsePositive(spec.warnWindow()).isEmpty()) {
+            errors.add("warnWindow must be a positive ISO-8601 duration when set");
+        }
         validateSteps(spec.steps(), errors);
         return errors;
     }
@@ -55,9 +58,9 @@ public final class TemplateValidator {
                 errors.add("step " + (i + 1) + " is missing");
                 continue;
             }
-            if (step.kind() == StepKind.KICK) {
+            if (step.kind() == StepKind.KICK || step.kind() == StepKind.WARN) {
                 if (step.duration() != null && !step.duration().isBlank()) {
-                    errors.add("step " + (i + 1) + " is a KICK step and must not have a duration");
+                    errors.add("step " + (i + 1) + " is a " + step.kind() + " step and must not have a duration");
                 }
             } else if (step.duration() == null || Durations.parsePositive(step.duration()).isEmpty()) {
                 errors.add("step " + (i + 1) + " needs a duration that is a positive ISO-8601 duration");

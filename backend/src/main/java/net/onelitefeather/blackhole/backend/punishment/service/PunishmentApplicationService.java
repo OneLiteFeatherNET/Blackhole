@@ -218,13 +218,13 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         long now = this.clock.millis();
         String group = template.getEscalationGroup() != null ? template.getEscalationGroup() : template.getTemplateKey();
         Duration window = Durations.parsePositive(template.getEscalationWindow()).orElse(this.defaultEscalationWindow);
-        // Kicks are counted too: the query does not look at the kind, so a kick is an earlier step of its group.
-        long counted = this.punishmentRepository.countByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals(
-                owner, group, now - window.toMillis()
-        );
+        long counted = countEarlier(owner, group, template, now, window);
         StepSelector.Selection selection = StepSelector.select(template.getSteps(), counted);
 
-        if (selection.step().getKind() == StepKind.KICK) {
+        if (selection.step().getKind() == StepKind.WARN) {
+            // A warning never takes the slot and never blocks: the template is all there is to check.
+            return new Planned(new Plan(template, section, now, group, selection, attribution), null);
+        } else if (selection.step().getKind() == StepKind.KICK) {
             // A kick never takes the slot, so an existing permanent punishment does not stand in its way.
             Optional<KickDTO.Error> invalid = this.kicks.checkTemplateKick(owner, request.scope(), request.target(), kickReason(template));
             if (invalid.isPresent()) {
@@ -238,6 +238,24 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
             }
         }
         return new Planned(new Plan(template, section, now, group, selection, attribution), null);
+    }
+
+    /**
+     * How many earlier punishments count towards the template's escalation group: every row that is not lifted and
+     * is inside the escalation window, except warnings; plus the warnings inside the warn window (the escalation
+     * window when the template sets none). A warning older than the warn window stays in the history but stops
+     * climbing the ladder.
+     */
+    private long countEarlier(String owner, String group, PunishmentTemplateEntity template, long now, Duration window) {
+        long all = this.punishmentRepository.countByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals(
+                owner, group, now - window.toMillis());
+        long warningsInWindow = this.punishmentRepository.countWarningsByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals(
+                owner, group, now - window.toMillis());
+        Duration warnWindow = Durations.parsePositive(template.getWarnWindow()).orElse(window);
+        long warningsInWarnWindow = warnWindow.equals(window) ? warningsInWindow
+                : this.punishmentRepository.countWarningsByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals(
+                owner, group, now - warnWindow.toMillis());
+        return all - warningsInWindow + warningsInWarnWindow;
     }
 
     /**
@@ -303,7 +321,9 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         int cost = selection.step().getEloCost();
 
         PunishmentEntity saved;
-        if (selection.step().getKind() == StepKind.KICK) {
+        if (selection.step().getKind() == StepKind.WARN) {
+            saved = recordWarning(owner, template, attribution, group, selection, now);
+        } else if (selection.step().getKind() == StepKind.KICK) {
             // The kick path: a KICK row of the group, no Ban ID, no slot, nothing active. Only the cost below is shared.
             saved = this.kicks.kickForTemplate(owner, request.scope(), request.target(), kickReason(template), attribution,
                     template, group, selection.index(), selection.stepCount(), cost);
@@ -355,13 +375,40 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
             scoreAfter = scoreBefore;
         }
 
-        if (selection.step().getKind() != StepKind.KICK) {
+        if (selection.step().getKind() == StepKind.PUNISH) {
             this.caseTimeline.applied(saved, scoreBefore, scoreAfter);
         }
         return new PunishmentDTO.ApplyResponse(
                 withEvidenceCount(saved), section.key(), section.enforcement(),
                 selection.index() + 1, selection.stepCount(), scoreBefore, scoreAfter, escalation
         );
+    }
+
+    /**
+     * Stores the warning a WARN step stands for: a WARN row of the template's escalation group, with a Ban ID and in the
+     * player's history, never in an active slot. Charging the step's ELO cost is the caller's job.
+     */
+    private PunishmentEntity recordWarning(String owner, PunishmentTemplateEntity template, Attribution attribution,
+                                           String group, StepSelector.Selection selection, long now) {
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put(Metadata.META_DATA_KEY_CREATION_DATE, now);
+        metadata.put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
+        metadata.put("reason", kickReason(template));
+        PunishmentEntity warning = new PunishmentEntity(
+                IdGenerator.generateId(), attribution.source(), owner, null, false, now, template, metadata);
+        warning.recordWarning();
+        warning.recordEscalation(group, selection.index(), selection.stepCount(), selection.step().getEloCost());
+        warning.setRecordedByOid(attribution.recordedByOid());
+        warning.setActorOid(attribution.actorOid());
+        PunishmentEntity saved = this.punishmentRepository.save(warning);
+        this.banIds.issue(saved.getIdentifier());
+        try {
+            this.slots.appendHistory(owner, saved.getIdentifier());
+            this.profileCache.evict(owner);
+        } catch (RuntimeException e) {
+            LOGGER.warn("Could not add warning {} to the player's history", saved.getIdentifier(), e);
+        }
+        return saved;
     }
 
     /** The reason a template kick shows the player: the template's reason, cut to what a kick may carry. */
