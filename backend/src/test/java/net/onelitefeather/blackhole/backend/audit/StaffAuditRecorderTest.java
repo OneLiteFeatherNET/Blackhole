@@ -5,12 +5,11 @@ import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.ActorKind;
 import net.onelitefeather.blackhole.backend.security.Attribution;
+import net.onelitefeather.blackhole.backend.support.InMemoryStaffAuditStore;
 import net.onelitefeather.blackhole.backend.support.RecordingEventTransport;
 import net.onelitefeather.blackhole.backend.support.TestClock;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,16 +22,9 @@ class StaffAuditRecorderTest {
 
     private static final UUID MOD = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
-    private final List<StaffAuditEntry> rows = new ArrayList<>();
+    private final InMemoryStaffAuditStore store = new InMemoryStaffAuditStore();
     private final RecordingEventTransport transport = new RecordingEventTransport();
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
-    private boolean failInsert;
-    private final StaffAuditStore store = entry -> {
-        if (failInsert) {
-            throw new IllegalStateException("database is down");
-        }
-        rows.add(entry);
-    };
     private final TestClock clock = new TestClock();
     private final StaffAuditRecorder recorder = new StaffAuditRecorder(
             store, new DomainEventPublisher(transport, clock), new AuditPayloadGuard(), clock, meters);
@@ -45,8 +37,8 @@ class StaffAuditRecorderTest {
                 AuditTarget.ofCase("AB12CD34"));
 
         assertInstanceOf(StaffAuditRecorder.Outcome.Recorded.class, outcome);
-        assertEquals(1, rows.size(), "exactly one row stored");
-        StaffAuditEntry row = rows.getFirst();
+        assertEquals(1, store.rows().size(), "exactly one row stored");
+        StaffAuditEntry row = store.rows().getFirst();
         assertEquals(Surface.PANEL, row.surface());
         assertEquals("punishment.revoke", row.action());
         assertEquals("CASE", row.targetKind());
@@ -63,13 +55,13 @@ class StaffAuditRecorderTest {
         assertEquals(1, transport.published().size(), "exactly one event published");
         RecordingEventTransport.Published published = transport.published().getFirst();
         assertEquals("staff.action", published.eventType());
-        assertEquals(rows.getFirst().auditId().toString(), published.event().eventId());
+        assertEquals(store.rows().getFirst().auditId().toString(), published.event().eventId());
     }
 
     @Test
     void failedInsertIsReportedAsUnrecordedAndPublishesNothing() {
         Actor mod = new Actor(MOD, "Mod", ActorKind.HUMAN, false);
-        failInsert = true;
+        store.failInserts(true);
 
         StaffAuditRecorder.Outcome outcome = recorder.record(mod.attribution(), mod, AuditAction.KICK_CREATE, AuditTarget.none());
 
@@ -86,7 +78,7 @@ class StaffAuditRecorderTest {
 
         recorder.record(attribution, proxy, AuditAction.PUNISHMENT_REVOKE, AuditTarget.ofCase("AB12CD34"));
 
-        StaffAuditEntry row = rows.getFirst();
+        StaffAuditEntry row = store.rows().getFirst();
         assertEquals(Surface.IN_GAME, row.surface());
         assertEquals(MOD, row.actorOid());
         assertEquals(proxyOid, row.recordedByOid());

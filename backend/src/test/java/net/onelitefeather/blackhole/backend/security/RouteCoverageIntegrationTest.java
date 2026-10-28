@@ -131,6 +131,8 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /admin/import/punishments/retemplate", A),
             Map.entry("GET /admin/staff-actor", A),
             Map.entry("POST /admin/staff-actor/{oid}/anonymize", A),
+            // the staff audit log is read by administrators only
+            Map.entry("GET /admin/audit", A),
             // erasure and destructive
             Map.entry("POST /case/{reference}/notes/{noteId}/redact", A),
             Map.entry("POST /case/{reference}/messages/{messageId}/redact", A),
