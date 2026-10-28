@@ -81,15 +81,14 @@ describe('usePanelStack', () => {
     expect(router.currentRoute.value.query.panel).toBe('client-rule:new')
   })
 
-  it('removes a sheet the role may not use from the URL, without any request', async () => {
-    const api = { loadRule: vi.fn() }
+  it('removes a sheet the role may not use from the URL and opens nothing', async () => {
     const router = await routerAt('/cases?panel=evidence:CASE-12')
-    usePanelStack({ router, allowed: () => false })
+    const stack = usePanelStack({ router, allowed: () => false })
 
     await flushPromises()
 
     expect(router.currentRoute.value.query.panel, 'the forbidden token is gone from the URL').toBeUndefined()
-    expect(api.loadRule, 'no request was made for it').not.toHaveBeenCalled()
+    expect(stack.tokens.value, 'no sheet is open').toEqual([])
   })
 
   it('keeps the sheets the role may use when it removes a forbidden one', async () => {
