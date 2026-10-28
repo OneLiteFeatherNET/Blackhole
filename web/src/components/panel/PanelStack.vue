@@ -32,9 +32,11 @@ function isTop(index: number): boolean {
         v-if="props.registry[token.kind]"
         :target="token.target"
         :size-class="props.sizeClass"
+        :covered="!isTop(index)"
         @close="isTop(index) && emit('close-top')"
         @back="isTop(index) && emit('close-top')"
         @request-close="isTop(index) && emit('request-close')"
+        @reveal="emit('close-top')"
       />
     </template>
   </div>

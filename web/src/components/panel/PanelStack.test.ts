@@ -16,13 +16,25 @@ afterEach(() => {
 
 /** A registry entry: a sheet that wraps itself in SidePanel and titles itself with its target. */
 const Sheet: Component = defineComponent({
-  props: { target: { type: String, required: true }, sizeClass: { type: String, default: 'expanded' } },
-  emits: ['close', 'back', 'request-close'],
+  props: {
+    target: { type: String, required: true },
+    sizeClass: { type: String, default: 'expanded' },
+    covered: { type: Boolean, default: false },
+  },
+  emits: ['close', 'back', 'request-close', 'reveal'],
   setup(props, { emit }) {
     return () =>
-      h(SidePanel, { title: props.target, sizeClass: props.sizeClass as WindowClass, onClose: () => emit('close') }, () => [
-        h('button', { type: 'button' }, `Save ${props.target}`),
-      ])
+      h(
+        SidePanel,
+        {
+          title: props.target,
+          sizeClass: props.sizeClass as WindowClass,
+          covered: props.covered,
+          onClose: () => emit('close'),
+          onReveal: () => emit('reveal'),
+        },
+        () => [h('button', { type: 'button' }, `Save ${props.target}`)],
+      )
   },
 })
 
@@ -71,6 +83,21 @@ describe('PanelStack', () => {
     await wrapper.findAll('[role="complementary"]')[1]!.trigger('keydown', { key: 'Escape' })
 
     expect(wrapper.emitted('close-top')).toHaveLength(1)
+  })
+
+  it('covers the parent with a strip on expanded width, and activating the strip closes the child', async () => {
+    const wrapper = mountStack(
+      [
+        { kind: 'evidence', target: 'CASE-12' },
+        { kind: 'client-rule', target: 'new' },
+      ],
+      { sizeClass: 'expanded' },
+    )
+
+    expect(wrapper.find('button[aria-label="Back to CASE-12"]').exists(), 'the parent shows as a strip').toBe(true)
+    await wrapper.get('button[aria-label="Back to CASE-12"]').trigger('click')
+
+    expect(wrapper.emitted('close-top'), 'the child is closed, the parent is top again').toHaveLength(1)
   })
 
   it('renders nothing for a kind the registry does not have, and does not throw', () => {

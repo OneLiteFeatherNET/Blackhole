@@ -180,3 +180,58 @@ describe('SidePanel motion', () => {
     expect(wrapper.get('transition-stub').attributes('name')).toBe('md-fade')
   })
 })
+
+describe('SidePanel page behind a compact sheet', () => {
+  it('makes the page behind a compact sheet inert and releases it when the sheet is closed', () => {
+    const page = document.createElement('main')
+    document.body.appendChild(page)
+    const wrapper = mountPanel({ sizeClass: 'compact' })
+    expect(page.hasAttribute('inert'), 'inert while open').toBe(true)
+
+    wrapper.unmount()
+    mounted.splice(mounted.indexOf(wrapper), 1)
+
+    expect(page.hasAttribute('inert'), 'interactive again after close').toBe(false)
+  })
+
+  it.each(['medium', 'expanded'])('leaves the page interactive on %s width', (sizeClass) => {
+    const page = document.createElement('main')
+    document.body.appendChild(page)
+
+    mountPanel({ sizeClass })
+
+    expect(page.hasAttribute('inert')).toBe(false)
+  })
+})
+
+describe('SidePanel covered parent', () => {
+  it('shows a 48 px strip labelled with its title when covered on expanded width', () => {
+    const wrapper = mountPanel({ title: 'CASE-12', covered: true, sizeClass: 'expanded' })
+
+    expect(wrapper.find('button[aria-label="Back to CASE-12"]').exists()).toBe(true)
+    expect(wrapper.get('[role="complementary"]').classes()).toContain('w-12')
+  })
+
+  it('brings the parent back when the strip is activated', async () => {
+    const wrapper = mountPanel({ title: 'CASE-12', covered: true, sizeClass: 'expanded' })
+
+    await wrapper.get('button[aria-label="Back to CASE-12"]').trigger('click')
+
+    expect(wrapper.emitted('reveal')).toHaveLength(1)
+  })
+
+  it('keeps the input of a covered sheet, hidden and still mounted', () => {
+    const wrapper = mountPanel({ covered: true, sizeClass: 'expanded' }, () => [h('button', { type: 'button' }, 'Save')])
+
+    const save = wrapper.findAll('button').find((button) => button.text() === 'Save')
+
+    expect(save, 'the field is still in the sheet').toBeDefined()
+    expect(save!.isVisible(), 'and not shown').toBe(false)
+  })
+
+  it('does not show a strip on medium width (only expanded covers its parent)', () => {
+    const wrapper = mountPanel({ title: 'CASE-12', covered: true, sizeClass: 'medium' })
+
+    expect(wrapper.find('button[aria-label="Back to CASE-12"]').exists()).toBe(false)
+  })
+})
