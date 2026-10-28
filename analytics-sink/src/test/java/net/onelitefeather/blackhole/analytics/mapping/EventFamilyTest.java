@@ -16,7 +16,7 @@ class EventFamilyTest {
 
     @ParameterizedTest
     @ValueSource(strings = {
-            "punishment.created", "punishment.updated", "punishment.expired", "punishment.revoked",
+            "punishment.created", "punishment.updated", "punishment.expired", "punishment.revoked", "punishment.kick",
             "profile.created", "profile.updated", "profile.deleted",
             "appeal.submitted", "appeal.resolved",
             "report.created", "report.resolved", "report.feedback",
@@ -40,7 +40,7 @@ class EventFamilyTest {
 
     @Test
     void unknownEventTypeMapsToNoFamily() {
-        Optional<EventFamily> family = EventFamily.of("punishment.kick");
+        Optional<EventFamily> family = EventFamily.of("punishment.unknown-type");
 
         assertFalse(family.isPresent(), "an event type outside the table must not be mapped to any family");
     }

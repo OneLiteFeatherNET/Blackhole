@@ -26,6 +26,29 @@ class PseudonymityGuardTest {
     }
 
     @Test
+    void rawPlayerUuidUnderThePlayerUuidKeyIsDeadLettered() {
+        assertPseudonymityViolation(Map.of("playerUuid", RAW_PLAYER_UUID), "playerUuid");
+    }
+
+    @Test
+    void rawPlayerUuidUnderTheUuidKeyIsDeadLettered() {
+        assertPseudonymityViolation(Map.of("uuid", RAW_PLAYER_UUID), "uuid");
+    }
+
+    @Test
+    void playerUuidUnderAnIdentifierLikeKeyIsStillDeadLettered() {
+        assertPseudonymityViolation(Map.of("playerIdentifier", RAW_PLAYER_UUID), "playerIdentifier");
+    }
+
+    private void assertPseudonymityViolation(Map<String, Object> payload, String key) {
+        MappingResult result = mapper.map(EventFixtures.envelope("profile.created", payload));
+
+        DeadLetter deadLetter = assertInstanceOf(DeadLetter.class, result, "a raw player UUID under " + key + " must be refused");
+        assertEquals(DeadLetterReason.PSEUDONYMITY_VIOLATION, deadLetter.reason());
+        assertTrue(deadLetter.detail().contains(key), "the detail should name the key: " + deadLetter.detail());
+    }
+
+    @Test
     void ipAddressAnywhereInThePayloadIsDeadLettered() {
         MappingResult result = mapper.map(EventFixtures.envelope("evasion.detected", Map.of(
                 "token", "t".repeat(64),

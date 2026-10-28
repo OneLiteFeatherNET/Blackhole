@@ -38,6 +38,22 @@ class PunishmentEventMapperTest {
     }
 
     @Test
+    void punishmentKickMapsToThePunishmentTableWithItsKickIdAsTypedColumn() {
+        String kickId = "5c0e8f2a-7d1b-4e3c-9a6f-1b2c3d4e5f60";
+        EventRow row = mapped(EventFixtures.envelope("punishment.kick", Map.of(
+                "eventId", "6d1f9a3b-8e2c-4f4d-8b7a-2c3d4e5f6a71",
+                "kickId", kickId,
+                "owner", EventFixtures.OWNER_HASH,
+                "scope", "NETWORK",
+                "occurredAt", EventFixtures.OCCURRED_AT_MILLIS)));
+
+        assertEquals("punishment_events", row.table(), "a kick is a punishment event");
+        assertEquals(EventFixtures.OWNER_HASH, row.owner());
+        assertEquals(kickId, row.typed().get("kickId"), "the kick id is an entity id, not a player identity");
+        assertTrue(row.extra().contains("\"scope\":\"NETWORK\""), "scope has no typed column and stays in extra: " + row.extra());
+    }
+
+    @Test
     void booleanColumnWithANonBooleanValueIsDeadLettered() {
         Map<String, Object> payload = Map.of(
                 "owner", EventFixtures.OWNER_HASH,
