@@ -72,6 +72,8 @@ dependencies {
     testImplementation(mn.junit.jupiter.params)
     testRuntimeOnly(mn.junit.jupiter.engine)
     testImplementation(mn.micronaut.test.junit5)
+    // InMemorySpanExporter for the tracing tests; no collector is involved.
+    testImplementation(libs.opentelemetry.sdk.testing)
     // Integration tests run against real PostgreSQL/NATS/Redis containers (Testcontainers).
     testImplementation(mn.testcontainers.postgres)
     testImplementation(mn.testcontainers.redis)
