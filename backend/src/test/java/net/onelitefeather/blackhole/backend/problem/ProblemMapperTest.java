@@ -78,6 +78,16 @@ class ProblemMapperTest {
     }
 
     @Test
+    void aRequestThatMatchedNoRouteHasAboutBlankAsInstanceAndNoPathIdentifier() {
+        io.micronaut.http.HttpRequest<?> request = io.micronaut.http.HttpRequest.GET("/no-such-route/123456789");
+
+        String instance = ProblemMapper.instance(request);
+
+        assertEquals("about:blank", instance, "no route matched, so the instance is the fixed value");
+        assertFalse(instance.contains("123456789"), "the unmatched path is never the instance");
+    }
+
+    @Test
     void theUnexpectedErrorIsAFixedInternalError() {
         ProblemMapper.Mapped mapped = ProblemMapper.unexpected(INSTANCE);
 

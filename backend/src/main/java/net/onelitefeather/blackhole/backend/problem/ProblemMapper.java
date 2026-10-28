@@ -6,6 +6,9 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.context.ServerRequestContext;
+import io.micronaut.web.router.RouteAttributes;
+import io.micronaut.web.router.RouteMatch;
+import io.micronaut.web.router.UriRouteInfo;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicError;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.response.ErrorResponse;
@@ -13,6 +16,7 @@ import net.onelitefeather.blackhole.backend.response.ErrorResponse;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * The one place that turns a failure into a status and a problem body (design D5). Controllers and
@@ -37,6 +41,9 @@ public final class ProblemMapper {
 
     private static final String PUBLIC_DETAIL = "The request could not be completed; see code for the reason.";
     private static final String UNEXPECTED_DETAIL = "An unexpected error occurred.";
+
+    /** The instance of a problem for a request that matched no route: a fixed value, never the unmatched path. */
+    public static final String NO_ROUTE_INSTANCE = "about:blank";
 
     private ProblemMapper() {
         throw new UnsupportedOperationException("This class cannot be instantiated");
@@ -95,10 +102,22 @@ public final class ProblemMapper {
         return fromStatus(HttpStatus.INTERNAL_SERVER_ERROR, UNEXPECTED_DETAIL, instance, Map.of());
     }
 
-    /** The path of the request being served, the {@code instance} of a problem a controller answers with. */
+    /**
+     * The {@code instance} of a problem: the URI template of the route that matched the request, so no identifier from the
+     * path is echoed ({@code /discord/link/{discordUserId}}). A request that matched no route gets {@link #NO_ROUTE_INSTANCE}.
+     */
+    public static String instance(HttpRequest<?> request) {
+        Optional<RouteMatch<?>> match = RouteAttributes.getRouteMatch(request);
+        if (match.isPresent() && match.get().getRouteInfo() instanceof UriRouteInfo<?, ?> route) {
+            return route.getUriMatchTemplate().toString();
+        }
+        return NO_ROUTE_INSTANCE;
+    }
+
+    /** The {@code instance} of a problem a controller answers with, for the request being served. */
     public static String instance() {
         return ServerRequestContext.currentRequest()
-                .map(HttpRequest::getPath)
+                .map(ProblemMapper::instance)
                 .orElseThrow(() -> new IllegalStateException("a problem is answered outside a request"));
     }
 

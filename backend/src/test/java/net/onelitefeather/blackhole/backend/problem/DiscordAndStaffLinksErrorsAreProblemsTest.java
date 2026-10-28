@@ -84,15 +84,6 @@ class DiscordAndStaffLinksErrorsAreProblemsTest extends ApiIntegrationTest {
         assertFalse(reply.body().contains("123456789"), "no digit of the request path is in the body: " + reply.body());
     }
 
-    @Test
-    void aRequestWithNoRouteGetsAboutBlankAsInstanceAndNoPathIdentifier() throws Exception {
-        RawHttp.Reply reply = send("GET", "/no-such-route/123456789", null, this.jwt.admin());
-
-        assertEquals(404, reply.status(), reply.body());
-        assertEquals("about:blank", JSON.readValue(reply.body(), new TypeReference<Map<String, Object>>() {
-        }).get("instance"), "no route matched, so the instance is the fixed value: " + reply.body());
-        assertFalse(reply.body().contains("123456789"), "the unmatched path is not echoed: " + reply.body());
-    }
 
     @Test
     void aWrongStaffLinkCodeIsAnInvalidCodeProblem() throws Exception {

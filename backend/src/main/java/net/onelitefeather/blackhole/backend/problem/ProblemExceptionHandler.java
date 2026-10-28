@@ -47,7 +47,7 @@ public class ProblemExceptionHandler implements ExceptionHandler<Exception, Http
 
     /** Maps any failure of a route to its problem response. */
     static HttpResponse<ProblemDetail> respond(HttpRequest<?> request, Exception exception) {
-        return respond(map(request.getPath(), exception));
+        return respond(map(ProblemMapper.instance(request), exception));
     }
 
     private static ProblemMapper.Mapped map(String path, Exception exception) {
