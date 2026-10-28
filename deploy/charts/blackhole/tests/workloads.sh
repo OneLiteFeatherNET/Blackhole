@@ -173,6 +173,10 @@ audit="$(pod_env "${prod}" t-discord DISCORD_AUDIT_WEBHOOK_URL)"
 assert_eq "audit webhook comes from the discord Secret" "blackhole-discord" "$(yq eval '.valueFrom.secretKeyRef.name' - <<<"${audit}")"
 assert_eq "audit webhook reads the default key" "DISCORD_AUDIT_WEBHOOK_URL" "$(yq eval '.valueFrom.secretKeyRef.key' - <<<"${audit}")"
 assert_eq "audit webhook is not in the ConfigMap" "null" "$(dc DISCORD_AUDIT_WEBHOOK_URL)"
+assert_eq "audit webhook reference is optional (an old Secret still starts the bot)" "true" "$(yq eval '.valueFrom.secretKeyRef.optional' - <<<"${audit}")"
+audit_off="${WORK_DIR}/audit-off.yaml"
+render_to prod-values.yaml "${audit_off}" --set discord.auditWebhookKey=
+assert_eq "no audit webhook entry when no key is named" "" "$(pod_env "${audit_off}" t-discord DISCORD_AUDIT_WEBHOOK_URL)"
 audit_key="${WORK_DIR}/audit-key.yaml"
 render_to prod-values.yaml "${audit_key}" --set discord.auditWebhookKey=staff-audit-hook
 assert_eq "audit webhook key is the one the values name" "staff-audit-hook" "$(yq eval '.valueFrom.secretKeyRef.key' - <<<"$(pod_env "${audit_key}" t-discord DISCORD_AUDIT_WEBHOOK_URL)")"

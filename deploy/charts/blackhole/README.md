@@ -57,7 +57,7 @@ Names are chosen in the values; the keys inside are fixed.
 | `s3.existingSecret` | `blackhole-s3` | `BLACKHOLE_EVIDENCE_S3_ACCESS_KEY`, `BLACKHOLE_EVIDENCE_S3_SECRET_KEY` (names changeable with `s3.accessKeyKey` / `s3.secretKeyKey`, e.g. to the `AWS_*` keys of an ObjectBucketClaim Secret) |
 | `nats.existingSecret` | `blackhole-nats` | `nats.creds` (changeable with `nats.credsKey`); mounted at `nats.credsMountPath` |
 | `backend.nats.existingSecret`, `discord.nats.existingSecret` | e.g. `blackhole-nats-backend`, `blackhole-nats-bot` | optional per-component NATS user: `nats.creds` or the key in `<component>.nats.credsKey`; empty values fall back to the shared `nats.*` (the backend and the bot are different NATS users) |
-| `discord.existingSecret` | `blackhole-discord` | `DISCORD_TOKEN`, `BLACKHOLE_DISCORD_CLIENT_SECRET`, and `DISCORD_AUDIT_WEBHOOK_URL` (the staff audit channel's webhook; the key name is `discord.auditWebhookKey`). The bot refuses to start without the audit key, so add it before upgrading and raise `discord.secretRevision` |
+| `discord.existingSecret` | `blackhole-discord` | `DISCORD_TOKEN`, `BLACKHOLE_DISCORD_CLIENT_SECRET`, and `DISCORD_AUDIT_WEBHOOK_URL` (the staff audit channel's webhook; the key name is `discord.auditWebhookKey`). The key is optional (empty `discord.auditWebhookKey` turns the audit off); add it, then raise `discord.secretRevision` to roll the bot |
 | `backend.metrics.serviceMonitor.oauth2.existingSecret` | `blackhole-metrics` | `BLACKHOLE_METRICS_CLIENT_ID`, `BLACKHOLE_METRICS_CLIENT_SECRET` (only with the ServiceMonitor) |
 | `global.imagePullSecrets` | `harbor-pull` | a `kubernetes.io/dockerconfigjson` Secret |
 

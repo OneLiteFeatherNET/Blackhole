@@ -1008,7 +1008,6 @@
         },
         "auditWebhookKey": {
           "type": "string",
-          "minLength": 1,
           "description": "Key of existingSecret that holds the staff audit webhook URL. A secret: never a value in the values."
         },
         "clientId": {

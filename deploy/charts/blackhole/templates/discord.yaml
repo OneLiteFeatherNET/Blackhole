@@ -51,7 +51,15 @@ spec:
           env:
             {{- include "blackhole.secretEnv" (dict "name" "DISCORD_TOKEN" "secret" $v.existingSecret "key" "DISCORD_TOKEN") | nindent 12 }}
             {{- include "blackhole.secretEnv" (dict "name" "BLACKHOLE_DISCORD_CLIENT_SECRET" "secret" $v.existingSecret "key" "BLACKHOLE_DISCORD_CLIENT_SECRET") | nindent 12 }}
-            {{- include "blackhole.secretEnv" (dict "name" "DISCORD_AUDIT_WEBHOOK_URL" "secret" $v.existingSecret "key" $v.auditWebhookKey) | nindent 12 }}
+            {{- /* The audit is optional in the bot: no key named, no reference. optional keeps an old Secret starting. */ -}}
+            {{- if $v.auditWebhookKey }}
+            - name: DISCORD_AUDIT_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $v.existingSecret }}
+                  key: {{ $v.auditWebhookKey }}
+                  optional: true
+            {{- end }}
             {{- include "blackhole.env" $v.env | nindent 12 }}
           envFrom:
             - configMapRef:

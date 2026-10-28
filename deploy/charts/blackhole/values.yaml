@@ -425,8 +425,8 @@ discord:
     credsKey: ""
   # Secret with the keys DISCORD_TOKEN and BLACKHOLE_DISCORD_CLIENT_SECRET.
   existingSecret: ""
-  # Key of existingSecret that holds the staff audit webhook URL (DISCORD_AUDIT_WEBHOOK_URL). The bot refuses to
-  # start without it. It is a secret: never a value here. Add the key before upgrading, then bump secretRevision.
+  # Key of existingSecret that holds the staff audit webhook URL (DISCORD_AUDIT_WEBHOOK_URL). Optional: empty
+  # turns the audit off in the bot. It is a secret: never a value here. Add the key, then bump secretRevision.
   auditWebhookKey: DISCORD_AUDIT_WEBHOOK_URL
   # Entra client of "Blackhole Discord (<env>)". The tenant is auth.tenantId.
   clientId: ""
