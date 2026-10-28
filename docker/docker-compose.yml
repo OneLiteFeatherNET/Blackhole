@@ -19,7 +19,7 @@ services:
   # development runs without authentication. 4222 is the client port, 8222 the monitoring port
   # (http://localhost:8222/jsz reports the JetStream state).
   nats:
-    image: nats:2.15.1-alpine
+    image: nats:2.15.2-alpine
     container_name: 'nats_blackhole'
     command: ["-js", "-sd", "/data", "-m", "8222"]
     networks:
