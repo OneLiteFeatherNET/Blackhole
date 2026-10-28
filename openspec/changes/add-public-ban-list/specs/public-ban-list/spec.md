@@ -91,9 +91,9 @@ Basic credentials SHALL NOT be evaluated over plain HTTP. A request to a ban-lis
 - **WHEN** the ingress forwards the request with `X-Forwarded-Proto: https`
 - **THEN** the credentials are evaluated normally
 
-### Requirement: Client attribution without credential leaks
+### Requirement: Client attribution without credential or identifier leaks
 
-Every request to a ban-list route SHALL be attributed to its client in the access log and in the metric `blackhole_ban_list_requests_total{client, route, status}`. A failed attempt SHALL NOT log the submitted client name. The `Authorization` header and any password SHALL NOT appear in any log line or metric label at any level.
+Every request to a ban-list route SHALL be attributed to its client in the access log and in the metric `blackhole_ban_list_requests_total{client, route, status}`. A failed attempt SHALL NOT log the submitted client name. The `Authorization` header and any password SHALL NOT appear in any log line or metric label at any level. A raw player UUID, a player name and an IP address SHALL NOT appear in any log line or metric label of a ban-list route at any level.
 
 #### Scenario: Successful request is attributed
 
@@ -110,33 +110,72 @@ Every request to a ban-list route SHALL be attributed to its client in the acces
 - **WHEN** a request with valid credentials is logged at debug level
 - **THEN** no log line contains the `Authorization` header or the password
 
-### Requirement: Entries carry no player reference
+#### Scenario: No player identifier in logs or metrics
 
-Every entry SHALL carry only the fields `hash`, `reason`, `kind`, `status`, `issuedOn`, `permanent`, `expiresOn` and `endedOn`. No entry, list, summary or error SHALL contain a player name, a player UUID, a hash of a UUID, a Ban ID, a punishment identifier or reference, a staff or actor identifier, an owner hash, an IP address, a section key, a scope, an ELO value, evidence, the name of a client, or an exact instant.
+- **WHEN** a client reads an entry of a player whose UUID and name are known to the backend
+- **THEN** no log line and no metric label of that request contains the UUID, the name or the IP address of that player
+
+### Requirement: Entries carry a player hash and no other player reference
+
+Every entry SHALL carry exactly the fields `hash`, `playerHash`, `reason`, `kind`, `status`, `issuedOn`, `permanent`, `expiresOn` and `endedOn`. No entry, list, summary or error SHALL contain a raw player UUID in any notation, a player name, a Ban ID, a punishment identifier or reference, a staff or actor identifier, the stored `owner` value, an IP address, a section key, a scope, an ELO value, evidence, the name of a client, or an exact instant.
 
 #### Scenario: Entry has only the allowed fields
 
 - **WHEN** any entry is read through the list or the single read
-- **THEN** its JSON object has exactly the fields `hash`, `reason`, `kind`, `status`, `issuedOn`, `permanent`, `expiresOn` and `endedOn`
+- **THEN** its JSON object has exactly the fields `hash`, `playerHash`, `reason`, `kind`, `status`, `issuedOn`, `permanent`, `expiresOn` and `endedOn`
 
 #### Scenario: No identifier leaks in the page
 
-- **WHEN** the list of a database that contains a punishment with a known Ban ID, reference and owner hash is read
-- **THEN** none of those values appears in the body, in the `Link` header or in the cursor (the cursor decodes to a day and a hash only)
+- **WHEN** the list of a database that contains a punishment with a known Ban ID, reference, owner value, player name and player UUID is read
+- **THEN** none of the Ban ID, the reference, the owner value, the name or the UUID appears in the body, in the `Link` header or in the cursor, and the `playerHash` of the entry is present (the cursor decodes to a day and a hash only)
+
+### Requirement: Player hash for partner matching
+
+Each listed entry SHALL carry `playerHash`: the lowercase hex SHA-256 digest (64 characters) of the UTF-8 input string `blackhole-ban-list-v1:` plus the player's UUID in lowercase dashed form. The hash SHALL NOT be keyed. The prefix SHALL be versioned and documented in the OpenAPI description of the field. The caller that holds the UUID SHALL compute the value and send it with the apply request; the backend SHALL store it and SHALL NOT receive or derive the UUID.
+
+#### Scenario: Exact input string and test vector
+
+- **WHEN** the player UUID is `123e4567-e89b-12d3-a456-426614174000`
+- **THEN** the digested input is exactly `blackhole-ban-list-v1:123e4567-e89b-12d3-a456-426614174000` (no quotes, no trailing newline) and `playerHash` is `9efc1073aa30a316b4d4930dbf73bf852be666299041e930c9763de9f0c03029`
+
+#### Scenario: Uppercase or undashed UUID gives the same hash
+
+- **WHEN** the caller holds the UUID as `123E4567E89B12D3A456426614174000`
+- **THEN** the caller normalises it to lowercase dashed form first, and the `playerHash` is the same as in the test vector
+
+#### Scenario: Partner reproduces the hash without the backend
+
+- **WHEN** a partner network holds the UUID of one of its players and the scheme prefix `blackhole-ban-list-v1:`
+- **THEN** it computes the same `playerHash` locally, with no secret and no call to the backend, and finds the entry if one is listed
+
+#### Scenario: Hash does not depend on any key
+
+- **WHEN** `BLACKHOLE_PUBLIC_BAN_KEY` or `BLACKHOLE_BANID_KEY` is changed
+- **THEN** every `playerHash` is unchanged
+
+#### Scenario: Malformed value is refused
+
+- **WHEN** an apply request carries a `playerHash` that is not 64 hexadecimal characters
+- **THEN** the request is refused with a validation error that does not echo the value
 
 ### Requirement: Listing is opt-in per template and excludes kicks
 
-A punishment SHALL be listed only when it is of kind `PUNISHMENT`, its template has a non-blank `publicReason`, and its section resolves to a section kind. The public reason and the section kind SHALL be copied onto the punishment when it is applied. Kicks, manual punishments without a template, and punishments whose template has no public reason SHALL NOT be listed.
+A punishment SHALL be listed only when it is of kind `PUNISHMENT`, its template has a non-blank `publicReason`, its section resolves to a section kind, and the apply request carried a valid `playerHash`. The public reason, the section kind and the `playerHash` SHALL be copied onto the punishment when it is applied. Kicks, manual punishments without a template, punishments whose template has no public reason, and punishments applied without a `playerHash` SHALL NOT be listed.
 
 #### Scenario: Template with a public reason
 
-- **WHEN** a template with `publicReason` "Cheating in competitive modes" is applied to a player in the network section
+- **WHEN** a template with `publicReason` "Cheating in competitive modes" is applied to a player in the network section with a valid `playerHash`
 - **THEN** the punishment is listed with reason "Cheating in competitive modes" and kind `NETWORK_BAN`
 
 #### Scenario: Template without a public reason
 
 - **WHEN** a template without `publicReason` is applied
-- **THEN** the punishment is not in the list and its hash is not computed
+- **THEN** the punishment is not in the list and neither its entry hash nor its `playerHash` is stored
+
+#### Scenario: Application without a player hash
+
+- **WHEN** a template with a public reason is applied and the request carries no `playerHash`
+- **THEN** the punishment is not in the list and its entry hash is not computed
 
 #### Scenario: Kick is never listed
 
@@ -253,16 +292,16 @@ Every answer of `GET /public/bans`, `GET /public/bans/{hash}` and `GET /public/b
 
 ### Requirement: Erasure removes the entry
 
-When the punishments of an owner are erased on a valid erasure request, the erasure SHALL clear the listing columns of those punishments, so that their entries leave the list at once and their hashes answer 404.
+When the punishments of an owner are erased on a valid erasure request, the erasure SHALL clear the listing columns of those punishments, including `public_player_hash`, so that their entries leave the list at once and their hashes answer 404.
 
 #### Scenario: Erased punishment disappears
 
 - **WHEN** the owner of a listed punishment is erased
-- **THEN** the punishment is no longer in the list, the summary no longer counts it, and its former hash answers 404
+- **THEN** the punishment is no longer in the list, the summary no longer counts it, its former hash answers 404, and its `public_player_hash` is cleared
 
-### Requirement: Listed entries carry no personal identifiers
+### Requirement: Listed entries carry no raw identifiers
 
-Entries SHALL NOT carry an IP address, a raw UUID or a name, as `amend-data-protection-principle` requires for anything published. A public reason that contains an IP address, a UUID or a Ban ID SHALL be refused when the template is saved, with a validation error that does not echo the value.
+Entries SHALL NOT carry an IP address, a raw UUID or a name, as `amend-data-protection-principle` requires for anything published. The `playerHash` is the only player-derived value an entry carries. A public reason that contains an IP address, a UUID or a Ban ID SHALL be refused when the template is saved, with a validation error that does not echo the value.
 
 #### Scenario: Reason with an IP address is refused
 

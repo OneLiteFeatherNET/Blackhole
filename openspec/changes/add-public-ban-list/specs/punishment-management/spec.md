@@ -21,12 +21,17 @@ A punishment template SHALL carry an optional `publicReason`: plain text of 1 to
 
 ### Requirement: Public fields are snapshotted on apply
 
-Applying a template SHALL copy its `publicReason` and the kind of the punishment's section onto the new punishment as `public_reason` and `public_kind`, and SHALL compute its entry hash. An amendment that changes the expiry SHALL update `public_expires_at`. A revocation SHALL set `public_revoked_at`. None of these changes SHALL rewrite a reason that was already copied.
+Applying a template SHALL copy its `publicReason` and the kind of the punishment's section onto the new punishment as `public_reason` and `public_kind`. An optional, valid `playerHash` on the apply request SHALL be stored as `public_player_hash`. An amendment that changes the expiry SHALL update `public_expires_at`. A revocation SHALL set `public_revoked_at`. None of these changes SHALL rewrite a copied value.
 
 #### Scenario: Apply copies the snapshot
 
-- **WHEN** a template with a public reason is applied
-- **THEN** the punishment stores that reason and its section kind, and a hash is computed once
+- **WHEN** a template with a public reason is applied with a valid `playerHash`
+- **THEN** the punishment stores that reason, its section kind and the `playerHash`, and an entry hash is computed once
+
+#### Scenario: Apply without a player hash
+
+- **WHEN** a template with a public reason is applied and the request carries no `playerHash`
+- **THEN** the punishment stores no `public_player_hash`, is not listed, and no entry hash is computed
 
 #### Scenario: Revocation sets the revoke instant
 
