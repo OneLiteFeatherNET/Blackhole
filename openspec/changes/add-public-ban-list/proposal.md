@@ -34,8 +34,9 @@ as a named client.
   players and match them against the list. The scheme is bound to the API version: a request for version 1 gets the
   v1 hash, and a future v2 scheme is served only to requests for version 2. Each entry names its scheme in
   `hashScheme` (`blackhole-ban-list-v1`). The apply request carries the raw player UUID as `playerUuid`, next to
-  `owner`. The backend stores that UUID on the punishment, as internal data that is never returned, and computes
-  `playerHash` when the list is read. The ban list never shows the raw UUID. A punishment without a UUID is published
+  `owner`. The backend stores that UUID on the punishment as a `uuid` column, internal data that is never returned.
+  PostgreSQL derives `playerHash` from it in a generated column, and the list reads that column. The ban list never
+  shows the raw UUID. A punishment without a UUID is published
   with `playerHash` null.
 - **Filter by player.** `GET /public/bans` takes an optional `playerHash` (64 hex characters), an exact match that lets
   a partner check one player without paging the whole list.
@@ -51,7 +52,7 @@ as a named client.
 - **Template editor** (admin web) gets the optional public reason field, with a length and PII check.
 - **Authentication**: the Basic Auth chain is separate from the Entra JWT chain. These three routes are the only
   routes that accept Basic credentials, and they reject Bearer tokens. This is a deliberate exception to
-  `openspec/config.yaml` principle 2, recorded in `design.md` and in the open questions.
+  `openspec/config.yaml` principle 2, decided by the maintainer on 2026-10-28 (`design.md`, D1).
 - **Rate limiting** stays in infrastructure (`config.yaml` principle 5). The application adds no limiter for these
   routes.
 
@@ -92,9 +93,9 @@ clients are unaffected.
   time). It is the only new runtime dependency.
 - **Database**: one new Flyway migration `V<next>__public_ban_list.sql`. The main head is `V27__kick.sql`, and the
   number is taken at implementation time. It adds `punishment_template.public_reason`, and on `punishments`:
-  `player_uuid` (raw, nullable, internal only), `public_reason`, `public_kind`, `public_hash` (unique),
-  `public_issued_day`, `public_expires_at`, `public_revoked_at`, with an index on `(public_issued_day, public_hash)`.
-  Additive only.
+  `player_uuid uuid` (raw, nullable, internal only), `player_hash_v1` (a `STORED` generated column, indexed),
+  `public_reason`, `public_kind`, `public_hash` (unique), `public_issued_day`, `public_expires_at`, `public_revoked_at`,
+  with an index on `(public_issued_day, public_hash)`. Additive only.
   Existing rows stay unlisted (see `design.md`, migration plan).
 - **Deploy**: `deploy/charts/blackhole` gets values for the ban-list client names and an existing Secret holding one
   password hash per client, mounted as files. `BLACKHOLE_PUBLIC_BAN_KEY` comes from a Secret too.
@@ -109,7 +110,7 @@ clients are unaffected.
   uses the same envelope and is adjusted when it lands. `amend-data-protection-principle` is a prerequisite: it allows the backend to hold raw UUIDs, while the list
   publishes only the hash. `add-player-intelligence` is a prerequisite too: its decision 10 already has Velocity send and
   store the raw player UUID, which this change reads. `add-kick` is the source of the `KICK` kind, which this change excludes. The principle 2
-  exception needs the maintainer's confirmation or an amendment of `openspec/config.yaml` (open question 1).
+  exception is decided by the maintainer (`design.md`, D1) and is not an amendment of `openspec/config.yaml`.
 
 ## Out of scope
 

@@ -2,7 +2,7 @@
 
 ### Requirement: Reserved prefix for the player portal
 
-The route prefix `/public/**` SHALL be reserved for the later player portal. The only routes registered under it by the `public-ban-list` capability are `GET /public/bans`, `GET /public/bans/summary` and `GET /public/bans/{hash}`. These routes are not anonymous and not staff routes: they SHALL be answered only through the Basic Auth check of a configured ban-list client, and they SHALL NOT accept an Entra access token, a Ban ID session or a player session token. This is a deliberate exception to `openspec/config.yaml` principle 2 (Entra JWT on every route except `GET /health`) and is an open question for the maintainer. Every other route under the prefix MUST declare its own explicit security rule and MUST NOT use the staff roles.
+The route prefix `/public/**` SHALL be reserved for the later player portal. The only routes registered under it by the `public-ban-list` capability are `GET /public/bans`, `GET /public/bans/summary` and `GET /public/bans/{hash}`. These routes are not anonymous and not staff routes: they SHALL be answered only through the Basic Auth check of a configured ban-list client, and they SHALL NOT accept an Entra access token, a Ban ID session or a player session token. This is a deliberate exception to `openspec/config.yaml` principle 2 (Entra JWT on every route except `GET /health`), decided by the maintainer on 2026-10-28. Every other route under the prefix MUST declare its own explicit security rule and MUST NOT use the staff roles.
 
 #### Scenario: No route under the prefix
 

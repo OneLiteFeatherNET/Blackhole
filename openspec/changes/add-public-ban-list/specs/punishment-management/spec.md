@@ -21,12 +21,17 @@ A punishment template SHALL carry an optional `publicReason`: plain text of 1 to
 
 ### Requirement: Public fields are snapshotted on apply
 
-Applying a template SHALL copy its `publicReason` and section kind onto the punishment. An optional `playerUuid` on the apply request SHALL be normalised to lowercase dashed form and stored on the punishment as `player_uuid`, as internal data that the ban list never returns. No player hash SHALL be stored; the ban list computes it on read. Amendments and revocations SHALL update only the expiry and revoke columns. None of these changes SHALL rewrite a copied value or the stored UUID.
+Applying a template SHALL copy its `publicReason` and section kind onto the punishment. An optional `playerUuid` on the apply request SHALL be stored on the punishment as `player_uuid`, internal data that the ban list never returns. The application SHALL NOT write a player hash. Amendments and revocations SHALL update only the expiry and revoke columns. None of these changes SHALL rewrite a copied value or the stored UUID.
+
+#### Scenario: Player hash is derived by the database
+
+- **WHEN** a punishment is stored with a `player_uuid`
+- **THEN** `player_hash_v1` is derived by PostgreSQL in the generated column, and the insert statement does not name it
 
 #### Scenario: Apply copies the snapshot
 
 - **WHEN** a template with a public reason is applied with a `playerUuid`
-- **THEN** the punishment stores that reason, its section kind and the lowercase dashed `player_uuid`, and an entry hash is computed once
+- **THEN** the punishment stores that reason, its section kind and the `player_uuid`, and an entry hash is computed once
 
 #### Scenario: Apply without a UUID
 

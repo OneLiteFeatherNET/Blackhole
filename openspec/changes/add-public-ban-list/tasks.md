@@ -12,7 +12,7 @@
 - Do not add a Co-Authored-By or session trailer to commits.
 - Preconditions: `standardize-api-pagination-and-problems` is applied (envelope, problem body, `CursorCodec`, the
   `BLACKHOLE_CURSOR_KEY` config). `add-kick` is applied (`PunishmentKind`). `amend-data-protection-principle` is applied.
-  Open question 1 (the principle 2 exception) is answered. `add-player-intelligence` is applied (Velocity sends the raw player UUID).
+  The principle 2 exception is decided (`design.md`, D1). `add-player-intelligence` is applied (Velocity sends the raw player UUID).
 - Test vector used by every player-hash test: UUID `123e4567-e89b-12d3-a456-426614174000`, digest
   `9efc1073aa30a316b4d4930dbf73bf852be666299041e930c9763de9f0c03029` (input
   `blackhole-ban-list-v1:123e4567-e89b-12d3-a456-426614174000`).
@@ -23,11 +23,12 @@
   entry hash is 22 base64url characters; the same identifier and key give the same hash; a different identifier gives a
   different hash; a different `BLACKHOLE_PUBLIC_BAN_KEY` gives a different hash; the hash of the same bytes under
   the Ban ID key differs (separate labels).
-- [ ] 1.2 Red: `PublicBanPlayerHashTest.java`: the digested input is exactly `blackhole-ban-list-v1:` plus the lowercase
-  dashed UUID (UTF-8, no newline); the test vector gives `9efc1073...c03029`; an uppercase and an undashed spelling of the
-  same UUID give the same value; the value is 64 lowercase hex characters; a different UUID gives a different value; the
-  value does not change when either backend key changes (it uses no key). The value is computed from the stored
-  lowercase dashed UUID on read, and the `@Version("1")` answer uses the `blackhole-ban-list-v1:` prefix.
+- [ ] 1.2 Red: `PublicBanPlayerHashTest.java` (integration, `@Tag("integration")`, Testcontainers PostgreSQL as in
+  `PostgresIntegrationTest`): the generated column `player_hash_v1` of a punishment with UUID
+  `123e4567-e89b-12d3-a456-426614174000` is `9efc1073...c03029`; it is `char(64)` and lowercase hex; an uppercase or
+  undashed input is stored as the same `uuid` and gives the same value; a different UUID gives a different value; the
+  column is NULL without a UUID; the column does not change when either backend key changes (no key is in the
+  expression). The application never writes the column (the insert statement does not name it).
 - [ ] 1.3 Red: `PublicBanDayTest.java`: day rounding of an instant at 23:59:59 UTC and at 00:00:00 UTC; the day is
   UTC regardless of the default zone.
 - [ ] 1.4 Red: `PublicBanStatusTest.java` with a fixed `Clock`: ACTIVE for a permanent entry; EXPIRED once the expiry
@@ -42,7 +43,7 @@
 - [ ] 1.7 Red: `PublicBanApplyRequestTest.java`: the apply request accepts an absent `playerUuid` (no `player_uuid` is
   stored); accepts a UUID in dashed or 32-hex-digit form in any case, and stores the test-vector UUID in lowercase dashed
   form; refuses any other value, with a validation message that does not echo the value.
-- [ ] 1.8 Implement: `publicbans/PublicBanPlayerHasher.java` (SHA-256 over the input string of 1.2, lowercase hex),
+- [ ] 1.8 Implement: no Java player hasher. The Flyway migration of 1.10 holds the one implementation of the scheme.
   `publicbans/PublicBanHasher.java` (HKDF-SHA256 derivation from `BLACKHOLE_PUBLIC_BAN_KEY`, label
   `blackhole-public-ban-entry-v1`, HMAC over the identifier, 16 bytes, base64url), `PublicBanDay.java` (UTC day),
   `PublicBanStatus.java` (pure function of the stored columns and the clock).
@@ -50,16 +51,18 @@
   outside `dev` and `test`; the message names the variable and never prints the key. Test first:
   `PublicBanKeyGuardTest.java`.
 - [ ] 1.10 Migration `backend/src/main/resources/db/migration/V<next>__public_ban_list.sql` (the number is assigned at
-  implementation time, as in the conventions above): `punishment_template.public_reason`; `punishments.player_uuid`
-  (`VARCHAR(36)`, nullable, internal), `public_reason`, `public_kind`, `public_hash` (unique), `public_issued_day`,
-  `public_expires_at`, `public_revoked_at`; index `(public_issued_day, public_hash)`. No `public_player_hash` column. Test first: a repository test that
-  applies the migration to a scratch database and checks the columns and the unique index.
+  implementation time, as in the conventions above) on PostgreSQL: `punishment_template.public_reason`; `punishments.player_uuid uuid`
+  (nullable, internal), `player_hash_v1 char(64) GENERATED ALWAYS AS (encode(sha256(convert_to('blackhole-ban-list-v1:' ||
+  player_uuid::text, 'UTF8')), 'hex')) STORED` with index `ix_punishments_player_hash_v1`, `public_reason`, `public_kind`,
+  `public_hash` (unique), `public_issued_day`, `public_expires_at`, `public_revoked_at`; index `(public_issued_day,
+  public_hash)`. Test first: the integration test of 1.2 (Testcontainers) applies the migration and checks the columns,
+  the generated expression and the two indexes.
 - [ ] 1.11 Template field: `PunishTemplateDTO` (`publicReason` on the request and the response, optional), `TemplateSpec`,
   `TemplateValidator` (length, PiiGuard, blank treated as absent; the ADMIN-only rule is enforced in the controller's
   role rule).
 - [ ] 1.12 Apply request field: the apply request DTO that carries `owner` today gets an optional `playerUuid` (raw UUID,
-  dashed or 32 hex digits, any case). The service normalises it to lowercase dashed form and stores it as `player_uuid`.
-  No hash is stored. Implement after 1.7.
+  dashed or 32 hex digits, any case). The service validates it and stores it as `player_uuid`. The application writes no
+  hash; the generated column derives it. Implement after 1.7.
 - [ ] 1.13 Listing writer: on apply, copy `publicReason` and the section kind, store the normalised `player_uuid` (none
   without a UUID), compute the entry hash, set `public_issued_day`, `public_expires_at`. A missing UUID does not
   prevent listing. On amendment update `public_expires_at`; on revoke set `public_revoked_at`. Kicks are skipped. Test
@@ -135,9 +138,9 @@
   `dto/PublicBansDTO.java` (one sealed marker interface: `Entry`, `Page`, `Summary`, `Error`), and
   `publicbans/service/PublicBansService.java` (`@Singleton`, returns the `Error` variant for expected failures).
 - [ ] 4.8 Implement: `JdbcPublicBanReader.java` (keyset query `ORDER BY public_issued_day DESC, public_hash DESC` with the
-  window condition `COALESCE(public_revoked_at, public_expires_at)`, no `@Transactional`), the `playerHash` filter as the
-  SQL condition of 4.13, and the summary query. The v1 `playerHash` and `hashScheme` are set in the service from
-  `player_uuid`, not in SQL.
+  window condition `COALESCE(public_revoked_at, public_expires_at)`, no `@Transactional`), the `playerHash` filter as
+  `player_hash_v1 = ?` (uses the index of 1.10), and the summary query. The v1 `playerHash` is read from `player_hash_v1`
+  and `hashScheme` is set in the service.
 - [ ] 4.9 Implement: `application.yml` settings with comments: `blackhole.public-bans.retention`
   (`BLACKHOLE_PUBLIC_BANS_RETENTION`, `P90D`), `blackhole.public-bans.summary-min-count`
   (`BLACKHOLE_PUBLIC_BANS_SUMMARY_MIN_COUNT`, `5`), and `BLACKHOLE_PUBLIC_BAN_KEY` with an empty default.
@@ -150,9 +153,9 @@
   test-vector UUID returns only that entry; the uppercase spelling gives the same page; 63 characters and a non-hex
   character are 400 with an `errors` entry for `playerHash` and the value is not echoed; an unknown value is an empty
   page with `nextCursor` null; a filter that matches more than the limit pages without short pages.
-- [ ] 4.13 Red: `PublicBanPlayerHashSqlTest.java` (repository test on a scratch database): the filter SQL
-  `SHA2(CONCAT('blackhole-ban-list-v1:', player_uuid), 256)` returns `9efc1073...c03029` for the test-vector UUID and
-  the same value as `PublicBanPlayerHasher` for two other fixtures.
+- [ ] 4.13 Red: `PublicBanPlayerHashFilterIntegrationTest.java` (Testcontainers PostgreSQL): `GET /public/bans?playerHash=`
+  with the test-vector value returns the one listed entry of that UUID, through the index of 1.10; an uppercase value
+  gives the same entry; the value of a punishment without a UUID matches nothing.
 - [ ] 4.14 Red: `PublicBanVersionRoutingTest.java`: no version header, `X-API-VERSION: 1` and `api-version=1` give the same
   answer with `hashScheme` `blackhole-ban-list-v1` and the v1 `playerHash`; the entry `hash` is identical across them; a
   version with no route never gets a `blackhole-ban-list-v1` hash. The v2 case is written with the v2 scheme when a v2
@@ -166,7 +169,7 @@
 - [ ] 5.2 Add `client/specs/blackhole-api-<next>.yml` (next version after `0.0.44`) with the three routes, the HTTP
   basic security scheme on them, the `playerHash` query parameter, the entry, page, summary and error schemas, the template field, and the optional `playerUuid` on the apply request. The `hashScheme` field says which scheme the `playerHash` of that answer uses. The `playerHash` field description states the input string
   `blackhole-ban-list-v1:` plus the lowercase dashed UUID, the SHA-256 hex output, the test vector, and that the backend
-  computes it when the list is read, for the API version of the request. Bump `inputSpec` in `client/build.gradle.kts`.
+  reads it from the database for the API version of the request. Bump `inputSpec` in `client/build.gradle.kts`.
 - [ ] 5.3 Regenerate with `./gradlew :client:openApiGenerate` and run `./gradlew :client:compileJava`. Do not edit the
   generated sources by hand.
 
@@ -190,8 +193,8 @@
 ## 8. Documentation
 
 - [ ] 8.1 `.claude/rules/public-bans.md` (path-scoped to `backend/**/publicbans/**`): the
-  listing rule, the entry hash rule, the player hash rule (input string, lowercase dashed UUID, computed on read from the
-  stored `player_uuid`, bound to the API version, no key), the `playerHash` filter, day rounding, status and retention, the Basic Auth clients and their rotation by restart, the
+  listing rule, the entry hash rule, the player hash rule (input string, lowercase dashed UUID, derived by PostgreSQL in the
+  generated column `player_hash_v1` from the stored `player_uuid`, bound to the API version, no key), the `playerHash` filter, day rounding, status and retention, the Basic Auth clients and their rotation by restart, the
   offline command that produces an Argon2id PHC hash with the fixed parameters, the template review step for reasons,
   and erasure.
 - [ ] 8.2 One line in `.claude/rules/public-api.md` saying the ban-list routes are Basic Auth protected and are not

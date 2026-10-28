@@ -10,9 +10,9 @@ The code this design builds on (checked on `origin/main`, 2026-10-28):
 - The `owner` is computed by the caller and is a SHA-512 hex value (`utils/OwnerHash`). It cannot give the player hash of
   decision 14. The apply request therefore carries the raw player UUID as `playerUuid`. The backend may hold it under
   `amend-data-protection-principle`, and `add-player-intelligence` (decision 10) already sends it from Velocity. The
-  backend stores it on the punishment as `player_uuid` (internal only) and computes `playerHash` from it when the list
-  is read. The older rule in `OwnerHash` (raw UUIDs never reach the backend) is superseded by that amendment. Open
-  question 15 is answered in decision 14.
+  backend stores it on the punishment as `player_uuid uuid` (internal only), and PostgreSQL derives `player_hash_v1`
+  from it (decision 14). The older rule in `OwnerHash` (raw UUIDs never reach the backend) is superseded by that
+  amendment. Open question 15 is answered in decision 14.
 - Expiry is applied lazily as well as by a sweep: `ActivePunishmentExpirer` and `PunishmentExpirySweeper` clear
   expired rows, and "Expired punishments are cleared on profile read" (punishment-management). A stored "expired"
   status would therefore lag behind the real expiry. This design derives EXPIRED from the expiry instant on read.
@@ -26,8 +26,8 @@ The code this design builds on (checked on `origin/main`, 2026-10-28):
   same. `/public/**` is reserved by `staff-authentication` for the later player portal, with no route under it yet
   (`openspec/specs/staff-authentication/spec.md`, "Reserved prefix for the player portal").
 - `openspec/config.yaml` principle 2: every route except `GET /health` needs an Entra ID access token (JWT bearer) and
-  denies by default. This change adds a deliberate exception for three routes (decision 6). The exception is not
-  yet ratified (open question 1).
+  denies by default. This change adds a deliberate exception for three routes (decision 6). The exception was
+  decided by the maintainer on 2026-10-28 (Decided, D1).
 - `standardize-api-pagination-and-problems` (proposal on `main`, not applied): `CursorPage<T>{items, nextCursor}`,
   `limit` 1 to 200 with default 50 and a 400 instead of a clamp (D6), signed cursor
   `base64url(payload) "." base64url(HMAC-SHA256(BLACKHOLE_CURSOR_KEY, payload))` (D7), RFC 8288 `Link` (D15),
@@ -65,7 +65,7 @@ punishment:
   `add-kick` decision 1).
 
 The text and the section kind are copied onto the punishment when it is applied (`public_reason`, `public_kind`). The
-player UUID is stored on the punishment as `player_uuid`, as internal data, and the list reads the hash from it
+player UUID is stored on the punishment as `player_uuid`, as internal data, and the list reads the generated hash from it
 (decision 14). Later template edits do not change listed entries. The `publicReason` on a
 template is the only text the list shows: it is never derived from the staff `reason`, which may name a rule detail or
 a case.
@@ -119,7 +119,7 @@ Alternatives considered:
 
 **Principle 2 exception.** `config.yaml` principle 2 says every route except `GET /health` needs an Entra ID access
 token. The three ban-list routes do not accept one (decision 6). This is a deliberate exception. It does not amend
-the principle, because this change does not own that block. It is an open question for the maintainer (question 1).
+the principle, because this change does not own that block. The maintainer decided the exception on 2026-10-28 (Decided, item D1).
 
 ### 3. Entry fields and their vocabulary
 
@@ -128,7 +128,7 @@ An entry, as returned by the list and the single read:
 | field | value | notes |
 |---|---|---|
 | `hash` | 22 characters, base64url | 128 bits of the keyed entry hash (decision 4) |
-| `playerHash` | 64 lowercase hex characters, or `null` | SHA-256 of the player's UUID with the prefix of the API version that answered (decision 14); computed on read; `null` when the punishment had no UUID |
+| `playerHash` | 64 lowercase hex characters, or `null` | SHA-256 of the player's UUID with the prefix of the API version that answered (decision 14); read from the generated column `player_hash_v1`; `null` when the punishment had no UUID |
 | `hashScheme` | `blackhole-ban-list-v1` | the scheme that `playerHash` belongs to, for the version that answered (decision 14); present on every entry, even when `playerHash` is `null` |
 | `reason` | `publicReason` snapshot | plain text, never Markdown |
 | `kind` | `NETWORK_BAN`, `MUTE`, `SERVER` | from `public_kind`: `BAN` maps to `NETWORK_BAN` |
@@ -356,7 +356,7 @@ Each row is a way a reader could link an entry to a person, and what this design
     UUID can check whether that player is listed, and a name is enough to get there for many players: Mojang's API maps
     names to UUIDs, and offline-mode UUIDs are derived from the name alone. The list is therefore pseudonymised, not
     anonymised. The limits are Basic Auth on the routes (decision 2) and no-store (decision 7). The decision to publish
-    the hash is the maintainer's (decision 14). Listing is justified by the operator's decision (open question 10).
+    the hash is the maintainer's (decision 14). Listing rests on the operator's decision of 2026-10-28 (Decided, item D2).
     The minimisation here is that entries carry no more than the list needs, and the retention window bounds how long
     they stay.
 
@@ -374,17 +374,27 @@ No event is published for listed entries. The list reads the punishment table di
 generated client gets the new routes, the Basic Auth scheme for them, the template field and the optional apply field
 as additive changes.
 
-### 14. Player hash: unkeyed SHA-256 of the UUID, bound to the API version, computed on read
+### 14. Player hash: unkeyed SHA-256 of the UUID, bound to the API version, derived by the database
 
 Decision of the maintainer, 2026-10-28: "Internally staff may see who was banned. The list we publish may only carry a
-hash, together with the reason, so other networks can adopt the bans. We never publish the raw UUID."
+hash, together with the reason, so other networks can adopt the bans. We never publish the raw UUID." The database
+engine is PostgreSQL, so the derivation is a generated column (below), and the application only reads it.
 
-**Storage.** The punishment row stores the player's UUID as `player_uuid` (`VARCHAR(36)`, lowercase dashed form,
-nullable). It is internal data: staff views may show it, and the list never returns it. It lives as long as the
-punishment does, and erasure of the owner clears it (decision 11, item 10). No player hash is stored.
+**Storage.** The punishment row stores the player's UUID as `player_uuid uuid NULL`. It is internal data: staff views may
+show it, and the list never returns it. It lives as long as the punishment does, and erasure of the owner clears it
+(decision 11, item 10). The application never writes a hash. The database derives it in a generated column:
 
-**Read path.** The list computes `playerHash` for each answer from the stored UUID. The published entry carries a
-`playerHash`:
+```
+player_uuid       uuid NULL
+player_hash_v1    char(64) GENERATED ALWAYS AS
+                  (encode(sha256(convert_to('blackhole-ban-list-v1:' || player_uuid::text, 'UTF8')), 'hex')) STORED
+```
+
+`uuid::text` is lowercase dashed form, so the input matches the scheme without any normalisation in Java. The column
+is indexed. A later `player_hash_v2` generated column for API v2 is added the same way, and PostgreSQL computes it for
+all existing rows, so no backfill job is needed. The Postgres expression is the single implementation of the scheme.
+
+**Read path.** The list reads `player_hash_v1` for each v1 answer. The published entry carries a `playerHash`:
 
 ```
 playerHash = lowercase_hex( SHA-256( UTF-8( "blackhole-ban-list-v1:" || uuid ) ) )
@@ -400,32 +410,28 @@ Test vector: UUID `123e4567-e89b-12d3-a456-426614174000` gives
 (`micronaut.router.versioning` in `application.yml`: `X-API-VERSION` header or `v`/`api-version` query, default
 version 1):
 
-- The `@Version("1")` methods of `PublicBansController` compute the `blackhole-ban-list-v1:` hash and answer
+- The `@Version("1")` methods of `PublicBansController` read `player_hash_v1` and answer
   `hashScheme: "blackhole-ban-list-v1"`. A request with neither a version header nor a version parameter gets version 1.
-- A future scheme ships as `@Version("2")` methods beside the v1 ones, with prefix `blackhole-ban-list-v2:` and
-  `hashScheme: "blackhole-ban-list-v2"`. Partners move by sending `X-API-VERSION: 2`. v1 keeps answering until its
+- A future scheme ships as `@Version("2")` methods beside the v1 ones, reading a `player_hash_v2` generated column with
+  prefix `blackhole-ban-list-v2:` and `hashScheme: "blackhole-ban-list-v2"`. Partners move by sending `X-API-VERSION: 2`. v1 keeps answering until its
   callers are gone, and the default version stays 1 until then.
 - A version with no route is refused by the versioning rules. It never falls back to the v1 scheme.
 - The entry `hash` (decision 4) and the stored `public_hash` do not depend on the version. Only `playerHash` and
   `hashScheme` do.
 
-Why computed on read and not stored: a stored v1 hash could never be recomputed under a v2 scheme for an old entry
-without its UUID. Computing from the stored UUID lets every version derive its own hash for every entry.
+Why a generated column and not a Java hash: a v2 scheme must cover entries stored under v1 without the application
+rewriting them. A generated column over the stored UUID gives every version its own hash for every row, and the
+database keeps it current.
 
-**Who computes the input.** The UUID comes from the `playerUuid` of the apply request. Velocity, the backend import
+**Who writes the input.** The UUID comes from the `playerUuid` of the apply request. Velocity, the backend import
 path, the admin web and the Discord bot send the raw UUID the same way, next to `owner`, when they know it. The backend
-checks the format and normalises the UUID to lowercase dashed form when it stores it. The hash itself is computed by
-`PublicBanPlayerHasher` on the read path. The raw UUID is not published. Internal staff views may show it through
-`add-player-intelligence` (its decision 10). The ban list never does. A punishment without a UUID has no
-`player_uuid`, gets `playerHash` null and is published without it.
+checks the format and stores it as `uuid`. The raw UUID is not published. Internal staff views may show it through
+`add-player-intelligence` (its decision 10). The ban list never does. A punishment without a UUID has a NULL
+`player_uuid`, a NULL `player_hash_v1`, gets `playerHash` null and is published without it.
 
-**Filter.** `GET /public/bans?playerHash=<64 hex>` returns the listed entries whose hash equals the value. No hash is
-stored, so the database computes the same value over the listed rows in the window:
-`SHA2(CONCAT('blackhole-ban-list-v1:', player_uuid), 256) = ?` for version 1. A repository test pins that the SQL
-expression and `PublicBanPlayerHasher` give the test vector, so there are two implementations and one test that checks
-they agree. The filter scans the listed rows and has no index. An index would need a stored hash, which this decision
-rejects. That is accepted at the expected size of the list and is to be revisited if the list grows. The filter is
-applied in the query, so every page stays full and `nextCursor` follows the same rules as the unfiltered list.
+**Filter.** `GET /public/bans?playerHash=<64 hex>` returns the listed entries whose `player_hash_v1` equals the value,
+using the index on that column. The filter is applied in the query, so every page stays full and `nextCursor` follows
+the same rules as the unfiltered list. The filter does not scan the table.
 
 Prerequisites: `amend-data-protection-principle` allows the backend to hold raw UUIDs, and `add-player-intelligence`
 already sends them from Velocity. Both are required before the code PR.
@@ -445,12 +451,13 @@ Alternatives considered:
 - *Keyed HMAC with a secret key*: rejected. Partners cannot match without the key. Sharing the key with every partner
   makes it effectively unkeyed, and withholding it leaves them unable to match.
 - *Raw UUID*: rejected by the maintainer. Anyone with list access could read who is banned.
-- *Store the hash on the punishment, one column per scheme*: rejected. A v2 scheme could not be computed for entries
-  that were stored under v1 without their UUID, and the filter would need a column per scheme. Storing the UUID once
-  and computing per version keeps one source of truth.
+- *Hash in Java at write time, one stored hash per scheme*: rejected. It is a second implementation of the scheme, and
+  every new scheme needs a backfill job over the old rows.
+- *Hash at query time (`SHA2(CONCAT(...))` in the WHERE clause)*: rejected. It cannot use an index, so the filter would
+  scan the table.
 - *Velocity computes the hash and sends `playerHash`*: rejected. Velocity, imports, the admin web and the Discord bot
-  would each need the same code, and imports, the admin web and the Discord bot have no Velocity. The backend keeps the
-  scheme in one Java class, with the SQL filter tested against it.
+  would each need the same code, and imports, the admin web and the Discord bot have no Velocity. The scheme lives in
+  one database expression, the generated column.
 
 Risks and trade-offs, stated plainly:
 
@@ -467,7 +474,8 @@ Risks and trade-offs, stated plainly:
   Partners must move to the new version. Each entry names its scheme in `hashScheme`, so a stored entry shows which
   scheme its `playerHash` belongs to.
 - **Stored UUIDs are personal data at rest.** The backend now holds the raw UUID of each punishment that has one. It is
-  not returned, it is cleared on erasure, and it is covered by `amend-data-protection-principle` (open question 10).
+  not returned, it is cleared on erasure, and it is covered by `amend-data-protection-principle`. The maintainer decided
+  on 2026-10-28 not to pursue a separate GDPR review for this change (see Decided, item D2).
 
 ### Risks / Trade-offs
 
@@ -482,8 +490,8 @@ Risks and trade-offs, stated plainly:
 - **A summary with a higher threshold hides real rules.** The threshold is configurable, and rows stay with `suppressed`.
 - **Backfill is not done.** Existing bans are not on the list until a maintainer decides to list them (open question 6).
   Existing rows have no `player_uuid`, so they could not be listed without a source of UUIDs.
-- **The principle 2 exception is not yet ratified.** Until open question 1 is closed, this change cannot be merged on its
-  own terms.
+- **The principle 2 exception is a maintainer decision, not yet an amendment of `config.yaml`.** It is decided (see
+  Decided, item D1). The code PR is still the place to record it, and `CLAUDE.md` may need a note.
 - **Callers that do not know the UUID.** Such punishments are published with `playerHash` null, so partners cannot
   match them. Open question 15 is answered in decision 14.
 
@@ -493,13 +501,17 @@ Flyway, append-only, the next free version at implementation time (`V<next>__pub
 `V27__kick.sql`). The migration:
 
 1. `ALTER TABLE punishment_template ADD COLUMN public_reason VARCHAR(200) NULL`.
-2. `ALTER TABLE punishments ADD COLUMN player_uuid VARCHAR(36) NULL, public_reason VARCHAR(200) NULL,
+2. `ALTER TABLE punishments ADD COLUMN player_uuid uuid NULL, public_reason VARCHAR(200) NULL,
    public_kind VARCHAR(16) NULL, public_hash VARCHAR(22) NULL, public_issued_day BIGINT NULL,
-   public_expires_at BIGINT NULL, public_revoked_at BIGINT NULL`. `player_uuid` is internal and is never returned. No
-   `playerHash` column is added: the hash is computed on read (decision 14).
-3. `CREATE UNIQUE INDEX ux_punishments_public_hash ON punishments (public_hash)` (where supported; the engine is
-   confirmed from `docker/docker-compose.yml`, see the pagination change D8).
+   public_expires_at BIGINT NULL, public_revoked_at BIGINT NULL`. `player_uuid` is internal and is never returned.
+   Then `ALTER TABLE punishments ADD COLUMN player_hash_v1 char(64) GENERATED ALWAYS AS
+   (encode(sha256(convert_to('blackhole-ban-list-v1:' || player_uuid::text, 'UTF8')), 'hex')) STORED`, which PostgreSQL
+   fills for existing rows (NULL where there is no UUID). Decision 14 has the reasoning.
+3. `CREATE UNIQUE INDEX ux_punishments_public_hash ON punishments (public_hash)`.
 4. `CREATE INDEX ix_punishments_public_order ON punishments (public_issued_day, public_hash)`.
+5. `CREATE INDEX ix_punishments_player_hash_v1 ON punishments (player_hash_v1)`, which serves the `playerHash` filter.
+
+The database is PostgreSQL 18 (`docker/docker-compose.yml`, `application.yml`), and Flyway applies the migration.
 
 Existing rows: every new column is NULL, so no existing punishment is listed and none has a stored `player_uuid`. No
 backfill runs in this migration.
@@ -514,11 +526,19 @@ in the Helm values, and without them the routes answer 401 to everyone. Until th
 Rollback: the columns and the index are unused by any other code, so dropping them restores the previous behaviour. The
 migration is not edited once applied.
 
+## Decided
+
+- **D1. Principle 2 exception (was open question 1).** Decided by the maintainer on 2026-10-28: "Öffentliche Bannliste
+  nur per Basic Auth" (the public ban list only behind Basic Auth). The three ban-list routes accept HTTP Basic Auth
+  with named clients and no Entra token. This is the exception of decision 2. `config.yaml` principle 2 is not amended
+  in this change.
+- **D2. Legal basis for listing (was open question 10).** Decided by the maintainer on 2026-10-28: no GDPR review is
+  pursued for this change. The record of that decision is this line. It is not a legal opinion.
+
+Numbers 1 and 10 are closed and are not repeated below.
+
 ## Open questions
 
-1. **Principle 2 exception.** Three routes accept HTTP Basic Auth with named clients and no Entra token. Confirm the
-   exception for this change only, or amend `openspec/config.yaml` principle 2 in a separate change that names the
-   exception (for example `amend-entra-principle-for-machine-clients`). The code PR waits for the answer.
 2. **Route prefix.** Keep `/public/bans` (proposed, to avoid churn, and the `/public/**` reservation stays for the
    player portal), or move the list to `/ban-list` now that it is no longer public?
 3. **Plain HTTP.** Answer 403 `HTTPS_REQUIRED` without evaluating credentials (proposed), or 421 Misdirected Request, or
@@ -537,11 +557,6 @@ migration is not edited once applied.
    policy decision, not a per-case one.
 9. **Summary.** Keep the per-reason summary at all, or drop it in favour of counts per kind? The summary adds a second
    way to read the list. The threshold of 5 is a proposal.
-10. **Legal basis for listing.** `amend-data-protection-principle` settles which raw data may be published, namely no IPs,
-    UUIDs or names. The list now publishes a `playerHash` (decision 14), which is pseudonymous personal data, so the
-    amendment has to cover it. It does not decide whether a sanction against a player may be shared with the website and
-    partner networks at all. That decision (legal basis for the disclosure, the transparency notice, and the basis for
-    partners to match on the hash) belongs to the maintainer and is not made here.
 11. **Amendments.** An amendment that changes the expiry must update `public_expires_at`. Does an amendment that changes
     the staff reason change the public reason too (proposed: no, the public reason is a snapshot)?
 12. **Localisation.** One text per template in this change. Should templates later carry one text per locale, as

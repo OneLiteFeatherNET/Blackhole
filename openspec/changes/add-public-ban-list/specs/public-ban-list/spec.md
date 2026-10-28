@@ -131,7 +131,7 @@ Every entry SHALL carry exactly the fields `hash`, `playerHash`, `hashScheme`, `
 
 ### Requirement: Player hash for partner matching
 
-Each listed entry SHALL carry `playerHash`: the lowercase hex SHA-256 of the UTF-8 input `blackhole-ban-list-v1:` plus the lowercase dashed UUID, computed when the list is read from the stored `player_uuid`. The hash SHALL NOT be keyed and SHALL NOT be stored. It SHALL be null when there is no UUID. The scheme SHALL be documented in the OpenAPI description of the field.
+Each listed entry SHALL carry `playerHash`: the lowercase hex SHA-256 of the UTF-8 input `blackhole-ban-list-v1:` plus the lowercase dashed UUID, derived by PostgreSQL in the `STORED` generated column `player_hash_v1` from the stored `player_uuid`. The hash SHALL NOT be keyed. The application SHALL NOT write it, and it SHALL be null when there is no UUID. The scheme SHALL be documented in the OpenAPI description of the field.
 
 #### Scenario: Exact input string and test vector
 
@@ -160,7 +160,7 @@ Each listed entry SHALL carry `playerHash`: the lowercase hex SHA-256 of the UTF
 
 ### Requirement: Hash scheme follows the API version
 
-The ban-list controller SHALL bind the player hash scheme to the API version of the request. `@Version("1")` answers SHALL use the `blackhole-ban-list-v1:` prefix and SHALL name `blackhole-ban-list-v1` in each entry's `hashScheme`. A later scheme SHALL be served only by its own `@Version` and SHALL NOT replace the v1 answers. The entry `hash` SHALL NOT depend on the version.
+The ban-list controller SHALL bind the player hash scheme to the API version of the request. `@Version("1")` answers SHALL read the `player_hash_v1` column and SHALL name `blackhole-ban-list-v1` in each entry's `hashScheme`. A later scheme SHALL be served only by its own `@Version` and SHALL NOT replace the v1 answers. The entry `hash` SHALL NOT depend on the version.
 
 #### Scenario: Version 1 request gets the v1 hash
 
@@ -201,10 +201,10 @@ The ban-list controller SHALL bind the player hash scheme to the API version of 
 - **WHEN** an authenticated client sends `playerHash` with 63 characters or with a non-hex character
 - **THEN** the response is HTTP 400 with an `errors` entry for `playerHash`, and the value is not echoed
 
-#### Scenario: Filter is computed in the database
+#### Scenario: Generated column matches the test vector
 
-- **WHEN** the repository test runs the filter SQL against a fixture with the test-vector UUID
-- **THEN** the SQL expression returns the same hash as `PublicBanPlayerHasher` for that UUID
+- **WHEN** a PostgreSQL integration test stores a punishment with the test-vector UUID
+- **THEN** `player_hash_v1` is `9efc1073aa30a316b4d4930dbf73bf852be666299041e930c9763de9f0c03029`, and it is NULL for a punishment without a UUID
 
 ### Requirement: Listing is opt-in per template and excludes kicks
 
