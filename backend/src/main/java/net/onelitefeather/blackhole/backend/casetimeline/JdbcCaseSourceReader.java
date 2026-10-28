@@ -65,6 +65,16 @@ public class JdbcCaseSourceReader implements CaseSourceReader {
             WHERE p.kind = 'KICK' AND COALESCE(p.created_at, 0) >= ? AND
             """ + NO_EVENT.formatted("'kicked:' || p.identifier") + " ORDER BY p.created_at, p.identifier LIMIT ?";
 
+    private static final String WARNS = """
+            SELECT p.identifier, p.source, p.recorded_by_oid, p.actor_oid, p.elo_cost, COALESCE(p.created_at, 0) AS created_at,
+                   p.acknowledged_at
+            FROM punishments p
+            """;
+    private static final String WARNED_MISSING = WARNS + " WHERE p.kind = 'WARN' AND COALESCE(p.created_at, 0) >= ? AND "
+            + NO_EVENT.formatted("'warned:' || p.identifier") + " ORDER BY p.created_at, p.identifier LIMIT ?";
+    private static final String ACKNOWLEDGED_MISSING = WARNS + " WHERE p.kind = 'WARN' AND p.acknowledged_at >= ? AND "
+            + NO_EVENT.formatted("'acknowledged:' || p.identifier") + " ORDER BY p.acknowledged_at, p.identifier LIMIT ?";
+
     private static final String APPEALS = """
             SELECT a.identifier, a.punishment_identifier, a.status, a.decided_by, a.recorded_by_oid, a.created_at, a.updated_at
             FROM appeals a
@@ -113,6 +123,16 @@ public class JdbcCaseSourceReader implements CaseSourceReader {
     @Override
     public List<KickRow> kickedMissing(long since, int limit) {
         return query(KICKED_MISSING, JdbcCaseSourceReader::kick, since, limit);
+    }
+
+    @Override
+    public List<SourceRows.WarnRow> warnedMissing(long since, int limit) {
+        return query(WARNED_MISSING, JdbcCaseSourceReader::warn, since, limit);
+    }
+
+    @Override
+    public List<SourceRows.WarnRow> acknowledgedMissing(long since, int limit) {
+        return query(ACKNOWLEDGED_MISSING, JdbcCaseSourceReader::warn, since, limit);
     }
 
     @Override
@@ -184,6 +204,13 @@ public class JdbcCaseSourceReader implements CaseSourceReader {
                 rows.getString("identifier"), rows.getObject("source", UUID.class), rows.getObject("recorded_by_oid", UUID.class),
                 rows.getObject("actor_oid", UUID.class), rows.getString("kick_scope"), rows.getString("kick_target"),
                 rows.getObject("elo_cost", Integer.class), rows.getLong("created_at"));
+    }
+
+    private static SourceRows.WarnRow warn(ResultSet rows) throws SQLException {
+        return new SourceRows.WarnRow(
+                rows.getString("identifier"), rows.getObject("source", UUID.class), rows.getObject("recorded_by_oid", UUID.class),
+                rows.getObject("actor_oid", UUID.class), rows.getObject("elo_cost", Integer.class), rows.getLong("created_at"),
+                rows.getObject("acknowledged_at", Long.class));
     }
 
     private static AppealRow appeal(ResultSet rows) throws SQLException {

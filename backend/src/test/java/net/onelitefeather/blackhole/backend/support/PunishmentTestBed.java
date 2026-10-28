@@ -22,6 +22,8 @@ import net.onelitefeather.blackhole.backend.punishment.TemplateStep;
 import net.onelitefeather.blackhole.backend.punishment.service.PunishmentApplicationService;
 import net.onelitefeather.blackhole.backend.punishment.service.PunishmentTemplateService;
 import net.onelitefeather.blackhole.backend.section.EnforcementKind;
+import net.onelitefeather.blackhole.backend.warning.WarningEventPublisher;
+import net.onelitefeather.blackhole.backend.warning.service.WarningService;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -54,6 +56,11 @@ public final class PunishmentTestBed {
                             .filter(p -> args[0].equals(p.getOwner()) && args[1].equals(p.getEscalationGroup()))
                             .filter(p -> !p.isLifted() && p.isWarning() && p.getCreatedAt() >= (Long) args[2])
                             .count())
+                    .finder("findPendingWarnings", args -> this.punishments.all().stream()
+                            .filter(p -> args[0].equals(p.getOwner()) && p.isWarning() && p.getAcknowledgedAt() == null)
+                            .sorted(java.util.Comparator.comparing(PunishmentEntity::getCreatedAt))
+                            .limit(((io.micronaut.data.model.Pageable) args[1]).getSize())
+                            .toList())
                     .finder("findByShortId", args -> this.punishments.all().stream()
                             .filter(p -> args[0].equals(p.getShortId()))
                             .toList())
@@ -89,10 +96,16 @@ public final class PunishmentTestBed {
             punishments.repository(), profiles.repository(), slots, profileCache, kickStore, kickDeadline,
             new KickEventPublisher(new DomainEventPublisher(kickTransport, eloBed.clock), kickMeters),
             eloBed.sections, cases.timeline, staffLinks.service);
+    public final RecordingEventTransport warningTransport = new RecordingEventTransport();
+    public final MeterRegistry warningMeters = new SimpleMeterRegistry();
+    public final WarningEventPublisher warningEvents = new WarningEventPublisher(
+            new DomainEventPublisher(warningTransport, eloBed.clock), warningMeters);
+    public final WarningService warningService = new WarningService(
+            punishments.repository(), cases.timeline, eloBed.clock, staffLinks.service);
     public final PunishmentApplicationService punishmentService = new PunishmentApplicationService(
             punishments.repository(), profiles.repository(), slots, templates.repository(), eloBed.sections, eloBed.events,
             profileCache, evidence, cases.timeline, () -> this.elo, this.staffLinks.service, eloBed.clock, banIds.service,
-            kickService, Duration.ofDays(365));
+            kickService, warningEvents, Duration.ofDays(365));
     public final FakeClientRuleStore clientRules = new FakeClientRuleStore();
     public final PunishmentTemplateService templateService = new PunishmentTemplateService(
             templates.repository(), punishments.repository(), templateCache, eloBed.sections, clientRules);

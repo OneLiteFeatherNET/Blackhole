@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.backend.punishment;
 
 import io.micronaut.data.annotation.Query;
 import io.micronaut.data.annotation.Repository;
+import io.micronaut.data.model.Pageable;
 import io.micronaut.data.repository.PageableRepository;
 
 import java.util.List;
@@ -45,4 +46,13 @@ public interface PunishmentRepository extends PageableRepository<PunishmentEntit
     long countWarningsByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals(
             String owner, String escalationGroup, long createdSince
     );
+
+    /**
+     * The owner's warnings nobody acknowledged yet, oldest first, at most the page size. The proxy reads them on login;
+     * a player with more pending warnings than one page sees the rest on the next login.
+     */
+    @Query("SELECT p FROM PunishmentEntity p WHERE p.owner = :owner "
+            + "AND p.kind = net.onelitefeather.blackhole.backend.punishment.PunishmentKind.WARN "
+            + "AND p.acknowledgedAt IS NULL ORDER BY p.createdAt ASC")
+    List<PunishmentEntity> findPendingWarnings(String owner, Pageable pageable);
 }
