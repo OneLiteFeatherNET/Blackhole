@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
+import AuditLogPanel from '../components/admin/AuditLogPanel.vue'
 import CloudNetCataloguePanel from '../components/admin/CloudNetCataloguePanel.vue'
 import ImportedPunishmentsPanel from '../components/admin/ImportedPunishmentsPanel.vue'
 import VanillaImportPanel from '../components/admin/VanillaImportPanel.vue'
@@ -21,6 +22,7 @@ const PAGES = {
   imports: 'nav.imports',
   cloudnet: 'nav.cloudnet',
   kick: 'nav.kick',
+  audit: 'nav.audit',
 } as const
 
 const active = computed<keyof typeof PAGES>(() => (route.meta.adminTab as keyof typeof PAGES | undefined) ?? 'staff')
@@ -37,6 +39,7 @@ const active = computed<keyof typeof PAGES>(() => (route.meta.adminTab as keyof 
         </template>
         <CloudNetCataloguePanel v-else-if="active === 'cloudnet'" />
         <MassKickForm v-else-if="active === 'kick'" />
+        <AuditLogPanel v-else-if="active === 'audit'" />
       </div>
     </template>
   </PageShell>

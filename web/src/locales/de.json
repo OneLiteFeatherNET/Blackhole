@@ -35,7 +35,8 @@
     "staffAccounts": "Teamkonten",
     "imports": "Importe",
     "cloudnet": "CloudNet",
-    "kick": "Massen-Kick"
+    "kick": "Massen-Kick",
+    "audit": "Audit-Protokoll"
   },
   "panel": {
     "close": "Schließen",
@@ -1408,6 +1409,58 @@
     "tooLong": "{count}: über dem Limit, bitte kürzen.",
     "history": "Frühere Versionen",
     "versionLine": "Version {version}, {when}"
+  },
+  "audit": {
+    "title": "Audit-Protokoll",
+    "intro": "Jede Aktion des Teams, die neueste zuerst. Nur lesen: Ein Eintrag wird hier nie geändert.",
+    "noneYet": "Noch keine protokollierten Aktionen.",
+    "noMatches": "Kein Eintrag passt zu diesen Filtern.",
+    "loadMore": "Weitere laden",
+    "details": "Details",
+    "filters": {
+      "action": "Aktion",
+      "allActions": "Alle Aktionen",
+      "actor": "Akteur (Staff-OID)",
+      "target": "Ziel (Fall oder Eigentümer)"
+    },
+    "columns": {
+      "when": "Wann",
+      "who": "Wer",
+      "surface": "Oberfläche",
+      "action": "Aktion",
+      "target": "Ziel"
+    },
+    "surfaces": {
+      "PANEL": "Panel",
+      "API": "API",
+      "IN_GAME": "Im Spiel",
+      "DISCORD": "Discord"
+    },
+    "actions": {
+      "kickCreate": "Spieler gekickt",
+      "kickMass": "Massen-Kick",
+      "punishmentRevoke": "Strafe aufgehoben",
+      "staffLinkUnlink": "Team-Verknüpfung gelöst"
+    },
+    "targets": {
+      "CASE": "Fall",
+      "PLAYER": "Spieler",
+      "SECTION": "Bereich",
+      "SERVER": "Server",
+      "NONE": "Keins"
+    },
+    "detail": {
+      "title": "Protokolleintrag",
+      "id": "Audit-ID",
+      "when": "Wann",
+      "actor": "Wer",
+      "recordedBy": "Erfasst von",
+      "surface": "Oberfläche",
+      "action": "Aktion",
+      "target": "Ziel",
+      "openCase": "Fall öffnen",
+      "openPlayer": "Spieler öffnen"
+    }
   },
   "clientRules": {
     "title": "Client-Regeln",

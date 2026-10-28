@@ -57,6 +57,21 @@ export type StaffLink = Schemas['StaffLinkItem']
 export type DiscordLinkCode = Schemas['DiscordLinkCodeResponse']
 export type DiscordLinkStatus = Schemas['DiscordLinkStatusResponse']
 export type DiscordLink = Schemas['DiscordLinkItem']
+/** One staff action in the audit log. Names its target by a case short id or a hashed owner, never a Ban ID, IP or raw UUID. */
+export type AuditEntry = Schemas['AuditItem']
+export type AuditPage = Schemas['AuditPage']
+/** The filters and cursor of `GET /admin/audit`; a filter that is not given is left out. */
+export interface AuditQuery {
+  /** 1 to 100, the backend default is 50. */
+  limit?: number
+  /** The `nextCursor` of the previous page. */
+  cursor?: string
+  /** A wire action name such as `punishment.revoke`. */
+  action?: string
+  actorOid?: string
+  /** A case short id or an owner hash. */
+  targetRef?: string
+}
 /** The summary of a vanilla ban-list import or preview. The endpoint is hidden from the published spec, so this is typed by hand. */
 export interface VanillaImportResult {
   dryRun: boolean

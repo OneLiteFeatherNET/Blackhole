@@ -35,7 +35,8 @@
     "staffAccounts": "Staff accounts",
     "imports": "Imports",
     "cloudnet": "CloudNet",
-    "kick": "Mass kick"
+    "kick": "Mass kick",
+    "audit": "Audit log"
   },
   "panel": {
     "close": "Close",
@@ -1408,6 +1409,58 @@
     "tooLong": "{count}: over the limit, shorten the text.",
     "history": "Earlier versions",
     "versionLine": "Version {version}, {when}"
+  },
+  "audit": {
+    "title": "Audit log",
+    "intro": "Every staff action, newest first. Read only: an entry is never changed here.",
+    "noneYet": "No audited actions yet.",
+    "noMatches": "No entry matches these filters.",
+    "loadMore": "Load more",
+    "details": "Details",
+    "filters": {
+      "action": "Action",
+      "allActions": "All actions",
+      "actor": "Actor (staff oid)",
+      "target": "Target (case or owner)"
+    },
+    "columns": {
+      "when": "When",
+      "who": "Who",
+      "surface": "Surface",
+      "action": "Action",
+      "target": "Target"
+    },
+    "surfaces": {
+      "PANEL": "Panel",
+      "API": "API",
+      "IN_GAME": "In game",
+      "DISCORD": "Discord"
+    },
+    "actions": {
+      "kickCreate": "Kick player",
+      "kickMass": "Mass kick",
+      "punishmentRevoke": "Revoke punishment",
+      "staffLinkUnlink": "Unlink staff account"
+    },
+    "targets": {
+      "CASE": "Case",
+      "PLAYER": "Player",
+      "SECTION": "Section",
+      "SERVER": "Server",
+      "NONE": "None"
+    },
+    "detail": {
+      "title": "Audit entry",
+      "id": "Audit id",
+      "when": "When",
+      "actor": "Who",
+      "recordedBy": "Recorded by",
+      "surface": "Surface",
+      "action": "Action",
+      "target": "Target",
+      "openCase": "Open case",
+      "openPlayer": "Open player"
+    }
   },
   "clientRules": {
     "title": "Client rules",
