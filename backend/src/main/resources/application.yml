@@ -250,6 +250,11 @@ blackhole:
     feedback:
       ttl: ${BLACKHOLE_REPORT_FEEDBACK_TTL:P14D}
       sweep-interval: ${BLACKHOLE_REPORT_FEEDBACK_SWEEP_INTERVAL:PT1H}
+  # Staff audit log. retention is how long an entry is kept (one year by default, a team decision still open);
+  # AuditRetentionSweeper deletes older entries every sweep-interval, in batches.
+  audit:
+    retention: ${BLACKHOLE_AUDIT_RETENTION:P365D}
+    sweep-interval: ${BLACKHOLE_AUDIT_SWEEP_INTERVAL:PT1H}
   # PunishmentExpirySweeper periodically moves expired active bans/mutes into a profile's
   # history, so expiry is an active background process rather than something only noticed the
   # next time a profile happens to be read. sweep-interval controls how often that scan runs -

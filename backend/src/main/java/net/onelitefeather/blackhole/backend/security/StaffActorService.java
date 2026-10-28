@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.security;
 
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditStore;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventRepository;
 import net.onelitefeather.blackhole.backend.casetimeline.protocol.ProtocolRedaction;
 import net.onelitefeather.blackhole.backend.discord.DiscordLinkService;
@@ -36,9 +37,11 @@ public class StaffActorService {
     private final ProtocolRedaction protocols;
     private final StaffProfileService profiles;
     private final CaseEventRepository caseEvents;
+    private final StaffAuditStore audit;
 
     public StaffActorService(StaffActorRepository actors, DomainEventPublisher events, StaffLinkService links, DiscordLinkService discordLinks,
-                             ProtocolRedaction protocols, StaffProfileService profiles, CaseEventRepository caseEvents) {
+                             ProtocolRedaction protocols, StaffProfileService profiles, CaseEventRepository caseEvents, StaffAuditStore audit) {
+        this.audit = audit;
         this.protocols = protocols;
         this.actors = actors;
         this.events = events;
@@ -77,6 +80,8 @@ public class StaffActorService {
         this.profiles.anonymize(oid);
         // The name snapshots of the messages go before the protocols are regenerated, so none of them can show it again.
         this.caseEvents.clearStaffNameSnapshots(oid);
+        // The audit's name snapshots go with them; the oid stays on every row.
+        this.audit.clearActorName(oid);
         // The name is cleared first, so a regenerated protocol cannot show it again; never throws.
         this.protocols.afterStaffAnonymized(oid);
         LOG.info("Staff actor {} anonymized by {}", oid, admin.oid());
