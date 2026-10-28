@@ -31,7 +31,8 @@ public final class Metrics {
         LEAK_CHECKS("leak_checks_total"),
         AUDIT_POSTED("audit_posted_total"),
         AUDIT_RETRIED("audit_retried_total"),
-        AUDIT_REJECTED("audit_rejected_total");
+        AUDIT_REJECTED("audit_rejected_total"),
+        AUDIT_DROPPED("audit_dropped_total");
 
         private final String metricName;
 

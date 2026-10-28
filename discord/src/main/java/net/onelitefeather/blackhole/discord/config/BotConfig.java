@@ -37,7 +37,8 @@ import java.util.function.Function;
  * <p>Leak scanning: {@code DISCORD_LEAK_SCAN} ({@code PUBLIC} by default, {@code LIST} or {@code OFF}) and, for {@code LIST},
  * {@code DISCORD_LEAK_SCAN_CHANNELS}, a comma separated list of channel or category ids.</p>
  *
- * <p>Staff audit: optional {@code DISCORD_AUDIT_WEBHOOK_URL} (a Discord webhook URL of the audit channel; unset turns the audit off).</p>
+ * <p>Staff audit: optional {@code DISCORD_AUDIT_WEBHOOK_URL} (a Discord webhook URL of the audit channel; unset turns the audit off)
+ * and {@code DISCORD_AUDIT_MAX_DELIVER} (deliveries per entry before it is dropped, default 50).</p>
  *
  * @param discordToken   the bot token (a secret, never printed)
  * @param guildId        the one guild the bot serves
@@ -90,6 +91,8 @@ public record BotConfig(
     public static final String ENV_LEAK_SCAN = "DISCORD_LEAK_SCAN";
     public static final String ENV_LEAK_SCAN_CHANNELS = "DISCORD_LEAK_SCAN_CHANNELS";
     public static final String ENV_AUDIT_WEBHOOK_URL = "DISCORD_AUDIT_WEBHOOK_URL";
+    public static final String ENV_AUDIT_MAX_DELIVER = "DISCORD_AUDIT_MAX_DELIVER";
+    static final int AUDIT_MAX_DELIVER_DEFAULT = 50;
 
     /** Which channels are scanned for Ban IDs. */
     public enum LeakMode {
@@ -220,26 +223,41 @@ public record BotConfig(
     /**
      * @param webhookUrl the Discord webhook the staff audit posts to, null when the audit is off; a secret, never printed
      */
-    public record AuditSettings(@Nullable String webhookUrl) {
+    public record AuditSettings(@Nullable String webhookUrl, int maxDeliver) {
 
         @Override
         public String toString() {
-            return "AuditSettings{webhook=" + (this.webhookUrl == null ? "off" : "<redacted>") + "}";
+            return "AuditSettings{webhook=" + (this.webhookUrl == null ? "off" : "<redacted>") + ", maxDeliver=" + this.maxDeliver + "}";
         }
     }
 
-    /** Unset means the audit is off; set means it must be a Discord webhook URL, or the bot does not start. */
+    /**
+     * Unset webhook means the audit is off; set means it must be a Discord webhook URL, or the bot does not start. The
+     * delivery limit is how often a message the webhook keeps refusing is tried before it is dropped.
+     */
     private static AuditSettings audit(Function<String, String> env, List<String> problems) {
+        int maxDeliver = AUDIT_MAX_DELIVER_DEFAULT;
+        String limit = value(env, ENV_AUDIT_MAX_DELIVER);
+        if (!limit.isEmpty()) {
+            try {
+                maxDeliver = Integer.parseInt(limit);
+                if (maxDeliver < 1) {
+                    problems.add(ENV_AUDIT_MAX_DELIVER + " must be at least 1");
+                }
+            } catch (NumberFormatException e) {
+                problems.add(ENV_AUDIT_MAX_DELIVER + " must be a whole number");
+            }
+        }
         String url = value(env, ENV_AUDIT_WEBHOOK_URL);
         if (url.isEmpty()) {
-            return new AuditSettings(null);
+            return new AuditSettings(null, maxDeliver);
         }
         if (!WebhookUrl.isValid(url)) {
             // Names the variable only: the value is a secret and is not echoed back.
             problems.add(ENV_AUDIT_WEBHOOK_URL + " must be a Discord webhook URL (https://discord.com/api/webhooks/<id>/<token>)");
-            return new AuditSettings(null);
+            return new AuditSettings(null, maxDeliver);
         }
-        return new AuditSettings(url);
+        return new AuditSettings(url, maxDeliver);
     }
 
     private static NatsSettings nats(Function<String, String> env, List<String> problems) {

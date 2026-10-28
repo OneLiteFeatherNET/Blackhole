@@ -93,6 +93,28 @@ class BotConfigTest {
     }
 
     @Test
+    void theAuditDeliveryLimitDefaultsToFiftyAndCanBeSet() throws Exception {
+        assertEquals(50, BotConfig.fromEnvironment(complete()::get).audit().maxDeliver(), "default");
+
+        Map<String, String> env = complete();
+        env.put("DISCORD_AUDIT_MAX_DELIVER", "7");
+
+        assertEquals(7, BotConfig.fromEnvironment(env::get).audit().maxDeliver(), "set");
+    }
+
+    @Test
+    void anAuditDeliveryLimitBelowOneOrNotANumberIsRefused() {
+        for (String value : List.of("0", "many")) {
+            Map<String, String> env = complete();
+            env.put("DISCORD_AUDIT_MAX_DELIVER", value);
+
+            List<String> problems = problems(env);
+
+            assertTrue(problems.stream().anyMatch(p -> p.startsWith("DISCORD_AUDIT_MAX_DELIVER")), value + " is named: " + problems);
+        }
+    }
+
+    @Test
     void aMalformedAuditWebhookStopsTheStartAndTheUrlIsNotPrinted() {
         Map<String, String> env = complete();
         env.put("DISCORD_AUDIT_WEBHOOK_URL", "http://example.test/hook-SECRET-7");

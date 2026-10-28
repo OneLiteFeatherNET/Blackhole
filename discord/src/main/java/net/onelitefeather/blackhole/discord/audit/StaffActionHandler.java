@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.discord.audit;
 
+import net.onelitefeather.blackhole.discord.metrics.Metrics;
 import net.onelitefeather.blackhole.discord.notify.NotificationHandler.Outcome;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -27,10 +28,22 @@ public final class StaffActionHandler {
 
     private final AuditWebhookPoster poster;
     private final AuditEmbedRenderer renderer;
+    private final Metrics metrics;
 
-    public StaffActionHandler(@NotNull AuditWebhookPoster poster, @NotNull AuditEmbedRenderer renderer) {
+    public StaffActionHandler(@NotNull AuditWebhookPoster poster, @NotNull AuditEmbedRenderer renderer, @NotNull Metrics metrics) {
         this.poster = poster;
         this.renderer = renderer;
+        this.metrics = metrics;
+    }
+
+    /**
+     * Called once for a message whose last allowed delivery failed: it is acknowledged and gone from the channel. Logs the
+     * audit id only, never the webhook.
+     */
+    public void onExhausted(byte[] body) {
+        this.metrics.increment(Metrics.Counter.AUDIT_DROPPED);
+        String auditId = StaffActionEvent.parse(body).map(StaffActionEvent::auditId).orElse("unknown");
+        LOGGER.warn("Audit entry {} was not posted after its last delivery and is dropped from the channel", auditId);
     }
 
     public @NotNull Outcome onMessage(byte[] body) {
