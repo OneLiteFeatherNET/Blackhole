@@ -1,5 +1,10 @@
 package net.onelitefeather.blackhole.backend.evidence;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import net.onelitefeather.blackhole.backend.audit.AuditPayloadGuard;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
+import net.onelitefeather.blackhole.backend.support.InMemoryStaffAuditStore;
+import net.onelitefeather.blackhole.backend.support.RecordingEventTransport;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.ActorKind;
 import io.micronaut.data.model.Page;
@@ -111,7 +116,9 @@ public final class EvidenceTestBed {
     public EvidenceTestBed(Path spoolDirectory, DomainEventPublisher publisher) {
         this.service = new EvidenceService(
                 items.repository(), audit.repository(), punishments.repository(), new PayloadValidator(config),
-                new UploadPipeline(config, scanner), blobs, publisher == null ? events : publisher, this.staffLinks.service, cases.timeline, id -> true, clock, spoolDirectory);
+                new UploadPipeline(config, scanner), blobs, publisher == null ? events : publisher, this.staffLinks.service, cases.timeline, id -> true, clock, spoolDirectory,
+                new StaffAuditRecorder(new InMemoryStaffAuditStore(), new DomainEventPublisher(new RecordingEventTransport(), clock),
+                        new AuditPayloadGuard(), clock, new SimpleMeterRegistry()));
         this.chatFiles = new ChatFileService(items.repository(), audit.repository(), punishments.repository(),
                 new UploadPipeline(config, chatConfig, scanner), blobs, publisher == null ? events : publisher, cases.timeline, chatConfig, clock,
                 spoolDirectory);

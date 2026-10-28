@@ -6,11 +6,14 @@ import io.micronaut.core.version.annotation.Version;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.validation.Validated;
 import jakarta.inject.Inject;
+import net.onelitefeather.blackhole.backend.audit.AuditHeaders;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishTemplateDTO;
+import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.punishment.service.PunishmentTemplateService;
 
 import java.util.UUID;
@@ -42,20 +45,20 @@ public class PunishmentTemplateController implements PunishmentTemplateApi {
 
     @Override
     @Secured(Roles.ADMIN)
-    public HttpResponse<PunishTemplateDTO> addTemplate(PunishTemplateDTO.CreateRequest template) {
-        return toResponse(this.templateService.create(template));
+    public HttpResponse<PunishTemplateDTO> addTemplate(PunishTemplateDTO.CreateRequest template, Actor actor) {
+        return AuditHeaders.audited(toResponse(this.templateService.create(template, actor)), actor);
     }
 
     @Override
     @Secured(Roles.ADMIN)
-    public HttpResponse<PunishTemplateDTO> updateTemplate(PunishTemplateDTO.UpdateRequest template) {
-        return toResponse(this.templateService.update(template));
+    public HttpResponse<PunishTemplateDTO> updateTemplate(PunishTemplateDTO.UpdateRequest template, Actor actor) {
+        return AuditHeaders.audited(toResponse(this.templateService.update(template, actor)), actor);
     }
 
     @Override
     @Secured(Roles.ADMIN)
-    public HttpResponse<PunishTemplateDTO> removeTemplate(UUID identifier) {
-        return toResponse(this.templateService.remove(identifier));
+    public HttpResponse<PunishTemplateDTO> removeTemplate(UUID identifier, Actor actor) {
+        return AuditHeaders.audited(toResponse(this.templateService.remove(identifier, actor)), actor);
     }
 
     @Override
@@ -73,7 +76,7 @@ public class PunishmentTemplateController implements PunishmentTemplateApi {
                         "there is no template with identifier " + identifier, net.onelitefeather.blackhole.backend.response.ErrorKind.NOT_FOUND)));
     }
 
-    private static HttpResponse<PunishTemplateDTO> toResponse(PunishTemplateDTO result) {
+    private static MutableHttpResponse<PunishTemplateDTO> toResponse(PunishTemplateDTO result) {
         if (result instanceof PunishTemplateDTO.Error error) {
             return HttpResponse.<PunishTemplateDTO>status(error.kind().status()).body(error);
         }

@@ -9,7 +9,15 @@ import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.ActorKind;
 import net.onelitefeather.blackhole.backend.security.StaffActorEntity;
 import net.onelitefeather.blackhole.backend.security.StaffActorRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import net.onelitefeather.blackhole.backend.audit.AuditPayloadGuard;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditEntry;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
+import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentShortId;
 import net.onelitefeather.blackhole.backend.support.BanIdTestBed;
+import net.onelitefeather.blackhole.backend.support.InMemoryStaffAuditStore;
+import net.onelitefeather.blackhole.backend.support.RecordingEventTransport;
 import net.onelitefeather.blackhole.backend.support.FakeCaseStore;
 import net.onelitefeather.blackhole.backend.support.InMemoryCaseEventRepository;
 import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
@@ -51,9 +59,12 @@ class CaseServiceTest {
     private final InMemoryRepository<StaffActorRepository, StaffActorEntity, UUID> staff =
             InMemoryRepository.<StaffActorRepository, StaffActorEntity, UUID>of(StaffActorRepository.class, StaffActorEntity::getOid).build();
     private final BanIdTestBed banIds = new BanIdTestBed(this.punishments.repository());
+    private final InMemoryStaffAuditStore auditStore = new InMemoryStaffAuditStore();
+    private final StaffAuditRecorder audit = new StaffAuditRecorder(this.auditStore,
+            new DomainEventPublisher(new RecordingEventTransport(), this.clock), new AuditPayloadGuard(), this.clock, new SimpleMeterRegistry());
     private final CaseService service = new CaseService(
             this.punishments.repository(), this.staff.repository(), this.store, this.store, this.log, this.events, this.clock,
-            this.banIds.service, new MessageContent("onelitefeather.net"));
+            this.banIds.service, new MessageContent("onelitefeather.net"), this.audit);
 
     private void givenPunishment(String identifier) {
         this.punishments.given(new PunishmentEntity(identifier, UUID.randomUUID(), OWNER, "network", false, 1L, null, new HashMap<>()), identifier);
@@ -132,7 +143,7 @@ class CaseServiceTest {
             }
         };
         CaseService racing = new CaseService(this.punishments.repository(), this.staff.repository(), racingReader, this.store, this.log,
-                this.events, this.clock, this.banIds.service, new MessageContent("onelitefeather.net"));
+                this.events, this.clock, this.banIds.service, new MessageContent("onelitefeather.net"), this.audit);
 
         CaseDTO result = racing.update(ID, patch(0, CaseStatus.CLOSED, null, null, null), ALICE);
 
@@ -205,6 +216,20 @@ class CaseServiceTest {
         givenPunishment(ID);
 
         assertEquals(CaseErrorKind.VALIDATION, kindOf(this.service.update(ID, patch(0, null, null, null, List.of("Bad Tag!")), ALICE)));
+    }
+
+    @Test
+    void aNoteAddedRecordsOneCaseNoteAddEntryNamedByShortIdOnly() {
+        givenPunishment(ID);
+
+        addNote(ALICE, "seen twice in a week");
+
+        assertEquals(1, this.auditStore.rows().size(), "exactly one audit entry for the note");
+        StaffAuditEntry row = this.auditStore.rows().getFirst();
+        assertEquals("case.note.add", row.action());
+        assertEquals("CASE", row.targetKind());
+        assertEquals(PunishmentShortId.storageKey(ID), row.targetRef(), "the case is named by its short id");
+        assertFalse(row.targetRef().contains(ID), "the audit entry never carries the punishment identifier");
     }
 
     @Test

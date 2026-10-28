@@ -114,13 +114,13 @@ public final class PunishmentTestBed {
             kickService, warningEvents, audit, Duration.ofDays(365));
     public final FakeClientRuleStore clientRules = new FakeClientRuleStore();
     public final PunishmentTemplateService templateService = new PunishmentTemplateService(
-            templates.repository(), punishments.repository(), templateCache, eloBed.sections, clientRules);
+            templates.repository(), punishments.repository(), templateCache, eloBed.sections, clientRules, audit);
 
     /** The ELO engine, punishing through {@link #punishmentService} exactly as in the application. */
     public final EloService elo = new EloService(
             eloBed.scoreRepository.repository(), new InMemoryEloScoreWriter(eloBed.scoreRepository.repository()),
             eloBed.eventRepository.repository(), eloBed.sections, punishmentService,
-            new ThresholdEscalationPolicy(), eloBed.events, eloBed.profileCache, eloBed.clock, 86_400_000L);
+            new ThresholdEscalationPolicy(), eloBed.events, eloBed.profileCache, eloBed.clock, 86_400_000L, audit);
 
     /** Stores a template with the given steps (duration, cost) and returns it. */
     public PunishmentTemplateEntity givenTemplate(String key, String section, String group, TemplateStep... steps) {

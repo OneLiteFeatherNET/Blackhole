@@ -30,7 +30,7 @@ class ImportedPunishmentServiceTest {
     private final ImportedPunishmentService service = new ImportedPunishmentService(
             bed.punishments.repository(), bed.profiles.repository(),
             new ImportTemplateResolver(bed.templates.repository(), bed.eloBed.sections),
-            bed.eloBed.events, bed.profileCache, bed.cases.timeline, bed.eloBed.clock);
+            bed.eloBed.events, bed.profileCache, bed.cases.timeline, bed.eloBed.clock, bed.audit);
 
     private PunishmentEntity givenImport(String id, String section, boolean active) {
         Map<String, Object> meta = new HashMap<>();

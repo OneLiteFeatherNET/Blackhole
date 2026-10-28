@@ -1,5 +1,8 @@
 package net.onelitefeather.blackhole.backend.support;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import net.onelitefeather.blackhole.backend.audit.AuditPayloadGuard;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.discord.DiscordLinkCodeEntity;
 import net.onelitefeather.blackhole.backend.discord.DiscordLinkCodeRepository;
 import net.onelitefeather.blackhole.backend.discord.DiscordLinkEntity;
@@ -54,7 +57,9 @@ public final class DiscordLinkTestBed {
 
     public DiscordLinkTestBed(DomainEventPublisher events, Clock clock) {
         this.service = new DiscordLinkService(this.links.repository(), this.codes.repository(), this.actors.repository(),
-                new StaffLinkCodeGenerator(), events, new DiscordLinkProperties(TTL), clock);
+                new StaffLinkCodeGenerator(), events, new DiscordLinkProperties(TTL), clock,
+                new StaffAuditRecorder(new InMemoryStaffAuditStore(), new DomainEventPublisher(new RecordingEventTransport(), clock),
+                        new AuditPayloadGuard(), clock, new SimpleMeterRegistry()));
     }
 
     /** Stores a link as if it was confirmed earlier. */

@@ -2,12 +2,14 @@ package net.onelitefeather.blackhole.backend.clientrule.controller;
 
 import io.micronaut.core.version.annotation.Version;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.validation.Validated;
 import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.clientrule.ClientRuleService;
 import net.onelitefeather.blackhole.backend.clientrule.dto.ClientRuleDTO;
+import net.onelitefeather.blackhole.backend.audit.AuditHeaders;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.Roles;
@@ -33,19 +35,19 @@ public class ClientRuleController implements ClientRuleApi {
     @Override
     @Secured(Roles.ADMIN)
     public HttpResponse<ClientRuleDTO> create(ClientRuleDTO.CreateRequest request, Actor actor) {
-        return toResponse(this.service.create(request, actor.oid()));
+        return AuditHeaders.audited(toResponse(this.service.create(request, actor)), actor);
     }
 
     @Override
     @Secured(Roles.ADMIN)
     public HttpResponse<ClientRuleDTO> update(String key, ClientRuleDTO.UpdateRequest request, Actor actor) {
-        return toResponse(this.service.update(key, request, actor.oid()));
+        return AuditHeaders.audited(toResponse(this.service.update(key, request, actor)), actor);
     }
 
     @Override
     @Secured(Roles.ADMIN)
-    public HttpResponse<ClientRuleDTO> delete(String key) {
-        return toResponse(this.service.delete(key));
+    public HttpResponse<ClientRuleDTO> delete(String key, Actor actor) {
+        return AuditHeaders.audited(toResponse(this.service.delete(key, actor)), actor);
     }
 
     @Override
@@ -60,7 +62,7 @@ public class ClientRuleController implements ClientRuleApi {
         return toResponse(this.service.get(key));
     }
 
-    private static HttpResponse<ClientRuleDTO> toResponse(ClientRuleDTO result) {
+    private static MutableHttpResponse<ClientRuleDTO> toResponse(ClientRuleDTO result) {
         if (result instanceof ClientRuleDTO.Error error) {
             return HttpResponse.<ClientRuleDTO>status(error.kind().status()).body(error);
         }

@@ -273,11 +273,11 @@ class DiscordLinkServiceTest {
     void anAdminRemovesALinkById() {
         DiscordLinkEntity link = this.bed.givenLink(DiscordLinkKind.PLAYER, OWNER, DISCORD_1);
 
-        assertInstanceOf(DiscordLinkDTO.RemovedResponse.class, this.service.adminRemove(link.getId()));
+        assertInstanceOf(DiscordLinkDTO.RemovedResponse.class, this.service.adminRemove(link.getId(), ALICE_ACTOR));
 
         assertTrue(this.bed.allLinks().isEmpty(), "removed");
         assertEquals("ADMIN", this.events.eventsOfType(DiscordLinkService.REMOVED_EVENT).getFirst().payload().get("reason"), "audited");
-        assertEquals(ErrorKind.NOT_FOUND, assertInstanceOf(DiscordLinkDTO.Error.class, this.service.adminRemove(link.getId())).kind(), "gone");
+        assertEquals(ErrorKind.NOT_FOUND, assertInstanceOf(DiscordLinkDTO.Error.class, this.service.adminRemove(link.getId(), ALICE_ACTOR)).kind(), "gone");
     }
 
     @Test

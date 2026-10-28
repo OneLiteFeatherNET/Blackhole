@@ -1,5 +1,10 @@
 package net.onelitefeather.blackhole.backend.support;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import net.onelitefeather.blackhole.backend.audit.AuditPayloadGuard;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
+import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+
 import net.onelitefeather.blackhole.backend.cache.InMemorySharedCache;
 import net.onelitefeather.blackhole.backend.elo.EloEventEntity;
 import net.onelitefeather.blackhole.backend.elo.EloEventRepository;
@@ -41,7 +46,9 @@ public final class EloTestBed {
     public final InMemoryRepository<EloEventRepository, EloEventEntity, Object> eventRepository =
             InMemoryRepository.<EloEventRepository, EloEventEntity, Object>of(EloEventRepository.class, event -> event).build();
     public final SectionService sections = new SectionService(
-            sectionRepository.repository(), new SectionCache(sharedCache, Duration.ofMinutes(5)), events, key -> { });
+            sectionRepository.repository(), new SectionCache(sharedCache, Duration.ofMinutes(5)), events, key -> { },
+            new StaffAuditRecorder(new InMemoryStaffAuditStore(), new DomainEventPublisher(new RecordingEventTransport(), new TestClock()),
+                    new AuditPayloadGuard(), new TestClock(), new SimpleMeterRegistry()));
     public final EloProfileCache profileCache = new EloProfileCache(sharedCache, Duration.ofSeconds(30));
     public final EloService elo;
 
@@ -54,7 +61,9 @@ public final class EloTestBed {
         addSection("network", EnforcementKind.BAN, "P3D");
         this.elo = new EloService(
                 scoreRepository.repository(), new InMemoryEloScoreWriter(scoreRepository.repository()), eventRepository.repository(), sections, punisher, policy,
-                events, profileCache, clock, 86_400_000L);
+                events, profileCache, clock, 86_400_000L,
+                new StaffAuditRecorder(new InMemoryStaffAuditStore(), new DomainEventPublisher(new RecordingEventTransport(), clock),
+                        new AuditPayloadGuard(), clock, new SimpleMeterRegistry()));
     }
 
     /** Adds an enabled section with the default numbers. */

@@ -46,7 +46,7 @@ class AppealRecordingTest {
     private final net.onelitefeather.blackhole.backend.support.RecordingProtocols protocols = new net.onelitefeather.blackhole.backend.support.RecordingProtocols();
     private final AppealDecisionService deciding = new AppealDecisionService(
             appeals.repository(), bed.punishments.repository(), bed.profiles.repository(), bed.slots, bed.profileCache,
-            bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.evidence, bed.staffLinks.service, bed.cases.timeline, bed.banIds.service, protocols, bed.staffLinks.profileService, bed.eloBed.clock);
+            bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.evidence, bed.staffLinks.service, bed.cases.timeline, bed.banIds.service, protocols, bed.staffLinks.profileService, bed.eloBed.clock, bed.audit);
 
     /** The database assigns the identifier of a saved appeal; the in-memory repository needs a hand. */
     private static AppealEntity withIdentifier(AppealEntity appeal) {

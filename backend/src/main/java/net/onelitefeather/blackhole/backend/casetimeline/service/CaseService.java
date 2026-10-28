@@ -1,6 +1,9 @@
 package net.onelitefeather.blackhole.backend.casetimeline.service;
 
 import io.micronaut.core.annotation.Nullable;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.banid.service.BanIdService;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.casetimeline.ActorTrust;
@@ -73,11 +76,14 @@ public class CaseService {
     private final CaseReference references;
     private final CaseEventPublisher caseEvents;
     private final MessageContent content;
+    private final StaffAuditRecorder audit;
 
     public CaseService(
             PunishmentRepository punishments, StaffActorRepository staff, CaseReader reader, CaseChanges changes,
-            CaseEventRepository events, DomainEventPublisher publisher, Clock clock, BanIdService banIds, MessageContent content
+            CaseEventRepository events, DomainEventPublisher publisher, Clock clock, BanIdService banIds, MessageContent content,
+            StaffAuditRecorder audit
     ) {
+        this.audit = audit;
         this.punishments = punishments;
         this.staff = staff;
         this.reader = reader;
@@ -231,6 +237,7 @@ public class CaseService {
             payloads.stream().filter(payload -> payload.type().equals(event.type())).findFirst()
                     .ifPresent(payload -> publish(punishment, event, by, now, payload.toMap()));
         }
+        recordAudit(actor, AuditAction.CASE_UPDATE, punishment);
         return view(punishment);
     }
 
@@ -252,6 +259,7 @@ public class CaseService {
                 CaseEventOrigin.LIVE, by, noteId, null));
         CaseEventRecord stored = lastOfType(punishment.getIdentifier(), noteId, CaseEventPayload.NOTE_ADDED);
         publish(punishment, stored, by, now, Map.of("noteId", noteId));
+        recordAudit(actor, AuditAction.CASE_NOTE_ADD, punishment);
         return new CaseDTO.NoteResponse(noteId, stored.seq());
     }
 
@@ -289,6 +297,7 @@ public class CaseService {
             return error(CaseErrorKind.CONFLICT, "the note was redacted");
         }
         publish(punishment, edited, by, now, Map.of("noteId", noteId.toString()));
+        recordAudit(actor, AuditAction.CASE_NOTE_EDIT, punishment);
         return new CaseDTO.NoteResponse(noteId.toString(), edited.seq());
     }
 
@@ -319,7 +328,13 @@ public class CaseService {
             CaseEventRecord stored = lastOfType(id, noteId.toString(), CaseEventPayload.NOTE_REDACTED);
             publish(punishment, stored, by, now, Map.of("noteId", noteId.toString(), "reason", request.reason().name()));
         }
+        recordAudit(actor, AuditAction.CASE_NOTE_REDACT, punishment);
         return new CaseDTO.RedactResponse(noteId.toString(), redacted);
+    }
+
+    /** Records one staff write of a case after it has succeeded; the entry names the case by its short id only. */
+    private void recordAudit(Actor actor, AuditAction action, PunishmentEntity punishment) {
+        this.audit.record(actor.attribution(), actor, action, AuditTarget.ofCase(punishment.getShortId()));
     }
 
     private CaseDTO.Response view(PunishmentEntity punishment) {
