@@ -24,38 +24,36 @@ class MuteChatDenialTest {
     void aSignedMessageIsDeniedWhenSignedVelocityIsPresent() {
         PlayerChatEvent event = chat();
 
-        boolean denied = new MuteChatDenial(true).deny(event, ProtocolVersion.MINECRAFT_1_21);
+        MuteChatDenial.Outcome outcome = new MuteChatDenial(true).deny(event, ProtocolVersion.MINECRAFT_1_21);
 
-        assertTrue(denied, "the relay turns the denial into a cancel on the backend, so it is safe");
+        assertEquals(MuteChatDenial.Outcome.DENIED, outcome, "the relay turns the denial into a cancel on the backend, so no disconnect");
         assertFalse(event.getResult().isAllowed(), "the event must carry the denial for the relay to pick up");
     }
 
     @Test
-    void aSignedMessageIsNeverDeniedWithoutSignedVelocity() {
+    void aSignedMessageWithoutSignedVelocityIsDeniedAndTheSenderIsDisconnected() {
         PlayerChatEvent event = chat();
 
-        boolean denied = new MuteChatDenial(false).deny(event, ProtocolVersion.MINECRAFT_1_21);
+        MuteChatDenial.Outcome outcome = new MuteChatDenial(false).deny(event, ProtocolVersion.MINECRAFT_1_21);
 
-        assertFalse(denied, "denying a signed message would disconnect the player");
-        assertEquals(PlayerChatEvent.ChatResult.allowed(), event.getResult(), "the event must stay untouched");
+        assertEquals(MuteChatDenial.Outcome.DISCONNECT, outcome, "a signed message can only be stopped by disconnecting the sender");
+        assertFalse(event.getResult().isAllowed(), "the message must not be delivered");
     }
 
     @Test
-    void theFirstSignedVersionCountsAsSigned() {
-        PlayerChatEvent event = chat();
+    void theFirstSignedVersionWithoutSignedVelocityDisconnects() {
+        MuteChatDenial.Outcome outcome = new MuteChatDenial(false).deny(chat(), ProtocolVersion.MINECRAFT_1_19_1);
 
-        boolean denied = new MuteChatDenial(false).deny(event, ProtocolVersion.MINECRAFT_1_19_1);
-
-        assertFalse(denied, "1.19.1 is the first version Velocity refuses to cancel");
+        assertEquals(MuteChatDenial.Outcome.DISCONNECT, outcome, "1.19.1 is the first version Velocity refuses to cancel");
     }
 
     @Test
     void anUnsignedMessageIsDeniedWithoutSignedVelocity() {
         PlayerChatEvent event = chat();
 
-        boolean denied = new MuteChatDenial(false).deny(event, ProtocolVersion.MINECRAFT_1_19);
+        MuteChatDenial.Outcome outcome = new MuteChatDenial(false).deny(event, ProtocolVersion.MINECRAFT_1_19);
 
-        assertTrue(denied, "before 1.19.1 chat is unsigned and can be cancelled directly");
+        assertEquals(MuteChatDenial.Outcome.DENIED, outcome, "before 1.19.1 chat is unsigned and can be cancelled directly, no disconnect");
         assertFalse(event.getResult().isAllowed(), "the message must be denied");
     }
 

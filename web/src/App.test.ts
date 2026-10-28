@@ -25,6 +25,7 @@ async function mountApp(path = '/', options: { roles?: string[]; auth?: ReturnTy
       provide: {
         [AUTH_KEY as symbol]: auth.service,
         [API_KEY as symbol]: mockApi({
+          proxyCapabilities: async () => ok({ proxies: [] }),
           dashboard: async () => ok({ activePunishmentsBySection: [], latestEscalations: [] }),
           inbox: async () => ok({ generatedAt: 0, needsAnswer: { count: 0, items: [] }, openAppeals: { count: 0, items: [] }, newReports: { count: 0, items: [] }, unassignedCases: { count: 0, items: [] } }),
           profile: async () => ok({ active: {}, history: [] }),

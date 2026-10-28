@@ -41,6 +41,14 @@ final class StubGateway implements BackendGateway {
     ApiException confirmFailure;
     StaffLinkLookupResponse lookupResponse = new StaffLinkLookupResponse().linked(false);
     ApiException lookupFailure;
+    /** A relay state report as the backend received it. */
+    record RelayReport(String proxyId, boolean present, String version) {
+    }
+
+    /** The relay reports the backend accepted, in order. */
+    final List<RelayReport> relayReports = new ArrayList<>();
+    /** What the next relay report fails with, null for success. */
+    ApiException relayReportFailure;
     /** The player and code of each confirm call. */
     final List<String> confirmed = new ArrayList<>();
 
@@ -248,6 +256,14 @@ final class StubGateway implements BackendGateway {
     @Override
     public void acknowledgeKick(String id, String proxyId, boolean found, boolean moved) {
         throw new UnsupportedOperationException("acknowledgeKick");
+    }
+
+    @Override
+    public void reportProxyCapabilities(String proxyId, boolean present, String version) throws ApiException {
+        if (this.relayReportFailure != null) {
+            throw this.relayReportFailure;
+        }
+        this.relayReports.add(new RelayReport(proxyId, present, version));
     }
 
     static PunishTemplateResponse template(String key, String section) {

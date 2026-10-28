@@ -881,6 +881,10 @@
     "confirm": "Link now",
     "done": "{linked} punishments linked to {template}, {skipped} left alone."
   },
+  "relayBanner": {
+    "absent": "{proxy} runs without SignedVelocity. Signed mutes there are enforced by disconnecting the muted player, not by cancelling the message. Install SignedVelocity on the proxy and on every backend server.",
+    "unknown": "The SignedVelocity state of {proxy} is unknown: it has not reported recently."
+  },
   "cloudnetCatalogue": {
     "title": "CloudNet catalogue",
     "intro": "What the proxies report from CloudNet. Read-only; the section editor uses it for suggestions.",

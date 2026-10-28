@@ -24,9 +24,9 @@ import java.util.Optional;
 
 /**
  * Denies the chat messages of muted players (an active punishment in a MUTE section) and forwards
- * the others to the backend for toxicity scoring. Signed messages are only denied when
- * SignedVelocity is present (see {@link MuteChatDenial}); otherwise the muted player is told and
- * the message is delivered, because cancelling it would disconnect the player.
+ * the others to the backend for toxicity scoring. A muted player's message is never delivered: the
+ * player is told about the mute, and when the message is signed and SignedVelocity is missing the
+ * player is disconnected with the mute screen (see {@link MuteChatDenial}).
  */
 public final class PlayerChatListener {
 
@@ -43,7 +43,15 @@ public final class PlayerChatListener {
             @NotNull ApiClient blackholeClient, @NotNull PunishmentState state,
             @NotNull EvidenceCounts evidenceCounts, @NotNull MuteChatDenial denial, @NotNull MuteNotices notices
     ) {
-        this.eloApi = new EloApi(blackholeClient);
+        this(new EloApi(blackholeClient), state, evidenceCounts, denial, notices);
+    }
+
+    /** The ELO client is passed in so that tests can record the scoring calls. */
+    public PlayerChatListener(
+            @NotNull EloApi eloApi, @NotNull PunishmentState state,
+            @NotNull EvidenceCounts evidenceCounts, @NotNull MuteChatDenial denial, @NotNull MuteNotices notices
+    ) {
+        this.eloApi = eloApi;
         this.state = state;
         this.evidenceCounts = evidenceCounts;
         this.denial = denial;
@@ -65,9 +73,16 @@ public final class PlayerChatListener {
             return;
         }
         if (mute.isPresent()) {
-            this.denial.deny(event, player.getProtocolVersion());
             long evidence = this.evidenceCounts.of(mute.get().punishmentIdentifier()).orElse(0);
             Locale locale = PunishmentScreens.localeOf(player);
+            MuteChatDenial.Outcome outcome = this.denial.deny(event, player.getProtocolVersion());
+            if (outcome == MuteChatDenial.Outcome.DISCONNECT) {
+                // Named once per attempt, never with the message text: the proxy has no other way to stop it.
+                LOGGER.info("Disconnected muted player {} for a signed chat message: SignedVelocity is not installed on this proxy",
+                        player.getUsername());
+                player.disconnect(this.notices.disconnectScreen(mute.get(), locale, evidence));
+                return;
+            }
             player.sendMessage(this.notices.notice(uuidHash, mute.get(), locale, evidence));
             return;
         }

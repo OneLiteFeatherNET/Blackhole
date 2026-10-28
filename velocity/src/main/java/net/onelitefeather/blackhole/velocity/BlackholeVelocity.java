@@ -81,12 +81,16 @@ import net.onelitefeather.blackhole.velocity.listener.ServerConnectListener;
 import net.onelitefeather.blackhole.velocity.module.BlackholeClientModule;
 import net.onelitefeather.blackhole.velocity.enforcement.EnforcementActions;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteChatDenial;
+import net.onelitefeather.blackhole.velocity.enforcement.MuteCommandGate;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteNoticeCooldown;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteNotices;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
+import net.onelitefeather.blackhole.velocity.enforcement.RelayState;
+import net.onelitefeather.blackhole.velocity.listener.MuteCommandListener;
 import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
+import net.onelitefeather.blackhole.velocity.punish.ProxyCapabilityReporter;
 import net.onelitefeather.blackhole.velocity.component.theme.BlackholeTheme;
 import net.onelitefeather.blackhole.velocity.punish.HttpBackendGateway;
 import net.onelitefeather.blackhole.velocity.punish.PunishService;
@@ -126,7 +130,7 @@ import java.util.ResourceBundle;
         version = "1.0.0",
         description = "A plugin to manage bans and mutes",
         authors = {"theEvilReaper", "TheMeinerLP"},
-        // Optional: loading after SignedVelocity lets muted signed chat be blocked instead of only announced.
+        // Optional: loading after SignedVelocity lets a muted player's signed chat be cancelled instead of disconnecting the sender.
         dependencies = @Dependency(id = MuteChatDenial.RELAY_PLUGIN_ID, optional = true)
 )
 public class BlackholeVelocity {
@@ -149,6 +153,7 @@ public class BlackholeVelocity {
     private ExecutorService eventThread;
     private volatile boolean authReady;
     private CommandRuleListener commandRuleListener;
+    private MuteCommandListener muteCommands;
 
     @Inject
     public BlackholeVelocity(Injector injector, Logger logger, ProxyServer server, @DataDirectory Path dataDirectory) {
@@ -203,13 +208,12 @@ public class BlackholeVelocity {
         ChatBuffer chatBuffer = new ChatBuffer(clock, chatCapture);
         ChatEvidence chatEvidence = ChatEvidence.create(new ChatSnapshotBuilder(chatBuffer, chatCapture), backend, chatCapture);
         EvidenceCounts evidenceCounts = new CachedEvidenceCounts(backend, clock, chatCapture.getTimeout());
-        MuteChatDenial chatDenial = new MuteChatDenial(this.server.getPluginManager().isLoaded(MuteChatDenial.RELAY_PLUGIN_ID));
-        if (!chatDenial.relayPresent()) {
-            this.logger.warn("SignedVelocity is not installed: mutes cannot block signed chat and client rules cannot deny signed "
-                    + "commands (Minecraft 1.19.1+). Muted players are told about their mute but their messages are still delivered; a command "
-                    + "with signed arguments that a rule denies is still delivered and the hit is recorded as not enforced. "
-                    + "Install SignedVelocity on the proxy and on every backend server to enforce mutes and command rules.");
-        }
+        // Read once here: the relay's presence decides how mutes and client rules may stop signed messages.
+        RelayState relay = RelayState.check(this.server.getPluginManager().isLoaded(MuteChatDenial.RELAY_PLUGIN_ID),
+                this.server.getPluginManager().getPlugin(MuteChatDenial.RELAY_PLUGIN_ID)
+                        .flatMap(container -> container.getDescription().getVersion()).orElse(null),
+                this.logger::error);
+        MuteChatDenial chatDenial = new MuteChatDenial(relay.present());
         PunishService punishService = new PunishService(backend, sections, chatEvidence);
         ReportService reportService = new ReportService(backend, ReportEvidence.create(new ChatSnapshotBuilder(chatBuffer, chatCapture), backend, chatCapture));
 
@@ -260,10 +264,15 @@ public class BlackholeVelocity {
             this.logger.info("Client rules are switched off on this proxy");
         }
 
+        MuteNotices muteNotices = new MuteNotices(screens, new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN));
+        this.muteCommands = new MuteCommandListener(new MuteCommandGate(this.config.getMute().getCommands(), relay.present()),
+                state, evidenceCounts, muteNotices);
+        new ProxyCapabilityReporter(relay, backend, timer(), proxyIdOf(cloudNetConfig, cloudNet)).start();
+
         Injector childInjector = this.injector.createChildInjector(
                 new BlackholeClientModule(this.client, this.config, sections, mirror, state,
                         syncHandler, actions, backend, punishService, clock, screens, chatBuffer, evidenceCounts, chatDenial,
-                        new MuteNotices(screens, new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN)), servers, reportService, reportNotifier, reportFeedback, kickRunner).asModule(),
+                        muteNotices, servers, reportService, reportNotifier, reportFeedback, kickRunner).asModule(),
                 new CloudInjectionModule<>(
                         CommandSource.class,
                         ExecutionCoordinator.simpleCoordinator(),
@@ -290,6 +299,7 @@ public class BlackholeVelocity {
         annotationParser.parse(childInjector.getInstance(DiscordCommand.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerLoginListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerChatListener.class));
+        server.getEventManager().register(this, this.muteCommands);
         server.getEventManager().register(this, childInjector.getInstance(ReportFeedbackListener.class));
         if (chatBuffer.enabled()) {
             this.logger.info("Chat capture is enabled: recent public chat is kept in memory for punishment evidence");

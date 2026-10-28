@@ -6,6 +6,7 @@ import { useApi } from './api/inject'
 import { useAuth, useSignOut } from './auth/inject'
 import AccountLinkDialog from './components/account/AccountLinkDialog.vue'
 import AccountMenu from './components/account/AccountMenu.vue'
+import RelayBanner from './components/admin/RelayBanner.vue'
 import GlobalSearch from './components/search/GlobalSearch.vue'
 import WorkspaceSwitcher from './components/WorkspaceSwitcher.vue'
 import MdIconButton from './components/md/MdIconButton.vue'
@@ -142,6 +143,7 @@ onBeforeUnmount(() => stopTicker?.())
       />
       <main id="main" tabindex="-1" class="min-w-0 flex-1 p-4 md:p-6">
         <!-- A page with PageShell renders its own heading; every other page still gets the route title. -->
+        <RelayBanner v-if="resolved && session.moderator" class="mb-4" />
         <h1 v-if="resolved && title && !route.meta.pageShell" class="mb-4 text-headline-small text-on-surface">{{ title }}</h1>
         <!-- Always mounted so a screen reader announces the text when it appears. -->
         <p role="status" aria-live="polite" class="text-body-large" data-testid="auth-status">
