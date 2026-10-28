@@ -28,7 +28,8 @@ class NatsSyncServiceTest {
     private int sectionChanges;
 
     private final NatsSyncService service = new NatsSyncService(mirror, new NatsSyncService.Reactions(
-            punishments::add, evicted::add, () -> sectionChanges++, reports::add, feedback::add, kick -> { }, mass -> { }), Runnable::run);
+            punishments::add, evicted::add, () -> sectionChanges++, reports::add, feedback::add, kick -> { }, mass -> { },
+            warning -> { }), Runnable::run);
 
     private void publish(String subject, String payload) {
         String eventType = subject.substring("blackhole.events.".length());
@@ -124,7 +125,7 @@ class NatsSyncServiceTest {
                 m -> {
                     seen.add(m.punishmentIdentifier());
                     throw new IllegalStateException("boom");
-                }, evicted::add, () -> { }, reports::add, feedback::add, kick -> { }, mass -> { }), Runnable::run);
+                }, evicted::add, () -> { }, reports::add, feedback::add, kick -> { }, mass -> { }, warning -> { }), Runnable::run);
         String payload = "{\"owner\":\"" + OWNER + "\",\"section\":\"chat\",\"permanent\":true,\"reason\":\"x\",\"punishmentIdentifier\":\"p1\"}";
         String envelope = "{\"payload\":" + payload + "}";
 

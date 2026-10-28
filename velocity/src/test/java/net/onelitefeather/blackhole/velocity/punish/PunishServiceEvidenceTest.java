@@ -49,7 +49,7 @@ class PunishServiceEvidenceTest {
 
     private PunishService.ApplyOutcome.Applied ban() {
         return assertInstanceOf(PunishService.ApplyOutcome.Applied.class,
-                service.apply(OWNER, "hacking", STAFF, PunishService.BAN_KINDS));
+                service.apply(OWNER, "hacking", STAFF, PunishService.BAN_KINDS, false));
     }
 
     /** A pending upload that gives up when asked for its result, as a timeout does. */
@@ -149,7 +149,7 @@ class PunishServiceEvidenceTest {
         backend.applyFailure = new ApiException(500, "down");
 
         var outcome = assertInstanceOf(PunishService.ApplyOutcome.Failed.class,
-                service.apply(OWNER, "hacking", STAFF, PunishService.BAN_KINDS));
+                service.apply(OWNER, "hacking", STAFF, PunishService.BAN_KINDS, false));
 
         assertEquals(500, outcome.status());
         assertEquals(List.of("evidence", "apply"), backend.calls, "the orphaned evidence is left to expire on the backend");
@@ -160,7 +160,7 @@ class PunishServiceEvidenceTest {
         buffer.record(OWNER, "lobby", "bad words");
 
         assertInstanceOf(PunishService.ApplyOutcome.WrongSection.class,
-                service.apply(OWNER, "hacking", STAFF, PunishService.MUTE_KINDS));
+                service.apply(OWNER, "hacking", STAFF, PunishService.MUTE_KINDS, false));
 
         assertTrue(backend.postedEvidence.isEmpty(), "chat must only leave the buffer for a punishment that is really applied");
     }

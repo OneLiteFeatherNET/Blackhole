@@ -41,7 +41,7 @@ class HttpBackendGatewayAuthTest {
     void applyingAPunishmentSendsTheBearerTokenAndTheStaffMemberAsOnBehalfOf() throws Exception {
         FakeHttpClient transport = new FakeHttpClient().answer(200, "{}");
 
-        gateway(transport).apply("owner-hash", "spam", STAFF, null);
+        gateway(transport).apply("owner-hash", "spam", STAFF, null, false);
 
         assertEquals("Bearer proxy-token", transport.requests().getFirst().headers().firstValue("Authorization").orElse(""),
                 "the proxy authenticates as itself");

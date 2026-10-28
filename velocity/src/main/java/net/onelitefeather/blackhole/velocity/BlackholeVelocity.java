@@ -23,6 +23,10 @@ import net.onelitefeather.blackhole.velocity.command.DiscordCommand;
 import net.onelitefeather.blackhole.velocity.command.LinkCommand;
 import net.onelitefeather.blackhole.velocity.command.KickAllCommand;
 import net.onelitefeather.blackhole.velocity.command.KickCommand;
+import net.onelitefeather.blackhole.velocity.command.WarnCommand;
+import net.onelitefeather.blackhole.velocity.command.WarningAckCommand;
+import net.onelitefeather.blackhole.velocity.enforcement.WarningHandler;
+import net.onelitefeather.blackhole.velocity.listener.WarningListener;
 import net.onelitefeather.blackhole.velocity.command.KickRunner;
 import net.onelitefeather.blackhole.velocity.command.PardonCommand;
 import net.onelitefeather.blackhole.velocity.enforcement.KickHandler;
@@ -205,6 +209,8 @@ public class BlackholeVelocity {
         KickRunner kickRunner = new KickRunner(backend, CompletableFuture::runAsync,
                 (delay, task) -> this.server.getScheduler().buildTask(this, task).delay(delay).schedule(),
                 clock, () -> UUID.randomUUID().toString(), KICK_POLL, KICK_GIVE_UP);
+        // A warning is shown in game and confirmed by the player; the backend calls run off the event thread.
+        WarningHandler warnings = new WarningHandler(backend, CompletableFuture::runAsync);
         ChatBuffer chatBuffer = new ChatBuffer(clock, chatCapture);
         ChatEvidence chatEvidence = ChatEvidence.create(new ChatSnapshotBuilder(chatBuffer, chatCapture), backend, chatCapture);
         EvidenceCounts evidenceCounts = new CachedEvidenceCounts(backend, clock, chatCapture.getTimeout());
@@ -230,7 +236,9 @@ public class BlackholeVelocity {
                 owner -> reportFeedback.poked(owner, this.server.getAllPlayers()),
                 // The handlers read the reason and answer over HTTP, so they must not run on the NATS thread.
                 kick -> CompletableFuture.runAsync(() -> kickHandler.kick(kick)),
-                kick -> CompletableFuture.runAsync(() -> kickHandler.mass(kick))), eventThread);
+                kick -> CompletableFuture.runAsync(() -> kickHandler.mass(kick)),
+                // Only the owner's connected proxy finds them; a warning never touches the punishment cache.
+                warning -> CompletableFuture.runAsync(() -> warnings.warned(warning, this.server.getAllPlayers()))), eventThread);
         sync.set(natsSync);
         ClientRulesConfig clientRulesConfig = this.config.getClientRules().withEnvironment(System::getenv);
         ClientRuleBackend ruleBackend = new HttpClientRuleBackend(this.client);
@@ -272,7 +280,7 @@ public class BlackholeVelocity {
         Injector childInjector = this.injector.createChildInjector(
                 new BlackholeClientModule(this.client, this.config, sections, mirror, state,
                         syncHandler, actions, backend, punishService, clock, screens, chatBuffer, evidenceCounts, chatDenial,
-                        muteNotices, servers, reportService, reportNotifier, reportFeedback, kickRunner).asModule(),
+                        muteNotices, servers, reportService, reportNotifier, reportFeedback, kickRunner, warnings).asModule(),
                 new CloudInjectionModule<>(
                         CommandSource.class,
                         ExecutionCoordinator.simpleCoordinator(),
@@ -293,6 +301,8 @@ public class BlackholeVelocity {
         annotationParser.parse(childInjector.getInstance(PardonCommand.class));
         annotationParser.parse(childInjector.getInstance(KickCommand.class));
         annotationParser.parse(childInjector.getInstance(KickAllCommand.class));
+        annotationParser.parse(childInjector.getInstance(WarnCommand.class));
+        annotationParser.parse(childInjector.getInstance(WarningAckCommand.class));
         annotationParser.parse(childInjector.getInstance(EloCommand.class));
         annotationParser.parse(childInjector.getInstance(LinkCommand.class));
         annotationParser.parse(childInjector.getInstance(ReportCommand.class));
@@ -301,6 +311,7 @@ public class BlackholeVelocity {
         server.getEventManager().register(this, childInjector.getInstance(PlayerChatListener.class));
         server.getEventManager().register(this, this.muteCommands);
         server.getEventManager().register(this, childInjector.getInstance(ReportFeedbackListener.class));
+        server.getEventManager().register(this, childInjector.getInstance(WarningListener.class));
         if (chatBuffer.enabled()) {
             this.logger.info("Chat capture is enabled: recent public chat is kept in memory for punishment evidence");
             server.getEventManager().register(this, childInjector.getInstance(ChatCaptureListener.class));

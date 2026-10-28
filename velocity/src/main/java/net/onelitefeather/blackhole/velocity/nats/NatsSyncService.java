@@ -7,6 +7,7 @@ import net.onelitefeather.blackhole.velocity.enforcement.MassKickMessage;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncMessage;
+import net.onelitefeather.blackhole.velocity.enforcement.WarningMessage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -54,12 +55,13 @@ public final class NatsSyncService implements BusClient.Listener, PunishmentStat
      * @param reportFeedback a reporter (their owner hash) has feedback waiting
      * @param kick          one player is to be taken off the network, a server or a section; never touches the cache
      * @param kickMass      everybody is to be taken off a server or section; never touches the cache
+     * @param warned        a player was warned: show it if they are connected here; never touches the cache
      */
     public record Reactions(
             @NotNull Consumer<PunishmentSyncMessage> punishment, @NotNull Consumer<String> evictOwner,
             @NotNull Runnable sectionChange, @NotNull Consumer<ReportCreated> reportCreated,
             @NotNull Consumer<String> reportFeedback, @NotNull Consumer<KickMessage> kick,
-            @NotNull Consumer<MassKickMessage> kickMass
+            @NotNull Consumer<MassKickMessage> kickMass, @NotNull Consumer<WarningMessage> warned
     ) {
     }
 
@@ -125,6 +127,9 @@ public final class NatsSyncService implements BusClient.Listener, PunishmentStat
                 // above, and the wildcard's other suffixes stay unknown.
                 case Subjects.PUNISHMENT_KICK -> kick(payload);
                 case Subjects.KICK_MASS -> kickMass(payload);
+                // A warning is a message to one player, not a punishment: it is named here so it never reaches the
+                // cache path above, and the cache is never touched for it.
+                case Subjects.PUNISHMENT_WARNED -> warned(payload);
                 case Subjects.APPEAL_RESOLVED -> {
                     // A full lift ends the ban, a reduction is followed by punishment.updated; either way the
                     // owner's state changed, so the cache forgets it and the next check reads the backend.
@@ -185,6 +190,16 @@ public final class NatsSyncService implements BusClient.Listener, PunishmentStat
             return;
         }
         this.reactions.kickMass().accept(new MassKickMessage(actionId, scope, target));
+    }
+
+    private void warned(JsonNode payload) {
+        String warningId = text(payload, "warningId");
+        String owner = text(payload, "owner");
+        if (warningId == null || owner == null) {
+            LOGGER.warn("Ignoring a warning event without warning id or owner");
+            return;
+        }
+        this.reactions.warned().accept(new WarningMessage(warningId, owner));
     }
 
     private void reportCreated(JsonNode payload) {

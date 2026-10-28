@@ -111,7 +111,7 @@ public final class PunishCommand {
     }
 
     private void apply(Player sender, ResolvedTarget target, String templateKey, Set<EnforcementKind> kinds, String command, String failureKey) {
-        PunishService.ApplyOutcome outcome = this.service.apply(target.ownerHash(), templateKey, sender.getUniqueId(), kinds);
+        PunishService.ApplyOutcome outcome = this.service.apply(target.ownerHash(), templateKey, sender.getUniqueId(), kinds, false);
         switch (outcome) {
             case PunishService.ApplyOutcome.Applied applied -> applied(sender, target, applied);
             case PunishService.ApplyOutcome.TemplateNotFound missing -> sender.sendMessage(
