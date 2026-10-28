@@ -93,6 +93,8 @@ public final class EvidenceTestBed {
     public final EvidenceConfig config = new EvidenceConfig();
     public final FakeScanner scanner = new FakeScanner();
     public final ChatAttachmentConfig chatConfig = new ChatAttachmentConfig();
+    /** The staff audit rows the service writes, so a test can read them. */
+    public final InMemoryStaffAuditStore staffAuditStore = new InMemoryStaffAuditStore();
     public final EvidenceService service;
     public final ChatFileService chatFiles;
     public final EvidenceHousekeepingSweeper sweeper;
@@ -117,7 +119,7 @@ public final class EvidenceTestBed {
         this.service = new EvidenceService(
                 items.repository(), audit.repository(), punishments.repository(), new PayloadValidator(config),
                 new UploadPipeline(config, scanner), blobs, publisher == null ? events : publisher, this.staffLinks.service, cases.timeline, id -> true, clock, spoolDirectory,
-                new StaffAuditRecorder(new InMemoryStaffAuditStore(), new DomainEventPublisher(new RecordingEventTransport(), clock),
+                new StaffAuditRecorder(this.staffAuditStore, new DomainEventPublisher(new RecordingEventTransport(), clock),
                         new AuditPayloadGuard(), clock, new SimpleMeterRegistry()));
         this.chatFiles = new ChatFileService(items.repository(), audit.repository(), punishments.repository(),
                 new UploadPipeline(config, chatConfig, scanner), blobs, publisher == null ? events : publisher, cases.timeline, chatConfig, clock,

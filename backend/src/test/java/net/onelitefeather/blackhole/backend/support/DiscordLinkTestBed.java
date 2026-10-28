@@ -53,12 +53,14 @@ public final class DiscordLinkTestBed {
                     .build();
     public final InMemoryRepository<StaffActorRepository, StaffActorEntity, UUID> actors =
             InMemoryRepository.<StaffActorRepository, StaffActorEntity, UUID>of(StaffActorRepository.class, StaffActorEntity::getOid).build();
+    /** The staff audit rows the service writes, so a test can read them. */
+    public final InMemoryStaffAuditStore auditStore = new InMemoryStaffAuditStore();
     public final DiscordLinkService service;
 
     public DiscordLinkTestBed(DomainEventPublisher events, Clock clock) {
         this.service = new DiscordLinkService(this.links.repository(), this.codes.repository(), this.actors.repository(),
                 new StaffLinkCodeGenerator(), events, new DiscordLinkProperties(TTL), clock,
-                new StaffAuditRecorder(new InMemoryStaffAuditStore(), new DomainEventPublisher(new RecordingEventTransport(), clock),
+                new StaffAuditRecorder(this.auditStore, new DomainEventPublisher(new RecordingEventTransport(), clock),
                         new AuditPayloadGuard(), clock, new SimpleMeterRegistry()));
     }
 
