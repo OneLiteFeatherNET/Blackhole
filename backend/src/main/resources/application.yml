@@ -574,6 +574,10 @@ otel:
     name: ${OTEL_SERVICE_NAME:blackhole}
   traces:
     exporter: ${OTEL_TRACES_EXPORTER:none}
+    # Head sampler. parentbased_always_on keeps every trace so the Alloy tail policy sees all spans;
+    # lowering it below 1.0 would hide slow and failed traces from that policy. OTEL_TRACES_SAMPLER_ARG
+    # is read by the SDK directly and is only needed for the ratio samplers.
+    sampler: ${OTEL_TRACES_SAMPLER:parentbased_always_on}
   metrics:
     exporter: none
   logs:
