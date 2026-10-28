@@ -38,3 +38,21 @@ java {
         languageVersion.set(JavaLanguageVersion.of(25))
     }
 }
+
+// The default test run excludes the "spike" tag: those tests download a DuckDB extension and need network.
+tasks.named<Test>("test") {
+    useJUnitPlatform {
+        excludeTags("spike")
+    }
+}
+
+// Opt-in run of the tagged spike tests: ./gradlew :analytics-sink:spikeTest
+tasks.register<Test>("spikeTest") {
+    description = "Runs the spike tests that need network (DuckDB extension download)."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform {
+        includeTags("spike")
+    }
+}

@@ -21,6 +21,7 @@ import org.apache.iceberg.types.Types;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
@@ -119,7 +120,10 @@ class IcebergJdbcCatalogSpikeTest {
         assertEquals(1, countRows(reloaded), "only the row on or after the cutoff should remain");
     }
 
+    // Tagged "spike": the DuckDB iceberg extension is downloaded on first run, so this test is not part of the
+    // default run. Run it with the spikeTest task (see the PR body).
     @Test
+    @Tag("spike")
     void duckDbReadsTableWrittenThroughTheJdbcCatalog() throws Exception {
         Table table = createEventsTable();
         DataFile file = writeDay(table, List.of(
