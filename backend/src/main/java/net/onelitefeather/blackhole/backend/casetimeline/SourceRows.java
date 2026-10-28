@@ -94,15 +94,18 @@ public final class SourceRows {
     /**
      * A warning: a punishment row of kind {@code WARN}. Like a kick it has no section step, expiry or lift.
      *
-     * @param identifier the warning's Ban ID
+     * @param identifier     the warning's Ban ID
+     * @param eloCost        the ELO cost of the warning's step, if any
+     * @param acknowledgedAt when the player acknowledged it, or {@code null} while pending
      */
     public record WarnRow(
-            String identifier, @Nullable UUID source, @Nullable UUID recordedByOid, @Nullable UUID actorOid, long createdAt
+            String identifier, @Nullable UUID source, @Nullable UUID recordedByOid, @Nullable UUID actorOid,
+            @Nullable Integer eloCost, long createdAt, @Nullable Long acknowledgedAt
     ) {
 
         public static WarnRow of(PunishmentEntity warning) {
             return new WarnRow(warning.getIdentifier(), warning.getSource(), warning.getRecordedByOid(), warning.getActorOid(),
-                    warning.getCreatedAt() == null ? 0 : warning.getCreatedAt());
+                    warning.getEloCost(), warning.getCreatedAt() == null ? 0 : warning.getCreatedAt(), warning.getAcknowledgedAt());
         }
 
         /** Who gave the warning. */

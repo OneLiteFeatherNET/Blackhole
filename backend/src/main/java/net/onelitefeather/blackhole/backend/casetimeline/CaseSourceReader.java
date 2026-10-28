@@ -20,6 +20,12 @@ public interface CaseSourceReader {
     /** Kicks without a {@code punishment.kicked} event. */
     List<KickRow> kickedMissing(long since, int limit);
 
+    /** Warnings without a {@code punishment.warned} event. */
+    List<SourceRows.WarnRow> warnedMissing(long since, int limit);
+
+    /** Warnings acknowledged since {@code since} without a {@code punishment.acknowledged} event. */
+    List<SourceRows.WarnRow> acknowledgedMissing(long since, int limit);
+
     /** Revoked or lifted punishments without a {@code punishment.revoked} / {@code punishment.lifted} event. */
     List<PunishmentRow> endedMissing(long since, int limit);
 
