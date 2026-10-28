@@ -6,7 +6,7 @@ import { useReducedMotion } from './useReducedMotion'
 
 const props = withDefaults(
   defineProps<{
-    name: 'fade' | 'fade-through' | 'scale' | 'menu' | 'snackbar' | 'badge' | 'modal'
+    name: 'fade' | 'fade-through' | 'scale' | 'menu' | 'snackbar' | 'badge' | 'modal' | 'side-sheet'
     mode?: 'in-out' | 'out-in'
     appear?: boolean
   }>(),

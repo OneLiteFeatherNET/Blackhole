@@ -37,6 +37,10 @@
     "cloudnet": "CloudNet",
     "kick": "Massen-Kick"
   },
+  "panel": {
+    "close": "Schließen",
+    "back": "Zurück zu {parent}"
+  },
   "settings": {
     "theme": {
       "label": "Design",
