@@ -225,6 +225,10 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         long counted = countEarlier(owner, group, template, now, window);
         StepSelector.Selection selection = StepSelector.select(template.getSteps(), counted);
 
+        if (Boolean.TRUE.equals(request.warningOnly()) && selection.step().getKind() != StepKind.WARN) {
+            return failed(ErrorKind.WARN_STEP_REQUIRED, "the template's next step for this player is "
+                    + selection.step().getKind() + ", not a warning; apply it as a punishment instead");
+        }
         if (selection.step().getKind() == StepKind.WARN) {
             // A warning never takes the slot and never blocks: the template is all there is to check.
             return new Planned(new Plan(template, section, now, group, selection, attribution), null);

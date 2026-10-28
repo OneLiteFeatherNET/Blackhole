@@ -4457,6 +4457,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PunishmentError"
+        "422":
+          description: "WARN_STEP_REQUIRED: warningOnly was set but the step the ladder\
+            \ reached is no warning; KICK_TARGET_INVALID: a kick step's scope and target\
+            \ do not fit"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
   /punishment/lookup:
     post:
       tags:
@@ -7992,6 +8000,7 @@ components:
       - NAME_TAKEN
       - STAFF_PROFILE_REQUIRED
       - KICK_TARGET_INVALID
+      - WARN_STEP_REQUIRED
       x-enum-descriptions:
       - The request is malformed or breaks a business rule of its own (400).
       - The addressed resource does not exist (404).
@@ -8011,6 +8020,8 @@ components:
         see (409).
       - "A kick's scope and target do not fit: a scoped kick without a target, a target\
         \ that is no server or section (422)."
+      - "A warning was asked for, but the template's ladder reached a step that is not\
+        \ a warning (422)."
     ErrorResponse:
       type: object
       properties:
@@ -9673,6 +9684,10 @@ components:
         evidenceCorrelationId:
           maxLength: 64
           type: string
+          nullable: true
+        warningOnly:
+          type: boolean
+          description: "`true` for /warn: the step the ladder reached must be a WARN step, otherwise nothing is applied (422 `WARN_STEP_REQUIRED`)"
           nullable: true
     PunishmentApplyResponse:
       required:
