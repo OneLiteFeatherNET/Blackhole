@@ -3480,6 +3480,107 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/KickError"
+  /warn/pending:
+    get:
+      tags:
+      - Warning
+      summary: List a player's pending warnings
+      description: "The warnings of one player that nobody has confirmed yet, oldest\
+        \ first, at most limit (default 10, at most 50). A player with more pending\
+        \ warnings sees the rest on the next login. Only the proxy may read it."
+      operationId: listPendingWarnings
+      parameters:
+      - name: owner
+        in: query
+        required: true
+        description: The hashed player, SHA-512 as 128 hex characters
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        description: At most this many warnings; 10 when absent, at most 50
+        schema:
+          type: integer
+          format: int32
+      responses:
+        "200":
+          description: The pending warnings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarningPending"
+        "400":
+          description: Invalid owner (a SHA-512 hash) or limit (1 to 50)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarningError"
+  /warn/{id}:
+    get:
+      tags:
+      - Warning
+      summary: Get a warning
+      description: "One warning with its reason, the staff member who gave it, when,\
+        \ and when the player confirmed it (null while pending). The proxy reads the\
+        \ reason here before it shows the warning in game."
+      operationId: getWarning
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: The warning
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarningResponse"
+        "404":
+          description: No such warning
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarningError"
+  /warn/{id}/acknowledge:
+    post:
+      tags:
+      - Warning
+      summary: Record the player's confirmation of a warning
+      description: "Called by the proxy when the player clicks Acknowledge. The first\
+        \ confirmation sets the time and is recorded on the case; a repeat keeps the\
+        \ first time and answers the same. A warning of another player is reported\
+        \ as unknown. Only the proxy may call it."
+      operationId: acknowledgeWarning
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WarningAcknowledgeRequest"
+        required: true
+      responses:
+        "204":
+          description: The confirmation is stored
+        "400":
+          description: Invalid owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarningError"
+        "404":
+          description: No such warning for this player
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WarningError"
 
   /player-discord-link/code:
     post:
@@ -4189,6 +4290,51 @@ paths:
             application/json:
               schema:
                 type: object
+  /proxy/capabilities:
+    get:
+      tags:
+      - Proxy
+      summary: Get the SignedVelocity state of every proxy
+      description: "Each proxy's last report of whether SignedVelocity is loaded on it.\
+        \ A proxy whose last report is older than the stale window is unknown. Staff\
+        \ panel only."
+      operationId: getProxyCapabilities
+      responses:
+        "200":
+          description: The last state of every proxy that has reported
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProxyCapabilityResponse"
+    put:
+      tags:
+      - Proxy
+      summary: Report a proxy's SignedVelocity state
+      description: "Replaces the calling proxy's last report. Without SignedVelocity\
+        \ the proxy cannot cancel signed mute messages, so the admin panel warns.\
+        \ Proxy tokens only."
+      operationId: reportProxyCapabilities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProxyCapabilityReportRequest"
+        required: true
+      responses:
+        "204":
+          description: Report stored
+        "400":
+          description: Invalid proxy id or SignedVelocity version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProxyCapabilityError"
+        "503":
+          description: The shared cache is unavailable, retry later
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProxyCapabilityError"
   /punishment:
     get:
       tags:
@@ -4358,6 +4504,14 @@ paths:
         "409":
           description: "The template's section is disabled, or the player is already\
             \ permanently punished in it"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PunishmentError"
+        "422":
+          description: "WARN_STEP_REQUIRED: warningOnly was set but the step the ladder\
+            \ reached is no warning; KICK_TARGET_INVALID: a kick step's scope and target\
+            \ do not fit"
           content:
             application/json:
               schema:
@@ -7897,6 +8051,7 @@ components:
       - NAME_TAKEN
       - STAFF_PROFILE_REQUIRED
       - KICK_TARGET_INVALID
+      - WARN_STEP_REQUIRED
       x-enum-descriptions:
       - The request is malformed or breaks a business rule of its own (400).
       - The addressed resource does not exist (404).
@@ -7916,6 +8071,8 @@ components:
         see (409).
       - "A kick's scope and target do not fit: a scoped kick without a target, a target\
         \ that is no server or section (422)."
+      - "A warning was asked for, but the template's ladder reached a step that is not\
+        \ a warning (422)."
     ErrorResponse:
       type: object
       properties:
@@ -8798,6 +8955,65 @@ components:
       enum:
       - FULL
       - LIMITED
+    ProxyCapabilityError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+    ProxyCapabilityReportRequest:
+      required:
+      - proxyId
+      - signedVelocity
+      type: object
+      properties:
+        proxyId:
+          type: string
+        signedVelocity:
+          $ref: "#/components/schemas/ProxyCapabilitySignedVelocity"
+    ProxyCapabilityResponse:
+      required:
+      - proxies
+      type: object
+      properties:
+        proxies:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProxyRelayEntry"
+    ProxyCapabilitySignedVelocity:
+      required:
+      - present
+      type: object
+      properties:
+        present:
+          type: boolean
+        version:
+          type: string
+    ProxyRelayEntry:
+      required:
+      - proxyId
+      - state
+      type: object
+      properties:
+        proxyId:
+          type: string
+        state:
+          $ref: "#/components/schemas/ProxyRelayState"
+        version:
+          type: string
+        reportedAt:
+          type: string
+          format: date-time
+    ProxyRelayState:
+      type: string
+      enum:
+      - PRESENT
+      - ABSENT
+      - UNKNOWN
     PublicAppeal:
       required:
       - decision
@@ -9250,6 +9466,11 @@ components:
           nullable: true
           allOf:
           - $ref: "#/components/schemas/PunishmentKind"
+        acknowledgedAt:
+          type: integer
+          description: "when the player confirmed a warning, epoch milliseconds; `null` while pending or for anything that is not a warning"
+          format: int64
+          nullable: true
         kickScope:
           type: string
           description: "the scope a kick was applied at (`NETWORK`, `SERVER` or `SECTION`),\
@@ -9338,6 +9559,10 @@ components:
         escalationWindow:
           type: string
           nullable: true
+        warnWindow:
+          type: string
+          description: "ISO-8601 duration; warnings older than it stop counting towards escalation. `null` means the escalation window applies."
+          nullable: true
         steps:
           minItems: 1
           type: array
@@ -9419,6 +9644,10 @@ components:
         escalationWindow:
           type: string
           nullable: true
+        warnWindow:
+          type: string
+          description: "ISO-8601 duration; warnings older than it stop counting towards escalation. `null` means the escalation window applies."
+          nullable: true
         steps:
           type: array
           items:
@@ -9469,6 +9698,10 @@ components:
         escalationWindow:
           type: string
           nullable: true
+        warnWindow:
+          type: string
+          description: "ISO-8601 duration; warnings older than it stop counting towards escalation. `null` means the escalation window applies."
+          nullable: true
         steps:
           minItems: 1
           type: array
@@ -9502,6 +9735,10 @@ components:
         evidenceCorrelationId:
           maxLength: 64
           type: string
+          nullable: true
+        warningOnly:
+          type: boolean
+          description: "`true` for /warn: the step the ladder reached must be a WARN step, otherwise nothing is applied (422 `WARN_STEP_REQUIRED`)"
           nullable: true
     PunishmentApplyResponse:
       required:
@@ -9557,13 +9794,74 @@ components:
         resultingScore:
           type: integer
           format: int32
+    WarningResponse:
+      required:
+      - createdAt
+      - id
+      - owner
+      - reason
+      type: object
+      properties:
+        id:
+          type: string
+          description: the warning's Ban ID
+        owner:
+          type: string
+          description: the hashed player
+        reason:
+          type: string
+          description: the template's reason, shown to the player
+        actor:
+          type: string
+          description: the display name of the staff member, if known
+          nullable: true
+        createdAt:
+          type: integer
+          description: when the warning was given, epoch milliseconds
+          format: int64
+        acknowledgedAt:
+          type: integer
+          description: when the player confirmed it, epoch milliseconds; null while pending
+          format: int64
+          nullable: true
+      description: One warning and how far it got.
+    WarningPending:
+      required:
+      - items
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/WarningResponse"
+      description: The warnings of one player that nobody has confirmed yet, oldest first.
+    WarningAcknowledgeRequest:
+      required:
+      - owner
+      type: object
+      properties:
+        owner:
+          type: string
+          description: the hashed player the warning belongs to
+      description: The player confirms a warning. Only the proxy may send it.
+    WarningError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
     PunishmentKind:
       type: string
-      description: "What a punishment row is: a real punishment, or a kick that ends\
-        \ the moment it is delivered."
+      description: "What a punishment row is: a real punishment, a kick that ends\
+        \ the moment it is delivered, or a warning the player confirms once."
       enum:
       - PUNISHMENT
       - KICK
+      - WARN
     PunishmentLookupRequest:
       type: object
       properties:
@@ -10311,10 +10609,11 @@ components:
           nullable: true
     StepKind:
       type: string
-      description: "What a template step does: a timed punishment, or a kick (no duration)."
+      description: "What a template step does: a timed punishment, a kick, or a warning (no duration for either)."
       enum:
       - PUNISH
       - KICK
+      - WARN
     TicketState:
       type: string
       enum:
