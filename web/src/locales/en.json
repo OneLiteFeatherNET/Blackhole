@@ -37,6 +37,10 @@
     "cloudnet": "CloudNet",
     "kick": "Mass kick"
   },
+  "panel": {
+    "close": "Close",
+    "back": "Back to {parent}"
+  },
   "settings": {
     "theme": {
       "label": "Theme",

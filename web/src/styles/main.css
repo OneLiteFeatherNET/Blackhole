@@ -321,6 +321,20 @@
   transform: translateX(-100%);
 }
 
+/* Side sheet: slides in from the right edge (300 ms enter, 200 ms exit). Reduced motion uses md-fade instead. */
+.md-side-sheet-enter-active {
+  transition: transform var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+.md-side-sheet-leave-active {
+  transition: transform var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-emphasized-accelerate);
+}
+
+.md-side-sheet-enter-from,
+.md-side-sheet-leave-to {
+  transform: translateX(100%);
+}
+
 /*
  * MD3 state layer: a tint in the element's text color above its background, below its content.
  * Hover 8%, focus and press 12%. Also draws the visible focus ring for keyboard users.
