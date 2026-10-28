@@ -2,7 +2,7 @@
 
 ### Requirement: Template public reason
 
-A punishment template SHALL carry an optional `publicReason`: plain text of 1 to 200 characters, or absent. An absent or blank `publicReason` SHALL mean that punishments created from the template are not published. The `publicReason` SHALL be separate from the staff `reason` and SHALL NOT be derived from it. Only the ADMIN role SHALL set or change it.
+A punishment template SHALL carry an optional `publicReason`: plain text of 1 to 200 characters, or absent. An absent or blank `publicReason` SHALL mean that punishments created from the template are not listed on the ban list. The `publicReason` SHALL be separate from the staff `reason` and SHALL NOT be derived from it. Only the ADMIN role SHALL set or change it.
 
 #### Scenario: Template with a public reason
 
@@ -12,7 +12,7 @@ A punishment template SHALL carry an optional `publicReason`: plain text of 1 to
 #### Scenario: Template without a public reason
 
 - **WHEN** a template is created without `publicReason`
-- **THEN** punishments created from it are not published
+- **THEN** punishments created from it are not listed
 
 #### Scenario: Public reason longer than the limit
 
@@ -35,10 +35,10 @@ Applying a template SHALL copy its `publicReason` and the kind of the punishment
 
 #### Scenario: Expiry amendment
 
-- **WHEN** an amendment changes the expiry of a published punishment
+- **WHEN** an amendment changes the expiry of a listed punishment
 - **THEN** `public_expires_at` is updated to the new expiry and the entry shows the new expiry day
 
-### Requirement: Kick punishments never publish
+### Requirement: Kick punishments are never listed
 
 A punishment of kind `KICK` SHALL NOT receive public fields, a hash or an entry, even when its template has a public reason.
 

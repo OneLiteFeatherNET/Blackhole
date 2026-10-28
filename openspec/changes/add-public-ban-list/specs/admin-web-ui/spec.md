@@ -2,7 +2,7 @@
 
 ### Requirement: Template editor shows the public reason
 
-The template editor SHALL show an optional "Public reason" field next to the staff reason. The field SHALL state that the text is published on the public ban list, SHALL show its length against the 200 character limit, and SHALL be empty when no public reason is set. The editor SHALL show the field only to users with the ADMIN role and SHALL show a read-only note to other users. A save that the backend refuses for the public reason SHALL show the validation message next to the field.
+The template editor SHALL show an optional "Public reason" field next to the staff reason, only to users with the ADMIN role. Other users SHALL see a read-only note. The field SHALL state that the text is shown on the ban list for authenticated clients and SHALL show its length against the 200 character limit. A save that the backend refuses for the public reason SHALL show the validation message next to the field.
 
 #### Scenario: Admin sets a public reason
 

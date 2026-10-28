@@ -17,11 +17,11 @@ The code this design builds on (checked on `origin/main`, 2026-10-28):
   only in `dev` and `test` (random key per run, warning); elsewhere the backend refuses to start. HKDF-SHA256 with
   labelled `info` derives the lookup HMAC and the display key from it.
 - `publicapi/controller/PublicApi.java` documents "every answer is `no-store`". `.claude/rules/public-api.md` says the
-  same, and `/public/**` is reserved by `staff-authentication` for the later player portal, with no route under it
-  yet (`openspec/specs/staff-authentication/spec.md`, "Reserved prefix for the player portal").
-- `portal/server/lib/bff.ts`: `respond()` sets `Cache-Control: no-store` on every BFF answer. `ROUTES` in
-  `portal/src/api/contract.ts` maps `/api/<name>` to `/public/<name>`; the login route is the only one with
-  `session: false`. The portal selects its page by pathname (`portal/src/main.ts`, `/leave`).
+  same. `/public/**` is reserved by `staff-authentication` for the later player portal, with no route under it yet
+  (`openspec/specs/staff-authentication/spec.md`, "Reserved prefix for the player portal").
+- `openspec/config.yaml` principle 2: every route except `GET /health` needs an Entra ID access token (JWT bearer) and
+  denies by default. This change adds a deliberate exception for three routes (decision 6). The exception is not
+  yet ratified (open question 1).
 - `standardize-api-pagination-and-problems` (proposal on `main`, not applied): `CursorPage<T>{items, nextCursor}`,
   `limit` 1 to 200 with default 50 and a 400 instead of a clamp (D6), signed cursor
   `base64url(payload) "." base64url(HMAC-SHA256(BLACKHOLE_CURSOR_KEY, payload))` (D7), RFC 8288 `Link` (D15),
@@ -30,73 +30,119 @@ The code this design builds on (checked on `origin/main`, 2026-10-28):
   `blackhole-api-0.0.44.yml`.
 - `openspec/config.yaml` principle 1: PII is hashed or tokenized wherever it is stored or published. The amendment
   `amend-data-protection-principle` (prerequisite for the wider data decisions) keeps the rule that anything published
-  carries no IP, no raw UUID and no name. This change publishes none of them.
+  carries no IP, no raw UUID and no name. This change lists none of them, even though the readers are authenticated.
 
 ## Goals / Non-Goals
 
-**Goals**: an anonymous, paginated, cacheable list of published sanctions that a reader can cite by a stable
-reference; a list that reveals nothing that links an entry to a player, to a Ban ID or to an exact time; a
-summary that cannot be used to single out one punishment.
+**Goals**: a read-only, paginated list of sanctions for named, authenticated clients (the website and partner
+networks), where each client is identified in logs and metrics; an entry that a client can cite by a stable
+reference; a list that reveals nothing that links an entry to a player, to a Ban ID or to an exact time, because
+clients may republish what they read; a summary that cannot be used to single out one punishment.
 
-**Non-Goals**: player search or lookup; any link from an entry to a player page; showing names, staff, servers or
-evidence; per-locale reason texts; a feed or webhook; changing ban, mute or section semantics; rate limiting.
+**Non-Goals**: anonymous or browser access; a portal page; player search or lookup; any link from an entry to a
+player page; showing names, staff, servers or evidence; per-locale reason texts; a feed or webhook; per-client
+entry sets; client management UI; changing ban, mute or section semantics; rate limiting.
 
 ## Decisions
 
-### 1. What is published: opt-in per template, snapshot on apply
+### 1. What is listed: opt-in per template, snapshot on apply
 
 A template gains `publicReason` (optional text, 1 to 200 characters, plain text, `PiiGuard` applied). The rule for a
 punishment:
 
 - `kind = PUNISHMENT`, a template with a non-blank `publicReason`, and the template's section resolves to a section kind:
-  the punishment is published.
-- Otherwise it is never published: no template, a template without public reason, and every `KICK` (kicks are never
+  the punishment is listed.
+- Otherwise it is never listed: no template, a template without public reason, and every `KICK` (kicks are never
   bans; `add-kick` decision 1).
 
 The text and the section kind are copied onto the punishment when it is applied (`public_reason`, `public_kind`).
-Later template edits do not change published entries. The `publicReason` on a template is the only public text: it is
-never derived from the staff `reason`, which may name a rule detail or a case.
+Later template edits do not change listed entries. The `publicReason` on a template is the only text the list shows:
+it is never derived from the staff `reason`, which may name a rule detail or a case.
 
 Alternatives considered:
-- *Publish every punishment and let staff hide entries one by one*: rejected. Opt-out per row invites an accidental
-  publication of a row whose reason was never reviewed. Opt-in per template means one reviewed text per template.
-- *Publish the staff `reason`*: rejected. Staff reasons are free text and can name players, servers or cases.
+- *List every punishment and let staff hide entries one by one*: rejected. Opt-out per row invites an accidental
+  listing of a row whose reason was never reviewed. Opt-in per template means one reviewed text per template.
+- *List the staff `reason`*: rejected. Staff reasons are free text and can name players, servers or cases.
 - *Live join to the template*: rejected. A template edit would rewrite history, and a deleted template would silently
   remove entries.
 
-### 2. Entry fields and their vocabulary
+### 2. Access: named clients, HTTP Basic Auth, Argon2id hashes in Secret files
+
+**Credentials.** The ban-list routes accept HTTP Basic Auth (RFC 7617) with a username that names a configured
+client and the client's password. Clients are configured by name only:
+
+- `blackhole.ban-list.clients` (`BLACKHOLE_BAN_LIST_CLIENTS`, comma-separated names, default empty). A name matches
+  `[a-z0-9-]{1,32}`.
+- For each name, a file `<blackhole.ban-list.secrets-dir>/<name>` (`BLACKHOLE_BAN_LIST_SECRETS_DIR`) holds the
+  client's password hash as one PHC string, `$argon2id$v=19$m=19456,t=2,p=1$<salt>$<hash>`. The Helm chart mounts
+  one key per client from an existing Kubernetes Secret as a file in that directory. No password appears in
+  config, in the environment, in the image or in a log.
+- A client with no readable hash file, or a malformed hash, is a startup error outside `dev` and `test`. In
+  `dev` and `test` it is skipped with a warning, so the list is simply unreachable there unless a dev hash file is
+  present.
+
+**Hash algorithm.** Argon2id with the OWASP minimum parameters (m = 19 MiB, t = 2, p = 1). Bcrypt was rejected: it
+truncates input at 72 bytes, and it needs its own library for no gain. The implementation uses one Argon2 library,
+proposed as Bouncy Castle and confirmed at implementation time.
+
+**Passwords** are random, at least 32 bytes, generated by the operator. Operators produce the hash offline with the
+same parameters (a command documented in `.claude/rules/public-bans.md`).
+
+**Rotation.** Rotating a client's password means writing a new hash to its Secret key and restarting the backend. The
+old password stops working at the restart. Adding a client means adding its name and its Secret key, then a restart.
+Removing a client means removing its name, then a restart. A leaked client is cut off by the removal and a restart.
+The attribution (decision 10) shows what the client read before that.
+
+**Storage.** No database table, no admin UI and no API to manage clients in v1. A later option is a table with
+hashed passwords managed from the admin UI, which would need its own change.
+
+Alternatives considered:
+- *Entra app roles through the client credentials flow*: rejected for v1. Partner networks are outside our tenant, so
+  each one would need an app registration in our tenant. The existing role mapping can take it later.
+- *An API key in a custom header*: rejected. It needs the same secret handling, is not a standard that client HTTP
+  libraries support out of the box, and gives no more than Basic Auth over HTTPS.
+- *Mutual TLS*: rejected for v1. It needs certificate issuance and rotation at the edge, which the infrastructure
+  does not provide for these clients yet.
+- *One shared password for all clients*: rejected. It gives no attribution, and one leak replaces every client.
+- *Plaintext passwords in config or a Secret read by the application*: rejected. The brief requires hashes only.
+
+**Principle 2 exception.** `config.yaml` principle 2 says every route except `GET /health` needs an Entra ID access
+token. The three ban-list routes do not accept one (decision 6). This is a deliberate exception. It does not amend
+the principle, because this change does not own that block. It is an open question for the maintainer (question 1).
+
+### 3. Entry fields and their vocabulary
 
 An entry, as returned by the list and the single read:
 
 | field | value | notes |
 |---|---|---|
-| `hash` | 22 characters, base64url | 128 bits of the keyed hash (decision 3) |
+| `hash` | 22 characters, base64url | 128 bits of the keyed hash (decision 4) |
 | `reason` | `publicReason` snapshot | plain text, never Markdown |
 | `kind` | `NETWORK_BAN`, `MUTE`, `SERVER` | from `public_kind`: `BAN` maps to `NETWORK_BAN` |
-| `status` | `ACTIVE`, `EXPIRED`, `REVOKED` | decision 5 |
+| `status` | `ACTIVE`, `EXPIRED`, `REVOKED` | decision 6 |
 | `issuedOn` | `YYYY-MM-DD` (UTC) | day of `created_at` |
 | `permanent` | boolean | |
 | `expiresOn` | `YYYY-MM-DD` or `null` | day of the expiry instant; `null` when permanent |
 | `endedOn` | `YYYY-MM-DD` or `null` | day of the revoke, or of the expiry once passed; `null` while active |
 
 Not returned, ever: the punishment identifier, the reference, the owner hash, any UUID or IP, Ban ID, staff or actor
-identifiers, `section_key`, `scope`, `elo_cost`, evidence, escalation group, the exact times, the duration in
-seconds, and the server or section name. The `kind` is the only information about the section.
+identifiers, `section_key`, `scope`, `elo_cost`, evidence, escalation group, the exact times, the duration in seconds,
+the server or section name, and the client's own name. The `kind` is the only information about the section.
 
 The `reason` is returned as stored. The API adds no player-specific text, so a reason that names a player is a
-template authoring error. Decision 8 covers how that is prevented.
+template authoring error. Decision 12 covers how that is prevented.
 
 Alternatives considered:
 - *Return the section key for server bans*: rejected. A server name plus a date narrows the entry, and the section kind
-  gives the reader what they need to understand the sanction.
+  gives clients what they need to understand the sanction.
 - *Return the exact duration*: rejected. The day-rounded expiry is enough, and an exact duration with an exact start is
-  a timing key (decision 4).
+  a timing key (decision 5).
 
-### 3. Stable entry hash: keyed, separate, truncated
+### 4. Stable entry hash: keyed, separate, truncated
 
 `hash = base64url( first 16 bytes of HMAC-SHA256(K, "public-ban-entry-v1" || 0x01 || identifier) )`, where `K` is derived
 from `BLACKHOLE_PUBLIC_BAN_KEY` with HKDF-SHA256 (the same construction as `BanIdCrypto`, label
-`blackhole-public-ban-entry-v1`). The hash is computed once when the entry is published and stored in
+`blackhole-public-ban-entry-v1`). The hash is computed once when the entry is listed and stored in
 `punishments.public_hash`, which is unique and indexed.
 
 Why these choices:
@@ -108,11 +154,11 @@ Why these choices:
   with a different label from its own secret. The same rule covers `BLACKHOLE_CURSOR_KEY` from the pagination change.
 - **Not derived from the reference.** The reference (`short_id`) is shown to the player in their own view. An entry
   hash built from it would let a player who knows their reference compute their own entry. The hash input is the
-  identifier, which the public API never returns.
+  identifier, which the API never returns.
 - **128 bits, 22 characters.** Collisions are not a practical concern at this scale, and the value is short enough to
-  cite. The unique index turns a collision into a failed publish, which is logged without the input.
+  cite. The unique index turns a collision into a failed write, which is logged without the input.
 - **Stored, not recomputed per read.** A lookup by hash (`GET /public/bans/{hash}`) needs an index. Storing also means
-  the key is needed only at publication time and never on read.
+  the key is needed only at write time and never on read.
 
 Key rotation: changing `BLACKHOLE_PUBLIC_BAN_KEY` changes every hash, so every cited hash stops resolving. This change
 documents that and does not add a rewrite. A rotation needs a one-shot recompute of `public_hash` (the pattern of
@@ -130,26 +176,27 @@ Alternatives considered:
   to confirm, because the random id is simpler if nobody needs the mapping.
 - *Full 256-bit output*: rejected as needlessly long for a citation.
 
-### 4. Timing: day rounding, no exact times anywhere
+### 5. Timing: day rounding, no exact times anywhere
 
 - `issuedOn`, `expiresOn` and `endedOn` are UTC calendar days of the stored instants. The rounding is done in the
   service from `created_at`, `public_expires_at` and `public_revoked_at`. The stored instants are not returned.
 - The cursor sort keys are `public_issued_day` (epoch day, `INT`/`BIGINT`) and `public_hash`. The default sort is
-  `public_issued_day DESC, public_hash DESC`. A cursor payload is base64url, so anyone can read it. It therefore holds
-  the day and the hash only. Sorting on the exact instant would put the exact instant into every cursor.
+  `public_issued_day DESC, public_hash DESC`. A cursor payload is base64url, so anyone holding it can read it. It
+  therefore holds the day and the hash only. Sorting on the exact instant would put the exact instant into every
+  cursor.
 - The summary and the list use day granularity only.
-- Publication: the entry becomes visible when the punishment is applied. No delay is built in (open question 2).
+- Listing: the entry becomes visible when the punishment is applied. No delay is built in (open question 2).
 
-Why: the entries are public and a reader may know when a player was banned (their own ban, or a chat message). An exact
-start time next to a reason and a kind would link an entry to a known moment. A day is the smallest unit that still
-says "this week" to a reader, so the list stays useful and the moment is blurred.
+Why: clients republish, and a reader may know when a player was banned (their own ban, or a chat message). An exact
+start time next to a reason and a kind would link an entry to a known moment. A day is the smallest unit that still says
+"this week" to a reader, so the list stays useful and the moment is blurred.
 
-### 5. Status and retention window
+### 6. Status, retention window, and the Basic Auth route rules
 
-Derived on read from the stored columns and the injected `Clock`:
+Status is derived on read from the stored columns and the injected `Clock`:
 
 - `REVOKED` when `public_revoked_at` is set (a staff revoke or unban, written by the revoke path). The reason of the
-  revoke is never published, so an appeal outcome cannot be read from the list.
+  revoke is never listed, so an appeal outcome cannot be read from the list.
 - `EXPIRED` when not revoked and the expiry instant (`public_expires_at`) is at or before now.
 - `ACTIVE` otherwise (permanent entries stay `ACTIVE` until revoked).
 
@@ -159,55 +206,69 @@ when not revoked. After that it is no longer listed, and its hash answers 404. T
 `COALESCE(public_revoked_at, public_expires_at)`, so pages never come out short.
 
 Expiry is read from the instant the punishment stores, not from the lazy expiry sweep, so an entry shows `EXPIRED`
-even when nobody has read the profile since. The list only reads the publication columns and never writes to the
+even when nobody has read the profile since. The list only reads the listing columns and never writes to the
 punishment.
 
-Alternatives considered:
-- *Hide revoked entries entirely*: rejected for the default. A reader who sees an ACTIVE entry disappear with no
-  explanation would take it as a removal of the rule. Showing `REVOKED` with no reason is the honest state. Open
-  question 1 keeps the option.
-- *Store an `EXPIRED` status column*: rejected. It lags behind the expiry, as decision 5 explains.
-
-### 6. Routes, errors and the reserved prefix
-
-All three routes are anonymous (`@Secured(SecurityRule.IS_ANONYMOUS)`) and read-only. They sit under `/public` in
-`publicbans/controller/PublicBansApi` (OpenAPI annotations on the interface), `PublicBansController` (thin, one service
-call each, `@Version(ApiVersion.V1)`), and `PublicBansService` (`@Singleton`, returns the sealed `Error` variant).
+**Routes.** All three routes are read-only and sit under `/public` in `publicbans/controller/PublicBansApi` (OpenAPI
+annotations on the interface), `PublicBansController` (thin, one service call each, `@Version(ApiVersion.V1)`), and
+`PublicBansService` (`@Singleton`, returns the sealed `Error` variant). The route prefix stays `/public/bans` to avoid
+churn; open question 2 asks whether to move it.
 
 | route | answer | notes |
 |---|---|---|
 | `GET /public/bans?limit=&cursor=&kind=&status=` | `200` `{items, nextCursor}` plus `Link` (RFC 8288) when `nextCursor` is set | `limit` 1 to 200 (default 50), 400 otherwise; `kind` in `NETWORK_BAN\|MUTE\|SERVER`; `status` in `ACTIVE\|EXPIRED\|REVOKED`; a bad `cursor` is 400 `INVALID_CURSOR` |
 | `GET /public/bans/{hash}` | `200` one entry | the hash shape is checked (22 base64url characters); anything else, an unknown hash and a hash outside retention are the same 404 |
-| `GET /public/bans/summary` | `200` `{windowDays, reasons: [{reason, kind, active, total}]}` | counts below `blackhole.public-bans.summary-min-count` (default 5) are `null` with `suppressed: true` |
+| `GET /public/bans/summary` | `200` `{windowDays, reasons: [{reason, kind, active, total, suppressed}]}` | counts below `blackhole.public-bans.summary-min-count` (default 5) are `null` with `suppressed: true` |
+
+**Authentication order.** Every request is authenticated first (below), and only then is the request validated and
+the resource looked up. An unauthenticated request for an unknown hash therefore gets the 401, not a 404, so the
+endpoint is no oracle for which hashes exist.
+
+**Basic Auth rules.**
+
+- A separate Basic Auth chain covers exactly these three routes. The Entra JWT chain does not see them.
+- Missing `Authorization`, a non-Basic scheme (including a Bearer token), malformed base64, a missing colon, an unknown
+  client name, and a wrong password all answer **HTTP 401** with the same RFC 9457 body (`code: UNAUTHORIZED`) and the
+  header `WWW-Authenticate: Basic realm="blackhole-ban-list", charset="UTF-8"`. An unknown name and a wrong password
+  are indistinguishable.
+- Unknown name: the verifier still runs Argon2id against a fixed dummy hash, so the response time does not reveal
+  whether the name exists. The password is compared to the derived hash with `MessageDigest.isEqual` (constant time).
+  The timing claim is tested by counting verifier invocations, not by timing (tests must not depend on wall-clock
+  time).
+- **HTTPS only.** Basic credentials are never evaluated over plain HTTP. A request that arrives over plain HTTP
+  answers **HTTP 403** with code `HTTPS_REQUIRED` and carries no `WWW-Authenticate` header. The scheme comes from the
+  ingress through `X-Forwarded-Proto`, which is trusted only from the configured ingress. The ingress also redirects
+  HTTP to HTTPS (308). Open question 3 asks whether 403 or 421 is preferred.
+- The password is never echoed, logged, or put in a metric label.
 
 Errors are RFC 9457 problems with `code` (the pagination change's envelope). No error body echoes the input.
 `/public/bans/summary` and `/public/bans/{hash}` use the same 404 body.
 
-The `/public/**` rule of `staff-authentication` stays strict: every route under `/public` declares its own rule, and this
-change adds exactly these three anonymous routes. `PlayerSessionRule` and the `bhps_` session tokens are not involved.
-A staff or proxy token is not special here, and the route-coverage test asserts that the three paths are the only
-anonymous `GET` routes under `/public` apart from the login.
+Alternatives considered:
+- *Keep the three routes anonymous*: rejected by the maintainer decision of 2026-10-28.
+- *Put the routes behind Entra as staff routes*: rejected. The clients are not staff, and a moderator role would give
+  them staff reach.
 
-### 7. Cache headers
+### 7. Cache headers: `private, no-store`
 
-The list, the single read and the summary answer:
+Every answer of the three routes, including the list, the single read and the summary, carries
+`Cache-Control: private, no-store`. No `ETag`, no `Vary`, no 304 path.
 
-- `Cache-Control: public, max-age=60, stale-while-revalidate=300` (`blackhole.public-bans.max-age`, default `PT60S`,
-  `BLACKHOLE_PUBLIC_BANS_MAX_AGE`), and `Vary: Accept`.
-- `ETag` (a strong tag over the response body) with `If-None-Match` answered `304`.
+Why `no-store` and not `private, max-age=60`:
 
-This is the one exception to the `no-store` rule of `public-api.md`. The reason is the content: it is the same for every
-reader, contains no session, and is the public record. A revoked or erased entry can stay visible at a shared cache for
-up to `max-age`, and the spec accepts that bound. Errors keep `no-store`.
+- The list is authenticated and per client. Caching it helps only the client that already has the answer, and the
+  clients are few, so the saving is small.
+- A removed or erased entry must leave a client's own cache at once. A `max-age` keeps it for up to a minute, and the
+  client may republish it in that minute.
+- It matches the rest of the public API (`public-api.md`), so this change needs no new exception to that rule.
 
-The portal BFF returns the same headers for these three routes (decision 9). Its `no-store` default stays on every
-other route.
+The `public, max-age=60` header of the earlier draft is dropped with the anonymity it was built for.
 
 Alternatives considered:
-- *`no-store` like every other public route*: rejected. It would send every reader to the database and prevent the
-  shared cache from doing its job for a list that changes once a day at most.
-- *Cache in the shared Dragonfly cache*: rejected for this change. HTTP caching is enough for an anonymous list, and the
-  shared cache is for hot authorized reads (shared-cache spec).
+- *`private, max-age=60`*: rejected for the reasons above.
+- *ETag and 304 for conditional reads*: rejected. Without a cache there is nothing to revalidate, and the body is small.
+- *Cache in the shared Dragonfly cache*: rejected. The list is small and read rarely, and the shared cache is for hot
+  reads (shared-cache spec).
 
 ### 8. Summary and suppression
 
@@ -217,27 +278,40 @@ Alternatives considered:
 stays, so the reason is still listed as an existing rule.
 
 Why: with one player under a reason in a week, the summary alone says who was banned that week. The threshold stops a
-count of one from being a lookup. It is not a complete defence (decision 10 covers the rest).
+count of one from being a lookup. Clients may republish the summary, so the threshold matters as much as before. It is
+not a complete defence (decision 11 covers the rest).
 
-### 9. Portal page `/bans`
+### 9. Portal page: dropped
 
-- BFF allow-list in `portal/src/api/contract.ts`: `{path: '/api/bans', method: 'GET', backend: '/public/bans', session: false, query: {limit, cursor, kind, status}, publicCache: true}`,
-  `{path: '/api/bans/summary', ...}`, `{path: '/api/bans/:hash', ...}` with a `param` shape of 22 base64url characters.
-  `publicCache: true` makes `bff.ts` relay the backend's `Cache-Control` and `ETag` instead of `no-store`. Every other route
-  keeps `no-store`, and no cookie is forwarded on these routes.
-- `BansView.vue` is selected by pathname (`/bans`, and `/bans?entry=<hash>` to open one entry), like `/leave` in `main.ts`.
-  It shows the summary as a table, then the list with a kind and status filter and a "load more" control that follows
-  `nextCursor`. No search box, no name or Ban ID field.
-- Locale strings for both locales the portal ships. The reason text is shown as stored (plain text, no Markdown).
+No portal page and no portal BFF route are part of this change. The consumers are the website backend and partner
+networks, and they call the API server to server. The earlier design put the list in the portal behind an anonymous
+BFF route. That is removed.
 
-### 10. Abuse and linkage review
+Alternatives considered:
+- *Keep a portal page behind Basic Auth through the BFF*: rejected. A browser visitor has no client credential, so the
+  BFF would have to hold a client password and speak for all visitors with it. That is the website's job, and the
+  website backend already holds its own credential.
+- *Keep an anonymous portal page*: rejected by the maintainer decision of 2026-10-28.
+
+### 10. Client attribution and logging
+
+- The Basic Auth principal name is the client name. Every request in the list answers with the client as the principal
+  and carries it in the access log as `client=<name>`.
+- Metric: `blackhole_ban_list_requests_total{client, route, status}`. `client` is a configured name or `unauthenticated`.
+  Label values are bounded by the configured clients, the three routes and the status codes, so cardinality is fixed.
+- A failed attempt is logged as `client=unauthenticated` with the reason class (`missing`, `malformed`, `unknown-client`,
+  `bad-password`). The submitted username is never logged, because it is user input and may be a password typed in the
+  wrong field.
+- `Authorization` is never logged, in any log line, at any level.
+
+### 11. Abuse and linkage review
 
 Each row is a way a reader could link an entry to a person, and what this design does about it.
 
-1. **Ban ID correlation.** Separate key (decision 3). Entries and Ban IDs share no input and no label. A leaked Ban ID
+1. **Ban ID correlation.** Separate key (decision 4). Entries and Ban IDs share no input and no label. A leaked Ban ID
    gains nothing from the list.
 2. **Reference correlation.** The reference is not an input of the hash, and it is never returned.
-3. **Timing correlation.** Day rounding everywhere, including the cursor (decision 4). The summary has no time buckets
+3. **Timing correlation.** Day rounding everywhere, including the cursor (decision 5). The summary has no time buckets
    narrower than the window.
 4. **Cursor leakage.** Sort keys are day and hash only; the signed cursor (pagination change D7) stops tampering but
    does not hide the payload, so the payload is kept to non-identifying values.
@@ -246,30 +320,48 @@ Each row is a way a reader could link an entry to a person, and what this design
    risk. Mitigation: the `publicReason` is written by staff once per template, reviewed like the template itself. Only
    the ADMIN role may set it (open question 8), a `PiiGuard` refuses IPs, UUIDs and Ban IDs, and the length cap is 200.
    Names cannot be detected by a rule, so this is a review step, documented in `.claude/rules/public-bans.md`.
-7. **Scraping and enumeration of the whole list.** The list is public by design. The hash is not guessable (128-bit HMAC
-   with a secret key), so enumeration of hashes is pointless and a 404 for an unknown or retired hash reveals nothing.
-   Rate limiting belongs to the edge (`config.yaml` principle 5).
-8. **Erasure.** On a valid erasure request for an owner, the punishments of that owner are erased by the existing
-   erasure path. That path also clears `public_reason`, `public_kind`, `public_hash`, the two instants and the day,
-   so the entry leaves the list at once and its hash answers 404. The cache bound in decision 7 applies.
-9. **Pseudonymity.** An entry is still personal data under GDPR, because the operator can map it to a punishment and
-   therefore to a player. Publication is justified by the operator's decision (open question 10). The data minimisation
-   here is the reason the entries carry no more than the list needs, and the retention window bounds how long they stay.
+7. **Republication by a client.** Clients are trusted, but they may republish. The entry fields and the day rounding
+   limit what a republished entry reveals (decisions 3 and 5), and the summary threshold limits counts (decision 8).
+8. **Credential leak.** A leaked client password is cut off by removing the client and restarting. The attribution
+   (decision 10) shows what that client read. Passwords are at least 32 random bytes, so guessing is not a route.
+9. **Brute force on the Basic Auth routes.** Argon2id makes each guess expensive, and the client names are not secret
+   but are not useful without a password. Rate limiting belongs to the edge (`config.yaml` principle 5). The
+   application adds no limiter.
+10. **Erasure.** On a valid erasure request for an owner, the punishments of that owner are erased by the existing
+    erasure path. That path also clears `public_reason`, `public_kind`, `public_hash`, the two instants and the day,
+    so the entry leaves the list at once and its hash answers 404. No cache holds it, because every answer is
+    `no-store` (decision 7).
+11. **Pseudonymity.** An entry is still personal data under GDPR, because the operator can map it to a punishment and
+    therefore to a player. Listing is justified by the operator's decision (open question 10). The data minimisation
+    here is the reason the entries carry no more than the list needs, and the retention window bounds how long they stay.
 
-### 11. Data platform and other consumers
+Item 6 of this list is the reason review; item 11 is the pseudonymity note. Decision 12 covers the template review step.
 
-No event is published for public entries. The list reads the punishment table directly. The Velocity plugin and the
-Discord bot do not read the list. The generated client gets the new routes and the template field as additive changes.
+### 12. Template review for public reasons
+
+The `publicReason` is a template-level text. It is set by an ADMIN (open question 8), refused when it contains an IP,
+a UUID or a Ban ID (validator, not echoed), capped at 200 characters, and reviewed like the template itself. A
+validator cannot detect a name or a case number, so that review is a documented step in `.claude/rules/public-bans.md`.
+
+### 13. Data platform and other consumers
+
+No event is published for listed entries. The list reads the punishment table directly. The Velocity plugin and the
+Discord bot do not read the list. The generated client gets the new routes, the Basic Auth scheme for them, and the
+template field as additive changes.
 
 ## Risks / Trade-offs
 
-- **Staff write a reason that identifies a player.** Mitigated by the review step and the ADMIN-only rule (decision 10.6),
+- **Staff write a reason that identifies a player.** Mitigated by the review step and the ADMIN-only rule (decision 12),
   not by code. A test can only refuse UUIDs, IPs and Ban IDs.
-- **A revoked or erased entry stays in shared caches for up to 60 seconds** (decision 7). Accepted: the bound is short
-  and the content is not secret once published.
+- **Client passwords are long-lived secrets in Secrets.** Accepted for v1 with rotation by restart. The later option is
+  managed credentials (open question 5).
+- **Argon2id costs CPU on every request to the three routes.** Accepted. The clients are few. The cost is bounded by
+  the edge rate limit (decision 11.9).
 - **Key loss or rotation breaks every cited hash.** Accepted and documented. The key is backed up like the Ban ID key.
 - **A summary with a higher threshold hides real rules.** The threshold is configurable, and rows stay with `suppressed`.
-- **Backfill is not done.** Existing bans are not on the list until a maintainer decides to publish them (open question 6).
+- **Backfill is not done.** Existing bans are not on the list until a maintainer decides to list them (open question 6).
+- **The principle 2 exception is not yet ratified.** Until open question 1 is closed, this change cannot be merged on its
+  own terms.
 
 ## Migration plan
 
@@ -284,28 +376,33 @@ Flyway, append-only, the next free version at implementation time (`V<next>__pub
    confirmed from `docker/docker-compose.yml`, see the pagination change D8).
 4. `CREATE INDEX ix_punishments_public_order ON punishments (public_issued_day, public_hash)`.
 
-Existing rows: every new column is NULL, so no existing punishment is published. No backfill runs in this migration.
-Templates have no public reason until a staff member sets one. A later maintainer decision can publish old punishments by
+Existing rows: every new column is NULL, so no existing punishment is listed. No backfill runs in this migration.
+Templates have no public reason until a staff member sets one. A later maintainer decision can list old punishments by
 a one-shot job that copies the template's public reason onto the punishment and computes the hash, the same pattern as
 `BanIdBackfill`. That job is not part of this change (open question 6).
+
+Client configuration needs no migration. The first deploy with the feature needs the Secret keys and the client names
+in the Helm values, and without them the routes answer 401 to everyone.
 
 Rollback: the columns and the index are unused by any other code, so dropping them restores the previous behaviour. The
 migration is not edited once applied.
 
 ## Open questions
 
-1. **Revoked entries.** Show them as `REVOKED` with no reason (proposed), or hide them? Showing them tells a reader the
-   rule was lifted, which is a fact the community can see. Hiding them tells a reader nothing.
-2. **Publication delay.** Visible at once (proposed), or after a delay such as `PT24H`, so that an entry cannot be tied
-   to a same-day chat moment? A delay costs freshness; day rounding already removes most of the timing signal.
-3. **Retention window.** `P90D` proposed for entries after they end. Should an active permanent ban stay listed for as
-   long as it is active (proposed) and nothing more?
+1. **Principle 2 exception.** Three routes accept HTTP Basic Auth with named clients and no Entra token. Confirm the
+   exception for this change only, or amend `openspec/config.yaml` principle 2 in a separate change that names the
+   exception (for example `amend-entra-principle-for-machine-clients`). The code PR waits for the answer.
+2. **Route prefix.** Keep `/public/bans` (proposed, to avoid churn, and the `/public/**` reservation stays for the
+   player portal), or move the list to `/ban-list` now that it is no longer public?
+3. **Plain HTTP.** Answer 403 `HTTPS_REQUIRED` without evaluating credentials (proposed), or 421 Misdirected Request, or
+   let the ingress alone decide?
 4. **Hash construction.** Keyed HMAC of the identifier (proposed, lets the operator recompute during investigations) or a
    random id stored with the punishment (no key to manage, no recompute)? The random id is the simpler option if nobody
    needs to recompute.
-5. **Server bans.** Show the kind only (proposed), or the server name as well? The server name is not personal data, but
-   with a date it narrows the entry.
-6. **Backfill.** Publish existing punishments whose templates have a public reason? Proposed: no, only new ones, and a
+5. **Client credential management.** Restart-based rotation with Secret files (proposed for v1), or a managed table with
+   hashed passwords and an admin UI in a later change? Also confirm that partner networks may hold a password hash-only
+   credential, with the plaintext given to them out of band.
+6. **Backfill.** List existing punishments whose templates have a public reason? Proposed: no, only new ones, and a
    separate decision.
 7. **Erasure.** Remove the entry on an erasure request (proposed), or keep an entry without owner data? Removal is the
    conservative choice and matches the retention intent.
@@ -313,13 +410,17 @@ migration is not edited once applied.
    policy decision, not a per-case one.
 9. **Summary.** Keep the per-reason summary at all, or drop it in favour of counts per kind? The summary adds a second
    way to read the list. The threshold of 5 is a proposal.
-10. **Legal basis for publication.** `amend-data-protection-principle` settles which data may be published, namely no IPs,
-    UUIDs or names. It does not decide whether a sanction against a player may be published at all. That decision (legal
-    basis for the publication of a sanction, and the transparency notice) belongs to the maintainer and is not made here.
+10. **Legal basis for listing.** `amend-data-protection-principle` settles which data may be listed, namely no IPs, UUIDs
+    or names. It does not decide whether a sanction against a player may be shared with the website and partner
+    networks at all. That decision (legal basis for the disclosure, and the transparency notice) belongs to the
+    maintainer and is not made here.
 11. **Amendments.** An amendment that changes the expiry must update `public_expires_at`. Does an amendment that changes
     the staff reason change the public reason too (proposed: no, the public reason is a snapshot)?
-12. **Localisation.** One public text per template in this change. Should templates later carry one text per locale, as
-    `add-i18n-platform` may require?
+12. **Localisation.** One text per template in this change. Should templates later carry one text per locale, as
+    `add-i18n-platform` may require, for clients that serve several languages?
 13. **Dependencies on other changes.** The code PR waits for `standardize-api-pagination-and-problems` to be applied, so
     the envelope, the problem body and `BLACKHOLE_CURSOR_KEY` exist. Is that acceptable, or does this change adopt them
     ahead of that change?
+14. **Micronaut Security and the no-auth note.** `CLAUDE.md` says there is no `micronaut-security` layer, while the
+    Entra work reintroduces authentication. Confirm that the Basic Auth chain may use Micronaut Security's
+    authentication support, and that `CLAUDE.md` is updated when that lands.
