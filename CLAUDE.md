@@ -6,8 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Blackhole is a ban system for a single Minecraft network, built to be GDPR-compliant by design.
 One backend deployment serves one network's staff, players, punishment history and integrations,
-while keeping personally identifiable data (IPs, raw player UUIDs) hashed or tokenized wherever
-it's stored or published. There is no multi-tenancy - if multiple networks are ever needed, that's
+while keeping personally identifiable data (IPs, raw player UUIDs) hashed or tokenized by default
+and out of anything published (principle 1 is being amended to allow clear-text storage with a
+legal basis and retention period, see `openspec/changes/amend-data-protection-principle`).
+There is no multi-tenancy - if multiple networks are ever needed, that's
 handled by running separate deployments, not by sharing one deployment across them.
 
 Punishment decisions are driven by a **dual-ELO system**: every player carries a separate
@@ -18,7 +20,7 @@ workflow lets players contest both automatic and manual punishments.
 
 ## Modules
 
-Gradle multi-module project (Kotlin DSL), Java 21+ (backend toolchain targets 25):
+Gradle multi-module project (Kotlin DSL), Java 25 toolchain (backend, client, discord, markdown):
 
 | Module     | What it is                                                                                    |
 |------------|------------------------------------------------------------------------------------------------|
@@ -27,6 +29,10 @@ Gradle multi-module project (Kotlin DSL), Java 21+ (backend toolchain targets 25
 | `client`   | A Java API client generated from `client/specs/blackhole-api-*.yml` via OpenAPI Generator.     |
 | `phoca`    | Shared utility library (metadata/expiry/duration abstractions) used across modules.             |
 | `markdown` | The chat Markdown subset: parser, sanitised block tree, link rules, Discord and plain renderers (no dependencies). |
+| `discord`  | The Discord bot (JDA): tickets, staff notifications from NATS. Stateless; compose profile `discord`. |
+| `web`      | The staff admin panel (Vue 3, served by a Nitro server, npm; not a Java module).              |
+| `portal`   | The player appeal portal (Nitro BFF + Vue, npm; `appeal.onelitefeather.net`).                 |
+| `deploy/charts/blackhole` | Helm chart for Kubernetes (not a Gradle module; runbook `docs/kubernetes.md`).  |
 
 `client` has no hand-written API code — `compileJava` depends on `openApiGenerate`, which
 regenerates `net.onelitefeather.blackhole.client.{api,invoker,model}` from the pinned spec file
@@ -40,7 +46,8 @@ API version, don't edit generated sources directly.
 ./gradlew clean build
 
 # Run just the backend against local infra (needs docker/docker-compose.yml running and the
-# Entra dev env loaded, see .claude/rules/security.md)
+# Entra dev env loaded, see .claude/rules/security.md). Backend needs postgres, nats, dragonfly,
+# seaweedfs and clamav (slow first start); discord only with `--profile discord`.
 cd docker && docker compose up -d && cd ..
 set -a; . ~/.config/blackhole/entra-dev.env; set +a
 ./gradlew :backend:run
@@ -62,9 +69,9 @@ set -a; . ~/.config/blackhole/entra-dev.env; set +a
 deploy/charts/blackhole/tests/run-all.sh
 ```
 
-Tests live in `backend/src/test`, `velocity/src/test/java` and `discord/src/test/java`;
-`client` and `phoca` have none. JUnit 5 is wired up via the Micronaut/root
-`build.gradle.kts` (`useJUnitPlatform()`, `jacocoTestReport` runs after `test`), ready for more.
+Tests live in `backend/src/test`, `velocity/src/test/java`, `discord/src/test/java` and
+`markdown/src/test/java` (JUnit 5 via the root `build.gradle.kts`, `jacocoTestReport` runs after
+`test`), and in `web/` and `portal/` (Vitest, `npm test`); `client` and `phoca` have none.
 Local dev/manual verification of the backend requires the
 real PostgreSQL + NATS containers from `docker/docker-compose.yml`; there's no in-memory/mocked
 path for those two dependencies (the app is wired to Flyway+PostgreSQL — see `application.yml`).
@@ -77,12 +84,12 @@ Per-package detail below is intentionally short — full detail for each loads a
 `.claude/rules/*.md` (path-scoped) when you actually open a file in that package, instead of
 consuming context in every session regardless of what you're touching.
 
-- **Authentication: Entra ID JWT bearer on every route except `/health`.** Roles come from the
-  `groups` claim (Entra Free) for humans and `roles` for app-only tokens (PROXY, METRICS);
-  `@Secured` is on every controller and a route-coverage test enforces the matrix. The actor
-  is the token's `oid`, stored as `recorded_by_oid`; client actor fields are ignored. Local dev
-  uses the real Entra dev registration (`~/.config/blackhole/entra-dev.env`), tests self-signed
-  JWTs. Never add an open route or an auth-off switch. Detail: `.claude/rules/security.md`.
+- **Authentication: Entra ID JWT bearer on every route except `GET /health`** and the player
+  session routes under `/public` (the only non-Entra credential, a Ban ID login). Humans get
+  `ADMIN` > `MODERATOR` > `VIEWER` from the `groups` claim; app-only tokens get `PROXY`, `METRICS`
+  or `DISCORD` from `roles`. `@Secured` is on every controller and `RouteCoverageIntegrationTest`
+  enforces it. The actor is the token's `oid` (`recorded_by_oid`); client actor fields are ignored.
+  Never add an open route or an auth-off switch. Detail: `.claude/rules/security.md`.
 - **`controller/`** — REST controllers; class-level `@Version` API versioning convention.
   Detail: `.claude/rules/controller-versioning.md`.
 - **`events/`** — Domain event bus over NATS JetStream (subjects `blackhole.events.<type>`, stream `BLACKHOLE_EVENTS`). There is
