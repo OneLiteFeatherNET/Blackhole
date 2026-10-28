@@ -44,7 +44,10 @@ public enum ErrorKind {
     STAFF_PROFILE_REQUIRED(HttpStatus.CONFLICT),
 
     /** A kick's scope and target do not fit: a scoped kick without a target, a target that is no server or section (422). */
-    KICK_TARGET_INVALID(HttpStatus.UNPROCESSABLE_ENTITY);
+    KICK_TARGET_INVALID(HttpStatus.UNPROCESSABLE_ENTITY),
+
+    /** A warning was asked for, but the template's ladder reached a step that is not a warning (422). */
+    WARN_STEP_REQUIRED(HttpStatus.UNPROCESSABLE_ENTITY);
 
     private final HttpStatus status;
 
