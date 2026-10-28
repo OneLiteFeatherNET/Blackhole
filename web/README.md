@@ -240,6 +240,11 @@ docker run --rm -p 127.0.0.1:8081:8080 \
 | `BLACKHOLE_UI_OIDC_AUTHORITY` | none, **required** | Issuer URL staff sign in at, e.g. `https://login.microsoftonline.com/<tenant-id>/v2.0`. `https` only (`http` for `localhost`, the mock server), no credentials, query or fragment. Its origin is the only external origin in the CSP `connect-src`. |
 | `BLACKHOLE_UI_OIDC_CLIENT_ID` | none, **required** | Application (client) id of the SPA registration. |
 | `BLACKHOLE_UI_API_SCOPE` | none, **required** | The API scope to request, e.g. `api://<api-client-id>/access_as_user`; one scope, no spaces. |
+| `BLACKHOLE_UI_ORIGIN` | none; **required** when `BLACKHOLE_SECURITY_CONTACT` is set | The origin the panel is served at, e.g. `https://blackhole.onelitefeather.net`: a bare origin, `https` only (`http` for `localhost` outside production). security.txt names its `Canonical` URL on it. |
+| `BLACKHOLE_SECURITY_CONTACT` | none | Serves `GET /.well-known/security.txt` (RFC 9116) when set: `mailto:`, `tel:` or `https:` URI. Unset, the route answers 404 and the server logs one warning. |
+| `BLACKHOLE_SECURITY_EXPIRES` | none; **required** with the contact | RFC 3339 timestamp with a time zone, e.g. `2027-06-30T12:00:00Z`. Checked at startup: it must be in the future and at most one calendar year ahead, otherwise the container refuses to start. Renew it yearly. |
+| `BLACKHOLE_SECURITY_ENCRYPTION`, `BLACKHOLE_SECURITY_ACKNOWLEDGMENTS`, `BLACKHOLE_SECURITY_POLICY` | none | Optional `https` URIs, emitted as the matching `Encryption`, `Acknowledgments` and `Policy` fields when set. |
+| `BLACKHOLE_SECURITY_PREFERRED_LANGUAGES` | `en, de` | Comma-separated language tags emitted as `Preferred-Languages`. |
 | `NITRO_PORT`, `NITRO_HOST` | `8080`, `0.0.0.0` (set in the image) | Listen port and address of the server. |
 
 `BLACKHOLE_UI_SOURCE` and `BLACKHOLE_UI_REVIEWER` no longer exist; the backend records the verified
