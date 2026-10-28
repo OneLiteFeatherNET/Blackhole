@@ -13,6 +13,7 @@ import StatusPill from '../components/StatusPill.vue'
 import KickDialog from '../components/kick/KickDialog.vue'
 import MdButton from '../components/md/MdButton.vue'
 import RowMenu, { type RowMenuItem } from '../components/RowMenu.vue'
+import WarnDialog from '../components/warning/WarnDialog.vue'
 import { useResource } from '../composables/useResource'
 import { describeDuration } from '../duration'
 import { formatDateTime, shortHash } from '../format'
@@ -191,11 +192,16 @@ const columns = computed<DataColumn<ActivePunishment>[]>(() => [
   ...(session.moderator ? [{ key: 'punishmentId' as const, label: t('punished.columns.actions'), priority: 1 as const, align: 'end' as const }] : []),
 ])
 
-const rowMenu = computed<RowMenuItem[]>(() => [{ key: 'kick', label: t('kick.open') }])
+const rowMenu = computed<RowMenuItem[]>(() => [
+  { key: 'warn', label: t('warn.open') },
+  { key: 'kick', label: t('kick.open') },
+])
 const kickTarget = ref<ActivePunishment | null>(null)
+const warnTarget = ref<ActivePunishment | null>(null)
 
 function onRowMenu(row: ActivePunishment, key: string): void {
   if (key === 'kick') kickTarget.value = row
+  if (key === 'warn') warnTarget.value = row
 }
 
 function playerName(row: ActivePunishment): string {
@@ -305,5 +311,6 @@ function remaining(expiresAt: number): string {
       :name="playerName(kickTarget)"
       @close="kickTarget = null"
     />
+    <WarnDialog v-if="warnTarget && session.moderator" open :owner="warnTarget.owner" @close="warnTarget = null" />
   </PageShell>
 </template>

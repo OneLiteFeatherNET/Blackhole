@@ -83,6 +83,8 @@ export interface VanillaImportRequest {
   dryRun: boolean
 }
 
+/** What a punishment row is: a real punishment, a kick, or a warning the player confirms once. */
+export type PunishmentKind = Schemas['PunishmentKind']
 export type KickScope = Schemas['KickScope']
 export type KickStatus = Schemas['KickStatus']
 export type KickAccepted = Schemas['KickAccepted']
@@ -164,6 +166,8 @@ export interface TemplateDraft {
   section: string
   escalationGroup: string | null
   escalationWindow: string | null
+  /** ISO-8601; warnings older than it stop counting towards escalation. Null: the escalation window applies. */
+  warnWindow?: string | null
   steps: TemplateStep[]
 }
 

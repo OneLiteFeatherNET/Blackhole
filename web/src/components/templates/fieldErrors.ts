@@ -13,6 +13,7 @@ type Rule = { pattern: RegExp; field: (match: RegExpMatchArray) => string }
 const TEMPLATE_RULES: Rule[] = [
   { pattern: /^step (\d+) needs a duration/, field: (m) => `steps.${Number(m[1]) - 1}.duration` },
   { pattern: /^step (\d+) eloCost/, field: (m) => `steps.${Number(m[1]) - 1}.eloCost` },
+  { pattern: /^step (\d+) is a /, field: (m) => `steps.${Number(m[1]) - 1}.kind` },
   { pattern: /^a template needs at least one step|^a template may have at most/, field: () => 'steps' },
   { pattern: /^key /, field: () => 'key' },
   { pattern: /^a template with key /, field: () => 'key' },
@@ -20,6 +21,7 @@ const TEMPLATE_RULES: Rule[] = [
   { pattern: /^section |^there is no section /, field: () => 'section' },
   { pattern: /^escalationGroup /, field: () => 'escalationGroup' },
   { pattern: /^escalationWindow /, field: () => 'escalationWindow' },
+  { pattern: /^warnWindow /, field: () => 'warnWindow' },
 ]
 
 // SectionValidator and ServerPatterns phrase theirs the same way.

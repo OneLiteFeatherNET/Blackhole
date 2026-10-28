@@ -102,7 +102,13 @@ function onRowMenu(template: Template, key: string): void {
               <p class="text-label-large">{{ t('templates.stepCount', { count: row.steps.length }, row.steps.length) }}</p>
               <ol class="mt-1 flex flex-col gap-1 text-body-small text-on-surface-variant">
                 <li v-for="(step, index) in row.steps" :key="index">
-                  {{ t('templates.stepLine', { n: index + 1, duration: formatDuration(step.duration ?? '', locale), cost: step.eloCost }) }}
+                  {{
+                    t('templates.stepLine', {
+                      n: index + 1,
+                      duration: step.kind && step.kind !== 'PUNISH' ? t(`templates.editor.kinds.${step.kind}`) : formatDuration(step.duration ?? '', locale),
+                      cost: step.eloCost,
+                    })
+                  }}
                 </li>
               </ol>
             </template>
