@@ -72,6 +72,8 @@ dependencies {
     testImplementation(mn.junit.jupiter.params)
     testRuntimeOnly(mn.junit.jupiter.engine)
     testImplementation(mn.micronaut.test.junit5)
+    // InMemorySpanExporter for the tracing tests; no collector is involved.
+    testImplementation(libs.opentelemetry.sdk.testing)
     // Integration tests run against real PostgreSQL/NATS/Redis containers (Testcontainers).
     testImplementation(mn.testcontainers.postgres)
     testImplementation(mn.testcontainers.redis)
@@ -135,6 +137,9 @@ tasks.withType<Test>().configureEach {
     providers.gradleProperty("excludeTags").orNull?.let { tags ->
         useJUnitPlatform { excludeTags(tags) }
     }
+    // Integration tests start a full application context each; the default test heap runs out of memory
+    // in CI when several of them share one test executor.
+    maxHeapSize = "2g"
 }
 
 publishing {
