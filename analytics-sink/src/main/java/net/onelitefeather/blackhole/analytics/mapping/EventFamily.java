@@ -13,9 +13,9 @@ import java.util.Optional;
 public enum EventFamily {
 
     PUNISHMENT("punishment_events",
-            List.of("punishment.created", "punishment.updated", "punishment.expired", "punishment.revoked"),
+            List.of("punishment.created", "punishment.updated", "punishment.expired", "punishment.revoked", "punishment.kick"),
             List.of("punishmentIdentifier", "templateIdentifier", "permanent", "reason", "expiresAt",
-                    "automatic", "revokedBy", "verified")),
+                    "automatic", "revokedBy", "verified", "kickId")),
 
     PROFILE("profile_events",
             List.of("profile.created", "profile.updated", "profile.deleted"),

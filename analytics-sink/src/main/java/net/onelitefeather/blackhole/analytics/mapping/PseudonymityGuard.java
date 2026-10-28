@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.analytics.mapping;
 
 import java.util.Collection;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -70,8 +71,19 @@ final class PseudonymityGuard {
                 || IPV6_COMPRESSED.matcher(text).matches();
     }
 
+    /**
+     * Entity identifier keys: {@code ...Identifier}, {@code ...Id} and {@code eventId}. A key that names a player, a
+     * UUID or an owner is never an identifier key, even when it ends like one.
+     */
     private static boolean isIdentifierKey(String key) {
-        return key.endsWith("Identifier") || "eventId".equals(key);
+        if ("eventId".equals(key)) {
+            return true;
+        }
+        String lower = key.toLowerCase(Locale.ROOT);
+        if (lower.contains("player") || lower.contains("uuid") || lower.contains("owner")) {
+            return false;
+        }
+        return key.endsWith("Identifier") || key.endsWith("Id");
     }
 
     private PseudonymityGuard() {
