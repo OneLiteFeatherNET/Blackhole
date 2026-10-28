@@ -16,12 +16,15 @@ class ExitCalled extends Error {
 
 function deps() {
   const messages: string[] = []
+  const warnings: string[] = []
   return {
     messages,
+    warnings,
     exit: (code: number): never => {
       throw new ExitCalled(code)
     },
     error: (message: string) => messages.push(message),
+    warn: (message: string) => warnings.push(message),
   }
 }
 
@@ -93,5 +96,48 @@ describe('loadPortalConfigOrExit', () => {
     expect(output).toContain('BLACKHOLE_BACKEND_URL')
     expect(output).toContain('BLACKHOLE_PORTAL_ORIGIN')
     expect(output).toContain('refusing to start')
+  })
+})
+
+describe('security.txt settings', () => {
+  const NOW = new Date('2026-10-28T12:00:00Z')
+  const SECURITY = { BLACKHOLE_SECURITY_CONTACT: 'mailto:security@onelitefeather.net', BLACKHOLE_SECURITY_EXPIRES: '2027-06-30T12:00:00Z' }
+
+  it('carries the security.txt value when a contact is configured', () => {
+    expect(parsePortalConfig({ ...PROD, ...SECURITY }, NOW).securityTxt?.canonical).toBe(
+      'https://appeal.onelitefeather.net/.well-known/security.txt',
+    )
+  })
+
+  it('leaves security.txt disabled without a contact', () => {
+    expect(parsePortalConfig(PROD, NOW).securityTxt).toBeUndefined()
+  })
+
+  it('refuses an invalid security setting together with the other settings and names it', () => {
+    try {
+      parsePortalConfig({ ...PROD, BLACKHOLE_SECURITY_CONTACT: 'security@onelitefeather.net', BLACKHOLE_SECURITY_EXPIRES: '2027-06-30T12:00:00Z' }, NOW)
+      expect.unreachable()
+    } catch (error) {
+      expect((error as ConfigError).problems.join('\n')).toContain('BLACKHOLE_SECURITY_CONTACT')
+    }
+  })
+
+  it('logs one warning naming the contact variable when security.txt is disabled', () => {
+    const d = deps()
+    loadPortalConfigOrExit(PROD, { ...d, now: () => NOW })
+    expect(d.warnings.filter((w) => w.includes('BLACKHOLE_SECURITY_CONTACT'))).toHaveLength(1)
+  })
+
+  it('does not warn when security.txt is enabled', () => {
+    const d = deps()
+    loadPortalConfigOrExit({ ...PROD, ...SECURITY }, { ...d, now: () => NOW })
+    expect(d.warnings).toEqual([])
+  })
+
+  it('exits with code 1 when the expiry is already in the past at startup', () => {
+    const d = deps()
+    const env = { ...PROD, BLACKHOLE_SECURITY_CONTACT: SECURITY.BLACKHOLE_SECURITY_CONTACT, BLACKHOLE_SECURITY_EXPIRES: '2026-01-01T00:00:00Z' }
+    expect(() => loadPortalConfigOrExit(env, { ...d, now: () => NOW })).toThrow(expect.objectContaining({ code: 1 }))
+    expect(d.messages.join('\n')).toContain('BLACKHOLE_SECURITY_EXPIRES')
   })
 })

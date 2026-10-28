@@ -1,3 +1,5 @@
+import { parseSecurityTxt, type SecurityTxt } from './security-txt'
+
 /** Runtime settings of the portal server, read once from the environment at startup. */
 
 export interface PortalConfig {
@@ -5,6 +7,8 @@ export interface PortalConfig {
   backendUrl: string
   /** The origin the portal is served at (`https://appeal.onelitefeather.net`): the only accepted `Origin` of a state-changing request. */
   portalOrigin: string
+  /** The RFC 9116 file served at `/.well-known/security.txt`; undefined when BLACKHOLE_SECURITY_CONTACT is unset. */
+  securityTxt: SecurityTxt | undefined
 }
 
 export class ConfigError extends Error {
@@ -49,9 +53,9 @@ function parsePortalOrigin(raw: string, production: boolean): string | undefined
 
 /**
  * Validates the environment with strict patterns.
- * Throws a {@link ConfigError} naming every invalid variable.
+ * Throws a {@link ConfigError} naming every invalid variable. `now` is the clock the Expires window is checked against.
  */
-export function parsePortalConfig(env: Env): PortalConfig {
+export function parsePortalConfig(env: Env, now: Date = new Date()): PortalConfig {
   const problems: string[] = []
   const production = env.NODE_ENV === 'production'
 
@@ -71,6 +75,9 @@ export function parsePortalConfig(env: Env): PortalConfig {
     )
   }
 
+  const security = parseSecurityTxt(env, portalOrigin ?? '', now)
+  problems.push(...security.problems)
+
   if (problems.length > 0 || backendUrl === undefined || portalOrigin === undefined) throw new ConfigError(problems)
-  return { backendUrl, portalOrigin }
+  return { backendUrl, portalOrigin, securityTxt: security.value }
 }
