@@ -40,6 +40,14 @@ public final class CacheKeys {
         return PREFIX + "client-rules:catalogue:" + proxyId;
     }
 
+    /** Glob matching every proxy's SignedVelocity state report. */
+    public static final String PROXY_CAPABILITY_PATTERN = PREFIX + "proxy:capabilities:*";
+
+    /** One proxy's last SignedVelocity state report; {@code proxyId} must not contain glob characters. */
+    public static String proxyCapability(String proxyId) {
+        return PREFIX + "proxy:capabilities:" + proxyId;
+    }
+
     public static String section(String key) {
         return PREFIX + "section:" + key;
     }

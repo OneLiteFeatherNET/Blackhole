@@ -390,6 +390,11 @@ blackhole:
     catalogue:
       ttl: ${BLACKHOLE_CLIENTRULES_CATALOGUE_TTL:PT24H}
       min-players: ${BLACKHOLE_CLIENTRULES_CATALOGUE_MIN_PLAYERS:3}
+  # SignedVelocity state per proxy (net.onelitefeather.blackhole.backend.proxy). A proxy reports at a heartbeat of
+  # five minutes; a report older than stale-after (default twice that) is shown as unknown, not as present.
+  proxy:
+    capabilities:
+      stale-after: ${BLACKHOLE_PROXY_CAPABILITIES_STALE_AFTER:PT10M}
   # Punishment evidence (net.onelitefeather.blackhole.backend.evidence): anticheat records, replay
   # links, chat excerpts, links and uploaded screenshots/videos attached to punishments. There is
   # NO time-based expiry: evidence lives as long as its punishment record, and is deleted only with
