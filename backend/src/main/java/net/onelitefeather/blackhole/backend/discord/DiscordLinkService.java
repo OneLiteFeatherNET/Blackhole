@@ -249,7 +249,7 @@ public class DiscordLinkService {
     public DiscordLinkDTO adminRemove(UUID id) {
         Optional<DiscordLinkEntity> link = this.links.findById(id);
         if (link.isEmpty()) {
-            return new DiscordLinkDTO.Error("there is no Discord link " + id, ErrorKind.NOT_FOUND);
+            return new DiscordLinkDTO.Error("there is no such Discord link", ErrorKind.NOT_FOUND);
         }
         remove(link.get(), RemovalReason.ADMIN);
         return new DiscordLinkDTO.RemovedResponse(1);

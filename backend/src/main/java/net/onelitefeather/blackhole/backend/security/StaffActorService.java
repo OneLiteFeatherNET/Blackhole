@@ -66,7 +66,7 @@ public class StaffActorService {
     public StaffActorDTO anonymize(UUID oid, Actor admin) {
         Optional<StaffActorEntity> found = this.actors.findById(oid);
         if (found.isEmpty()) {
-            return new StaffActorDTO.Error("there is no staff actor " + oid, ErrorKind.NOT_FOUND);
+            return new StaffActorDTO.Error("there is no such staff actor", ErrorKind.NOT_FOUND);
         }
         StaffActorEntity actor = found.get();
         actor.setDisplayName(null);

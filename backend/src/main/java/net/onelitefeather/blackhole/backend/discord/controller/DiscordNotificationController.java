@@ -8,6 +8,7 @@ import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.discord.DiscordNotificationService;
 import net.onelitefeather.blackhole.backend.discord.dto.DiscordNotificationDTO;
+import net.onelitefeather.blackhole.backend.problem.ProblemMapper;
 import net.onelitefeather.blackhole.backend.security.Roles;
 
 import java.util.UUID;
@@ -41,7 +42,7 @@ public class DiscordNotificationController implements DiscordNotificationApi {
 
     private static HttpResponse<DiscordNotificationDTO> respond(DiscordNotificationDTO result) {
         if (result instanceof DiscordNotificationDTO.Error error) {
-            return HttpResponse.<DiscordNotificationDTO>status(error.kind().status()).body(error);
+            return ProblemMapper.fromKind(error, error.kind(), ProblemMapper.instance()).response();
         }
         return HttpResponse.ok(result);
     }

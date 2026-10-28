@@ -231,7 +231,7 @@ public class StaffLinkService {
     private StaffLinkDTO unlink(UUID oid, RemovalReason reason, UUID removedBy) {
         Optional<StaffLinkEntity> link = this.links.findById(oid);
         if (link.isEmpty()) {
-            return new StaffLinkDTO.Error("there is no link for " + oid, ErrorKind.NOT_FOUND);
+            return new StaffLinkDTO.Error("there is no such link", ErrorKind.NOT_FOUND);
         }
         remove(link.get(), reason, removedBy);
         return new StaffLinkDTO.RemovedResponse(oid);

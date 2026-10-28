@@ -486,7 +486,7 @@ public class TicketService {
     }
 
     private static DiscordTicketDTO.Error invalidState(@Nullable TicketState from, TicketState to) {
-        return error(ErrorKind.CONFLICT, "a ticket cannot move from " + from + " to " + to, Code.INVALID_STATE);
+        return error(ErrorKind.CONFLICT, "the ticket cannot make this state change", Code.INVALID_STATE);
     }
 
     private static DiscordTicketDTO.Error protocolRequired(String message) {

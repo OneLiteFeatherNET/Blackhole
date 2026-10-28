@@ -103,7 +103,7 @@ class StaffLinkApiIntegrationTest extends ApiIntegrationTest {
         Reply reply = confirm("ABCD-EFGH", UUID.randomUUID());
 
         assertEquals(400, reply.status(), reply.body());
-        assertEquals("INVALID_CODE", reply.json().get("kind"), "the uniform error");
+        assertEquals("INVALID_CODE", reply.json().get("code"), "the uniform error");
     }
 
     @Test
@@ -114,7 +114,7 @@ class StaffLinkApiIntegrationTest extends ApiIntegrationTest {
         Reply reply = confirm(code, UUID.randomUUID());
 
         assertEquals(400, reply.status(), reply.body());
-        assertEquals("INVALID_CODE", reply.json().get("kind"), "the same error as for a wrong code");
+        assertEquals("INVALID_CODE", reply.json().get("code"), "the same error as for a wrong code");
     }
 
     @Test

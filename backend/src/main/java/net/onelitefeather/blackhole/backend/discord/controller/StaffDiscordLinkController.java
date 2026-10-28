@@ -7,6 +7,7 @@ import io.micronaut.security.annotation.Secured;
 import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.discord.DiscordLinkService;
+import net.onelitefeather.blackhole.backend.problem.ProblemMapper;
 import net.onelitefeather.blackhole.backend.discord.dto.DiscordLinkDTO;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.Roles;
@@ -45,7 +46,7 @@ public class StaffDiscordLinkController implements DiscordLinkApi.Staff {
 
     static HttpResponse<DiscordLinkDTO> respond(DiscordLinkDTO result) {
         if (result instanceof DiscordLinkDTO.Error error) {
-            return HttpResponse.<DiscordLinkDTO>status(error.kind().status()).body(error);
+            return ProblemMapper.fromKind(error, error.kind(), ProblemMapper.instance()).response();
         }
         return HttpResponse.ok(result);
     }
