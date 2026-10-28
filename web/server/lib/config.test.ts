@@ -13,9 +13,11 @@ const OIDC = {
   BLACKHOLE_UI_API_SCOPE: API_SCOPE,
 }
 
+const NOW = new Date('2026-10-28T12:00:00Z')
+
 function problemsOf(env: Record<string, string>): string[] {
   try {
-    parseUiConfig(env)
+    parseUiConfig(env, NOW)
   } catch (error) {
     expect(error, 'a ConfigError is thrown').toBeInstanceOf(ConfigError)
     return (error as ConfigError).problems
@@ -184,4 +186,49 @@ describe('parseUiConfig panel origin', () => {
       expect(problemsOf({ ...OIDC, BLACKHOLE_UI_PANEL_ORIGIN: value }).join('\n')).toContain('BLACKHOLE_UI_PANEL_ORIGIN must be')
     },
   )
+})
+
+describe('parseUiConfig UI origin', () => {
+  const SECURITY = { BLACKHOLE_SECURITY_CONTACT: 'mailto:security@onelitefeather.net', BLACKHOLE_SECURITY_EXPIRES: '2027-06-30T12:00:00Z' }
+
+  it.each(['https://blackhole.onelitefeather.net', 'http://localhost:5173'])('accepts %s as the UI origin', (origin) => {
+    expect(parseUiConfig({ ...OIDC, BLACKHOLE_UI_ORIGIN: origin }).uiOrigin).toBe(origin)
+  })
+
+  it.each(['https://blackhole.onelitefeather.net/', 'https://blackhole.onelitefeather.net/path', 'https://u:p@blackhole.example', 'blackhole.onelitefeather.net'])(
+    'refuses %s as the UI origin',
+    (origin) => {
+      expect(problemsOf({ ...OIDC, BLACKHOLE_UI_ORIGIN: origin }).join('\n')).toContain('BLACKHOLE_UI_ORIGIN')
+    },
+  )
+
+  it('refuses plain http for a real host outside production', () => {
+    expect(problemsOf({ ...OIDC, BLACKHOLE_UI_ORIGIN: 'http://blackhole.example.org' }).join('\n')).toContain('BLACKHOLE_UI_ORIGIN')
+  })
+
+  it('refuses plain http for a loopback host in production', () => {
+    expect(problemsOf({ ...OIDC, NODE_ENV: 'production', BLACKHOLE_UI_ORIGIN: 'http://localhost:5173' }).join('\n')).toContain('BLACKHOLE_UI_ORIGIN')
+  })
+
+  it('requires the UI origin when a security contact is configured', () => {
+    expect(problemsOf({ ...OIDC, ...SECURITY }).join('\n')).toContain('BLACKHOLE_UI_ORIGIN')
+  })
+
+  it('carries the security.txt value with Canonical on the UI origin', () => {
+    const config = parseUiConfig({ ...OIDC, ...SECURITY, BLACKHOLE_UI_ORIGIN: 'https://blackhole.onelitefeather.net' }, NOW)
+
+    expect(config.securityTxt?.canonical).toBe('https://blackhole.onelitefeather.net/.well-known/security.txt')
+  })
+
+  it('keeps the security.txt value out of the browser config', () => {
+    const config = parseUiConfig({ ...OIDC, ...SECURITY, BLACKHOLE_UI_ORIGIN: 'https://blackhole.onelitefeather.net' }, NOW)
+
+    expect(toPublicConfig(config)).not.toHaveProperty('securityTxt')
+  })
+
+  it('reports security.txt problems with the other settings and names the variable', () => {
+    const problems = problemsOf({ ...OIDC, BLACKHOLE_UI_ORIGIN: 'https://blackhole.onelitefeather.net', BLACKHOLE_SECURITY_CONTACT: 'mailto:security@onelitefeather.net' })
+
+    expect(problems.join('\n')).toContain('BLACKHOLE_SECURITY_EXPIRES')
+  })
 })

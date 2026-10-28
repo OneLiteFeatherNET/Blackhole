@@ -14,6 +14,7 @@ import {
 import { toPublicConfig, type UiConfig } from './config'
 import { isIndexDocument, securityHeaders } from './headers'
 import { forwardToBackend } from './proxy'
+import { securityTxtResponse } from './security-txt'
 
 declare module 'h3' {
   interface H3EventContext {
@@ -54,6 +55,14 @@ export const configJsonHandler = eventHandler((event) => {
   setResponseHeader(event, 'Content-Type', 'application/json; charset=utf-8')
   setResponseHeader(event, 'Cache-Control', 'no-store')
   return JSON.stringify(toPublicConfig(uiConfigOf(event)))
+})
+
+/** `GET /.well-known/security.txt`: public, no login and no backend call; 404 when the contact is unset. */
+export const securityTxtHandler = eventHandler((event) => {
+  const response = securityTxtResponse(event.context.uiConfig?.securityTxt)
+  setResponseStatus(event, response.status)
+  setResponseHeaders(event, response.headers)
+  return response.body
 })
 
 export const healthzHandler = eventHandler((event) => {

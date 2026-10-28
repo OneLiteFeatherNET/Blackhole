@@ -1,3 +1,5 @@
+import { parseSecurityTxt, type SecurityTxt } from './security-txt'
+
 /** Runtime settings of the UI server, read once from the environment at startup. */
 
 export interface OidcConfig {
@@ -16,6 +18,10 @@ export interface UiConfig {
   /** Where staff sign in; the browser needs all three, none is a secret. */
   oidc: OidcConfig
   evidence?: { maxImageBytes?: number; maxVideoBytes?: number; allowedTypes?: string[] }
+  /** The origin the panel is served at (`https://blackhole.onelitefeather.net`); server-side only. */
+  uiOrigin?: string
+  /** The RFC 9116 file served at `/.well-known/security.txt`; undefined when BLACKHOLE_SECURITY_CONTACT is unset. */
+  securityTxt?: SecurityTxt
 }
 
 /** What `GET /config.json` returns: everything except the backend URL. */
@@ -78,13 +84,26 @@ function parsePanelOrigin(raw: string): string | undefined {
   return secure && url.origin === raw ? raw : undefined
 }
 
+/** A bare origin: https only; http for a loopback host outside production. */
+function parseUiOrigin(raw: string, production: boolean): string | undefined {
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch {
+    return undefined
+  }
+  const secure = url.protocol === 'https:' || (!production && url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname))
+  return secure && url.origin === raw ? raw : undefined
+}
+
 /**
  * Validates the environment with strict patterns.
- * Throws a {@link ConfigError} naming every invalid variable.
+ * Throws a {@link ConfigError} naming every invalid variable. `now` is the clock the security.txt expiry is checked against.
  */
-export function parseUiConfig(env: Env): UiConfig {
+export function parseUiConfig(env: Env, now: Date = new Date()): UiConfig {
   const problems: string[] = []
   const get = (name: string) => env[name] ?? ''
+  const production = env.NODE_ENV === 'production'
 
   const rawBackend = get('BLACKHOLE_BACKEND_URL') || DEFAULT_BACKEND_URL
   const backendUrl = parseBackendUrl(rawBackend)
@@ -132,8 +151,28 @@ export function parseUiConfig(env: Env): UiConfig {
     else problems.push(`BLACKHOLE_UI_EVIDENCE_ALLOWED_TYPES must be comma separated MIME types, e.g. image/png,video/mp4 (got: '${types}')`)
   }
 
+  const rawUiOrigin = get('BLACKHOLE_UI_ORIGIN')
+  const uiOrigin = rawUiOrigin ? parseUiOrigin(rawUiOrigin, production) : undefined
+  if (rawUiOrigin && uiOrigin === undefined) {
+    problems.push(
+      `BLACKHOLE_UI_ORIGIN must be the https origin the panel is served at, without path, e.g. https://blackhole.onelitefeather.net (http only for localhost outside production) (got: '${rawUiOrigin}')`,
+    )
+  }
+  const securityContact = get('BLACKHOLE_SECURITY_CONTACT').trim() !== ''
+  if (securityContact && uiOrigin === undefined && rawUiOrigin === '') {
+    problems.push('BLACKHOLE_UI_ORIGIN must be set when BLACKHOLE_SECURITY_CONTACT is set: security.txt names its Canonical URL there')
+  }
+  const security = parseSecurityTxt(env, uiOrigin ?? '', now)
+  problems.push(...security.problems)
+
   if (problems.length > 0 || backendUrl === undefined || authority === undefined) throw new ConfigError(problems)
-  return { backendUrl, oidc: { authority, clientId, apiScope, ...(panelOrigin ? { panelOrigin } : {}) }, ...(Object.keys(evidence).length > 0 ? { evidence } : {}) }
+  return {
+    backendUrl,
+    oidc: { authority, clientId, apiScope, ...(panelOrigin ? { panelOrigin } : {}) },
+    ...(Object.keys(evidence).length > 0 ? { evidence } : {}),
+    ...(uiOrigin ? { uiOrigin } : {}),
+    ...(security.value ? { securityTxt: security.value } : {}),
+  }
 }
 
 export function toPublicConfig(config: UiConfig): PublicUiConfig {
