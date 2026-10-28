@@ -42,8 +42,14 @@ backend:
   externalApi:
     enabled: true
 
+securityTxt:
+  # Placeholder contact (.invalid never resolves): the real mailbox is set by the operator, not in the repository.
+  contact: mailto:security@example.invalid
+  expires: "2027-06-30T12:00:00Z"
+
 web:
   replicaCount: 2
+  origin: https://blackhole.onelitefeather.net
   oidc:
     clientId: 33333333-3333-3333-3333-333333333333
     apiScope: api://11111111-1111-1111-1111-111111111111/access_as_user

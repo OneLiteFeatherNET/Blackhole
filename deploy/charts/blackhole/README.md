@@ -41,6 +41,7 @@ For an enabled component the schema requires:
 | backend | `database.existingSecret`, `redis.existingSecret`, `keys.existingSecret`, `nats.url`, `nats.existingSecret`, `s3.endpoint`, `s3.bucket`, `s3.existingSecret`, `auth.tenantId`, `auth.apiClientId`, `auth.roles.{admin,moderator,viewer,metrics}` |
 | web | `web.oidc.clientId`, `web.oidc.apiScope` (and `web.ingress.host` or `web.httpRoute.hostnames` when exposed) |
 | portal | `portal.origin` (https unless `global.environment` is `local`) |
+| web (with a security contact) | `web.origin`, the panel's public origin: security.txt names its `Canonical` URL on it |
 | discord | `discord.existingSecret`, `discord.clientId`, `discord.panelUrl`, `discord.ids.{guildId,teamChannelId,staffRoleId,ticketCategoryId,archiveCategoryId}`, `nats.*`, `auth.tenantId`, `auth.apiClientId` |
 | scan | with `backend.evidence.scan.enabled` (the default): `clamav.enabled` or `clamav.externalHost` |
 
@@ -84,6 +85,16 @@ Defaults and sizing (a first guess, tuned after the first week of metrics):
 | web, portal | 25m / 64Mi | memory 128Mi | 2 | as backend |
 | discord | 100m / 256Mi | memory 384Mi | 1 | none (`Recreate`) |
 | clamav | 200m / 1536Mi | memory 3Gi | 1 | none (`Recreate`) |
+
+## Security disclosure (security.txt)
+
+`securityTxt` renders the RFC 9116 file of the portal and the panel (`/.well-known/security.txt`) as
+`BLACKHOLE_SECURITY_*` variables. The chart default contact is `mailto:security@onelitefeather.net`, which the
+organisation must create before the first release that uses the default. Set `securityTxt.expires` on every
+deployment: there is no default, and the render fails without it. The expiry is a date an operator has looked at,
+and it must be renewed at least yearly. The apps refuse to start on an expiry in the past or more than one year
+ahead, so a lapsed value stops the next rollout instead of publishing a stale file. Clear `securityTxt.contact` to
+turn the route off (it answers 404). The file is unsigned in this version.
 
 ## Pod security
 

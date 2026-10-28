@@ -687,6 +687,30 @@
         }
       }
     },
+    "securityTxt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "contact": {
+          "type": "string"
+        },
+        "expires": {
+          "type": "string"
+        },
+        "encryption": {
+          "type": "string"
+        },
+        "acknowledgments": {
+          "type": "string"
+        },
+        "policy": {
+          "type": "string"
+        },
+        "preferredLanguages": {
+          "type": "string"
+        }
+      }
+    },
     "web": {
       "type": "object",
       "additionalProperties": false,
@@ -753,6 +777,9 @@
           "$ref": "#/definitions/probe"
         },
         "backendUrl": {
+          "type": "string"
+        },
+        "origin": {
           "type": "string"
         },
         "oidc": {

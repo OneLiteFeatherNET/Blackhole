@@ -44,7 +44,7 @@ expect_render_failure "an enabled ingress without a host" "/web/ingress/host" pr
 expect_render_failure "an enabled service monitor without credentials" "/backend/metrics/serviceMonitor/oauth2/existingSecret" prod-values.yaml --set backend.metrics.serviceMonitor.oauth2.existingSecret=
 # A disabled component does not need its values.
 if render - --set backend.enabled=false --set web.enabled=false --set portal.enabled=false \
-  --set discord.enabled=false --set clamav.enabled=false >/dev/null 2>&1; then pass; else fail "everything disabled must render"; fi
+  --set discord.enabled=false --set clamav.enabled=false --set securityTxt.contact= >/dev/null 2>&1; then pass; else fail "everything disabled must render"; fi
 
 # --- the evidence scan needs a scanner --------------------------------------------------------------------
 expect_render_failure "scan enabled without a scanner" "/clamav" prod-values.yaml \
