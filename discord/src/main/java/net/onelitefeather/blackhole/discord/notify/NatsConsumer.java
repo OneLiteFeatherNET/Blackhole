@@ -66,6 +66,8 @@ public final class NatsConsumer implements AutoCloseable {
     private final ScheduledExecutorService scheduler;
     private final Duration retryDelay;
     private final Duration reconnectDelay;
+    private final int inFlight;
+    private final Duration ackWait;
     private final CompletableFuture<Void> ready = new CompletableFuture<>();
     private final CountDownLatch closed = new CountDownLatch(1);
     private volatile Connection connection;
@@ -88,9 +90,28 @@ public final class NatsConsumer implements AutoCloseable {
         this(settings, durable, eventTypes, handler, scheduler, RETRY_DELAY, RECONNECT_DELAY);
     }
 
+    /**
+     * A durable consumer that works through its messages one at a time, for handlers whose order matters and that may take
+     * longer than the default ack wait (the staff audit posts).
+     *
+     * @param inFlight how many messages are unacknowledged at a time; one keeps the order
+     * @param ackWait  how long a message may stay unacknowledged before it is redelivered
+     */
+    public NatsConsumer(@NotNull NatsSettings settings, @NotNull String durable, @NotNull String[] eventTypes,
+                        @NotNull Function<byte[], NotificationHandler.Outcome> handler, @NotNull ScheduledExecutorService scheduler,
+                        int inFlight, @NotNull Duration ackWait) {
+        this(settings, durable, eventTypes, handler, scheduler, RETRY_DELAY, RECONNECT_DELAY, inFlight, ackWait);
+    }
+
     NatsConsumer(@NotNull NatsSettings settings, @NotNull String durable, @NotNull String[] eventTypes,
                  @NotNull Function<byte[], NotificationHandler.Outcome> handler, @NotNull ScheduledExecutorService scheduler,
                  @NotNull Duration retryDelay, @NotNull Duration reconnectDelay) {
+        this(settings, durable, eventTypes, handler, scheduler, retryDelay, reconnectDelay, IN_FLIGHT, ACK_WAIT);
+    }
+
+    private NatsConsumer(NatsSettings settings, String durable, String[] eventTypes,
+                         Function<byte[], NotificationHandler.Outcome> handler, ScheduledExecutorService scheduler,
+                         Duration retryDelay, Duration reconnectDelay, int inFlight, Duration ackWait) {
         this.settings = settings;
         this.durable = durable;
         this.eventTypes = eventTypes.clone();
@@ -98,17 +119,23 @@ public final class NatsConsumer implements AutoCloseable {
         this.scheduler = scheduler;
         this.retryDelay = retryDelay;
         this.reconnectDelay = reconnectDelay;
+        this.inFlight = inFlight;
+        this.ackWait = ackWait;
     }
 
     /** The durable consumer: explicit acks, five unacknowledged at a time, new messages on first creation. */
     static ConsumerConfiguration consumerConfiguration(String durable, String[] eventTypes) {
+        return consumerConfiguration(durable, eventTypes, IN_FLIGHT, ACK_WAIT);
+    }
+
+    static ConsumerConfiguration consumerConfiguration(String durable, String[] eventTypes, int inFlight, Duration ackWait) {
         List<String> subjects = Arrays.stream(eventTypes).map(type -> SUBJECT_PREFIX + type).toList();
         return ConsumerConfiguration.builder()
                 .durable(durable)
                 .filterSubjects(subjects)
                 .ackPolicy(AckPolicy.Explicit)
-                .ackWait(ACK_WAIT)
-                .maxAckPending(IN_FLIGHT)
+                .ackWait(ackWait)
+                .maxAckPending(inFlight)
                 .maxDeliver(-1)
                 .deliverPolicy(DeliverPolicy.New)
                 .build();
@@ -150,7 +177,8 @@ public final class NatsConsumer implements AutoCloseable {
         Connection opened = Nats.connect(options(this.settings));
         JetStreamSubscription subscription;
         try {
-            opened.jetStreamManagement().addOrUpdateConsumer(STREAM, consumerConfiguration(this.durable, this.eventTypes));
+            opened.jetStreamManagement().addOrUpdateConsumer(STREAM,
+                    consumerConfiguration(this.durable, this.eventTypes, this.inFlight, this.ackWait));
             subscription = opened.jetStream().subscribe(null, PullSubscribeOptions.bind(STREAM, this.durable));
         } catch (Exception e) {
             opened.close();
@@ -186,7 +214,7 @@ public final class NatsConsumer implements AutoCloseable {
     private void pull(JetStreamSubscription subscription) {
         while (this.closed.getCount() != 0) {
             try {
-                for (Message message : subscription.fetch(IN_FLIGHT, FETCH_WAIT)) {
+                for (Message message : subscription.fetch(this.inFlight, FETCH_WAIT)) {
                     NotificationHandler.Outcome outcome;
                     try {
                         outcome = this.handler.apply(message.getData());

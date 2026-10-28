@@ -2,6 +2,11 @@ package net.onelitefeather.blackhole.discord;
 
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.discord.attachment.AttachmentFetcher;
+import net.onelitefeather.blackhole.discord.audit.AuditEmbedRenderer;
+import net.onelitefeather.blackhole.discord.audit.AuditWebhookPoster;
+import net.onelitefeather.blackhole.discord.audit.JdkWebhookTransport;
+import net.onelitefeather.blackhole.discord.audit.Sleeper;
+import net.onelitefeather.blackhole.discord.audit.StaffActionHandler;
 import net.onelitefeather.blackhole.discord.attachment.InboundFiles;
 import net.onelitefeather.blackhole.discord.attachment.JdkAttachmentDownloader;
 import net.onelitefeather.blackhole.discord.auth.ClientCredentialsTokenProvider;
@@ -95,6 +100,17 @@ public final class Main {
         NatsConsumer consumer = new NatsConsumer(config.nats(), new NotificationDispatcher(handler), scheduler);
         CaseEventHandler caseEvents = new CaseEventHandler(engine);
         NatsConsumer caseConsumer = new NatsConsumer(config.nats(), NatsConsumer.CASE_DURABLE, CaseEventHandler.ROUTING_KEYS, caseEvents::onMessage, scheduler);
+        // The staff audit is off unless a webhook is configured: no webhook, no consumer, no posts.
+        NatsConsumer auditConsumer = config.audit().webhookUrl() == null
+                ? null
+                : new NatsConsumer(config.nats(), StaffActionHandler.DURABLE, StaffActionHandler.EVENT_TYPES,
+                        new StaffActionHandler(
+                                new AuditWebhookPoster(new JdkWebhookTransport(config.audit().webhookUrl()), Sleeper.threads(), metrics),
+                                new AuditEmbedRenderer(config.panelUrl()))::onMessage,
+                        scheduler, StaffActionHandler.IN_FLIGHT, StaffActionHandler.ACK_WAIT);
+        if (auditConsumer == null) {
+            LOGGER.info("The staff audit is off: {} is not set", BotConfig.ENV_AUDIT_WEBHOOK_URL);
+        }
 
         HealthServer healthServer = config.healthPort() > 0
                 ? new HealthServer(config.healthPort(), () -> new HealthServer.Status(discord.connected(), health.problems()), metrics::render)
@@ -105,6 +121,9 @@ public final class Main {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             consumer.close();
             caseConsumer.close();
+            if (auditConsumer != null) {
+                auditConsumer.close();
+            }
             scheduler.shutdownNow();
             worker.shutdownNow();
             discord.close();
@@ -122,6 +141,10 @@ public final class Main {
             // Events are only consumed once Discord is connected, so no notification is lost to a missing channel.
             consumer.start();
             caseConsumer.start();
+            if (auditConsumer != null) {
+                LOGGER.info("Posting staff actions to the audit webhook");
+                auditConsumer.start();
+            }
         } catch (IllegalStateException e) {
             LOGGER.error("{}", e.getMessage());
             discord.close();

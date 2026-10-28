@@ -31,6 +31,16 @@ class NatsConsumerTest {
     }
 
     @Test
+    void theAuditConsumerHasOneMessageInFlightSoTheChannelKeepsTheOrder() {
+        ConsumerConfiguration configuration = NatsConsumer.consumerConfiguration("discord-audit", new String[]{"staff.action"}, 1,
+                Duration.ofMinutes(10));
+
+        assertEquals(1, configuration.getMaxAckPending(), "one unacknowledged message at a time");
+        assertEquals(Duration.ofMinutes(10), configuration.getAckWait(), "a slow webhook is not redelivered in the middle");
+        assertEquals(List.of("blackhole.events.staff.action"), configuration.getFilterSubjects(), "only staff actions");
+    }
+
+    @Test
     void aHandledMessageIsAcked() {
         FakeMessage message = new FakeMessage();
 

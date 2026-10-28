@@ -1,7 +1,9 @@
 package net.onelitefeather.blackhole.discord.config;
 
+import net.onelitefeather.blackhole.discord.audit.WebhookUrl;
 import net.onelitefeather.blackhole.discord.auth.TokenSettings;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.net.URI;
 import java.nio.file.Files;
@@ -35,6 +37,8 @@ import java.util.function.Function;
  * <p>Leak scanning: {@code DISCORD_LEAK_SCAN} ({@code PUBLIC} by default, {@code LIST} or {@code OFF}) and, for {@code LIST},
  * {@code DISCORD_LEAK_SCAN_CHANNELS}, a comma separated list of channel or category ids.</p>
  *
+ * <p>Staff audit: optional {@code DISCORD_AUDIT_WEBHOOK_URL} (a Discord webhook URL of the audit channel; unset turns the audit off).</p>
+ *
  * @param discordToken   the bot token (a secret, never printed)
  * @param guildId        the one guild the bot serves
  * @param teamChannelId  the channel that receives the team notifications
@@ -46,6 +50,7 @@ import java.util.function.Function;
  * @param healthPort     the port of the local health endpoint, 0 for none
  * @param tickets        the appeal ticket channels
  * @param leak           which channels are scanned for posted Ban IDs
+ * @param audit          where the staff action audit is posted (off when no webhook is set)
  */
 public record BotConfig(
         @NotNull String discordToken,
@@ -58,7 +63,8 @@ public record BotConfig(
         @NotNull NatsSettings nats,
         int healthPort,
         @NotNull TicketSettings tickets,
-        @NotNull LeakSettings leak
+        @NotNull LeakSettings leak,
+        @NotNull AuditSettings audit
 ) {
 
     public static final String ENV_TOKEN = "DISCORD_TOKEN";
@@ -83,6 +89,7 @@ public record BotConfig(
     public static final String ENV_RECONCILE_INTERVAL = "DISCORD_STAFF_RECONCILE_INTERVAL";
     public static final String ENV_LEAK_SCAN = "DISCORD_LEAK_SCAN";
     public static final String ENV_LEAK_SCAN_CHANNELS = "DISCORD_LEAK_SCAN_CHANNELS";
+    public static final String ENV_AUDIT_WEBHOOK_URL = "DISCORD_AUDIT_WEBHOOK_URL";
 
     /** Which channels are scanned for Ban IDs. */
     public enum LeakMode {
@@ -193,19 +200,46 @@ public record BotConfig(
         Duration syncInterval = duration(env, ENV_SYNC_INTERVAL, Duration.ofSeconds(30), Duration.ofSeconds(5), problems);
         Duration reconcileInterval = duration(env, ENV_RECONCILE_INTERVAL, Duration.ofMinutes(5), Duration.ofSeconds(30), problems);
         LeakSettings leak = leak(env, problems);
+        AuditSettings audit = audit(env, problems);
         if (!problems.isEmpty()) {
             throw new ConfigException(problems);
         }
         return new BotConfig(token, guildId, teamChannelId, staffRoleId, backendUrl, panelUrl, auth, nats, healthPort,
-                new TicketSettings(ticketCategory, archiveCategory, appealChannel, deleteAfter, syncInterval, reconcileInterval), leak);
+                new TicketSettings(ticketCategory, archiveCategory, appealChannel, deleteAfter, syncInterval, reconcileInterval), leak, audit);
     }
 
-    /** Never prints the bot token or the client secret. */
+    /** Never prints the bot token, the client secret or the audit webhook URL. */
     @Override
     public String toString() {
         return "BotConfig{discordToken=<redacted>, guildId=" + this.guildId + ", teamChannelId=" + this.teamChannelId
                 + ", staffRoleId=" + this.staffRoleId + ", backendUrl=" + this.backendUrl + ", panelUrl=" + this.panelUrl
-                + ", auth=" + this.auth + ", nats=" + this.nats + ", healthPort=" + this.healthPort + ", tickets=" + this.tickets + ", leak=" + this.leak + "}";
+                + ", auth=" + this.auth + ", nats=" + this.nats + ", healthPort=" + this.healthPort + ", tickets=" + this.tickets
+                + ", leak=" + this.leak + ", audit=" + this.audit + "}";
+    }
+
+    /**
+     * @param webhookUrl the Discord webhook the staff audit posts to, null when the audit is off; a secret, never printed
+     */
+    public record AuditSettings(@Nullable String webhookUrl) {
+
+        @Override
+        public String toString() {
+            return "AuditSettings{webhook=" + (this.webhookUrl == null ? "off" : "<redacted>") + "}";
+        }
+    }
+
+    /** Unset means the audit is off; set means it must be a Discord webhook URL, or the bot does not start. */
+    private static AuditSettings audit(Function<String, String> env, List<String> problems) {
+        String url = value(env, ENV_AUDIT_WEBHOOK_URL);
+        if (url.isEmpty()) {
+            return new AuditSettings(null);
+        }
+        if (!WebhookUrl.isValid(url)) {
+            // Names the variable only: the value is a secret and is not echoed back.
+            problems.add(ENV_AUDIT_WEBHOOK_URL + " must be a Discord webhook URL (https://discord.com/api/webhooks/<id>/<token>)");
+            return new AuditSettings(null);
+        }
+        return new AuditSettings(url);
     }
 
     private static NatsSettings nats(Function<String, String> env, List<String> problems) {
