@@ -13,7 +13,7 @@ connects those names, and `add-player-intelligence` already records the name eac
   time. The history is built from the session records of `add-player-intelligence`, so it starts with
   that change and has no past names before it. Names are compared without case; the newest casing is shown.
 - **Old-name lookup.** A name that no longer resolves through Mojang can be found by any name the account
-  used. The backend answers with the owner hash and the names the account used.
+  used. The backend answers with the owner hash, the raw UUID and the names the account used.
 - **Panel.** The player page shows a "Name history" section. The player search tries the live lookup
   first and then the name history, and opens the same player page.
 - **In game.** `/blackhole <user> names` lists the names of a player, newest first, with first and last
@@ -62,7 +62,7 @@ client type stay as they are.
   build on, so no external source is used for past names.
 - A name-change alert or any notification when an account changes name.
 - Changing `/player/resolve`. Its `uuid` field stays non-null; old names are answered by the new route.
-- Showing or storing raw UUIDs (owner hash only, as in `add-player-intelligence`).
+- Publishing raw UUIDs, names or IPs anywhere public. Staff views show the UUID and names; nothing public does.
 - Alt lookup, which reads these names in `add-alt-lookup-command`.
 
 Ships as: feat(profile): add name history from player sessions and old-name lookup

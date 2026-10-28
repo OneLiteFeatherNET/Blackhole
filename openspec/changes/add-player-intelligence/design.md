@@ -32,11 +32,11 @@ The code this design builds on (checked on `main`, 2026-10-28):
 - Enrichment without any external call on the login path.
 - Velocity never waits for the backend, and a backend outage never blocks a login.
 - The existing ban-evasion detection keeps its behaviour across the migration.
+- Staff can say who a session belongs to: the raw UUID and the name are stored, not only a hash.
 
 **Non-Goals**
 - Replay of lost reports, a message queue, or a second copy of the data in NATS. The sessions are a
   record for staff, not an event stream for third parties.
-- Storing raw player UUIDs. No feature here needs them, so the owner hash stays the identifier.
 - Blocking or banning by IP. That is the OPNsense alias change.
 - Publishing any session data. Nothing here goes into the public ban list or into events for other systems.
 
@@ -68,6 +68,7 @@ after `V27` at implementation time):
 |---|---|---|
 | `session_id` | uuid, primary key | client-generated, decision 2 |
 | `owner_hash` | char(128), indexed | SHA-512 of the UUID, the same hash every proxy sends |
+| `player_uuid` | uuid, indexed | the raw player UUID in clear text, decision 10 |
 | `player_name` | varchar(16) | the name at login; used by `add-name-history` |
 | `ip` | varchar(45), indexed | the clear IP, IPv4 or IPv6 normalised; the amended principle allows it |
 | `ip_token` | char(128), nullable, indexed | `HMAC-SHA512(ip, ip-salt)`; null while the salt is unset |
@@ -80,9 +81,9 @@ after `V27` at implementation time):
 | `started_at`, `ended_at` | timestamp, `ended_at` nullable | `ended_at` null means the end was never reported |
 | `created_at` | timestamp | |
 
-The raw UUID is not stored (see Non-Goals). The clear IP is stored because the panel must show it and
-the ASN lookup needs it; the amended principle covers this under legitimate interest with the retention
-below. The keyed token is kept so the ban-evasion correlation (decision 6) works on new rows without
+The raw UUID and the clear IP are stored because staff must see who a player is and where a login came
+from, and the ASN lookup needs the IP; the amended principle covers both under legitimate interest with the
+retention below. The keyed token is kept so the ban-evasion correlation (decision 6) works on new rows without
 the salt being needed to read them.
 
 Rejected: only the clear IP (the correlation of legacy rows would have to join on a token that cannot be
@@ -159,14 +160,26 @@ a record of logins, so they get their own package).
 ### 9. The panel shows IPs only on the player page
 
 The "Sessions" section is on the player page, for every role that may open it. The UI shows the IP and
-the ASN organisation as text. It keeps nothing in browser storage (`admin-web-ui`, the no-personal-data
+the ASN organisation as text, under a header with the UUID and name. It keeps nothing in browser storage (`admin-web-ui`, the no-personal-data
 requirement now names IP addresses). The public pages and the ban list never receive these fields.
+
+### 10. Player identity: the raw UUID is stored next to the owner hash
+
+Sessions store the player's raw UUID in clear text, next to the owner hash, the name and the clear IP. Staff
+views and the in-game alt lookup show the UUID and the name, because a hash cannot tell a moderator who a player
+is. The owner hash stays as the join key for the proxies, the legacy evasion data and the existing profile
+routes. The raw UUID follows the session retention (decision 7) and erasure on request. Nothing published carries
+it: `session.started` and `session.ended` carry the owner hash and the session id only, and the public ban list
+carries no player reference.
+
+Rejected: hash-only UUID storage (staff cannot identify players, and the alt lookup and the name history become
+unreadable to a person); storing the UUID only in the punishment tables (a session would still show a hash).
 
 ## Risks / Trade-offs
 
-- **Clear IPs in the database** are personal data. The mitigation is the amended legal basis, the
+- **Clear IPs and raw UUIDs in the database** are personal data. The mitigation is the amended legal basis, the
   90-day retention enforced by a sweeper, the owner-hash join key, and the rule that nothing published
-  carries them. A breach of the database exposes IPs of the last 90 days; this is accepted by the
+  carries them. A breach of the database exposes IPs, UUIDs and names of the last 90 days; this is accepted by the
   maintainer's amendment (`amend-data-protection-principle`).
 - **Lost reports** on backend outage or proxy restart. Staff see gaps in the session list. Accepted; the
   reports are a convenience record, not evidence.

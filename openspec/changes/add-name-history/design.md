@@ -12,7 +12,7 @@ The code this design builds on (checked on `main`, 2026-10-28):
 - `web/src/views/PlayersView.vue` searches by name through `api.resolvePlayer` and then opens the detail for
   the resolved owner.
 - Velocity's `PunishInfoCommand` guards `/blackhole <user> info` with `@Permission("blackhole.user.info")`.
-- `add-player-intelligence` adds `player_sighting` with `owner_hash`, `player_name` and `started_at`, and its
+- `add-player-intelligence` adds `player_sighting` with `player_uuid`, `owner_hash`, `player_name` and `started_at`, and its
   retention sweeper deletes sessions after `blackhole.intel.retention-days`.
 
 ## Goals / Non-Goals
@@ -36,6 +36,7 @@ Table `player_name_history`, one row per (owner hash, lower-case name):
 | Column | Type | Notes |
 |---|---|---|
 | `owner_hash` | char(128) | part of the primary key |
+| `player_uuid` | uuid | the raw player UUID in clear text (`add-player-intelligence` decision 10) |
 | `name_lower` | varchar(16) | part of the primary key; the case-insensitive match key |
 | `name` | varchar(16) | the most recent casing seen |
 | `first_seen`, `last_seen` | timestamp | |
@@ -54,8 +55,8 @@ watermark).
 
 The migration `V<next>__player_name_history.sql` creates the table and runs
 
-    INSERT INTO player_name_history (owner_hash, name_lower, name, first_seen, last_seen)
-    SELECT owner_hash, lower(player_name), max(player_name), min(started_at), max(started_at)
+    INSERT INTO player_name_history (owner_hash, player_uuid, name_lower, name, first_seen, last_seen)
+    SELECT owner_hash, max(player_uuid), lower(player_name), max(player_name), min(started_at), max(started_at)
     FROM player_sighting GROUP BY owner_hash, lower(player_name);
 
 (the exact casing expression is chosen at implementation time for the target database). It is run once when
@@ -84,22 +85,22 @@ reason to skip the rows here.
 - `GET /intel/players/{owner}/names`: the names of one owner, newest first, paginated. VIEWER and above, and
   PROXY, because the command runs on the proxy on behalf of staff.
 - `GET /intel/names/{name}/owners`: the owners that used a name (case-insensitive), at most 20, newest first.
-  Each entry has the owner hash, the newest name of that owner and first and last seen for the matched name.
+  Each entry has the owner hash, the raw UUID, the newest name of that owner and first and last seen for the matched name.
   VIEWER and above, and PROXY.
 
 The panel uses the second route when the live lookup returns 404. It then opens the player page with the owner
 hash, which the detail page already accepts as its route key. The sealed DTOs are `NameHistoryDTO` (`Response`,
 `OwnerResponse`, `Error`); the controller stays thin and the service answers `Error` instead of throwing.
 
-Rejected: changing `GET /player/resolve/{name}` to answer old names. Its `uuid` field is non-null in the generated
-client; old names have no UUID here (the owner hash is the only identifier stored), so the change would either
-break the client or return a fake UUID.
+Rejected: changing `GET /player/resolve/{name}` to answer old names. Its `source` field says which live lookup
+answered, and the client treats every answer as a live result; stored history answers would blur that, so they get
+their own route.
 
 ### 6. The command reuses the existing lookup and permission
 
 `/blackhole <user> names` resolves the target in this order: an online player on this proxy (owner from the
 hash), then `GET /player/resolve/{name}`, then `GET /intel/names/{name}/owners` for an old name. It is guarded
-with `blackhole.user.info`, the permission that already covers the player's information. It prints up to 20
+with `blackhole.user.info`, the permission that already covers the player's information. It prints the account's UUID, then up to 20
 names, newest first, with the relative and absolute last-seen time. Messages are added to both English and
 German property files.
 

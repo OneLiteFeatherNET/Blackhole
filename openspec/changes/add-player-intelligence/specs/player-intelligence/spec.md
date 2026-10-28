@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: Session record per login attempt
-The system SHALL store one session record for every login attempt that reaches the backend, with a client-generated `sessionId`, the owner hash, the name seen at login, the clear IP address, the protocol version, the virtual host, the outcome (`ALLOWED` or `DENIED`) and the start time.
+The system SHALL store one session record for every login attempt that reaches the backend, with a client-generated `sessionId`, the raw player UUID, the owner hash, the name seen at login, the clear IP address, the protocol version, the virtual host, the outcome (`ALLOWED` or `DENIED`) and the start time.
 
 #### Scenario: Allowed login is stored
 - **WHEN** a proxy reports a start for an allowed login with a new `sessionId`
-- **THEN** a session record exists with the owner hash, the clear IP, the outcome `ALLOWED` and no end time
+- **THEN** a session record exists with the UUID, the owner hash, the clear IP, the outcome `ALLOWED` and no end time
 
 #### Scenario: Denied login is stored
 - **WHEN** a proxy reports a start with the outcome `DENIED`
@@ -65,7 +65,7 @@ The system SHALL answer `GET /intel/players/{owner}/sessions` for VIEWER and abo
 
 #### Scenario: Viewer reads sessions
 - **WHEN** a viewer requests the sessions of an owner with three stored sessions
-- **THEN** the response lists those three sessions newest first with IP, enrichment, brand, protocol, virtual host, outcome and times
+- **THEN** the response lists those three sessions newest first with the player's UUID, name, IP, enrichment, brand, protocol, virtual host, outcome and times
 
 #### Scenario: Proxy reads sessions
 - **WHEN** a proxy requests the sessions of an owner
@@ -76,11 +76,11 @@ The system SHALL answer `GET /intel/players/{owner}/sessions` for VIEWER and abo
 - **THEN** the response is a validation error
 
 ### Requirement: Session events carry no address
-The domain events for sessions (`session.started`, `session.ended`) MUST carry the owner hash and identifiers only; they MUST NOT carry an IP address, a token or a player name.
+The domain events for sessions (`session.started`, `session.ended`) MUST carry the owner hash and identifiers only; they MUST NOT carry an IP address, a token, a raw UUID or a player name.
 
 #### Scenario: Started event payload
 - **WHEN** a session is stored
-- **THEN** the published `session.started` event contains the owner hash and the session id, and no IP address
+- **THEN** the published `session.started` event contains the owner hash and the session id, and no IP address, UUID or name
 
 ### Requirement: Intelligence can be switched off
 When `blackhole.intel.enabled` is false the session routes MUST answer 404, Velocity's reports MUST be dropped without affecting the login, and the existing ban and evasion paths MUST keep working.

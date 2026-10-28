@@ -10,7 +10,7 @@ that records each login and session, with the data a moderator needs to read it.
 ## What Changes
 
 - **Session reporting from Velocity.** Each login attempt becomes a session record: the clear IP,
-  the owner hash of the player, the name seen at login, the client brand and version, the protocol
+  the player's raw UUID and owner hash, the name seen at login, the client brand and version, the protocol
   version, the virtual host, the outcome (`ALLOWED` or `DENIED`), and the session start and end.
   Velocity reports the start after its ban check, the brand when the client sends it, and the end on
   disconnect. Reports run off the login thread with a short timeout; a failed report is logged and
@@ -21,7 +21,7 @@ that records each login and session, with the data a moderator needs to read it.
   without enrichment and does not fail the report.
 - **Sessions are kept for a fixed retention** (`blackhole.intel.retention-days`, default 90) and
   deleted by a sweeper, like the existing evasion sightings.
-- **Panel: sightings on the player page.** A "Sessions" section lists the sessions of a player
+- **Panel: sightings on the player page.** A "Sessions" section, headed by the player's UUID and name, lists the sessions of a player
   (time, outcome, IP, ASN and organisation, country, client brand and version, protocol, virtual
   host), newest first and paginated. Every role that may open the player page can read it.
 - **Existing evasion data keeps working.** Legacy sightings stay as keyed hashes until their own
@@ -52,8 +52,8 @@ that records each login and session, with the data a moderator needs to read it.
 
 - `amend-data-protection-principle` must be merged before the code PR. It amends principle 1 of
   `openspec/config.yaml` so that clear IP addresses may be stored for a stated feature with a legitimate
-  interest basis and enforced retention. This change does not restate that amendment. The owner hash
-  remains the only player identifier stored by this feature; raw UUIDs are not stored.
+  interest basis and enforced retention. This change does not restate that amendment. The raw UUID is
+  stored next to the owner hash (design decision 10); nothing published carries either.
 
 ## Impact
 
@@ -65,7 +65,7 @@ that records each login and session, with the data a moderator needs to read it.
   `client/specs/blackhole-api-*.yml` gets the next free version.
 - **Velocity**: session reporting in `PlayerLoginListener` and the brand listener, a bounded report
   executor, a `disconnect` listener for the end. No new commands in this change.
-- **Web**: a sessions section and table on the player page, with unit tests.
+- **Web**: a sessions section and table on the player page, headed by the UUID and name, with unit tests.
 - **Deploy**: a mounted volume for the MaxMind DB files and a refresh CronJob in the Helm chart.
 - **Config**: `blackhole.intel.geoip.asn-path`, `blackhole.intel.geoip.city-path`,
   `blackhole.intel.retention-days`, `blackhole.intel.retention-sweep-cron`, `blackhole.intel.report-timeout`.
@@ -78,7 +78,7 @@ that records each login and session, with the data a moderator needs to read it.
 - IP bans through the OPNsense alias, VPN and proxy detection (they read this data later and get their own
   changes).
 - Playtime totals and analytics; the stored start and end make them possible without a schema change.
-- Raw player UUIDs, and any player data in public pages or events to third parties.
+- Publishing raw UUIDs, names or IPs in public pages or events to third parties.
 - Replacing `POST /evasion/record`; it stays until old proxies are gone.
 - Queuing reports for replay after a backend outage. A missed session is accepted.
 

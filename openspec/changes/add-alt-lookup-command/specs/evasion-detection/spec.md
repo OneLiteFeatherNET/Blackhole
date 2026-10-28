@@ -40,4 +40,4 @@ Each linked account SHALL carry its owner hash, its most recent name when known,
 
 #### Scenario: No address in the response
 - **WHEN** a viewer requests the linked accounts of an owner that shares an address
-- **THEN** the body contains no IP address, no token and no raw UUID
+- **THEN** the body contains no IP address and no token, and each linked account carries its raw UUID

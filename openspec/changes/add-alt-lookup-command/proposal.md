@@ -10,7 +10,7 @@ there once `add-player-intelligence` records sessions with the clear IP, and the
 ## What Changes
 
 - **New in-game command `/alts <player>`** (permission `blackhole.alts`). It lists the accounts that share an
-  address or a client fingerprint with the target, each with its name, the reason it is linked, its last seen
+  address or a client fingerprint with the target, each with its UUID and name, the reason it is linked, its last seen
   time and its active punishments (or "none"). The list has at most 20 entries, newest first.
 - **Clickable entries.** Each entry is clickable. A click puts `/blackhole <name> info` into the chat box for
   the staff member to send; it does not run the command.
@@ -20,8 +20,8 @@ there once `add-player-intelligence` records sessions with the clear IP, and the
   legacy sightings and the client fingerprint links, with the active punishment sections of each linked account.
   It is built on the existing evasion correlation and does not change it.
 - **Panel**: the "Possible alt accounts" panel keeps its current data source. This change adds no panel code.
-- **No IP or owner hash in game.** The command shows reasons in words ("shared address", "shared client
-  fingerprint"), never an address or a hash.
+- **No IP address or token in game.** The command shows the UUID and name of each account, and reasons in words ("shared address", "shared client
+  fingerprint"), never an IP address, a token or an owner hash.
 
 ## Capabilities
 
@@ -60,6 +60,6 @@ None.
 - Changing the evasion detection window or its signal.
 - An alt lookup in the panel from the new route. The existing panel hints stay on `/evasion/{owner}/sightings`;
   open question 1 asks whether they should move.
-- Showing IPs, owner hashes or the raw UUID anywhere in game.
+- Showing IP addresses, tokens or owner hashes in game (the UUID and name are shown).
 
 Ships as: feat(velocity): add the in-game alt lookup command

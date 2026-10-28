@@ -18,7 +18,7 @@
 
 - [ ] 3.1 Write the failing unit test for target resolution: an online player is resolved without a network call, a current name through the live lookup, and an old name through the old-name route; use a fake client.
 - [ ] 3.2 Write the failing unit test for the timeout: a backend future that does not complete within the configured timeout gives the timeout message, and the test uses an injected timeout of zero and a future the test controls, with no sleeps.
-- [ ] 3.3 Write the failing unit test for the output: each entry names the account, its reasons in words, its last seen time and its active punishments or "none", and no entry contains an IP address, a token or an owner hash (assert the component text).
+- [ ] 3.3 Write the failing unit test for the output: each entry names the account by its UUID and name, its reasons in words, its last seen time and its active punishments or "none", and no entry contains an IP address, a token or an owner hash (assert the component text).
 - [ ] 3.4 Write the failing unit test that each entry's click event is `suggestCommand` for `/blackhole <name> info` and never `runCommand`.
 - [ ] 3.5 Write the failing unit test that a player without `blackhole.alts` is refused and that the console is refused.
 - [ ] 3.6 Implement `AltsCommand` with `@Permission("blackhole.alts")`, `requiredSender = Player.class`, the async call with `blackhole.alts.timeout`, and the messages in `blackhole_en.properties` and `blackhole_de.properties`; make 3.1 to 3.5 pass.

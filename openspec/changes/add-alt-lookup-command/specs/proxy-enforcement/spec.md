@@ -1,11 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: Alt lookup command
-The proxy SHALL provide `/alts <player>` to players holding the permission `blackhole.alts`. The target SHALL be resolved from an online player on this proxy first, then through the live name lookup, then through the old-name lookup of the backend. The command SHALL print each linked account with its name, its reasons in words, its last seen time and its active punishment sections or "none", at most 20 entries newest first, and SHALL say when the list was cut short.
+The proxy SHALL provide `/alts <player>` to players holding the permission `blackhole.alts`. The target SHALL be resolved from an online player on this proxy first, then through the live name lookup, then through the old-name lookup of the backend. The command SHALL print each linked account with its UUID, its name, its reasons in words, its last seen time and its active punishment sections or "none", at most 20 entries newest first, and SHALL say when the list was cut short.
 
 #### Scenario: Linked accounts listed
 - **WHEN** a staff member runs `/alts` for a player with two linked accounts
-- **THEN** both are printed with their reasons, last seen times and active punishments
+- **THEN** both are printed with their UUIDs, names, reasons, last seen times and active punishments
 
 #### Scenario: No linked accounts
 - **WHEN** the target has no linked account

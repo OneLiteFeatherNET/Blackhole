@@ -18,7 +18,7 @@ On every login the proxy SHALL check for an active ban using the Redis mirror, f
 
 #### Scenario: Evasion sighting recorded for every login
 - **WHEN** any player logs in, banned or not
-- **THEN** the proxy reports a session with the player's owner hash, IP address and outcome to the backend, once per login
+- **THEN** the proxy reports a session with the player's UUID, name, owner hash, IP address and outcome to the backend, once per login
 
 #### Scenario: Backend unreachable during the report
 - **WHEN** the backend does not answer the session report

@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Name history per account
-The system SHALL keep, for every owner hash that logs in, one entry per name the account has used, with the most recent casing of that name and the first and last time the name was seen in a login. Names MUST be matched without regard to case.
+The system SHALL keep, for every owner hash that logs in and with its raw UUID, one entry per name the account has used, with the most recent casing of that name and the first and last time the name was seen in a login. Names MUST be matched without regard to case.
 
 #### Scenario: New name is recorded
 - **WHEN** an owner logs in with a name it has not used before
@@ -27,14 +27,14 @@ The system SHALL answer `GET /intel/players/{owner}/names` for VIEWER and above 
 
 #### Scenario: Owner with two names
 - **WHEN** a viewer requests the names of an owner that used two names
-- **THEN** the response lists both with first and last seen, the most recently seen first
+- **THEN** the response carries the raw UUID and lists both with first and last seen, the most recently seen first
 
 #### Scenario: Unknown owner
 - **WHEN** the owner has no history
 - **THEN** the response is 200 with an empty list
 
 ### Requirement: Old-name lookup
-The system SHALL answer `GET /intel/names/{name}/owners` for VIEWER and above and for PROXY with the owners that have used that name, matched without regard to case and exactly, at most 20 owners, newest last seen first. Each entry SHALL carry the owner hash, the owner's most recent name, and the first and last seen time of the matched name.
+The system SHALL answer `GET /intel/names/{name}/owners` for VIEWER and above and for PROXY with the owners that have used that name, matched without regard to case and exactly, at most 20 owners, newest last seen first. Each entry SHALL carry the owner hash, the raw UUID, the owner's most recent name, and the first and last seen time of the matched name.
 
 #### Scenario: Old name finds the account
 - **WHEN** a viewer requests an owners lookup for a name the account used before it changed
@@ -67,7 +67,7 @@ When an owner's data is erased, the system SHALL delete that owner's name histor
 - **THEN** both entries are gone and the entries of another owner are untouched
 
 ### Requirement: Names are never published
-Name history MUST NOT appear in public pages, the public ban list, or in any domain event.
+Name history, UUIDs included, MUST NOT appear in public pages, the public ban list, or in any domain event.
 
 #### Scenario: Event payload
 - **WHEN** a session with a name is stored

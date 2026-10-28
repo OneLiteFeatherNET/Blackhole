@@ -21,7 +21,7 @@ The code this design builds on (checked on `main`, 2026-10-28):
 **Goals**
 - One command that answers "who else is on this connection or this client, and are they banned" from game.
 - The same correlation rules as the evasion signal, so the command and `evasion.detected` never disagree.
-- No address, hash or UUID shown in game.
+- No IP address, token or owner hash shown in game; each entry names the account's UUID and name.
 
 **Non-Goals**
 - Any action on linked accounts.
@@ -60,11 +60,11 @@ on the backend (it is a proxy-side cache, the backend reads its own store).
 ### 3. Response shape and limit
 
 `AltsDTO.Response` carries `owner`, `name` (the newest name from `add-name-history`, or null), the `linked` list and
-`truncated`. Each `Linked` entry has `owner`, `name`, `reasons` (`SHARED_ADDRESS`, `SHARED_FINGERPRINT`), `lastSeen`
+`truncated`. Each `Linked` entry has `owner`, `uuid`, `name`, `reasons` (`SHARED_ADDRESS`, `SHARED_FINGERPRINT`), `lastSeen`
 (epoch millis) and `activeSections`. The list is newest-first and capped at 20; `truncated` is true when more exist.
 The `Error` variant covers a malformed owner and a backend-side failure in place of exceptions.
 
-The owner hash is in the JSON because the proxy uses it for the ban check of each account. The proxy never prints it.
+The owner hash is in the JSON because the proxy uses it for the ban check of each account. The proxy prints the UUID and the name, never the owner hash.
 
 Rejected: returning the IP or the token (not needed by the command; the panel's hints do not show them either).
 

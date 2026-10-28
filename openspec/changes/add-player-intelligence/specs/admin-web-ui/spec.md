@@ -7,6 +7,10 @@ The player page SHALL show a "Sessions" section for every role that may open the
 - **WHEN** a moderator opens a player with three sessions
 - **THEN** the section lists the three sessions newest first with their IP and provider
 
+#### Scenario: Header identifies the player
+- **WHEN** a moderator opens the sessions of a player
+- **THEN** the section header shows the player's UUID and name
+
 #### Scenario: No sessions
 - **WHEN** the backend returns no sessions
 - **THEN** the section says no session has been recorded yet
