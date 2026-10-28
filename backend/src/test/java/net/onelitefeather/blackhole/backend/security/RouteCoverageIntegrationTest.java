@@ -79,6 +79,10 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /kick/mass", A),
             Map.entry("GET /kick/{id}", VP),
             Map.entry("POST /kick/{id}/deliveries", P),
+            // warnings: the player's proxy reads and confirms them; viewers read one warning
+            Map.entry("GET /warn/{id}", VP),
+            Map.entry("GET /warn/pending", P),
+            Map.entry("POST /warn/{id}/acknowledge", P),
             // moderation
             Map.entry("PATCH /case/{reference}", M),
             Map.entry("POST /case/{reference}/notes", M),

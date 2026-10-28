@@ -82,6 +82,25 @@ public class CaseTimeline {
         });
     }
 
+    /**
+     * A warning was given. Recorded after the warning is written; a failed recording never fails the warning.
+     *
+     * @param templateKey the template the warning was applied from
+     * @param eloCost     the ELO cost of the warning's step
+     */
+    public void warned(PunishmentEntity warning, @Nullable String templateKey, @Nullable Integer eloCost) {
+        recordSafely(() -> {
+            SourceRows.WarnRow row = SourceRows.WarnRow.of(warning);
+            return CaseDrafts.warned(row, templateKey, eloCost, CaseEventOrigin.LIVE, row.createdAt());
+        });
+    }
+
+    /** The player confirmed a warning; dated by the confirmation, recorded once per warning. */
+    public void acknowledged(PunishmentEntity warning) {
+        recordSafely(() -> CaseDrafts.acknowledged(warning.getIdentifier(), CaseEventOrigin.LIVE,
+                warning.getAcknowledgedAt() == null ? this.clock.millis() : warning.getAcknowledgedAt()));
+    }
+
     /** Staff revoked the punishment. */
     public void revoked(PunishmentEntity punishment, Attribution by) {
         recordSafely(() -> CaseDrafts.ended(PunishmentRow.of(punishment), CaseActor.of(by), false, CaseEventOrigin.LIVE, this.clock.millis()));

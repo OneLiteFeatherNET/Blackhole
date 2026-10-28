@@ -31,6 +31,8 @@ public sealed interface CaseEventPayload {
     String RETEMPLATED = "punishment.retemplated";
     String EXPIRED = "punishment.expired";
     String KICKED = "punishment.kicked";
+    String WARNED = "punishment.warned";
+    String ACKNOWLEDGED = "punishment.acknowledged";
     String EVIDENCE_ATTACHED = "evidence.attached";
     String EVIDENCE_LIFTED = "evidence.lifted";
     String EVIDENCE_REVOKED = "evidence.revoked";
@@ -210,6 +212,50 @@ public sealed interface CaseEventPayload {
             put(map, "target", target);
             put(map, "eloCost", eloCost);
             return map;
+        }
+    }
+
+    /**
+     * A warning was given: the template it came from and the ELO cost of its step. The reason is on the warning itself.
+     *
+     * @param templateKey the key of the template the warning was applied from
+     * @param eloCost     the ELO cost of the warning's step, if any
+     */
+    record Warned(@Nullable String templateKey, @Nullable Integer eloCost) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return WARNED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            put(map, "templateKey", templateKey);
+            put(map, "eloCost", eloCost);
+            return map;
+        }
+    }
+
+    /** The player confirmed a warning: a moment, the time is the event's own. */
+    record Acknowledged() implements CaseEventPayload {
+        @Override
+        public String type() {
+            return ACKNOWLEDGED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            return new LinkedHashMap<>();
         }
     }
 
