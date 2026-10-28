@@ -8,7 +8,7 @@ info:
     email: admin@onelitefeather.net
   license:
     name: Close Source
-  version: 0.0.44
+  version: 0.0.46
 security:
 - bearerAuth: []
 paths:
@@ -4239,6 +4239,51 @@ paths:
             application/json:
               schema:
                 type: object
+  /proxy/capabilities:
+    get:
+      tags:
+      - Proxy
+      summary: Get the SignedVelocity state of every proxy
+      description: "Each proxy's last report of whether SignedVelocity is loaded on it.\
+        \ A proxy whose last report is older than the stale window is unknown. Staff\
+        \ panel only."
+      operationId: getProxyCapabilities
+      responses:
+        "200":
+          description: The last state of every proxy that has reported
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProxyCapabilityResponse"
+    put:
+      tags:
+      - Proxy
+      summary: Report a proxy's SignedVelocity state
+      description: "Replaces the calling proxy's last report. Without SignedVelocity\
+        \ the proxy cannot cancel signed mute messages, so the admin panel warns.\
+        \ Proxy tokens only."
+      operationId: reportProxyCapabilities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProxyCapabilityReportRequest"
+        required: true
+      responses:
+        "204":
+          description: Report stored
+        "400":
+          description: Invalid proxy id or SignedVelocity version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProxyCapabilityError"
+        "503":
+          description: The shared cache is unavailable, retry later
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProxyCapabilityError"
   /punishment:
     get:
       tags:
@@ -8848,6 +8893,65 @@ components:
       enum:
       - FULL
       - LIMITED
+    ProxyCapabilityError:
+      required:
+      - errorMessage
+      - kind
+      type: object
+      properties:
+        errorMessage:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ErrorKind"
+    ProxyCapabilityReportRequest:
+      required:
+      - proxyId
+      - signedVelocity
+      type: object
+      properties:
+        proxyId:
+          type: string
+        signedVelocity:
+          $ref: "#/components/schemas/ProxyCapabilitySignedVelocity"
+    ProxyCapabilityResponse:
+      required:
+      - proxies
+      type: object
+      properties:
+        proxies:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProxyRelayEntry"
+    ProxyCapabilitySignedVelocity:
+      required:
+      - present
+      type: object
+      properties:
+        present:
+          type: boolean
+        version:
+          type: string
+    ProxyRelayEntry:
+      required:
+      - proxyId
+      - state
+      type: object
+      properties:
+        proxyId:
+          type: string
+        state:
+          $ref: "#/components/schemas/ProxyRelayState"
+        version:
+          type: string
+        reportedAt:
+          type: string
+          format: date-time
+    ProxyRelayState:
+      type: string
+      enum:
+      - PRESENT
+      - ABSENT
+      - UNKNOWN
     PublicAppeal:
       required:
       - decision
