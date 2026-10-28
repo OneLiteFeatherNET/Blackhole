@@ -38,6 +38,7 @@ import type {
   AppealConditions,
   AppealDecision,
   CloudNetCatalogue,
+  ProxyCapabilities,
   ClientRule,
   ClientRuleCatalogue,
   ClientRuleDraft,
@@ -119,6 +120,8 @@ export interface BlackholeApi {
   disableSection(key: string): Promise<ApiResult<Section>>
   /** What the proxies report from CloudNet; any signed-in role may read it. Never required to save a section. */
   cloudnetCatalogue(): Promise<ApiResult<CloudNetCatalogue>>
+  /** Each proxy's SignedVelocity state; staff only. Shown as a banner while a proxy lacks the relay. */
+  proxyCapabilities(): Promise<ApiResult<ProxyCapabilities>>
   /** Every client rule, enabled or not, with its hit count; any signed-in role may read them. */
   clientRules(): Promise<ApiResult<ClientRule[]>>
   /** ADMIN only. */
@@ -523,6 +526,12 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
         services: catalogue.services ?? [],
         proxies: catalogue.proxies ?? [],
       }))
+    },
+
+    async proxyCapabilities() {
+      const result = await toResult(http.GET('/proxy/capabilities'))
+      // The backend leaves an empty list out of its JSON.
+      return map(result, (capabilities) => ({ proxies: capabilities.proxies ?? [] }))
     },
 
     async clientRules() {

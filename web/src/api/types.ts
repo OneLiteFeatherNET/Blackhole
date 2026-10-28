@@ -32,6 +32,8 @@ export type Section = Schemas['SectionResponse']
 export type AppealConditions = Schemas['AppealConditions']
 /** The CloudNet tasks, groups and services the proxies report, merged; `available` is false when none is known. */
 export type CloudNetCatalogue = Schemas['CatalogueResponse']
+/** Each proxy's last report of whether SignedVelocity is loaded; `state` is UNKNOWN for a proxy that stopped reporting. */
+export type ProxyCapabilities = { proxies: Schemas['ProxyRelayEntry'][] }
 export type Report = Schemas['ReportDTO']
 export type ClientRuleKind = Schemas['ClientRuleKind']
 export type ClientRuleAction = Schemas['ClientRuleAction']

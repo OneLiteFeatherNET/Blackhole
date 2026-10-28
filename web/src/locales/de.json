@@ -881,6 +881,10 @@
     "confirm": "Jetzt verknüpfen",
     "done": "{linked} Strafen mit {template} verknüpft, {skipped} unberührt gelassen."
   },
+  "relayBanner": {
+    "absent": "{proxy} läuft ohne SignedVelocity. Signierte Mutes werden dort durchgesetzt, indem der stummgeschaltete Spieler getrennt wird, nicht durch Abbrechen der Nachricht. SignedVelocity auf dem Proxy und auf jedem Backend-Server installieren.",
+    "unknown": "Der SignedVelocity-Status von {proxy} ist unbekannt: Er hat sich seit einiger Zeit nicht gemeldet."
+  },
   "cloudnetCatalogue": {
     "title": "CloudNet-Katalog",
     "intro": "Was die Proxys aus CloudNet melden. Nur lesbar; der Bereichs-Editor nutzt ihn für Vorschläge.",

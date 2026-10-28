@@ -40,6 +40,7 @@ async function mountApp(numbers: Numbers, path = '/players') {
       provide: {
         [AUTH_KEY as symbol]: fakeAuthService().service,
         [API_KEY as symbol]: mockApi({
+          proxyCapabilities: async () => ok({ proxies: [] }),
           inbox,
           // The front page also shows the escalations and the active punishments.
           dashboard: async () => ok({ activePunishmentsBySection: [], latestEscalations: [], escalationsLast7Days: 0 }),
