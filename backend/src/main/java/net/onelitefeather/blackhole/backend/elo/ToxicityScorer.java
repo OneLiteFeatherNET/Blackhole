@@ -1,10 +1,9 @@
 package net.onelitefeather.blackhole.backend.elo;
 
 /**
- * Scores how toxic a chat message is. Deliberately a single, swappable bean - the default
- * {@link RuleBasedToxicityScorer} is an explicitly basic placeholder; replacing it with an ML
- * classifier later (per the roadmap) is a matter of providing a different {@code ToxicityScorer}
- * bean (e.g. via {@code @Replaces}), not touching any of its callers.
+ * Scores how toxic a chat message is. Deliberately a single, swappable bean - the default is the
+ * {@code HttpToxicityScorer} in {@code elo.toxicity}, which calls the inference service. Replacing it is a
+ * matter of providing a different {@code ToxicityScorer} bean, not touching any of its callers.
  */
 public interface ToxicityScorer {
 

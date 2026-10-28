@@ -308,14 +308,23 @@ blackhole:
     decay:
       interval-ms: ${BLACKHOLE_ELO_DECAY_INTERVAL_MS:86400000}
       sweep-cron: ${BLACKHOLE_ELO_DECAY_SWEEP_CRON:`0 0 3 * * *`}
-    # Rule-based ToxicityScorer default: an obviously-placeholder keyword list, not a real
-    # moderation wordlist - swap the ToxicityScorer bean entirely for production use (an ML
-    # classifier is an explicit later replacement per the roadmap, not part of this phase).
     chat:
       # The section a flagged chat message is scored in.
       section: ${BLACKHOLE_ELO_CHAT_SECTION:chat}
-      toxic-patterns: ${BLACKHOLE_ELO_CHAT_TOXIC_PATTERNS:stupid,idiot,shut up,hate you}
-      severity-per-match: ${BLACKHOLE_ELO_CHAT_SEVERITY_PER_MATCH:0.4}
+      # The toxicity inference service (services/toxicity), reached over HTTP at this fixed URL.
+      scorer:
+        url: ${BLACKHOLE_ELO_CHAT_SCORER_URL:http://localhost:8090}
+        # Per call. A call that takes longer counts as a failure and scores zero: no flag, no delta.
+        timeout-ms: ${BLACKHOLE_ELO_CHAT_SCORER_TIMEOUT_MS:250}
+        batch:
+          # Concurrent messages are sent together: at most max-size, or after linger-ms, whichever comes first.
+          max-size: ${BLACKHOLE_ELO_CHAT_SCORER_BATCH_MAX_SIZE:16}
+          linger-ms: ${BLACKHOLE_ELO_CHAT_SCORER_BATCH_LINGER_MS:5}
+        breaker:
+          # Failures inside the window open the breaker for open-ms; then one probe call decides.
+          failures: ${BLACKHOLE_ELO_CHAT_SCORER_BREAKER_FAILURES:5}
+          window-ms: ${BLACKHOLE_ELO_CHAT_SCORER_BREAKER_WINDOW_MS:10000}
+          open-ms: ${BLACKHOLE_ELO_CHAT_SCORER_BREAKER_OPEN_MS:30000}
       flag-threshold: ${BLACKHOLE_ELO_CHAT_FLAG_THRESHOLD:0.3}
       flag-delta: ${BLACKHOLE_ELO_CHAT_FLAG_DELTA:-50}
       evidence-retention-days: ${BLACKHOLE_ELO_CHAT_EVIDENCE_RETENTION_DAYS:60}
