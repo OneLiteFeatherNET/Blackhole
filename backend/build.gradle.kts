@@ -137,6 +137,9 @@ tasks.withType<Test>().configureEach {
     providers.gradleProperty("excludeTags").orNull?.let { tags ->
         useJUnitPlatform { excludeTags(tags) }
     }
+    // Integration tests start a full application context each; the default test heap runs out of memory
+    // in CI when several of them share one test executor.
+    maxHeapSize = "2g"
 }
 
 publishing {
