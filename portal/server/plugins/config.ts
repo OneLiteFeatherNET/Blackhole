@@ -6,6 +6,7 @@ export default defineNitroPlugin((nitroApp) => {
   const config = loadPortalConfigOrExit(process.env, {
     exit: (code) => process.exit(code),
     error: (message) => console.error(message),
+    warn: (message) => console.warn(message),
   })
   nitroApp.hooks.hook('request', (event) => {
     event.context.portalConfig = config
