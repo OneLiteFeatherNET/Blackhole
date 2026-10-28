@@ -194,7 +194,7 @@ public class AppealEligibilityService {
 
         boolean severe = isSevere(punishment);
 
-        String ownSection = punishment.getSectionKey();
+        String ownSection = punishment.getChargedSectionKey();
         List<SectionDTO.Response> supportingSections = this.sectionService.listEnabled().stream()
                 .filter(section -> !section.key().equals(ownSection))
                 .toList();

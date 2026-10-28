@@ -109,6 +109,7 @@ consuming context in every session regardless of what you're touching.
 - **`database/`** — Hibernate/JPA + Flyway schema ownership.
   Detail: `.claude/rules/database.md`.
 - **`kick/`** — Kicks (network/server/section) and mass kick; a kick is never active. Detail: `.claude/rules/kick.md`.
+- **`warning/`** — Warnings (a template step that is never active, acknowledged by the player). Detail: `.claude/rules/warning.md`.
 - **`imports/`** — Vanilla ban-list import support (`VanillaImportController`).
 
 ## Cross-cutting conventions

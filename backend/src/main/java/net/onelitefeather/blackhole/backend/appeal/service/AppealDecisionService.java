@@ -157,6 +157,9 @@ public class AppealDecisionService {
         }
 
         boolean severe = "SEVERE".equals(appeal.getEligibilityCheckResult().get("severityTier"));
+        if (punishment.isWarning() && review.decision() == AppealStatus.GRANTED_DURATION_REDUCTION) {
+            return AppealReviewResult.invalidDecision("a warning has no duration, so it can only be fully lifted or denied");
+        }
         if (severe && review.decision() == AppealStatus.GRANTED_FULL_LIFT) {
             return AppealReviewResult.severeFullLiftDisallowed();
         }
@@ -213,6 +216,9 @@ public class AppealDecisionService {
         if (decision == AppealStatus.DENIED) {
             return DecisionOutcome.APPLIED;
         }
+        if (punishment.isWarning()) {
+            return liftWarning(punishment, owner, revokedBy);
+        }
 
         PunishmentProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
         if (profile == null) {
@@ -248,6 +254,25 @@ public class AppealDecisionService {
             }
         }
 
+        this.profileCache.evict(owner);
+        return DecisionOutcome.APPLIED;
+    }
+
+    /**
+     * Lifts a warning: it never held a slot, so only the row is marked lifted, and its recorded ELO cost is refunded.
+     * Once lifted it no longer counts towards escalation. A duration reduction never reaches here (refused in review).
+     */
+    private DecisionOutcome liftWarning(PunishmentEntity warning, String owner, UUID revokedBy) {
+        long now = this.clock.millis();
+        Map<String, Object> eloMetaData = Map.of(
+                "punishmentIdentifier", warning.getIdentifier(), "revokedBy", revokedBy.toString(), "recordedByOid", revokedBy.toString());
+        warning.getMetaData().put("revokedBy", revokedBy.toString());
+        warning.getMetaData().put("recordedByOid", revokedBy.toString());
+        warning.getMetaData().put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
+        warning.setLifted(true);
+        this.punishmentRepository.update(warning);
+
+        restoreElo(owner, warning, eloMetaData);
         this.profileCache.evict(owner);
         return DecisionOutcome.APPLIED;
     }
@@ -306,7 +331,7 @@ public class AppealDecisionService {
         if (cost != null && cost > 0 && !EloService.SYSTEM_ELO_SOURCE.equals(lifted.getSource())) {
             Map<String, Object> metaData = new HashMap<>(eloMetaData);
             metaData.put("refundedCost", cost);
-            EloChange change = this.eloScoring.applyDelta(owner, lifted.getSectionKey(), cost, EloReasonCode.APPEAL_REFUND, null, metaData);
+            EloChange change = this.eloScoring.applyDelta(owner, lifted.getChargedSectionKey(), cost, EloReasonCode.APPEAL_REFUND, null, metaData);
             if (change instanceof EloChange.Rejected rejected) {
                 LOGGER.warn("Could not refund {} ELO of lifted punishment {}: {}", cost, lifted.getIdentifier(), rejected.message());
             }
@@ -318,12 +343,12 @@ public class AppealDecisionService {
      * re-announces the punishment with its new expiry so the mirror's TTL follows.
      */
     private void publishResolved(UUID appealIdentifier, AppealEntity appeal, PunishmentEntity punishment, AppealReviewDTO review) {
-        SectionDTO.Response section = this.sectionService.find(punishment.getSectionKey()).orElse(null);
+        SectionDTO.Response section = this.sectionService.find(punishment.getChargedSectionKey()).orElse(null);
         Map<String, Object> payload = new HashMap<>();
         payload.put("appealIdentifier", appealIdentifier.toString());
         payload.put("owner", appeal.getAppellantHash());
         payload.put("punishmentIdentifier", punishment.getIdentifier());
-        payload.put("section", punishment.getSectionKey());
+        payload.put("section", punishment.getChargedSectionKey());
         payload.put("decision", review.decision().toString());
         if (section != null) {
             payload.put("enforcement", section.enforcement().name());

@@ -338,6 +338,14 @@ public class PunishmentEntity {
         return template;
     }
 
+    /**
+     * The section this row's ELO cost was charged to. A warning has no section of its own (it never takes a slot),
+     * so its cost went to the section of its template.
+     */
+    public String getChargedSectionKey() {
+        return isWarning() && this.template != null ? this.template.getSectionKey() : this.sectionKey;
+    }
+
     public Map<String, Object> getMetaData() {
         return metaData;
     }
