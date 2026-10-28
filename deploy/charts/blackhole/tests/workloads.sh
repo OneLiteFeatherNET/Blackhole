@@ -168,6 +168,14 @@ dtok="$(pod_env "${prod}" t-discord DISCORD_TOKEN)"
 assert_eq "discord token comes from its Secret" "blackhole-discord" "$(yq eval '.valueFrom.secretKeyRef.name' - <<<"${dtok}")"
 dcs="$(pod_env "${prod}" t-discord BLACKHOLE_DISCORD_CLIENT_SECRET)"
 assert_eq "discord client secret comes from its Secret" "BLACKHOLE_DISCORD_CLIENT_SECRET" "$(yq eval '.valueFrom.secretKeyRef.key' - <<<"${dcs}")"
+# The staff audit webhook is a URL that is a secret: it is read from the discord Secret, never the ConfigMap.
+audit="$(pod_env "${prod}" t-discord DISCORD_AUDIT_WEBHOOK_URL)"
+assert_eq "audit webhook comes from the discord Secret" "blackhole-discord" "$(yq eval '.valueFrom.secretKeyRef.name' - <<<"${audit}")"
+assert_eq "audit webhook reads the default key" "DISCORD_AUDIT_WEBHOOK_URL" "$(yq eval '.valueFrom.secretKeyRef.key' - <<<"${audit}")"
+assert_eq "audit webhook is not in the ConfigMap" "null" "$(dc DISCORD_AUDIT_WEBHOOK_URL)"
+audit_key="${WORK_DIR}/audit-key.yaml"
+render_to prod-values.yaml "${audit_key}" --set discord.auditWebhookKey=staff-audit-hook
+assert_eq "audit webhook key is the one the values name" "staff-audit-hook" "$(yq eval '.valueFrom.secretKeyRef.key' - <<<"$(pod_env "${audit_key}" t-discord DISCORD_AUDIT_WEBHOOK_URL)")"
 assert_eq "the NATS credentials are mounted from the Secret" "blackhole-nats" "$(y "${prod}" "$(dep t-discord) | .spec.template.spec.volumes[] | select(.name == \"nats\") | .secret.secretName")"
 assert_eq "the backend mounts the NATS credentials too" "/etc/blackhole/nats" "$(y "${prod}" "$(dep t-backend) | .spec.template.spec.containers[0].volumeMounts[] | select(.name == \"nats\") | .mountPath")"
 

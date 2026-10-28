@@ -34,7 +34,7 @@
         ]
       },
       "patternProperties": {
-        "(PASSWORD|SECRET|TOKEN|SALT|_KEY|REDIS_URI)$": {
+        "(PASSWORD|SECRET|TOKEN|SALT|_KEY|REDIS_URI|WEBHOOK_URL)$": {
           "type": "object",
           "required": [
             "valueFrom"
@@ -67,7 +67,7 @@
           },
           {
             "not": {
-              "pattern": "(PASSWORD|SECRET|TOKEN|SALT|_KEY|REDIS_URI)$"
+              "pattern": "(PASSWORD|SECRET|TOKEN|SALT|_KEY|REDIS_URI|WEBHOOK_URL)$"
             }
           }
         ]
@@ -1005,6 +1005,11 @@
         },
         "existingSecret": {
           "type": "string"
+        },
+        "auditWebhookKey": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Key of existingSecret that holds the staff audit webhook URL. A secret: never a value in the values."
         },
         "clientId": {
           "type": "string"
