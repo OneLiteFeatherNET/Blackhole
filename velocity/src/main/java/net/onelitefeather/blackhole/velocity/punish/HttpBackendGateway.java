@@ -12,6 +12,9 @@ import net.onelitefeather.blackhole.client.api.ProxyApi;
 import net.onelitefeather.blackhole.client.model.ProxyCapabilityReportRequest;
 import net.onelitefeather.blackhole.client.model.ProxyCapabilitySignedVelocity;
 import net.onelitefeather.blackhole.client.api.StaffLinkApi;
+import net.onelitefeather.blackhole.client.api.WarningApi;
+import net.onelitefeather.blackhole.client.model.WarningAcknowledgeRequest;
+import net.onelitefeather.blackhole.client.model.WarningResponse;
 import net.onelitefeather.blackhole.client.model.KickAccepted;
 import net.onelitefeather.blackhole.client.model.KickAck;
 import net.onelitefeather.blackhole.client.model.KickCreateRequest;
@@ -71,6 +74,7 @@ public final class HttpBackendGateway implements BackendGateway {
     private final DiscordLinkApi discordLinkApi;
     private final KickApi kickApi;
     private final ProxyApi proxyApi;
+    private final WarningApi warningApi;
     private volatile CachedList cachedTemplates;
     private final Clock clock;
 
@@ -85,6 +89,7 @@ public final class HttpBackendGateway implements BackendGateway {
         this.discordLinkApi = new DiscordLinkApi(client);
         this.kickApi = new KickApi(client);
         this.proxyApi = new ProxyApi(client);
+        this.warningApi = new WarningApi(client);
         this.clock = clock;
     }
 
@@ -101,9 +106,14 @@ public final class HttpBackendGateway implements BackendGateway {
     }
 
     @Override
-    public PunishmentApplyResponse apply(String owner, String templateKey, UUID source, String evidenceCorrelationId) throws ApiException {
-        return this.punishmentApi.applyPunishment(new PunishmentApplyRequest()
-                .owner(owner).templateKey(templateKey).onBehalfOf(source).evidenceCorrelationId(evidenceCorrelationId));
+    public PunishmentApplyResponse apply(String owner, String templateKey, UUID source, String evidenceCorrelationId, boolean warningOnly) throws ApiException {
+        PunishmentApplyRequest request = new PunishmentApplyRequest()
+                .owner(owner).templateKey(templateKey).onBehalfOf(source).evidenceCorrelationId(evidenceCorrelationId);
+        // An ordinary apply sends no flag at all, exactly as before warnings existed.
+        if (warningOnly) {
+            request.warningOnly(true);
+        }
+        return this.punishmentApi.applyPunishment(request);
     }
 
     @Override
@@ -241,5 +251,21 @@ public final class HttpBackendGateway implements BackendGateway {
             signedVelocity.version(version);
         }
         this.proxyApi.reportProxyCapabilities(new ProxyCapabilityReportRequest().proxyId(proxyId).signedVelocity(signedVelocity));
+    }
+
+    @Override
+    public WarningResponse warning(String id) throws ApiException {
+        return this.warningApi.getWarning(id);
+    }
+
+    @Override
+    public List<WarningResponse> pendingWarnings(String owner) throws ApiException {
+        List<WarningResponse> items = this.warningApi.listPendingWarnings(owner, null).getItems();
+        return items == null ? List.of() : items;
+    }
+
+    @Override
+    public void acknowledgeWarning(String id, String owner) throws ApiException {
+        this.warningApi.acknowledgeWarning(id, new WarningAcknowledgeRequest().owner(owner));
     }
 }

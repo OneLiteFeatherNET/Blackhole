@@ -9,6 +9,7 @@ import net.onelitefeather.blackhole.client.model.PunishmentRevokeResponse;
 import net.onelitefeather.blackhole.client.model.ReportCategory;
 import net.onelitefeather.blackhole.client.model.ReportDTO;
 import net.onelitefeather.blackhole.client.model.ReportFeedbackResponse;
+import net.onelitefeather.blackhole.client.model.WarningResponse;
 import net.onelitefeather.blackhole.client.model.DiscordLinkCodeResponse;
 import net.onelitefeather.blackhole.client.model.StaffLinkConfirmResponse;
 import net.onelitefeather.blackhole.client.model.StaffLinkLookupResponse;
@@ -53,6 +54,8 @@ final class StubGateway implements BackendGateway {
     final List<String> confirmed = new ArrayList<>();
 
     final List<String> applied = new ArrayList<>();
+    /** The warning-only flag of each apply call, in order. */
+    final List<Boolean> warningOnlyFlags = new ArrayList<>();
     final List<String> revoked = new ArrayList<>();
     /** The correlation id each apply call carried, null where none. */
     final List<String> appliedCorrelationIds = new ArrayList<>();
@@ -153,8 +156,9 @@ final class StubGateway implements BackendGateway {
     }
 
     @Override
-    public PunishmentApplyResponse apply(String owner, String templateKey, UUID source, String evidenceCorrelationId) throws ApiException {
+    public PunishmentApplyResponse apply(String owner, String templateKey, UUID source, String evidenceCorrelationId, boolean warningOnly) throws ApiException {
         this.applied.add(templateKey);
+        this.warningOnlyFlags.add(warningOnly);
         this.appliedCorrelationIds.add(evidenceCorrelationId);
         this.calls.add("apply");
         if (this.applyFailure != null) {
@@ -234,6 +238,21 @@ final class StubGateway implements BackendGateway {
             throw this.discordFailure;
         }
         return this.discordResponse;
+    }
+
+    @Override
+    public WarningResponse warning(String id) {
+        throw new UnsupportedOperationException("warning");
+    }
+
+    @Override
+    public List<WarningResponse> pendingWarnings(String owner) {
+        throw new UnsupportedOperationException("pendingWarnings");
+    }
+
+    @Override
+    public void acknowledgeWarning(String id, String owner) {
+        throw new UnsupportedOperationException("acknowledgeWarning");
     }
 
     @Override

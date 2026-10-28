@@ -16,6 +16,7 @@ import net.onelitefeather.blackhole.client.model.StaffLinkLookupResponse;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentRevokeResponse;
+import net.onelitefeather.blackhole.client.model.WarningResponse;
 import net.onelitefeather.blackhole.velocity.evidence.ChatSnapshot;
 
 import java.util.List;
@@ -39,8 +40,10 @@ public interface BackendGateway {
      * Applies the template with the given key to the owner.
      *
      * @param evidenceCorrelationId the key chat evidence was posted under ahead of the punishment, or null
+     * @param warningOnly           whether the step the ladder reaches must be a warning (the backend refuses
+     *                              the apply with 422 otherwise, and applies nothing)
      */
-    PunishmentApplyResponse apply(String owner, String templateKey, UUID source, String evidenceCorrelationId) throws ApiException;
+    PunishmentApplyResponse apply(String owner, String templateKey, UUID source, String evidenceCorrelationId, boolean warningOnly) throws ApiException;
 
     /**
      * Posts the chat snapshot as {@code CHAT_LOG} evidence that precedes its punishment, to be claimed
@@ -164,4 +167,26 @@ public interface BackendGateway {
      * @param version the SignedVelocity version, null if absent or unknown
      */
     void reportProxyCapabilities(String proxyId, boolean present, String version) throws ApiException;
+
+    /**
+     * Reads one warning: its reason, when it was given and whether the player confirmed it. The proxy reads the
+     * reason here before it shows the warning in game.
+     *
+     * @throws ApiException with code 404 when there is no such warning
+     */
+    WarningResponse warning(String id) throws ApiException;
+
+    /**
+     * @param owner the player's hashed owner, never the raw UUID
+     * @return the warnings of the owner that the player has not confirmed yet, oldest first
+     */
+    List<WarningResponse> pendingWarnings(String owner) throws ApiException;
+
+    /**
+     * Records the player's confirmation of a warning. Idempotent; the backend answers 404 for a warning that
+     * belongs to another owner.
+     *
+     * @param owner the hashed player the warning belongs to
+     */
+    void acknowledgeWarning(String id, String owner) throws ApiException;
 }

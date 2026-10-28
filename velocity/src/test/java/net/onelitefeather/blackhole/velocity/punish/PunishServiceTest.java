@@ -32,7 +32,16 @@ class PunishServiceTest {
             new ChatSnapshotBuilder(new ChatBuffer(Clock.systemUTC(), new ChatCaptureConfig()), new ChatCaptureConfig()), backend, new ChatCaptureConfig()));
 
     private PunishService.ApplyOutcome apply(String key, java.util.Set<EnforcementKind> allowed) {
-        return service.apply(OWNER, key, STAFF, allowed);
+        return service.apply(OWNER, key, STAFF, allowed, false);
+    }
+
+    @Test
+    void aWarnApplyIsSentWithTheWarningOnlyFlag() {
+        backend.templates = List.of(template("spam", "network"));
+
+        service.apply(OWNER, "spam", STAFF, PunishService.ANY_KINDS, true);
+
+        assertEquals(List.of(true), backend.warningOnlyFlags, "the backend refuses the apply unless the step is a warning");
     }
 
     private void givenActive(String section, boolean permanent) {

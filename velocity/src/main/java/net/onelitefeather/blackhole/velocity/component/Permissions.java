@@ -20,6 +20,8 @@ public final class Permissions {
     public static final String KICK = "blackhole.kick";
     /** Takes everybody off a server or section. */
     public static final String KICK_MASS = "blackhole.kick.mass";
+    /** Warns a player with a template whose next step is a warning. */
+    public static final String WARN = "blackhole.warn";
     /** Granted to everybody unless a permission plugin explicitly denies it. */
     public static final String REPORT = "blackhole.report";
     /** Staff holding it cannot be reported. */
