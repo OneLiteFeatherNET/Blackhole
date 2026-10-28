@@ -98,6 +98,21 @@ dependencyResolutionManagement {
             library("jda", "net.dv8tion", "JDA").versionRef("jda")
             library("nats-jnats", "io.nats", "jnats").versionRef("jnats")
 
+            // Analytics lakehouse sink (analytics-sink module). Pinned on purpose: the Iceberg release must be
+            // readable by the DuckDB release the analysts use (see openspec change add-analytics-lakehouse).
+            version("iceberg", "1.12.0")
+            version("duckdb", "1.5.6.0")
+            version("h2", "2.4.240")
+            library("iceberg-core", "org.apache.iceberg", "iceberg-core").versionRef("iceberg")
+            library("iceberg-data", "org.apache.iceberg", "iceberg-data").versionRef("iceberg")
+            library("iceberg-parquet", "org.apache.iceberg", "iceberg-parquet").versionRef("iceberg")
+            library("iceberg-aws", "org.apache.iceberg", "iceberg-aws").versionRef("iceberg")
+            // Iceberg's Parquet writer uses parquet-hadoop (compile scope upstream, not visible to Gradle consumers).
+            version("parquet", "1.17.1")
+            library("parquet-hadoop", "org.apache.parquet", "parquet-hadoop").versionRef("parquet")
+            library("duckdb-jdbc", "org.duckdb", "duckdb_jdbc").versionRef("duckdb")
+            library("h2", "com.h2database", "h2").versionRef("h2")
+
             plugin("micronaut.application", "io.micronaut.application").versionRef("micronaut")
             plugin("micronaut.aot", "io.micronaut.aot").versionRef("micronaut")
             plugin("shadow", "com.gradleup.shadow").versionRef("shadow")
@@ -109,6 +124,7 @@ include("backend")
 include("client")
 include("velocity")
 include("discord")
+include("analytics-sink")
 include("markdown")
 
 include("phoca")
