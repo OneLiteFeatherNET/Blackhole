@@ -2,6 +2,8 @@ package net.onelitefeather.blackhole.backend.support;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import net.onelitefeather.blackhole.backend.audit.AuditPayloadGuard;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.kick.KickDeadline;
 import net.onelitefeather.blackhole.backend.kick.KickEventPublisher;
@@ -86,7 +88,11 @@ public final class PunishmentTestBed {
     public final PunishmentTemplateCache templateCache = new PunishmentTemplateCache(eloBed.sharedCache, Duration.ofMinutes(5));
     public final RecordingEvidenceGateway evidence = new RecordingEvidenceGateway();
     public final CaseTestBed cases = new CaseTestBed(eloBed.clock);
-    public final StaffLinkTestBed staffLinks = new StaffLinkTestBed(eloBed.events, eloBed.clock);
+    public final InMemoryStaffAuditStore auditStore = new InMemoryStaffAuditStore();
+    public final RecordingEventTransport auditTransport = new RecordingEventTransport();
+    public final StaffAuditRecorder audit = new StaffAuditRecorder(auditStore,
+            new DomainEventPublisher(auditTransport, eloBed.clock), new AuditPayloadGuard(), eloBed.clock, new SimpleMeterRegistry());
+    public final StaffLinkTestBed staffLinks = new StaffLinkTestBed(eloBed.events, eloBed.clock, audit);
     public final BanIdTestBed banIds = new BanIdTestBed(punishments.repository());
     public final InMemoryKickStore kickStore = new InMemoryKickStore();
     public final RecordingEventTransport kickTransport = new RecordingEventTransport();
@@ -95,7 +101,7 @@ public final class PunishmentTestBed {
     public final KickService kickService = new KickService(
             punishments.repository(), profiles.repository(), slots, profileCache, kickStore, kickDeadline,
             new KickEventPublisher(new DomainEventPublisher(kickTransport, eloBed.clock), kickMeters),
-            eloBed.sections, cases.timeline, staffLinks.service);
+            eloBed.sections, cases.timeline, staffLinks.service, audit);
     public final RecordingEventTransport warningTransport = new RecordingEventTransport();
     public final MeterRegistry warningMeters = new SimpleMeterRegistry();
     public final WarningEventPublisher warningEvents = new WarningEventPublisher(
@@ -105,7 +111,7 @@ public final class PunishmentTestBed {
     public final PunishmentApplicationService punishmentService = new PunishmentApplicationService(
             punishments.repository(), profiles.repository(), slots, templates.repository(), eloBed.sections, eloBed.events,
             profileCache, evidence, cases.timeline, () -> this.elo, this.staffLinks.service, eloBed.clock, banIds.service,
-            kickService, warningEvents, Duration.ofDays(365));
+            kickService, warningEvents, audit, Duration.ofDays(365));
     public final FakeClientRuleStore clientRules = new FakeClientRuleStore();
     public final PunishmentTemplateService templateService = new PunishmentTemplateService(
             templates.repository(), punishments.repository(), templateCache, eloBed.sections, clientRules);

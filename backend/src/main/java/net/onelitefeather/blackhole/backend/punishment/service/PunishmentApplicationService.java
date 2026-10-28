@@ -6,6 +6,9 @@ import io.micronaut.data.model.Pageable;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseTimeline;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.elo.EloChange;
 import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.EloScoring;
@@ -103,6 +106,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
     private final BanIdService banIds;
     private final KickService kicks;
     private final WarningEventPublisher warningEvents;
+    private final StaffAuditRecorder audit;
     private final Duration defaultEscalationWindow;
 
     /**
@@ -126,8 +130,10 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
             BanIdService banIds,
             KickService kicks,
             WarningEventPublisher warningEvents,
+            StaffAuditRecorder audit,
             @Value("${blackhole.punishment.escalation.default-window:P365D}") Duration defaultEscalationWindow
     ) {
+        this.audit = audit;
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
         this.slots = slots;
@@ -612,6 +618,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
 
         SectionDTO.Response section = this.sectionService.find(request.section()).orElse(null);
         this.eventPublisher.publish("punishment.revoked", PunishmentEvents.revoked(active, section, attribution.source().toString(), attribution.recordedByOid()));
+        this.audit.record(attribution, actor, AuditAction.PUNISHMENT_REVOKE, AuditTarget.ofCase(PunishmentShortId.display(active.getShortId())));
 
         return new PunishmentDTO.RevokeResponse(withEvidenceCount(active), request.section(), scoreReset);
     }

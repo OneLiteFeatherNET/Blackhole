@@ -1,6 +1,9 @@
 package net.onelitefeather.blackhole.backend.kick.service;
 
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseTimeline;
 import net.onelitefeather.blackhole.backend.kick.KickDeadline;
 import net.onelitefeather.blackhole.backend.kick.KickDeliveries;
@@ -71,6 +74,7 @@ public class KickService {
     private final SectionService sections;
     private final CaseTimeline caseTimeline;
     private final StaffLinkService staffLinks;
+    private final StaffAuditRecorder audit;
 
     public KickService(
             PunishmentRepository punishments,
@@ -82,8 +86,10 @@ public class KickService {
             KickEventPublisher events,
             SectionService sections,
             CaseTimeline caseTimeline,
-            StaffLinkService staffLinks
+            StaffLinkService staffLinks,
+            StaffAuditRecorder audit
     ) {
+        this.audit = audit;
         this.punishments = punishments;
         this.profiles = profiles;
         this.slots = slots;
@@ -149,6 +155,7 @@ public class KickService {
 
         List<String> warnings = warningsFor(request.owner(), scope, target);
         announce(saved, id, scope, target, now);
+        this.audit.record(attribution, actor, AuditAction.KICK_CREATE, AuditTarget.ofPlayer(request.owner()));
         return new KickDTO.Accepted(id.toString(), KickKind.PLAYER, KickStatus.PENDING, deadlineAt, warnings, false);
     }
 
@@ -230,6 +237,7 @@ public class KickService {
             return repeat(this.store.findAction(id).orElse(action), request);
         }
         this.events.massKicked(id, request.scope(), request.target(), now);
+        this.audit.record(actor.attribution(), actor, AuditAction.KICK_MASS, massTarget(request.scope(), request.target()));
         return new KickDTO.Accepted(id.toString(), KickKind.MASS, KickStatus.PENDING, deadlineAt, List.of(), false);
     }
 
@@ -393,6 +401,14 @@ public class KickService {
         } catch (IllegalArgumentException | NullPointerException e) {
             return Optional.empty();
         }
+    }
+
+    private static AuditTarget massTarget(KickScope scope, String target) {
+        return switch (scope) {
+            case NETWORK -> AuditTarget.none();
+            case SECTION -> AuditTarget.ofSection(target);
+            default -> AuditTarget.ofServer(target);
+        };
     }
 
     private static KickDTO.Error notFound() {

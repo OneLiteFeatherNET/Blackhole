@@ -2,6 +2,9 @@ package net.onelitefeather.blackhole.backend.security;
 
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.security.dto.StaffLinkDTO;
 import net.onelitefeather.blackhole.backend.staffprofile.StaffAvatarJob;
@@ -51,6 +54,7 @@ public class StaffLinkService {
     private final StaffLinkProperties properties;
     private final Clock clock;
     private final StaffAvatarJob avatars;
+    private final StaffAuditRecorder audit;
 
     public StaffLinkService(
             StaffLinkRepository links,
@@ -60,7 +64,8 @@ public class StaffLinkService {
             DomainEventPublisher events,
             StaffLinkProperties properties,
             Clock clock,
-            StaffAvatarJob avatars
+            StaffAvatarJob avatars,
+            StaffAuditRecorder audit
     ) {
         this.links = links;
         this.codes = codes;
@@ -70,6 +75,7 @@ public class StaffLinkService {
         this.properties = properties;
         this.clock = clock;
         this.avatars = avatars;
+        this.audit = audit;
     }
 
     /**
@@ -192,7 +198,11 @@ public class StaffLinkService {
 
     /** Removes the link of {@code oid}, audited with the admin's own {@code oid}. */
     public StaffLinkDTO unlink(UUID oid, Actor admin) {
-        return unlink(oid, RemovalReason.ADMIN, admin.oid());
+        StaffLinkDTO result = unlink(oid, RemovalReason.ADMIN, admin.oid());
+        if (result instanceof StaffLinkDTO.RemovedResponse) {
+            this.audit.record(admin.attribution(), admin, AuditAction.STAFF_LINK_UNLINK, AuditTarget.none());
+        }
+        return result;
     }
 
     /** Removes the link of an anonymized staff actor, if there is one; a no-op otherwise. */

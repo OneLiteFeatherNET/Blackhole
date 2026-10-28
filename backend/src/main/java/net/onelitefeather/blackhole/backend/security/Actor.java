@@ -13,11 +13,22 @@ import java.util.UUID;
  * @param kind        {@link ActorKind#HUMAN} for a delegated token, {@link ActorKind#SERVICE} for an app-only one
  * @param proxy       whether the principal holds the {@code PROXY} role and may therefore vouch for {@code onBehalfOf}
  * @param admin       whether the principal holds the {@code ADMIN} role, for rules such as "the author or an admin"
+ * @param panel       whether the request declares the team panel as its surface ({@code X-Blackhole-Surface: panel});
+ *                    a declaration, not verified, read by {@link ActorArgumentBinder}
  */
-public record Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy, boolean admin) {
+public record Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy, boolean admin, boolean panel) {
 
     public Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy) {
-        this(oid, displayName, kind, proxy, false);
+        this(oid, displayName, kind, proxy, false, false);
+    }
+
+    public Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy, boolean admin) {
+        this(oid, displayName, kind, proxy, admin, false);
+    }
+
+    /** This caller, with the declared surface of the request. */
+    public Actor withPanel(boolean panel) {
+        return new Actor(this.oid, this.displayName, this.kind, this.proxy, this.admin, panel);
     }
 
     /** The attribution of a write the caller makes in its own name. */
