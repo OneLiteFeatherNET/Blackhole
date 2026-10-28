@@ -29,6 +29,7 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateReposit
 import net.onelitefeather.blackhole.backend.punishment.SectionPunisher;
 import net.onelitefeather.blackhole.backend.punishment.StepKind;
 import net.onelitefeather.blackhole.backend.punishment.StepSelector;
+import net.onelitefeather.blackhole.backend.warning.WarningEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishEntryDTO;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishmentDTO;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
@@ -101,6 +102,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
     private final Clock clock;
     private final BanIdService banIds;
     private final KickService kicks;
+    private final WarningEventPublisher warningEvents;
     private final Duration defaultEscalationWindow;
 
     /**
@@ -123,6 +125,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
             Clock clock,
             BanIdService banIds,
             KickService kicks,
+            WarningEventPublisher warningEvents,
             @Value("${blackhole.punishment.escalation.default-window:P365D}") Duration defaultEscalationWindow
     ) {
         this.punishmentRepository = punishmentRepository;
@@ -139,6 +142,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         this.clock = clock;
         this.banIds = banIds;
         this.kicks = kicks;
+        this.warningEvents = warningEvents;
         this.defaultEscalationWindow = defaultEscalationWindow;
     }
 
@@ -408,6 +412,8 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         } catch (RuntimeException e) {
             LOGGER.warn("Could not add warning {} to the player's history", saved.getIdentifier(), e);
         }
+        this.caseTimeline.warned(saved, template.getTemplateKey(), selection.step().getEloCost());
+        this.warningEvents.warned(saved.getIdentifier(), owner, now);
         return saved;
     }
 

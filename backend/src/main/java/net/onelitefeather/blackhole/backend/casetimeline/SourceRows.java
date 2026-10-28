@@ -91,6 +91,26 @@ public final class SourceRows {
         }
     }
 
+    /**
+     * A warning: a punishment row of kind {@code WARN}. Like a kick it has no section step, expiry or lift.
+     *
+     * @param identifier the warning's Ban ID
+     */
+    public record WarnRow(
+            String identifier, @Nullable UUID source, @Nullable UUID recordedByOid, @Nullable UUID actorOid, long createdAt
+    ) {
+
+        public static WarnRow of(PunishmentEntity warning) {
+            return new WarnRow(warning.getIdentifier(), warning.getSource(), warning.getRecordedByOid(), warning.getActorOid(),
+                    warning.getCreatedAt() == null ? 0 : warning.getCreatedAt());
+        }
+
+        /** Who gave the warning. */
+        public CaseActor warnedBy() {
+            return CaseActor.ofRow(this.source, this.recordedByOid, this.actorOid);
+        }
+    }
+
     /** An appeal. */
     public record AppealRow(
             UUID identifier, String punishmentIdentifier, AppealStatus status, @Nullable UUID decidedBy,
