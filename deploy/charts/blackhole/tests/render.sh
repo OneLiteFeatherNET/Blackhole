@@ -92,4 +92,20 @@ else
   fail "per-component NATS secrets must satisfy the requirement without a shared one"
 fi
 
+# --- chat toxicity scorer (off by default; the backend reaches it only through the NetworkPolicy) ---------------
+toxicity_off="$(mktemp "${WORK_DIR}/toxicity-off.XXXXXX")"
+render_to prod-values.yaml "${toxicity_off}"
+assert_eq "the scorer is not rendered by default" "0" "$(yq_count "${toxicity_off}" 'select(.metadata.name == "t-toxicity")')"
+
+toxicity_on="$(mktemp "${WORK_DIR}/toxicity-on.XXXXXX")"
+render_to prod-values.yaml "${toxicity_on}" --set toxicity.enabled=true
+assert_eq "the scorer deployment has two replicas" "2" "$(y "${toxicity_on}" 'select(.kind == "Deployment" and .metadata.name == "t-toxicity") | .spec.replicas')"
+assert_eq "the scorer CPU limit is 2 (it sizes the ONNX thread pool)" "2" "$(y "${toxicity_on}" 'select(.kind == "Deployment" and .metadata.name == "t-toxicity") | .spec.template.spec.containers[0].resources.limits.cpu')"
+assert_eq "the scorer memory limit is 1Gi" "1Gi" "$(y "${toxicity_on}" 'select(.kind == "Deployment" and .metadata.name == "t-toxicity") | .spec.template.spec.containers[0].resources.limits.memory')"
+assert_eq "the scorer readiness probe uses /health" "/health" "$(y "${toxicity_on}" 'select(.kind == "Deployment" and .metadata.name == "t-toxicity") | .spec.template.spec.containers[0].readinessProbe.httpGet.path')"
+assert_eq "the scorer network policy admits only the backend pods" "backend" "$(y "${toxicity_on}" 'select(.kind == "NetworkPolicy" and .metadata.name == "t-toxicity") | .spec.ingress[0].from[0].podSelector.matchLabels["app.kubernetes.io/component"]')"
+assert_no_match "the scorer pod annotations carry no unrendered value" "${toxicity_on}" "<nil>"
+expect_render_failure "a scorer with no replica" "/toxicity/replicaCount" prod-values.yaml --set toxicity.enabled=true --set toxicity.replicaCount=0
+expect_render_failure "an unknown key in the scorer block" "toxicity" prod-values.yaml --set toxicity.typo=1
+
 finish

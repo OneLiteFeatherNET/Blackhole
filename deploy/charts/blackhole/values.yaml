@@ -535,3 +535,66 @@ clamav:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+
+# The chat toxicity scorer (services/toxicity): stateless, CPU only, reached by the backend at
+# blackhole.elo.chat.scorer.url. Off by default until the image is published and the backend points at it.
+toxicity:
+  enabled: false
+  # Two replicas for availability. Fail-open on the backend side: a missing scorer records no delta.
+  replicaCount: 2
+  image:
+    registry: ""
+    repository: onelitefeather/blackhole-toxicity
+    tag: ""
+    pullPolicy: IfNotPresent
+  # Non-secret settings of the service as env names (TOXICITY_MODEL_VERSION, TOXICITY_TOXIC_INDEX, TOXICITY_LOG_LEVEL).
+  env: {}
+  # The component has no secrets. The value only keeps the pod annotation the other components carry.
+  secretRevision: "1"
+  # The model is fixed in the image. The CPU limit also sets the ONNX Runtime thread count, because the service
+  # reads it from the cgroup.
+  resources:
+    requests:
+      cpu: "1"
+      memory: 768Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+  startupProbe:
+    httpGet:
+      path: /health
+      port: http
+    periodSeconds: 5
+    # 5 minutes: the model is loaded once at start.
+    failureThreshold: 60
+    timeoutSeconds: 3
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: http
+    periodSeconds: 10
+    failureThreshold: 3
+    timeoutSeconds: 3
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: http
+    periodSeconds: 30
+    failureThreshold: 5
+    timeoutSeconds: 5
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
+  podLabels: {}
+  podAnnotations: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}

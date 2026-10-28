@@ -1,0 +1,113 @@
+{{- if .Values.toxicity.enabled }}
+{{- $v := .Values.toxicity }}
+{{- $d := dict "ctx" . "component" "toxicity" "values" $v }}
+{{- $name := include "blackhole.fullname" $d }}
+{{- /*
+The chat toxicity scorer. It holds no state and no chat history: the backend sends a batch of message texts and
+gets one score per text. The NetworkPolicy admits connections from the backend pods only.
+*/ -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+spec:
+  replicas: {{ int $v.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "blackhole.selectorLabels" $d | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "blackhole.podLabels" $d | nindent 8 }}
+      annotations:
+        {{- include "blackhole.podAnnotations" (dict "values" $v) | nindent 8 }}
+    spec:
+      serviceAccountName: {{ $name }}
+      {{- include "blackhole.podDefaults" . | nindent 6 }}
+      securityContext:
+        {{- toYaml $v.podSecurityContext | nindent 8 }}
+      containers:
+        - name: toxicity
+          image: {{ include "blackhole.image" (dict "ctx" . "image" $v.image "app" true) }}
+          imagePullPolicy: {{ $v.image.pullPolicy }}
+          securityContext:
+            {{- toYaml $v.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            {{- include "blackhole.env" $v.env | nindent 12 }}
+          startupProbe:
+            {{- toYaml $v.startupProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml $v.readinessProbe | nindent 12 }}
+          livenessProbe:
+            {{- toYaml $v.livenessProbe | nindent 12 }}
+          resources:
+            {{- toYaml $v.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+      {{- include "blackhole.scheduling" (dict "ctx" . "component" "toxicity" "values" $v) | nindent 6 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "blackhole.selectorLabels" $d | nindent 4 }}
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "blackhole.selectorLabels" $d | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "blackhole.selectorLabels" (dict "ctx" . "component" "backend") | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: http
+{{- end }}
