@@ -54,7 +54,7 @@ class DiscordAndStaffLinksErrorsAreProblemsTest extends ApiIntegrationTest {
         RawHttp.Reply reply = send("DELETE", "/discord/link/" + DISCORD_USER, null, this.jwt.discord());
 
         assertProblem(reply, 404, "not-found", "Not Found", "this Discord account is not linked",
-                "/discord/link/" + DISCORD_USER, null);
+                "/discord/link/{discordUserId}", null);
     }
 
     @Test
@@ -63,7 +63,7 @@ class DiscordAndStaffLinksErrorsAreProblemsTest extends ApiIntegrationTest {
         RawHttp.Reply reply = send("GET", "/discord/notifications/report/" + identifier, null, this.jwt.discord());
 
         assertProblem(reply, 404, "not-found", "Not Found", "there is no such report",
-                "/discord/notifications/report/" + identifier, null);
+                "/discord/notifications/report/{identifier}", null);
     }
 
     @Test
@@ -72,7 +72,26 @@ class DiscordAndStaffLinksErrorsAreProblemsTest extends ApiIntegrationTest {
         RawHttp.Reply reply = send("POST", "/admin/staff-actor/" + oid + "/anonymize", null, this.jwt.admin());
 
         assertProblem(reply, 404, "not-found", "Not Found", "there is no such staff actor",
-                "/admin/staff-actor/" + oid + "/anonymize", null);
+                "/admin/staff-actor/{oid}/anonymize", null);
+    }
+
+    @Test
+    void theInstanceIsTheRouteTemplateSoNoIdentifierFromThePathIsEchoed() throws Exception {
+        RawHttp.Reply reply = send("DELETE", "/discord/link/123456789", null, this.jwt.discord());
+
+        assertEquals("/discord/link/{discordUserId}", JSON.readValue(reply.body(), new TypeReference<Map<String, Object>>() {
+        }).get("instance"), "the instance is the matched route's template: " + reply.body());
+        assertFalse(reply.body().contains("123456789"), "no digit of the request path is in the body: " + reply.body());
+    }
+
+    @Test
+    void aRequestWithNoRouteGetsAboutBlankAsInstanceAndNoPathIdentifier() throws Exception {
+        RawHttp.Reply reply = send("GET", "/no-such-route/123456789", null, this.jwt.admin());
+
+        assertEquals(404, reply.status(), reply.body());
+        assertEquals("about:blank", JSON.readValue(reply.body(), new TypeReference<Map<String, Object>>() {
+        }).get("instance"), "no route matched, so the instance is the fixed value: " + reply.body());
+        assertFalse(reply.body().contains("123456789"), "the unmatched path is not echoed: " + reply.body());
     }
 
     @Test
@@ -90,7 +109,7 @@ class DiscordAndStaffLinksErrorsAreProblemsTest extends ApiIntegrationTest {
         RawHttp.Reply reply = send("DELETE", "/admin/staff-link/" + oid, null, this.jwt.admin());
 
         assertProblem(reply, 404, "not-found", "Not Found", "there is no such link",
-                "/admin/staff-link/" + oid, null);
+                "/admin/staff-link/{oid}", null);
     }
 
     private RawHttp.Reply send(String method, String path, String body, String token) {
