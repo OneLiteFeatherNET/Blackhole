@@ -54,6 +54,19 @@ public final class StaffLinkTestBed {
     public final StaffAvatarJob avatarJob;
     public final StaffProfileService profileService;
     public final StaffLinkService service;
+    public final InMemoryRepository<net.onelitefeather.blackhole.backend.exemption.PlayerExemptionRepository,
+            net.onelitefeather.blackhole.backend.exemption.PlayerExemptionEntity,
+            net.onelitefeather.blackhole.backend.exemption.PlayerExemptionId> exemptionRows =
+            InMemoryRepository.<net.onelitefeather.blackhole.backend.exemption.PlayerExemptionRepository,
+                    net.onelitefeather.blackhole.backend.exemption.PlayerExemptionEntity,
+                    net.onelitefeather.blackhole.backend.exemption.PlayerExemptionId>of(
+                    net.onelitefeather.blackhole.backend.exemption.PlayerExemptionRepository.class,
+                    net.onelitefeather.blackhole.backend.exemption.PlayerExemptionEntity::getId)
+                    .finder("findByIdOwner", args -> this.exemptionRows.all().stream()
+                            .filter(row -> row.getId().getOwner().equals(args[0])).toList())
+                    .build();
+    public final net.onelitefeather.blackhole.backend.exemption.ExemptionService exemptions;
+    public final net.onelitefeather.blackhole.backend.exemption.ExemptionGuard guard;
 
     public StaffLinkTestBed(DomainEventPublisher events, Clock clock) {
         this(events, clock, new StaffAuditRecorder(new InMemoryStaffAuditStore(),
@@ -65,8 +78,11 @@ public final class StaffLinkTestBed {
         this.avatarJob = new StaffAvatarJob(this.profiles, this.avatars,
                 new StaffAvatarKeys("test-staff-avatar-secret"), uuid -> Optional.empty(), clock);
         this.profileService = new StaffProfileService(this.profiles, this.avatarJob, clock);
+        this.exemptions = new net.onelitefeather.blackhole.backend.exemption.ExemptionService(
+                this.exemptionRows.repository(), this.actors.repository(), clock, true);
         this.service = new StaffLinkService(this.links.repository(), this.codes.repository(), this.actors.repository(),
-                new StaffLinkCodeGenerator(), events, new StaffLinkProperties(TTL), clock, this.avatarJob, audit);
+                new StaffLinkCodeGenerator(), events, new StaffLinkProperties(TTL), clock, this.avatarJob, audit, this.exemptions);
+        this.guard = new net.onelitefeather.blackhole.backend.exemption.ExemptionGuard(this.exemptions, this.service, events);
     }
 
     /** Stores a link as if it was confirmed earlier. */

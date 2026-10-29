@@ -59,7 +59,9 @@ public enum ErrorKind {
     FORBIDDEN_POLICY(HttpStatus.FORBIDDEN),
 
     /** Only an admin may exempt a player for good; a moderator's exemption is at most 90 days (403). */
-    FORBIDDEN_DURATION(HttpStatus.FORBIDDEN);
+    FORBIDDEN_DURATION(HttpStatus.FORBIDDEN),
+    /** The player is exempt from punishment and the actor's rank does not outrank the exemption (409). */
+    TARGET_EXEMPT(HttpStatus.CONFLICT);
 
     private final HttpStatus status;
 

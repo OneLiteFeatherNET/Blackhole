@@ -50,6 +50,10 @@ public final class EloTestBed {
             new StaffAuditRecorder(new InMemoryStaffAuditStore(), new DomainEventPublisher(new RecordingEventTransport(), new TestClock()),
                     new AuditPayloadGuard(), new TestClock(), new SimpleMeterRegistry()));
     public final EloProfileCache profileCache = new EloProfileCache(sharedCache, Duration.ofSeconds(30));
+    public final StaffLinkTestBed staffLinks = new StaffLinkTestBed(events, clock);
+    public final ExemptionReviewTestBed reviewBed = new ExemptionReviewTestBed();
+    public final net.onelitefeather.blackhole.backend.exemption.ExemptionReviewService reviewService = reviewBed.service(
+            () -> this.punisher, sections, staffLinks.guard, staffLinks.exemptions, clock);
     public final EloService elo;
 
     public EloTestBed() {
@@ -63,7 +67,8 @@ public final class EloTestBed {
                 scoreRepository.repository(), new InMemoryEloScoreWriter(scoreRepository.repository()), eventRepository.repository(), sections, punisher, policy,
                 events, profileCache, clock, 86_400_000L,
                 new StaffAuditRecorder(new InMemoryStaffAuditStore(), new DomainEventPublisher(new RecordingEventTransport(), clock),
-                        new AuditPayloadGuard(), clock, new SimpleMeterRegistry()));
+                        new AuditPayloadGuard(), clock, new SimpleMeterRegistry()),
+                staffLinks.exemptions, reviewService);
     }
 
     /** Adds an enabled section with the default numbers. */

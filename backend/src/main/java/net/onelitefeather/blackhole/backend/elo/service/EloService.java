@@ -21,6 +21,8 @@ import net.onelitefeather.blackhole.backend.elo.EloScoring;
 import net.onelitefeather.blackhole.backend.elo.EscalationPolicy;
 import net.onelitefeather.blackhole.backend.elo.dto.EloDTO;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.exemption.ExemptionReviewService;
+import net.onelitefeather.blackhole.backend.exemption.ExemptionService;
 import net.onelitefeather.blackhole.backend.punishment.SectionPunisher;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.section.SectionService;
@@ -78,6 +80,8 @@ public class EloService implements EloScoring {
     private final Clock clock;
     private final long decayIntervalMs;
     private final StaffAuditRecorder audit;
+    private final ExemptionService exemptions;
+    private final ExemptionReviewService exemptionReviews;
 
     public EloService(
             EloScoreRepository scoreRepository,
@@ -90,8 +94,12 @@ public class EloService implements EloScoring {
             EloProfileCache profileCache,
             Clock clock,
             @Value("${blackhole.elo.decay.interval-ms:86400000}") long decayIntervalMs,
-            StaffAuditRecorder audit
+            StaffAuditRecorder audit,
+            ExemptionService exemptions,
+            ExemptionReviewService exemptionReviews
     ) {
+        this.exemptions = exemptions;
+        this.exemptionReviews = exemptionReviews;
         this.audit = audit;
         this.scoreRepository = scoreRepository;
         this.scoreWriter = scoreWriter;
@@ -190,6 +198,16 @@ public class EloService implements EloScoring {
             return Optional.empty();
         }
         Map<String, Object> extraMetaData = Map.of("eloTriggerReasonCode", trigger.toString(), "sectionKey", section.key());
+
+        if (decision != EscalationPolicy.Decision.NONE && this.exemptions.isExempt(owner, section.key())) {
+            // An exempt player keeps the score change; the punishment waits in the review queue for an admin.
+            String tier = decision == EscalationPolicy.Decision.PERMANENT ? EloChange.Tier.PERMANENT.name() : EloChange.Tier.SOFT.name();
+            this.exemptionReviews.open(owner, section.key(), tier, after);
+            this.eventPublisher.publish("elo.threshold_crossed", Map.of(
+                    "owner", owner, "section", section.key(), "tier", tier, "resultingScore", after, "exempt", true
+            ));
+            return Optional.empty();
+        }
 
         return switch (decision) {
             case NONE -> Optional.empty();

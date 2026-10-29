@@ -103,7 +103,7 @@ public final class PunishmentTestBed {
     public final KickService kickService = new KickService(
             punishments.repository(), profiles.repository(), slots, profileCache, kickStore, kickDeadline,
             new KickEventPublisher(new DomainEventPublisher(kickTransport, eloBed.clock), kickMeters),
-            eloBed.sections, cases.timeline, staffLinks.service, audit);
+            eloBed.sections, cases.timeline, staffLinks.service, audit, staffLinks.guard);
     public final RecordingEventTransport warningTransport = new RecordingEventTransport();
     public final MeterRegistry warningMeters = new SimpleMeterRegistry();
     public final WarningEventPublisher warningEvents = new WarningEventPublisher(
@@ -118,16 +118,21 @@ public final class PunishmentTestBed {
                     new net.onelitefeather.blackhole.backend.publicbans.PublicBanHasher(
                             java.util.Base64.getEncoder().encodeToString(new byte[32])),
                     punishments.repository()),
-            Duration.ofDays(365));
+            Duration.ofDays(365), staffLinks.guard);
     public final FakeClientRuleStore clientRules = new FakeClientRuleStore();
     public final PunishmentTemplateService templateService = new PunishmentTemplateService(
             templates.repository(), punishments.repository(), templateCache, eloBed.sections, clientRules, audit);
+
+    public final ExemptionReviewTestBed reviewBed = new ExemptionReviewTestBed();
+    public final net.onelitefeather.blackhole.backend.exemption.ExemptionReviewService reviewService = reviewBed.service(
+            () -> this.punishmentService, eloBed.sections, staffLinks.guard, staffLinks.exemptions, eloBed.clock);
 
     /** The ELO engine, punishing through {@link #punishmentService} exactly as in the application. */
     public final EloService elo = new EloService(
             eloBed.scoreRepository.repository(), new InMemoryEloScoreWriter(eloBed.scoreRepository.repository()),
             eloBed.eventRepository.repository(), eloBed.sections, punishmentService,
-            new ThresholdEscalationPolicy(), eloBed.events, eloBed.profileCache, eloBed.clock, 86_400_000L, audit);
+            new ThresholdEscalationPolicy(), eloBed.events, eloBed.profileCache, eloBed.clock, 86_400_000L, audit,
+            staffLinks.exemptions, reviewService);
 
     /** Stores a template with the given steps (duration, cost) and returns it. */
     public PunishmentTemplateEntity givenTemplate(String key, String section, String group, TemplateStep... steps) {

@@ -302,6 +302,11 @@ blackhole:
     max-items: ${BLACKHOLE_ROLLBACK_MAX_ITEMS:5000}
     lease: ${BLACKHOLE_ROLLBACK_LEASE:PT2M}
     tick-interval: ${BLACKHOLE_ROLLBACK_TICK_INTERVAL:5s}
+  # Punishment exemption: linked staff and players with the proxy's blackhole.exempt permission are protected
+  # from punishment by an equal or lower rank. Emergency switch only: false turns the protection off and
+  # punishments behave as they did before the feature.
+  exemption:
+    enabled: ${BLACKHOLE_EXEMPTION_ENABLED:true}
   # Punishment case: an append-only timeline of what happens to each punishment. The flows record
   # their events after their own write; a failed recording is counted in
   # blackhole.case.record.failures and never fails the write. CaseReconciler repairs lost recordings

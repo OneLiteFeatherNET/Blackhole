@@ -16,6 +16,7 @@ import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.EloScoring;
 import net.onelitefeather.blackhole.backend.elo.service.EloService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.exemption.ExemptionGuard;
 import net.onelitefeather.blackhole.backend.evidence.service.PunishmentEvidenceGateway;
 import net.onelitefeather.blackhole.backend.kick.KickValidator;
 import net.onelitefeather.blackhole.backend.kick.dto.KickDTO;
@@ -113,6 +114,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
     private final StaffAuditRecorder audit;
     private final Duration defaultEscalationWindow;
     private final PublicBanListing publicListing;
+    private final ExemptionGuard exemptions;
 
     /**
      * @param eloScoring lazy - {@link EloService} itself depends on this service (to apply
@@ -137,8 +139,10 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
             WarningEventPublisher warningEvents,
             StaffAuditRecorder audit,
             PublicBanListing publicListing,
-            @Value("${blackhole.punishment.escalation.default-window:P365D}") Duration defaultEscalationWindow
+            @Value("${blackhole.punishment.escalation.default-window:P365D}") Duration defaultEscalationWindow,
+            ExemptionGuard exemptions
     ) {
+        this.exemptions = exemptions;
         this.audit = audit;
         this.publicListing = publicListing;
         this.punishmentRepository = punishmentRepository;
@@ -184,9 +188,13 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         );
     }
 
-    /** Everything {@link #apply} and {@link #preview} agree on before they diverge. */
+    /**
+     * Everything {@link #apply} and {@link #preview} agree on before they diverge.
+     *
+     * @param override the exemption override record for the metadata; empty unless an admin's override let the write through
+     */
     private record Plan(PunishmentTemplateEntity template, SectionDTO.Response section, long now, String group,
-                        StepSelector.Selection selection, Attribution attribution) {
+                        StepSelector.Selection selection, Attribution attribution, Map<String, Object> override) {
     }
 
     private record Planned(Plan plan, PunishmentDTO.Error error) {
@@ -205,10 +213,11 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         if (attribution == null) {
             return failed(ErrorKind.VALIDATION, ON_BEHALF_OF_PROXY_ONLY);
         }
-        return plan(request, attribution);
+        return plan(request, attribution, actor);
     }
 
-    private Planned plan(PunishmentDTO.ApplyRequest request, Attribution attribution) {
+    /** @param actor the verified caller, or null for a system write, which has no rank and so may not punish an exempt player */
+    private Planned plan(PunishmentDTO.ApplyRequest request, Attribution attribution, Actor actor) {
         if (!OwnerHash.isValid(request.owner())) {
             return failed(ErrorKind.VALIDATION, "owner must be a sha-512 hash");
         }
@@ -233,6 +242,12 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         if (!section.enabled()) {
             return failed(ErrorKind.CONFLICT, "section '" + section.key() + "' is disabled");
         }
+        ExemptionGuard.Outcome exempt = this.exemptions.check(request.owner(), section.key(), attribution, actor,
+                request.exemptionOverride());
+        if (exempt instanceof ExemptionGuard.Outcome.Refused refused) {
+            return failed(refused.kind(), refused.message());
+        }
+        Map<String, Object> override = exempt instanceof ExemptionGuard.Outcome.Allowed allowed ? allowed.record() : Map.of();
 
         String owner = request.owner();
         long now = this.clock.millis();
@@ -247,7 +262,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         }
         if (selection.step().getKind() == StepKind.WARN) {
             // A warning never takes the slot and never blocks: the template is all there is to check.
-            return new Planned(new Plan(template, section, now, group, selection, attribution), null);
+            return new Planned(new Plan(template, section, now, group, selection, attribution, override), null);
         } else if (selection.step().getKind() == StepKind.KICK) {
             // A kick never takes the slot, so an existing permanent punishment does not stand in its way.
             Optional<KickDTO.Error> invalid = this.kicks.checkTemplateKick(owner, request.scope(), request.target(), kickReason(template));
@@ -261,7 +276,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
                 return failed(ErrorKind.CONFLICT, "the player is already permanently punished in section '" + section.key() + "'");
             }
         }
-        return new Planned(new Plan(template, section, now, group, selection, attribution), null);
+        return new Planned(new Plan(template, section, now, group, selection, attribution, override), null);
     }
 
     /**
@@ -301,6 +316,9 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         if (result instanceof PunishmentDTO.ApplyResponse applied) {
             this.audit.record(planned.plan().attribution(), actor, AuditAction.PUNISHMENT_APPLY,
                     AuditTarget.ofCase(PunishmentShortId.storageKey(applied.punishment().identifier())));
+            if (!planned.plan().override().isEmpty()) {
+                this.exemptions.announceOverride(request.owner(), planned.plan().section().key(), planned.plan().override());
+            }
         }
         return result;
     }
@@ -315,7 +333,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
     @Override
     public ClientRuleTemplateApplier.Result applyForRule(String owner, String templateKey, String ruleKey) {
         PunishmentDTO.ApplyRequest request = new PunishmentDTO.ApplyRequest(owner, templateKey, null, null);
-        Planned planned = plan(request, new Attribution(EloService.SYSTEM_ELO_SOURCE, null));
+        Planned planned = plan(request, new Attribution(EloService.SYSTEM_ELO_SOURCE, null), null);
         if (planned.error() != null) {
             LOGGER.warn("Client rule {} could not apply template {}: {}", ruleKey, templateKey, planned.error().errorMessage());
             return new ClientRuleTemplateApplier.Result(ClientRuleTemplateApplier.Outcome.NOT_APPLIED, null);
@@ -351,16 +369,19 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
 
         PunishmentEntity saved;
         if (selection.step().getKind() == StepKind.WARN) {
-            saved = recordWarning(owner, template, attribution, group, selection, now);
+            saved = recordWarning(owner, template, attribution, group, selection, now, plan.override());
         } else if (selection.step().getKind() == StepKind.KICK) {
             // The kick path: a KICK row of the group, no Ban ID, no slot, nothing active. Only the cost below is shared.
             saved = this.kicks.kickForTemplate(owner, request.scope(), request.target(), kickReason(template), attribution,
-                    template, group, selection.index(), selection.stepCount(), cost);
+                    template, group, selection.index(), selection.stepCount(), cost, plan.override());
         } else {
             Map<String, Object> metadata = new HashMap<>(extraMetadata);
             metadata.put(Metadata.META_DATA_KEY_CREATION_DATE, now);
             metadata.put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
             metadata.put(Expirable.META_DATA_KEY_EXPIRATION_DATE, now + selection.step().parsedDuration().toMillis());
+            if (!plan.override().isEmpty()) {
+                metadata.put(ExemptionGuard.OVERRIDE_METADATA_KEY, plan.override());
+            }
 
             PunishmentEntity punishment = new PunishmentEntity(
                     IdGenerator.generateId(), attribution.source(), owner, section.key(), false, now, template, metadata
@@ -421,11 +442,14 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
      * player's history, never in an active slot. Charging the step's ELO cost is the caller's job.
      */
     private PunishmentEntity recordWarning(String owner, PunishmentTemplateEntity template, Attribution attribution,
-                                           String group, StepSelector.Selection selection, long now) {
+                                           String group, StepSelector.Selection selection, long now, Map<String, Object> override) {
         Map<String, Object> metadata = new HashMap<>();
         metadata.put(Metadata.META_DATA_KEY_CREATION_DATE, now);
         metadata.put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
         metadata.put("reason", kickReason(template));
+        if (!override.isEmpty()) {
+            metadata.put(ExemptionGuard.OVERRIDE_METADATA_KEY, override);
+        }
         PunishmentEntity warning = new PunishmentEntity(
                 IdGenerator.generateId(), attribution.source(), owner, null, false, now, template, metadata);
         warning.recordWarning();

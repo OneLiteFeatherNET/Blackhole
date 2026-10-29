@@ -7,6 +7,7 @@ import net.onelitefeather.blackhole.backend.support.PunishmentTestBed;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static net.onelitefeather.blackhole.backend.support.PunishmentTestBed.ACTOR;
@@ -42,7 +43,7 @@ final class RollbackBed {
     /** Stores a network kick of {@code owner} by the staff member and returns its identifier. A kick is never active. */
     String givenKick(String owner) {
         return this.bed.kickService.kickForTemplate(owner, KickScope.NETWORK, null, "rule break", new Attribution(STAFF, STAFF),
-                null, "kick-group", 0, 1, 0).getIdentifier();
+                null, "kick-group", 0, 1, 0, Map.of()).getIdentifier();
     }
 
     /** Freezes the given identifiers of their owners into a preview job made by the staff member. */
