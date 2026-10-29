@@ -30,6 +30,12 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
     private static final Set<String> MP = Set.of("MODERATOR", "PROXY");
     private static final Set<String> A = Set.of("ADMIN");
     private static final Set<String> D = Set.of("DISCORD");
+    /** A moderator, an admin, or the Discord bot naming the staff member it acts for (the delegation routes). */
+    private static final Set<String> MAD = Set.of("MODERATOR", "ADMIN", "DISCORD");
+    private static final Set<String> MD = Set.of("MODERATOR", "DISCORD");
+    /** The routes on which the Discord bot may act for a linked staff member (StaffDelegation): nowhere else. */
+    private static final Set<String> DELEGATION_ROUTES = Set.of("POST /appeal/{identifier}/review", "PATCH /case/{reference}",
+            "PUT /case/{reference}/ticket/freeze", "POST /discord/tickets/{id}/close");
     private static final Set<String> AUTHENTICATED = Set.of("isAuthenticated()");
     private static final Set<String> ANONYMOUS = Set.of("isAnonymous()");
     /** A valid player session (PlayerSessionRule.ROLE): neither a staff role nor the proxy. */
@@ -84,7 +90,8 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /warn/pending", P),
             Map.entry("POST /warn/{id}/acknowledge", P),
             // moderation
-            Map.entry("PATCH /case/{reference}", M),
+            Map.entry("PATCH /case/{reference}", MD),
+            Map.entry("PUT /case/{reference}/ticket/freeze", MAD),
             Map.entry("POST /case/{reference}/notes", M),
             Map.entry("PUT /case/{reference}/notes/{noteId}", M),
             Map.entry("POST /case/{reference}/messages", M),
@@ -103,7 +110,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /punishment/preview", M),
             Map.entry("POST /punishment/revoke", MP),
             Map.entry("POST /report/{identifier}/resolve", M),
-            Map.entry("POST /appeal/{identifier}/review", M),
+            Map.entry("POST /appeal/{identifier}/review", MAD),
             Map.entry("POST /elo/{owner}/adjust", M),
             Map.entry("POST /evidence", MP),
             Map.entry("POST /evidence/file", MP),
@@ -186,6 +193,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /discord/tickets/{id}/attachments/{attachmentId}", D),
             Map.entry("POST /discord/tickets/{id}/attachments", D),
             Map.entry("GET /discord/staff-links", D),
+            Map.entry("GET /discord/staff-links/{discordUserId}", D),
             Map.entry("POST /discord/leak-check", D),
             Map.entry("POST /case/{reference}/participants/{participantId}/erase", A),
             Map.entry("GET /admin/discord-link", A),
@@ -274,13 +282,13 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Set<String> roles = Set.of(route.getAnnotationMetadata().stringValues(Secured.class));
             if (route.getUriMatchTemplate().toString().startsWith("/discord/")) {
                 discordRoutes.put(key, roles);
-            } else if (roles.contains("DISCORD")) {
+            } else if (roles.contains("DISCORD") && !DELEGATION_ROUTES.contains(key)) {
                 botElsewhere.add(key);
             }
         });
 
         assertTrue(discordRoutes.size() >= 16, "the whole /discord/** facade is registered: " + discordRoutes.keySet());
         discordRoutes.forEach((route, roles) -> assertEquals(D, roles, route + " allows the bot and nobody else"));
-        assertEquals(Set.of(), botElsewhere, "the bot is allowed nowhere but /discord/**");
+        assertEquals(Set.of(), botElsewhere, "the bot is allowed nowhere but /discord/** and the delegation routes");
     }
 }

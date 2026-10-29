@@ -156,6 +156,9 @@ blackhole:
     # returns; they are not rate limits (infra owns those: a global limit on POST /discord/tickets and
     # POST /discord/leak-check at the edge, see the discord module's docs). Everything the bot needs to resume
     # (tickets, message links, cursors) lives in the database, so these are the only backend settings.
+    # A staff member's role snapshot (staff_actor.roles) is trusted for Discord actions this long after their last
+    # verified request. A removed MODERATOR keeps Discord access until then (proposed 24 hours; the team may shorten it).
+    staff-role-max-age: ${BLACKHOLE_DISCORD_STAFF_ROLE_MAX_AGE:PT24H}
     ticket:
       # Events one outbox read returns when the bot names no limit, and the most it may ask for.
       outbox-page-size: ${BLACKHOLE_DISCORD_OUTBOX_PAGE_SIZE:50}

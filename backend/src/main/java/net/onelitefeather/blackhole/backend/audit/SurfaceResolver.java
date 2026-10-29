@@ -15,12 +15,15 @@ public final class SurfaceResolver {
     /**
      * @param actor        the verified caller
      * @param onBehalfOf   whether the request vouches for a staff member other than the caller
-     * @return {@link Surface#IN_GAME} for a proxy vouching for staff, {@link Surface#PANEL} for a person sending the
-     * panel header, {@link Surface#API} otherwise
+     * @return {@link Surface#IN_GAME} for a proxy vouching for staff, {@link Surface#DISCORD} for the bot acting for a staff
+     * member, {@link Surface#PANEL} for a person sending the panel header, {@link Surface#API} otherwise
      */
     public static Surface resolve(Actor actor, boolean onBehalfOf) {
         if (actor.proxy() && onBehalfOf) {
             return Surface.IN_GAME;
+        }
+        if (actor.discord() && onBehalfOf) {
+            return Surface.DISCORD;
         }
         if (actor.panel()) {
             return Surface.PANEL;

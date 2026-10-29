@@ -38,6 +38,7 @@ import net.onelitefeather.blackhole.backend.security.ActorKind;
 import net.onelitefeather.blackhole.backend.support.DiscordLinkTestBed;
 import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.PunishmentTestBed;
+import net.onelitefeather.blackhole.backend.support.StaffDelegations;
 import net.onelitefeather.blackhole.backend.support.RecordingEloScoring;
 import net.onelitefeather.blackhole.backend.support.RecordingEventPublisher;
 import net.onelitefeather.blackhole.backend.support.RecordingProtocols;
@@ -80,7 +81,7 @@ class AuditWiringTest {
             appeals.repository(), this.bed.punishments.repository(), this.bed.profiles.repository(), this.bed.slots, this.bed.profileCache,
             this.bed.elo, this.bed.eloBed.sections, this.bed.eloBed.events, this.bed.evidence, this.bed.staffLinks.service,
             this.bed.cases.timeline, this.bed.banIds.service, new RecordingProtocols(), this.bed.staffLinks.profileService,
-            this.bed.eloBed.clock, this.bed.audit);
+            StaffDelegations.withoutLinks(this.bed.eloBed.clock), this.bed.eloBed.clock, this.bed.audit);
     private final InMemoryRepository<ReportRepository, ReportEntity, UUID> reports =
             InMemoryRepository.<ReportRepository, ReportEntity, UUID>of(ReportRepository.class, ReportEntity::getIdentifier).build();
     private final InMemoryRepository<ReportFeedbackRepository, ReportFeedbackEntity, UUID> feedback =

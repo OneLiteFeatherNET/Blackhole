@@ -112,6 +112,8 @@ backend:
   envFrom: {}
   # Non-secret application settings rendered into the ConfigMap of the backend (BLACKHOLE_* tunables of
   # application.yml). Takes precedence over the settings the chart derives from the typed values.
+  # BLACKHOLE_DISCORD_STAFF_ROLE_MAX_AGE (ISO-8601, default PT24H): how long a staff member's role snapshot is trusted
+  # for Discord ticket actions after their last verified request; a removed moderator keeps that access until then.
   config: {}
   # Raise this after a Secret changed: it is a pod annotation, so the pods are replaced on the next upgrade.
   secretRevision: "1"
@@ -475,6 +477,8 @@ discord:
     appealChannelId: ""
   # Optional settings as env names: DISCORD_ARCHIVE_DELETE_AFTER, DISCORD_SYNC_INTERVAL,
   # DISCORD_STAFF_RECONCILE_INTERVAL, DISCORD_LEAK_SCAN, DISCORD_LEAK_SCAN_CHANNELS, DISCORD_HEALTH_PORT.
+  # DISCORD_STAFF_ACTIONS (true/false, default false) turns on the staff control message and its buttons in the
+  # ticket channels; off, the channels behave as before. The backend routes it uses are always present.
   config: {}
   metrics:
     podMonitor:

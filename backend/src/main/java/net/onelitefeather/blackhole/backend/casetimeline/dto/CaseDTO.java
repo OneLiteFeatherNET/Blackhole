@@ -33,6 +33,7 @@ public sealed interface CaseDTO {
      * @param assigneeOid     the staff member to assign: a known human {@code staff_actor}
      * @param clearAssignee   removes the assignee (an absent {@code assigneeOid} cannot say that)
      * @param tags            the full new tag list: at most 10 slugs of {@code [a-z0-9-]{1,32}}
+     * @param onBehalfOf      the staff member the Discord bot acts for (a claim from Discord); the panel sends none
      */
     @Schema(name = "CaseUpdateRequest")
     @Serdeable
@@ -43,8 +44,14 @@ public sealed interface CaseDTO {
             @Nullable UUID assigneeOid,
             boolean clearAssignee,
             @Nullable CasePriority priority,
-            @Nullable List<String> tags
+            @Nullable List<String> tags,
+            @Nullable UUID onBehalfOf
     ) implements CaseDTO {
+
+        public UpdateRequest(Long expectedVersion, CaseStatus status, UUID assigneeOid, boolean clearAssignee,
+                             CasePriority priority, List<String> tags) {
+            this(expectedVersion, status, assigneeOid, clearAssignee, priority, tags, null);
+        }
     }
 
     /**

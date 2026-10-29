@@ -146,7 +146,10 @@ class ActorResolverTest {
                         })
                         .build();
         ActorResolver countingResolver = new ActorResolver(counting.repository(), this.clock);
-        counting.given(new StaffActorEntity(OID, ActorKind.HUMAN, "Alex", this.clock.millis()), OID);
+        StaffActorEntity seen = new StaffActorEntity(OID, ActorKind.HUMAN, "Alex", this.clock.millis());
+        seen.setRoles("MODERATOR");
+        seen.setRolesSeenAt(this.clock.millis());
+        counting.given(seen, OID);
 
         this.clock.advance(Duration.ofMinutes(5));
         countingResolver.resolve(human(OID, "Alex", Roles.MODERATOR));

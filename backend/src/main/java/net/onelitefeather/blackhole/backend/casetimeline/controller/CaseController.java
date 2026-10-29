@@ -60,7 +60,7 @@ public class CaseController implements CaseApi {
     }
 
     @Override
-    @Secured(Roles.MODERATOR)
+    @Secured({Roles.MODERATOR, Roles.DISCORD})
     public HttpResponse<CaseDTO> update(String reference, CaseDTO.UpdateRequest request, Actor actor) {
         return toResponse(this.caseService.update(reference, request, actor));
     }

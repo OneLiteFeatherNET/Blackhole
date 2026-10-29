@@ -27,7 +27,9 @@ public enum AuditAction {
     TEMPLATE_UPDATE("template.update"),
     TEMPLATE_REMOVE("template.remove"),
     IMPORT_RETEMPLATE("import.retemplate"),
-    IMPORT_VANILLA("import.vanilla");
+    IMPORT_VANILLA("import.vanilla"),
+    TICKET_CLOSE("ticket.close"),
+    TICKET_FREEZE("ticket.freeze");
 
     private final String wireName;
 

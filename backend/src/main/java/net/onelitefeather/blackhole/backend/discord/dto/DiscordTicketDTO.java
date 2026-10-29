@@ -131,11 +131,17 @@ public sealed interface DiscordTicketDTO {
      *
      * @param count         the messages the channel holds that the bot ingests (not its own)
      * @param lastMessageId the highest of their Discord ids, {@code null} or "0" for an empty channel
+     * @param onBehalfOf    the staff member who closes the ticket from Discord, {@code null} for the bot's own close; the close is then
+     *                      recorded under that member once the appeal is decided
      */
     @Schema(name = "DiscordTicketCloseRequest")
     @Serdeable
     @ReflectiveAccess
-    record CloseRequest(int count, @Nullable String lastMessageId) implements DiscordTicketDTO {
+    record CloseRequest(int count, @Nullable String lastMessageId, @Nullable UUID onBehalfOf) implements DiscordTicketDTO {
+
+        public CloseRequest(int count, @Nullable String lastMessageId) {
+            this(count, lastMessageId, null);
+        }
     }
 
     /**
