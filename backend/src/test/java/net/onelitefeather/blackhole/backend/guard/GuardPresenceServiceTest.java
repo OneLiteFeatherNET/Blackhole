@@ -22,7 +22,8 @@ class GuardPresenceServiceTest {
     private final Clock clock = Clock.fixed(START, ZoneOffset.UTC);
     private final GuardSettings settings = GuardSettings.of("STRICT", Duration.ofMinutes(20), "01:00-07:00", "Europe/Berlin",
             Duration.ofMinutes(5));
-    private final GuardPresenceService presence = new GuardPresenceService(this.store, this.settings, this.clock);
+    private final GuardPresenceService presence = new GuardPresenceService(this.store, this.settings, this.clock,
+            new GuardStateCache(new InMemoryGuardStateStore(GuardState.initial(0L))));
 
     @Test
     void aHeartbeatWithNoStaffMakesStaffAbsent() {

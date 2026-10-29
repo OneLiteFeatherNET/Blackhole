@@ -30,6 +30,11 @@ public class InMemoryAreaBanStore implements AreaBanStore {
     }
 
     @Override
+    public synchronized List<AreaBan> listAll() {
+        return this.bans.stream().sorted(java.util.Comparator.comparingLong(AreaBan::createdAt).reversed()).toList();
+    }
+
+    @Override
     public synchronized Optional<AreaBan> findUnlifted(AreaBan.Kind kind, String value) {
         return this.bans.stream()
                 .filter(ban -> ban.kind() == kind && ban.value().equals(value) && ban.liftedAt() == null)

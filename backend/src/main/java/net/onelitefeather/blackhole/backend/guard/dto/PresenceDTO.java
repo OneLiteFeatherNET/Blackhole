@@ -4,6 +4,7 @@ import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.ReflectiveAccess;
 import io.micronaut.serde.annotation.Serdeable;
 import io.swagger.v3.oas.annotations.media.Schema;
+import net.onelitefeather.blackhole.backend.guard.GuardLevel;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.response.ErrorResponse;
 
@@ -22,11 +23,14 @@ public sealed interface PresenceDTO {
     record Heartbeat(@NonNull String proxyId, int staffOnline) implements PresenceDTO {
     }
 
-    /** @param staffPresent whether any fresh proxy reports staff online after this heartbeat */
+    /**
+     * @param staffPresent  whether any fresh proxy reports staff online after this heartbeat
+     * @param effectiveLevel the level in force, so the proxy learns a change within one heartbeat
+     */
     @Schema(name = "GuardPresenceResponse")
     @Serdeable
     @ReflectiveAccess
-    record Response(boolean staffPresent) implements PresenceDTO {
+    record Response(boolean staffPresent, GuardLevel effectiveLevel) implements PresenceDTO {
     }
 
     @Schema(name = "GuardPresenceError")

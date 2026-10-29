@@ -21,11 +21,13 @@ public class GuardPresenceService {
     private final PresenceStore store;
     private final GuardSettings settings;
     private final Clock clock;
+    private final GuardStateCache cache;
 
-    public GuardPresenceService(PresenceStore store, GuardSettings settings, Clock clock) {
+    public GuardPresenceService(PresenceStore store, GuardSettings settings, Clock clock, GuardStateCache cache) {
         this.store = store;
         this.settings = settings;
         this.clock = clock;
+        this.cache = cache;
     }
 
     /** Records one proxy's heartbeat. A count above zero also marks staff as seen now. */
@@ -42,7 +44,7 @@ public class GuardPresenceService {
         if (heartbeat.staffOnline() > 0) {
             this.store.markStaffSeen(now);
         }
-        return new PresenceDTO.Response(staffPresent());
+        return new PresenceDTO.Response(staffPresent(), this.cache.effective());
     }
 
     /** Whether any fresh proxy entry reports staff online right now. */

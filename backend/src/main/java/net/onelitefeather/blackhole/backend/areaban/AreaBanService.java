@@ -7,6 +7,7 @@ import net.onelitefeather.blackhole.backend.response.ErrorKind;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -140,6 +141,18 @@ public class AreaBanService {
         this.cache.reload();
         this.events.publish(AreaBanEvents.LIFTED_EVENT, AreaBanEvents.lifted(lifted));
         return response(lifted, now);
+    }
+
+    /**
+     * The area bans for the panel: the ones that apply now, or with {@code includeInactive} every ban, lifted and expired
+     * ones included, so the history stays readable.
+     */
+    public AreaBanDTO list(boolean includeInactive) {
+        long now = this.clock.millis();
+        List<AreaBan> bans = includeInactive
+                ? this.store.listAll()
+                : this.store.listUnlifted().stream().filter(ban -> ban.isActiveAt(now)).toList();
+        return new AreaBanDTO.ListResponse(bans.stream().map(ban -> response(ban, now)).toList());
     }
 
     private static Optional<AreaBan.Kind> parseKind(String kind) {

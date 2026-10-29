@@ -151,6 +151,13 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("DELETE /intel/allow-list/{owner}", M),
             Map.entry("GET /intel/lists", V),
             Map.entry("GET /intel/players/{owner}/hits", V),
+            // join guard: staff read and set the level, the proxy reports its staff presence; area bans are staff actions
+            Map.entry("GET /guard/state", V),
+            Map.entry("POST /guard/level", M),
+            Map.entry("POST /guard/presence", P),
+            Map.entry("GET /area-bans", V),
+            Map.entry("POST /area-bans", M),
+            Map.entry("POST /area-bans/{id}/lift", M),
             Map.entry("POST /profile/{owner}/session", MP),
             // admin configuration
             Map.entry("POST /section", A),

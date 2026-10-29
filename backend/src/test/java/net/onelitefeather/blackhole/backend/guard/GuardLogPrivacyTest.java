@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.guard;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -57,11 +58,11 @@ class GuardLogPrivacyTest {
                 new DomainEventPublisher(transport, clock), clock);
         InMemoryGuardRefusalStore refusals = new InMemoryGuardRefusalStore();
         GuardRefusalService service = new GuardRefusalService(refusals, bans,
-                new BurstSettings(true, 2, Duration.ofMinutes(5), Duration.ofHours(2)));
+                new BurstSettings(true, 2, Duration.ofMinutes(5), Duration.ofHours(2)), new SimpleMeterRegistry());
 
         service.recordRefusal(64500L, "Example Hosting", "DE", START);
         service.recordRefusal(64500L, "Example Hosting", "DE", START + 1);
-        new GuardSummaryService(refusals, new DomainEventPublisher(transport, clock), clock).publish();
+        new GuardSummaryService(refusals, new DomainEventPublisher(transport, clock), clock, new SimpleMeterRegistry()).publish();
 
         assertFalse(this.appender.list.isEmpty(), "the burst ban must have logged, so the check below is meaningful");
         for (ILoggingEvent event : this.appender.list) {

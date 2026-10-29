@@ -119,6 +119,7 @@ public class IntelLoginCheckService {
         if (!allowListed) {
             GuardLevel level = this.guard.effective();
             if (GuardLevelRules.refusesUnknownOwner(level, this.owners.isKnown(owner))) {
+                guardRefused(LoginDenialReason.GUARD_LOCKDOWN);
                 this.refusals.recordRefusal(enrichment.asn(), enrichment.asOrg(), enrichment.countryCode(), now);
                 return count(new LoginCheckDTO.Response(IntelPolicy.DENY, null, null, LoginDenialReason.GUARD_LOCKDOWN),
                         "DENY");
@@ -126,6 +127,7 @@ public class IntelLoginCheckService {
             if (!matches.isEmpty()) {
                 Match strictMatch = strictest(matches, this.policies);
                 if (GuardLevelRules.refusesClassification(level, strictMatch.kind())) {
+                    guardRefused(LoginDenialReason.GUARD_STRICT);
                     this.refusals.recordRefusal(enrichment.asn(), enrichment.asOrg(), enrichment.countryCode(), now);
                     return count(new LoginCheckDTO.Response(IntelPolicy.DENY, strictMatch.kind(), strictMatch.sourceKey(),
                             LoginDenialReason.GUARD_STRICT), "DENY");
@@ -182,6 +184,10 @@ public class IntelLoginCheckService {
                     this.meters.counter(NOTICE_FAILURE_METER).increment();
                     LOGGER.warn("A VPN notice for hit {} could not be published", hitId);
                 });
+    }
+
+    private void guardRefused(LoginDenialReason reason) {
+        this.meters.counter("blackhole.guard.refusals", "reason", reason.name()).increment();
     }
 
     private LoginCheckDTO count(LoginCheckDTO result, String verdictTag) {

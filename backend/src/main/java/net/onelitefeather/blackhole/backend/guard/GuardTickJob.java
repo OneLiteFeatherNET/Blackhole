@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.guard;
 
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.inject.Singleton;
 import org.slf4j.Logger;
@@ -13,8 +15,11 @@ public class GuardTickJob {
 
     private final GuardTransitionService transitions;
 
-    public GuardTickJob(GuardTransitionService transitions) {
+    public GuardTickJob(GuardTransitionService transitions, GuardStateCache cache, MeterRegistry meters) {
         this.transitions = transitions;
+        Gauge.builder("blackhole.guard.level", cache, value -> value.effective().ordinal())
+                .description("The join guard level in force: 0 OFF, 1 STRICT, 2 LOCKDOWN")
+                .register(meters);
     }
 
     @Scheduled(

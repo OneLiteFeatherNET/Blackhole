@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.guard;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.areaban.AreaBanService;
 import org.slf4j.Logger;
@@ -18,11 +19,13 @@ public class GuardRefusalService {
     private final GuardRefusalStore store;
     private final AreaBanService areaBans;
     private final BurstSettings burst;
+    private final MeterRegistry meters;
 
-    public GuardRefusalService(GuardRefusalStore store, AreaBanService areaBans, BurstSettings burst) {
+    public GuardRefusalService(GuardRefusalStore store, AreaBanService areaBans, BurstSettings burst, MeterRegistry meters) {
         this.store = store;
         this.areaBans = areaBans;
         this.burst = burst;
+        this.meters = meters;
     }
 
     /**
@@ -47,7 +50,9 @@ public class GuardRefusalService {
         if (inWindow < this.burst.threshold()) {
             return;
         }
-        this.areaBans.createBurstBan(asn, this.burst.banDuration()).ifPresent(ban ->
-                LOGGER.warn("Burst rule banned AS{} for {} after {} refusals", asn, this.burst.banDuration(), inWindow));
+        this.areaBans.createBurstBan(asn, this.burst.banDuration()).ifPresent(ban -> {
+            this.meters.counter("blackhole.guard.bursts").increment();
+            LOGGER.warn("Burst rule banned AS{} for {} after {} refusals", asn, this.burst.banDuration(), inWindow);
+        });
     }
 }

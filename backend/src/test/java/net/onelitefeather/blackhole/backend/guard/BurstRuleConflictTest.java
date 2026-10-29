@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.guard;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import net.onelitefeather.blackhole.backend.areaban.AreaBan;
 import net.onelitefeather.blackhole.backend.areaban.AreaBanCache;
 import net.onelitefeather.blackhole.backend.areaban.AreaBanService;
@@ -31,7 +32,7 @@ class BurstRuleConflictTest {
         Clock clock = Clock.fixed(Instant.ofEpochMilli(START), ZoneOffset.UTC);
         AreaBanService bans = new AreaBanService(areas, cache, new DomainEventPublisher(transport, clock), clock);
         GuardRefusalService service = new GuardRefusalService(new InMemoryGuardRefusalStore(), bans,
-                new BurstSettings(true, 1, Duration.ofMinutes(5), Duration.ofHours(2)));
+                new BurstSettings(true, 1, Duration.ofMinutes(5), Duration.ofHours(2)), new SimpleMeterRegistry());
         service.recordRefusal(ASN, "Example Hosting", "DE", START);
         int published = transport.published().size();
 
