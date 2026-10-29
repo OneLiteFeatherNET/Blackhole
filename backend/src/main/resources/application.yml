@@ -452,6 +452,18 @@ blackhole:
           enabled: ${BLACKHOLE_INTEL_LISTS_X4BNET_DATACENTER_ENABLED:false}
           attribution: "X4BNet lists_vpn, MIT, copyright 2024 X4B (Mathew Heard), https://github.com/X4BNet/lists_vpn"
           licence: MIT
+  # Join guard (openspec add-join-guard). The unattended level is raised while no staff member is on a proxy, after the
+  # absence threshold or inside the night window, and is cleared the moment staff return. It may be STRICT or LOCKDOWN,
+  # never OFF. LOCKDOWN is not automatic by default: set it only when unknown players must be kept out unattended.
+  guard:
+    tick-interval: ${BLACKHOLE_GUARD_TICK_INTERVAL:PT30S}   # how often the unattended level is re-evaluated
+    unattended:
+      level: ${BLACKHOLE_GUARD_UNATTENDED_LEVEL:STRICT}
+      absence-threshold: ${BLACKHOLE_GUARD_UNATTENDED_ABSENCE_THRESHOLD:PT20M}   # staff absent this long, then the level applies
+      night-window: ${BLACKHOLE_GUARD_UNATTENDED_NIGHT_WINDOW:`01:00-07:00`}   # local time; end exclusive, may cross midnight
+      zone: ${BLACKHOLE_GUARD_UNATTENDED_ZONE:Europe/Berlin}   # the zone the night window is read in
+    presence:
+      ttl: ${BLACKHOLE_GUARD_PRESENCE_TTL:PT5M}   # a proxy heartbeat older than this no longer counts as staff on the proxy
   evasion:
     ip-salt: ${BLACKHOLE_EVASION_IP_SALT:}
     detection-window-days: ${BLACKHOLE_EVASION_DETECTION_WINDOW_DAYS:7}
