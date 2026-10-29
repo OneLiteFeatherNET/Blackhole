@@ -74,4 +74,42 @@ expect_render_failure "a plaintext public key is refused" "/publicBanKey" prod-v
 expect_render_failure "a plaintext client hash is refused" "/banList" prod-values.yaml \
   --set 'banList.clientHashes.website=$argon2id$v=19$m=19456,t=2,p=1$x$y'
 
+# --- the external host routes /public/bans only with clients, and nothing else under /public -------------------------
+# The tunnel matches the one rule of the API host as an unanchored regular expression (see exposure.sh).
+api_path_regex() { # <manifests> -> the path regex of the API host rule
+  y "$1" 'select(.kind == "Ingress" and .metadata.name == "t-backend-api") | .spec.rules[0].http.paths[0].path'
+}
+routed() { # <regex> <path> -> pass when the tunnel would send the path to the backend
+  if printf '%s\n' "$2" | grep -Eq -e "$1"; then return 0; else return 1; fi
+}
+assert_routed() { # <message> <manifests> <path>
+  if routed "$(api_path_regex "$2")" "$3"; then pass; else fail "$1 ($3 is not routed)"; fi
+}
+assert_refused() { # <message> <manifests> <path>
+  if routed "$(api_path_regex "$2")" "$3"; then fail "$1 ($3 is routed)"; else pass; fi
+}
+
+routed_on="${WORK_DIR}/routed-on.yaml"
+render_to prod-values.yaml "${routed_on}" "${enabled[@]}"
+assert_routed "clients set: the list is routed" "${routed_on}" /public/bans
+assert_routed "clients set: one entry is routed" "${routed_on}" /public/bans/AbCdEfGhIjKlMnOpQrStUv
+assert_routed "clients set: the summary is routed" "${routed_on}" /public/bans/summary
+assert_refused "clients set: /public/bansx is not routed" "${routed_on}" /public/bansx
+assert_refused "clients set: /public/session stays refused" "${routed_on}" /public/session
+assert_refused "clients set: /public/appeal stays refused" "${routed_on}" /public/appeal/1
+assert_refused "clients set: /public itself stays refused" "${routed_on}" /public
+assert_refused "clients set: /public/punishment stays refused" "${routed_on}" /public/punishment
+assert_refused "clients set: /discord stays refused" "${routed_on}" /discord/tickets
+assert_refused "clients set: /admin stays refused" "${routed_on}" /admin/import
+assert_eq "clients set: the nginx proxy routes the list too" "1" \
+  "$(grep -c 'public/bans' <(render prod-values.yaml "${enabled[@]}" --set backend.externalApi.mode=nginx) || true)"
+
+routed_off="${WORK_DIR}/routed-off.yaml"
+render_to prod-values.yaml "${routed_off}" --set publicBanKey.existingSecret=blackhole-public-ban
+assert_refused "clients empty: /public/bans is refused" "${routed_off}" /public/bans
+assert_refused "clients empty: /public/bans/summary is refused" "${routed_off}" /public/bans/summary
+assert_refused "clients empty: /public itself stays refused" "${routed_off}" /public
+assert_eq "clients empty: the nginx proxy has no list route" "0" \
+  "$(grep -c 'public/bans' <(render prod-values.yaml --set backend.externalApi.mode=nginx) || true)"
+
 finish

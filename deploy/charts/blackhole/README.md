@@ -157,13 +157,16 @@ HTTP Basic Auth; the backend checks the password against an Argon2id hash per cl
   are mounted. Hashes only: the chart refuses any plaintext value, and no password exists in the chart.
 - `publicBanKey.existingSecret`: the Secret with `BLACKHOLE_PUBLIC_BAN_KEY`, passed as `secretKeyRef`. It renders
   whether or not clients are set, because the public entries are hashed with it. It is required with clients.
-  The backend refuses to start in prod without it, so create the Secret before rolling a backend release that has
-  the public ban list. Changing the key changes every entry hash.
+  The backend requires it only once `banList.clients` is set, so with the list off no key is needed. Create the
+  Secret before enabling the list (and before rolling a backend release that has it). Changing the key changes
+  every entry hash.
 - Rotation: write the new hash into the Secret key, then raise `backend.secretRevision`. Removing a client: remove
   its name from `banList.clients` and raise the revision. The backend reads the files once at start.
 
-The route itself is not exposed by this chart: `/public` is refused as an `externalApi` prefix (see Exposure). How
-the clients reach `/public/bans` is still open, see the change `add-public-ban-list`.
+The external API host routes `/public/bans` (the list, one entry, the summary) only while `banList.clients` is set:
+the same anchored expression gets one more alternative, `public/bans(/|$)`, in both the tunnel and the nginx mode.
+Everything else under `/public` (`/public/session`, `/public/appeal/...`, `/public` itself) stays refused, because
+the schema refuses `public` as a prefix. With the list off, `/public/bans` is refused too.
 
 ### Ingress and HTTPS (ban list)
 

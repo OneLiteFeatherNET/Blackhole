@@ -188,7 +188,12 @@ The one anchored expression that allows the proxy prefixes on the external API h
 The tunnel (cloudflared) matches it as an unanchored regular expression against the request path.
 */}}
 {{- define "blackhole.apiPathRegex" -}}
-{{- printf "^/(%s)" (join "|" .Values.backend.externalApi.prefixes) -}}
+{{- $alternatives := .Values.backend.externalApi.prefixes -}}
+{{- /* The public ban list is the one /public route the external host carries, and only with named clients. */ -}}
+{{- if .Values.banList.clients -}}
+{{- $alternatives = append $alternatives "public/bans(/|$)" -}}
+{{- end -}}
+{{- printf "^/(%s)" (join "|" $alternatives) -}}
 {{- end -}}
 
 {{/* Host and port of the scanner: an external one, or the Service of this release. */}}

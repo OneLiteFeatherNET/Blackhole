@@ -76,8 +76,8 @@ banList:
   # Directory the hash files are mounted read-only at (BLACKHOLE_BAN_LIST_SECRETS_DIR).
   mountPath: /etc/blackhole/ban-list
 
-# The HMAC key of the public ban entries (BLACKHOLE_PUBLIC_BAN_KEY). Required with banList.clients. The backend
-# refuses to start in prod without it: set it before rolling a backend release that has the public ban list.
+# The HMAC key of the public ban entries (BLACKHOLE_PUBLIC_BAN_KEY). Required with banList.clients, and the backend
+# requires it only then: with the list off no key is needed. Set it before enabling the list.
 publicBanKey:
   # Secret with the key BLACKHOLE_PUBLIC_BAN_KEY (at least 32 random bytes). Changing it changes every entry hash.
   existingSecret: ""
