@@ -22,6 +22,10 @@ public class PublicErrorFilter {
 
     @ResponseFilter
     public void hideFrameworkErrors(HttpRequest<?> request, MutableHttpResponse<?> response) {
+        if (request.getPath().startsWith("/public/bans")) {
+            // the ban list answers its own problem bodies (BanListAccessFilter, PublicBansController)
+            return;
+        }
         if (response.status() != HttpStatus.BAD_REQUEST || response.body() instanceof PublicErrorBody) {
             return;
         }

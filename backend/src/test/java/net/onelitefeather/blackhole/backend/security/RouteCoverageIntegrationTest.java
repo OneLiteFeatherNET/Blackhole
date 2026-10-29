@@ -40,6 +40,8 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
     private static final Set<String> ANONYMOUS = Set.of("isAnonymous()");
     /** A valid player session (PlayerSessionRule.ROLE): neither a staff role nor the proxy. */
     private static final Set<String> PLAYER = Set.of("PLAYER_SESSION");
+    /** The ban-list routes: Micronaut lets them through, and BanListAccessFilter demands a named client's Basic credential. */
+    private static final Set<String> BASIC_CLIENT = Set.of("isAnonymous()");
 
     /** The matrix: route -> roles that may call it (any one of them). */
     private static final Map<String, Set<String>> MATRIX = Map.ofEntries(
@@ -221,6 +223,11 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /public/conversation/events", PLAYER),
             // a staff head, by its keyed avatar key: served to the portal's player session only
             Map.entry("GET /public/staff-avatar/{avatarKey}", PLAYER),
+            // the public ban list for partner networks: HTTP Basic with a named client (BanListAccessFilter), no Entra token
+            Map.entry("GET /public/bans", BASIC_CLIENT),
+            Map.entry("GET /public/bans/summary", BASIC_CLIENT),
+            Map.entry("GET /public/bans/{hash}", BASIC_CLIENT),
+            Map.entry("GET /public/bans/{hash}/{rest:.+}", BASIC_CLIENT),
             // the case's live signal: viewers and above (the proxy and the Discord bot are denied)
             Map.entry("GET /case/{reference}/events", V)
     );
@@ -252,6 +259,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
         Map<String, Set<String>> publicRoutes = new TreeMap<>();
         this.context.getBean(Router.class).uriRoutes().filter(route -> !"HEAD".equals(route.getHttpMethodName()))
                 .filter(route -> route.getUriMatchTemplate().toString().startsWith("/public"))
+                .filter(route -> !route.getUriMatchTemplate().toString().startsWith("/public/bans"))
                 .forEach(route -> publicRoutes.put(route.getHttpMethodName() + " " + route.getUriMatchTemplate(),
                         Set.of(route.getAnnotationMetadata().stringValues(Secured.class))));
 
