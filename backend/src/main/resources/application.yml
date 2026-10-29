@@ -47,6 +47,13 @@ endpoints:
     sensitive: false
 
 blackhole:
+  analytics:
+    refresh:
+      # How often the analytics views (schema analytics, read by Metabase) are refreshed. Each refresh is one aggregate over the
+      # operational tables; Metabase shows the age of its data from analytics.refresh_state. ISO-8601 or Spring-style duration.
+      interval: ${BLACKHOLE_ANALYTICS_REFRESH_INTERVAL:15m}
+      # Off switches the schedule off; the views then keep their last data. Only one replica refreshes at a time (advisory lock).
+      enabled: ${BLACKHOLE_ANALYTICS_REFRESH_ENABLED:true}
   staff:
     avatar:
       # HMAC secret that derives the public avatar key from a Minecraft UUID (staff-profile). The key is what a
