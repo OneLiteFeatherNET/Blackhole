@@ -264,10 +264,23 @@ class SessionServiceTest {
     }
 
     @Test
-    void theSwitchOffFlagIsReportedToTheController() {
-        assertTrue(new SessionService(store, enricher, new IpCorrelationService(legacy.repository(), store, events, SALT, 7),
-                events, clock, true).isEnabled());
-        assertFalse(new SessionService(store, enricher, new IpCorrelationService(legacy.repository(), store, events, SALT, 7),
-                events, clock, false).isEnabled());
+    void aSwitchedOffServiceAnswersNotFoundAndWritesNothing() {
+        SessionService off = new SessionService(store, enricher, new IpCorrelationService(legacy.repository(), store, events, SALT, 7),
+                events, clock, false);
+
+        SessionDTO started = off.start(start(newSession(), OWNER, SessionOutcome.ALLOWED));
+        SessionDTO listed = off.listForOwner(OWNER, null, null);
+
+        assertEquals(ErrorKind.NOT_FOUND, assertInstanceOf(SessionDTO.Error.class, started).kind(), "start is off");
+        assertEquals(ErrorKind.NOT_FOUND, assertInstanceOf(SessionDTO.Error.class, listed).kind(), "the read is off");
+        assertTrue(store.all().isEmpty(), "nothing is stored while switched off");
+        assertTrue(transport.published().isEmpty(), "nothing is published while switched off");
+    }
+
+    @Test
+    void aPageNumberThatOverflowsTheOffsetIsAValidationErrorNotAServerError() {
+        SessionDTO result = service(SALT).listForOwner(OWNER, Integer.MAX_VALUE, 50);
+
+        assertEquals(ErrorKind.VALIDATION, assertInstanceOf(SessionDTO.Error.class, result).kind());
     }
 }

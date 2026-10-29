@@ -25,6 +25,8 @@ public class SessionService {
 
     static final int DEFAULT_PAGE_SIZE = 50;
     static final int MAX_PAGE_SIZE = 100;
+    /** The largest offset a page may start at, so that the SQL offset and limit stay inside an int. */
+    private static final long MAX_OFFSET = Integer.MAX_VALUE - MAX_PAGE_SIZE - 1L;
     private static final Pattern OWNER = Pattern.compile("^[a-fA-F0-9]{128}$");
     private static final Pattern PLAYER_NAME = Pattern.compile("^[A-Za-z0-9_.]{1,16}$");
     private static final int TEXT_MAX = 64;
@@ -53,15 +55,13 @@ public class SessionService {
         this.enabled = enabled;
     }
 
-    /** False when {@code blackhole.intel.enabled} is off: the routes answer 404 and nothing is written. */
-    public boolean isEnabled() {
-        return this.enabled;
-    }
-
     /**
      * Stores a login attempt. A repeat with the same session id returns the stored record and writes nothing.
      */
     public SessionDTO start(SessionDTO.StartRequest request) {
+        if (!this.enabled) {
+            return switchedOff();
+        }
         Optional<UUID> sessionId = uuid(request.sessionId());
         Optional<UUID> playerUuid = uuid(request.playerUuid());
         if (sessionId.isEmpty() || playerUuid.isEmpty()) {
@@ -108,6 +108,9 @@ public class SessionService {
      * Sets the client brand and version, and the end time when the player disconnected. The first end time is kept.
      */
     public SessionDTO update(String sessionId, SessionDTO.UpdateRequest request) {
+        if (!this.enabled) {
+            return switchedOff();
+        }
         Optional<UUID> id = uuid(sessionId);
         if (id.isEmpty()) {
             return error("sessionId must be a UUID", ErrorKind.VALIDATION);
@@ -133,6 +136,9 @@ public class SessionService {
 
     /** One page of the sessions of an owner, newest first. */
     public SessionDTO listForOwner(String owner, Integer page, Integer size) {
+        if (!this.enabled) {
+            return switchedOff();
+        }
         if (owner == null || !OWNER.matcher(owner).matches()) {
             return error("owner must be a sha-512 hash", ErrorKind.VALIDATION);
         }
@@ -140,6 +146,9 @@ public class SessionService {
         int pageSize = size == null ? DEFAULT_PAGE_SIZE : size;
         if (pageNumber < 0 || pageSize < 1 || pageSize > MAX_PAGE_SIZE) {
             return error("page must be 0 or more and size 1 to 100", ErrorKind.VALIDATION);
+        }
+        if ((long) pageNumber * pageSize > MAX_OFFSET) {
+            return error("page is past the last readable page", ErrorKind.VALIDATION);
         }
         List<SessionRecord> rows = this.store.findByOwner(owner, pageSize + 1, pageNumber * pageSize);
         boolean hasMore = rows.size() > pageSize;
@@ -158,6 +167,11 @@ public class SessionService {
 
     private static SessionDTO.Error error(String message, ErrorKind kind) {
         return new SessionDTO.Error(message, kind);
+    }
+
+    /** With blackhole.intel.enabled off the routes answer 404 and nothing is stored or read. */
+    private static SessionDTO.Error switchedOff() {
+        return error("player sessions are switched off", ErrorKind.NOT_FOUND);
     }
 
     static SessionDTO.Response response(SessionRecord r) {

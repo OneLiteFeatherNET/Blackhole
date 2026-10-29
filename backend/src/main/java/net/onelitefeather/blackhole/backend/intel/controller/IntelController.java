@@ -29,18 +29,12 @@ public class IntelController implements IntelApi {
     @Override
     @Secured(Roles.PROXY)
     public HttpResponse<SessionDTO> start(SessionDTO.StartRequest request) {
-        if (!this.sessions.isEnabled()) {
-            return HttpResponse.notFound();
-        }
         return respond(this.sessions.start(request));
     }
 
     @Override
     @Secured(Roles.PROXY)
     public HttpResponse<SessionDTO> update(String sessionId, SessionDTO.UpdateRequest request) {
-        if (!this.sessions.isEnabled()) {
-            return HttpResponse.notFound();
-        }
         return respond(this.sessions.update(sessionId, request));
     }
 
@@ -48,9 +42,6 @@ public class IntelController implements IntelApi {
     @Override
     @Secured(Roles.VIEWER)
     public HttpResponse<SessionDTO> sessions(String owner, int page, int size) {
-        if (!this.sessions.isEnabled()) {
-            return HttpResponse.notFound();
-        }
         return respond(this.sessions.listForOwner(owner, page, size));
     }
 
