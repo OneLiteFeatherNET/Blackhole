@@ -1,5 +1,9 @@
 package net.onelitefeather.blackhole.backend.guard;
 
+import java.util.UUID;
+import net.onelitefeather.blackhole.backend.security.ActorKind;
+import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.support.StaffDelegations;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import net.onelitefeather.blackhole.backend.areaban.AreaBanCache;
 import net.onelitefeather.blackhole.backend.areaban.AreaBanService;
@@ -20,6 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class GuardServiceTest {
 
+    private static final Actor MODERATOR = new Actor(UUID.fromString("00000000-0000-4000-8000-0000000000a1"), "Moderator",
+            ActorKind.HUMAN, false, false);
     private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-10-29T12:00:00Z"), ZoneOffset.UTC);
 
     private static GuardService service(InMemoryGuardStateStore states) {
@@ -29,13 +35,13 @@ class GuardServiceTest {
         GuardPresenceService presence = new GuardPresenceService(new InMemoryPresenceStore(), settings, CLOCK, cache);
         GuardTransitionService transitions = new GuardTransitionService(states, new InMemoryGuardChangeStore(), presence,
                 new UnattendedEvaluator(settings), new DomainEventPublisher(new RecordingEventTransport(), CLOCK), cache, CLOCK);
-        return new GuardService(states, transitions);
+        return new GuardService(states, transitions, StaffDelegations.withoutLinks(CLOCK), StaffDelegations.recorder(CLOCK));
     }
 
     @Test
     void setLevelRefusesAnUnknownLevelAsAValidationError() {
         GuardDTO result = service(new InMemoryGuardStateStore(GuardState.initial(0L)))
-                .setLevel(new GuardDTO.CreateRequest("NIGHTMARE"), "moderator-oid");
+                .setLevel(new GuardDTO.CreateRequest("NIGHTMARE"), MODERATOR);
 
         assertEquals(ErrorKind.VALIDATION, assertInstanceOf(GuardDTO.Error.class, result, "an unknown level must be refused").kind(),
                 "an unknown level is a validation error");
@@ -44,7 +50,7 @@ class GuardServiceTest {
     @Test
     void setLevelStoresTheManualLevelAndReturnsTheStateInForce() {
         GuardDTO result = service(new InMemoryGuardStateStore(GuardState.initial(0L)))
-                .setLevel(new GuardDTO.CreateRequest("lockdown"), "moderator-oid");
+                .setLevel(new GuardDTO.CreateRequest("lockdown"), MODERATOR);
 
         GuardDTO.Response state = assertInstanceOf(GuardDTO.Response.class, result, "a valid level must be stored");
         assertEquals("LOCKDOWN", state.effectiveLevel(), "the manual LOCKDOWN must be the level in force");
@@ -63,7 +69,7 @@ class GuardServiceTest {
         SimpleMeterRegistry meters = new SimpleMeterRegistry();
         RecordingEventTransport transport = new RecordingEventTransport();
         InMemoryAreaBanStore areas = new InMemoryAreaBanStore();
-        AreaBanService bans = new AreaBanService(areas, new AreaBanCache(areas), new DomainEventPublisher(transport, CLOCK), CLOCK);
+        AreaBanService bans = new AreaBanService(areas, new AreaBanCache(areas), new DomainEventPublisher(transport, CLOCK), CLOCK, StaffDelegations.withoutLinks(CLOCK), StaffDelegations.recorder(CLOCK));
         InMemoryGuardRefusalStore refusalStore = new InMemoryGuardRefusalStore();
         GuardRefusalService refusals = new GuardRefusalService(refusalStore, bans,
                 new BurstSettings(true, 1, Duration.ofMinutes(5), Duration.ofHours(2)), meters);

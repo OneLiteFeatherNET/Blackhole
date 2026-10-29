@@ -9,6 +9,8 @@ import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.security.StaffActorEntity;
 import net.onelitefeather.blackhole.backend.security.StaffActorRepository;
 import net.onelitefeather.blackhole.backend.security.StaffDelegation;
+import net.onelitefeather.blackhole.backend.security.StaffLinkEntity;
+import net.onelitefeather.blackhole.backend.security.StaffLinkRepository;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -28,6 +30,12 @@ public final class StaffDelegations {
         return linked(clock).delegation();
     }
 
+    /** An empty staff link table, for a delegation that only the Discord bot uses. */
+    public static StaffLinkRepository emptyStaffLinks() {
+        return InMemoryRepository.<StaffLinkRepository, StaffLinkEntity, UUID>of(StaffLinkRepository.class, StaffLinkEntity::getOid)
+                .build().repository();
+    }
+
     /**
      * A delegation whose link and staff tables the test fills: {@link Linked#links()} holds the live Discord links, {@link Linked#actors()}
      * the staff rows with their role snapshots.
@@ -43,8 +51,11 @@ public final class StaffDelegations {
                         .build();
         InMemoryRepository<StaffActorRepository, StaffActorEntity, UUID> actors =
                 InMemoryRepository.<StaffActorRepository, StaffActorEntity, UUID>of(StaffActorRepository.class, StaffActorEntity::getOid).build();
-        StaffDelegation delegation = new StaffDelegation(links.repository(), actors.repository(), clock, Duration.ofHours(24));
-        return new Linked(delegation, actors, linkRows);
+        InMemoryRepository<StaffLinkRepository, StaffLinkEntity, UUID> staffLinks =
+                InMemoryRepository.<StaffLinkRepository, StaffLinkEntity, UUID>of(StaffLinkRepository.class, StaffLinkEntity::getOid).build();
+        StaffDelegation delegation = new StaffDelegation(links.repository(), actors.repository(), staffLinks.repository(), clock,
+                Duration.ofHours(24));
+        return new Linked(delegation, actors, linkRows, staffLinks);
     }
 
     /** A recorder over the given in-memory audit store and a recording event transport. */
@@ -60,7 +71,20 @@ public final class StaffDelegations {
 
     /** The parts of a {@link #linked} delegation a test fills in. */
     public record Linked(StaffDelegation delegation, InMemoryRepository<StaffActorRepository, StaffActorEntity, UUID> actors,
-                         List<DiscordLinkEntity> links) {
+                         List<DiscordLinkEntity> links, InMemoryRepository<StaffLinkRepository, StaffLinkEntity, UUID> staffLinks) {
+
+        /** Links a staff member to a Minecraft account, the live staff link the proxy's delegation checks. */
+        public void givenInGameStaff(UUID oid, UUID minecraftUuid) {
+            this.staffLinks.repository().save(new StaffLinkEntity(oid, minecraftUuid, 1L, oid));
+        }
+
+        /** Gives a staff member a fresh snapshot with the given roles, taken at {@code seenAt}, without any link. */
+        public void givenSnapshot(UUID oid, String roles, long seenAt) {
+            StaffActorEntity row = new StaffActorEntity(oid, net.onelitefeather.blackhole.backend.security.ActorKind.HUMAN, "Staff", 1L);
+            row.setRoles(roles);
+            row.setRolesSeenAt(seenAt);
+            this.actors.repository().save(row);
+        }
 
         /** Links a staff member to a Discord account and gives them a fresh snapshot with the given roles, taken at {@code seenAt}. */
         public void givenLinkedStaff(UUID oid, String discordUserId, String roles, long seenAt) {

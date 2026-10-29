@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.areaban.AreaBan;
 import net.onelitefeather.blackhole.backend.areaban.AreaBanCache;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.guard.GuardLevel;
@@ -111,8 +112,10 @@ public class IntelLoginCheckService {
         if (this.owners.isStaff(owner)) {
             return count(new LoginCheckDTO.Response(IntelPolicy.ALLOW, null, null), "ALLOW");
         }
-        if (this.areaBans.applying(enrichment.asn(), enrichment.countryCode(), now).isPresent()) {
-            return count(new LoginCheckDTO.Response(IntelPolicy.DENY, null, null, LoginDenialReason.AREA_BAN), "DENY");
+        Optional<AreaBan> areaBan = this.areaBans.applying(enrichment.asn(), enrichment.countryCode(), now);
+        if (areaBan.isPresent()) {
+            return count(new LoginCheckDTO.Response(IntelPolicy.DENY, null, null, LoginDenialReason.AREA_BAN,
+                    areaBan.get().expiresAt()), "DENY");
         }
         List<Match> matches = this.classifier.get().classify(address.get(), enrichment.asn());
         boolean allowListed = this.policies.allowListed(owner, now);

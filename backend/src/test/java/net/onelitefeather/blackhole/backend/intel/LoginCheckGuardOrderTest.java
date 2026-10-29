@@ -34,6 +34,28 @@ class LoginCheckGuardOrderTest {
     }
 
     @Test
+    void aTimedAreaBanDenialCarriesTheExpiryOfTheBan() {
+        LoginCheckFixture fixture = new LoginCheckFixture();
+        long expiresAt = fixture.clock.millis() + 3_600_000L;
+        fixture.areaBanAsnUntil(HOSTING_ASN, expiresAt);
+
+        LoginCheckDTO.Response result = check(fixture, LoginCheckFixture.OWNER, LoginCheckFixture.HOSTING_IP);
+
+        assertEquals(LoginDenialReason.AREA_BAN, result.denialReason(), "the denial must name the area ban");
+        assertEquals(Long.valueOf(expiresAt), result.expiresAt(), "the denial must say when the ban ends, for the proxy's screen");
+    }
+
+    @Test
+    void aPermanentAreaBanDenialHasNoExpiry() {
+        LoginCheckFixture fixture = new LoginCheckFixture();
+        fixture.areaBanAsn(HOSTING_ASN);
+
+        LoginCheckDTO.Response result = check(fixture, LoginCheckFixture.OWNER, LoginCheckFixture.HOSTING_IP);
+
+        assertNull(result.expiresAt(), "a permanent ban has no expiry");
+    }
+
+    @Test
     void anAreaBanDeniesAnAllowListedOwner() {
         LoginCheckFixture fixture = new LoginCheckFixture();
         fixture.allowListed(LoginCheckFixture.OWNER, null);

@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.intel;
 
+import net.onelitefeather.blackhole.backend.support.StaffDelegations;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import net.onelitefeather.blackhole.backend.areaban.AreaBan;
 import net.onelitefeather.blackhole.backend.areaban.AreaBanCache;
@@ -48,7 +49,7 @@ final class LoginCheckFixture {
     final OwnerDirectoryCache owners = new OwnerDirectoryCache(this.ownerStore, Duration.ofMinutes(60));
     final InMemoryGuardRefusalStore refusalStore = new InMemoryGuardRefusalStore();
     final GuardRefusalService refusals = new GuardRefusalService(this.refusalStore,
-            new AreaBanService(this.areaStore, this.areaBans, new DomainEventPublisher(this.transport, this.clock), this.clock),
+            new AreaBanService(this.areaStore, this.areaBans, new DomainEventPublisher(this.transport, this.clock), this.clock, StaffDelegations.withoutLinks(this.clock), StaffDelegations.recorder(this.clock)),
             new BurstSettings(false, 10, Duration.ofMinutes(5), Duration.ofHours(2)), new SimpleMeterRegistry());
     final IntelLoginCheckService service;
 
@@ -73,8 +74,13 @@ final class LoginCheckFixture {
 
     /** Bans an ASN for everyone, and loads the bans into the cache. */
     void areaBanAsn(long asn) {
+        areaBanAsnUntil(asn, null);
+    }
+
+    /** Bans an ASN until {@code expiresAt} (epoch milliseconds), or for ever when it is null, and loads the bans into the cache. */
+    void areaBanAsnUntil(long asn, Long expiresAt) {
         this.areaStore.insert(new AreaBan(UUID.randomUUID(), AreaBan.Kind.ASN, Long.toString(asn), "test ban",
-                AreaBan.Source.MANUAL, "admin-oid", this.clock.millis(), null, null, null, null));
+                AreaBan.Source.MANUAL, "admin-oid", this.clock.millis(), expiresAt, null, null, null));
         this.areaBans.reload();
     }
 

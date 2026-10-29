@@ -36,9 +36,9 @@ public class AreaBanController implements AreaBanApi {
     }
 
     @Override
-    @Secured(Roles.MODERATOR)
+    @Secured({Roles.MODERATOR, Roles.PROXY, Roles.DISCORD})
     public HttpResponse<AreaBanDTO> create(AreaBanDTO.CreateRequest request, Actor actor) {
-        AreaBanDTO result = this.areaBans.create(request, service(actor));
+        AreaBanDTO result = this.areaBans.create(request, actor);
         if (result instanceof AreaBanDTO.Error error) {
             return AuditHeaders.audited(HttpResponse.<AreaBanDTO>status(error.kind().status()).body(error), actor);
         }
@@ -46,16 +46,12 @@ public class AreaBanController implements AreaBanApi {
     }
 
     @Override
-    @Secured(Roles.MODERATOR)
+    @Secured({Roles.MODERATOR, Roles.PROXY, Roles.DISCORD})
     public HttpResponse<AreaBanDTO> lift(String id, AreaBanDTO.LiftRequest request, Actor actor) {
-        AreaBanDTO result = this.areaBans.lift(id, request, service(actor));
+        AreaBanDTO result = this.areaBans.lift(id, request, actor);
         if (result instanceof AreaBanDTO.Error error) {
             return AuditHeaders.audited(HttpResponse.<AreaBanDTO>status(error.kind().status()).body(error), actor);
         }
         return AuditHeaders.audited(HttpResponse.ok(result), actor);
-    }
-
-    private static AreaBanService.Actor service(Actor actor) {
-        return new AreaBanService.Actor(actor.oid().toString(), actor.admin());
     }
 }

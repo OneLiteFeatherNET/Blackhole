@@ -33,16 +33,22 @@ public sealed interface LoginCheckDTO {
      * @param classification the class that decided the verdict, or null for a clean address
      * @param sourceKey      the source that matched that class, or null
      * @param denialReason   why a DENY was given, or null for ALLOW and FLAG
+     * @param expiresAt      when an area ban denial ends, epoch milliseconds; null for any other answer and for a permanent ban
      */
     @Schema(name = "LoginCheckResponse")
     @Serdeable
     @ReflectiveAccess
     record Response(@NonNull IntelPolicy verdict, @Nullable IntelClass classification, @Nullable String sourceKey,
-                    @Nullable LoginDenialReason denialReason) implements LoginCheckDTO {
+                    @Nullable LoginDenialReason denialReason, @Nullable Long expiresAt) implements LoginCheckDTO {
 
         /** An answer without a denial reason: ALLOW or FLAG, or a VPN policy DENY. */
         public Response(IntelPolicy verdict, IntelClass classification, String sourceKey) {
-            this(verdict, classification, sourceKey, null);
+            this(verdict, classification, sourceKey, null, null);
+        }
+
+        /** An answer with a denial reason and no expiry. */
+        public Response(IntelPolicy verdict, IntelClass classification, String sourceKey, LoginDenialReason denialReason) {
+            this(verdict, classification, sourceKey, denialReason, null);
         }
     }
 

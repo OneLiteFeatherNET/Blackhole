@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.security;
 
+import net.onelitefeather.blackhole.backend.support.StaffDelegations;
 import net.onelitefeather.blackhole.backend.discord.DiscordLinkEntity;
 import net.onelitefeather.blackhole.backend.discord.DiscordLinkKind;
 import net.onelitefeather.blackhole.backend.discord.DiscordLinkRepository;
@@ -32,7 +33,7 @@ class DiscordOnBehalfTest {
                     .build();
     private final InMemoryRepository<StaffActorRepository, StaffActorEntity, UUID> actors =
             InMemoryRepository.<StaffActorRepository, StaffActorEntity, UUID>of(StaffActorRepository.class, StaffActorEntity::getOid).build();
-    private final StaffDelegation delegation = new StaffDelegation(this.links.repository(), this.actors.repository(), this.clock, WINDOW);
+    private final StaffDelegation delegation = new StaffDelegation(this.links.repository(), this.actors.repository(), StaffDelegations.emptyStaffLinks(), this.clock, WINDOW);
 
     private void linked() {
         this.linkRows.add(new DiscordLinkEntity(UUID.randomUUID(), DiscordLinkKind.STAFF, STAFF.toString(), "123456789012345678", 1L));

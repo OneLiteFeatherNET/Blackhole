@@ -1,5 +1,8 @@
 package net.onelitefeather.blackhole.backend.areaban;
 
+import net.onelitefeather.blackhole.backend.security.ActorKind;
+import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.support.StaffDelegations;
 import net.onelitefeather.blackhole.backend.areaban.dto.AreaBanDTO;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.support.RecordingEventTransport;
@@ -18,7 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AreaBanLiftTest {
 
-    private static final AreaBanService.Actor ADMIN = new AreaBanService.Actor("admin-oid", true);
+    private static final Actor ADMIN = new Actor(UUID.fromString("00000000-0000-4000-8000-0000000000a2"), "Admin",
+            ActorKind.HUMAN, false, true);
     private static final Instant START = Instant.parse("2026-10-29T12:00:00Z");
 
     private final InMemoryAreaBanStore store = new InMemoryAreaBanStore();
@@ -26,7 +30,7 @@ class AreaBanLiftTest {
     private AreaBanService serviceAt(Instant now) {
         Clock clock = Clock.fixed(now, ZoneOffset.UTC);
         return new AreaBanService(this.store, new AreaBanCache(this.store),
-                new DomainEventPublisher(new RecordingEventTransport(), clock), clock);
+                new DomainEventPublisher(new RecordingEventTransport(), clock), clock, StaffDelegations.withoutLinks(clock), StaffDelegations.recorder(clock));
     }
 
     private AreaBanDTO.Response createdBan(AreaBanService service) {
