@@ -21,7 +21,8 @@
       "configuration": "Konfiguration",
       "administration": "Verwaltung",
       "review": "Prüfung",
-      "system": "System"
+      "system": "System",
+      "guard": "Schutz"
     },
     "brand": "Blackhole",
     "open": "Navigation öffnen",
@@ -41,7 +42,9 @@
     "cloudnet": "CloudNet",
     "kick": "Massen-Kick",
     "audit": "Audit-Protokoll",
-    "exemptionReviews": "Schutzprüfungen"
+    "exemptionReviews": "Schutzprüfungen",
+    "joinGuard": "Beitrittsschutz",
+    "areaBans": "Gebietssperren"
   },
   "panel": {
     "close": "Schließen",
@@ -1904,7 +1907,8 @@
       "selectorInvalid": "Das kann nicht zurückgerollt werden. Wählen Sie ein Teammitglied oder einen nicht verknüpften Spielaccount.",
       "tooLarge": "Zu viele Strafen passen. Engen Sie den Zeitraum ein und prüfen Sie erneut."
     },
-    "noStaff": "Noch keine Teammitglieder bekannt."  },
+    "noStaff": "Noch keine Teammitglieder bekannt."
+  },
   "exemption": {
     "badge": {
       "linked": "Verknüpftes Teammitglied",
@@ -1961,5 +1965,95 @@
     },
     "applied": "Prüfung verhängt.",
     "dismissed": "Prüfung verworfen."
+  },
+  "guard": {
+    "title": "Beitrittsschutz",
+    "intro": "Entscheidet, wer dem Netzwerk gerade beitreten darf. Gilt die strengere Stufe aus der manuellen Stufe und der Stufe der unbeaufsichtigten Auswertung.",
+    "effective": "Aktuelle Stufe",
+    "level": {
+      "OFF": "Aus",
+      "STRICT": "Streng",
+      "LOCKDOWN": "Sperre"
+    },
+    "source": {
+      "manual": "Manuell gesetzt",
+      "unattended": "Von der unbeaufsichtigten Auswertung gesetzt",
+      "cleared": "Keine Stufe aktiv"
+    },
+    "manualLevel": "Manuelle Stufe",
+    "unattendedLevel": "Stufe der Auswertung",
+    "updatedAt": "Letzte Änderung",
+    "set": {
+      "title": "Manuelle Stufe setzen",
+      "hint": "Eine niedrigere Stufe ist nicht eingeschränkt. Jede Änderung wird festgehalten.",
+      "open": "Stufe setzen"
+    },
+    "saved": "Manuelle Stufe auf {level} gesetzt.",
+    "readOnly": "Nur Moderation und Administration können die Stufe ändern.",
+    "confirm": {
+      "title": "Beitrittsschutz setzen?",
+      "body": "Die manuelle Stufe wird {level}.",
+      "confirm": "Stufe setzen"
+    },
+    "tile": {
+      "title": "Beitrittsschutz",
+      "bans": "{n} aktive Gebietssperre | {n} aktive Gebietssperren"
+    }
+  },
+  "areaBans": {
+    "title": "Gebietssperren",
+    "intro": "Autonome Systeme (ASN) und Länder, deren Verbindungen beim Beitritt abgewiesen werden.",
+    "kind": {
+      "ASN": "ASN",
+      "COUNTRY": "Land"
+    },
+    "columns": {
+      "kind": "Art",
+      "value": "Gebiet",
+      "reason": "Grund",
+      "source": "Quelle",
+      "expires": "Ende",
+      "status": "Status",
+      "actions": "Aktionen"
+    },
+    "status": {
+      "active": "Aktiv",
+      "expired": "Abgelaufen",
+      "lifted": "Aufgehoben"
+    },
+    "permanent": "Dauerhaft",
+    "liftedAt": "Aufgehoben am {when}",
+    "showInactive": "Aufgehobene und abgelaufene Sperren zeigen",
+    "showInactiveHint": "Aufgehobene und abgelaufene Sperren bleiben in der Historie.",
+    "empty": "Keine Gebietssperren.",
+    "create": {
+      "open": "Neue Gebietssperre",
+      "title": "Neue Gebietssperre",
+      "intro": "Weist Beitritte aus einem autonomen System oder einem Land ab.",
+      "confirm": "Sperren"
+    },
+    "value": {
+      "asn": "ASN",
+      "asnHint": "Die Nummer, mit oder ohne AS",
+      "country": "Ländercode",
+      "countryHint": "Zwei Buchstaben nach ISO 3166 (z. B. DE)"
+    },
+    "reasonHint": "Bis zu {max} Zeichen. Wird mit der Sperre gespeichert.",
+    "duration": {
+      "label": "Dauer",
+      "days": "{n} Tag | {n} Tage",
+      "permanent": "Dauerhaft"
+    },
+    "moderatorLimit": "Moderation kann höchstens sieben Tage sperren.",
+    "created": "Gebietssperre angelegt.",
+    "lifted": "Gebietssperre aufgehoben.",
+    "lift": {
+      "open": "Aufheben",
+      "title": "Gebietssperre aufheben",
+      "body": "{value} wird nach dem Aufheben nicht mehr abgewiesen. Die Sperre bleibt in der Historie.",
+      "reason": "Grund",
+      "reasonHint": "Pflichtfeld",
+      "confirm": "Sperre aufheben"
   }
+}
 }

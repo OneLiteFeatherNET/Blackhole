@@ -333,3 +333,18 @@ export interface ActivePunishmentQuery {
   page?: number
   size?: number
 }
+
+/** The join guard levels, least to most strict. The backend sends them as plain strings. */
+export type GuardLevel = 'OFF' | 'STRICT' | 'LOCKDOWN'
+/** The manual level, the unattended (automatic) level and the level in force, which is the stricter of the two. */
+export type GuardState = Schemas['GuardStateResponse']
+export type AreaBanKind = 'ASN' | 'COUNTRY'
+/** An autonomous system or country ban; `expiresAt` and `liftedAt` are null when they do not apply. */
+export type AreaBan = Schemas['AreaBanResponse']
+/** What the create form sends. A null duration is a permanent ban (ADMIN only). */
+export interface AreaBanDraft {
+  kind: AreaBanKind
+  value: string
+  reason: string
+  durationSeconds: number | null
+}

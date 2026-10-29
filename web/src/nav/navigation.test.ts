@@ -23,11 +23,12 @@ describe('visibleGroups for the moderation workspace', () => {
     expect(visibleGroups(NONE, 'moderation')).toEqual([])
   })
 
-  it.each([['administrator', ADMIN], ['moderator', MODERATOR]])('lists the inbox, then Work and Players for an %s', (_role, access) => {
+  it.each([['administrator', ADMIN], ['moderator', MODERATOR]])('lists the inbox, then Work, Players and Protection for an %s', (_role, access) => {
     expect(shape(access, 'moderation')).toEqual([
       ['home', false, ['inbox']],
       ['work', true, ['cases', 'appeals', 'reports']],
       ['players', true, ['playerLookup', 'activePunishments', 'allowList', 'vpnPolicy']],
+      ['guard', true, ['joinGuard', 'areaBans']],
     ])
   })
 
@@ -49,6 +50,8 @@ describe('visibleGroups for the moderation workspace', () => {
       ['activePunishments', '/punished'],
       ['allowList', '/intel/allow-list'],
       ['vpnPolicy', '/intel/policy'],
+      ['joinGuard', '/guard'],
+      ['areaBans', '/area-bans'],
     ])
   })
 

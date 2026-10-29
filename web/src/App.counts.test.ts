@@ -44,6 +44,8 @@ async function mountApp(numbers: Numbers, path = '/players') {
           inbox,
           // The front page also shows the escalations and the active punishments.
           dashboard: async () => ok({ activePunishmentsBySection: [], latestEscalations: [], escalationsLast7Days: 0 }),
+          joinGuard: async () => ok({ manualLevel: 'OFF', automaticLevel: 'OFF', effectiveLevel: 'OFF', updatedAt: 0 }),
+          areaBans: async () => ok([]),
           cases,
           profile: async () => ok({ active: {}, history: [] }),
           staffLinkStatus: async () => ok({ linked: false }),

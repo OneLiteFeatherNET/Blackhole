@@ -23,6 +23,8 @@ import PlayersView from '../views/PlayersView.vue'
 import PunishedPlayersView from '../views/PunishedPlayersView.vue'
 import AppealConditionsView from '../views/AppealConditionsView.vue'
 import AppealsView from '../views/AppealsView.vue'
+import AreaBansView from '../views/AreaBansView.vue'
+import JoinGuardView from '../views/JoinGuardView.vue'
 import ReportDetailView from '../views/ReportDetailView.vue'
 import ReportsView from '../views/ReportsView.vue'
 import SectionsView from '../views/SectionsView.vue'
@@ -54,6 +56,8 @@ export const routes: RouteRecordRaw[] = [
   { path: '/appeals', name: 'appeals', component: AppealsView, meta: { titleKey: 'nav.appeals', pageShell: true, workspace: 'moderation' } },
   { path: '/cases', name: 'cases', component: CasesView, meta: { titleKey: 'nav.cases', pageShell: true, workspace: 'moderation' } },
   { path: '/cases/:reference', name: 'case', component: CaseView, props: true, meta: { titleKey: 'case.title', nav: '/cases', pageShell: true, workspace: 'moderation' } },
+  { path: '/guard', name: 'guard', component: JoinGuardView, meta: { titleKey: 'guard.title', pageShell: true, workspace: 'moderation' } },
+  { path: '/area-bans', name: 'area-bans', component: AreaBansView, meta: { titleKey: 'areaBans.title', pageShell: true, workspace: 'moderation' } },
 
   // The Administration workspace. `/admin` is its home; the configuration pages are their own routes.
   { path: '/admin', redirect: '/admin/templates' },

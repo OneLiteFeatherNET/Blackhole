@@ -40,6 +40,8 @@ function mounting(overrides: { inbox?: () => Promise<unknown>; dashboard?: () =>
     api: mockApi({
       inbox: overrides.inbox ?? (async () => ok(inbox())),
       dashboard: overrides.dashboard ?? (async () => ok(dashboard())),
+      joinGuard: async () => ok({ manualLevel: 'OFF', automaticLevel: 'OFF', effectiveLevel: 'OFF', updatedAt: 0 }),
+      areaBans: async () => ok([]),
     }),
   })
 }
