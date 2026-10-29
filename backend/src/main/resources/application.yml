@@ -410,6 +410,7 @@ blackhole:
     # an admin has checked a refresh. Attribution is shown in the panel; the X4BNet lists are MIT licensed.
     hosting-asns: ${BLACKHOLE_INTEL_HOSTING_ASNS:}   # comma-separated AS numbers; empty by default, set per network
     hit-retention: ${BLACKHOLE_INTEL_HIT_RETENTION:P90D}   # how long a VPN or hosting hit (it holds the clear address) is kept
+    hit-retention-sweep-cron: ${BLACKHOLE_INTEL_HIT_RETENTION_SWEEP_CRON:`0 50 3 * * *`}
     login-check:
       # Read by the Velocity proxy, which owns the call timeout. A timed-out or failed check lets the login through.
       timeout: ${BLACKHOLE_INTEL_LOGIN_CHECK_TIMEOUT:PT1S}
