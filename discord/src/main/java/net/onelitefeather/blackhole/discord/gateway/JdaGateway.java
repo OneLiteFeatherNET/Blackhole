@@ -50,6 +50,7 @@ import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import net.dv8tion.jda.api.utils.messages.MessageEditBuilder;
 import net.onelitefeather.blackhole.discord.command.AccountCommands;
 import net.onelitefeather.blackhole.discord.command.AppealCommands;
+import net.onelitefeather.blackhole.discord.command.GuardCommands;
 import net.onelitefeather.blackhole.discord.command.Lang;
 import net.onelitefeather.blackhole.discord.command.StaffButtonHandler;
 import net.onelitefeather.blackhole.discord.config.BotConfig;
@@ -96,6 +97,7 @@ public final class JdaGateway extends ListenerAdapter implements DiscordGateway 
 
     private final BotConfig config;
     private final AccountCommands commands;
+    private final GuardCommands guard;
     private volatile AppealCommands appeals;
     private volatile StaffButtonHandler staff;
     private final ExecutorService backendCalls = Executors.newVirtualThreadPerTaskExecutor();
@@ -122,9 +124,10 @@ public final class JdaGateway extends ListenerAdapter implements DiscordGateway 
     };
     private volatile JDA jda;
 
-    public JdaGateway(@NotNull BotConfig config, @NotNull AccountCommands commands) {
+    public JdaGateway(@NotNull BotConfig config, @NotNull AccountCommands commands, @NotNull GuardCommands guard) {
         this.config = config;
         this.commands = commands;
+        this.guard = guard;
     }
 
     /** Binds the appeal commands; they need the ticket lifecycle, which needs this gateway, so they arrive after construction and before {@link #start()}. */
@@ -198,10 +201,18 @@ public final class JdaGateway extends ListenerAdapter implements DiscordGateway 
         CommandData whoami = Commands.slash("whoami", "Show what your Discord account is linked to")
                 .setDescriptionLocalization(DiscordLocale.GERMAN, "Zeige, womit dein Discord-Account verknüpft ist")
                 .setContexts(InteractionContextType.GUILD);
+        CommandData guard = Commands.slash("guard", "Set the join guard level for new logins (staff only)")
+                .setDescriptionLocalization(DiscordLocale.GERMAN, "Setze die Stufe des Join-Guards für neue Logins (nur Team)")
+                .setContexts(InteractionContextType.GUILD)
+                .addOptions(new OptionData(OptionType.STRING, "level", "The level to set", true)
+                        .setDescriptionLocalization(DiscordLocale.GERMAN, "Die Stufe, die gesetzt wird")
+                        .addChoice("off", "OFF")
+                        .addChoice("strict", "STRICT")
+                        .addChoice("lockdown", "LOCKDOWN"));
         CommandData appeal = Commands.slash("appeal", "Appeal a ban in a private channel")
                 .setDescriptionLocalization(DiscordLocale.GERMAN, "Lege in einem privaten Kanal Einspruch gegen einen Bann ein")
                 .setContexts(InteractionContextType.GUILD);
-        return List.of(link, unlink, whoami, appeal);
+        return List.of(link, unlink, whoami, guard, appeal);
     }
 
     // ---- interactions ----
@@ -221,6 +232,11 @@ public final class JdaGateway extends ListenerAdapter implements DiscordGateway 
             }
             case "unlink" -> l -> this.commands.unlink(l, userId);
             case "whoami" -> l -> this.commands.whoami(l, userId);
+            case "guard" -> {
+                String level = event.getOption("level", null, option -> option.getAsString());
+                boolean staffRole = event.getMember() != null && holdsStaffRole(event.getMember());
+                yield l -> this.guard.set(l, userId, staffRole, level);
+            }
             default -> null;
         };
         if (answer == null) {

@@ -16,6 +16,7 @@ import net.onelitefeather.blackhole.discord.backend.ApiClients;
 import net.onelitefeather.blackhole.discord.backend.BackendGateway;
 import net.onelitefeather.blackhole.discord.backend.HttpBackendGateway;
 import net.onelitefeather.blackhole.discord.command.AccountCommands;
+import net.onelitefeather.blackhole.discord.command.GuardCommands;
 import net.onelitefeather.blackhole.discord.command.AppealCommands;
 import net.onelitefeather.blackhole.discord.config.BotConfig;
 import net.onelitefeather.blackhole.discord.gateway.HealthServer;
@@ -88,7 +89,7 @@ public final class Main {
         TokenSource tokens = new ClientCredentialsTokenProvider(config.auth(), new JdkTokenTransport(), Clock.systemUTC());
         ApiClient client = ApiClients.create(config.backendUrl(), tokens);
         BackendGateway backend = new HttpBackendGateway(client);
-        JdaGateway discord = new JdaGateway(config, new AccountCommands(backend));
+        JdaGateway discord = new JdaGateway(config, new AccountCommands(backend), new GuardCommands(backend));
 
         // The ticket bot. One worker thread runs all of it, so the sync code never races with itself.
         Clock clock = Clock.systemUTC();
