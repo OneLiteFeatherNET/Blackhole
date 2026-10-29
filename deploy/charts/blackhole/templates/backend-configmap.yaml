@@ -49,6 +49,11 @@ secretKeyRef entries in the Deployment.
 {{- $_ := set $c "OTEL_EXPORTER_OTLP_ENDPOINT" $v.tracing.endpoint }}
 {{- $_ := set $c "OTEL_SERVICE_NAME" $v.tracing.serviceName }}
 {{- end }}
+{{- if $v.geoip.enabled }}
+{{- $dir := trimSuffix "/" $v.geoip.mountPath }}
+{{- $_ := set $c "BLACKHOLE_INTEL_GEOIP_ASN_PATH" (printf "%s/asn.mmdb" $dir) }}
+{{- $_ := set $c "BLACKHOLE_INTEL_GEOIP_CITY_PATH" (printf "%s/country.mmdb" $dir) }}
+{{- end }}
 {{- range $key, $value := $v.config }}
 {{- $_ := set $c $key $value }}
 {{- end }}

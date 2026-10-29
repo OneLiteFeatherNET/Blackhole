@@ -206,6 +206,12 @@ Cross-field checks a JSON schema cannot express. Included by templates/validate.
 nothing, so every render runs them.
 */}}
 {{- define "blackhole.validate" -}}
+{{- if and .Values.backend.geoip.enabled (not .Values.backend.geoip.existingClaim) -}}
+{{- fail "backend.geoip.existingClaim is required when backend.geoip.enabled is true: the PVC that holds asn.mmdb and country.mmdb" -}}
+{{- end -}}
+{{- if and .Values.backend.geoip.refresh.enabled (not .Values.backend.geoip.enabled) -}}
+{{- fail "backend.geoip.refresh.enabled needs backend.geoip.enabled: the refresh writes the files the backend reads" -}}
+{{- end -}}
 {{- if and .Values.backend.enabled .Values.web.enabled (ne (int64 .Values.backend.evidence.maxVideoBytes) (int64 .Values.web.evidence.maxVideoBytes)) -}}
 {{- fail (printf "backend.evidence.maxVideoBytes (%d) and web.evidence.maxVideoBytes (%d) must be equal: the panel would accept uploads the backend refuses, or the other way round" (int64 .Values.backend.evidence.maxVideoBytes) (int64 .Values.web.evidence.maxVideoBytes)) -}}
 {{- end -}}

@@ -71,7 +71,7 @@ offline copy of it before the first install.
 | `global` | `environment` (`prod`/`dev`/`local`), `image.registry`, `image.tag` (empty = `appVersion`), `imagePullSecrets`, `podLabels`, `priorityClassName` |
 | `database`, `redis`, `nats`, `s3`, `keys` | the shared infrastructure; Secrets by name |
 | `auth` | the Entra tenant, API client id, staff group ids and machine role names |
-| `backend` | `replicaCount` (2), `env`, `envFrom`, `config` (non-secret `BLACKHOLE_*` tunables, e.g. `BLACKHOLE_AUDIT_RETENTION`), `secretRevision`, `evidence.{maxVideoBytes,scan}`, `tracing`, `strategy`, `pdb`, probes, `resources`, security contexts, scheduling, `metrics.serviceMonitor`, `externalApi` |
+| `backend` | `replicaCount` (2), `env`, `envFrom`, `config` (non-secret `BLACKHOLE_*` tunables, e.g. `BLACKHOLE_AUDIT_RETENTION`), `secretRevision`, `evidence.{maxVideoBytes,scan}`, `tracing`, `geoip.*` (off by default, see GeoIP below), `strategy`, `pdb`, probes, `resources`, security contexts, scheduling, `metrics.serviceMonitor`, `externalApi` |
 | `web` | the same common keys, `oidc.*`, `evidence.*`, `ingress` or `httpRoute`, `pdb` |
 | `portal` | the same common keys, `origin`, `ingress` or `httpRoute`, `pdb` |
 | `discord` | the common keys, `existingSecret`, `auditWebhookKey`, `clientId`, `authScope`, `panelUrl` (the panel base URL, `BLACKHOLE_PANEL_URL`, also the base of the audit links), `ids.*`, `config` (intervals), `metrics.podMonitor`; always exactly one replica |
@@ -125,6 +125,23 @@ the 1.5Gi request and the 3Gi limit. The backend scan is fail-closed: while the 
 uploads are rejected with 503. With `clamav.externalHost` set, no ClamAV workload is rendered and the
 backend uses that host (the dev environment uses the scanner of the prod namespace).
 
+## GeoIP databases (player sessions)
+
+Off by default; nothing is rendered. With `backend.geoip.enabled`, the backend mounts the PVC
+`backend.geoip.existingClaim` read-only at `backend.geoip.mountPath` (`/data/geoip`) and reads `asn.mmdb` and
+`country.mmdb` from it. Missing files only mean sessions are stored without country and ASN.
+
+With `backend.geoip.refresh.enabled` as well, a monthly CronJob (`0 4 2 * *`, UTC) downloads the free DB-IP
+Lite ASN and country files into the same claim. It holds no secret, its image is pinned by tag
+(`backend.geoip.refresh.image`), and it writes each file under a `.part` name before the rename. The
+DB-IP files are CC BY 4.0, so the attribution must be shown wherever the data is (the design puts it in the
+panel footer).
+
+- The claim must be ReadWriteMany (or the refresh job and the backend pods on one node): the job writes what
+  the backend pods read. Leave about 300 MB free for the two files.
+- Kubernetes 1.27 or later for the CronJob `timeZone`.
+- The chart creates no PVC; the operator provides the claim and its storage class.
+
 ## Exposure
 
 Ingress resources use the class `cloudflare-tunnel`; `web.ingress` serves the panel and `portal.ingress`
@@ -172,3 +189,4 @@ adds kubeconform v0.8.0.
 | `tests/workloads.sh` | env and Secret wiring, probes, strategies, PDBs, ClamAV, `secretRevision` |
 | `tests/exposure.sh` | hosts, Ingress class, the route table against the cloudflared path semantics |
 | `tests/psa.sh` | the `restricted` Pod Security fields on every pod |
+| `tests/geoip.sh` | the GeoIP volume (read-only in the backend), the paths, the refresh job (pinned, no secrets, restricted) and the switches |

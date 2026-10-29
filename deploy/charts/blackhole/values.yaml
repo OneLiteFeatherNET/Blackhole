@@ -133,6 +133,37 @@ backend:
     enabled: true
     endpoint: http://alloy-receiver.grafana.svc:4317
     serviceName: blackhole
+  # Offline MaxMind-format databases of the player sessions (ASN and country, e.g. DB-IP Lite). Off: nothing
+  # is rendered and sessions are stored without enrichment. On: the volume is mounted read-only at mountPath
+  # as asn.mmdb and country.mmdb, which the backend reads through BLACKHOLE_INTEL_GEOIP_ASN_PATH and
+  # BLACKHOLE_INTEL_GEOIP_CITY_PATH (the country file goes through the city setting).
+  geoip:
+    enabled: false
+    # PersistentVolumeClaim that holds the two files; required when enabled. Use a ReadWriteMany class when
+    # the refresh job and the backend pods can run on different nodes (see README.md, GeoIP section).
+    existingClaim: ""
+    mountPath: /data/geoip
+    # Group of the volume, so the refresh job (writer) and the backend (reader) can both use it.
+    fsGroup: 10001
+    refresh:
+      # Monthly CronJob that downloads the DB-IP Lite files into the claim. Needs geoip.enabled. No secrets.
+      enabled: false
+      schedule: "0 4 2 * *"
+      timeZone: UTC
+      # Base URL of the free DB-IP downloads: <base>/dbip-{asn,country}-lite-<YYYY-MM>.mmdb.gz.
+      baseUrl: https://download.db-ip.com/free
+      image:
+        registry: docker.io
+        repository: curlimages/curl
+        # Pinned: curl and gunzip from the Alpine base. Bump deliberately.
+        tag: "8.11.1"
+        pullPolicy: IfNotPresent
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          memory: 128Mi
   service:
     port: 8080
   strategy:
