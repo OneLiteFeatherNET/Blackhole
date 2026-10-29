@@ -43,7 +43,7 @@ class RollbackLeaseIntegrationTest extends PostgresIntegrationTest {
                 new RollbackJobStore.FrozenItem("item-a", OWNER, "chat", "PUNISHMENT"),
                 new RollbackJobStore.FrozenItem("item-b", OWNER, "chat", "PUNISHMENT"),
                 new RollbackJobStore.FrozenItem("item-c", OWNER, "chat", "PUNISHMENT")));
-        assertTrue(this.store.markRunning(JOB, "compromised account", "key-1", now), "the preview starts once");
+        assertTrue(this.store.markRunning(JOB, "compromised account", "key-1", false, now), "the preview starts once");
     }
 
     private Optional<UUID> claim(String holder) {
@@ -78,7 +78,7 @@ class RollbackLeaseIntegrationTest extends PostgresIntegrationTest {
     void aSecondStartOfTheSameJobIsRefused() {
         long now = this.clock.millis();
 
-        assertFalse(this.store.markRunning(JOB, "compromised account", "key-2", now), "only one start wins");
+        assertFalse(this.store.markRunning(JOB, "compromised account", "key-2", false, now), "only one start wins");
     }
 
     @Test

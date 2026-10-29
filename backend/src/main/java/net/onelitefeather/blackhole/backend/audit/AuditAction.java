@@ -15,6 +15,7 @@ public enum AuditAction {
     ELO_ADJUST("elo.adjust"),
     KICK_CREATE("kick.create"),
     KICK_MASS("kick.mass"),
+    KICK_ROLLBACK_MARK("kick.rollback-mark"),
     STAFF_LINK_UNLINK("staff-link.unlink"),
     DISCORD_LINK_REMOVE("discord-link.remove"),
     CLIENT_RULE_CREATE("client-rule.create"),

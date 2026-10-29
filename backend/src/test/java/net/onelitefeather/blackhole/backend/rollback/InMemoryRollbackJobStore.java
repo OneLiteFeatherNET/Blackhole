@@ -38,10 +38,10 @@ final class InMemoryRollbackJobStore implements RollbackJobStore {
     @Override
     public void insertPreview(PreviewJob job, List<FrozenItem> frozen) {
         this.jobs.put(job.id(), new Job(job.id(), "PREVIEW", job.requestedByOid(), selectorOid(job.selector()), null, null,
-                job.previewExpiresAt()));
+                false, job.previewExpiresAt()));
         Map<String, Row> rows = new LinkedHashMap<>();
         for (FrozenItem item : frozen) {
-            rows.put(item.identifier(), new Row(new Item(item.identifier(), item.owner(), item.sectionKey(), "PENDING")));
+            rows.put(item.identifier(), new Row(new Item(item.identifier(), item.owner(), item.sectionKey(), item.kind(), "PENDING")));
         }
         this.items.put(job.id(), rows);
     }
@@ -52,12 +52,12 @@ final class InMemoryRollbackJobStore implements RollbackJobStore {
     }
 
     @Override
-    public boolean markRunning(UUID id, String reason, String idempotencyKey, long now) {
+    public boolean markRunning(UUID id, String reason, String idempotencyKey, boolean includeMarks, long now) {
         Job job = this.jobs.get(id);
         if (job == null || !"PREVIEW".equals(job.state()) || now >= job.previewExpiresAt()) {
             return false;
         }
-        this.jobs.put(id, new Job(id, "RUNNING", job.requestedByOid(), job.selectorOid(), reason, idempotencyKey, job.previewExpiresAt()));
+        this.jobs.put(id, new Job(id, "RUNNING", job.requestedByOid(), job.selectorOid(), reason, idempotencyKey, includeMarks, job.previewExpiresAt()));
         this.startedAt.put(id, now);
         return true;
     }
@@ -92,7 +92,7 @@ final class InMemoryRollbackJobStore implements RollbackJobStore {
                 .filter(row -> "PENDING".equals(row.state))
                 .sorted((a, b) -> a.item.identifier().compareTo(b.item.identifier()))
                 .limit(limit)
-                .map(row -> new Item(row.item.identifier(), row.item.owner(), row.item.sectionKey(), row.state))
+                .map(row -> new Item(row.item.identifier(), row.item.owner(), row.item.sectionKey(), row.item.kind(), row.state))
                 .collect(Collectors.toList());
     }
 
@@ -121,7 +121,7 @@ final class InMemoryRollbackJobStore implements RollbackJobStore {
             return false;
         }
         this.jobs.put(id, new Job(id, "COMPLETED", job.requestedByOid(), job.selectorOid(), job.reason(), job.idempotencyKey(),
-                job.previewExpiresAt()));
+                job.includeMarks(), job.previewExpiresAt()));
         return true;
     }
 
@@ -136,7 +136,7 @@ final class InMemoryRollbackJobStore implements RollbackJobStore {
             return false;
         }
         this.jobs.put(id, new Job(id, "CANCELLED", job.requestedByOid(), job.selectorOid(), job.reason(), job.idempotencyKey(),
-                job.previewExpiresAt()));
+                job.includeMarks(), job.previewExpiresAt()));
         return true;
     }
 
@@ -153,7 +153,7 @@ final class InMemoryRollbackJobStore implements RollbackJobStore {
     /** Puts a job into a state directly, for tests that need a job that is not reachable by the normal path. */
     void expire(UUID id) {
         Job job = this.jobs.get(id);
-        this.jobs.put(id, new Job(id, job.state(), job.requestedByOid(), job.selectorOid(), job.reason(), job.idempotencyKey(), 0L));
+        this.jobs.put(id, new Job(id, job.state(), job.requestedByOid(), job.selectorOid(), job.reason(), job.idempotencyKey(), job.includeMarks(), 0L));
     }
 
     List<String> identifiers(UUID id) {

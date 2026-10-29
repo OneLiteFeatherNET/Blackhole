@@ -17,6 +17,7 @@ import static net.onelitefeather.blackhole.backend.rollback.RollbackTestSchema.S
 import static net.onelitefeather.blackhole.backend.rollback.RollbackTestSchema.SERVICE;
 import static net.onelitefeather.blackhole.backend.rollback.RollbackTestSchema.STAFF;
 import static net.onelitefeather.blackhole.backend.rollback.RollbackTestSchema.count;
+import static net.onelitefeather.blackhole.backend.rollback.RollbackTestSchema.givenKick;
 import static net.onelitefeather.blackhole.backend.rollback.RollbackTestSchema.givenPunishment;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -119,6 +120,19 @@ class RollbackPreviewIntegrationTest extends PostgresIntegrationTest {
         RollbackDTO.Response response = assertInstanceOf(RollbackDTO.Response.class, preview(service(10), STAFF));
 
         assertEquals(NOW + TTL.toMillis(), response.previewExpiresAt(), "the expiry comes from the injected clock plus the ttl");
+    }
+
+    @Test
+    void theKicksInTheWindowAreCountedAndFrozenWithoutBeingRevocable() {
+        givenKick(this.dataSource, "kick-1", 4, "network", STAFF, STAFF, INSIDE);
+
+        RollbackDTO.Response response = assertInstanceOf(RollbackDTO.Response.class, preview(service(10), STAFF));
+
+        assertEquals(1, response.kicks(), "the kick is counted for the mark option");
+        assertEquals(0, response.revocable(), "a kick is never revocable");
+        assertEquals(0, response.alreadyInactive(), "a kick is not a punishment that was lifted");
+        assertEquals(1, count(this.dataSource, "SELECT count(*) FROM staff_rollback_item WHERE punishment_identifier = 'kick-1' AND kind = 'KICK'"),
+                "the kick is frozen with the set, so a later mark acts on the confirmed set");
     }
 
     @Test

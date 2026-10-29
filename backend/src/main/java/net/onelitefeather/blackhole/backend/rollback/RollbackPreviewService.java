@@ -11,15 +11,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Builds the read-only preview of a rollback: it counts the matching punishments and freezes the
- * revocable ones into a {@code PREVIEW} job. It never changes a punishment, a slot, an ELO score or a case.
+ * revocable ones, and every matching kick, into a {@code PREVIEW} job. A kick is frozen even when the
+ * admin does not ask for marks, so the confirmed set is the set that runs; the execution decides whether
+ * the kicks are marked. It never changes a punishment, a slot, an ELO score or a case.
  */
 @Singleton
 public class RollbackPreviewService {
 
     private static final String PUNISHMENT = "PUNISHMENT";
+    private static final String KICK = "KICK";
 
     private final RollbackSelectionReader selection;
     private final RollbackJobStore jobs;
@@ -65,14 +69,15 @@ public class RollbackPreviewService {
                 .filter(row -> row.revocable() && PUNISHMENT.equals(row.kind())).toList();
         int alreadyInactive = (int) rows.stream()
                 .filter(row -> !row.revocable() && PUNISHMENT.equals(row.kind())).count();
-        if (revocable.size() > this.maxItems) {
+        List<RollbackSelectionReader.Candidate> kicks = rows.stream().filter(row -> KICK.equals(row.kind())).toList();
+        if (revocable.size() + kicks.size() > this.maxItems) {
             return error(ErrorKind.ROLLBACK_TOO_LARGE, "more than " + this.maxItems + " punishments match; narrow the window");
         }
 
         UUID jobId = UUID.randomUUID();
         long now = this.clock.millis();
         long expiresAt = now + this.previewTtl.toMillis();
-        List<RollbackJobStore.FrozenItem> frozen = revocable.stream()
+        List<RollbackJobStore.FrozenItem> frozen = Stream.concat(revocable.stream(), kicks.stream())
                 .map(row -> new RollbackJobStore.FrozenItem(row.identifier(), row.owner(), row.sectionKey(), row.kind()))
                 .toList();
         this.jobs.insertPreview(new RollbackJobStore.PreviewJob(jobId, requestedByOid, selector, request.windowFrom(),
@@ -83,7 +88,8 @@ public class RollbackPreviewService {
         Map<String, Integer> bySection = revocable.stream()
                 .collect(Collectors.groupingBy(RollbackSelectionReader.Candidate::sectionKey, Collectors.summingInt(row -> 1)));
         int players = (int) revocable.stream().map(RollbackSelectionReader.Candidate::owner).distinct().count();
-        return new RollbackDTO.Response(jobId, "PREVIEW", expiresAt, revocable.size(), alreadyInactive, players, byKind, bySection);
+        return new RollbackDTO.Response(jobId, "PREVIEW", expiresAt, revocable.size(), alreadyInactive, players, kicks.size(),
+                byKind, bySection);
     }
 
     private static RollbackDTO.Error error(ErrorKind kind, String message) {

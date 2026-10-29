@@ -43,7 +43,7 @@ public class RollbackController implements RollbackApi {
     @Override
     @Secured(Roles.ADMIN)
     public HttpResponse<RollbackDTO> execute(UUID id, RollbackDTO.ExecuteRequest request, @Nullable String idempotencyKey) {
-        return reply(this.execution.start(id, request.reason(), idempotencyKey, request.suspendLink()), HttpStatus.ACCEPTED);
+        return reply(this.execution.start(id, request.reason(), idempotencyKey, request.suspendLink(), request.includeMarks()), HttpStatus.ACCEPTED);
     }
 
     @Override
