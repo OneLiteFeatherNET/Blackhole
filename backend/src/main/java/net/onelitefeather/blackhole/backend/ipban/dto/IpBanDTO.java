@@ -15,7 +15,7 @@ import java.util.UUID;
  * Wire contract of {@code /ipban}. A ban carries the clear address or range, so it is staff only; the proxy's list
  * ({@link ActiveList}) carries no actor and no case.
  */
-@Schema(description = "IP bans: one address or range, held at the firewall and on the proxy")
+@Schema(description = "IP bans: one address or range, held at the firewall through its pull feed")
 @Serdeable
 public sealed interface IpBanDTO {
 

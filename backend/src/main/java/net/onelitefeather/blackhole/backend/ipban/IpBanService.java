@@ -28,14 +28,16 @@ public class IpBanService {
     private final IpBanStore store;
     private final IpBanProtection protection;
     private final IpBanEvents events;
+    private final IpBanChanges changes;
     private final Clock clock;
     private final Duration moderatorMaxDuration;
 
-    public IpBanService(IpBanStore store, IpBanProtection protection, IpBanEvents events, Clock clock,
+    public IpBanService(IpBanStore store, IpBanProtection protection, IpBanEvents events, IpBanChanges changes, Clock clock,
                         @Value("${blackhole.ipban.moderator-max-duration:P30D}") Duration moderatorMaxDuration) {
         this.store = store;
         this.protection = protection;
         this.events = events;
+        this.changes = changes;
         this.clock = clock;
         this.moderatorMaxDuration = moderatorMaxDuration;
     }
@@ -96,6 +98,7 @@ public class IpBanService {
             return error(ErrorKind.CONFLICT, "ALREADY_BANNED", "this range is already banned; the existing ban is unchanged");
         }
         this.events.created(id, now);
+        this.changes.changed();
         return response(record, warnings);
     }
 
@@ -121,6 +124,7 @@ public class IpBanService {
             return error(ErrorKind.CONFLICT, "IPBAN_NOT_ACTIVE", "this IP ban is not active");
         }
         this.events.lifted(banId.get(), now);
+        this.changes.changed();
         IpBanRecord banned = current.get();
         return response(new IpBanRecord(banned.id(), banned.network(), banned.reason(), banned.templateKey(),
                 banned.source(), banned.punishmentId(), banned.caseId(), banned.actorOid(), banned.createdAt(),

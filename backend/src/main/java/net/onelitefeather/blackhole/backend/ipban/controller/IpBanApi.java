@@ -19,7 +19,7 @@ public interface IpBanApi {
 
     @Operation(
             summary = "Ban an IP address or range",
-            description = "Holds one IPv4 or IPv6 address, or a CIDR range, at the firewall alias and on the proxies. A moderator "
+            description = "Holds one IPv4 or IPv6 address, or a CIDR range, at the firewall, which pulls it from the feeds. A moderator "
                     + "may ban for at most blackhole.ipban.moderator-max-duration; an administrator may ban permanently. A range "
                     + "wider than /16 (IPv4) or /32 (IPv6), and any protected network, is refused.",
             operationId = "createIpBan",

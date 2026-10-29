@@ -19,6 +19,8 @@ public final class NatsStreams {
 
     private static final Duration DUPLICATE_WINDOW = Duration.ofMinutes(2);
     private static final Duration ACK_WAIT = Duration.ofSeconds(30);
+    /** An ephemeral consumer that has not pulled for this long is deleted by the server. */
+    private static final Duration EPHEMERAL_INACTIVE = Duration.ofSeconds(30);
 
     private NatsStreams() {
         throw new UnsupportedOperationException("This class cannot be instantiated");
@@ -58,6 +60,23 @@ public final class NatsStreams {
                 .ackWait(ACK_WAIT)
                 .deliverPolicy(DeliverPolicy.New)
                 .maxDeliver(1)
+                .build();
+    }
+
+    /**
+     * A non-durable pull consumer for one replica: no name, explicit ack, one attempt, starting with new messages. The server
+     * deletes it after {@link #EPHEMERAL_INACTIVE} without a pull, so a replica that is gone (a rollout, a crash) leaves no
+     * consumer behind.
+     */
+    public static ConsumerConfiguration ephemeral(List<String> eventTypes) {
+        List<String> filters = eventTypes.stream().map(EventSubjects::forEventType).toList();
+        return ConsumerConfiguration.builder()
+                .filterSubjects(filters)
+                .ackPolicy(AckPolicy.Explicit)
+                .ackWait(ACK_WAIT)
+                .deliverPolicy(DeliverPolicy.New)
+                .maxDeliver(1)
+                .inactiveThreshold(EPHEMERAL_INACTIVE)
                 .build();
     }
 }

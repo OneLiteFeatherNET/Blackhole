@@ -67,4 +67,21 @@ class JdbcIpBanStoreIntegrationTest extends PostgresIntegrationTest {
         assertEquals(1, this.store.liftExpired("203.0.113.7/32", NOW), "the expired row is closed");
         assertTrue(this.store.insert(ban("203.0.113.7", null)), "and the range can be banned again");
     }
+
+    @Test
+    void theMarkerOfAnEmptyTableIsAllZeros() {
+        assertEquals(new IpBanStore.Marker(0, 0, 0), this.store.marker(), "no rows, no creation and no lift");
+    }
+
+    @Test
+    void theMarkerMovesWhenABanIsWrittenAndWhenItIsLifted() {
+        IpBanRecord first = ban("203.0.113.7", null);
+        this.store.insert(first);
+        assertEquals(new IpBanStore.Marker(1, NOW - 10, 0), this.store.marker(),
+                "a write shows as one more row and as the newest creation time");
+
+        this.store.lift(first.id(), IpBanFixture.ADMIN_OID, "False positive", NOW);
+        assertEquals(new IpBanStore.Marker(1, NOW - 10, NOW), this.store.marker(),
+                "a lift shows as the newest lift time, so a replica that missed the event still sees the change");
+    }
 }

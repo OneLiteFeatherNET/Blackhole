@@ -28,6 +28,7 @@ public final class IpBanFixture {
     public final FakeStore store = new FakeStore();
     final List<DomainEvent> events = new ArrayList<>();
     final List<String> eventTypes = new ArrayList<>();
+    final List<Integer> changes = new ArrayList<>();
     public final Clock clock = Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC);
     final IpBanService service;
 
@@ -39,7 +40,7 @@ public final class IpBanFixture {
         };
         DomainEventPublisher publisher = new DomainEventPublisher(transport, this.clock);
         this.service = new IpBanService(this.store, new IpBanProtection(""), new IpBanEvents(publisher),
-                this.clock, Duration.ofDays(30));
+                () -> this.changes.add(1), this.clock, Duration.ofDays(30));
     }
 
     public static Actor moderator() {
@@ -54,6 +55,13 @@ public final class IpBanFixture {
     public static final class FakeStore implements IpBanStore {
 
         public final Map<UUID, IpBanRecord> rows = new HashMap<>();
+
+        @Override
+        public Marker marker() {
+            long created = this.rows.values().stream().mapToLong(IpBanRecord::createdAt).max().orElse(0);
+            long lifted = this.rows.values().stream().filter(row -> row.liftedAt() != null).mapToLong(IpBanRecord::liftedAt).max().orElse(0);
+            return new Marker(this.rows.size(), created, lifted);
+        }
 
         @Override
         public Optional<IpBanRecord> find(UUID id) {

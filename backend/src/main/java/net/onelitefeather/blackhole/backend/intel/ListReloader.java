@@ -46,7 +46,7 @@ public class ListReloader {
     }
 
     /** @return the comma-separated AS numbers; an entry that is not a number fails the start-up, on purpose */
-    static Set<Long> parseAsns(String csv) {
+    public static Set<Long> parseAsns(String csv) {
         Set<Long> asns = new HashSet<>();
         if (csv == null || csv.isBlank()) {
             return asns;

@@ -488,6 +488,21 @@ blackhole:
     # Comma-separated CIDR ranges that may never be banned, in addition to loopback, link-local, RFC 1918 and ULA.
     # Add the edge ranges of your proxy here.
     protected-networks: ${BLACKHOLE_IPBAN_PROTECTED_NETWORKS:}
+  # Firewall pull feeds (openspec add-ip-bans-via-firewall, decisions 2 to 4). Off until a client has a hash file.
+  firewall:
+    feed:
+      # Comma-separated client names ([a-z0-9-]{1,32}); each needs a file of that name in secrets-dir holding the SHA-256 hex of its token.
+      clients: ${BLACKHOLE_FIREWALL_FEED_CLIENTS:}
+      # Mounted secret directory: one hash file per client, and <name>.next during a token rotation.
+      secrets-dir: ${BLACKHOLE_FIREWALL_FEED_SECRETS_DIR:/etc/blackhole/firewall-feed}
+      # Optional source allow-list: IP addresses and CIDR ranges only. Empty admits every peer.
+      allowed-sources: ${BLACKHOLE_FIREWALL_FEED_ALLOWED_SOURCES:}
+      # The IntelClass values whose DENY policy adds their list ranges to the networks feed.
+      vpn-classes: ${BLACKHOLE_FIREWALL_FEED_VPN_CLASSES:VPN,HOSTING,PROXY}
+      # How often the feeds check whether they are stale. A rebuild happens only then: a ban was written or lifted on any
+      # replica (the marker of the ban table changed, which also covers a lost event), a list generation changed, or an
+      # entry expired. A quiet check reads one marker aggregate and the source versions.
+      rebuild-interval: ${BLACKHOLE_FIREWALL_FEED_REBUILD_INTERVAL:PT60S}
   evasion:
     ip-salt: ${BLACKHOLE_EVASION_IP_SALT:}
     detection-window-days: ${BLACKHOLE_EVASION_DETECTION_WINDOW_DAYS:7}

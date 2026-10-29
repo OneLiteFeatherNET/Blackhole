@@ -157,6 +157,7 @@ class IpBanServiceTest {
 
         assertTrue(fixture.eventTypes.contains(IpBanEvents.CREATED), "the created event is published");
         assertTrue(fixture.eventTypes.contains(IpBanEvents.CHANGED), "the change event is published");
+        assertEquals(1, fixture.changes.size(), "the feeds are told once about the new ban");
         fixture.events.forEach(event -> assertFalse(event.payload().toString().contains("203.0.113.7"),
                 "no published event carries the address: " + event.eventType()));
     }

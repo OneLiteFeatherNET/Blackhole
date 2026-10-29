@@ -7,6 +7,21 @@ import java.util.UUID;
 /** Persistence of IP bans. The service and the firewall work through this interface; tests use an in-memory fake. */
 public interface IpBanStore {
 
+    /**
+     * A cheap summary of the table that changes whenever a ban is written, lifted or deleted: the row count, the newest
+     * creation time and the newest lift time. The firewall feeds compare it between ticks, so a change another replica made
+     * is seen even when its event was lost. Read as one aggregate.
+     *
+     * @param rows          the number of rows
+     * @param latestCreated the newest {@code created_at}, 0 when there are no rows
+     * @param latestLifted  the newest {@code lifted_at}, 0 when no ban was ever lifted
+     */
+    record Marker(long rows, long latestCreated, long latestLifted) {
+    }
+
+    /** @return the marker of the table as it is now */
+    Marker marker();
+
     Optional<IpBanRecord> find(UUID id);
 
     /** Every row that is active at {@code now}. */

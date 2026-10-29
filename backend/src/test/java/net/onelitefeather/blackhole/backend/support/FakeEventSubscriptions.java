@@ -23,6 +23,12 @@ public class FakeEventSubscriptions implements EventSubscriptionFactory {
         return () -> this.closed = true;
     }
 
+    @Override
+    public EventSubscription subscribeEphemeral(List<String> eventTypes, EventHandler eventHandler) {
+        this.handler = eventHandler;
+        return () -> this.closed = true;
+    }
+
     /** Hands one event to the handler the way a broker adapter would. */
     public void deliver(DomainEvent event) throws Exception {
         this.handler.handle(event);

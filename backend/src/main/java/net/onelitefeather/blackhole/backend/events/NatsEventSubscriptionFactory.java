@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.events;
 
 import io.micronaut.json.JsonMapper;
+import io.nats.client.JetStream;
 import io.nats.client.JetStreamSubscription;
 import io.nats.client.Message;
 import io.nats.client.PullSubscribeOptions;
@@ -39,25 +40,38 @@ public class NatsEventSubscriptionFactory implements EventSubscriptionFactory {
 
     @Override
     public EventSubscription subscribe(EventConsumer consumer, EventHandler handler) {
-        PullLoop loop = new PullLoop(consumer, handler);
+        PullLoop loop = new PullLoop(consumer, consumer.eventTypes(), handler);
         loop.start();
         return loop;
     }
 
+    @Override
+    public EventSubscription subscribeEphemeral(List<String> eventTypes, EventHandler handler) {
+        PullLoop loop = new PullLoop(null, List.copyOf(eventTypes), handler);
+        loop.start();
+        return loop;
+    }
+
+    /** @param consumer the durable to bind, or null for an ephemeral consumer that is created on each (re)connect */
     private final class PullLoop implements EventSubscription, Runnable {
 
         private final EventConsumer consumer;
+        private final List<String> eventTypes;
+        private final String label;
         private final EventHandler handler;
         private final CountDownLatch closed = new CountDownLatch(1);
         private Thread thread;
 
-        PullLoop(EventConsumer consumer, EventHandler handler) {
+        PullLoop(EventConsumer consumer, List<String> eventTypes, EventHandler handler) {
             this.consumer = consumer;
+            this.eventTypes = eventTypes;
+            this.label = consumer == null ? "ephemeral " + eventTypes : consumer.name();
             this.handler = handler;
         }
 
         void start() {
-            this.thread = Thread.ofPlatform().daemon().name("nats-consumer-" + this.consumer.name()).start(this);
+            this.thread = Thread.ofPlatform().daemon().name("nats-consumer-" + (this.consumer == null ? "ephemeral" : this.consumer.name()))
+                    .start(this);
         }
 
         private boolean isClosed() {
@@ -74,7 +88,7 @@ public class NatsEventSubscriptionFactory implements EventSubscriptionFactory {
                         return;
                     }
                     LOGGER.warn("Consumer {} lost its NATS subscription, retrying in {}s: {}",
-                            this.consumer.name(), RETRY_SECONDS, e.getMessage());
+                            this.label, RETRY_SECONDS, e.getMessage());
                     if (awaitClosed()) {
                         return;
                     }
@@ -95,16 +109,22 @@ public class NatsEventSubscriptionFactory implements EventSubscriptionFactory {
             if (!NatsEventSubscriptionFactory.this.provisioner.ensureStream()) {
                 throw new IllegalStateException("the stream " + NatsStreams.STREAM + " is not available");
             }
-            NatsEventSubscriptionFactory.this.provisioner.ensureConsumer(this.consumer);
-            JetStreamSubscription subscription = NatsEventSubscriptionFactory.this.connections.await(Duration.ofSeconds(10)).jetStream()
-                    .subscribe(null, PullSubscribeOptions.bind(NatsStreams.STREAM, this.consumer.name()));
-            LOGGER.info("Consumer {} is pulling from {}", this.consumer.name(), NatsStreams.STREAM);
+            JetStream jetStream = NatsEventSubscriptionFactory.this.connections.await(Duration.ofSeconds(10)).jetStream();
+            JetStreamSubscription subscription;
+            if (this.consumer == null) {
+                subscription = jetStream.subscribe(null, PullSubscribeOptions.builder().stream(NatsStreams.STREAM)
+                        .configuration(NatsStreams.ephemeral(this.eventTypes)).build());
+            } else {
+                NatsEventSubscriptionFactory.this.provisioner.ensureConsumer(this.consumer);
+                subscription = jetStream.subscribe(null, PullSubscribeOptions.bind(NatsStreams.STREAM, this.consumer.name()));
+            }
+            LOGGER.info("Consumer {} is pulling from {}", this.label, NatsStreams.STREAM);
             try {
                 while (!isClosed()) {
                     List<Message> messages = subscription.fetch(BATCH, FETCH_WAIT);
                     for (Message message : messages) {
                         NatsDelivery.deliver(message.getData(), NatsEventSubscriptionFactory.this.mapper,
-                                this.consumer.name(), this.handler, message::ack);
+                                this.label, this.handler, message::ack);
                     }
                 }
             } finally {

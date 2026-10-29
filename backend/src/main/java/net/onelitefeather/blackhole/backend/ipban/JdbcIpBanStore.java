@@ -27,6 +27,7 @@ public class JdbcIpBanStore implements IpBanStore {
     private static final String FIND = "SELECT " + COLUMNS + " FROM ip_bans WHERE id = ?";
     private static final String ACTIVE = "SELECT " + COLUMNS
             + " FROM ip_bans WHERE lifted_at IS NULL AND (expires_at IS NULL OR expires_at > ?) ORDER BY created_at, id";
+    private static final String MARKER = "SELECT count(*), coalesce(max(created_at), 0), coalesce(max(lifted_at), 0) FROM ip_bans";
     private static final String NEWEST = "SELECT " + COLUMNS + " FROM ip_bans ORDER BY created_at DESC, id LIMIT ?";
     private static final String INSERT = """
             INSERT INTO ip_bans (id, network, family, prefix_length, reason, template_key, source, punishment_id, case_id,
@@ -71,6 +72,18 @@ public class JdbcIpBanStore implements IpBanStore {
     @Override
     public List<IpBanRecord> active(long now) {
         return query(ACTIVE, statement -> statement.setLong(1, now));
+    }
+
+    @Override
+    public Marker marker() {
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(MARKER);
+             ResultSet row = statement.executeQuery()) {
+            row.next();
+            return new Marker(row.getLong(1), row.getLong(2), row.getLong(3));
+        } catch (SQLException e) {
+            throw new IllegalStateException("could not read the IP ban marker", e);
+        }
     }
 
     @Override
