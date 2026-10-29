@@ -6,6 +6,7 @@ import type { ApiError, EloEvent, EloProfile, EloSectionScore, Punishment, Punis
 import { useResource } from '../../composables/useResource'
 import { useLookupStore } from '../../stores/lookup'
 import { useSessionStore } from '../../stores/session'
+import ExemptionBadge from '../exemption/ExemptionBadge.vue'
 import KickDialog from '../kick/KickDialog.vue'
 import MdButton from '../md/MdButton.vue'
 import MdSnackbar from '../md/MdSnackbar.vue'
@@ -122,6 +123,7 @@ async function warned(done: string): Promise<void> {
     @retry="player.reload"
   >
     <div v-if="player.data.value" class="flex flex-col gap-8">
+      <ExemptionBadge :owner="owner" />
       <header v-if="session.moderator" class="flex flex-wrap justify-end gap-2">
         <MdButton variant="outlined" data-testid="open-warn" @click="warnOpen = true">{{ t('warn.open') }}</MdButton>
         <MdButton variant="outlined" data-testid="open-kick" @click="kickOpen = true">{{ t('kick.open') }}</MdButton>

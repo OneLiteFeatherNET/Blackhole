@@ -31,7 +31,7 @@ export function ok<T>(data: T): ApiResult<T> {
   return { ok: true, data }
 }
 
-export function fail<T = never>(message: string, status = 400, kind: 'VALIDATION' | 'NOT_FOUND' | 'CONFLICT' | 'NETWORK' | 'UNKNOWN' = 'VALIDATION'): ApiResult<T> {
+export function fail<T = never>(message: string, status = 400, kind: 'VALIDATION' | 'NOT_FOUND' | 'CONFLICT' | 'TARGET_EXEMPT' | 'NETWORK' | 'UNKNOWN' = 'VALIDATION'): ApiResult<T> {
   return { ok: false, error: { status, message, kind } }
 }
 
