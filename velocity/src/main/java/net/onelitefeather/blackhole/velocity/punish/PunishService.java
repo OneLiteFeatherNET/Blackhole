@@ -113,9 +113,10 @@ public final class PunishService {
      * ways. If chat capture is on, the target's buffered chat is posted as evidence first and claimed
      * by the punishment; a failing upload never stops the punishment. Never throws for an expected failure.
      *
+     * @param playerUuid the player's raw UUID, or null when unknown; see {@link BackendGateway#apply}
      * @param warningOnly whether the step the ladder reaches must be a warning; see {@link BackendGateway#apply}
      */
-    public ApplyOutcome apply(String owner, String templateKey, UUID source, Set<EnforcementKind> allowed, boolean warningOnly) {
+    public ApplyOutcome apply(String owner, UUID playerUuid, String templateKey, UUID source, Set<EnforcementKind> allowed, boolean warningOnly) {
         List<PunishTemplateResponse> templates;
         try {
             templates = this.backend.templates();
@@ -133,7 +134,7 @@ public final class PunishService {
         }
         ChatEvidence.Result evidence = this.chatEvidence.attach(owner, source);
         try {
-            return new ApplyOutcome.Applied(this.backend.apply(owner, templateKey, source, evidence.correlationId(), warningOnly), section, evidence);
+            return new ApplyOutcome.Applied(this.backend.apply(owner, playerUuid, templateKey, source, evidence.correlationId(), warningOnly), section, evidence);
         } catch (ApiException e) {
             LOGGER.error("Applying template {} to {} failed with status {}: {}", templateKey, owner, e.getCode(), e.getMessage());
             return new ApplyOutcome.Failed(e.getCode());

@@ -106,12 +106,16 @@ public final class HttpBackendGateway implements BackendGateway {
     }
 
     @Override
-    public PunishmentApplyResponse apply(String owner, String templateKey, UUID source, String evidenceCorrelationId, boolean warningOnly) throws ApiException {
+    public PunishmentApplyResponse apply(String owner, UUID playerUuid, String templateKey, UUID source, String evidenceCorrelationId, boolean warningOnly) throws ApiException {
         PunishmentApplyRequest request = new PunishmentApplyRequest()
                 .owner(owner).templateKey(templateKey).onBehalfOf(source).evidenceCorrelationId(evidenceCorrelationId);
         // An ordinary apply sends no flag at all, exactly as before warnings existed.
         if (warningOnly) {
             request.warningOnly(true);
+        }
+        // The UUID is sent only when the plugin knows it; the backend lists nothing without one.
+        if (playerUuid != null) {
+            request.playerUuid(playerUuid.toString());
         }
         return this.punishmentApi.applyPunishment(request);
     }

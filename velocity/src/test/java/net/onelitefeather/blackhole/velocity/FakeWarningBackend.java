@@ -43,7 +43,7 @@ public final class FakeWarningBackend {
                 (proxy, method, args) -> switch (method.getName()) {
                     case "templates" -> this.templates;
                     case "apply" -> {
-                        this.applied.add(args[1] + "|" + args[4]);
+                        this.applied.add(args[2] + "|" + args[5]);
                         if (this.applyFailure != null) {
                             throw this.applyFailure;
                         }

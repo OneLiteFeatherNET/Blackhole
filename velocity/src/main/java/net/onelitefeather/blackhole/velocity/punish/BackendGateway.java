@@ -39,11 +39,13 @@ public interface BackendGateway {
     /**
      * Applies the template with the given key to the owner.
      *
+     * @param playerUuid            the player's raw UUID, or null when unknown; sent next to the owner so the
+     *                              backend can list the punishment on the public ban list
      * @param evidenceCorrelationId the key chat evidence was posted under ahead of the punishment, or null
      * @param warningOnly           whether the step the ladder reaches must be a warning (the backend refuses
      *                              the apply with 422 otherwise, and applies nothing)
      */
-    PunishmentApplyResponse apply(String owner, String templateKey, UUID source, String evidenceCorrelationId, boolean warningOnly) throws ApiException;
+    PunishmentApplyResponse apply(String owner, UUID playerUuid, String templateKey, UUID source, String evidenceCorrelationId, boolean warningOnly) throws ApiException;
 
     /**
      * Posts the chat snapshot as {@code CHAT_LOG} evidence that precedes its punishment, to be claimed
