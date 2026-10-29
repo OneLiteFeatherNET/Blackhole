@@ -13,6 +13,7 @@ import io.micronaut.http.annotation.ServerFilter;
 import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.problem.ProblemDetail;
 import net.onelitefeather.blackhole.backend.problem.ProblemMapper;
+import net.onelitefeather.blackhole.backend.publicbans.PublicBanRoutes;
 
 import java.net.InetSocketAddress;
 import java.util.Map;
@@ -51,13 +52,14 @@ public class BanListAccessFilter {
         if (!this.https.isSecure(request.getUri().getScheme(), request.getHeaders().get(FORWARDED_PROTO),
                 remote == null ? null : remote.getAddress())) {
             request.setAttribute(REASON_ATTRIBUTE, "https-required");
-            return refusal(HttpStatus.FORBIDDEN, "HTTPS_REQUIRED", "The ban list is served over HTTPS only.", request.getPath(), false);
+            return refusal(HttpStatus.FORBIDDEN, "HTTPS_REQUIRED", "The ban list is served over HTTPS only.",
+                    PublicBanRoutes.template(request.getPath()), false);
         }
         BanListAuthenticator.Outcome outcome = this.authenticator.authenticate(request.getHeaders().get(HttpHeaders.AUTHORIZATION));
         if (outcome.client() == null) {
             request.setAttribute(REASON_ATTRIBUTE, reasonName(outcome.reason()));
             return refusal(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Authentication with a ban-list client is required.",
-                    request.getPath(), true);
+                    PublicBanRoutes.template(request.getPath()), true);
         }
         request.setAttribute(CLIENT_ATTRIBUTE, outcome.client());
         return null;
@@ -68,7 +70,7 @@ public class BanListAccessFilter {
         response.header(HttpHeaders.CACHE_CONTROL, NO_STORE);
         String client = request.getAttribute(CLIENT_ATTRIBUTE, String.class).orElse(null);
         String reason = request.getAttribute(REASON_ATTRIBUTE, String.class).orElse(null);
-        this.attribution.answered(client, reason, routeOf(request.getPath()), response.code());
+        this.attribution.answered(client, reason, PublicBanRoutes.label(request.getPath()), response.code());
     }
 
     private static HttpResponse<?> refusal(HttpStatus status, String code, String detail, String instance, boolean challenge) {
@@ -83,13 +85,5 @@ public class BanListAccessFilter {
 
     private static String reasonName(BanListAuthenticator.Reason reason) {
         return reason.name().toLowerCase(java.util.Locale.ROOT).replace('_', '-');
-    }
-
-    /** The route class of a path: a bounded label for the metric, never the hash itself. */
-    static String routeOf(String path) {
-        if (path.equals(ROOT) || path.equals(ROOT + "/")) {
-            return "list";
-        }
-        return path.endsWith("/summary") ? "summary" : "entry";
     }
 }

@@ -4031,25 +4031,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PublicBansPage"
+                $ref: "#/components/schemas/PublicBanPage"
         "400":
           description: A query parameter is not valid
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/PublicBansProblem"
+                $ref: "#/components/schemas/PublicBanError"
         "401":
           description: Missing, malformed or wrong Basic credentials
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/PublicBansProblem"
+                $ref: "#/components/schemas/PublicBanError"
         "403":
           description: The request did not arrive over HTTPS
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/PublicBansProblem"
+                $ref: "#/components/schemas/PublicBanError"
   /public/bans/summary:
     get:
       tags:
@@ -4065,19 +4065,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PublicBansSummary"
+                $ref: "#/components/schemas/PublicBanSummary"
         "401":
           description: Missing, malformed or wrong Basic credentials
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/PublicBansProblem"
+                $ref: "#/components/schemas/PublicBanError"
         "403":
           description: The request did not arrive over HTTPS
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/PublicBansProblem"
+                $ref: "#/components/schemas/PublicBanError"
   /public/bans/{hash}:
     get:
       tags:
@@ -4100,25 +4100,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PublicBansEntry"
+                $ref: "#/components/schemas/PublicBanEntry"
         "401":
           description: Missing, malformed or wrong Basic credentials
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/PublicBansProblem"
+                $ref: "#/components/schemas/PublicBanError"
         "403":
           description: The request did not arrive over HTTPS
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/PublicBansProblem"
+                $ref: "#/components/schemas/PublicBanError"
         "404":
           description: No entry matches the hash
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/PublicBansProblem"
+                $ref: "#/components/schemas/PublicBanError"
   /public/appeal:
     get:
       tags:
@@ -11195,7 +11195,7 @@ components:
       - CLOSED
       - ARCHIVED
       - DELETED
-    PublicBansEntry:
+    PublicBanEntry:
       type: object
       description: "One listed sanction. playerHash is the SHA-256 hex (lowercase) of the input blackhole-ban-list-v1: plus the lowercase dashed UUID, derived by the backend from the stored UUID; it is null when the punishment was applied without a UUID. hashScheme names the scheme of playerHash for the API version that answered."
       required:
@@ -11252,7 +11252,7 @@ components:
           type: string
           format: date
           nullable: true
-    PublicBansPage:
+    PublicBanPage:
       type: object
       required:
       - items
@@ -11261,12 +11261,12 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/PublicBansEntry"
+            $ref: "#/components/schemas/PublicBanEntry"
         nextCursor:
           type: string
           nullable: true
           description: The cursor of the next page, null on the last page.
-    PublicBansSummaryRow:
+    PublicBanSummaryRow:
       type: object
       required:
       - reason
@@ -11289,7 +11289,7 @@ components:
           nullable: true
         suppressed:
           type: boolean
-    PublicBansSummary:
+    PublicBanSummary:
       type: object
       required:
       - windowDays
@@ -11301,8 +11301,8 @@ components:
         reasons:
           type: array
           items:
-            $ref: "#/components/schemas/PublicBansSummaryRow"
-    PublicBansProblem:
+            $ref: "#/components/schemas/PublicBanSummaryRow"
+    PublicBanError:
       type: object
       description: An RFC 9457 problem with the machine code.
       properties:

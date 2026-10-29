@@ -11,6 +11,11 @@ import net.onelitefeather.blackhole.backend.publicbans.PublicBanReader.PageQuery
 import net.onelitefeather.blackhole.backend.publicbans.PublicBanReader.ReasonCount;
 import net.onelitefeather.blackhole.backend.publicbans.PublicBanStatus;
 import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO;
+import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO.PublicBanEntry;
+import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO.PublicBanError;
+import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO.PublicBanPage;
+import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO.PublicBanSummary;
+import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO.PublicBanSummaryRow;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -24,7 +29,7 @@ import java.util.regex.Pattern;
 
 /**
  * The read side of the public ban list: validates the query, pages with the signed cursor, rounds the stored instants to UTC
- * days and derives the status from the clock. Expected failures are returned as {@link PublicBansDTO.Error}.
+ * days and derives the status from the clock. Expected failures are returned as {@link PublicBanError}.
  */
 @Singleton
 public class PublicBansService {
@@ -67,26 +72,27 @@ public class PublicBansService {
             player = null;
         }
         if (!errors.isEmpty()) {
-            return new PublicBansDTO.Error(400, "VALIDATION", "A query parameter is not valid; see errors.", errors);
+            return new PublicBanError(400, "VALIDATION", "A query parameter is not valid; see errors.", errors);
         }
+        String filters = PublicBanCursor.filtersOf(kind, statusText, player);
         PublicBanCursor.Position after = null;
         if (cursorText != null) {
             after = this.cursors.decode(cursorText).orElse(null);
-            if (after == null) {
-                return new PublicBansDTO.Error(400, "INVALID_CURSOR", "The cursor is not valid.", List.of());
+            if (after == null || !after.filters().equals(filters)) {
+                return new PublicBanError(400, "INVALID_CURSOR", "The cursor is not valid for these filters.", List.of());
             }
         }
         long now = this.clock.millis();
         List<ListedRow> rows = this.reader.page(new PageQuery(after, kind, status, player, now, this.retention.toMillis(), limit + 1));
         boolean more = rows.size() > limit;
         List<ListedRow> shown = more ? rows.subList(0, limit) : rows;
-        List<PublicBansDTO.Entry> items = shown.stream().map(row -> entry(row, now)).toList();
+        List<PublicBanEntry> items = shown.stream().map(row -> entry(row, now)).toList();
         String next = null;
         if (more) {
             ListedRow last = shown.getLast();
-            next = this.cursors.encode(last.issuedDay(), last.hash());
+            next = this.cursors.encode(last.issuedDay(), last.hash(), filters);
         }
-        return new PublicBansDTO.Page(items, next);
+        return new PublicBanPage(items, next);
     }
 
     /** One entry by its hash; a malformed, unknown and out-of-window hash are the same not-found answer. */
@@ -101,27 +107,27 @@ public class PublicBansService {
     /** The counts per reason and kind; a row below the minimum keeps its reason but hides its counts. */
     public PublicBansDTO summary() {
         long now = this.clock.millis();
-        List<PublicBansDTO.SummaryRow> rows = this.reader.summary(now, this.retention.toMillis()).stream()
+        List<PublicBanSummaryRow> rows = this.reader.summary(now, this.retention.toMillis()).stream()
                 .map(this::summaryRow)
                 .toList();
-        return new PublicBansDTO.Summary((int) this.retention.toDays(), rows);
+        return new PublicBanSummary((int) this.retention.toDays(), rows);
     }
 
-    private PublicBansDTO.SummaryRow summaryRow(ReasonCount count) {
+    private PublicBanSummaryRow summaryRow(ReasonCount count) {
         if (count.total() < this.summaryMinCount) {
-            return new PublicBansDTO.SummaryRow(count.reason(), count.kind(), null, null, true);
+            return new PublicBanSummaryRow(count.reason(), count.kind(), null, null, true);
         }
-        return new PublicBansDTO.SummaryRow(count.reason(), count.kind(), count.active(), count.total(), false);
+        return new PublicBanSummaryRow(count.reason(), count.kind(), count.active(), count.total(), false);
     }
 
-    private static PublicBansDTO.Entry entry(ListedRow row, long now) {
+    private static PublicBanEntry entry(ListedRow row, long now) {
         PublicBanStatus status = PublicBanStatus.at(row.expiresAt(), row.revokedAt(), now);
         String endedOn = switch (status) {
             case ACTIVE -> null;
             case REVOKED -> day(row.revokedAt());
             case EXPIRED -> day(row.expiresAt());
         };
-        return new PublicBansDTO.Entry(row.hash(), row.playerHash(), HASH_SCHEME, row.reason(), row.kind(), status.name(),
+        return new PublicBanEntry(row.hash(), row.playerHash(), HASH_SCHEME, row.reason(), row.kind(), status.name(),
                 PublicBanDay.toDate(row.issuedDay()).toString(), row.expiresAt() == null,
                 row.expiresAt() == null ? null : day(row.expiresAt()), endedOn);
     }
@@ -130,8 +136,8 @@ public class PublicBansService {
         return PublicBanDay.toDate(PublicBanDay.of(epochMillis)).toString();
     }
 
-    private static PublicBansDTO.Error notFound() {
-        return new PublicBansDTO.Error(404, "NOT_FOUND", "No ban-list entry matches the request.", List.of());
+    private static PublicBanError notFound() {
+        return new PublicBanError(404, "NOT_FOUND", "No ban-list entry matches the request.", List.of());
     }
 
     private static int limit(String text, List<Map<String, String>> errors) {

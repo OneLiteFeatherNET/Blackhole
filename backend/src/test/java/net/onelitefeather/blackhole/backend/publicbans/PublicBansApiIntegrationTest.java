@@ -199,6 +199,36 @@ class PublicBansApiIntegrationTest extends ApiIntegrationTest {
         assertFalse(row.get("suppressed").asBoolean(), "the row is not suppressed");
     }
 
+    @Test
+    void aProblemNamesTheRouteTemplateAndNotTheSubmittedHash() throws Exception {
+        String submitted = "zzzzzzzzzzzzzzzzzzzzzz";
+
+        Answer notFound = ask(HttpRequest.GET("/public/bans/" + submitted).basicAuth(CLIENT, PASSWORD).header("X-Forwarded-Proto", "https"));
+        Answer unauthorized = ask(HttpRequest.GET("/public/bans/" + submitted).header("X-Forwarded-Proto", "https"));
+
+        assertEquals(404, notFound.status(), "an authenticated unknown hash is not found");
+        assertEquals("/public/bans/{hash}", notFound.json().get("instance").asText(), "the instance is the template, not the path");
+        assertEquals("/public/bans/{hash}", unauthorized.json().get("instance").asText(), "the 401 names the template too");
+        assertFalse(notFound.body().contains(submitted), "the submitted hash is not echoed");
+    }
+
+    @Test
+    void anUnauthenticatedRequestToAnUnknownPathGetsTheChallengeBeforeAnyNotFound() throws Exception {
+        Answer answer = ask(HttpRequest.GET("/public/bans/a/b/c").header("X-Forwarded-Proto", "https"));
+
+        assertEquals(401, answer.status(), "credentials are checked before routing answers 404");
+        assertEquals(CHALLENGE, answer.header("WWW-Authenticate"), "the challenge is sent");
+        assertEquals("private, no-store", answer.header("Cache-Control"), "the refusal is not stored");
+    }
+
+    @Test
+    void aFrameworkNotFoundUnderTheBanListIsNotStored() throws Exception {
+        Answer answer = ask(HttpRequest.GET("/public/bans/a/b/c").basicAuth(CLIENT, PASSWORD).header("X-Forwarded-Proto", "https"));
+
+        assertEquals(404, answer.status(), "an unrouted path under the prefix is not found");
+        assertEquals("private, no-store", answer.header("Cache-Control"), "the framework's 404 is not stored either");
+    }
+
     private Answer ask(HttpRequest<?> request) throws IOException {
         try (HttpClient client = HttpClient.create(this.server.getURL())) {
             HttpResponse<String> response = client.toBlocking().exchange(request, String.class);

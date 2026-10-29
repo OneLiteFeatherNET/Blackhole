@@ -62,6 +62,10 @@ public class BanListHttpsGuard {
         static Network parse(String text) {
             int slash = text.indexOf('/');
             String literal = slash < 0 ? text : text.substring(0, slash);
+            if (!isIpLiteral(literal)) {
+                throw new IllegalStateException("BLACKHOLE_BAN_LIST_TRUSTED_INGRESS must hold IP addresses or CIDR blocks, "
+                        + "not host names (no DNS is consulted at startup)");
+            }
             try {
                 byte[] address = unmapped(InetAddress.getByName(literal).getAddress());
                 int prefix = slash < 0 ? address.length * 8 : Integer.parseInt(text.substring(slash + 1));
@@ -72,6 +76,14 @@ public class BanListHttpsGuard {
             } catch (java.net.UnknownHostException | NumberFormatException e) {
                 throw new IllegalStateException("BLACKHOLE_BAN_LIST_TRUSTED_INGRESS must hold IP addresses or CIDR blocks", e);
             }
+        }
+
+        /** A dotted IPv4 quad with octets up to 255, or an IPv6 literal of hex digits, colons and dots: never a host name. */
+        private static boolean isIpLiteral(String literal) {
+            if (literal.matches("\\d{1,3}(\\.\\d{1,3}){3}")) {
+                return Arrays.stream(literal.split("\\.")).allMatch(octet -> Integer.parseInt(octet) <= 255);
+            }
+            return literal.contains(":") && literal.matches("[0-9A-Fa-f:.]+");
         }
 
         boolean contains(byte[] other) {

@@ -5,18 +5,24 @@ import jakarta.inject.Singleton;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Base64;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
- * The signed keyset cursor of the public ban list: {@code base64url(day:hash) "." base64url(HMAC)}. The payload holds the
- * UTC day and the entry hash of the last entry of a page and nothing else; the signature is made with a key derived from
- * {@code BLACKHOLE_PUBLIC_BAN_KEY}, so a client cannot change the position it resumes from.
+ * The signed keyset cursor of the public ban list: {@code base64url(day:hash:filters) "." base64url(HMAC)}. The payload holds
+ * the UTC day and the entry hash of the last entry of a page, and the filters the page was issued under. The signature is
+ * made with a key derived from {@code BLACKHOLE_PUBLIC_BAN_KEY}, so a client cannot change the position it resumes from or
+ * replay a cursor under other filters.
  */
 @Singleton
 public class PublicBanCursor {
 
-    /** The sort key of the last entry of a page. */
-    public record Position(long day, String hash) {
+    /**
+     * The sort key of the last entry of a page.
+     *
+     * @param filters the filter key the page was issued under (see {@link #filtersOf})
+     */
+    public record Position(long day, String hash, String filters) {
     }
 
     private final PublicBanHasher hasher;
@@ -25,8 +31,14 @@ public class PublicBanCursor {
         this.hasher = hasher;
     }
 
-    public String encode(long day, String hash) {
-        String payload = Base64.getUrlEncoder().withoutPadding().encodeToString((day + ":" + hash).getBytes(StandardCharsets.UTF_8));
+    /** The filter key of a query: kind, status and player hash, each empty when absent. Contains no colon. */
+    public static String filtersOf(String kind, String status, String playerHash) {
+        return Objects.toString(kind, "") + "|" + Objects.toString(status, "") + "|" + Objects.toString(playerHash, "");
+    }
+
+    public String encode(long day, String hash, String filters) {
+        String payload = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString((day + ":" + hash + ":" + filters).getBytes(StandardCharsets.UTF_8));
         return payload + "." + this.hasher.signCursor(payload);
     }
 
@@ -51,12 +63,12 @@ public class PublicBanCursor {
         } catch (IllegalArgumentException e) {
             return Optional.empty();
         }
-        int colon = text.indexOf(':');
-        if (colon <= 0) {
+        String[] parts = text.split(":", 3);
+        if (parts.length != 3) {
             return Optional.empty();
         }
         try {
-            return Optional.of(new Position(Long.parseLong(text.substring(0, colon)), text.substring(colon + 1)));
+            return Optional.of(new Position(Long.parseLong(parts[0]), parts[1], parts[2]));
         } catch (NumberFormatException e) {
             return Optional.empty();
         }

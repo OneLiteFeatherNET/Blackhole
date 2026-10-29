@@ -6,6 +6,11 @@ import net.onelitefeather.blackhole.backend.publicbans.PublicBanHasher;
 import net.onelitefeather.blackhole.backend.publicbans.PublicBanReader;
 import net.onelitefeather.blackhole.backend.publicbans.PublicBanStatus;
 import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO;
+import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO.PublicBanEntry;
+import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO.PublicBanError;
+import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO.PublicBanPage;
+import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO.PublicBanSummary;
+import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO.PublicBanSummaryRow;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -46,7 +51,7 @@ class PublicBansServiceTest {
     void theDefaultPageHoldsFiftyEntriesAndPointsOnward() {
         seed(60, "NETWORK_BAN");
 
-        PublicBansDTO.Page page = assertInstanceOf(PublicBansDTO.Page.class, this.service.list(null, null, null, null, null));
+        PublicBanPage page = assertInstanceOf(PublicBanPage.class, this.service.list(null, null, null, null, null));
 
         assertEquals(50, page.items().size(), "the default limit is 50");
         assertNotNull(page.nextCursor(), "more entries follow, so a cursor is given");
@@ -59,7 +64,7 @@ class PublicBansServiceTest {
         List<String> order = new ArrayList<>();
         String cursor = null;
         do {
-            PublicBansDTO.Page page = assertInstanceOf(PublicBansDTO.Page.class, this.service.list("2", cursor, null, null, null));
+            PublicBanPage page = assertInstanceOf(PublicBanPage.class, this.service.list("2", cursor, null, null, null));
             page.items().forEach(entry -> {
                 order.add(entry.hash());
                 seen.add(entry.hash());
@@ -84,13 +89,34 @@ class PublicBansServiceTest {
     @Test
     void aTamperedCursorIsAnInvalidCursorError() {
         seed(3, "NETWORK_BAN");
-        String cursor = assertInstanceOf(PublicBansDTO.Page.class, this.service.list("1", null, null, null, null)).nextCursor();
+        String cursor = assertInstanceOf(PublicBanPage.class, this.service.list("1", null, null, null, null)).nextCursor();
         String tampered = (cursor.charAt(0) == 'A' ? "B" : "A") + cursor.substring(1);
 
-        PublicBansDTO.Error error = assertInstanceOf(PublicBansDTO.Error.class, this.service.list("1", tampered, null, null, null));
+        PublicBanError error = assertInstanceOf(PublicBanError.class, this.service.list("1", tampered, null, null, null));
 
         assertEquals("INVALID_CURSOR", error.code(), "a cursor that fails its signature is an invalid cursor");
         assertEquals(400, error.status(), "an invalid cursor is a bad request");
+    }
+
+    @Test
+    void aCursorReplayedUnderAnotherKindIsAnInvalidCursor() {
+        seed(3, "NETWORK_BAN");
+        seed(3, "MUTE");
+        String cursor = assertInstanceOf(PublicBanPage.class, this.service.list("1", null, "NETWORK_BAN", null, null)).nextCursor();
+
+        PublicBanError error = assertInstanceOf(PublicBanError.class, this.service.list("1", cursor, "MUTE", null, null));
+
+        assertEquals("INVALID_CURSOR", error.code(), "a cursor binds the filters it was issued under");
+    }
+
+    @Test
+    void aCursorOfAnUnfilteredPageIsRefusedUnderAStatusFilter() {
+        seed(3, "NETWORK_BAN");
+        String cursor = assertInstanceOf(PublicBanPage.class, this.service.list("1", null, null, null, null)).nextCursor();
+
+        PublicBanError error = assertInstanceOf(PublicBanError.class, this.service.list("1", cursor, null, "ACTIVE", null));
+
+        assertEquals("INVALID_CURSOR", error.code(), "an added filter is not a continuation of the same page");
     }
 
     @Test
@@ -98,7 +124,7 @@ class PublicBansServiceTest {
         seed(2, "NETWORK_BAN");
         seed(2, "MUTE");
 
-        PublicBansDTO.Page page = assertInstanceOf(PublicBansDTO.Page.class, this.service.list(null, null, "MUTE", null, null));
+        PublicBanPage page = assertInstanceOf(PublicBanPage.class, this.service.list(null, null, "MUTE", null, null));
 
         assertEquals(2, page.items().size(), "two mutes are listed");
         assertTrue(page.items().stream().allMatch(entry -> "MUTE".equals(entry.kind())), "only mutes come back");
@@ -109,9 +135,9 @@ class PublicBansServiceTest {
         this.reader.add(row(HASH_A, "NETWORK_BAN", null, null, NOW_MS - 1_000));
         this.reader.add(row(HASH_B, "NETWORK_BAN", null, null, null));
 
-        PublicBansDTO.Page page = assertInstanceOf(PublicBansDTO.Page.class, this.service.list(null, null, null, "REVOKED", null));
+        PublicBanPage page = assertInstanceOf(PublicBanPage.class, this.service.list(null, null, null, "REVOKED", null));
 
-        assertEquals(List.of(HASH_A), page.items().stream().map(PublicBansDTO.Entry::hash).toList(), "only the revoked entry matches");
+        assertEquals(List.of(HASH_A), page.items().stream().map(PublicBanEntry::hash).toList(), "only the revoked entry matches");
     }
 
     @Test
@@ -119,16 +145,16 @@ class PublicBansServiceTest {
         this.reader.add(withPlayer(row(HASH_A, "NETWORK_BAN", null, null, null), VECTOR_PLAYER_HASH));
         this.reader.add(withPlayer(row(HASH_B, "NETWORK_BAN", null, null, null), "f".repeat(64)));
 
-        PublicBansDTO.Page page = assertInstanceOf(PublicBansDTO.Page.class,
+        PublicBanPage page = assertInstanceOf(PublicBanPage.class,
                 this.service.list(null, null, null, null, VECTOR_PLAYER_HASH.toUpperCase()));
 
-        assertEquals(List.of(HASH_A), page.items().stream().map(PublicBansDTO.Entry::hash).toList(),
+        assertEquals(List.of(HASH_A), page.items().stream().map(PublicBanEntry::hash).toList(),
                 "an uppercase filter matches the lowercase stored value and returns only that player");
     }
 
     @Test
     void aPlayerHashOfTheWrongLengthIsRefusedWithoutEchoingIt() {
-        PublicBansDTO.Error error = assertInstanceOf(PublicBansDTO.Error.class,
+        PublicBanError error = assertInstanceOf(PublicBanError.class,
                 this.service.list(null, null, null, null, VECTOR_PLAYER_HASH.substring(1)));
 
         assertEquals(List.of("playerHash"), fieldsOf(error), "the error names the filter");
@@ -137,7 +163,7 @@ class PublicBansServiceTest {
 
     @Test
     void aPlayerHashWithANonHexCharacterIsRefused() {
-        PublicBansDTO.Error error = assertInstanceOf(PublicBansDTO.Error.class,
+        PublicBanError error = assertInstanceOf(PublicBanError.class,
                 this.service.list(null, null, null, null, "g" + VECTOR_PLAYER_HASH.substring(1)));
 
         assertEquals(List.of("playerHash"), fieldsOf(error), "a character outside hex is refused");
@@ -145,7 +171,7 @@ class PublicBansServiceTest {
 
     @Test
     void anUnknownPlayerHashIsAnEmptyPageWithoutACursor() {
-        PublicBansDTO.Page page = assertInstanceOf(PublicBansDTO.Page.class,
+        PublicBanPage page = assertInstanceOf(PublicBanPage.class,
                 this.service.list(null, null, null, null, VECTOR_PLAYER_HASH));
 
         assertTrue(page.items().isEmpty(), "no listed entry belongs to that player");
@@ -160,14 +186,14 @@ class PublicBansServiceTest {
         PublicBansDTO malformed = this.service.entry("short");
 
         assertEquals(unknown, malformed, "an unknown and a malformed hash answer the same body");
-        assertEquals(404, assertInstanceOf(PublicBansDTO.Error.class, unknown).status(), "both are not found");
+        assertEquals(404, assertInstanceOf(PublicBanError.class, unknown).status(), "both are not found");
     }
 
     @Test
     void anEntryOutsideTheRetentionWindowIsNotFound() {
         this.reader.add(row(HASH_A, "NETWORK_BAN", NOW_MS - Duration.ofDays(100).toMillis(), NOW_MS - Duration.ofDays(91).toMillis(), null));
 
-        assertInstanceOf(PublicBansDTO.Error.class, this.service.entry(HASH_A), "an entry that ended 91 days ago is not answered");
+        assertInstanceOf(PublicBanError.class, this.service.entry(HASH_A), "an entry that ended 91 days ago is not answered");
     }
 
     @Test
@@ -175,7 +201,7 @@ class PublicBansServiceTest {
         long expiresAt = NOW_MS - Duration.ofHours(1).toMillis();
         this.reader.add(row(HASH_A, "NETWORK_BAN", NOW_MS - Duration.ofDays(2).toMillis(), expiresAt, null));
 
-        PublicBansDTO.Entry entry = assertInstanceOf(PublicBansDTO.Entry.class, this.service.entry(HASH_A));
+        PublicBanEntry entry = assertInstanceOf(PublicBanEntry.class, this.service.entry(HASH_A));
 
         assertEquals("EXPIRED", entry.status(), "the status follows the expiry instant, not the sweep");
         assertEquals(PublicBanDay.toDate(PublicBanDay.of(expiresAt)).toString(), entry.endedOn(), "endedOn is the day of the expiry");
@@ -185,7 +211,7 @@ class PublicBansServiceTest {
     void aRevokedEntryShowsItsStatusAndNoReason() {
         this.reader.add(row(HASH_A, "NETWORK_BAN", NOW_MS - Duration.ofDays(1).toMillis(), null, NOW_MS - 1_000));
 
-        PublicBansDTO.Entry entry = assertInstanceOf(PublicBansDTO.Entry.class, this.service.entry(HASH_A));
+        PublicBanEntry entry = assertInstanceOf(PublicBanEntry.class, this.service.entry(HASH_A));
 
         assertEquals("REVOKED", entry.status(), "a revoke shows as revoked");
         assertEquals("Cheating", entry.reason(), "the stored public reason is the only text");
@@ -195,7 +221,7 @@ class PublicBansServiceTest {
     void aPermanentEntryIsActiveWithNoExpiryDay() {
         this.reader.add(row(HASH_A, "NETWORK_BAN", NOW_MS - 1_000, null, null));
 
-        PublicBansDTO.Entry entry = assertInstanceOf(PublicBansDTO.Entry.class, this.service.entry(HASH_A));
+        PublicBanEntry entry = assertInstanceOf(PublicBanEntry.class, this.service.entry(HASH_A));
 
         assertTrue(entry.permanent(), "no expiry means permanent");
         assertNull(entry.expiresOn(), "a permanent entry has no expiry day");
@@ -207,7 +233,7 @@ class PublicBansServiceTest {
     void theEntryCarriesTheHashSchemeEvenWithoutAPlayerHash() {
         this.reader.add(row(HASH_A, "NETWORK_BAN", NOW_MS - 1_000, null, null));
 
-        PublicBansDTO.Entry entry = assertInstanceOf(PublicBansDTO.Entry.class, this.service.entry(HASH_A));
+        PublicBanEntry entry = assertInstanceOf(PublicBanEntry.class, this.service.entry(HASH_A));
 
         assertNull(entry.playerHash(), "no UUID was sent, so no player hash");
         assertEquals("blackhole-ban-list-v1", entry.hashScheme(), "the scheme is named on every entry");
@@ -218,14 +244,14 @@ class PublicBansServiceTest {
         long issuedAt = Instant.parse("2026-11-01T23:59:59Z").toEpochMilli();
         this.reader.add(row(HASH_A, "NETWORK_BAN", issuedAt, null, null));
 
-        PublicBansDTO.Entry entry = assertInstanceOf(PublicBansDTO.Entry.class, this.service.entry(HASH_A));
+        PublicBanEntry entry = assertInstanceOf(PublicBanEntry.class, this.service.entry(HASH_A));
 
         assertEquals("2026-11-01", entry.issuedOn(), "the day is UTC, not rounded up");
     }
 
     @Test
     void anEntryHasExactlyTheAllowedFields() {
-        List<String> fields = java.util.Arrays.stream(PublicBansDTO.Entry.class.getRecordComponents())
+        List<String> fields = java.util.Arrays.stream(PublicBanEntry.class.getRecordComponents())
                 .map(java.lang.reflect.RecordComponent::getName).toList();
 
         assertEquals(List.of("hash", "playerHash", "hashScheme", "reason", "kind", "status", "issuedOn", "permanent", "expiresOn",
@@ -236,8 +262,8 @@ class PublicBansServiceTest {
     void aReasonCountBelowTheMinimumIsSuppressedButStillNamed() {
         seed(2, "NETWORK_BAN");
 
-        PublicBansDTO.Summary summary = assertInstanceOf(PublicBansDTO.Summary.class, this.service.summary());
-        PublicBansDTO.SummaryRow row = summary.reasons().getFirst();
+        PublicBanSummary summary = assertInstanceOf(PublicBanSummary.class, this.service.summary());
+        PublicBanSummaryRow row = summary.reasons().getFirst();
 
         assertTrue(row.suppressed(), "two entries are below the minimum of five");
         assertNull(row.active(), "the active count is hidden");
@@ -250,7 +276,7 @@ class PublicBansServiceTest {
         seed(8, "NETWORK_BAN");
         this.reader.add(row(HASH_A, "NETWORK_BAN", NOW_MS - Duration.ofDays(3).toMillis(), NOW_MS - 1_000, null));
 
-        PublicBansDTO.SummaryRow row = assertInstanceOf(PublicBansDTO.Summary.class, this.service.summary()).reasons().getFirst();
+        PublicBanSummaryRow row = assertInstanceOf(PublicBanSummary.class, this.service.summary()).reasons().getFirst();
 
         assertFalse(row.suppressed(), "eight entries are above the minimum");
         assertEquals(Long.valueOf(8), row.active(), "eight of the nine entries are active, the expired one is not");
@@ -258,12 +284,12 @@ class PublicBansServiceTest {
     }
 
     private void assertLimitRefused(String limit) {
-        PublicBansDTO.Error error = assertInstanceOf(PublicBansDTO.Error.class, this.service.list(limit, null, null, null, null));
+        PublicBanError error = assertInstanceOf(PublicBanError.class, this.service.list(limit, null, null, null, null));
 
         assertEquals(List.of("limit"), fieldsOf(error), "the error names limit");
     }
 
-    private static List<String> fieldsOf(PublicBansDTO.Error error) {
+    private static List<String> fieldsOf(PublicBanError error) {
         return error.errors().stream().map(entry -> entry.get("field")).toList();
     }
 

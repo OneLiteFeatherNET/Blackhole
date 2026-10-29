@@ -227,6 +227,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /public/bans", BASIC_CLIENT),
             Map.entry("GET /public/bans/summary", BASIC_CLIENT),
             Map.entry("GET /public/bans/{hash}", BASIC_CLIENT),
+            Map.entry("GET /public/bans/{hash}/{rest:.+}", BASIC_CLIENT),
             // the case's live signal: viewers and above (the proxy and the Discord bot are denied)
             Map.entry("GET /case/{reference}/events", V)
     );

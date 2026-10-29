@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.net.InetAddress;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BanListHttpsGuardTest {
@@ -35,6 +36,25 @@ class BanListHttpsGuardTest {
     void anExactAddressEntryMatchesOnlyThatAddress() throws Exception {
         assertTrue(GUARD.isSecure("http", "https", address("127.0.0.1")), "a single address is trusted");
         assertFalse(GUARD.isSecure("http", "https", address("127.0.0.2")), "its neighbour is not");
+    }
+
+    @Test
+    void aHostNameInTheTrustedIngressConfigurationFailsTheStartWithoutDns() {
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> new BanListHttpsGuard("ingress.example.com"), "a host name is refused, not resolved");
+
+        assertTrue(failure.getMessage().contains("host names"), "the message says what is allowed");
+    }
+
+    @Test
+    void aMalformedAddressInTheTrustedIngressConfigurationFailsTheStart() {
+        assertThrows(IllegalStateException.class, () -> new BanListHttpsGuard("10.0.0.999"), "an octet above 255 is refused");
+        assertThrows(IllegalStateException.class, () -> new BanListHttpsGuard("10.0.0.0/33"), "a prefix above 32 is refused");
+    }
+
+    @Test
+    void anIpv6LiteralIsAcceptedAsTrustedIngress() throws Exception {
+        assertTrue(new BanListHttpsGuard("::1").isSecure("http", "https", address("::1")), "the IPv6 loopback literal is trusted");
     }
 
     private static InetAddress address(String literal) throws Exception {

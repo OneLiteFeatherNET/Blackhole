@@ -14,10 +14,17 @@ import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.problem.ProblemDetail;
 import net.onelitefeather.blackhole.backend.problem.ProblemMapper;
+import net.onelitefeather.blackhole.backend.publicbans.PublicBanRoutes;
 import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO;
+import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO.PublicBanEntry;
+import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO.PublicBanError;
+import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO.PublicBanPage;
+import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO.PublicBanSummary;
+import net.onelitefeather.blackhole.backend.publicbans.dto.PublicBansDTO.PublicBanSummaryRow;
 import net.onelitefeather.blackhole.backend.publicbans.service.PublicBansService;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -56,23 +63,29 @@ public class PublicBansController implements PublicBansApi {
         return respond(this.service.entry(hash), request);
     }
 
+    @Override
+    @Secured(SecurityRule.IS_ANONYMOUS)
+    public HttpResponse<?> unrouted(String hash, String rest, HttpRequest<?> request) {
+        return problem(new PublicBanError(404, "NOT_FOUND", "No ban-list route matches the request.", List.of()), request);
+    }
+
     private static HttpResponse<?> respond(PublicBansDTO result, HttpRequest<?> request) {
         return switch (result) {
-            case PublicBansDTO.Entry entry -> HttpResponse.ok(entry);
-            case PublicBansDTO.Page page -> HttpResponse.ok(page);
-            case PublicBansDTO.Summary summary -> HttpResponse.ok(summary);
-            case PublicBansDTO.Error error -> problem(error, request);
+            case PublicBanEntry entry -> HttpResponse.ok(entry);
+            case PublicBanPage page -> HttpResponse.ok(page);
+            case PublicBanSummary summary -> HttpResponse.ok(summary);
+            case PublicBanError error -> problem(error, request);
         };
     }
 
-    private static HttpResponse<?> problem(PublicBansDTO.Error error, HttpRequest<?> request) {
+    private static HttpResponse<?> problem(PublicBanError error, HttpRequest<?> request) {
         Map<String, Object> extensions = new HashMap<>();
         extensions.put("code", error.code());
         if (!error.errors().isEmpty()) {
             extensions.put("errors", error.errors());
         }
         ProblemMapper.Mapped mapped = ProblemMapper.fromStatus(HttpStatus.valueOf(error.status()), error.detail(),
-                request.getPath(), extensions);
+                PublicBanRoutes.template(request.getPath()), extensions);
         return HttpResponse.status(mapped.status()).body(mapped.body()).contentType(ProblemDetail.CONTENT_TYPE);
     }
 }
