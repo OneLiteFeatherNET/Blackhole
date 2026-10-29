@@ -396,6 +396,34 @@ blackhole:
     geoip:
       asn-path: ${BLACKHOLE_INTEL_GEOIP_ASN_PATH:/data/geoip/asn.mmdb}
       city-path: ${BLACKHOLE_INTEL_GEOIP_CITY_PATH:/data/geoip/city.mmdb}
+    # VPN and hosting detection (openspec add-vpn-proxy-detection). Classification is offline: the hosting ASNs below and
+    # the enabled list sources. Sources are configuration only; the panel cannot change a URL. Each source stays off until
+    # an admin has checked a refresh. Attribution is shown in the panel; the X4BNet lists are MIT licensed.
+    hosting-asns: ${BLACKHOLE_INTEL_HOSTING_ASNS:}   # comma-separated AS numbers; empty by default, set per network
+    hit-retention: ${BLACKHOLE_INTEL_HIT_RETENTION:P90D}   # how long a VPN or hosting hit (it holds the clear address) is kept
+    login-check:
+      # Read by the Velocity proxy, which owns the call timeout. A timed-out or failed check lets the login through.
+      timeout: ${BLACKHOLE_INTEL_LOGIN_CHECK_TIMEOUT:PT1S}
+    lists:
+      # How often each enabled source is downloaded, and the delay before the first download after start-up.
+      refresh-interval: ${BLACKHOLE_INTEL_LISTS_REFRESH_INTERVAL:PT6H}
+      refresh-initial-delay: ${BLACKHOLE_INTEL_LISTS_REFRESH_INITIAL_DELAY:PT1M}
+      # How often a replica checks the active generations and reloads its in-memory classifier when they changed.
+      reload-interval: ${BLACKHOLE_INTEL_LISTS_RELOAD_INTERVAL:PT5M}
+      sweep-cron: ${BLACKHOLE_INTEL_LISTS_SWEEP_CRON:`0 20 * * * *`}
+      sources:
+        # X4BNet lists_vpn, MIT, copyright 2024 X4B (Mathew Heard). output/vpn is known VPN networks.
+        x4bnet-vpn:
+          kind: VPN
+          url: ${BLACKHOLE_INTEL_LISTS_X4BNET_VPN_URL:`https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output/vpn/ipv4.txt`}
+          enabled: ${BLACKHOLE_INTEL_LISTS_X4BNET_VPN_ENABLED:false}
+          attribution: "X4BNet lists_vpn, MIT, copyright 2024 X4B (Mathew Heard), https://github.com/X4BNet/lists_vpn"
+        # X4BNet lists_vpn. output/datacenter is VPN and datacenter ranges, so it is classified as hosting.
+        x4bnet-datacenter:
+          kind: HOSTING
+          url: ${BLACKHOLE_INTEL_LISTS_X4BNET_DATACENTER_URL:`https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output/datacenter/ipv4.txt`}
+          enabled: ${BLACKHOLE_INTEL_LISTS_X4BNET_DATACENTER_ENABLED:false}
+          attribution: "X4BNet lists_vpn, MIT, copyright 2024 X4B (Mathew Heard), https://github.com/X4BNet/lists_vpn"
   evasion:
     ip-salt: ${BLACKHOLE_EVASION_IP_SALT:}
     detection-window-days: ${BLACKHOLE_EVASION_DETECTION_WINDOW_DAYS:7}
