@@ -90,6 +90,29 @@ public class RollbackExecutionService {
         return new RollbackDTO.Started(jobId, "RUNNING", false);
     }
 
+    /** The job's state and the number of items in each state. */
+    public RollbackDTO progress(UUID jobId) {
+        Optional<RollbackJobStore.Job> job = this.jobs.find(jobId);
+        if (job.isEmpty()) {
+            return error(ErrorKind.NOT_FOUND, "there is no such rollback");
+        }
+        return new RollbackDTO.Progress(jobId, job.get().state(), this.jobs.countByState(jobId));
+    }
+
+    /**
+     * Cancels a preview or a running job. A job that is already completed or cancelled cannot be cancelled again.
+     */
+    public RollbackDTO cancel(UUID jobId) {
+        Optional<RollbackJobStore.Job> job = this.jobs.find(jobId);
+        if (job.isEmpty()) {
+            return error(ErrorKind.NOT_FOUND, "there is no such rollback");
+        }
+        if (!this.jobs.cancel(jobId, this.clock.millis())) {
+            return error(ErrorKind.CONFLICT, "the rollback is " + job.get().state() + " and cannot be cancelled");
+        }
+        return new RollbackDTO.Cancelled(jobId, "CANCELLED");
+    }
+
     /**
      * Removes the selected staff member's Minecraft link before the first item runs. A failure is logged and does not
      * stop the rollback: the punishments are still undone, and the link can be removed by hand.

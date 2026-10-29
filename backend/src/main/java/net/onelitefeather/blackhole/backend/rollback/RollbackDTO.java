@@ -79,6 +79,43 @@ public sealed interface RollbackDTO {
     record Started(@NonNull UUID jobId, @NonNull String state, boolean repeated) implements RollbackDTO {
     }
 
+    /**
+     * Confirm a previewed rollback. The {@code Idempotency-Key} header (not a field) makes a repeat answer the same job.
+     *
+     * @param reason      the justification, 1 to 500 characters, shown in the audit trail
+     * @param suspendLink whether to remove the Minecraft link of the staff member before the items run
+     */
+    @Schema(name = "RollbackExecuteRequest")
+    @Serdeable
+    @ReflectiveAccess
+    record ExecuteRequest(@NonNull String reason, boolean suspendLink) implements RollbackDTO {
+    }
+
+    /**
+     * How a job is going: its state and how many items are in each state.
+     *
+     * @param jobId the job identifier
+     * @param state {@code PREVIEW}, {@code RUNNING}, {@code COMPLETED} or {@code CANCELLED}
+     * @param items the item count per state: {@code PENDING}, {@code REVOKED}, {@code SKIPPED}, {@code FAILED}
+     */
+    @Schema(name = "RollbackProgress")
+    @Serdeable
+    @ReflectiveAccess
+    record Progress(@NonNull UUID jobId, @NonNull String state, @NonNull Map<String, Long> items) implements RollbackDTO {
+    }
+
+    /**
+     * The job was cancelled. Items already revoked stay revoked; the pending ones are not processed.
+     *
+     * @param jobId the job identifier
+     * @param state {@code CANCELLED}
+     */
+    @Schema(name = "RollbackCancelled")
+    @Serdeable
+    @ReflectiveAccess
+    record Cancelled(@NonNull UUID jobId, @NonNull String state) implements RollbackDTO {
+    }
+
     @Schema(name = "RollbackError")
     @Serdeable
     @ReflectiveAccess

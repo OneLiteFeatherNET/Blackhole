@@ -129,6 +129,17 @@ final class InMemoryRollbackJobStore implements RollbackJobStore {
         return selector instanceof RollbackSelector.Staff staff ? staff.oid() : null;
     }
 
+    @Override
+    public boolean cancel(UUID id, long now) {
+        Job job = this.jobs.get(id);
+        if (job == null || !(job.state().equals("PREVIEW") || job.state().equals("RUNNING"))) {
+            return false;
+        }
+        this.jobs.put(id, new Job(id, "CANCELLED", job.requestedByOid(), job.selectorOid(), job.reason(), job.idempotencyKey(),
+                job.previewExpiresAt()));
+        return true;
+    }
+
     /** The state of one item, for assertions. */
     String stateOf(UUID id, String identifier) {
         return Objects.requireNonNull(this.items.get(id).get(identifier), "no such item").state;

@@ -68,6 +68,10 @@ public class JdbcRollbackJobStore implements RollbackJobStore {
     private static final String COUNT_BY_STATE = """
             SELECT state, count(*) AS total FROM staff_rollback_item WHERE job_id = ? GROUP BY state
             """;
+    private static final String CANCEL = """
+            UPDATE staff_rollback_job SET state = 'CANCELLED', finished_at = ?, locked_by = NULL, locked_until = NULL
+            WHERE id = ? AND state IN ('PREVIEW', 'RUNNING')
+            """;
     private static final String MARK_COMPLETED = """
             UPDATE staff_rollback_job SET state = 'COMPLETED', finished_at = ?, locked_by = NULL, locked_until = NULL
             WHERE id = ? AND state = 'RUNNING'
@@ -224,6 +228,11 @@ public class JdbcRollbackJobStore implements RollbackJobStore {
     @Override
     public boolean markCompleted(UUID id, long now) {
         return update(MARK_COMPLETED, now, id) == 1;
+    }
+
+    @Override
+    public boolean cancel(UUID id, long now) {
+        return update(CANCEL, now, id) == 1;
     }
 
     /** Runs one single-statement update and returns the row count. */

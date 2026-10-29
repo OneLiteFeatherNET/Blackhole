@@ -67,6 +67,14 @@ public interface RollbackJobStore {
     boolean markCompleted(UUID id, long now);
 
     /**
+     * Moves a {@code PREVIEW} or {@code RUNNING} job to {@code CANCELLED}. Items already revoked stay revoked; the
+     * runner claims only {@code RUNNING} jobs, so a cancelled job is not processed any further.
+     *
+     * @return whether this call moved it
+     */
+    boolean cancel(UUID id, long now);
+
+    /**
      * A new preview job.
      *
      * @param id             the job identifier

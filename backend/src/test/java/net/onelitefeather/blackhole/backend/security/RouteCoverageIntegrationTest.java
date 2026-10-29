@@ -87,6 +87,11 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /kick/mass", A),
             Map.entry("GET /kick/{id}", VP),
             Map.entry("POST /kick/{id}/deliveries", P),
+            // staff rollback: an admin previews, starts, follows and cancels a rollback of one staff member's punishments
+            Map.entry("POST /admin/rollback/preview", A),
+            Map.entry("POST /admin/rollback/{id}/execute", A),
+            Map.entry("GET /admin/rollback/{id}", A),
+            Map.entry("POST /admin/rollback/{id}/cancel", A),
             // warnings: the player's proxy reads and confirms them; viewers read one warning
             Map.entry("GET /warn/{id}", VP),
             Map.entry("GET /warn/pending", P),
