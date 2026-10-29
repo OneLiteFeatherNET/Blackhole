@@ -6,6 +6,7 @@ import net.onelitefeather.blackhole.backend.evasion.service.IpCorrelationService
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.intel.IpEnricher.IpEnrichment;
 import net.onelitefeather.blackhole.backend.intel.dto.SessionDTO;
+import net.onelitefeather.blackhole.backend.intel.names.NameHistoryService;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 
 import java.time.Clock;
@@ -36,6 +37,7 @@ public class SessionService {
     private final IpEnricher enricher;
     private final IpCorrelationService correlation;
     private final DomainEventPublisher events;
+    private final NameHistoryService names;
     private final Clock clock;
     private final boolean enabled;
 
@@ -45,6 +47,7 @@ public class SessionService {
             IpCorrelationService correlation,
             DomainEventPublisher events,
             Clock clock,
+            NameHistoryService names,
             @Value("${blackhole.intel.enabled:true}") boolean enabled
     ) {
         this.store = store;
@@ -52,6 +55,7 @@ public class SessionService {
         this.correlation = correlation;
         this.events = events;
         this.clock = clock;
+        this.names = names;
         this.enabled = enabled;
     }
 
@@ -97,6 +101,7 @@ public class SessionService {
             return this.store.find(sessionId.get()).<SessionDTO>map(SessionService::response)
                     .orElseGet(() -> error("the session could not be stored", ErrorKind.CONFLICT));
         }
+        this.names.record(request.owner(), playerUuid.get(), request.playerName(), now);
         this.events.publish("session.started", Map.of("owner", request.owner(), "sessionId", sessionId.get().toString()));
         if (token != null) {
             this.correlation.correlate(token, now);
