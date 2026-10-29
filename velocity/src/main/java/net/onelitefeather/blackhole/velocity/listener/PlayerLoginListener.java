@@ -8,15 +8,15 @@ import com.velocitypowered.api.proxy.Player;
 import net.onelitefeather.blackhole.client.api.PunishProfileApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
-import net.onelitefeather.blackhole.client.model.IntelPolicy;
 import net.onelitefeather.blackhole.client.model.SessionInfoDTO;
 import net.onelitefeather.blackhole.client.model.SessionOutcome;
+import net.onelitefeather.blackhole.velocity.component.Permissions;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
+import net.onelitefeather.blackhole.velocity.guard.GuardLoginDecision;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.evidence.EvidenceCounts;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.intel.SessionReporter;
-import net.onelitefeather.blackhole.velocity.intel.VpnLoginDecision;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -41,19 +41,19 @@ public final class PlayerLoginListener {
     private final PunishmentScreens screens;
     private final EvidenceCounts evidenceCounts;
     private final SessionReporter sessions;
-    private final VpnLoginDecision vpn;
+    private final GuardLoginDecision guard;
 
     @Inject
     public PlayerLoginListener(
             @NotNull ApiClient apiClient, @NotNull PunishmentState state, @NotNull PunishmentScreens screens,
-            @NotNull EvidenceCounts evidenceCounts, @NotNull SessionReporter sessions, @NotNull VpnLoginDecision vpn
+            @NotNull EvidenceCounts evidenceCounts, @NotNull SessionReporter sessions, @NotNull GuardLoginDecision guard
     ) {
         this.punishProfileApi = new PunishProfileApi(apiClient);
         this.state = state;
         this.screens = screens;
         this.evidenceCounts = evidenceCounts;
         this.sessions = sessions;
-        this.vpn = vpn;
+        this.guard = guard;
     }
 
     /**
@@ -82,10 +82,12 @@ public final class PlayerLoginListener {
                     this.screens.screen(ban.get(), PunishmentScreens.localeOf(player), PunishmentScreens.Surface.DISCONNECT, false, evidence)));
             return;
         }
-        if (this.vpn.decide(uuidHash, player.getRemoteAddress().getAddress().getHostAddress()) == IntelPolicy.DENY) {
+        GuardLoginDecision.Outcome access = this.guard.decide(uuidHash, player.getRemoteAddress().getAddress().getHostAddress(),
+                player.hasPermission(Permissions.STAFF));
+        if (access.refused()) {
             this.sessions.reportStart(player, SessionOutcome.DENIED);
             event.setResult(ResultedEvent.ComponentResult.denied(
-                    this.screens.vpnDenial(PunishmentScreens.localeOf(player))));
+                    this.screens.loginDenial(PunishmentScreens.localeOf(player), access.reason())));
             return;
         }
         this.sessions.reportStart(player, SessionOutcome.ALLOWED);

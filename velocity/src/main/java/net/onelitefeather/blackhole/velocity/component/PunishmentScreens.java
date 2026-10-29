@@ -9,6 +9,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.renderer.ComponentRenderer;
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
+import net.onelitefeather.blackhole.client.model.LoginDenialReason;
 import net.onelitefeather.blackhole.velocity.component.tag.DurationTag;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.enforcement.BanIds;
@@ -49,6 +50,11 @@ public final class PunishmentScreens {
 
     /** The English text of the VPN denial, used where the message bundle has no translation. */
     static final String VPN_DENY_TEXT = "VPN and hosting connections are not allowed on this network.";
+
+    /** The English texts of the join guard and area ban screens, used where the message bundle has no translation. */
+    static final String AREA_BAN_TEXT = "This provider or country is currently blocked from this network.";
+    static final String STRICT_TEXT = "Connections from VPN, proxy or hosting addresses are paused right now. Try again later.";
+    static final String LOCKDOWN_TEXT = "The network is currently only open to known players. Try again later.";
 
     /** What a kicked player is told, with or without a reason. */
     static final String KICK_TITLE = "You were removed from the network";
@@ -201,6 +207,28 @@ public final class PunishmentScreens {
      */
     public @NotNull Component vpnDenial(@NotNull Locale locale) {
         return this.renderer.render(Component.translatable("punishment.screen.vpn.deny").fallback(VPN_DENY_TEXT), locale);
+    }
+
+    /**
+     * The disconnect screen of a login the backend refused, chosen by its reason: an area ban, the strict
+     * or the lockdown guard. A refusal without a reason (or for the VPN policy) shows the VPN screen. The
+     * screens name no address, no owner, no player and no area ban reason.
+     *
+     * @return the text, in the locale's translation or the English text where there is none
+     */
+    public @NotNull Component loginDenial(@NotNull Locale locale, @Nullable LoginDenialReason reason) {
+        if (reason == null) {
+            return vpnDenial(locale);
+        }
+        return switch (reason) {
+            case AREA_BAN -> this.renderer.render(
+                    Component.translatable("guard.screen.area_ban").fallback(AREA_BAN_TEXT), locale);
+            case GUARD_STRICT -> this.renderer.render(
+                    Component.translatable("guard.screen.strict").fallback(STRICT_TEXT), locale);
+            case GUARD_LOCKDOWN -> this.renderer.render(
+                    Component.translatable("guard.screen.lockdown").fallback(LOCKDOWN_TEXT), locale);
+            case VPN_POLICY -> vpnDenial(locale);
+        };
     }
 
     /**

@@ -32,6 +32,14 @@ public final class Permissions {
     public static final String CLIENT_RULES_NOTIFY = "blackhole.clientrules.notify";
     /** Staff holding it are never refused or punished by a client rule; their hits are still recorded as bypassed. */
     public static final String CLIENT_RULES_BYPASS = "blackhole.clientrules.bypass";
+    /** Staff holding it are admitted past the join guard; counted in the presence heartbeat. */
+    public static final String STAFF = "blackhole.staff";
+    /** Sets the join guard level with {@code /guard}. */
+    public static final String GUARD = "blackhole.guard";
+    /** Creates and lifts area bans with {@code /areaban}. */
+    public static final String AREABAN = "blackhole.areaban";
+    /** Bans a whole country with {@code /areaban}, on top of {@value #AREABAN}. */
+    public static final String AREABAN_COUNTRY = "blackhole.areaban.country";
 
     private final Predicate<String> granted;
 

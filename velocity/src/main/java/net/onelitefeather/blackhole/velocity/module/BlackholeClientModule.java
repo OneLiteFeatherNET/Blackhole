@@ -15,6 +15,8 @@ import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
 import net.onelitefeather.blackhole.velocity.intel.SessionReporter;
 import net.onelitefeather.blackhole.velocity.evidence.ChatBuffer;
 import net.onelitefeather.blackhole.velocity.evidence.EvidenceCounts;
+import net.onelitefeather.blackhole.velocity.guard.GuardBackend;
+import net.onelitefeather.blackhole.velocity.guard.HttpGuardBackend;
 import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
 import net.onelitefeather.blackhole.velocity.punish.PunishService;
 import net.onelitefeather.blackhole.velocity.report.ReportFeedbackDelivery;
@@ -93,6 +95,7 @@ public record BlackholeClientModule(
                 bind(PunishmentSyncHandler.class).toInstance(syncHandler);
                 bind(EnforcementActions.class).toInstance(actions);
                 bind(BackendGateway.class).toInstance(backend);
+                bind(GuardBackend.class).toInstance(new HttpGuardBackend(apiClient));
                 bind(PunishService.class).toInstance(service);
                 bind(Clock.class).toInstance(clock);
                 bind(PunishmentScreens.class).toInstance(screens);

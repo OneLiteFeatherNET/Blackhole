@@ -11,6 +11,7 @@ public final class IntelConfig {
 
     private static final int DEFAULT_REPORT_TIMEOUT_SECONDS = 2;
     private static final int DEFAULT_LOGIN_CHECK_TIMEOUT_MILLIS = 1000;
+    private static final int DEFAULT_GUARD_HEARTBEAT_SECONDS = 30;
 
     /** How long one session report may take at the backend before it is given up. */
     private int reportTimeoutSeconds;
@@ -18,9 +19,20 @@ public final class IntelConfig {
     /** How long a login may wait for the backend's VPN verdict; past it the login is allowed. */
     private int loginCheckTimeoutMillis;
 
+    /** How often this proxy reports its online staff to the backend for the join guard. */
+    private int guardHeartbeatSeconds;
+
     public IntelConfig() {
         this.reportTimeoutSeconds = DEFAULT_REPORT_TIMEOUT_SECONDS;
         this.loginCheckTimeoutMillis = DEFAULT_LOGIN_CHECK_TIMEOUT_MILLIS;
+        this.guardHeartbeatSeconds = DEFAULT_GUARD_HEARTBEAT_SECONDS;
+    }
+
+    /**
+     * @return how often the guard heartbeat is sent; the default of 30 seconds if the setting is not positive
+     */
+    public @NotNull Duration getGuardHeartbeatInterval() {
+        return Duration.ofSeconds(this.guardHeartbeatSeconds > 0 ? this.guardHeartbeatSeconds : DEFAULT_GUARD_HEARTBEAT_SECONDS);
     }
 
     /**
