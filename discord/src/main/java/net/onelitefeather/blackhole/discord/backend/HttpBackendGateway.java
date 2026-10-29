@@ -7,6 +7,7 @@ import net.onelitefeather.blackhole.client.api.CaseApi;
 import net.onelitefeather.blackhole.client.api.DiscordLinkApi;
 import net.onelitefeather.blackhole.client.api.DiscordNotificationsApi;
 import net.onelitefeather.blackhole.client.api.DiscordTicketsApi;
+import net.onelitefeather.blackhole.client.api.GuardApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.DiscordAppealNotification;
@@ -34,6 +35,8 @@ import net.onelitefeather.blackhole.client.model.DiscordTicketCloseRequest;
 import net.onelitefeather.blackhole.client.model.DiscordTicketLinkRequest;
 import net.onelitefeather.blackhole.client.model.DiscordTicketOpenRequest;
 import net.onelitefeather.blackhole.client.model.DiscordTicketPatchRequest;
+import net.onelitefeather.blackhole.client.model.GuardLevelRequest;
+import net.onelitefeather.blackhole.client.model.GuardStateResponse;
 import net.onelitefeather.blackhole.client.model.MessageAuthorKind;
 import net.onelitefeather.blackhole.client.model.TicketState;
 import net.onelitefeather.blackhole.discord.backend.Tickets.AuthorKind;
@@ -78,6 +81,7 @@ public final class HttpBackendGateway implements BackendGateway {
     private final DiscordTicketsApi ticketApi;
     private final CaseApi cases;
     private final AppealApi appeals;
+    private final GuardApi guard;
 
     public HttpBackendGateway(@NotNull ApiClient client) {
         this.api = new DiscordLinkApi(client);
@@ -85,6 +89,7 @@ public final class HttpBackendGateway implements BackendGateway {
         this.ticketApi = new DiscordTicketsApi(client);
         this.cases = new CaseApi(client);
         this.appeals = new AppealApi(client);
+        this.guard = new GuardApi(client);
     }
 
     @Override
@@ -375,6 +380,30 @@ public final class HttpBackendGateway implements BackendGateway {
             }
             LOGGER.error("Looking up a staff link failed with status {}", e.getCode());
             return new StaffLink.Unavailable(e.getCode());
+        }
+    }
+
+    @Override
+    public @NotNull GuardOutcome setGuardLevel(@NotNull String level, @NotNull String staffOid) {
+        try {
+            GuardStateResponse state = this.guard.setJoinGuardLevel(new GuardLevelRequest().level(level).onBehalfOf(UUID.fromString(staffOid)));
+            return new GuardOutcome.Applied(state.getManualLevel(), state.getEffectiveLevel());
+        } catch (ApiException e) {
+            if (e.getCode() == 0 || e.getCode() >= 500) {
+                LOGGER.error("The backend could not set the join guard level (status {})", e.getCode());
+                return new GuardOutcome.Unavailable(e.getCode());
+            }
+            String text = null;
+            String body = e.getResponseBody();
+            if (body != null && !body.isBlank()) {
+                try {
+                    JsonNode root = JSON.readTree(body);
+                    text = root.hasNonNull("errorMessage") ? root.get("errorMessage").asText() : null;
+                } catch (IOException ignored) {
+                    // Not the backend's error shape: only the status is known.
+                }
+            }
+            return new GuardOutcome.Refused(e.getCode(), text);
         }
     }
 
