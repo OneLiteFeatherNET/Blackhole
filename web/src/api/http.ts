@@ -105,13 +105,23 @@ export function errorFromBody(status: number, body: unknown): ApiError {
   return { status, message: message || `HTTP ${status}`, kind }
 }
 
-/** Turns an openapi-fetch outcome (or a failed request) into an {@link ApiResult}; never throws. */
-export async function toResult<T>(request: Promise<FetchOutcome<T>>): Promise<ApiResult<T>> {
+/** The stable rule code a refusal names (IPBAN_PROTECTED, ...), when the body has one. */
+function ruleCodeOf(body: unknown): string | undefined {
+  return isRecord(body) && typeof body.code === 'string' ? body.code : undefined
+}
+
+/**
+ * Turns an openapi-fetch outcome (or a failed request) into an {@link ApiResult}; never throws.
+ * `keepCode` also carries the refusal's rule code, for the calls whose screen words each code itself.
+ */
+export async function toResult<T>(request: Promise<FetchOutcome<T>>, options: { keepCode?: boolean } = {}): Promise<ApiResult<T>> {
   try {
     const { data, error, response } = await request
     if (response.ok && data !== undefined) return { ok: true, data }
     if (response.ok) return { ok: true, data: undefined as T }
-    return { ok: false, error: errorFromBody(response.status, error) }
+    const apiError = errorFromBody(response.status, error)
+    const code = options.keepCode ? ruleCodeOf(error) : undefined
+    return { ok: false, error: code ? { ...apiError, code } : apiError }
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause)
     return { ok: false, error: { status: 0, message, kind: 'NETWORK' } }

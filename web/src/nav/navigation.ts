@@ -72,6 +72,8 @@ export const MODERATION_GROUPS: NavGroup[] = [
     items: [
       { to: '/guard', key: 'joinGuard', icon: LOCK_ICON },
       { to: '/area-bans', key: 'areaBans', icon: PUNISHED_ICON },
+      // The IP bans are a moderation list; the icon is the same block mark as the punishments.
+      { to: '/ip-bans', key: 'ipBans', icon: PUNISHED_ICON },
     ],
   },
 ]

@@ -44,7 +44,8 @@
     "audit": "Audit log",
     "exemptionReviews": "Exemption reviews",
     "joinGuard": "Join guard",
-    "areaBans": "Area bans"
+    "areaBans": "Area bans",
+    "ipBans": "IP bans"
   },
   "panel": {
     "close": "Close",
@@ -2055,5 +2056,86 @@
       "reasonHint": "Required",
       "confirm": "Lift ban"
   }
-}
+},
+  "ipBans": {
+    "title": "IP bans",
+    "intro": "Holds one address or range at the firewall and on every proxy. The list shows the clear address, so it is for staff only.",
+    "new": "New IP ban",
+    "readOnly": "You can read the IP bans. Creating and lifting them needs the moderator role.",
+    "filter": {
+      "label": "Show",
+      "active": "Active",
+      "lifted": "Lifted"
+    },
+    "columns": {
+      "range": "Address or range",
+      "reason": "Reason",
+      "state": "State",
+      "source": "Source",
+      "created": "Banned",
+      "expires": "Expires",
+      "actor": "Actor",
+      "actions": "Actions"
+    },
+    "state": {
+      "active": "Active",
+      "lifted": "Lifted",
+      "expired": "Expired"
+    },
+    "source": {
+      "PANEL": "Panel",
+      "COMMAND": "Command"
+    },
+    "permanent": "Permanent",
+    "noActor": "No actor",
+    "empty": "No active IP bans.",
+    "emptyLifted": "No lifted or expired IP bans.",
+    "create": {
+      "title": "New IP ban",
+      "address": "Address or range",
+      "addressHint": "One IPv4 or IPv6 address, or a CIDR range such as 203.0.113.0/24.",
+      "reason": "Reason",
+      "reasonHint": "1 to {max} characters. Staff will read it.",
+      "duration": "Duration",
+      "moderatorCap": "Moderators may ban for at most 30 days.",
+      "permanent": "Permanent",
+      "permanentHint": "Administrators only. The ban does not expire until it is lifted.",
+      "submit": "Ban"
+    },
+    "validation": {
+      "address": {
+        "empty": "Enter an address or a range.",
+        "invalid": "Enter one IPv4 or IPv6 address, or a CIDR range such as 203.0.113.0/24.",
+        "tooWide": "A range this wide is refused. IPv4 ranges need /16 or narrower, IPv6 ranges /32 or narrower."
+      },
+      "reason": {
+        "empty": "Enter a reason.",
+        "tooLong": "At most 200 characters."
+      },
+      "duration": {
+        "tooLong": "A moderator may ban for at most 30 days."
+      }
+    },
+    "errors": {
+      "protected": "This address is protected and cannot be banned.",
+      "tooWide": "This range is too wide to ban here.",
+      "forbiddenDuration": "A moderator may ban for at most 30 days. Ask an administrator for a longer or permanent ban.",
+      "alreadyBanned": "An active ban already holds this address or range.",
+      "notActive": "This ban is no longer active."
+    },
+    "created": {
+      "done": "The IP ban was stored.",
+      "withWarnings": "The IP ban was stored. Warning: {warnings}"
+    },
+    "lift": {
+      "open": "Lift ban",
+      "title": "Lift the IP ban?",
+      "body": "The address is released at the firewall and on the proxies. The ban stays in the list as lifted.",
+      "reason": "Reason for lifting",
+      "reasonHint": "1 to {max} characters.",
+      "reasonRequired": "A reason is required.",
+      "submit": "Lift ban",
+      "done": "The IP ban was lifted."
+    }
+  }
 }

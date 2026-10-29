@@ -16,6 +16,7 @@ import CaseView from '../views/CaseView.vue'
 import InboxView from '../views/InboxView.vue'
 import IntelAllowListView from '../views/IntelAllowListView.vue'
 import IntelPolicyView from '../views/IntelPolicyView.vue'
+import IpBansView from '../views/IpBansView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 import NoAccessView from '../views/NoAccessView.vue'
 import PlayerDetailView from '../views/PlayerDetailView.vue'
@@ -46,6 +47,7 @@ export const routes: RouteRecordRaw[] = [
   { path: '/', name: 'inbox', component: InboxView, meta: { titleKey: 'inbox.title', pageShell: true, workspace: 'moderation' } },
   // `nav` names the navigation destination a page belongs to, so the detail pages keep their group marked.
   { path: '/punished', name: 'punished', component: PunishedPlayersView, meta: { titleKey: 'nav.activePunishments', pageShell: true, workspace: 'moderation' } },
+  { path: '/ip-bans', name: 'ip-bans', component: IpBansView, meta: { titleKey: 'nav.ipBans', pageShell: true, workspace: 'moderation' } },
   { path: '/players', name: 'players', component: PlayersView, meta: { titleKey: 'nav.playerLookup', pageShell: true, workspace: 'moderation' } },
   { path: '/players/:owner', name: 'player', component: PlayerDetailView, props: true, meta: { titleKey: 'nav.playerLookup', nav: '/players', pageShell: true, workspace: 'moderation' } },
   // The VPN and hosting pages: the policy is read by every staff role, the exemptions are added by moderators.
