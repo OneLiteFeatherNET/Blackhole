@@ -54,6 +54,8 @@ export type CloudNetCatalogue = Schemas['CatalogueResponse']
 /** Each proxy's last report of whether SignedVelocity is loaded; `state` is UNKNOWN for a proxy that stopped reporting. */
 export type ProxyCapabilities = { proxies: Schemas['ProxyRelayEntry'][] }
 export type Report = Schemas['ReportDTO']
+/** An IP ban as the panel reads it: the clear address or range is shown to staff only, never in a link or a log line. */
+export type IpBan = Schemas['IpBanResponse']
 export type ClientRuleKind = Schemas['ClientRuleKind']
 export type ClientRuleAction = Schemas['ClientRuleAction']
 export type ClientRuleScope = Schemas['ClientRuleScope']
@@ -275,6 +277,15 @@ export interface ApiError {
   status: number
   message: string
   kind: ErrorKind | 'FORBIDDEN' | 'NETWORK' | 'UNKNOWN'
+  /** The stable rule code the backend names with a refusal, such as IPBAN_PROTECTED, when it sends one. */
+  code?: string
+}
+
+/** What the create form sends; `expiresAt` is omitted for a permanent ban. */
+export interface IpBanDraft {
+  address: string
+  reason: string
+  expiresAt: number | null
 }
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError }

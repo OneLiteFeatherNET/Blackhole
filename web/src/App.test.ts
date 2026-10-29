@@ -207,7 +207,7 @@ describe('App shell', () => {
     const wrapper = await mountApp('/')
 
     expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text()), 'headings').toEqual(['Arbeit', 'Spieler', 'Schutz'])
-    expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual(['Posteingang', 'Fälle', 'Einsprüche', 'Meldungen', 'Spielersuche', 'Aktive Strafen', 'Ausnahmeliste', 'VPN-Richtlinie', 'Beitrittsschutz', 'Gebietssperren'])
+    expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual(['Posteingang', 'Fälle', 'Einsprüche', 'Meldungen', 'Spielersuche', 'Aktive Strafen', 'Ausnahmeliste', 'VPN-Richtlinie', 'Beitrittsschutz', 'Gebietssperren', 'IP-Sperren'])
 
     wrapper.unmount()
   })

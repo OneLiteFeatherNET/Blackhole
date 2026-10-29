@@ -28,7 +28,7 @@ describe('visibleGroups for the moderation workspace', () => {
       ['home', false, ['inbox']],
       ['work', true, ['cases', 'appeals', 'reports']],
       ['players', true, ['playerLookup', 'activePunishments', 'allowList', 'vpnPolicy']],
-      ['guard', true, ['joinGuard', 'areaBans']],
+      ['guard', true, ['joinGuard', 'areaBans', 'ipBans']],
     ])
   })
 
@@ -52,6 +52,7 @@ describe('visibleGroups for the moderation workspace', () => {
       ['vpnPolicy', '/intel/policy'],
       ['joinGuard', '/guard'],
       ['areaBans', '/area-bans'],
+      ['ipBans', '/ip-bans'],
     ])
   })
 

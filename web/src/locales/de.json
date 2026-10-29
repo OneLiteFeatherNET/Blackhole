@@ -44,7 +44,8 @@
     "audit": "Audit-Protokoll",
     "exemptionReviews": "Schutzprüfungen",
     "joinGuard": "Beitrittsschutz",
-    "areaBans": "Gebietssperren"
+    "areaBans": "Gebietssperren",
+    "ipBans": "IP-Sperren"
   },
   "panel": {
     "close": "Schließen",
@@ -2055,5 +2056,86 @@
       "reasonHint": "Pflichtfeld",
       "confirm": "Sperre aufheben"
   }
-}
+},
+  "ipBans": {
+    "title": "IP-Sperren",
+    "intro": "Hält eine Adresse oder einen Bereich an der Firewall und auf jedem Proxy. Die Liste zeigt die Klartext-Adresse und ist nur für das Team.",
+    "new": "Neue IP-Sperre",
+    "readOnly": "Du kannst die IP-Sperren lesen. Anlegen und Aufheben braucht die Rolle Moderator.",
+    "filter": {
+      "label": "Anzeigen",
+      "active": "Aktiv",
+      "lifted": "Aufgehoben"
+    },
+    "columns": {
+      "range": "Adresse oder Bereich",
+      "reason": "Grund",
+      "state": "Status",
+      "source": "Quelle",
+      "created": "Gesperrt",
+      "expires": "Läuft ab",
+      "actor": "Akteur",
+      "actions": "Aktionen"
+    },
+    "state": {
+      "active": "Aktiv",
+      "lifted": "Aufgehoben",
+      "expired": "Abgelaufen"
+    },
+    "source": {
+      "PANEL": "Panel",
+      "COMMAND": "Befehl"
+    },
+    "permanent": "Dauerhaft",
+    "noActor": "Kein Akteur",
+    "empty": "Keine aktiven IP-Sperren.",
+    "emptyLifted": "Keine aufgehobenen oder abgelaufenen IP-Sperren.",
+    "create": {
+      "title": "Neue IP-Sperre",
+      "address": "Adresse oder Bereich",
+      "addressHint": "Eine IPv4- oder IPv6-Adresse oder ein CIDR-Bereich, z. B. 203.0.113.0/24.",
+      "reason": "Grund",
+      "reasonHint": "1 bis {max} Zeichen. Das Team liest ihn.",
+      "duration": "Dauer",
+      "moderatorCap": "Moderatoren können höchstens 30 Tage sperren.",
+      "permanent": "Dauerhaft",
+      "permanentHint": "Nur für Administratoren. Die Sperre läuft erst ab, wenn sie aufgehoben wird.",
+      "submit": "Sperren"
+    },
+    "validation": {
+      "address": {
+        "empty": "Gib eine Adresse oder einen Bereich ein.",
+        "invalid": "Gib eine IPv4- oder IPv6-Adresse oder einen CIDR-Bereich wie 203.0.113.0/24 ein.",
+        "tooWide": "Ein so breiter Bereich wird abgelehnt. IPv4-Bereiche brauchen /16 oder enger, IPv6-Bereiche /32 oder enger."
+      },
+      "reason": {
+        "empty": "Gib einen Grund ein.",
+        "tooLong": "Höchstens 200 Zeichen."
+      },
+      "duration": {
+        "tooLong": "Moderatoren können höchstens 30 Tage sperren."
+      }
+    },
+    "errors": {
+      "protected": "Diese Adresse ist geschützt und kann nicht gesperrt werden.",
+      "tooWide": "Dieser Bereich ist zu breit, um ihn hier zu sperren.",
+      "forbiddenDuration": "Moderatoren können höchstens 30 Tage sperren. Für eine längere oder dauerhafte Sperre einen Administrator fragen.",
+      "alreadyBanned": "Eine aktive Sperre umfasst diese Adresse oder diesen Bereich bereits.",
+      "notActive": "Diese Sperre ist nicht mehr aktiv."
+    },
+    "created": {
+      "done": "Die IP-Sperre wurde gespeichert.",
+      "withWarnings": "Die IP-Sperre wurde gespeichert. Hinweis: {warnings}"
+    },
+    "lift": {
+      "open": "Sperre aufheben",
+      "title": "IP-Sperre aufheben?",
+      "body": "Die Adresse wird an der Firewall und auf den Proxies freigegeben. Die Sperre bleibt als aufgehoben in der Liste.",
+      "reason": "Grund für die Aufhebung",
+      "reasonHint": "1 bis {max} Zeichen.",
+      "reasonRequired": "Ein Grund ist erforderlich.",
+      "submit": "Aufheben",
+      "done": "Die IP-Sperre wurde aufgehoben."
+    }
+  }
 }

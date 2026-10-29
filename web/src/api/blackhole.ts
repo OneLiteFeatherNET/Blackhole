@@ -71,6 +71,8 @@ import type {
   EvidencePage,
   Punishment,
   PunishmentProfile,
+  IpBan,
+  IpBanDraft,
   Report,
   ReportResolution,
   ResolvedPlayer,
@@ -170,6 +172,12 @@ export interface BlackholeApi {
   clientRuleHitsOfOwner(owner: string): Promise<ApiResult<ClientRuleHit[]>>
   /** What the proxies saw (brands and channels from at least three players, commands, protocols); only suggests, never required. */
   clientRuleCatalogue(): Promise<ApiResult<ClientRuleCatalogue>>
+  /** The newest IP bans, active or not; staff roles may read them. */
+  ipBans(): Promise<ApiResult<IpBan[]>>
+  /** Holds one address or CIDR range at the firewall and the proxies. A moderator's ban must expire within the server's cap; a refusal carries its rule code. */
+  createIpBan(draft: IpBanDraft): Promise<ApiResult<IpBan>>
+  /** Lifts one active ban; the reason is mandatory. */
+  liftIpBan(id: string, reason: string): Promise<ApiResult<IpBan>>
   /** All reports, newest first. */
   reports(): Promise<ApiResult<Report[]>>
   resolveReport(identifier: string, resolution: ReportResolution): Promise<ApiResult<Report>>
@@ -680,6 +688,28 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
         proxies: catalogue.proxies ?? [],
       }))
     },
+
+    async ipBans() {
+      const result = await toResult(http.GET('/ipban'))
+      return map(result, (list) => list.bans ?? [])
+    },
+
+    // A permanent ban leaves `expiresAt` out of the body; the panel is always the source. The rule codes are kept for the form's messages.
+    createIpBan: (draft) =>
+      toResult(
+        http.POST('/ipban', {
+          body: {
+            address: draft.address.trim(),
+            reason: draft.reason.trim(),
+            source: 'PANEL',
+            ...(draft.expiresAt === null ? {} : { expiresAt: draft.expiresAt }),
+          },
+        }),
+        { keepCode: true },
+      ),
+
+    liftIpBan: (id, reason) =>
+      toResult(http.POST('/ipban/{id}/lift', { params: { path: { id } }, body: { reason: reason.trim() } }), { keepCode: true }),
 
     async reports() {
       const reports = await collectPages<Report>((page) =>
