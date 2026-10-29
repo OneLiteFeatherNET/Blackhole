@@ -20,6 +20,7 @@
       "players": "Spieler",
       "configuration": "Konfiguration",
       "administration": "Verwaltung",
+      "review": "Prüfung",
       "system": "System"
     },
     "brand": "Blackhole",
@@ -39,7 +40,8 @@
     "imports": "Importe",
     "cloudnet": "CloudNet",
     "kick": "Massen-Kick",
-    "audit": "Audit-Protokoll"
+    "audit": "Audit-Protokoll",
+    "exemptionReviews": "Schutzprüfungen"
   },
   "panel": {
     "close": "Schließen",
@@ -1902,6 +1904,62 @@
       "selectorInvalid": "Das kann nicht zurückgerollt werden. Wählen Sie ein Teammitglied oder einen nicht verknüpften Spielaccount.",
       "tooLarge": "Zu viele Strafen passen. Engen Sie den Zeitraum ein und prüfen Sie erneut."
     },
-    "noStaff": "Noch keine Teammitglieder bekannt."
+    "noStaff": "Noch keine Teammitglieder bekannt."  },
+  "exemption": {
+    "badge": {
+      "linked": "Verknüpftes Teammitglied",
+      "exempt": "Ausgenommen",
+      "protectedAt": "Geschützt im Rang {rank}.",
+      "permissionNote": "Eine Berechtigung, die entfernt wurde, während der Spieler offline war, schützt bis zum nächsten Login weiter."
+    },
+    "rank": {
+      "ADMIN": "Administrator",
+      "MODERATOR": "Moderator"
+    },
+    "refused": {
+      "title": "Geschützter Spieler",
+      "moderator": "Nur ein Administrator kann eine Strafe für einen geschützten Spieler verhängen. Bitte einen Administrator um eine Entscheidung.",
+      "admin": "Als Administrator kannst du sie trotzdem verhängen. Die Begründung wird bei der Strafe gespeichert."
+    },
+    "override": {
+      "label": "Begründung",
+      "hint": "1 bis 500 Zeichen. Keine UUID und keine IP-Adresse angeben.",
+      "empty": "Bitte eine Begründung eingeben.",
+      "tooLong": "Höchstens 500 Zeichen.",
+      "submit": "Mit Ausnahme verhängen"
+    }
+  },
+  "exemptionReviews": {
+    "title": "Schutzprüfungen",
+    "intro": "Automatische Strafen, die zurückgehalten wurden, weil der Spieler geschützt ist. Verhänge eine mit Begründung oder verwirf sie. Jede Prüfung wird nur einmal entschieden.",
+    "empty": "Keine offenen Schutzprüfungen.",
+    "columns": {
+      "player": "Spieler",
+      "section": "Bereich",
+      "track": "Spur",
+      "score": "Wert",
+      "crossed": "Erreicht am",
+      "decision": "Entscheidung"
+    },
+    "apply": {
+      "open": "Verhängen",
+      "title": "Zurückgehaltene Strafe verhängen",
+      "intro": "Verhängt die zurückgehaltene Strafe. Die Begründung wird bei ihr gespeichert.",
+      "confirm": "Verhängen"
+    },
+    "dismiss": {
+      "open": "Verwerfen",
+      "title": "Prüfung verwerfen",
+      "intro": "Schließt die Prüfung ohne Strafe. Die Änderung des Wertes bleibt bestehen.",
+      "confirm": "Verwerfen"
+    },
+    "justification": {
+      "label": "Begründung",
+      "hint": "1 bis 500 Zeichen. Keine UUID und keine IP-Adresse angeben.",
+      "empty": "Bitte eine Begründung eingeben.",
+      "tooLong": "Höchstens 500 Zeichen."
+    },
+    "applied": "Prüfung verhängt.",
+    "dismissed": "Prüfung verworfen."
   }
 }

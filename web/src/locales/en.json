@@ -20,6 +20,7 @@
       "players": "Players",
       "configuration": "Configuration",
       "administration": "Administration",
+      "review": "Review",
       "system": "System"
     },
     "brand": "Blackhole",
@@ -39,7 +40,8 @@
     "imports": "Imports",
     "cloudnet": "CloudNet",
     "kick": "Mass kick",
-    "audit": "Audit log"
+    "audit": "Audit log",
+    "exemptionReviews": "Exemption reviews"
   },
   "panel": {
     "close": "Close",
@@ -1902,6 +1904,62 @@
       "selectorInvalid": "This cannot be rolled back. Choose a staff member or an unlinked in-game account.",
       "tooLarge": "Too many punishments match. Narrow the window and preview again."
     },
-    "noStaff": "No staff members are known yet."
+    "noStaff": "No staff members are known yet."  },
+  "exemption": {
+    "badge": {
+      "linked": "Linked staff",
+      "exempt": "Exempt",
+      "protectedAt": "Protected at the {rank} rank.",
+      "permissionNote": "A permission removed while the player is offline keeps protecting until the next login."
+    },
+    "rank": {
+      "ADMIN": "Admin",
+      "MODERATOR": "Moderator"
+    },
+    "refused": {
+      "title": "Protected player",
+      "moderator": "Only an administrator can apply a punishment to a protected player. Ask an administrator to decide.",
+      "admin": "As an administrator you can apply it anyway. The justification is recorded on the punishment."
+    },
+    "override": {
+      "label": "Justification",
+      "hint": "1 to 500 characters. Do not write a UUID or IP address.",
+      "empty": "Enter a justification.",
+      "tooLong": "At most 500 characters.",
+      "submit": "Apply with override"
+    }
+  },
+  "exemptionReviews": {
+    "title": "Exemption reviews",
+    "intro": "Automatic punishments that were held back because the player is protected. Apply one with a justification, or dismiss it. Each review is decided once.",
+    "empty": "No open exemption reviews.",
+    "columns": {
+      "player": "Player",
+      "section": "Section",
+      "track": "Track",
+      "score": "Score",
+      "crossed": "Crossed at",
+      "decision": "Decision"
+    },
+    "apply": {
+      "open": "Apply",
+      "title": "Apply the held-back punishment",
+      "intro": "Places the punishment that was held back. The justification is recorded on it.",
+      "confirm": "Apply"
+    },
+    "dismiss": {
+      "open": "Dismiss",
+      "title": "Dismiss the review",
+      "intro": "Closes the review without a punishment. The score change stays.",
+      "confirm": "Dismiss"
+    },
+    "justification": {
+      "label": "Justification",
+      "hint": "1 to 500 characters. Do not write a UUID or IP address.",
+      "empty": "Enter a justification.",
+      "tooLong": "At most 500 characters."
+    },
+    "applied": "Review applied.",
+    "dismissed": "Review dismissed."
   }
 }

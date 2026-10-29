@@ -11,6 +11,7 @@ import AuthCallbackView from '../views/AuthCallbackView.vue'
 import AuthErrorView from '../views/AuthErrorView.vue'
 import CasesView from '../views/CasesView.vue'
 import ClientRulesView from '../views/ClientRulesView.vue'
+import ExemptionReviewsView from '../views/ExemptionReviewsView.vue'
 import CaseView from '../views/CaseView.vue'
 import InboxView from '../views/InboxView.vue'
 import IntelAllowListView from '../views/IntelAllowListView.vue'
@@ -60,6 +61,7 @@ export const routes: RouteRecordRaw[] = [
   { path: '/admin/sections', name: 'admin-sections', component: SectionsView, meta: { titleKey: 'nav.sections', admin: true, pageShell: true, workspace: 'administration' } },
   { path: '/admin/client-rules', name: 'admin-client-rules', component: ClientRulesView, meta: { titleKey: 'nav.clientRules', admin: true, pageShell: true, workspace: 'administration' } },
   { path: '/admin/appeal-terms', name: 'admin-appeal-terms', component: AppealConditionsView, meta: { titleKey: 'nav.appealTerms', admin: true, pageShell: true, workspace: 'administration' } },
+  { path: '/admin/exemption-reviews', name: 'admin-exemption-reviews', component: ExemptionReviewsView, meta: { titleKey: 'nav.exemptionReviews', admin: true, pageShell: true, workspace: 'administration' } },
   // The system pages: one component with one tab route each (`meta.adminTab`), each a rail item of its own.
   { path: '/admin/staff', name: 'admin-staff', component: AdminView, meta: { titleKey: 'nav.staffAccounts', admin: true, pageShell: true, adminTab: 'staff', workspace: 'administration' } },
   { path: '/admin/rollback', name: 'admin-rollback', component: AdminView, meta: { titleKey: 'nav.rollback', admin: true, pageShell: true, adminTab: 'rollback', workspace: 'administration' } },

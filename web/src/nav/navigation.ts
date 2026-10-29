@@ -79,6 +79,11 @@ export const ADMINISTRATION_GROUPS: NavGroup[] = [
     ],
   },
   {
+    key: 'review',
+    heading: true,
+    items: [{ to: '/admin/exemption-reviews', key: 'exemptionReviews', icon: PUNISHED_ICON }],
+  },
+  {
     key: 'system',
     heading: true,
     items: [

@@ -1,6 +1,6 @@
 import createClient from 'openapi-fetch'
 import type { paths } from './schema'
-import type { ApiError, ApiResult } from './types'
+import type { ApiError, ApiResult, ErrorKind } from './types'
 
 /** The API version every call asks for, see the backend's @Version(ApiVersion.V1). */
 export const API_VERSION = '1'
@@ -72,7 +72,8 @@ interface FetchOutcome<T> {
   response: Response
 }
 
-const KINDS: readonly string[] = ['VALIDATION', 'NOT_FOUND', 'CONFLICT', 'ROLLBACK_SELECTOR_INVALID', 'ROLLBACK_TOO_LARGE']
+// Typed against the generated ErrorKind, so a kind the backend no longer sends fails the typecheck here.
+const KINDS: readonly ErrorKind[] = ['VALIDATION', 'NOT_FOUND', 'CONFLICT', 'ROLLBACK_SELECTOR_INVALID', 'ROLLBACK_TOO_LARGE', 'TARGET_EXEMPT']
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -92,7 +93,7 @@ export function errorFromBody(status: number, body: unknown): ApiError {
       // Micronaut's bean validation lists the violated constraint here; "message" is only the status text.
       message = embedded[0].message
     } else if (typeof body.message === 'string') message = body.message
-    if (typeof body.kind === 'string' && KINDS.includes(body.kind)) kind = body.kind as ApiError['kind']
+    if (typeof body.kind === 'string' && KINDS.includes(body.kind as ErrorKind)) kind = body.kind as ApiError['kind']
   }
   if (kind === 'UNKNOWN') {
     if (status === 404) kind = 'NOT_FOUND'

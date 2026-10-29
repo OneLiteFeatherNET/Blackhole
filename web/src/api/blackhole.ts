@@ -48,6 +48,9 @@ import type {
   ClientRuleHit,
   CurrentCaller,
   ApplyResult,
+  ExemptionOverride,
+  ExemptionReview,
+  ExemptionStatus,
   DashboardSummary,
   InboxSummary,
   KickAccepted,
@@ -166,7 +169,15 @@ export interface BlackholeApi {
   /** What applying the template would do right now; changes nothing. */
   previewApply(owner: string, templateKey: string): Promise<ApiResult<ApplyPreview>>
   /** `playerUuid` is sent only when the caller knows the player's UUID; the public ban list needs it. */
-  applyTemplate(owner: string, templateKey: string, playerUuid?: string | null): Promise<ApiResult<ApplyResult>>
+  applyTemplate(owner: string, templateKey: string, playerUuid?: string | null, exemptionOverride?: ExemptionOverride): Promise<ApiResult<ApplyResult>>
+  /** Whether the player is protected from punishment (linked staff or a permission) and at which rank. Never a UUID or name. */
+  exemption(owner: string): Promise<ApiResult<ExemptionStatus>>
+  /** The automatic punishments held back for protected players, oldest first (ADMIN only). */
+  exemptionReviews(): Promise<ApiResult<ExemptionReview[]>>
+  /** Places the held-back punishment with the justification recorded on it (ADMIN only). */
+  applyExemptionReview(identifier: string, justification: string): Promise<ApiResult<ExemptionReview>>
+  /** Closes the review without a punishment; the score change stays (ADMIN only). */
+  dismissExemptionReview(identifier: string, justification: string): Promise<ApiResult<ExemptionReview>>
   revoke(owner: string, section: string): Promise<ApiResult<RevokeResult>>
   /** Takes one player off the network, a server or a section. The answer is immediate; poll {@link kick} for the outcome. A repeated key answers the same kick. */
   kickPlayer(request: KickRequest, idempotencyKey: string): Promise<ApiResult<KickAccepted>>
@@ -688,8 +699,36 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     previewApply: (owner, templateKey) =>
       toResult(http.POST('/punishment/preview', { body: { owner, templateKey } })),
 
-    applyTemplate: (owner, templateKey, playerUuid) =>
-      toResult(http.POST('/punishment/apply', { body: { owner, templateKey, ...(playerUuid ? { playerUuid } : {}) } })),
+    applyTemplate: (owner, templateKey, playerUuid, exemptionOverride) =>
+      toResult(
+        http.POST('/punishment/apply', {
+          body: { owner, templateKey, ...(playerUuid ? { playerUuid } : {}), ...(exemptionOverride ? { exemptionOverride } : {}) },
+        }),
+      ),
+
+    async exemption(owner) {
+      const result = await toResult(http.GET('/exemption/{owner}', { params: { path: { owner } } }))
+      // The backend leaves empty lists out of its JSON.
+      return map(result, (status) => ({ ...status, sources: status.sources ?? [], sections: status.sections ?? [] }))
+    },
+
+    async exemptionReviews() {
+      return map(await toResult(http.GET('/exemption/reviews')), (body) => body.items ?? [])
+    },
+
+    async applyExemptionReview(identifier, justification) {
+      const result = await toResult(
+        http.POST('/exemption/reviews/{id}/apply', { params: { path: { id: identifier } }, body: { justification } }),
+      )
+      return map(result, (body) => body.review)
+    },
+
+    async dismissExemptionReview(identifier, justification) {
+      const result = await toResult(
+        http.POST('/exemption/reviews/{id}/dismiss', { params: { path: { id: identifier } }, body: { justification } }),
+      )
+      return map(result, (body) => body.review)
+    },
 
     revoke: (owner, section) =>
       toResult(http.POST('/punishment/revoke', { body: { owner, section } })),
