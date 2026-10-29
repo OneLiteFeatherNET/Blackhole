@@ -3,6 +3,7 @@ package net.onelitefeather.blackhole.velocity.punish;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.DiscordLinkCodeResponse;
 import net.onelitefeather.blackhole.client.model.EloProfileResponse;
+import net.onelitefeather.blackhole.client.model.LoginCheckResponse;
 import net.onelitefeather.blackhole.client.model.KickAccepted;
 import net.onelitefeather.blackhole.client.model.KickResponse;
 import net.onelitefeather.blackhole.client.model.KickScope;
@@ -54,6 +55,14 @@ public interface BackendGateway {
      * by the punishment that carries the same correlation id. Asynchronous: the caller bounds the wait.
      */
     CompletableFuture<Void> postChatEvidence(String owner, String correlationId, ChatSnapshot snapshot, String sourceSystem, UUID source);
+
+    /**
+     * The verdict for one login from the owner's address. Asynchronous: the caller bounds the wait.
+     *
+     * @param owner the player's hashed owner, never the raw UUID
+     * @param ip    the client's address as the proxy sees it
+     */
+    CompletableFuture<LoginCheckResponse> loginCheck(String owner, String ip);
 
     /**
      * Counts the valid evidence items of a punishment. Asynchronous: the caller bounds the wait.

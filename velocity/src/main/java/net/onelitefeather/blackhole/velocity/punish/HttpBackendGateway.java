@@ -1,6 +1,8 @@
 package net.onelitefeather.blackhole.velocity.punish;
 
 import net.onelitefeather.blackhole.client.api.EloApi;
+import net.onelitefeather.blackhole.client.model.LoginCheckRequest;
+import net.onelitefeather.blackhole.client.model.LoginCheckResponse;
 import net.onelitefeather.blackhole.client.api.EvidenceApi;
 import net.onelitefeather.blackhole.client.api.PunishProfileApi;
 import net.onelitefeather.blackhole.client.api.PunishmentApi;
@@ -287,6 +289,18 @@ public final class HttpBackendGateway implements BackendGateway {
             signedVelocity.version(version);
         }
         this.proxyApi.reportProxyCapabilities(new ProxyCapabilityReportRequest().proxyId(proxyId).signedVelocity(signedVelocity));
+    }
+
+    @Override
+    public CompletableFuture<LoginCheckResponse> loginCheck(String owner, String ip) {
+        LoginCheckRequest request = new LoginCheckRequest().owner(owner).ip(ip);
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return this.intelApi.checkIntelLogin(request);
+            } catch (ApiException e) {
+                throw new CompletionException(e);
+            }
+        });
     }
 
     @Override
