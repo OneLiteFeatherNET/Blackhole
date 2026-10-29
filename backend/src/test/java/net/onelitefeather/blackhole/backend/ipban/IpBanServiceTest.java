@@ -156,17 +156,8 @@ class IpBanServiceTest {
         fixture.service.create(request("203.0.113.7", null), IpBanFixture.admin());
 
         assertTrue(fixture.eventTypes.contains(IpBanEvents.CREATED), "the created event is published");
-        assertTrue(fixture.eventTypes.contains(IpBanEvents.CHANGED), "the change event is published for the firewall");
+        assertTrue(fixture.eventTypes.contains(IpBanEvents.CHANGED), "the change event is published");
         fixture.events.forEach(event -> assertFalse(event.payload().toString().contains("203.0.113.7"),
                 "no published event carries the address: " + event.eventType()));
-    }
-
-    @Test
-    void theFirewallIsToldAfterEveryWrite() {
-        IpBanFixture fixture = new IpBanFixture();
-
-        fixture.service.create(request("203.0.113.7", null), IpBanFixture.admin());
-
-        assertEquals(1, fixture.changes.size(), "one change notification per created ban");
     }
 }

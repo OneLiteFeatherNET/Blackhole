@@ -28,7 +28,6 @@ public final class IpBanFixture {
     public final FakeStore store = new FakeStore();
     final List<DomainEvent> events = new ArrayList<>();
     final List<String> eventTypes = new ArrayList<>();
-    final List<Integer> changes = new ArrayList<>();
     public final Clock clock = Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC);
     final IpBanService service;
 
@@ -40,7 +39,7 @@ public final class IpBanFixture {
         };
         DomainEventPublisher publisher = new DomainEventPublisher(transport, this.clock);
         this.service = new IpBanService(this.store, new IpBanProtection(""), new IpBanEvents(publisher),
-                () -> this.changes.add(1), this.clock, Duration.ofDays(30));
+                this.clock, Duration.ofDays(30));
     }
 
     public static Actor moderator() {
