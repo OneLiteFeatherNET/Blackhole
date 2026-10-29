@@ -315,17 +315,34 @@ blackhole:
     decay:
       interval-ms: ${BLACKHOLE_ELO_DECAY_INTERVAL_MS:86400000}
       sweep-cron: ${BLACKHOLE_ELO_DECAY_SWEEP_CRON:`0 0 3 * * *`}
-    # Rule-based ToxicityScorer default: an obviously-placeholder keyword list, not a real
-    # moderation wordlist - swap the ToxicityScorer bean entirely for production use (an ML
-    # classifier is an explicit later replacement per the roadmap, not part of this phase).
     chat:
       # The section a flagged chat message is scored in.
       section: ${BLACKHOLE_ELO_CHAT_SECTION:chat}
-      toxic-patterns: ${BLACKHOLE_ELO_CHAT_TOXIC_PATTERNS:stupid,idiot,shut up,hate you}
-      severity-per-match: ${BLACKHOLE_ELO_CHAT_SEVERITY_PER_MATCH:0.4}
-      flag-threshold: ${BLACKHOLE_ELO_CHAT_FLAG_THRESHOLD:0.3}
       flag-delta: ${BLACKHOLE_ELO_CHAT_FLAG_DELTA:-50}
       evidence-retention-days: ${BLACKHOLE_ELO_CHAT_EVIDENCE_RETENTION_DAYS:60}
+      toxicity:
+        # OFF never calls the scorer, SHADOW counts and logs would-be flags without any ELO change,
+        # ENFORCE applies the flag. Changing the mode needs a restart.
+        mode: ${BLACKHOLE_ELO_CHAT_TOXICITY_MODE:OFF}
+        # A message is flagged when its score (the highest matched category weight) reaches this.
+        flag-threshold: ${BLACKHOLE_ELO_CHAT_TOXICITY_FLAG_THRESHOLD:0.5}
+        # Comma-separated game phrases that are never matched, for example "kill the dragon".
+        allow-list: ${BLACKHOLE_ELO_CHAT_TOXICITY_ALLOW_LIST:kill the dragon,bed wars}
+        # Comma-separated words and phrases per category (INSULT, THREAT, SEXUAL, HATE, SPAM).
+        # These are a small neutral starter set. A deployment supplies its own lists via the env vars.
+        terms:
+          insult: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_INSULT:idiot,trottel,dummkopf}
+          threat: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_THREAT:kill you,ich bring dich um}
+          sexual: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_SEXUAL:}
+          hate: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_HATE:}
+          spam: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_SPAM:}
+        # Weight of each category in [0, 1]. A category's weight is its ELO strength.
+        weights:
+          threat: ${BLACKHOLE_ELO_CHAT_TOXICITY_WEIGHTS_THREAT:1.0}
+          hate: ${BLACKHOLE_ELO_CHAT_TOXICITY_WEIGHTS_HATE:0.9}
+          sexual: ${BLACKHOLE_ELO_CHAT_TOXICITY_WEIGHTS_SEXUAL:0.8}
+          insult: ${BLACKHOLE_ELO_CHAT_TOXICITY_WEIGHTS_INSULT:0.6}
+          spam: ${BLACKHOLE_ELO_CHAT_TOXICITY_WEIGHTS_SPAM:0.5}
     report:
       actioned-delta: ${BLACKHOLE_ELO_REPORT_ACTIONED_DELTA:-100}
       # Awarded to the reporter when their report is resolved ACTIONED with an actual
