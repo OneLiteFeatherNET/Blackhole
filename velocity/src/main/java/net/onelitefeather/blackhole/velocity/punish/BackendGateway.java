@@ -6,6 +6,8 @@ import net.onelitefeather.blackhole.client.model.EloProfileResponse;
 import net.onelitefeather.blackhole.client.model.KickAccepted;
 import net.onelitefeather.blackhole.client.model.KickResponse;
 import net.onelitefeather.blackhole.client.model.KickScope;
+import net.onelitefeather.blackhole.client.model.NameHistoryOwner;
+import net.onelitefeather.blackhole.client.model.NameHistoryPage;
 import org.jetbrains.annotations.Nullable;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.ReportCategory;
@@ -77,6 +79,27 @@ public interface BackendGateway {
      * @return the owner's punishment profile; empty if they have none yet
      */
     Optional<PunishProfileDTO> profile(String owner) throws ApiException;
+
+    /**
+     * The live name lookup: the account that uses the name now.
+     *
+     * @return the account, empty when no account has the name
+     */
+    Optional<TargetResolver.Known> resolvePlayer(String name) throws ApiException;
+
+    /**
+     * @param owner the player's hashed owner, never the raw UUID
+     * @param size  the most names to return
+     * @return the newest names the owner used, newest last seen first
+     */
+    NameHistoryPage nameHistory(String owner, int size) throws ApiException;
+
+    /**
+     * The old-name lookup: the accounts that used the exact name, ignoring case.
+     *
+     * @return at most 20 accounts, newest last seen first; empty when none used it
+     */
+    List<NameHistoryOwner> nameOwners(String name) throws ApiException;
 
     /**
      * @return the owner's score in every section

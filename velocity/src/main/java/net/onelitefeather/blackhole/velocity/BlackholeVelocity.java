@@ -42,6 +42,7 @@ import net.onelitefeather.blackhole.velocity.report.ReportFeedbackDelivery;
 import net.onelitefeather.blackhole.velocity.listener.ReportFeedbackListener;
 import net.onelitefeather.blackhole.velocity.report.ReportNotifier;
 import net.onelitefeather.blackhole.velocity.report.ReportService;
+import net.onelitefeather.blackhole.velocity.command.NameHistoryCommand;
 import net.onelitefeather.blackhole.velocity.command.TargetParser;
 import net.onelitefeather.blackhole.velocity.cloudnet.CatalogueReporter;
 import net.onelitefeather.blackhole.velocity.cloudnet.CloudNetView;
@@ -307,6 +308,7 @@ public class BlackholeVelocity {
         annotationParser.parse(childInjector.getInstance(TargetParser.class));
         annotationParser.parse(childInjector.getInstance(PunishCommand.class));
         annotationParser.parse(childInjector.getInstance(PunishInfoCommand.class));
+        annotationParser.parse(childInjector.getInstance(NameHistoryCommand.class));
         annotationParser.parse(childInjector.getInstance(PardonCommand.class));
         annotationParser.parse(childInjector.getInstance(KickCommand.class));
         annotationParser.parse(childInjector.getInstance(KickAllCommand.class));
