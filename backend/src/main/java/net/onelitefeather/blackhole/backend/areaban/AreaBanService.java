@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.backend.areaban;
 
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.areaban.dto.AreaBanDTO;
+import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 
 import java.time.Clock;
@@ -26,12 +27,40 @@ public class AreaBanService {
 
     private final AreaBanStore store;
     private final AreaBanCache cache;
+    private final DomainEventPublisher events;
     private final Clock clock;
 
-    public AreaBanService(AreaBanStore store, AreaBanCache cache, Clock clock) {
+    public AreaBanService(AreaBanStore store, AreaBanCache cache, DomainEventPublisher events, Clock clock) {
         this.store = store;
         this.cache = cache;
+        this.events = events;
         this.clock = clock;
+    }
+
+    /**
+     * Creates the automatic ban of the burst rule for one ASN. Nothing happens when the ASN already has an active ban, or
+     * when another replica inserted one first.
+     *
+     * @return the ban that was created, or empty when the ASN was already banned
+     */
+    public Optional<AreaBan> createBurstBan(long asn, Duration duration) {
+        String value = Long.toString(asn);
+        long now = this.clock.millis();
+        Optional<AreaBan> existing = this.store.findUnlifted(AreaBan.Kind.ASN, value);
+        if (existing.isPresent()) {
+            if (existing.get().isActiveAt(now)) {
+                return Optional.empty();
+            }
+            this.store.lift(existing.get().lifted(now, "expired", null));
+        }
+        AreaBan ban = new AreaBan(UUID.randomUUID(), AreaBan.Kind.ASN, value, "burst of join guard refusals",
+                AreaBan.Source.AUTO_BURST, null, now, now + duration.toMillis(), null, null, null);
+        if (!this.store.insert(ban)) {
+            return Optional.empty();
+        }
+        this.cache.reload();
+        this.events.publish(AreaBanEvents.CREATED_EVENT, AreaBanEvents.created(ban));
+        return Optional.of(ban);
     }
 
     /**
@@ -82,6 +111,7 @@ public class AreaBanService {
             return error("this area is already banned", ErrorKind.CONFLICT);
         }
         this.cache.reload();
+        this.events.publish(AreaBanEvents.CREATED_EVENT, AreaBanEvents.created(ban));
         return response(ban, now);
     }
 
@@ -108,6 +138,7 @@ public class AreaBanService {
             return error("this area ban is already lifted", ErrorKind.CONFLICT);
         }
         this.cache.reload();
+        this.events.publish(AreaBanEvents.LIFTED_EVENT, AreaBanEvents.lifted(lifted));
         return response(lifted, now);
     }
 

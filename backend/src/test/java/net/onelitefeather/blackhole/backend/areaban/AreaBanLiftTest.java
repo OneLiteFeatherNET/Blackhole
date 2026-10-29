@@ -1,6 +1,8 @@
 package net.onelitefeather.blackhole.backend.areaban;
 
 import net.onelitefeather.blackhole.backend.areaban.dto.AreaBanDTO;
+import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.support.RecordingEventTransport;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import org.junit.jupiter.api.Test;
 
@@ -22,7 +24,9 @@ class AreaBanLiftTest {
     private final InMemoryAreaBanStore store = new InMemoryAreaBanStore();
 
     private AreaBanService serviceAt(Instant now) {
-        return new AreaBanService(this.store, new AreaBanCache(this.store), Clock.fixed(now, ZoneOffset.UTC));
+        Clock clock = Clock.fixed(now, ZoneOffset.UTC);
+        return new AreaBanService(this.store, new AreaBanCache(this.store),
+                new DomainEventPublisher(new RecordingEventTransport(), clock), clock);
     }
 
     private AreaBanDTO.Response createdBan(AreaBanService service) {

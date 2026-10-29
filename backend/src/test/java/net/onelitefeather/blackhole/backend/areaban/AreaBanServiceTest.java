@@ -1,6 +1,8 @@
 package net.onelitefeather.blackhole.backend.areaban;
 
 import net.onelitefeather.blackhole.backend.areaban.dto.AreaBanDTO;
+import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.support.RecordingEventTransport;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +20,8 @@ class AreaBanServiceTest {
 
     private final Clock clock = Clock.fixed(Instant.parse("2026-10-29T12:00:00Z"), ZoneOffset.UTC);
     private final InMemoryAreaBanStore store = new InMemoryAreaBanStore();
-    private final AreaBanService service = new AreaBanService(this.store, new AreaBanCache(this.store), this.clock);
+    private final AreaBanService service = new AreaBanService(this.store, new AreaBanCache(this.store),
+            new DomainEventPublisher(new RecordingEventTransport(), this.clock), this.clock);
 
     private static AreaBanDTO.CreateRequest asn(Long seconds) {
         return new AreaBanDTO.CreateRequest("ASN", "16276", "hosting wave", seconds);
@@ -93,10 +96,12 @@ class AreaBanServiceTest {
     @Test
     void anExpiredUnliftedBanDoesNotBlockANewOne() {
         Clock later = Clock.fixed(Instant.parse("2026-10-29T12:00:00Z"), ZoneOffset.UTC);
-        AreaBanService first = new AreaBanService(this.store, new AreaBanCache(this.store), later);
+        AreaBanService first = new AreaBanService(this.store, new AreaBanCache(this.store),
+                new DomainEventPublisher(new RecordingEventTransport(), later), later);
         first.create(asn(60L), ADMIN);
+        Clock afterTheHour = Clock.fixed(Instant.parse("2026-10-29T13:00:00Z"), ZoneOffset.UTC);
         AreaBanService afterExpiry = new AreaBanService(this.store, new AreaBanCache(this.store),
-                Clock.fixed(Instant.parse("2026-10-29T13:00:00Z"), ZoneOffset.UTC));
+                new DomainEventPublisher(new RecordingEventTransport(), afterTheHour), afterTheHour);
 
         AreaBanDTO result = afterExpiry.create(asn(3600L), ADMIN);
 

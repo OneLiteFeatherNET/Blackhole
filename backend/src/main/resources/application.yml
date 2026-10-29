@@ -469,6 +469,15 @@ blackhole:
     snapshot-interval: ${BLACKHOLE_GUARD_SNAPSHOT_INTERVAL:PT2M}
     lockdown:
       min-playtime: ${BLACKHOLE_GUARD_LOCKDOWN_MIN_PLAYTIME:PT60M}   # recorded playtime that makes an owner a known player
+    # Refusal summary: one staff message per interval, the ten ASNs with the most refusals, instead of one per login.
+    summary-interval: ${BLACKHOLE_GUARD_SUMMARY_INTERVAL:PT10M}
+    # Burst rule (off by default): this many guard refusals from one ASN within the window create an automatic area ban
+    # of ban-duration. Area bans and VPN policy refusals are not counted. Turn on only after a week of summaries.
+    burst:
+      enabled: ${BLACKHOLE_GUARD_BURST_ENABLED:false}
+      threshold: ${BLACKHOLE_GUARD_BURST_THRESHOLD:10}
+      window: ${BLACKHOLE_GUARD_BURST_WINDOW:PT5M}
+      ban-duration: ${BLACKHOLE_GUARD_BURST_BAN_DURATION:PT2H}
   evasion:
     ip-salt: ${BLACKHOLE_EVASION_IP_SALT:}
     detection-window-days: ${BLACKHOLE_EVASION_DETECTION_WINDOW_DAYS:7}

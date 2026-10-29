@@ -8,6 +8,7 @@ import net.onelitefeather.blackhole.backend.areaban.AreaBanCache;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.guard.GuardLevel;
 import net.onelitefeather.blackhole.backend.guard.GuardLevelRules;
+import net.onelitefeather.blackhole.backend.guard.GuardRefusalService;
 import net.onelitefeather.blackhole.backend.guard.GuardStateCache;
 import net.onelitefeather.blackhole.backend.guard.OwnerDirectoryCache;
 import net.onelitefeather.blackhole.backend.intel.IntelClassifier.Match;
@@ -54,6 +55,7 @@ public class IntelLoginCheckService {
     private final AreaBanCache areaBans;
     private final GuardStateCache guard;
     private final OwnerDirectoryCache owners;
+    private final GuardRefusalService refusals;
 
     public IntelLoginCheckService(
             IntelClassifierHolder classifier,
@@ -66,7 +68,8 @@ public class IntelLoginCheckService {
             MeterRegistry meters,
             AreaBanCache areaBans,
             GuardStateCache guard,
-            OwnerDirectoryCache owners
+            OwnerDirectoryCache owners,
+            GuardRefusalService refusals
     ) {
         this.classifier = classifier;
         this.policies = policies;
@@ -79,6 +82,7 @@ public class IntelLoginCheckService {
         this.areaBans = areaBans;
         this.guard = guard;
         this.owners = owners;
+        this.refusals = refusals;
     }
 
     public LoginCheckDTO check(LoginCheckDTO.CheckRequest request) {
@@ -115,12 +119,14 @@ public class IntelLoginCheckService {
         if (!allowListed) {
             GuardLevel level = this.guard.effective();
             if (GuardLevelRules.refusesUnknownOwner(level, this.owners.isKnown(owner))) {
+                this.refusals.recordRefusal(enrichment.asn(), enrichment.asOrg(), enrichment.countryCode(), now);
                 return count(new LoginCheckDTO.Response(IntelPolicy.DENY, null, null, LoginDenialReason.GUARD_LOCKDOWN),
                         "DENY");
             }
             if (!matches.isEmpty()) {
                 Match strictMatch = strictest(matches, this.policies);
                 if (GuardLevelRules.refusesClassification(level, strictMatch.kind())) {
+                    this.refusals.recordRefusal(enrichment.asn(), enrichment.asOrg(), enrichment.countryCode(), now);
                     return count(new LoginCheckDTO.Response(IntelPolicy.DENY, strictMatch.kind(), strictMatch.sourceKey(),
                             LoginDenialReason.GUARD_STRICT), "DENY");
                 }
