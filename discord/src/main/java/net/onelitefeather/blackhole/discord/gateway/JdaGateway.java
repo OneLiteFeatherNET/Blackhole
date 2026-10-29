@@ -5,6 +5,7 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.components.actionrow.ActionRow;
 import net.dv8tion.jda.api.components.buttons.Button;
+import net.dv8tion.jda.api.components.buttons.ButtonStyle;
 import net.dv8tion.jda.api.components.label.Label;
 import net.dv8tion.jda.api.components.textinput.TextInput;
 import net.dv8tion.jda.api.components.textinput.TextInputStyle;
@@ -25,6 +26,7 @@ import net.dv8tion.jda.api.events.channel.ChannelDeleteEvent;
 import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.events.message.MessageDeleteEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.events.message.MessageUpdateEvent;
@@ -49,7 +51,10 @@ import net.dv8tion.jda.api.utils.messages.MessageEditBuilder;
 import net.onelitefeather.blackhole.discord.command.AccountCommands;
 import net.onelitefeather.blackhole.discord.command.AppealCommands;
 import net.onelitefeather.blackhole.discord.command.Lang;
+import net.onelitefeather.blackhole.discord.command.StaffButtonHandler;
 import net.onelitefeather.blackhole.discord.config.BotConfig;
+import net.onelitefeather.blackhole.discord.ticket.StaffControlIds;
+import net.onelitefeather.blackhole.discord.ticket.StaffControlIds.Action;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,11 +91,13 @@ public final class JdaGateway extends ListenerAdapter implements DiscordGateway 
     static final String APPEAL_MODAL = "appeal:modal";
     private static final String FIELD_BAN_ID = "banid";
     private static final String FIELD_STATEMENT = "statement";
+    private static final String FIELD_MESSAGE = "message";
     private static final int MAX_EMBED_TEXT = 4000;
 
     private final BotConfig config;
     private final AccountCommands commands;
     private volatile AppealCommands appeals;
+    private volatile StaffButtonHandler staff;
     private final ExecutorService backendCalls = Executors.newVirtualThreadPerTaskExecutor();
     private volatile Listener listener = new Listener() {
         @Override
@@ -123,6 +130,11 @@ public final class JdaGateway extends ListenerAdapter implements DiscordGateway 
     /** Binds the appeal commands; they need the ticket lifecycle, which needs this gateway, so they arrive after construction and before {@link #start()}. */
     public void appeals(@NotNull AppealCommands appeals) {
         this.appeals = appeals;
+    }
+
+    /** Binds the staff ticket controls; without it the staff buttons do nothing (the feature flag is off). */
+    public void staff(@NotNull StaffButtonHandler staff) {
+        this.staff = staff;
     }
 
     /** The intents the bot connects with; a test pins them so a privileged one is never added by accident. */
@@ -231,11 +243,50 @@ public final class JdaGateway extends ListenerAdapter implements DiscordGateway 
     public void onButtonInteraction(@NotNull ButtonInteractionEvent event) {
         if (APPEAL_BUTTON.equals(event.getComponentId())) {
             event.replyModal(appealModal(Lang.fromDiscordLocale(event.getUserLocale().getLocale()))).queue();
+        } else if (StaffControlIds.isStaffId(event.getComponentId())) {
+            staffPress(event);
         }
+    }
+
+    /**
+     * A staff control press. Accept and Reject answer with their modal at once (Discord allows three seconds for the first
+     * reply); every other press is acknowledged first and answered after the backend replied.
+     */
+    private void staffPress(ButtonInteractionEvent event) {
+        StaffButtonHandler handler = this.staff;
+        if (handler == null) {
+            return;
+        }
+        String customId = event.getComponentId();
+        boolean modal = StaffControlIds.parse(customId).map(press -> press.action() == Action.ACCEPT || press.action() == Action.REJECT)
+                .orElse(false);
+        long channelId = event.getChannel().getIdLong();
+        long userId = event.getUser().getIdLong();
+        boolean staffRole = event.getMember() != null && holdsStaffRole(event.getMember());
+        if (modal) {
+            StaffButtonHandler.Reply reply = new InteractionReply(event, null);
+            this.backendCalls.submit(() -> handler.onPress(new StaffButtonHandler.Press(channelId, userId, customId, staffRole, reply)));
+            return;
+        }
+        event.deferReply(true).queue(hook -> this.backendCalls.submit(() -> handler.onPress(
+                new StaffButtonHandler.Press(channelId, userId, customId, staffRole, new InteractionReply(event, hook)))));
+    }
+
+    /** The decision modal of an appeal: the player message, required for a rejection. */
+    private Modal decisionModal(Action decision, String ticketId) {
+        boolean reject = decision == Action.REJECT;
+        TextInput message = TextInput.create(FIELD_MESSAGE, TextInputStyle.PARAGRAPH).setRequired(reject).setMaxLength(2000).build();
+        return Modal.create(StaffControlIds.id(decision, ticketId), reject ? "Reject the appeal" : "Accept the appeal")
+                .addComponents(Label.of("Message to the player (shown to them)", message))
+                .build();
     }
 
     @Override
     public void onModalInteraction(@NotNull ModalInteractionEvent event) {
+        if (StaffControlIds.isStaffId(event.getModalId())) {
+            staffSubmit(event);
+            return;
+        }
         if (!APPEAL_MODAL.equals(event.getModalId())) {
             return;
         }
@@ -263,6 +314,51 @@ public final class JdaGateway extends ListenerAdapter implements DiscordGateway 
         return Modal.create(APPEAL_MODAL, this.appeals.modalTitle(lang))
                 .addComponents(Label.of(this.appeals.banIdLabel(lang), banId), Label.of(this.appeals.statementLabel(lang), statement))
                 .build();
+    }
+
+    /** A staff decision submitted in the modal; the modal's text is read once and handed on, never logged. */
+    private void staffSubmit(ModalInteractionEvent event) {
+        StaffButtonHandler handler = this.staff;
+        Optional<StaffControlIds.Press> press = StaffControlIds.parse(event.getModalId());
+        if (handler == null || press.isEmpty()) {
+            return;
+        }
+        String message = event.getValue(FIELD_MESSAGE) == null ? null : event.getValue(FIELD_MESSAGE).getAsString();
+        long channelId = event.getChannel().getIdLong();
+        long userId = event.getUser().getIdLong();
+        boolean staffRole = event.getMember() != null && holdsStaffRole(event.getMember());
+        StaffControlIds.Press decided = press.get();
+        event.deferReply(true).queue(hook -> this.backendCalls.submit(() -> handler.onDecision(new StaffButtonHandler.Submit(channelId, userId,
+                decided.action(), decided.ticketId(), message, staffRole, new InteractionReply(null, hook)))));
+    }
+
+    /**
+     * The one reply to a staff interaction: a deferred hook once acknowledged, otherwise the interaction itself (which may also
+     * open the decision modal).
+     */
+    private final class InteractionReply implements StaffButtonHandler.Reply {
+
+        private final ButtonInteractionEvent button;
+        private final InteractionHook hook;
+
+        InteractionReply(ButtonInteractionEvent button, InteractionHook hook) {
+            this.button = button;
+            this.hook = hook;
+        }
+
+        @Override
+        public void text(@NotNull String text) {
+            if (this.hook != null) {
+                this.hook.editOriginal(text).queue();
+            } else {
+                this.button.reply(text).setEphemeral(true).queue();
+            }
+        }
+
+        @Override
+        public void decisionModal(@NotNull StaffControlIds.Action decision, @NotNull String ticketId) {
+            this.button.replyModal(JdaGateway.this.decisionModal(decision, ticketId)).queue();
+        }
     }
 
     private String failureText(Lang lang) {
@@ -761,10 +857,33 @@ public final class JdaGateway extends ListenerAdapter implements DiscordGateway 
     }
 
     private static Collection<ActionRow> components(MessageSpec spec) {
+        if (!spec.buttons().isEmpty()) {
+            // Discord allows five buttons in a row and five rows in a message.
+            List<Button> buttons = spec.buttons().stream().map(JdaGateway::button).toList();
+            List<ActionRow> rows = new ArrayList<>();
+            for (int from = 0; from < buttons.size(); from += 5) {
+                rows.add(ActionRow.of(buttons.subList(from, Math.min(from + 5, buttons.size()))));
+            }
+            return rows;
+        }
         if (spec.linkUrl() == null || spec.linkLabel() == null) {
             return List.of();
         }
         return List.of(ActionRow.of(Button.link(spec.linkUrl(), spec.linkLabel())));
+    }
+
+    private static Button button(ControlButton button) {
+        if (button.url() != null) {
+            return Button.link(button.url(), button.label());
+        }
+        ButtonStyle style = switch (button.style()) {
+            case PRIMARY -> ButtonStyle.PRIMARY;
+            case SECONDARY -> ButtonStyle.SECONDARY;
+            case SUCCESS -> ButtonStyle.SUCCESS;
+            case DANGER -> ButtonStyle.DANGER;
+            case LINK -> ButtonStyle.LINK;
+        };
+        return Button.of(style, button.id(), button.label()).withDisabled(button.disabled());
     }
 
     private static GatewayException failure(String what, RuntimeException e) {

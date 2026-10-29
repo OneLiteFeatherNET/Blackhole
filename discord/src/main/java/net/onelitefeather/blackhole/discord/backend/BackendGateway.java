@@ -165,9 +165,6 @@ public interface BackendGateway {
     /** Records messages in their current state (idempotent), or deletes. */
     @NotNull Result<Ingested> ingest(@NotNull String id, @NotNull IngestBatch batch);
 
-    /** The completeness proof of a closing ticket; stores the protocol and answers its version. */
-    @NotNull Result<Closed> close(@NotNull String id, int count, @Nullable String lastMessageId);
-
     /** Makes sure a current protocol is stored; the gate before a channel is deleted. */
     @NotNull Result<ProtocolEnsured> ensureProtocol(@NotNull String id);
 
@@ -186,4 +183,82 @@ public interface BackendGateway {
      * @param posterIsBot        whether the poster is a bot
      */
     @NotNull Result<LeakResult> leakCheck(@NotNull List<String> candidates, boolean listed, @Nullable String posterDiscordUserId, boolean posterIsBot);
+
+    // ---- staff ticket actions (the control message's buttons) ----
+
+    /** The decision of an appeal made from the channel. */
+    enum Verdict {
+        ACCEPT, REJECT
+    }
+
+    /** Which staff member a Discord account is linked to. The Discord id never comes back. */
+    sealed interface StaffLink {
+        /** @param eligible whether a press would be allowed now (a live link and a fresh moderator or admin role) */
+        record Linked(@NotNull String oid, boolean eligible) implements StaffLink {
+        }
+
+        record NotLinked() implements StaffLink {
+        }
+
+        record Unavailable(int status) implements StaffLink {
+        }
+    }
+
+    /**
+     * @param version      the case version the next change must name
+     * @param assigneeName the display name of the staff member who holds the case, or null
+     */
+    record CaseSnapshot(long version, @Nullable String assigneeName) {
+    }
+
+    /** What a case read found. */
+    sealed interface CaseRead {
+        record Found(@NotNull CaseSnapshot snapshot) implements CaseRead {
+        }
+
+        record Unavailable(int status) implements CaseRead {
+        }
+    }
+
+    /** How a staff action ended. A refusal carries the backend's own text, which is shown to the presser. */
+    sealed interface StaffOutcome {
+        record Done() implements StaffOutcome {
+        }
+
+        record Refused(int status, @Nullable String code, @Nullable String text) implements StaffOutcome {
+        }
+
+        record Unavailable(int status) implements StaffOutcome {
+        }
+    }
+
+    /** @return the staff member the Discord user is linked to */
+    @NotNull StaffLink staffLink(@NotNull String discordUserId);
+
+    /** @return the version and the claimant of a case, read just before a claim */
+    @NotNull CaseRead caseSnapshot(@NotNull String caseReference);
+
+    /** Claims a case for the staff member, if the version still matches. */
+    @NotNull StaffOutcome claimCase(@NotNull String caseReference, long expectedVersion, @NotNull String staffOid);
+
+    /** Locks (true) or unlocks (false) the appeal channel of a case on behalf of the staff member. */
+    @NotNull StaffOutcome setFreeze(@NotNull String caseReference, boolean frozen, @NotNull String staffOid);
+
+    /**
+     * Decides an appeal on behalf of the staff member.
+     *
+     * @param playerMessage the text the player reads; required for a rejection, null for none
+     */
+    @NotNull StaffOutcome review(@NotNull String appealId, @NotNull Verdict verdict, @Nullable String playerMessage, @NotNull String staffOid);
+
+    /**
+     * The completeness proof of a closing ticket; stores the protocol and answers its version. Recorded under the staff member when
+     * {@code staffOid} is given.
+     */
+    @NotNull Result<Closed> close(@NotNull String id, int count, @Nullable String lastMessageId, @Nullable String staffOid);
+
+    /** Closes a ticket without a staff member on whose behalf it is closed (the bot's own close). */
+    default @NotNull Result<Closed> close(@NotNull String id, int count, @Nullable String lastMessageId) {
+        return close(id, count, lastMessageId, null);
+    }
 }

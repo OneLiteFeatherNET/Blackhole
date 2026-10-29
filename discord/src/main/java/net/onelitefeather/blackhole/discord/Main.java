@@ -29,7 +29,9 @@ import net.onelitefeather.blackhole.discord.notify.NotificationHandler;
 import net.onelitefeather.blackhole.discord.notify.NatsConsumer;
 import net.onelitefeather.blackhole.discord.sched.ExecutorScheduler;
 import net.onelitefeather.blackhole.discord.sched.Scheduler;
+import net.onelitefeather.blackhole.discord.command.StaffButtonHandler;
 import net.onelitefeather.blackhole.discord.sync.CaseEventHandler;
+import net.onelitefeather.blackhole.discord.sync.ControlMessageSync;
 import net.onelitefeather.blackhole.discord.sync.CatchUp;
 import net.onelitefeather.blackhole.discord.sync.OutboxRelay;
 import net.onelitefeather.blackhole.discord.sync.SyncEngine;
@@ -111,7 +113,16 @@ public final class Main {
                 new EmbedRenderer(config.panelUrl(), config.staffRoleId()), config.teamChannelId());
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name("nats-retry").daemon(true).factory());
         NatsConsumer consumer = new NatsConsumer(config.nats(), new NotificationDispatcher(handler), scheduler);
-        CaseEventHandler caseEvents = new CaseEventHandler(engine);
+        CaseEventHandler caseEvents;
+        if (config.staffActions()) {
+            // The staff control message of each ticket channel, its buttons and the redraw on every case event (DISCORD_STAFF_ACTIONS).
+            ControlMessageSync controls = new ControlMessageSync(config.panelUrl(), backend, discord, registry, metrics, clock);
+            lifecycle.channelReady(controls::redraw);
+            discord.staff(new StaffButtonHandler(backend, registry, lifecycle, controls));
+            caseEvents = new CaseEventHandler(engine, controls::onCaseEvent);
+        } else {
+            caseEvents = new CaseEventHandler(engine);
+        }
         NatsConsumer caseConsumer = new NatsConsumer(config.nats(), NatsConsumer.CASE_DURABLE, CaseEventHandler.ROUTING_KEYS, caseEvents::onMessage, scheduler);
         NatsConsumer auditConsumer = auditConsumer(config, metrics, scheduler);
 

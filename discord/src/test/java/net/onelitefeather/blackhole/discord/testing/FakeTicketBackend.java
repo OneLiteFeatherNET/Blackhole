@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.discord.testing;
 
+import net.onelitefeather.blackhole.discord.backend.BackendGateway;
 import net.onelitefeather.blackhole.discord.backend.Result;
 import net.onelitefeather.blackhole.discord.backend.Tickets.Closed;
 import net.onelitefeather.blackhole.discord.backend.Tickets.IngestBatch;
@@ -38,6 +39,7 @@ public final class FakeTicketBackend extends UnsupportedBackend {
     public static final class Rec {
         public final String id = UUID.randomUUID().toString();
         public final String appealId = UUID.randomUUID().toString();
+        public final String caseReference = UUID.randomUUID().toString();
         public long no;
         public State state = State.PENDING_CHANNEL;
         public String channelId;
@@ -391,6 +393,60 @@ public final class FakeTicketBackend extends UnsupportedBackend {
         return gate != null ? gate : new Result.Ok<>(List.copyOf(this.staffLinks));
     }
 
+    // ---- staff actions ----
+
+    /** The answers of the staff calls; a test changes one to simulate a refusal or an outage. */
+    public BackendGateway.StaffLink staffLinkAnswer = new BackendGateway.StaffLink.Linked(STAFF_OID, true);
+    public BackendGateway.CaseRead caseAnswer = new BackendGateway.CaseRead.Found(new BackendGateway.CaseSnapshot(7, "Alice"));
+    public BackendGateway.StaffOutcome claimAnswer = new BackendGateway.StaffOutcome.Done();
+    public BackendGateway.StaffOutcome freezeAnswer = new BackendGateway.StaffOutcome.Done();
+    public BackendGateway.StaffOutcome reviewAnswer = new BackendGateway.StaffOutcome.Done();
+    /** Every staff write, as {@code kind:target:...:staffOid}, in order. */
+    public final List<String> staffWrites = new ArrayList<>();
+    /** The staff oid each close was recorded under. */
+    public final List<String> closedBy = new ArrayList<>();
+    public static final String STAFF_OID = "7d1f3c2a-0000-4000-8000-00000000a001";
+
+    @Override
+    public @NotNull BackendGateway.StaffLink staffLink(@NotNull String discordUserId) {
+        this.calls.add("staffLink");
+        return this.staffLinkAnswer;
+    }
+
+    @Override
+    public @NotNull BackendGateway.CaseRead caseSnapshot(@NotNull String caseReference) {
+        this.calls.add("caseSnapshot");
+        return this.caseAnswer;
+    }
+
+    @Override
+    public @NotNull BackendGateway.StaffOutcome claimCase(@NotNull String caseReference, long expectedVersion, @NotNull String staffOid) {
+        this.calls.add("claimCase");
+        this.staffWrites.add("claim:" + caseReference + ":" + expectedVersion + ":" + staffOid);
+        return this.claimAnswer;
+    }
+
+    @Override
+    public @NotNull BackendGateway.StaffOutcome setFreeze(@NotNull String caseReference, boolean frozen, @NotNull String staffOid) {
+        this.calls.add("setFreeze");
+        this.staffWrites.add("freeze:" + caseReference + ":" + frozen + ":" + staffOid);
+        return this.freezeAnswer;
+    }
+
+    @Override
+    public @NotNull BackendGateway.StaffOutcome review(@NotNull String appealId, @NotNull BackendGateway.Verdict verdict, @Nullable String playerMessage,
+                                                       @NotNull String staffOid) {
+        this.calls.add("review");
+        this.staffWrites.add("review:" + appealId + ":" + verdict + ":" + playerMessage + ":" + staffOid);
+        return this.reviewAnswer;
+    }
+
+    @Override
+    public @NotNull Result<Closed> close(@NotNull String id, int count, @Nullable String lastMessageId, @Nullable String staffOid) {
+        this.closedBy.add(staffOid == null ? "" : staffOid);
+        return close(id, count, lastMessageId);
+    }
+
     @Override
     public @NotNull NotificationResult appeal(@NotNull String identifier) {
         this.calls.add("appeal");
@@ -398,7 +454,7 @@ public final class FakeTicketBackend extends UnsupportedBackend {
             return new NotificationResult.Unavailable(this.down);
         }
         return this.tickets.values().stream().filter(r -> r.appealId.equals(identifier)).findFirst()
-                .<NotificationResult>map(r -> new NotificationResult.Found(new Notification(NotificationKind.APPEAL, identifier, null, null, "ref",
+                .<NotificationResult>map(r -> new NotificationResult.Found(new Notification(NotificationKind.APPEAL, identifier, r.caseReference, null, "ref",
                         "section", null, r.appealStatus, 0, 0)))
                 .orElseGet(NotificationResult.NotFound::new);
     }
