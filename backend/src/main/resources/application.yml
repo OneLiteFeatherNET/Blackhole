@@ -151,6 +151,9 @@ blackhole:
   ban-list:
     clients: ${BLACKHOLE_BAN_LIST_CLIENTS:}
     secrets-dir: ${BLACKHOLE_BAN_LIST_SECRETS_DIR:/etc/blackhole/ban-list}
+    # The ingress addresses or CIDR blocks whose X-Forwarded-Proto is believed. Empty trusts none, so the list then answers
+    # 403 HTTPS_REQUIRED to every request that does not arrive over TLS in this process.
+    trusted-ingress: ${BLACKHOLE_BAN_LIST_TRUSTED_INGRESS:}
   banid:
     key: ${BLACKHOLE_BANID_KEY:}
     # Key rotation recovery. After BLACKHOLE_BANID_KEY was replaced, set this to true for ONE start: the
