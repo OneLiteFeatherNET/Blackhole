@@ -65,6 +65,7 @@ import type {
   Report,
   ReportResolution,
   ResolvedPlayer,
+  SessionPage,
   RevokeResult,
   Section,
   StaffActor,
@@ -160,6 +161,8 @@ export interface BlackholeApi {
   kick(id: string): Promise<ApiResult<KickResult>>
   /** Other owners that shared a hashed network address with this one; hashes only, never an IP. */
   evasionSightings(owner: string): Promise<ApiResult<EvasionSightings>>
+  /** One page of a player's stored sessions, newest first (staff only; the page shows the raw address). */
+  playerSessions(owner: string, page: number, size: number): Promise<ApiResult<SessionPage>>
   adjustElo(owner: string, change: { section: string; delta: number; note: string }): Promise<ApiResult<EloAdjustResult>>
   /**
    * One page of a punishment's evidence (identifier or short id), oldest first. Lifted and revoked
@@ -653,6 +656,9 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       toResult(http.POST('/kick/mass', { params: { header: { 'Idempotency-Key': idempotencyKey } }, body: request })),
 
     kick: (id) => toResult(http.GET('/kick/{id}', { params: { path: { id } } })),
+
+    playerSessions: (owner, page, size) =>
+      toResult(http.GET('/intel/players/{owner}/sessions', { params: { path: { owner }, query: { page, size } } })),
 
     async evasionSightings(owner) {
       const result = await toResult(http.GET('/evasion/{owner}/sightings', { params: { path: { owner } } }))

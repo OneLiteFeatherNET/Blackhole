@@ -53,6 +53,7 @@ function api(overrides: Record<string, unknown> = {}) {
     eloHistory: vi.fn(async () => ok(events)),
     evasionSightings: vi.fn(async () => ok({ detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false })),
     clientRuleHitsOfOwner: vi.fn(async () => ok([])),
+    playerSessions: vi.fn(async () => ok({ sessions: [], page: 0, size: 50, hasMore: false })),
     ...overrides,
   })
 }
@@ -277,13 +278,17 @@ describe('PlayerDetailView', () => {
   })
 
   it('keeps no player identifier in browser storage', async () => {
-    const { wrapper } = await open()
+    const session = { sessionId: 's-1', owner: OWNER, playerUuid: '11111111-2222-3333-4444-555555555555', playerName: 'Steve', ip: '203.0.113.7', asOrg: 'Example Transit', outcome: 'ALLOWED', startedAt: 1, endedAt: null }
+    const { wrapper } = await open(OWNER, { playerSessions: vi.fn(async () => ok({ sessions: [session], page: 0, size: 50, hasMore: false })) })
     useLookupStore().remember(OWNER, 'Steve')
     await flushPromises()
 
     const stored = JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage })
     expect(stored).not.toContain(OWNER)
     expect(stored).not.toContain('Steve')
+    expect(stored, 'the session address and provider stay in memory').not.toContain('203.0.113.7')
+    expect(stored).not.toContain('Example Transit')
+    expect(stored).not.toContain('11111111-2222-3333-4444-555555555555')
 
     wrapper.unmount()
   })

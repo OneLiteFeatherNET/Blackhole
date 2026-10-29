@@ -202,7 +202,28 @@
       "weakNote": "Eine Verknüpfung nur über das Client-Setup ist ein schwacher Hinweis, kein Beweis: Spieler mit demselben Modpack oder Launcher sehen sich ähnlich. Adresse zusammen mit Client-Setup ist das stärkere Signal.",
       "weakOnly": "Alle hier gelisteten Konten teilen mit diesem Spieler nur das Client-Setup. Das ist ein schwacher Hinweis, kein Beweis: Ein Modpack oder Launcher wird von vielen unabhängigen Spielern benutzt."
     },
-    "activeCount": "{count} aktiv"
+    "activeCount": "{count} aktiv",
+  "sessions": {
+   "title": "Sitzungen",
+   "empty": "Bisher ist keine Sitzung erfasst.",
+   "approximate": "{country} (ungefähr)",
+   "loadMore": "Weitere laden",
+   "attribution": "Geolokalisierung und ASN-Daten: DB-IP, lizenziert unter CC BY 4.0.",
+   "outcome": {
+    "ALLOWED": "Zugelassen",
+    "DENIED": "Abgewiesen"
+   },
+   "columns": {
+    "when": "Zeitpunkt",
+    "outcome": "Ergebnis",
+    "ip": "IP-Adresse",
+    "provider": "Anbieter (ASN)",
+    "country": "Land",
+    "client": "Client",
+    "protocol": "Protokoll",
+    "host": "Virtueller Host"
+   }
+  }
   },
   "actions": {
     "cancel": "Abbrechen",

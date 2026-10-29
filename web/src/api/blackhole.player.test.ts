@@ -142,3 +142,15 @@ describe('evasionSightings', () => {
     expect(result.ok && result.data.linkedOwners).toEqual([])
   })
 })
+
+describe('playerSessions', () => {
+  it('reads one page of the sessions of a player with the page parameters', async () => {
+    const body = { sessions: [], page: 1, size: 50, hasMore: false }
+    const { api, calls } = apiWith([{ body }])
+
+    const result = await api.playerSessions(OWNER, 1, 50)
+
+    expect(result).toEqual({ ok: true, data: body })
+    expect(calls[0]!.url).toBe(`http://ui.test/api/intel/players/${OWNER}/sessions?page=1&size=50`)
+  })
+})

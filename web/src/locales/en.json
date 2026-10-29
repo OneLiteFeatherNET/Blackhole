@@ -202,7 +202,28 @@
       "weakNote": "A link by the client setup alone is a weak hint, not proof: players who use the same modpack or launcher look alike. An address together with the client setup is the stronger signal.",
       "weakOnly": "Every account listed here shares only the client setup with this player. That is a weak hint, no proof: a modpack or launcher is used by many unrelated players."
     },
-    "activeCount": "{count} active"
+    "activeCount": "{count} active",
+  "sessions": {
+   "title": "Sessions",
+   "empty": "No session has been recorded yet.",
+   "approximate": "{country} (approximate)",
+   "loadMore": "Load more",
+   "attribution": "Geolocation and ASN data: DB-IP, licensed under CC BY 4.0.",
+   "outcome": {
+    "ALLOWED": "Allowed",
+    "DENIED": "Denied"
+   },
+   "columns": {
+    "when": "Time",
+    "outcome": "Outcome",
+    "ip": "IP address",
+    "provider": "Provider (ASN)",
+    "country": "Country",
+    "client": "Client",
+    "protocol": "Protocol",
+    "host": "Virtual host"
+   }
+  }
   },
   "actions": {
     "cancel": "Cancel",
