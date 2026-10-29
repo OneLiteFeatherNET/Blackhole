@@ -61,7 +61,7 @@ class RollbackEventsTest {
                 throw new IllegalStateException("broker down");
             }
         };
-        var service = new RollbackExecutionService(world.jobs, brokerDown, world.bed.eloBed.clock);
+        var service = new RollbackExecutionService(world.jobs, brokerDown, world.bed.eloBed.clock, world.bed.staffLinks.service);
 
         RollbackDTO result = service.start(RollbackBed.JOB, REASON, "key-1");
 

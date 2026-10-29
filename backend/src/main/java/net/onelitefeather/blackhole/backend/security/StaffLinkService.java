@@ -40,7 +40,7 @@ public class StaffLinkService {
 
     /** Why a link was removed, as published in {@code staff-link.removed}. */
     enum RemovalReason {
-        SELF, ADMIN, REPLACED, ANONYMIZED
+        SELF, ADMIN, REPLACED, ANONYMIZED, ROLLBACK
     }
 
     private static final String INVALID_CODE = "the link code is invalid or expired";
@@ -203,6 +203,20 @@ public class StaffLinkService {
             this.audit.record(admin.attribution(), admin, AuditAction.STAFF_LINK_UNLINK, AuditTarget.none());
         }
         return result;
+    }
+
+    /**
+     * Removes the Minecraft link of a staff member as part of a rollback, with the removal reason {@code ROLLBACK}.
+     * Stored {@code actor_oid} values are not touched: the link stops future attribution only. The Entra account
+     * is not affected.
+     *
+     * @return whether a link was removed
+     */
+    public boolean removeForRollback(UUID oid, UUID rollbackAdminOid) {
+        return this.links.findById(oid).map(link -> {
+            remove(link, RemovalReason.ROLLBACK, rollbackAdminOid);
+            return true;
+        }).orElse(false);
     }
 
     /** Removes the link of an anonymized staff actor, if there is one; a no-op otherwise. */

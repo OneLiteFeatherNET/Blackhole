@@ -45,7 +45,7 @@ final class RollbackBed {
     }
 
     RollbackExecutionService execution() {
-        return new RollbackExecutionService(this.jobs, this.bed.eloBed.events, this.bed.eloBed.clock);
+        return new RollbackExecutionService(this.jobs, this.bed.eloBed.events, this.bed.eloBed.clock, this.bed.staffLinks.service);
     }
 
     RollbackRunner runner(String holder, Duration lease, int batchSize) {
