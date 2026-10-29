@@ -10,8 +10,11 @@ services:
       POSTGRES_USER: blackhole
       POSTGRES_PASSWORD: blackhole
       POSTGRES_DB: blackhole
+    # PostgreSQL 18 images keep data in /var/lib/postgresql/18/docker and refuse to start with a volume
+    # at /var/lib/postgresql/data. Mount the parent directory instead. An existing data directory from
+    # PostgreSQL 17 or older must be upgraded with pg_upgrade or replaced by an empty directory.
     volumes:
-      - ./postgres/data/:/var/lib/postgresql/data
+      - ./postgres/data/:/var/lib/postgresql
     networks:
       - blackhole_go_net
   # NATS with JetStream carries the domain event bus (subjects blackhole.events.<type>, stream
