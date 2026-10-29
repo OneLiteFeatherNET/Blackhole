@@ -4,6 +4,8 @@ import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.EloProfileResponse;
 import net.onelitefeather.blackhole.client.model.NameHistoryOwner;
 import net.onelitefeather.blackhole.client.model.NameHistoryPage;
+import net.onelitefeather.blackhole.client.model.IntelPolicy;
+import net.onelitefeather.blackhole.client.model.LoginCheckResponse;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
@@ -26,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * A backend the test controls: what it answers is set per test, what was asked is recorded.
  */
-final class StubGateway implements BackendGateway {
+public final class StubGateway implements BackendGateway {
 
     List<PunishTemplateResponse> templates = new ArrayList<>();
     ApiException templatesFailure;
@@ -54,6 +56,15 @@ final class StubGateway implements BackendGateway {
     ApiException relayReportFailure;
     /** The player and code of each confirm call. */
     final List<String> confirmed = new ArrayList<>();
+
+    /** A login check as the backend received it. */
+    public record LoginCheck(String owner, String ip) {
+    }
+
+    /** The login checks the backend received, in order. */
+    public final List<LoginCheck> loginChecks = new ArrayList<>();
+    /** What the login check answers; a future that never completes models a backend that does not answer. */
+    public CompletableFuture<LoginCheckResponse> loginCheckAnswer = CompletableFuture.completedFuture(new LoginCheckResponse().verdict(IntelPolicy.ALLOW));
 
     final List<String> applied = new ArrayList<>();
     /** The player UUID each apply call carried, null where unknown. */
@@ -258,6 +269,12 @@ final class StubGateway implements BackendGateway {
             throw this.discordFailure;
         }
         return this.discordResponse;
+    }
+
+    @Override
+    public CompletableFuture<LoginCheckResponse> loginCheck(String owner, String ip) {
+        this.loginChecks.add(new LoginCheck(owner, ip));
+        return this.loginCheckAnswer;
     }
 
     @Override

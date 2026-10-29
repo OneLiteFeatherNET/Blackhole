@@ -5,6 +5,8 @@ import com.velocitypowered.api.network.ProtocolVersion;
 import net.kyori.adventure.text.renderer.ComponentRenderer;
 import net.onelitefeather.blackhole.client.api.IntelApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
+import net.onelitefeather.blackhole.client.model.IntelPolicy;
+import net.onelitefeather.blackhole.client.model.LoginCheckResponse;
 import net.onelitefeather.blackhole.client.model.PunishEntryDTO;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.velocity.TestData;
@@ -20,6 +22,8 @@ import net.onelitefeather.blackhole.velocity.evidence.MutableClock;
 import net.onelitefeather.blackhole.velocity.intel.HttpSessionBackend;
 import net.onelitefeather.blackhole.velocity.intel.SessionPlayer;
 import net.onelitefeather.blackhole.velocity.intel.SessionReporter;
+import net.onelitefeather.blackhole.velocity.intel.VpnLoginDecision;
+import net.onelitefeather.blackhole.velocity.punish.StubGateway;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +36,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -76,9 +81,19 @@ class PlayerLoginListenerTest {
     }
 
     private PlayerLoginListener listener(PunishmentState state, Executor executor) {
+        return listener(state, executor, new VpnLoginDecision(new StubGateway(), Duration.ofSeconds(1)));
+    }
+
+    private PlayerLoginListener listener(PunishmentState state, Executor executor, VpnLoginDecision vpn) {
         SessionReporter sessions = new SessionReporter(new HttpSessionBackend(new IntelApi(client)), executor,
                 () -> new UUID(0, sequence.incrementAndGet()));
-        return new PlayerLoginListener(client, state, screens(), identifier -> OptionalLong.empty(), sessions);
+        return new PlayerLoginListener(client, state, screens(), identifier -> OptionalLong.empty(), sessions, vpn);
+    }
+
+    private static VpnLoginDecision vpnAnswering(IntelPolicy verdict) {
+        StubGateway gateway = new StubGateway();
+        gateway.loginCheckAnswer = CompletableFuture.completedFuture(new LoginCheckResponse().verdict(verdict));
+        return new VpnLoginDecision(gateway, Duration.ofSeconds(1));
     }
 
     private PunishmentState stateWithProfile(Optional<PunishProfileDTO> profile) {
@@ -138,6 +153,28 @@ class PlayerLoginListenerTest {
         assertTrue(start.contains("\"protocolVersion\":" + PROTOCOL), start);
         assertEquals(1, profileBodies().size(), "the profile session info is still updated once");
         assertTrue(profileBodies().getFirst().contains("\"protocolVersion\":" + PROTOCOL), profileBodies().getFirst());
+    }
+
+    @Test
+    void aDenyVerdictDeniesTheLoginAndItsStartIsReportedAsDenied() {
+        PlayerLoginListener listener = listener(stateWithProfile(Optional.empty()), RUN_AT_ONCE, vpnAnswering(IntelPolicy.DENY));
+        LoginEvent event = new LoginEvent(SessionPlayer.alice());
+
+        listener.onLogin(event);
+
+        assertFalse(event.getResult().isAllowed(), "a DENY verdict refuses the login");
+        assertTrue(intelBodies().getFirst().contains("\"outcome\":\"DENIED\""), intelBodies().getFirst());
+    }
+
+    @Test
+    void aFlagVerdictLetsTheLoginThroughAndItsStartIsReportedAsAllowed() {
+        PlayerLoginListener listener = listener(stateWithProfile(Optional.empty()), RUN_AT_ONCE, vpnAnswering(IntelPolicy.FLAG));
+        LoginEvent event = new LoginEvent(SessionPlayer.alice());
+
+        listener.onLogin(event);
+
+        assertTrue(event.getResult().isAllowed(), "a FLAG verdict lets the login through");
+        assertTrue(intelBodies().getFirst().contains("\"outcome\":\"ALLOWED\""), intelBodies().getFirst());
     }
 
     @Test

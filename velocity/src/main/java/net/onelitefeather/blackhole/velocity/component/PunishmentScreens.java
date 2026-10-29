@@ -45,7 +45,10 @@ public final class PunishmentScreens {
      * Where a message is shown; decides whether hover and click events are attached. {@code KICK} is the
      * disconnect screen of a kick, which has no punishment behind it and so no appeal hint.
      */
-    public enum Surface { DISCONNECT, CHAT, KICK }
+    public enum Surface { DISCONNECT, CHAT, KICK, VPN_DENY }
+
+    /** The English text of the VPN denial, used where the message bundle has no translation. */
+    static final String VPN_DENY_TEXT = "VPN and hosting connections are not allowed on this network.";
 
     /** What a kicked player is told, with or without a reason. */
     static final String KICK_TITLE = "You were removed from the network";
@@ -188,6 +191,16 @@ public final class PunishmentScreens {
                 ? JoinConfiguration.newlines()
                 : JoinConfiguration.separator(Component.newline().append(Component.newline()));
         return Component.join(separator, paragraphs);
+    }
+
+    /**
+     * The disconnect screen of a login refused by the VPN policy ({@link Surface#VPN_DENY}). It names no
+     * address, no account and no punishment, so there is no Ban ID or appeal hint.
+     *
+     * @return the text, in the locale's translation or the English text where there is none
+     */
+    public @NotNull Component vpnDenial(@NotNull Locale locale) {
+        return this.renderer.render(Component.translatable("punishment.screen.vpn.deny").fallback(VPN_DENY_TEXT), locale);
     }
 
     /**
