@@ -1207,6 +1207,25 @@
       "playerFile": "Vom Spieler geliefert, nicht geprüft",
       "reconnecting": "Live-Updates pausiert, Verbindung wird neu aufgebaut."
     },
+    "lock": {
+      "title": "Ticket-Sperre",
+      "claimedBy": "Übernommen von",
+      "notClaimed": "Nicht übernommen",
+      "appeal": "Einspruch",
+      "decided": "Entschieden",
+      "notDecided": "Noch nicht entschieden",
+      "state": "Sperre",
+      "unlocked": "Nicht gesperrt",
+      "unknown": "Noch nicht bekannt. Sperren oder Entsperren hier zeigt den Stand.",
+      "lockedStaff": "Vom Team gesperrt",
+      "lockedLeak": "Vom Leak-Check gesperrt",
+      "lock": "Ticket sperren",
+      "unlock": "Ticket entsperren",
+      "leak": "Der Leak-Check hat dieses Ticket gesperrt. Das Team kann nicht entsperren, und solange es gesperrt ist, kann der Spieler nicht schreiben.",
+      "hint": "Ein gesperrtes Ticket nimmt keine Nachrichten des Spielers an. Das Team kann weiter schreiben.",
+      "lockedDone": "Ticket gesperrt.",
+      "unlockedDone": "Ticket entsperrt."
+    },
     "tickets": {
       "title": "Discord-Tickets",
       "number": "Ticket #{no}",

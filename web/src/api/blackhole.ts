@@ -17,6 +17,7 @@ import type {
   BanIdReissueReason,
   CaseBanIdLeakResult,
   CaseBanIdReissueResult,
+  StaffTicketState,
   ChatAttachment,
   EvidenceCounts,
   EvidenceShare,
@@ -301,6 +302,11 @@ export interface BlackholeApi {
   reissueBanId(reference: string, reason: BanIdReissueReason): Promise<ApiResult<CaseBanIdReissueResult>>
   /** The current Ban ID of a punishment (MODERATOR and above). A credential: show it, never store or log it. */
   revealBanId(reference: string): Promise<ApiResult<string>>
+  /**
+   * Locks (frozen true) or unlocks the appeal ticket of the case (MODERATOR and above). A leak freeze is not
+   * lifted by an unlock: the server refuses it with code FREEZE_BY_LEAK.
+   */
+  setStaffTicketFreeze(reference: string, frozen: boolean): Promise<ApiResult<StaffTicketState>>
   /** The conversation and lifecycle of the case as a file (ADMIN only); notes only with `includeNotes`. */
   exportCaseTranscript(reference: string, format: TranscriptFormat, includeNotes: boolean): Promise<ApiResult<TranscriptFile>>
 }
@@ -925,6 +931,9 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     reissueBanId: (reference, reason) =>
       toResult(http.POST('/case/{reference}/ban-id/reissue', { params: { path: { reference } }, body: { reason } })),
+
+    setStaffTicketFreeze: (reference, frozen) =>
+      toResult(http.PUT('/case/{reference}/ticket/freeze', { params: { path: { reference } }, body: { frozen } })),
 
     revealBanId: async (reference) =>
       map(await toResult(http.GET('/punishment/{reference}/ban-id', { params: { path: { reference } } })), (body) => body.banId),
