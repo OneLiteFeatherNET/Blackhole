@@ -9,14 +9,9 @@ import { useI18n } from 'vue-i18n'
 import { useApi } from '../../api/inject'
 import { useSessionStore } from '../../stores/session'
 import MdButton from '../md/MdButton.vue'
-import type { TicketView } from './tickets'
+import { lockSource, type LockState, type TicketView } from './tickets'
 
-interface Lock {
-  frozen: boolean
-  source: 'STAFF' | 'LEAK' | null
-}
-
-const props = defineProps<{ reference: string; tickets: TicketView[]; assigneeName: string | null; leakFrozen: boolean }>()
+const props = defineProps<{ reference: string; tickets: TicketView[]; assigneeName: string | null; leakFrozen: boolean; known: LockState | null }>()
 const emit = defineEmits<{ changed: [message: string] }>()
 
 const { t } = useI18n()
@@ -27,12 +22,12 @@ const session = useSessionStore()
 const ticket = computed(() => props.tickets[props.tickets.length - 1] ?? null)
 const decided = computed(() => ticket.value !== null && ticket.value.phase !== 'OPEN')
 
-/** Null until this page changed the lock or the case showed a leak freeze. */
-const lock = ref<Lock | null>(null)
+/** The answer to this page's own last change; the state the case knows (`known`) applies again once that moves on. */
+const lock = ref<LockState | null>(null)
 const saving = ref(false)
 const error = ref('')
 
-const current = computed<Lock | null>(() => (props.leakFrozen ? { frozen: true, source: 'LEAK' } : lock.value))
+const current = computed<LockState | null>(() => (props.leakFrozen ? { frozen: true, source: 'LEAK' } : (lock.value ?? props.known)))
 const locked = computed(() => current.value?.frozen === true)
 const leakLocked = computed(() => locked.value && current.value?.source === 'LEAK')
 const canLock = computed(() => session.moderator && ticket.value?.phase === 'OPEN' && !locked.value)
@@ -51,6 +46,14 @@ watch(
   },
 )
 
+// A newer state from the case or the timeline supersedes this page's last answer.
+watch(
+  () => props.known,
+  () => {
+    lock.value = null
+  },
+)
+
 async function change(frozen: boolean): Promise<void> {
   if (saving.value) return
   saving.value = true
@@ -65,7 +68,7 @@ async function change(frozen: boolean): Promise<void> {
     return
   }
   const source = result.data.freezeSource
-  lock.value = { frozen: result.data.frozen, source: source === 'LEAK' || source === 'STAFF' ? source : null }
+  lock.value = { frozen: result.data.frozen, source: lockSource(source) }
   emit('changed', t(frozen ? 'case.lock.lockedDone' : 'case.lock.unlockedDone'))
 }
 </script>

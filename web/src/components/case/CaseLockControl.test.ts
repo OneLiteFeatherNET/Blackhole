@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { StaffTicketState } from '../../api/types'
 import { fail, mockApi, mountWithApp, ok } from '../../test/mount'
 import CaseLockControl from './CaseLockControl.vue'
-import type { TicketView } from './tickets'
+import type { LockState, TicketView } from './tickets'
 
 const REFERENCE = 'p-0001'
 
@@ -26,12 +26,13 @@ interface Setup {
   tickets?: TicketView[]
   assigneeName?: string | null
   leakFrozen?: boolean
+  known?: LockState | null
   roles?: string[]
   freeze?: (reference: string, frozen: boolean) => Promise<unknown>
 }
 
 /** The freeze answers what the server would: the lock is set by staff, or cleared. */
-function setup({ tickets = [ticket()], assigneeName = 'Ada', leakFrozen = false, roles = ['MODERATOR'], freeze }: Setup = {}) {
+function setup({ tickets = [ticket()], assigneeName = 'Ada', leakFrozen = false, known = null, roles = ['MODERATOR'], freeze }: Setup = {}) {
   const setStaffTicketFreeze = vi.fn(
     freeze ?? (async (_reference: string, frozen: boolean) => ok<StaffTicketState>({ frozen, freezeSource: frozen ? 'STAFF' : null })),
   )
@@ -39,7 +40,7 @@ function setup({ tickets = [ticket()], assigneeName = 'Ada', leakFrozen = false,
     mountWithApp(CaseLockControl, {
       api: mockApi({ setStaffTicketFreeze }),
       roles,
-      props: { reference: REFERENCE, tickets, assigneeName, leakFrozen },
+      props: { reference: REFERENCE, tickets, assigneeName, leakFrozen, known },
     })
   return { setStaffTicketFreeze, mount }
 }
@@ -125,6 +126,36 @@ describe('CaseLockControl', () => {
     expect(wrapper.get('[data-testid="lock-error"]').text()).toBe('the case has no open appeal ticket')
     expect(wrapper.find('[data-testid="lock-ticket"]').exists()).toBe(true)
 
+    wrapper.unmount()
+  })
+
+  it('shows the lock the case already knows, without a "not known yet" text', async () => {
+    const { mount } = setup({ known: { frozen: true, source: 'STAFF' } })
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-testid="lock-state"]').text()).toBe('Locked by staff')
+    expect(wrapper.text(), 'a known state is never reported as unknown').not.toContain('Not known yet')
+    expect(wrapper.find('[data-testid="unlock-ticket"]').exists(), 'the known staff lock can be unlocked').toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('follows a lock event from the timeline that arrives after the page loaded', async () => {
+    const { mount } = setup({ known: { frozen: false, source: null } })
+    const { wrapper } = await mount()
+    expect(wrapper.get('[data-testid="lock-state"]').text()).toBe('Not locked')
+
+    await wrapper.setProps({ known: { frozen: true, source: 'STAFF' } })
+
+    expect(wrapper.get('[data-testid="lock-state"]').text()).toBe('Locked by staff')
+    wrapper.unmount()
+  })
+
+  it('says the state is not known only when neither the case nor the timeline has one', async () => {
+    const { mount } = setup({ known: null })
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-testid="lock-state"]').text()).toBe('Not known yet. Locking or unlocking here shows the state.')
     wrapper.unmount()
   })
 
