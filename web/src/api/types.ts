@@ -127,6 +127,14 @@ export type ImportedPunishmentGroups =Schemas['ImportedPunishmentGroups']
 export type ImportedPunishmentGroup = Schemas['ImportedPunishmentGroup']
 export type ImportedPunishmentRetemplateResult = Schemas['ImportedPunishmentRetemplateResponse']
 
+/** A staff rollback: the preview counts of one staff member's (or unlinked in-game account's) punishments in a window. */
+export type RollbackPreviewRequest = Schemas['RollbackPreviewRequest']
+export type RollbackPreview = Schemas['RollbackPreviewResponse']
+export type RollbackExecuteRequest = Schemas['RollbackExecuteRequest']
+export type RollbackStarted = Schemas['RollbackStarted']
+export type RollbackProgress = Schemas['RollbackProgress']
+export type RollbackCancelled = Schemas['RollbackCancelled']
+
 /** A known staff principal (a person or an application) with the name kept for it. */
 export type StaffActor = Schemas['StaffActorItem']
 

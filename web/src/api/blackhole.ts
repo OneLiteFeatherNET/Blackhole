@@ -90,6 +90,12 @@ import type {
   VanillaImportResult,
   ImportedPunishmentGroups,
   ImportedPunishmentRetemplateResult,
+  RollbackCancelled,
+  RollbackExecuteRequest,
+  RollbackPreview,
+  RollbackPreviewRequest,
+  RollbackProgress,
+  RollbackStarted,
 } from './types'
 
 export interface ApiOptions {
@@ -245,6 +251,18 @@ export interface BlackholeApi {
    * (ADMIN only). Only the template changes; repeating it links nothing.
    */
   retemplateImportedPunishments(request: { templateKey: string; reason: string }): Promise<ApiResult<ImportedPunishmentRetemplateResult>>
+
+  /**
+   * Counts what a rollback would undo for one staff member (or an unlinked in-game account) in a window and freezes
+   * the set into a job; nothing is revoked (ADMIN only). A refusal keeps its kind, e.g. ROLLBACK_TOO_LARGE.
+   */
+  previewRollback(request: RollbackPreviewRequest): Promise<ApiResult<RollbackPreview>>
+  /** Starts a previewed job. The same `idempotencyKey` answers the same job and writes nothing (ADMIN only). */
+  executeRollback(id: string, request: RollbackExecuteRequest, idempotencyKey: string): Promise<ApiResult<RollbackStarted>>
+  /** The state of a job and how many of its items are pending, revoked, skipped or failed (ADMIN only). */
+  rollbackProgress(id: string): Promise<ApiResult<RollbackProgress>>
+  /** Stops a preview or a running job before its next item (ADMIN only). */
+  cancelRollback(id: string): Promise<ApiResult<RollbackCancelled>>
 
   /** One page of the currently active punishments of all players, newest first unless sorted otherwise. */
   activePunishments(query?: ActivePunishmentQuery): Promise<ApiResult<ActivePunishmentPage>>
@@ -683,6 +701,20 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       toResult(http.POST('/kick/mass', { params: { header: { 'Idempotency-Key': idempotencyKey } }, body: request })),
 
     kick: (id) => toResult(http.GET('/kick/{id}', { params: { path: { id } } })),
+
+    previewRollback: (request) => toResult(http.POST('/admin/rollback/preview', { body: request })),
+
+    executeRollback: (id, request, idempotencyKey) =>
+      toResult(
+        http.POST('/admin/rollback/{id}/execute', {
+          params: { path: { id }, header: { 'Idempotency-Key': idempotencyKey } },
+          body: request,
+        }),
+      ),
+
+    rollbackProgress: (id) => toResult(http.GET('/admin/rollback/{id}', { params: { path: { id } } })),
+
+    cancelRollback: (id) => toResult(http.POST('/admin/rollback/{id}/cancel', { params: { path: { id } } })),
 
     playerSessions: (owner, page, size) =>
       toResult(http.GET('/intel/players/{owner}/sessions', { params: { path: { owner }, query: { page, size } } })),

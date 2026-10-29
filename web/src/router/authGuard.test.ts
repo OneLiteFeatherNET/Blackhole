@@ -165,6 +165,7 @@ describe('router guard', () => {
 
   it.each([
     ['/admin/staff', 'admin-staff'],
+    ['/admin/rollback', 'admin-rollback'],
     ['/admin/imports', 'admin-imports'],
     ['/admin/cloudnet', 'admin-cloudnet'],
     ['/admin/kick', 'admin-kick'],

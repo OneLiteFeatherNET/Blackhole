@@ -62,6 +62,7 @@ export const routes: RouteRecordRaw[] = [
   { path: '/admin/appeal-terms', name: 'admin-appeal-terms', component: AppealConditionsView, meta: { titleKey: 'nav.appealTerms', admin: true, pageShell: true, workspace: 'administration' } },
   // The system pages: one component with one tab route each (`meta.adminTab`), each a rail item of its own.
   { path: '/admin/staff', name: 'admin-staff', component: AdminView, meta: { titleKey: 'nav.staffAccounts', admin: true, pageShell: true, adminTab: 'staff', workspace: 'administration' } },
+  { path: '/admin/rollback', name: 'admin-rollback', component: AdminView, meta: { titleKey: 'nav.rollback', admin: true, pageShell: true, adminTab: 'rollback', workspace: 'administration' } },
   { path: '/admin/imports', name: 'admin-imports', component: AdminView, meta: { titleKey: 'nav.imports', admin: true, pageShell: true, adminTab: 'imports', workspace: 'administration' } },
   { path: '/admin/cloudnet', name: 'admin-cloudnet', component: AdminView, meta: { titleKey: 'nav.cloudnet', admin: true, pageShell: true, adminTab: 'cloudnet', workspace: 'administration' } },
   { path: '/admin/kick', name: 'admin-kick', component: AdminView, meta: { titleKey: 'nav.kick', admin: true, pageShell: true, adminTab: 'kick', workspace: 'administration' } },

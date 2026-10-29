@@ -7,6 +7,7 @@ import CloudNetCataloguePanel from '../components/admin/CloudNetCataloguePanel.v
 import ImportedPunishmentsPanel from '../components/admin/ImportedPunishmentsPanel.vue'
 import VanillaImportPanel from '../components/admin/VanillaImportPanel.vue'
 import MassKickForm from '../components/admin/MassKickForm.vue'
+import StaffRollbackPanel from '../components/admin/StaffRollbackPanel.vue'
 import PageShell from '../components/PageShell.vue'
 import { useSessionStore } from '../stores/session'
 import StaffAccountsView from './StaffAccountsView.vue'
@@ -19,6 +20,7 @@ const session = useSessionStore()
 
 const PAGES = {
   staff: 'nav.staffAccounts',
+  rollback: 'nav.rollback',
   imports: 'nav.imports',
   cloudnet: 'nav.cloudnet',
   kick: 'nav.kick',
@@ -33,6 +35,7 @@ const active = computed<keyof typeof PAGES>(() => (route.meta.adminTab as keyof 
     <template v-if="session.administrator">
       <div class="flex flex-col gap-8">
         <StaffAccountsView v-if="active === 'staff'" />
+        <StaffRollbackPanel v-else-if="active === 'rollback'" />
         <template v-else-if="active === 'imports'">
           <VanillaImportPanel />
           <ImportedPunishmentsPanel />
