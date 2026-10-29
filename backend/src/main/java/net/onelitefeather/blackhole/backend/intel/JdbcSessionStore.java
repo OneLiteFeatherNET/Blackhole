@@ -12,7 +12,6 @@ import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -43,6 +42,10 @@ public class JdbcSessionStore implements SessionStore {
     private static final String DELETE_BEFORE = "DELETE FROM player_sighting WHERE started_at < ?";
     private static final String TOKENS_OF_OWNER = """
             SELECT DISTINCT ip_token FROM player_sighting WHERE owner_hash = ? AND started_at >= ? AND ip_token IS NOT NULL
+            """;
+
+    private static final String SIGHTINGS_OF_TOKENS = """
+            SELECT ip_token, owner_hash, started_at FROM player_sighting WHERE started_at >= ? AND ip_token = ANY (?)
             """;
 
     private final DataSource dataSource;
@@ -175,16 +178,10 @@ public class JdbcSessionStore implements SessionStore {
         if (tokens.isEmpty()) {
             return List.of();
         }
-        String placeholders = String.join(",", Collections.nCopies(tokens.size(), "?"));
-        String sql = "SELECT ip_token, owner_hash, started_at FROM player_sighting WHERE started_at >= ? AND ip_token IN ("
-                + placeholders + ")";
         try (Connection connection = this.dataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement(sql)) {
+             PreparedStatement statement = connection.prepareStatement(SIGHTINGS_OF_TOKENS)) {
             statement.setLong(1, since);
-            int index = 2;
-            for (String token : tokens) {
-                statement.setString(index++, token);
-            }
+            statement.setArray(2, connection.createArrayOf("text", tokens.toArray()));
             try (ResultSet rows = statement.executeQuery()) {
                 List<TokenSighting> found = new ArrayList<>();
                 while (rows.next()) {
