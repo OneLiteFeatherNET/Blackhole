@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.profile.controller;
 
 import net.onelitefeather.blackhole.backend.profile.ProfileAttributionGuard;
+import net.onelitefeather.blackhole.backend.publicbans.PublicBanListing;
 import io.micronaut.security.annotation.Secured;
 import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
@@ -56,6 +57,7 @@ public class ProfileController {
     private final DiscordLinkService discordLinks;
     private final ClientRuleHitStore clientRuleHits;
     private final ClientFingerprintStore clientFingerprints;
+    private final PublicBanListing publicListing;
 
     /**
      * Create a new ProfileController.
@@ -82,8 +84,10 @@ public class ProfileController {
             ProfileAttributionGuard attributionGuard,
             DiscordLinkService discordLinks,
             ClientRuleHitStore clientRuleHits,
-            ClientFingerprintStore clientFingerprints
+            ClientFingerprintStore clientFingerprints,
+            PublicBanListing publicListing
     ) {
+        this.publicListing = publicListing;
         this.repository = repository;
         this.eventPublisher = eventPublisher;
         this.profileCache = profileCache;
@@ -221,6 +225,8 @@ public class ProfileController {
         // Erasure: the hits are personal data of the owner even when no punishment profile exists.
         this.clientRuleHits.deleteByOwner(owner);
         this.clientFingerprints.deleteByOwner(owner);
+        // Erasure: the punishments of the owner leave the public ban list and lose their internal player UUID.
+        this.publicListing.erase(owner);
         PunishmentProfileEntity entity = this.repository.findById(owner).orElse(null);
         if (entity == null) {
             return HttpResponse.badRequest(new PunishProfileResponse.ErrorResponse("There is no profile linked to the given owner"));

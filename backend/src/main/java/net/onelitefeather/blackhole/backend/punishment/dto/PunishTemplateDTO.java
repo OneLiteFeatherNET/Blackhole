@@ -8,6 +8,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
 import net.onelitefeather.blackhole.backend.punishment.StepKind;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.response.ErrorResponse;
@@ -87,13 +88,20 @@ public sealed interface PunishTemplateDTO {
             @Nullable String escalationWindow,
             @Nullable String warnWindow,
             @NonNull @NotEmpty List<Step> steps,
-            @Nullable Map<String, Object> metaData
+            @Nullable Map<String, Object> metaData,
+            @Nullable @Size(max = 200) String publicReason
     ) implements PunishTemplateDTO {
 
         /** A template without a warn window: warnings count within the escalation window. */
         public CreateRequest(String key, String reason, String section, String escalationGroup, String escalationWindow,
                              List<Step> steps, Map<String, Object> metaData) {
-            this(key, reason, section, escalationGroup, escalationWindow, null, steps, metaData);
+            this(key, reason, section, escalationGroup, escalationWindow, null, steps, metaData, null);
+        }
+
+        /** A template without a public reason: it is not listed on the public ban list. */
+        public CreateRequest(String key, String reason, String section, String escalationGroup, String escalationWindow,
+                             String warnWindow, List<Step> steps, Map<String, Object> metaData) {
+            this(key, reason, section, escalationGroup, escalationWindow, warnWindow, steps, metaData, null);
         }
     }
 
@@ -109,13 +117,14 @@ public sealed interface PunishTemplateDTO {
             @Nullable String escalationWindow,
             @Nullable String warnWindow,
             @NonNull @NotEmpty List<Step> steps,
-            @Nullable Map<String, Object> metaData
+            @Nullable Map<String, Object> metaData,
+            @Nullable @Size(max = 200) String publicReason
     ) implements PunishTemplateDTO {
 
         /** An update without a warn window: warnings count within the escalation window. */
         public UpdateRequest(UUID identifier, String key, String reason, String section, String escalationGroup,
                              String escalationWindow, List<Step> steps, Map<String, Object> metaData) {
-            this(identifier, key, reason, section, escalationGroup, escalationWindow, null, steps, metaData);
+            this(identifier, key, reason, section, escalationGroup, escalationWindow, null, steps, metaData, null);
         }
     }
 
@@ -131,7 +140,8 @@ public sealed interface PunishTemplateDTO {
             @Nullable String escalationWindow,
             @Nullable String warnWindow,
             @NonNull List<Step> steps,
-            @NonNull Map<String, Object> metaData
+            @NonNull Map<String, Object> metaData,
+            @Nullable String publicReason
     ) implements PunishTemplateDTO {
     }
 

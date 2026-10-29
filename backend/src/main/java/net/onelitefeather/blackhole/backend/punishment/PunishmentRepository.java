@@ -24,6 +24,9 @@ public interface PunishmentRepository extends PageableRepository<PunishmentEntit
      */
     boolean existsByTemplate_Identifier(UUID templateIdentifier);
 
+    /** Every punishment of one owner, for the erasure of that owner. */
+    List<PunishmentEntity> findByOwner(String owner);
+
     /** The punishments of one source (such as the vanilla import identity) that are linked to no template. */
     List<PunishmentEntity> findBySourceAndTemplateIsNull(UUID source);
 

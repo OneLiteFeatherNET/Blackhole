@@ -111,7 +111,12 @@ public final class PunishmentTestBed {
     public final PunishmentApplicationService punishmentService = new PunishmentApplicationService(
             punishments.repository(), profiles.repository(), slots, templates.repository(), eloBed.sections, eloBed.events,
             profileCache, evidence, cases.timeline, () -> this.elo, this.staffLinks.service, eloBed.clock, banIds.service,
-            kickService, warningEvents, audit, Duration.ofDays(365));
+            kickService, warningEvents, audit,
+            new net.onelitefeather.blackhole.backend.publicbans.PublicBanListing(
+                    new net.onelitefeather.blackhole.backend.publicbans.PublicBanHasher(
+                            java.util.Base64.getEncoder().encodeToString(new byte[32])),
+                    punishments.repository()),
+            Duration.ofDays(365));
     public final FakeClientRuleStore clientRules = new FakeClientRuleStore();
     public final PunishmentTemplateService templateService = new PunishmentTemplateService(
             templates.repository(), punishments.repository(), templateCache, eloBed.sections, clientRules, audit);
