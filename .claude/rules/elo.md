@@ -26,6 +26,6 @@ a permanent one resets the score to the pardon score (`PARDON_RESET`).
 The default `ToxicityScorer` is `TermListToxicityScorer`: it normalises the message (`elo/toxicity`),
 matches the configured word lists per category (`blackhole.elo.chat.toxicity.terms.*`) on word
 boundaries, drops allow-listed phrases, and scores the highest matched category weight. The word lists
-are configuration (env-var overridable), not code; the repo's starter lists are small and neutral. Mode
+are configuration (env-var overridable), not code; the repo ships them empty. Mode
 `blackhole.elo.chat.toxicity.mode` is `OFF` (scorer not called), `SHADOW` (metric and log only, no ELO
 change) or `ENFORCE`. A scorer failure is fail-open: no delta, no flag, the request still answers.

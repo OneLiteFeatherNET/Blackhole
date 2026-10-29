@@ -329,10 +329,11 @@ blackhole:
         # Comma-separated game phrases that are never matched, for example "kill the dragon".
         allow-list: ${BLACKHOLE_ELO_CHAT_TOXICITY_ALLOW_LIST:kill the dragon,bed wars}
         # Comma-separated words and phrases per category (INSULT, THREAT, SEXUAL, HATE, SPAM).
-        # These are a small neutral starter set. A deployment supplies its own lists via the env vars.
+        # The repository ships no word list. Empty defaults mean nothing is matched until the deployment
+        # fills these in via the env vars.
         terms:
-          insult: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_INSULT:idiot,trottel,dummkopf}
-          threat: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_THREAT:kill you,ich bring dich um}
+          insult: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_INSULT:}
+          threat: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_THREAT:}
           sexual: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_SEXUAL:}
           hate: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_HATE:}
           spam: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_SPAM:}
