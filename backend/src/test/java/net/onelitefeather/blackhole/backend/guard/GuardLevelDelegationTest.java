@@ -49,11 +49,12 @@ class GuardLevelDelegationTest {
         this.linked.givenInGameStaff(STAFF, MINECRAFT);
         this.linked.givenSnapshot(STAFF, "MODERATOR", CLOCK.millis());
 
-        GuardDTO result = service().setLevel(new GuardDTO.CreateRequest("STRICT", STAFF), proxy());
+        GuardDTO result = service().setLevel(new GuardDTO.CreateRequest("STRICT", MINECRAFT), proxy());
 
         assertInstanceOf(GuardDTO.Response.class, result, "a delegated level must be set");
         assertEquals(GuardChange.Source.IN_GAME, this.changes.changes().getFirst().source(), "the source must be the in-game surface");
-        assertEquals(STAFF.toString(), this.changes.changes().getFirst().actorOid(), "the change must carry the delegated staff member");
+        assertEquals(MINECRAFT.toString(), this.changes.changes().getFirst().actorOid(),
+                "the change carries the in-game account the proxy vouches for, as punishments do");
     }
 
     @Test

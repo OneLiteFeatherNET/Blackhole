@@ -40,8 +40,8 @@ class AreaBanDelegationTest {
         return new Actor(PROXY, "proxy", ActorKind.SERVICE, true, false, false, false);
     }
 
-    private static AreaBanDTO.CreateRequest permanentAsnFor(UUID staff) {
-        return new AreaBanDTO.CreateRequest("ASN", "16276", "hosting wave", null, staff);
+    private static AreaBanDTO.CreateRequest permanentAsnFor(UUID onBehalfOf) {
+        return new AreaBanDTO.CreateRequest("ASN", "16276", "hosting wave", null, onBehalfOf);
     }
 
     @Test
@@ -49,7 +49,7 @@ class AreaBanDelegationTest {
         this.linked.givenInGameStaff(MODERATOR, MINECRAFT_MODERATOR);
         this.linked.givenSnapshot(MODERATOR, "MODERATOR,VIEWER", CLOCK.millis());
 
-        AreaBanDTO result = service().create(permanentAsnFor(MODERATOR), proxy());
+        AreaBanDTO result = service().create(permanentAsnFor(MINECRAFT_MODERATOR), proxy());
 
         assertEquals(ErrorKind.FORBIDDEN_DURATION, assertInstanceOf(AreaBanDTO.Error.class, result, "the moderator limit applies").kind(),
                 "the limit follows the delegated moderator, not the proxy");
@@ -60,9 +60,20 @@ class AreaBanDelegationTest {
         this.linked.givenInGameStaff(ADMIN, MINECRAFT_ADMIN);
         this.linked.givenSnapshot(ADMIN, "ADMIN,MODERATOR,VIEWER", CLOCK.millis());
 
-        AreaBanDTO result = service().create(new AreaBanDTO.CreateRequest("COUNTRY", "DE", "wave", null, ADMIN), proxy());
+        AreaBanDTO result = service().create(new AreaBanDTO.CreateRequest("COUNTRY", "DE", "wave", null, MINECRAFT_ADMIN), proxy());
 
         assertInstanceOf(AreaBanDTO.Response.class, result, "an admin's permanent country ban is allowed through the proxy");
+    }
+
+    @Test
+    void aBanTheProxyCreatesIsStoredUnderTheInGameAccountAsPunishmentsAre() {
+        this.linked.givenInGameStaff(ADMIN, MINECRAFT_ADMIN);
+        this.linked.givenSnapshot(ADMIN, "ADMIN,MODERATOR,VIEWER", CLOCK.millis());
+
+        service().create(new AreaBanDTO.CreateRequest("COUNTRY", "DE", "wave", null, MINECRAFT_ADMIN), proxy());
+
+        assertEquals(MINECRAFT_ADMIN.toString(), this.store.listAll().getFirst().actorOid(),
+                "the created_by column holds the in-game account, the same identity kind the punishment path stores");
     }
 
     @Test
