@@ -173,4 +173,56 @@ final class Messages {
     static @NotNull String appealPanelButton() {
         return "Appeal · Einspruch";
     }
+
+    // ---- /guard ----
+
+    static @NotNull String guardStaffOnly(@NotNull Lang lang) {
+        return switch (lang) {
+            case EN -> "Only the moderation team can set the join guard.";
+            case DE -> "Nur das Moderationsteam kann den Join-Guard setzen.";
+        };
+    }
+
+    static @NotNull String guardUsage(@NotNull Lang lang) {
+        return switch (lang) {
+            case EN -> "The level must be OFF, STRICT or LOCKDOWN.";
+            case DE -> "Die Stufe muss OFF, STRICT oder LOCKDOWN sein.";
+        };
+    }
+
+    static @NotNull String guardLinkHint(@NotNull Lang lang) {
+        return switch (lang) {
+            case EN -> "Your Discord account is not linked to a moderator account. Run /link with a code from the panel, then try again.";
+            case DE -> "Dein Discord-Account ist mit keinem Moderator-Account verknüpft. Verknüpfe ihn mit /link und einem Code aus dem Panel "
+                    + "und versuche es dann erneut.";
+        };
+    }
+
+    static @NotNull String guardApplied(@NotNull Lang lang, @NotNull String manual, @NotNull String effective) {
+        return switch (lang) {
+            case EN -> "Join guard set to **" + manual + "**. Effective level now: **" + effective + "**.";
+            case DE -> "Join-Guard auf **" + manual + "** gesetzt. Jetzt wirksam: **" + effective + "**.";
+        };
+    }
+
+    static @NotNull String guardSignIn(@NotNull Lang lang) {
+        return switch (lang) {
+            case EN -> "Your moderator role is not recent enough for Discord. Sign in to the team panel once, then try again.";
+            case DE -> "Deine Moderator-Rolle ist für Discord nicht mehr aktuell. Melde dich einmal im Team-Panel an und versuche es dann erneut.";
+        };
+    }
+
+    static @NotNull String guardNotEligible(@NotNull Lang lang) {
+        return switch (lang) {
+            case EN -> "Your staff account does not hold the moderator or admin role, so the join guard stays as it is.";
+            case DE -> "Dein Team-Account hat weder die Moderator- noch die Admin-Rolle, der Join-Guard bleibt unverändert.";
+        };
+    }
+
+    static @NotNull String guardTryAgain(@NotNull Lang lang) {
+        return switch (lang) {
+            case EN -> "The level could not be set. Try again.";
+            case DE -> "Die Stufe konnte nicht gesetzt werden. Bitte versuche es erneut.";
+        };
+    }
 }

@@ -235,6 +235,32 @@ public interface BackendGateway {
     /** @return the staff member the Discord user is linked to */
     @NotNull StaffLink staffLink(@NotNull String discordUserId);
 
+    /** How a join guard level change ended. */
+    sealed interface GuardOutcome {
+        /**
+         * @param manualLevel    the level the staff member set
+         * @param effectiveLevel the stricter of the manual and the automatic level, which is in force now
+         */
+        record Applied(@NotNull String manualLevel, @NotNull String effectiveLevel) implements GuardOutcome {
+        }
+
+        /** @param text the backend's own text for the staff member, or null; it is matched, never echoed */
+        record Refused(int status, @Nullable String text) implements GuardOutcome {
+        }
+
+        record Unavailable(int status) implements GuardOutcome {
+        }
+    }
+
+    /**
+     * Sets the manual join guard level on behalf of a staff member. The backend records the change with that member and the
+     * surface it came from; the bot never sends a source.
+     *
+     * @param level      OFF, STRICT or LOCKDOWN
+     * @param staffOid   the staff member the Discord user is linked to
+     */
+    @NotNull GuardOutcome setGuardLevel(@NotNull String level, @NotNull String staffOid);
+
     /** @return the version and the claimant of a case, read just before a claim */
     @NotNull CaseRead caseSnapshot(@NotNull String caseReference);
 

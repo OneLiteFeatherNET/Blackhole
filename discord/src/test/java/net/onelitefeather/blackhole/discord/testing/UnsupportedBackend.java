@@ -93,6 +93,11 @@ public abstract class UnsupportedBackend implements BackendGateway {
     }
 
     @Override
+    public @NotNull BackendGateway.GuardOutcome setGuardLevel(@NotNull String level, @NotNull String staffOid) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public @NotNull BackendGateway.CaseRead caseSnapshot(@NotNull String caseReference) {
         throw new UnsupportedOperationException();
     }
