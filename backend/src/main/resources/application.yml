@@ -478,6 +478,28 @@ blackhole:
       threshold: ${BLACKHOLE_GUARD_BURST_THRESHOLD:10}
       window: ${BLACKHOLE_GUARD_BURST_WINDOW:PT5M}
       ban-duration: ${BLACKHOLE_GUARD_BURST_BAN_DURATION:PT2H}
+  # IP bans (openspec add-ip-bans-via-firewall). The clear address is stored on purpose; retention deletes closed rows.
+  ipban:
+    # A moderator may ban an address for at most this long; an administrator may ban permanently.
+    moderator-max-duration: ${BLACKHOLE_IPBAN_MODERATOR_MAX_DURATION:P30D}
+    # Lifted and expired rows are deleted this long after they closed.
+    retention: ${BLACKHOLE_IPBAN_RETENTION:P365D}
+    retention-sweep-cron: ${BLACKHOLE_IPBAN_RETENTION_SWEEP_CRON:`0 40 3 * * *`}
+    # Comma-separated CIDR ranges that may never be banned, in addition to loopback, link-local, RFC 1918 and ULA.
+    # Add the edge ranges of your proxy here.
+    protected-networks: ${BLACKHOLE_IPBAN_PROTECTED_NETWORKS:}
+    firewall:
+      # Off by default. Turn it on only for a direct ingress: behind an edge proxy the firewall sees the edge address.
+      enabled: ${BLACKHOLE_IPBAN_FIREWALL_ENABLED:false}
+      # The Network alias the operator creates once on OPNsense; Blackhole owns its content.
+      alias: ${BLACKHOLE_IPBAN_FIREWALL_ALIAS:blackhole_ipban}
+      # https only (plain http is accepted for a loopback host). Empty leaves the adapter without a target.
+      base-url: ${BLACKHOLE_OPNSENSE_BASE_URL:}
+      # API key and secret of an OPNsense API user with alias permissions; read from the environment only.
+      api-key: ${BLACKHOLE_OPNSENSE_API_KEY:}
+      api-secret: ${BLACKHOLE_OPNSENSE_API_SECRET:}
+      timeout: ${BLACKHOLE_OPNSENSE_TIMEOUT:PT10S}
+      reconcile-interval: ${BLACKHOLE_IPBAN_RECONCILE_INTERVAL:PT5M}
   evasion:
     ip-salt: ${BLACKHOLE_EVASION_IP_SALT:}
     detection-window-days: ${BLACKHOLE_EVASION_DETECTION_WINDOW_DAYS:7}

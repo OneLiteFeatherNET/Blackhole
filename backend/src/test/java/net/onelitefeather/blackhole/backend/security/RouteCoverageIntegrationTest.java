@@ -159,6 +159,13 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /area-bans", M),
             Map.entry("POST /area-bans/{id}/lift", M),
             Map.entry("POST /profile/{owner}/session", MP),
+            // IP bans: staff create and lift (a moderator within the duration limit, an admin permanently), viewers read,
+            // the proxy reads its active list
+            Map.entry("POST /ipban", M),
+            Map.entry("GET /ipban", V),
+            Map.entry("GET /ipban/active", P),
+            Map.entry("GET /ipban/{id}", V),
+            Map.entry("POST /ipban/{id}/lift", M),
             // admin configuration
             Map.entry("POST /section", A),
             Map.entry("POST /section/update", A),
