@@ -15,6 +15,9 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import net.onelitefeather.blackhole.client.api.IntelApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.velocity.intel.HttpSessionBackend;
+import net.onelitefeather.blackhole.velocity.guard.GuardBackend;
+import net.onelitefeather.blackhole.velocity.guard.GuardHeartbeatTask;
+import net.onelitefeather.blackhole.velocity.guard.GuardLevelCache;
 import net.onelitefeather.blackhole.velocity.intel.SessionReporter;
 import net.onelitefeather.blackhole.velocity.auth.ClientCredentialsTokenProvider;
 import net.onelitefeather.blackhole.velocity.auth.JdkTokenTransport;
@@ -318,6 +321,12 @@ public class BlackholeVelocity {
         annotationParser.parse(childInjector.getInstance(LinkCommand.class));
         annotationParser.parse(childInjector.getInstance(ReportCommand.class));
         annotationParser.parse(childInjector.getInstance(DiscordCommand.class));
+        // The join guard's staff presence: one beat per interval, sent off the server thread.
+        GuardHeartbeatTask guardHeartbeat = new GuardHeartbeatTask(childInjector.getInstance(GuardBackend.class),
+                childInjector.getInstance(GuardLevelCache.class), proxyIdOf(cloudNetConfig, cloudNet));
+        Duration guardInterval = this.config.getIntel().getGuardHeartbeatInterval();
+        server.getScheduler().buildTask(this, () -> guardHeartbeat.beat(server.getAllPlayers()))
+                .delay(guardInterval).repeat(guardInterval).schedule();
         server.getEventManager().register(this, childInjector.getInstance(PlayerLoginListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerChatListener.class));
         server.getEventManager().register(this, this.muteCommands);
