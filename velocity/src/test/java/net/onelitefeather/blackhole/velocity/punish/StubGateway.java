@@ -54,6 +54,8 @@ final class StubGateway implements BackendGateway {
     final List<String> confirmed = new ArrayList<>();
 
     final List<String> applied = new ArrayList<>();
+    /** The player UUID each apply call carried, null where unknown. */
+    final List<UUID> appliedPlayers = new ArrayList<>();
     /** The warning-only flag of each apply call, in order. */
     final List<Boolean> warningOnlyFlags = new ArrayList<>();
     final List<String> revoked = new ArrayList<>();
@@ -156,7 +158,8 @@ final class StubGateway implements BackendGateway {
     }
 
     @Override
-    public PunishmentApplyResponse apply(String owner, String templateKey, UUID source, String evidenceCorrelationId, boolean warningOnly) throws ApiException {
+    public PunishmentApplyResponse apply(String owner, UUID playerUuid, String templateKey, UUID source, String evidenceCorrelationId, boolean warningOnly) throws ApiException {
+        this.appliedPlayers.add(playerUuid);
         this.applied.add(templateKey);
         this.warningOnlyFlags.add(warningOnly);
         this.appliedCorrelationIds.add(evidenceCorrelationId);

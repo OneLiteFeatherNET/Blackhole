@@ -62,7 +62,7 @@ public final class WarnCommand {
         }
         String key = template.trim();
         this.warnings.async(() -> send(sender, user, key,
-                this.service.apply(user.ownerHash(), key, sender.getUniqueId(), PunishService.ANY_KINDS, true)));
+                this.service.apply(user.ownerHash(), user.uuid(), key, sender.getUniqueId(), PunishService.ANY_KINDS, true)));
     }
 
     private static void send(Player sender, ResolvedTarget user, String key, PunishService.ApplyOutcome outcome) {

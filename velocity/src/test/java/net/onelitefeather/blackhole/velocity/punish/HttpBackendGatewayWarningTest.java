@@ -36,7 +36,7 @@ class HttpBackendGatewayWarningTest {
     void aWarnApplySendsTheWarningOnlyFlag() throws Exception {
         FakeHttpClient transport = new FakeHttpClient().answer(200, "{}");
 
-        gateway(transport).apply("owner-hash", "spam", STAFF, null, true);
+        gateway(transport).apply("owner-hash", null, "spam", STAFF, null, true);
 
         assertTrue(transport.bodyOf(0).contains("\"warningOnly\":true"), "the backend refuses a non-warning step: " + transport.bodyOf(0));
     }
@@ -45,7 +45,7 @@ class HttpBackendGatewayWarningTest {
     void aPunishApplyDoesNotSendTheWarningOnlyFlag() throws Exception {
         FakeHttpClient transport = new FakeHttpClient().answer(200, "{}");
 
-        gateway(transport).apply("owner-hash", "spam", STAFF, null, false);
+        gateway(transport).apply("owner-hash", null, "spam", STAFF, null, false);
 
         assertFalse(transport.bodyOf(0).contains("warningOnly"), "an ordinary apply is sent as before: " + transport.bodyOf(0));
     }

@@ -51,7 +51,7 @@ class MockOidcBackendIT {
         String owner = HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA-512").digest(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8)));
         PunishmentApplyResponse response = new HttpBackendGateway(client, Clock.systemUTC())
-                .apply(owner, template, staff, null, false);
+                .apply(owner, null, template, staff, null, false);
 
         assertNotNull(response.getPunishment(), "the punishment was applied");
         System.out.println("IT_RESULT owner=" + owner + " staff=" + staff + " template=" + template

@@ -26,22 +26,32 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PunishServiceTest {
 
     private static final UUID STAFF = UUID.randomUUID();
+    private static final UUID PLAYER = UUID.fromString("123e4567-e89b-12d3-a456-426614174000");
 
     private final StubGateway backend = new StubGateway();
     private final PunishService service = new PunishService(backend, standardRegistry(), ChatEvidence.create(
             new ChatSnapshotBuilder(new ChatBuffer(Clock.systemUTC(), new ChatCaptureConfig()), new ChatCaptureConfig()), backend, new ChatCaptureConfig()));
 
     private PunishService.ApplyOutcome apply(String key, java.util.Set<EnforcementKind> allowed) {
-        return service.apply(OWNER, key, STAFF, allowed, false);
+        return service.apply(OWNER, null, key, STAFF, allowed, false);
     }
 
     @Test
     void aWarnApplyIsSentWithTheWarningOnlyFlag() {
         backend.templates = List.of(template("spam", "network"));
 
-        service.apply(OWNER, "spam", STAFF, PunishService.ANY_KINDS, true);
+        service.apply(OWNER, null, "spam", STAFF, PunishService.ANY_KINDS, true);
 
         assertEquals(List.of(true), backend.warningOnlyFlags, "the backend refuses the apply unless the step is a warning");
+    }
+
+    @Test
+    void theTargetsUuidIsHandedToTheBackendWithTheApply() {
+        backend.templates = List.of(template("hacking", "network"));
+
+        service.apply(OWNER, PLAYER, "hacking", STAFF, PunishService.BAN_KINDS, false);
+
+        assertEquals(List.of(PLAYER), backend.appliedPlayers, "the public ban list needs the raw UUID of the player");
     }
 
     private void givenActive(String section, boolean permanent) {
