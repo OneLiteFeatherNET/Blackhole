@@ -117,7 +117,9 @@ class NatsConsumerTest {
 
         assertEquals("blackhole-discord-notify", configuration.getDurable());
         assertEquals(List.of("blackhole.events.report.created", "blackhole.events.report.resolved",
-                "blackhole.events.appeal.submitted", "blackhole.events.appeal.resolved"), configuration.getFilterSubjects());
+                "blackhole.events.appeal.submitted", "blackhole.events.appeal.resolved",
+                "blackhole.events.guard.level_changed", "blackhole.events.area_ban.created",
+                "blackhole.events.area_ban.lifted", "blackhole.events.guard.denials.summary"), configuration.getFilterSubjects());
         assertEquals(AckPolicy.Explicit, configuration.getAckPolicy());
         assertEquals(5, configuration.getMaxAckPending());
         assertEquals(Duration.ofSeconds(30), configuration.getAckWait());

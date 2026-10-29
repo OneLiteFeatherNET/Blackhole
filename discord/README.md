@@ -41,8 +41,10 @@ English first, German second (the reply follows the Discord client language). Al
 ## Team notifications
 
 The bot declares the durable queue `blackhole.discord.notify` (messages kept 7 days) on the topic exchange
-`blackhole.events`, bound to `report.created`, `report.resolved`, `appeal.submitted` and `appeal.resolved`.
-For each event it reads the display facts from `GET /discord/notifications/report|appeal/{id}` and posts one
+`blackhole.events`, bound to `report.created`, `report.resolved`, `appeal.submitted` and `appeal.resolved`, and to the
+join guard events `guard.level_changed`, `area_ban.created`, `area_ban.lifted` and `guard.denials.summary`.
+The guard events are rendered from their payload alone and posted once each, without a backend read.
+For each report or appeal event it reads the display facts from `GET /discord/notifications/report|appeal/{id}` and posts one
 embed to the team channel: player (name if the proxy recorded one, otherwise a short reference), category or
 section, short reason, time, the staff role ping and an "Open in panel" button. When the item is resolved the
 same message is edited to show the outcome. The message is found again by a marker in its footer, so a

@@ -24,6 +24,8 @@ import net.onelitefeather.blackhole.discord.leak.LeakScanner;
 import net.onelitefeather.blackhole.discord.metrics.Health;
 import net.onelitefeather.blackhole.discord.metrics.Metrics;
 import net.onelitefeather.blackhole.discord.notify.EmbedRenderer;
+import net.onelitefeather.blackhole.discord.notify.GuardMessageRenderer;
+import net.onelitefeather.blackhole.discord.notify.GuardNotificationHandler;
 import net.onelitefeather.blackhole.discord.notify.NotificationDispatcher;
 import net.onelitefeather.blackhole.discord.notify.NotificationHandler;
 import net.onelitefeather.blackhole.discord.notify.NatsConsumer;
@@ -112,7 +114,8 @@ public final class Main {
         NotificationHandler handler = new NotificationHandler(backend, discord,
                 new EmbedRenderer(config.panelUrl(), config.staffRoleId()), config.teamChannelId());
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name("nats-retry").daemon(true).factory());
-        NatsConsumer consumer = new NatsConsumer(config.nats(), new NotificationDispatcher(handler), scheduler);
+        GuardNotificationHandler guardAlerts = new GuardNotificationHandler(discord, new GuardMessageRenderer(config.panelUrl()), config.teamChannelId());
+        NatsConsumer consumer = new NatsConsumer(config.nats(), new NotificationDispatcher(handler, guardAlerts), scheduler);
         CaseEventHandler caseEvents;
         if (config.staffActions()) {
             // The staff control message of each ticket channel, its buttons and the redraw on every case event (DISCORD_STAFF_ACTIONS).
