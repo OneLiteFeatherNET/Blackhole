@@ -401,6 +401,18 @@
         }
       }
     },
+    "analytics": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The analytics views of the backend, read by Metabase.",
+      "properties": {
+        "refreshInterval": {
+          "type": "string",
+          "minLength": 1,
+          "description": "How often the views are refreshed (BLACKHOLE_ANALYTICS_REFRESH_INTERVAL), e.g. 15m."
+        }
+      }
+    },
     "publicBanKey": {
       "type": "object",
       "additionalProperties": false,

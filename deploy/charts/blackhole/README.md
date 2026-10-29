@@ -78,6 +78,7 @@ offline copy of it before the first install.
 | `portal` | the same common keys, `origin`, `ingress` or `httpRoute`, `pdb` |
 | `discord` | the common keys, `existingSecret`, `auditWebhookKey`, `clientId`, `authScope`, `panelUrl` (the panel base URL, `BLACKHOLE_PANEL_URL`, also the base of the audit links), `ids.*`, `config` (intervals), `metrics.podMonitor`; always exactly one replica |
 | `banList`, `publicBanKey` | the public ban list: `clients` (empty = off), `existingSecret`, `mountPath`, `trustedIngress` (required with clients); and the key's Secret. See Public ban list |
+| `analytics` | `refreshInterval` (15m): how often the backend refreshes the Metabase views. See Analytics |
 | `clamav` | `enabled`, `externalHost`, `image`, `unprivileged`, `limits.*`, `persistence.{size,storageClass}` |
 
 Defaults and sizing (a first guess, tuned after the first week of metrics):
@@ -188,6 +189,24 @@ plain HTTP) relies on that header, and the backend trusts it only from the peers
 HTTPRoutes (dev) use the `https` listener of the Envoy Gateway, whose redirect lives in the cluster's Gateway
 configuration. The chart adds no change for this.
 
+## Analytics (Metabase)
+
+The backend keeps seven materialized views in the `analytics` schema of the database and refreshes them every
+`analytics.refreshInterval` (15m, `BLACKHOLE_ANALYTICS_REFRESH_INTERVAL`). Metabase reads them as a read-only role. The
+views hold counts and medians, never IP addresses, player UUIDs, names or staff identifiers; the only owner value is the
+owner hash of the reporters. The chart renders no Secret for this.
+
+The connection is set up outside the chart, in Kubernetes-FLUX:
+
+- a CNPG managed role `metabase_analytics` with `LOGIN` and membership in `analytics_reader` (the group role the migration
+  creates, `NOLOGIN`, which can read the `analytics` schema and nothing else);
+- its password in a SOPS-encrypted Secret `blackhole-analytics-metabase` with the keys `host`, `port`, `database`,
+  `username` and `password`.
+
+In Metabase, connect with that role and set the schema filter to `analytics`. The data age of each view is in
+`analytics.refresh_state` (`view_name`, `refreshed_at` in epoch milliseconds). An erasure or a retention sweep shows in the
+views after at most one refresh interval.
+
 ## Exposure
 
 Ingress resources use the class `cloudflare-tunnel`; `web.ingress` serves the panel and `portal.ingress`
@@ -236,4 +255,5 @@ adds kubeconform v0.8.0.
 | `tests/exposure.sh` | hosts, Ingress class, the route table against the cloudflared path semantics |
 | `tests/psa.sh` | the `restricted` Pod Security fields on every pod |
 | `tests/banlist.sh` | the public ban list is off by default; client names, hash files (read-only, one per client) and the public key only as Secret references; the trusted ingress is required with clients; plaintext refused |
+| `tests/analytics.sh` | the analytics refresh interval reaches the backend as configuration (15m by default); no Metabase Secret is rendered |
 | `tests/geoip.sh` | the GeoIP volume (read-only in the backend), the paths, the refresh job (pinned, no secrets, restricted) and the switches |
