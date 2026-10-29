@@ -66,6 +66,19 @@ public sealed interface RollbackDTO {
     ) implements RollbackDTO {
     }
 
+    /**
+     * The rollback was started, or the same start was repeated.
+     *
+     * @param jobId    the job identifier
+     * @param state    {@code RUNNING}, or the job's current state for a repeat
+     * @param repeated whether the {@code Idempotency-Key} was already used: nothing was written
+     */
+    @Schema(name = "RollbackStarted")
+    @Serdeable
+    @ReflectiveAccess
+    record Started(@NonNull UUID jobId, @NonNull String state, boolean repeated) implements RollbackDTO {
+    }
+
     @Schema(name = "RollbackError")
     @Serdeable
     @ReflectiveAccess

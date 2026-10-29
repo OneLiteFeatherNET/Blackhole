@@ -609,15 +609,41 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         if (active == null) {
             return error(ErrorKind.NOT_FOUND, "the player has no active punishment in section '" + request.section() + "'");
         }
+        return revokeHeld(owner, request.section(), active.getIdentifier(), attribution, actor, null, null)
+                .<PunishmentDTO>map(revoked -> revoked)
+                .orElseGet(() -> error(ErrorKind.NOT_FOUND, "the player has no active punishment in section '" + request.section() + "'"));
+    }
+
+    /**
+     * Revokes the punishment {@code identifier} from the owner's {@code section} slot, but only while the slot
+     * still holds it. A manual revoke and a rollback item share this path, so both get the same case event,
+     * evidence marking, ELO handling, audit entry and {@code punishment.revoked}.
+     *
+     * @param rollbackJobId  the rollback job the revoke belongs to, or {@code null} for a manual revoke
+     * @param rollbackReason the job's reason, written to the punishment's metadata; {@code null} for a manual revoke
+     * @return the response, or empty when the slot no longer holds this punishment; then nothing was changed
+     */
+    public Optional<PunishmentDTO.RevokeResponse> revokeHeld(String owner, String section, String identifier, Attribution attribution,
+                                                            Actor actor, @io.micronaut.core.annotation.Nullable UUID rollbackJobId,
+                                                            @io.micronaut.core.annotation.Nullable String rollbackReason) {
+        PunishmentProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
+        PunishmentEntity active = profile == null ? null : profile.getActive().get(section);
+        if (active == null || !identifier.equals(active.getIdentifier())) {
+            return Optional.empty();
+        }
 
         // Clears only if the slot still holds the punishment we read, so a punishment applied
         // concurrently in the meantime is never removed by mistake.
-        if (!this.slots.clearIf(owner, request.section(), active.getIdentifier())) {
-            return error(ErrorKind.NOT_FOUND, "the player has no active punishment in section '" + request.section() + "'");
+        if (!this.slots.clearIf(owner, section, identifier)) {
+            return Optional.empty();
         }
         active.getMetaData().put("revokedBy", attribution.source().toString());
         active.getMetaData().put("recordedByOid", attribution.recordedByOid().toString());
         active.getMetaData().put(Metadata.META_DATA_KEY_UPDATE_DATE, this.clock.millis());
+        if (rollbackJobId != null) {
+            active.getMetaData().put("rollbackJobId", rollbackJobId.toString());
+            active.getMetaData().put("rollbackReason", rollbackReason);
+        }
         active.setLifted(true);
         this.publicListing.revoked(active, this.clock.millis());
         this.punishmentRepository.update(active);
@@ -627,18 +653,22 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
 
         Integer scoreReset = null;
         if (active.isPermanent()) {
-            scoreReset = this.eloScoring.get().resetToPardon(owner, request.section(), Map.of(
+            Map<String, Object> eloMeta = new HashMap<>(Map.of(
                     "punishmentIdentifier", active.getIdentifier(),
                     "revokedBy", attribution.source().toString(),
                     "recordedByOid", attribution.recordedByOid().toString()
-            )).orElse(null);
+            ));
+            if (rollbackJobId != null) {
+                eloMeta.put("rollbackJobId", rollbackJobId.toString());
+            }
+            scoreReset = this.eloScoring.get().resetToPardon(owner, section, eloMeta).orElse(null);
         }
 
-        SectionDTO.Response section = this.sectionService.find(request.section()).orElse(null);
-        this.eventPublisher.publish("punishment.revoked", PunishmentEvents.revoked(active, section, attribution.source().toString(), attribution.recordedByOid()));
+        SectionDTO.Response sectionDto = this.sectionService.find(section).orElse(null);
+        this.eventPublisher.publish("punishment.revoked", PunishmentEvents.revoked(active, sectionDto, attribution.source().toString(), attribution.recordedByOid()));
         this.audit.record(attribution, actor, AuditAction.PUNISHMENT_REVOKE, AuditTarget.ofCase(active.getShortId()));
 
-        return new PunishmentDTO.RevokeResponse(withEvidenceCount(active), request.section(), scoreReset);
+        return Optional.of(new PunishmentDTO.RevokeResponse(withEvidenceCount(active), section, scoreReset));
     }
 
     /**
