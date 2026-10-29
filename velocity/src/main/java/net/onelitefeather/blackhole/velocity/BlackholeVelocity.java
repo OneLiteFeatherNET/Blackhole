@@ -12,7 +12,10 @@ import com.velocitypowered.api.plugin.Dependency;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
+import net.onelitefeather.blackhole.client.api.IntelApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
+import net.onelitefeather.blackhole.velocity.intel.HttpSessionBackend;
+import net.onelitefeather.blackhole.velocity.intel.SessionReporter;
 import net.onelitefeather.blackhole.velocity.auth.ClientCredentialsTokenProvider;
 import net.onelitefeather.blackhole.velocity.auth.JdkTokenTransport;
 import net.onelitefeather.blackhole.velocity.auth.TokenSource;
@@ -182,6 +185,12 @@ public class BlackholeVelocity {
         }
         this.logger.info("Initialized Blackhole client");
 
+        // Its own client: the session reports get the report timeout as their read timeout, the other calls keep theirs.
+        ApiClient reportClient = BlackholeApiClients.create(this.config.getBaseUrl(), tokens)
+                .setReadTimeout(this.config.getIntel().getReportTimeout());
+        SessionReporter sessions = new SessionReporter(new HttpSessionBackend(new IntelApi(reportClient)),
+                SessionReporter.boundedExecutor(), UUID::randomUUID);
+
         SectionRegistry sections = new SectionRegistry(new BackendSectionSource(this.client));
         PunishmentMirror mirror = new PunishmentMirror(clock);
         BackendGateway backend = new HttpBackendGateway(this.client, clock);
@@ -280,7 +289,7 @@ public class BlackholeVelocity {
         Injector childInjector = this.injector.createChildInjector(
                 new BlackholeClientModule(this.client, this.config, sections, mirror, state,
                         syncHandler, actions, backend, punishService, clock, screens, chatBuffer, evidenceCounts, chatDenial,
-                        muteNotices, servers, reportService, reportNotifier, reportFeedback, kickRunner, warnings).asModule(),
+                        muteNotices, servers, reportService, reportNotifier, reportFeedback, kickRunner, warnings, sessions).asModule(),
                 new CloudInjectionModule<>(
                         CommandSource.class,
                         ExecutionCoordinator.simpleCoordinator(),

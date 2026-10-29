@@ -68,6 +68,12 @@ public class BlackholeConfig {
     private EvidenceConfig evidence;
 
     /**
+     * How the proxy reports player sessions to the backend. Absent in configs written before this
+     * setting existed, which {@link #getIntel()} treats as the defaults.
+     */
+    private IntelConfig intel;
+
+    /**
      * How the proxy authenticates to the backend. Absent in configs written before this setting
      * existed, which {@link #getAuth()} treats as no credentials.
      */
@@ -150,6 +156,13 @@ public class BlackholeConfig {
      */
     public @NotNull EvidenceConfig getEvidence() {
         return evidence == null ? new EvidenceConfig() : evidence;
+    }
+
+    /**
+     * @return the session reporting settings; the defaults for configs written before they existed
+     */
+    public @NotNull IntelConfig getIntel() {
+        return intel == null ? new IntelConfig() : intel;
     }
 
     /**
