@@ -22,7 +22,7 @@ import MessageComposer from './MessageComposer.vue'
 import ParticipantErasure, { type ErasableParticipant } from './ParticipantErasure.vue'
 import ReasonDialog from './ReasonDialog.vue'
 import TicketStatus from './TicketStatus.vue'
-import { buildTickets, participantsOf } from './tickets'
+import { buildTickets, knownLockOf, participantsOf } from './tickets'
 
 const REDACTION_REASONS: NoteRedactionReason[] = ['PERSONAL_DATA', 'ERASURE_REQUEST', 'INAPPROPRIATE', 'OTHER']
 /** Polling is the safety net: with a stream it is slow, without one it is what keeps the thread fresh. */
@@ -54,6 +54,7 @@ const reference = computed(() => props.kase.punishmentIdentifier)
 const thread = computed(() => buildThread(events.value))
 const banner = computed(() => bannerFor(props.kase.banIdLeakedAt, events.value))
 const tickets = computed(() => buildTickets(events.value))
+const knownLock = computed(() => knownLockOf(events.value, props.kase.ticket, tickets.value[tickets.value.length - 1]?.ticketId ?? null))
 const participants = computed<ErasableParticipant[]>(() =>
   participantsOf(thread.value).map((id) => {
     const first = thread.value.find((message) => message.participantId === id)
@@ -263,6 +264,7 @@ async function redacted(message: string): Promise<void> {
         :tickets="tickets"
         :assignee-name="kase.assigneeName ?? null"
         :leak-frozen="banner === 'FROZEN'"
+        :known="knownLock"
         @changed="changed"
       />
       <p v-if="thread.length === 0 && layout.tail.length === 0" class="text-body-large text-on-surface-variant" data-testid="conversation-empty">{{ t('case.conversation.empty') }}</p>

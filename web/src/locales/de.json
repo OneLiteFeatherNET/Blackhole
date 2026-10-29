@@ -1034,7 +1034,8 @@
       "ticketOpened": "Discord-Ticket eröffnet",
       "ticketTranscriptComplete": "Discord-Verlauf als vollständig geprüft",
       "ticketArchived": "Discord-Kanal archiviert",
-      "ticketChannelDeleted": "Discord-Kanal gelöscht"
+      "ticketChannelDeleted": "Discord-Kanal gelöscht",
+      "ticketFrozen": "Discord-Kanal gesperrt oder entsperrt"
     },
     "detail": {
       "step": "Stufe {step} von {count}",

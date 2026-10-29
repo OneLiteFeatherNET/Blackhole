@@ -1034,7 +1034,8 @@
       "ticketOpened": "Discord ticket opened",
       "ticketTranscriptComplete": "Discord transcript verified complete",
       "ticketArchived": "Discord channel archived",
-      "ticketChannelDeleted": "Discord channel deleted"
+      "ticketChannelDeleted": "Discord channel deleted",
+      "ticketFrozen": "Discord channel locked or unlocked"
     },
     "detail": {
       "step": "Step {step} of {count}",

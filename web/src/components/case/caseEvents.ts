@@ -65,6 +65,7 @@ const KNOWN: Record<string, EventInfo> = {
   'ticket.transcript_complete': { key: 'ticketTranscriptComplete', icon: 'verified' },
   'ticket.archived': { key: 'ticketArchived', icon: 'lock' },
   'ticket.channel_deleted': { key: 'ticketChannelDeleted', icon: 'delete' },
+  'ticket.frozen': { key: 'ticketFrozen', icon: 'lock' },
 }
 
 /** Unknown types (a newer backend, a reserved portal type) are shown generically, never dropped. */

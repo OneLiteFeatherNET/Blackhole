@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { timelineItem } from '../../test/cases'
-import { buildTickets, participantsOf } from './tickets'
+import { buildTickets, knownLockOf, participantsOf } from './tickets'
 
 const TICKET = '3f2b8c1e-0000-4000-8000-0000000000a1'
 const APPEAL = '3f2b8c1e-0000-4000-8000-0000000000a2'
@@ -73,5 +73,30 @@ describe('participantsOf', () => {
     ]
 
     expect(participantsOf(messages)).toEqual(['a', 'b'])
+  })
+})
+
+describe('knownLockOf', () => {
+  const frozen = (frozenNow: boolean, freezeSource: string | null, ticketId = TICKET) =>
+    timelineItem({ type: 'ticket.frozen', payload: { ticketId, appealId: APPEAL, frozen: frozenNow, freezeSource } })
+
+  it('takes the newest ticket.frozen event over the state the case showed at load', () => {
+    const events = [frozen(true, 'STAFF'), frozen(false, null)]
+
+    expect(knownLockOf(events, { frozen: true, freezeSource: 'STAFF' }, TICKET)).toEqual({ frozen: false, source: null })
+  })
+
+  it('reads a lock made in Discord from the case state when no event has arrived yet', () => {
+    expect(knownLockOf([opened()], { frozen: true, freezeSource: 'STAFF' }, TICKET)).toEqual({ frozen: true, source: 'STAFF' })
+  })
+
+  it('knows no lock when neither the case nor the timeline has one', () => {
+    expect(knownLockOf([opened()], null, TICKET)).toBeNull()
+  })
+
+  it('ignores a lock event of another ticket', () => {
+    const other = '3f2b8c1e-0000-4000-8000-0000000000b9'
+
+    expect(knownLockOf([frozen(true, 'STAFF', other)], { frozen: false, freezeSource: null }, TICKET)).toEqual({ frozen: false, source: null })
   })
 })
