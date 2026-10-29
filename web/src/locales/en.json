@@ -8,6 +8,8 @@
     "reports": "Reports",
     "playerLookup": "Player lookup",
     "activePunishments": "Active punishments",
+    "allowList": "Allow-list",
+    "vpnPolicy": "VPN policy",
     "sections": "Sections",
     "templates": "Templates",
     "appealTerms": "Appeal terms",
@@ -1743,6 +1745,82 @@
       "confirmHint": "Type \"{target}\" exactly.",
       "submit": "Kick everybody",
       "result": "Status: {status}. Delivered by {count} proxies."
+    }
+  },
+  "intel": {
+    "classes": {
+      "VPN": "VPN",
+      "HOSTING": "Hosting",
+      "PROXY": "Proxy"
+    },
+    "classHint": {
+      "VPN": "Known VPN networks.",
+      "HOSTING": "Hosting and datacenter networks.",
+      "PROXY": "Known open proxies."
+    },
+    "policies": {
+      "ALLOW": "Allow",
+      "FLAG": "Flag",
+      "DENY": "Deny"
+    },
+    "policy": {
+      "title": "VPN and hosting policy",
+      "intro": "What happens to a login from a VPN, hosting or proxy address. Only an administrator can change it.",
+      "policyLabel": "New policy",
+      "save": "Review change",
+      "confirmTitle": "Change the policy?",
+      "confirmBody": "{classification}: change from {previous} to {next}?",
+      "confirm": "Change policy",
+      "saved": "Policy for {classification} saved as {policy}."
+    },
+    "sources": {
+      "title": "List sources",
+      "VPN": "VPN networks",
+      "HOSTING": "Datacenter and hosting ranges"
+    },
+    "source": {
+      "licence": "Licence: {licence}",
+      "status": {
+        "FRESH": "Fresh",
+        "STALE": "Stale",
+        "FAILED": "Failed"
+      },
+      "notReported": "Status not reported",
+      "lastOk": "Last successful refresh: {when}"
+    },
+    "allowList": {
+      "title": "Allow-list",
+      "intro": "Exempt a player from the VPN and hosting policy for a while. The reason is kept with the exemption.",
+      "readonly": "Only moderators can add exemptions.",
+      "player": "Player name",
+      "playerHint": "The name is resolved to the player before the exemption is stored.",
+      "reason": "Reason",
+      "reasonRequired": "Give a reason for the exemption. Submit stays disabled until then.",
+      "reasonTooLong": "Use at most 200 characters.",
+      "duration": "Duration",
+      "days": "{days} days",
+      "permanent": "Permanent",
+      "permanentLabel": "Permanent",
+      "expired": "Expired",
+      "until": "Until {when}",
+      "submit": "Add exemption",
+      "added": "Added in this visit"
+    },
+    "hits": {
+      "title": "VPN and hosting logins",
+      "hint": "Logins of this player from a VPN, hosting or proxy address. The address itself is not shown.",
+      "empty": "No VPN or hosting login was recorded for this player.",
+      "allowListedYes": "Allow-listed at the last login.",
+      "allowListedNo": "Not allow-listed at the last login.",
+      "yes": "Yes",
+      "no": "No",
+      "columns": {
+        "time": "Time",
+        "class": "Class",
+        "source": "Source",
+        "verdict": "Verdict",
+        "allowListed": "Allow-listed"
+      }
     }
   }
 }
