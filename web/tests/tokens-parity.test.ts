@@ -8,9 +8,10 @@ import { renderMd3Css } from '../scripts/generate-md3-tokens.mjs'
 const GENERATED = join(import.meta.dirname, '../src/styles/md3-tokens.generated.css')
 
 describe('design tokens parity', () => {
+  // It runs the generator (which starts a Vite server), slower than the 5s default on windows-latest.
   it('the generated MD3 stylesheet matches the generator output for design/tokens/', async () => {
     const onDisk = readFileSync(GENERATED, 'utf8')
 
     expect(onDisk).toBe(await renderMd3Css())
-  })
+  }, 30_000)
 })
