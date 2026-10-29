@@ -154,3 +154,31 @@ describe('playerSessions', () => {
     expect(calls[0]!.url).toBe(`http://ui.test/api/intel/players/${OWNER}/sessions?page=1&size=50`)
   })
 })
+
+describe('name history', () => {
+  it('reads one page of the names of an owner with the page parameters', async () => {
+    const body = { owner: OWNER, playerUuid: SOURCE, names: [{ name: 'Steve', firstSeen: 1, lastSeen: 2 }], page: 0, size: 50, hasMore: false }
+    const { api, calls } = apiWith([{ body }])
+
+    const result = await api.listPlayerNames(OWNER, 0, 50)
+
+    expect(result).toEqual({ ok: true, data: body })
+    expect(calls[0]!.url).toBe(`http://ui.test/api/intel/players/${OWNER}/names?page=0&size=50`)
+  })
+
+  it('returns the accounts that used a name', async () => {
+    const owners = [{ owner: OWNER, playerUuid: SOURCE, currentName: 'Alex', firstSeen: 1, lastSeen: 2 }]
+    const { api, calls } = apiWith([{ body: { owners } }])
+
+    const result = await api.findNameOwners('Steve')
+
+    expect(result).toEqual({ ok: true, data: owners })
+    expect(calls[0]!.url).toBe('http://ui.test/api/intel/names/Steve/owners')
+  })
+
+  it('gives an empty list when no account used the name', async () => {
+    const { api } = apiWith([{ body: { owners: [] } }])
+
+    expect(await api.findNameOwners('Nobody')).toEqual({ ok: true, data: [] })
+  })
+})

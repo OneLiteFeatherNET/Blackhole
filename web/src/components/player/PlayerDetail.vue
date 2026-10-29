@@ -16,6 +16,7 @@ import ApplyTemplateDialog from './ApplyTemplateDialog.vue'
 import ClientRuleHits from '../clientrules/ClientRuleHits.vue'
 import EloHistory from './EloHistory.vue'
 import EvasionHints from './EvasionHints.vue'
+import NameHistory from './NameHistory.vue'
 import PlayerSessions from './PlayerSessions.vue'
 import PunishmentHistory from './PunishmentHistory.vue'
 import RevokeDialog from './RevokeDialog.vue'
@@ -174,6 +175,8 @@ async function warned(done: string): Promise<void> {
         <h2 id="evasion-heading" class="mb-3 text-title-medium">{{ t('player.evasion.title') }}</h2>
         <EvasionHints :owner="owner" />
       </section>
+
+      <NameHistory :owner="owner" />
 
       <PlayerSessions :owner="owner" />
 
