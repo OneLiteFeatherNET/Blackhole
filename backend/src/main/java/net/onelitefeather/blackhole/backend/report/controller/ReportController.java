@@ -12,7 +12,9 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.core.version.annotation.Version;
 import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
@@ -57,7 +59,7 @@ public class ReportController implements ReportApi {
 
     @Override
     @Secured(Roles.VIEWER)
-    public HttpResponse<Page<ReportDTO>> getAll(Pageable pageable, String reportedHash) {
+    public HttpResponse<Page<ReportDTO>> getAll(Pageable pageable, @Nullable @QueryValue String reportedHash) {
         return HttpResponse.ok(reportedHash == null || reportedHash.isBlank()
                 ? this.reportService.getAll(pageable)
                 : this.reportService.getAllAgainst(reportedHash, pageable));
