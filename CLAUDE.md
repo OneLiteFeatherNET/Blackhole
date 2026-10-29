@@ -191,3 +191,4 @@ consuming context in every session regardless of what you're touching.
   that must always hold (never edit an applied Flyway migration, no `--force`/`--no-verify`)
   belongs in a `.claude/settings.json` hook if it can be checked deterministically — see the hooks
   already there — rather than relying on this file's prose, which is advisory, not enforced.
+- Public ban list (`/public/bans`, Basic Auth clients, player hash): see `.claude/rules/public-bans.md`.

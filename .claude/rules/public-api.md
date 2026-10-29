@@ -77,3 +77,4 @@ Detail: `openspec/changes/add-appeal-portal/` (design decisions 4 to 9, specs `a
   after the statement checks and the `FORFEITED`/`FROZEN`/`NOT_ELIGIBLE` refusals, so those answers win. The accepted number is stored only as
   `meta_data.conditionsVersion` of the appeal (`AppealEligibilityService.META_CONDITIONS_VERSION`), nothing else. `POST /discord/tickets` does not check it yet
   (the bot does not show the conditions; follow-up).
+- **Ban list** (`/public/bans`, `publicbans/`): Basic Auth with named clients over HTTPS, not anonymous and not a session route; the list and its hash rules are in `public-bans.md`.
