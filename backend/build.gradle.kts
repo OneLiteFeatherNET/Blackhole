@@ -64,6 +64,8 @@ dependencies {
 
     // Evidence file storage on S3-compatible object storage (Apache-2.0). The CRT/Netty async
     // clients are not needed: the blocking Apache client is enough for streamed uploads/ranges.
+    // Offline ASN and country lookup over MaxMind DB files (DB-IP Lite or GeoLite2). Reads local files only.
+    implementation("com.maxmind.db:maxmind-db:4.2.0")
     implementation(libs.awssdk.s3) {
         exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
     }
