@@ -27,6 +27,11 @@ public final class HttpGuardBackend implements GuardBackend {
     }
 
     @Override
+    public GuardStateResponse state() throws ApiException {
+        return this.guardApi.getJoinGuard();
+    }
+
+    @Override
     public GuardPresenceResponse presence(String proxyId, int staffOnline) throws ApiException {
         return this.guardApi.reportJoinGuardPresence(new GuardPresenceRequest().proxyId(proxyId).staffOnline(staffOnline));
     }

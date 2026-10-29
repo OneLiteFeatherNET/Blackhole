@@ -26,6 +26,11 @@ final class FakeGuardBackend implements GuardBackend {
     }
 
     @Override
+    public GuardStateResponse state() {
+        throw new UnsupportedOperationException("not used by the heartbeat");
+    }
+
+    @Override
     public GuardStateResponse setLevel(String level) {
         throw new UnsupportedOperationException("not used by the heartbeat");
     }

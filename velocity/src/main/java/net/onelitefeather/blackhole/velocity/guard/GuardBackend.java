@@ -15,6 +15,12 @@ import java.util.List;
 public interface GuardBackend {
 
     /**
+     * @return the manual level, the automatic level and the one in force
+     * @throws ApiException if the backend did not answer
+     */
+    GuardStateResponse state() throws ApiException;
+
+    /**
      * @param proxyId     this proxy's configured id
      * @param staffOnline how many online players hold the staff permission node
      * @return the staff presence and the level in force
