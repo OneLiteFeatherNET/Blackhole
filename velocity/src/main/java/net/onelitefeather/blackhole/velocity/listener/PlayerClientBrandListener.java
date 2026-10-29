@@ -8,6 +8,7 @@ import net.onelitefeather.blackhole.client.api.PunishProfileApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.SessionInfoDTO;
+import net.onelitefeather.blackhole.velocity.intel.SessionReporter;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -23,16 +24,19 @@ public final class PlayerClientBrandListener {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerClientBrandListener.class);
     private final PunishProfileApi punishProfileApi;
+    private final SessionReporter sessions;
 
     @Inject
-    public PlayerClientBrandListener(@NotNull ApiClient apiClient) {
+    public PlayerClientBrandListener(@NotNull ApiClient apiClient, @NotNull SessionReporter sessions) {
         this.punishProfileApi = new PunishProfileApi(apiClient);
+        this.sessions = sessions;
     }
 
     @Subscribe
     public void onClientBrand(@NotNull PlayerClientBrandEvent event) {
         Player player = event.getPlayer();
         String uuidHash = UUIDConverter.convertToSHA(player.getUniqueId());
+        this.sessions.reportBrand(player, event.getBrand());
         try {
             this.punishProfileApi.updateSessionInfo(uuidHash,
                     new SessionInfoDTO().owner(uuidHash).clientBrand(event.getBrand()));

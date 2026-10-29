@@ -12,6 +12,7 @@ import net.onelitefeather.blackhole.velocity.enforcement.MuteNotices;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
+import net.onelitefeather.blackhole.velocity.intel.SessionReporter;
 import net.onelitefeather.blackhole.velocity.evidence.ChatBuffer;
 import net.onelitefeather.blackhole.velocity.evidence.EvidenceCounts;
 import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
@@ -50,6 +51,7 @@ import java.time.Clock;
  * @param reportFeedback tells reporters what became of their reports
  * @param kickRunner  sends a staff member's kick and follows it to its outcome
  * @param warnings    shows warnings to players and records their confirmation
+ * @param sessions    reports login attempts, brands and disconnects to the backend
  */
 public record BlackholeClientModule(
         @NotNull ApiClient apiClient,
@@ -72,7 +74,8 @@ public record BlackholeClientModule(
         @NotNull ReportNotifier reportNotifier,
         @NotNull ReportFeedbackDelivery reportFeedback,
         @NotNull KickRunner kickRunner,
-        @NotNull WarningHandler warnings
+        @NotNull WarningHandler warnings,
+        @NotNull SessionReporter sessions
 ) {
 
     /**
@@ -103,6 +106,7 @@ public record BlackholeClientModule(
                 bind(ReportFeedbackDelivery.class).toInstance(reportFeedback);
                 bind(KickRunner.class).toInstance(kickRunner);
                 bind(WarningHandler.class).toInstance(warnings);
+                bind(SessionReporter.class).toInstance(sessions);
             }
         };
     }
