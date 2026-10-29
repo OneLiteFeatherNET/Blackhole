@@ -181,7 +181,7 @@ backend:
         registry: docker.io
         repository: curlimages/curl
         # Pinned: curl and gunzip from the Alpine base. Bump deliberately.
-        tag: "8.11.1"
+        tag: "8.22.0"
         pullPolicy: IfNotPresent
       resources:
         requests:
