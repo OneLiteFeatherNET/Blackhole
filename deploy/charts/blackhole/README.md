@@ -59,6 +59,8 @@ Names are chosen in the values; the keys inside are fixed.
 | `backend.nats.existingSecret`, `discord.nats.existingSecret` | e.g. `blackhole-nats-backend`, `blackhole-nats-bot` | optional per-component NATS user: `nats.creds` or the key in `<component>.nats.credsKey`; empty values fall back to the shared `nats.*` (the backend and the bot are different NATS users) |
 | `discord.existingSecret` | `blackhole-discord` | `DISCORD_TOKEN`, `BLACKHOLE_DISCORD_CLIENT_SECRET`, and `DISCORD_AUDIT_WEBHOOK_URL` (the staff audit channel's webhook; the key name is `discord.auditWebhookKey`). The key is optional (empty `discord.auditWebhookKey` turns the audit off); add it, then raise `discord.secretRevision` to roll the bot |
 | `backend.metrics.serviceMonitor.oauth2.existingSecret` | `blackhole-metrics` | `BLACKHOLE_METRICS_CLIENT_ID`, `BLACKHOLE_METRICS_CLIENT_SECRET` (only with the ServiceMonitor) |
+| `publicBanKey.existingSecret` | `blackhole-public-ban` | `BLACKHOLE_PUBLIC_BAN_KEY` (the HMAC key of the public ban entries; see Public ban list) |
+| `banList.existingSecret` | `blackhole-ban-list` | one key per client, named after the client, holding its Argon2id hash (see Public ban list) |
 | `global.imagePullSecrets` | `harbor-pull` | a `kubernetes.io/dockerconfigjson` Secret |
 
 `BLACKHOLE_BANID_KEY` cannot be replaced after the first start (every Ban ID becomes unreadable). Keep an
@@ -75,6 +77,7 @@ offline copy of it before the first install.
 | `web` | the same common keys, `oidc.*`, `evidence.*`, `ingress` or `httpRoute`, `pdb` |
 | `portal` | the same common keys, `origin`, `ingress` or `httpRoute`, `pdb` |
 | `discord` | the common keys, `existingSecret`, `auditWebhookKey`, `clientId`, `authScope`, `panelUrl` (the panel base URL, `BLACKHOLE_PANEL_URL`, also the base of the audit links), `ids.*`, `config` (intervals), `metrics.podMonitor`; always exactly one replica |
+| `banList`, `publicBanKey` | the public ban list: `clients` (empty = off), `existingSecret`, `mountPath`, `trustedIngress` (required with clients); and the key's Secret. See Public ban list |
 | `clamav` | `enabled`, `externalHost`, `image`, `unprivileged`, `limits.*`, `persistence.{size,storageClass}` |
 
 Defaults and sizing (a first guess, tuned after the first week of metrics):
@@ -142,6 +145,49 @@ panel footer).
 - Kubernetes 1.27 or later for the CronJob `timeZone`.
 - The chart creates no PVC; the operator provides the claim and its storage class.
 
+## Public ban list
+
+Off by default: with `banList.clients` empty nothing of it is rendered. The list is read by named clients with
+HTTP Basic Auth; the backend checks the password against an Argon2id hash per client.
+
+- `banList.clients`: the client names (`[a-z0-9-]{1,32}`). They render into `BLACKHOLE_BAN_LIST_CLIENTS`.
+- `banList.existingSecret`: a Secret with one key per client, the key being the client's name, the value its PHC
+  string (`$argon2id$v=19$m=19456,t=2,p=1$...`). Each key is mounted read-only as a file of that name in
+  `banList.mountPath` (default `/etc/blackhole/ban-list`, `BLACKHOLE_BAN_LIST_SECRETS_DIR`). Only the listed keys
+  are mounted. Hashes only: the chart refuses any plaintext value, and no password exists in the chart.
+- `banList.trustedIngress`: required with clients (the render fails without it). The peers whose `X-Forwarded-Proto`
+  the backend trusts, as comma separated addresses or CIDRs (`BLACKHOLE_BAN_LIST_TRUSTED_INGRESS`). Any other peer
+  gets 403 `HTTPS_REQUIRED`, so an empty or wrong value refuses every client. Which value fits:
+  - tunnel mode (`backend.externalApi.mode: paths`): the cloudflared pods connect straight to the backend Service, so
+    the source of their requests is their pod IPs. Use the pod CIDR of the cluster (or the CIDR the cloudflared
+    deployment runs in), e.g. `10.42.0.0/16`. Only a peer in that range can set the header.
+  - nginx mode (`mode: nginx`): the backend sees the api-proxy pods as the peer, and the proxy sets
+    `X-Forwarded-Proto https` itself. Use the pod CIDR the api-proxy runs in, which is usually the same cluster pod
+    CIDR.
+  Use the pod network, never a Service or node range: those would let a node or another workload set the header.
+- `publicBanKey.existingSecret`: the Secret with `BLACKHOLE_PUBLIC_BAN_KEY`, passed as `secretKeyRef`. It renders
+  whether or not clients are set, because the public entries are hashed with it. It is required with clients.
+  The backend requires it only once `banList.clients` is set, so with the list off no key is needed. Create the
+  Secret before enabling the list (and before rolling a backend release that has it). Changing the key changes
+  every entry hash.
+- Rotation: write the new hash into the Secret key, then raise `backend.secretRevision`. Removing a client: remove
+  its name from `banList.clients` and raise the revision. The backend reads the files once at start.
+
+The external API host routes `/public/bans` (the list, one entry, the summary) only while `banList.clients` is set:
+the same anchored expression gets one more alternative, `public/bans(/|$)`, in both the tunnel and the nginx mode.
+Everything else under `/public` (`/public/session`, `/public/appeal/...`, `/public` itself) stays refused, because
+the schema refuses `public` as a prefix. With the list off, `/public/bans` is refused too.
+
+### Ingress and HTTPS (ban list)
+
+The backend's external host (`backend.externalApi`) is a Cloudflare tunnel Ingress with plain `http` to the
+Service. The chart sets neither an HTTP-to-HTTPS redirect nor `X-Forwarded-Proto`: TLS ends at the Cloudflare edge,
+which redirects HTTP to HTTPS and adds `X-Forwarded-Proto: https` to proxied requests. Both are zone settings of
+the edge, not of the chart, so they cannot be checked here. The `HTTPS_REQUIRED` check of the backend (403 over
+plain HTTP) relies on that header, and the backend trusts it only from the peers of `banList.trustedIngress`. The `web` and `portal`
+HTTPRoutes (dev) use the `https` listener of the Envoy Gateway, whose redirect lives in the cluster's Gateway
+configuration. The chart adds no change for this.
+
 ## Exposure
 
 Ingress resources use the class `cloudflare-tunnel`; `web.ingress` serves the panel and `portal.ingress`
@@ -189,4 +235,5 @@ adds kubeconform v0.8.0.
 | `tests/workloads.sh` | env and Secret wiring, probes, strategies, PDBs, ClamAV, `secretRevision` |
 | `tests/exposure.sh` | hosts, Ingress class, the route table against the cloudflared path semantics |
 | `tests/psa.sh` | the `restricted` Pod Security fields on every pod |
+| `tests/banlist.sh` | the public ban list is off by default; client names, hash files (read-only, one per client) and the public key only as Secret references; the trusted ingress is required with clients; plaintext refused |
 | `tests/geoip.sh` | the GeoIP volume (read-only in the backend), the paths, the refresh job (pinned, no secrets, restricted) and the switches |

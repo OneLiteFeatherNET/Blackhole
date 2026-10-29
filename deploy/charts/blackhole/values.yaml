@@ -64,6 +64,29 @@ keys:
   # replaced after the first start: keep an offline copy (docs/kubernetes.md).
   existingSecret: ""
 
+# The public ban list (GET /public/bans) for named, authenticated clients. Off by default: with no clients
+# nothing of it is rendered and the backend runs without it.
+banList:
+  # Names of the clients (lower case, digits and hyphens, at most 32 characters). Each name needs a key of
+  # existingSecret that holds that client's Argon2id hash. Changing a hash or the list: raise backend.secretRevision.
+  clients: []
+  # Secret with one key per client, the key being the client name, the value its PHC hash. Hashes only: a password
+  # or a hash never goes into the values.
+  existingSecret: ""
+  # Directory the hash files are mounted read-only at (BLACKHOLE_BAN_LIST_SECRETS_DIR).
+  mountPath: /etc/blackhole/ban-list
+  # Required with clients. The peers whose X-Forwarded-Proto the backend trusts (BLACKHOLE_BAN_LIST_TRUSTED_INGRESS),
+  # comma separated addresses or CIDRs, e.g. the pod CIDR of the cluster. Requests from other peers are 403 HTTPS_REQUIRED.
+  # Tunnel mode: the cloudflared pods connect straight to the backend, so their pod CIDR. Nginx mode: the
+  # api-proxy pods, which set X-Forwarded-Proto themselves. See README, Public ban list.
+  trustedIngress: ""
+
+# The HMAC key of the public ban entries (BLACKHOLE_PUBLIC_BAN_KEY). Required with banList.clients, and the backend
+# requires it only then: with the list off no key is needed. Set it before enabling the list.
+publicBanKey:
+  # Secret with the key BLACKHOLE_PUBLIC_BAN_KEY (at least 32 random bytes). Changing it changes every entry hash.
+  existingSecret: ""
+
 # Microsoft Entra ID, shared by the backend (token validation) and the Discord bot (client credentials).
 auth:
   tenantId: ""

@@ -59,6 +59,9 @@ spec:
             {{- include "blackhole.secretEnv" (dict "name" "REDIS_URI" "secret" .Values.redis.existingSecret "key" "REDIS_URI") | nindent 12 }}
             {{- include "blackhole.secretEnv" (dict "name" "BLACKHOLE_BANID_KEY" "secret" .Values.keys.existingSecret "key" "BLACKHOLE_BANID_KEY") | nindent 12 }}
             {{- include "blackhole.secretEnv" (dict "name" "BLACKHOLE_EVASION_IP_SALT" "secret" .Values.keys.existingSecret "key" "BLACKHOLE_EVASION_IP_SALT") | nindent 12 }}
+            {{- if .Values.publicBanKey.existingSecret }}
+            {{- include "blackhole.secretEnv" (dict "name" "BLACKHOLE_PUBLIC_BAN_KEY" "secret" .Values.publicBanKey.existingSecret "key" "BLACKHOLE_PUBLIC_BAN_KEY") | nindent 12 }}
+            {{- end }}
             {{- include "blackhole.secretEnv" (dict "name" "BLACKHOLE_EVIDENCE_S3_ACCESS_KEY" "secret" .Values.s3.existingSecret "key" .Values.s3.accessKeyKey) | nindent 12 }}
             {{- include "blackhole.secretEnv" (dict "name" "BLACKHOLE_EVIDENCE_S3_SECRET_KEY" "secret" .Values.s3.existingSecret "key" .Values.s3.secretKeyKey) | nindent 12 }}
             {{- include "blackhole.env" $v.env | nindent 12 }}
@@ -81,6 +84,11 @@ spec:
             - name: nats
               mountPath: {{ .Values.nats.credsMountPath }}
               readOnly: true
+            {{- if .Values.banList.clients }}
+            - name: ban-list
+              mountPath: {{ .Values.banList.mountPath }}
+              readOnly: true
+            {{- end }}
             {{- if $v.geoip.enabled }}
             - name: geoip
               mountPath: {{ $v.geoip.mountPath }}
@@ -96,6 +104,17 @@ spec:
             items:
               - key: {{ include "blackhole.natsCredsKey" (dict "ctx" . "values" $v) }}
                 path: {{ include "blackhole.natsCredsKey" (dict "ctx" . "values" $v) }}
+        {{- if .Values.banList.clients }}
+        # One password hash per client, read-only: the backend checks the Basic Auth of the ban list against them.
+        - name: ban-list
+          secret:
+            secretName: {{ .Values.banList.existingSecret }}
+            items:
+              {{- range .Values.banList.clients }}
+              - key: {{ . }}
+                path: {{ . }}
+              {{- end }}
+        {{- end }}
         {{- if $v.geoip.enabled }}
         # The GeoIP files, written by the refresh CronJob. The backend only reads them.
         - name: geoip
