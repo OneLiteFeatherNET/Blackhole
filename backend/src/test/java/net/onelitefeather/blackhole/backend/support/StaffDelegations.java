@@ -51,11 +51,15 @@ public final class StaffDelegations {
                         .build();
         InMemoryRepository<StaffActorRepository, StaffActorEntity, UUID> actors =
                 InMemoryRepository.<StaffActorRepository, StaffActorEntity, UUID>of(StaffActorRepository.class, StaffActorEntity::getOid).build();
+        List<StaffLinkEntity> staffLinkRows = new ArrayList<>();
         InMemoryRepository<StaffLinkRepository, StaffLinkEntity, UUID> staffLinks =
-                InMemoryRepository.<StaffLinkRepository, StaffLinkEntity, UUID>of(StaffLinkRepository.class, StaffLinkEntity::getOid).build();
+                InMemoryRepository.<StaffLinkRepository, StaffLinkEntity, UUID>of(StaffLinkRepository.class, StaffLinkEntity::getOid)
+                        .finder("findByMinecraftUuid", args -> staffLinkRows.stream()
+                                .filter(row -> row.getMinecraftUuid().equals(args[0])).findFirst())
+                        .build();
         StaffDelegation delegation = new StaffDelegation(links.repository(), actors.repository(), staffLinks.repository(), clock,
                 Duration.ofHours(24));
-        return new Linked(delegation, actors, linkRows, staffLinks);
+        return new Linked(delegation, actors, linkRows, staffLinks, staffLinkRows);
     }
 
     /** A recorder over the given in-memory audit store and a recording event transport. */
@@ -71,11 +75,14 @@ public final class StaffDelegations {
 
     /** The parts of a {@link #linked} delegation a test fills in. */
     public record Linked(StaffDelegation delegation, InMemoryRepository<StaffActorRepository, StaffActorEntity, UUID> actors,
-                         List<DiscordLinkEntity> links, InMemoryRepository<StaffLinkRepository, StaffLinkEntity, UUID> staffLinks) {
+                         List<DiscordLinkEntity> links, InMemoryRepository<StaffLinkRepository, StaffLinkEntity, UUID> staffLinks,
+                         List<StaffLinkEntity> staffLinkRows) {
 
         /** Links a staff member to a Minecraft account, the live staff link the proxy's delegation checks. */
         public void givenInGameStaff(UUID oid, UUID minecraftUuid) {
-            this.staffLinks.repository().save(new StaffLinkEntity(oid, minecraftUuid, 1L, oid));
+            StaffLinkEntity row = new StaffLinkEntity(oid, minecraftUuid, 1L, oid);
+            this.staffLinkRows.add(row);
+            this.staffLinks.repository().save(row);
         }
 
         /** Gives a staff member a fresh snapshot with the given roles, taken at {@code seenAt}, without any link. */

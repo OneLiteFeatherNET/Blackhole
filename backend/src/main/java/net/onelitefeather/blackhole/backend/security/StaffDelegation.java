@@ -17,8 +17,8 @@ import java.util.UUID;
 /**
  * Decides whether a machine caller may act for a staff member named by {@code onBehalfOf}. The Discord bot names the
  * member by its oid and is checked against a live staff {@code discord_link}; the proxy names the member by the same oid and
- * is checked against a live staff link ({@code staff_link}), which the proxy first resolves from the in-game Minecraft
- * account. In both cases the member's role snapshot ({@code staff_actor.roles}, written on every HUMAN request) must be fresh
+ * is checked against a live staff link ({@code staff_link}). Both name the member by its oid, but the proxy names the in-game
+ * Minecraft account, which is resolved to the linked oid here, exactly as the punishment path resolves it. In both cases the member's role snapshot ({@code staff_actor.roles}, written on every HUMAN request) must be fresh
  * and hold MODERATOR or ADMIN. A removed role therefore stops working once the snapshot is older than the window.
  *
  * <p>{@link #attribute} serves the four Discord delegation routes (the appeal review, the case update, the ticket close and
@@ -69,10 +69,12 @@ public class StaffDelegation {
 
     /**
      * The attribution of a guard or area ban write. A human caller acts for itself and may not name anyone. The Discord bot
-     * acts for a Discord-linked staff member, and the proxy for a staff member with a live staff link. Both must name the member.
+     * acts for a Discord-linked staff member, and the proxy for a staff member with a live staff link. The bot names the member's
+     * oid; the proxy names the staff member's Minecraft account, and the write is recorded under that account with the linked oid
+     * as its actor, the same identity the punishment path records.
      *
      * @param caller     the verified caller
-     * @param onBehalfOf the staff member's oid the bot or the proxy names, or {@code null}
+     * @param onBehalfOf the staff member's oid the bot names, the Minecraft UUID the proxy names, or {@code null}
      * @return {@link Outcome.Allowed} with the staff member's attribution, role and display name, or {@link Outcome.Refused}
      */
     public Outcome attributeGuard(Actor caller, @Nullable UUID onBehalfOf) {
@@ -88,10 +90,15 @@ public class StaffDelegation {
         if (onBehalfOf == null) {
             return refused(Reason.REQUIRED, "the proxy must name the staff member with onBehalfOf");
         }
-        if (this.staffLinks.findById(onBehalfOf).isEmpty()) {
+        Optional<UUID> linked = this.staffLinks.findByMinecraftUuid(onBehalfOf).map(StaffLinkEntity::getOid);
+        if (linked.isEmpty()) {
             return refused(Reason.NOT_ELIGIBLE, "STAFF_NOT_ELIGIBLE: the staff member has no live staff link");
         }
-        return snapshot(onBehalfOf, caller.oid());
+        Outcome outcome = snapshot(linked.get(), caller.oid());
+        if (outcome instanceof Outcome.Allowed allowed) {
+            return new Outcome.Allowed(new Attribution(onBehalfOf, caller.oid(), linked.get()), allowed.admin(), allowed.displayName());
+        }
+        return outcome;
     }
 
     /**

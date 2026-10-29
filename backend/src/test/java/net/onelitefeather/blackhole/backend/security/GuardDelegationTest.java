@@ -52,11 +52,23 @@ class GuardDelegationTest {
         this.linked.givenInGameStaff(STAFF, MINECRAFT);
         this.linked.givenSnapshot(STAFF, "MODERATOR,VIEWER", this.clock.millis());
 
-        StaffDelegation.Outcome.Allowed allowed = allowedOf(this.linked.delegation().attributeGuard(proxy(), STAFF));
+        StaffDelegation.Outcome.Allowed allowed = allowedOf(this.linked.delegation().attributeGuard(proxy(), MINECRAFT));
 
-        assertEquals(STAFF, allowed.attribution().source(), "the write is for the staff member the proxy names");
+        assertEquals(MINECRAFT, allowed.attribution().source(), "the write is recorded under the in-game account, as punishments are");
         assertEquals(PROXY_OID, allowed.attribution().recordedByOid(), "the proxy's token is the one recorded");
+        assertEquals(STAFF, allowed.attribution().actorOid(), "the linked staff member is the actor of the write");
         assertFalse(allowed.admin(), "a moderator snapshot is not an admin");
+    }
+
+    @Test
+    void theProxyNamingAStaffOidInsteadOfAMinecraftAccountIsRefusedAsNotEligible() {
+        this.linked.givenInGameStaff(STAFF, MINECRAFT);
+        this.linked.givenSnapshot(STAFF, "MODERATOR", this.clock.millis());
+
+        StaffDelegation.Outcome.Refused refused = refusedOf(this.linked.delegation().attributeGuard(proxy(), STAFF));
+
+        assertEquals(StaffDelegation.Reason.NOT_ELIGIBLE, refused.reason(),
+                "the proxy names a Minecraft account; an oid with no account link of its own has no live staff link");
     }
 
     @Test
@@ -64,17 +76,18 @@ class GuardDelegationTest {
         this.linked.givenInGameStaff(STAFF, MINECRAFT);
         this.linked.givenSnapshot(STAFF, "ADMIN,MODERATOR,VIEWER", this.clock.millis());
 
-        StaffDelegation.Outcome.Allowed allowed = allowedOf(this.linked.delegation().attributeGuard(proxy(), STAFF));
+        StaffDelegation.Outcome.Allowed allowed = allowedOf(this.linked.delegation().attributeGuard(proxy(), MINECRAFT));
 
         assertTrue(allowed.admin(), "an admin snapshot makes the delegated write an admin write");
     }
 
     @Test
-    void theProxyCannotActForAStaffMemberWithoutALiveStaffLink() {
+    void theProxyCannotActForAMinecraftAccountWithoutALiveStaffLink() {
         this.linked.givenSnapshot(STAFF, "MODERATOR", this.clock.millis());
 
-        StaffDelegation.Outcome.Refused refused = refusedOf(this.linked.delegation().attributeGuard(proxy(), STAFF));
+        StaffDelegation.Outcome.Refused refused = refusedOf(this.linked.delegation().attributeGuard(proxy(), MINECRAFT));
 
+        assertEquals(StaffDelegation.Reason.NOT_ELIGIBLE, refused.reason(), "an unlinked account has no staff member to act for");
         assertEquals(ErrorKind.FORBIDDEN, refused.errorKind(), "an unlinked staff member is a refusal of authority");
     }
 
@@ -83,7 +96,7 @@ class GuardDelegationTest {
         this.linked.givenInGameStaff(STAFF, MINECRAFT);
         this.linked.givenSnapshot(STAFF, "MODERATOR", this.clock.millis() - 25L * 3600_000L);
 
-        StaffDelegation.Outcome.Refused refused = refusedOf(this.linked.delegation().attributeGuard(proxy(), STAFF));
+        StaffDelegation.Outcome.Refused refused = refusedOf(this.linked.delegation().attributeGuard(proxy(), MINECRAFT));
 
         assertEquals(StaffDelegation.Reason.ROLE_STALE, refused.reason(), "a snapshot older than the window is stale");
     }
@@ -93,7 +106,7 @@ class GuardDelegationTest {
         this.linked.givenInGameStaff(STAFF, MINECRAFT);
         this.linked.givenSnapshot(STAFF, "VIEWER", this.clock.millis());
 
-        StaffDelegation.Outcome.Refused refused = refusedOf(this.linked.delegation().attributeGuard(proxy(), STAFF));
+        StaffDelegation.Outcome.Refused refused = refusedOf(this.linked.delegation().attributeGuard(proxy(), MINECRAFT));
 
         assertEquals(StaffDelegation.Reason.NOT_ELIGIBLE, refused.reason(), "a viewer may not be acted for");
     }
