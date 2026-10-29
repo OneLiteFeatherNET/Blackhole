@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The order of the login check of design.md decision 2: staff, area bans, the guard level, then the VPN policy. */
 class LoginCheckGuardOrderTest {
@@ -87,6 +88,17 @@ class LoginCheckGuardOrderTest {
         LoginCheckDTO.Response result = check(fixture, LoginCheckFixture.OWNER, LoginCheckFixture.CLEAN_IP);
 
         assertEquals(IntelPolicy.ALLOW, result.verdict(), "LOCKDOWN must let a known owner in from a clean address");
+    }
+
+    @Test
+    void anAreaBanRefusalIsNotCountedForTheSummary() {
+        LoginCheckFixture fixture = new LoginCheckFixture();
+        fixture.areaBanAsn(HOSTING_ASN);
+
+        check(fixture, LoginCheckFixture.OWNER, LoginCheckFixture.HOSTING_IP);
+
+        assertTrue(fixture.refusalStore.drainSummary().isEmpty(),
+                "an area ban refusal is a decision already taken, so it must not be counted for the summary");
     }
 
     @Test

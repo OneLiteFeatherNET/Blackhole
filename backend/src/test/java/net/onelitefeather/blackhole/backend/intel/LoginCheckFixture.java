@@ -3,9 +3,13 @@ package net.onelitefeather.blackhole.backend.intel;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import net.onelitefeather.blackhole.backend.areaban.AreaBan;
 import net.onelitefeather.blackhole.backend.areaban.AreaBanCache;
+import net.onelitefeather.blackhole.backend.areaban.AreaBanService;
 import net.onelitefeather.blackhole.backend.areaban.InMemoryAreaBanStore;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.guard.BurstSettings;
 import net.onelitefeather.blackhole.backend.guard.GuardLevel;
+import net.onelitefeather.blackhole.backend.guard.GuardRefusalService;
+import net.onelitefeather.blackhole.backend.guard.InMemoryGuardRefusalStore;
 import net.onelitefeather.blackhole.backend.guard.GuardState;
 import net.onelitefeather.blackhole.backend.guard.GuardStateCache;
 import net.onelitefeather.blackhole.backend.guard.InMemoryGuardStateStore;
@@ -42,6 +46,10 @@ final class LoginCheckFixture {
     final GuardStateCache guard = new GuardStateCache(this.guardStore);
     final InMemoryOwnerDirectoryStore ownerStore = new InMemoryOwnerDirectoryStore();
     final OwnerDirectoryCache owners = new OwnerDirectoryCache(this.ownerStore, Duration.ofMinutes(60));
+    final InMemoryGuardRefusalStore refusalStore = new InMemoryGuardRefusalStore();
+    final GuardRefusalService refusals = new GuardRefusalService(this.refusalStore,
+            new AreaBanService(this.areaStore, this.areaBans, new DomainEventPublisher(this.transport, this.clock), this.clock),
+            new BurstSettings(false, 10, Duration.ofMinutes(5), Duration.ofHours(2)));
     final IntelLoginCheckService service;
 
     LoginCheckFixture() {
@@ -53,7 +61,7 @@ final class LoginCheckFixture {
                 : IpEnricher.IpEnrichment.NONE;
         this.service = new IntelLoginCheckService(this.holder, this.policies, enricher, this.hits, this.notices,
                 new DomainEventPublisher(this.transport, this.clock), this.clock, new SimpleMeterRegistry(),
-                this.areaBans, this.guard, this.owners);
+                this.areaBans, this.guard, this.owners, this.refusals);
     }
 
     /** Sets the manual guard level and loads it into the cache, as the transition service would. */
