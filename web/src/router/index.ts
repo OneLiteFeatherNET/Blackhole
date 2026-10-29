@@ -60,6 +60,7 @@ export const routes: RouteRecordRaw[] = [
   { path: '/admin/imports', name: 'admin-imports', component: AdminView, meta: { titleKey: 'nav.imports', admin: true, pageShell: true, adminTab: 'imports', workspace: 'administration' } },
   { path: '/admin/cloudnet', name: 'admin-cloudnet', component: AdminView, meta: { titleKey: 'nav.cloudnet', admin: true, pageShell: true, adminTab: 'cloudnet', workspace: 'administration' } },
   { path: '/admin/kick', name: 'admin-kick', component: AdminView, meta: { titleKey: 'nav.kick', admin: true, pageShell: true, adminTab: 'kick', workspace: 'administration' } },
+  { path: '/admin/audit', name: 'admin-audit', component: AdminView, meta: { titleKey: 'nav.audit', admin: true, pageShell: true, adminTab: 'audit', workspace: 'administration' } },
 
   // Former URLs of the single rail.
   { path: '/templates', redirect: keepQuery('/admin/templates') },

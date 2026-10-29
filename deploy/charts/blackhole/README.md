@@ -17,7 +17,7 @@ helm install blackhole oci://<registry>/onelitefeather/charts/blackhole --versio
 
 - **No secret value is ever in the chart.** Every secret is read from a Secret that already exists and is
   named in the values (`existingSecret`). The schema refuses a literal value for a secret-looking name
-  (`*_PASSWORD`, `*_SECRET`, `*_TOKEN`, `*_KEY`, `*_SALT`, `REDIS_URI`) in an `env` map.
+  (`*_PASSWORD`, `*_SECRET`, `*_TOKEN`, `*_KEY`, `*_SALT`, `REDIS_URI`, `*WEBHOOK_URL`) in an `env` or `config` map.
 - **Maps, not lists.** Helm replaces lists but merges maps, so `env`, `envFrom`, `config` and the probes
   are maps: an overlay adds one variable without restating `JAVA_TOOL_OPTIONS`. Set a key to `null` to
   remove it.
@@ -57,7 +57,7 @@ Names are chosen in the values; the keys inside are fixed.
 | `s3.existingSecret` | `blackhole-s3` | `BLACKHOLE_EVIDENCE_S3_ACCESS_KEY`, `BLACKHOLE_EVIDENCE_S3_SECRET_KEY` (names changeable with `s3.accessKeyKey` / `s3.secretKeyKey`, e.g. to the `AWS_*` keys of an ObjectBucketClaim Secret) |
 | `nats.existingSecret` | `blackhole-nats` | `nats.creds` (changeable with `nats.credsKey`); mounted at `nats.credsMountPath` |
 | `backend.nats.existingSecret`, `discord.nats.existingSecret` | e.g. `blackhole-nats-backend`, `blackhole-nats-bot` | optional per-component NATS user: `nats.creds` or the key in `<component>.nats.credsKey`; empty values fall back to the shared `nats.*` (the backend and the bot are different NATS users) |
-| `discord.existingSecret` | `blackhole-discord` | `DISCORD_TOKEN`, `BLACKHOLE_DISCORD_CLIENT_SECRET` |
+| `discord.existingSecret` | `blackhole-discord` | `DISCORD_TOKEN`, `BLACKHOLE_DISCORD_CLIENT_SECRET`, and `DISCORD_AUDIT_WEBHOOK_URL` (the staff audit channel's webhook; the key name is `discord.auditWebhookKey`). The key is optional (empty `discord.auditWebhookKey` turns the audit off); add it, then raise `discord.secretRevision` to roll the bot |
 | `backend.metrics.serviceMonitor.oauth2.existingSecret` | `blackhole-metrics` | `BLACKHOLE_METRICS_CLIENT_ID`, `BLACKHOLE_METRICS_CLIENT_SECRET` (only with the ServiceMonitor) |
 | `global.imagePullSecrets` | `harbor-pull` | a `kubernetes.io/dockerconfigjson` Secret |
 
@@ -71,10 +71,10 @@ offline copy of it before the first install.
 | `global` | `environment` (`prod`/`dev`/`local`), `image.registry`, `image.tag` (empty = `appVersion`), `imagePullSecrets`, `podLabels`, `priorityClassName` |
 | `database`, `redis`, `nats`, `s3`, `keys` | the shared infrastructure; Secrets by name |
 | `auth` | the Entra tenant, API client id, staff group ids and machine role names |
-| `backend` | `replicaCount` (2), `env`, `envFrom`, `config` (non-secret `BLACKHOLE_*` tunables), `secretRevision`, `evidence.{maxVideoBytes,scan}`, `tracing`, `strategy`, `pdb`, probes, `resources`, security contexts, scheduling, `metrics.serviceMonitor`, `externalApi` |
+| `backend` | `replicaCount` (2), `env`, `envFrom`, `config` (non-secret `BLACKHOLE_*` tunables, e.g. `BLACKHOLE_AUDIT_RETENTION`), `secretRevision`, `evidence.{maxVideoBytes,scan}`, `tracing`, `strategy`, `pdb`, probes, `resources`, security contexts, scheduling, `metrics.serviceMonitor`, `externalApi` |
 | `web` | the same common keys, `oidc.*`, `evidence.*`, `ingress` or `httpRoute`, `pdb` |
 | `portal` | the same common keys, `origin`, `ingress` or `httpRoute`, `pdb` |
-| `discord` | the common keys, `existingSecret`, `clientId`, `authScope`, `panelUrl`, `ids.*`, `config` (intervals), `metrics.podMonitor`; always exactly one replica |
+| `discord` | the common keys, `existingSecret`, `auditWebhookKey`, `clientId`, `authScope`, `panelUrl` (the panel base URL, `BLACKHOLE_PANEL_URL`, also the base of the audit links), `ids.*`, `config` (intervals), `metrics.podMonitor`; always exactly one replica |
 | `clamav` | `enabled`, `externalHost`, `image`, `unprivileged`, `limits.*`, `persistence.{size,storageClass}` |
 
 Defaults and sizing (a first guess, tuned after the first week of metrics):

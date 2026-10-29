@@ -12,6 +12,7 @@ function adminApi(overrides: Record<string, unknown> = {}) {
     sections: vi.fn(async () => ok([])),
     importedPunishmentGroups: vi.fn(async () => ok({ total: 0, groups: [] })),
     cloudnetCatalogue: vi.fn(async () => ok({ available: false, tasks: [], groups: [], services: [], proxies: [], reportedAt: null })),
+    auditLog: vi.fn(async () => ok({ items: [], nextCursor: null })),
     ...overrides,
   }
 }
@@ -46,6 +47,29 @@ describe('AdminView system pages', () => {
     expect(wrapper.get('h1').text()).toBe('CloudNet')
     expect(wrapper.find('[data-testid="cloudnet-catalogue"]').exists(), 'catalogue panel').toBe(true)
     expect(wrapper.find('[data-testid="vanilla-import"]').exists(), 'no import panel').toBe(false)
+
+    wrapper.unmount()
+  })
+})
+
+describe('AdminView audit log', () => {
+  it('shows the read-only audit log to an administrator at /admin/audit', async () => {
+    const api = adminApi({ auditLog: vi.fn(async () => ok({ items: [], nextCursor: null })) })
+    const { wrapper } = await mountWithApp(AdminView, { api: mockApi(api), roles: ['ADMIN'], path: '/admin/audit' })
+
+    expect(wrapper.get('h1').text()).toBe('Audit log')
+    expect(wrapper.find('[data-testid="audit-log"]').exists(), 'audit panel').toBe(true)
+    expect(api.auditLog).toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+  })
+
+  it.each([['MODERATOR'], ['VIEWER']])('hides the audit log from a %s and requests nothing of it', async (role) => {
+    const api = adminApi({ auditLog: vi.fn(async () => ok({ items: [], nextCursor: null })) })
+    const { wrapper } = await mountWithApp(AdminView, { api: mockApi(api), roles: [role], path: '/admin/audit' })
+
+    expect(wrapper.find('[data-testid="audit-log"]').exists(), 'no audit panel').toBe(false)
+    expect(api.auditLog, 'no request').not.toHaveBeenCalled()
 
     wrapper.unmount()
   })

@@ -66,7 +66,7 @@ describe('visibleGroups for the administration workspace', () => {
   it('lists Configuration and System for an administrator, with no system status item', () => {
     expect(shape(ADMIN, 'administration')).toEqual([
       ['configuration', true, ['templates', 'sections', 'clientRules', 'appealTerms']],
-      ['system', true, ['staffAccounts', 'imports', 'cloudnet', 'kick']],
+      ['system', true, ['staffAccounts', 'imports', 'cloudnet', 'kick', 'audit']],
     ])
   })
 
@@ -86,6 +86,7 @@ describe('visibleGroups for the administration workspace', () => {
       ['imports', '/admin/imports'],
       ['cloudnet', '/admin/cloudnet'],
       ['kick', '/admin/kick'],
+      ['audit', '/admin/audit'],
     ])
   })
 })
@@ -107,6 +108,7 @@ describe('navigation labels', () => {
     expect(label('nav.clientRules', 'en')).toBe('Client rules')
     expect(label('nav.imports', 'en')).toBe('Imports')
     expect(label('nav.cloudnet', 'en')).toBe('CloudNet')
+    expect(label('nav.audit', 'en')).toBe('Audit log')
   })
 
   it('names the destinations with the glossary terms in German', () => {
