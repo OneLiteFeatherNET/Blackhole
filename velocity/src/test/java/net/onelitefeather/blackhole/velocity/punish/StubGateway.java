@@ -2,6 +2,8 @@ package net.onelitefeather.blackhole.velocity.punish;
 
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.EloProfileResponse;
+import net.onelitefeather.blackhole.client.model.NameHistoryOwner;
+import net.onelitefeather.blackhole.client.model.NameHistoryPage;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
@@ -102,6 +104,21 @@ final class StubGateway implements BackendGateway {
     ReportDTO lookedUpReport;
     ApiException lookupReportFailure;
     final List<UUID> lookedUp = new ArrayList<>();
+
+    @Override
+    public Optional<TargetResolver.Known> resolvePlayer(String name) {
+        return Optional.empty();
+    }
+
+    @Override
+    public NameHistoryPage nameHistory(String owner, int size) {
+        return new NameHistoryPage();
+    }
+
+    @Override
+    public List<NameHistoryOwner> nameOwners(String name) {
+        return List.of();
+    }
 
     @Override
     public ReportDTO report(UUID identifier) throws ApiException {

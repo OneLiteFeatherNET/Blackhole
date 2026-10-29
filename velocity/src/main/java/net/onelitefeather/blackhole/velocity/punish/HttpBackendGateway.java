@@ -7,7 +7,9 @@ import net.onelitefeather.blackhole.client.api.PunishmentApi;
 import net.onelitefeather.blackhole.client.api.PunishmentTemplatesApi;
 import net.onelitefeather.blackhole.client.api.ReportApi;
 import net.onelitefeather.blackhole.client.api.DiscordLinkApi;
+import net.onelitefeather.blackhole.client.api.IntelApi;
 import net.onelitefeather.blackhole.client.api.KickApi;
+import net.onelitefeather.blackhole.client.api.PlayerApi;
 import net.onelitefeather.blackhole.client.api.ProxyApi;
 import net.onelitefeather.blackhole.client.model.ProxyCapabilityReportRequest;
 import net.onelitefeather.blackhole.client.model.ProxyCapabilitySignedVelocity;
@@ -24,6 +26,9 @@ import net.onelitefeather.blackhole.client.model.KickScope;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.DiscordLinkCodeResponse;
+import net.onelitefeather.blackhole.client.model.NameHistoryOwner;
+import net.onelitefeather.blackhole.client.model.NameHistoryPage;
+import net.onelitefeather.blackhole.client.model.PlayerResolveResponse;
 import net.onelitefeather.blackhole.client.model.DiscordLinkPlayerCodeRequest;
 import net.onelitefeather.blackhole.client.model.EloProfileResponse;
 import net.onelitefeather.blackhole.client.model.EvidenceCreateRequest;
@@ -75,6 +80,8 @@ public final class HttpBackendGateway implements BackendGateway {
     private final KickApi kickApi;
     private final ProxyApi proxyApi;
     private final WarningApi warningApi;
+    private final PlayerApi playerApi;
+    private final IntelApi intelApi;
     private volatile CachedList cachedTemplates;
     private final Clock clock;
 
@@ -90,6 +97,8 @@ public final class HttpBackendGateway implements BackendGateway {
         this.kickApi = new KickApi(client);
         this.proxyApi = new ProxyApi(client);
         this.warningApi = new WarningApi(client);
+        this.playerApi = new PlayerApi(client);
+        this.intelApi = new IntelApi(client);
         this.clock = clock;
     }
 
@@ -171,6 +180,29 @@ public final class HttpBackendGateway implements BackendGateway {
             }
             throw e;
         }
+    }
+
+    @Override
+    public Optional<TargetResolver.Known> resolvePlayer(String name) throws ApiException {
+        try {
+            PlayerResolveResponse resolved = this.playerApi.resolvePlayer(name);
+            return Optional.of(new TargetResolver.Known(resolved.getUuid(), resolved.getName()));
+        } catch (ApiException e) {
+            if (e.getCode() == 404) {
+                return Optional.empty();
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public NameHistoryPage nameHistory(String owner, int size) throws ApiException {
+        return this.intelApi.listPlayerNames(owner, 0, size);
+    }
+
+    @Override
+    public List<NameHistoryOwner> nameOwners(String name) throws ApiException {
+        return this.intelApi.findNameOwners(name).getOwners();
     }
 
     @Override
