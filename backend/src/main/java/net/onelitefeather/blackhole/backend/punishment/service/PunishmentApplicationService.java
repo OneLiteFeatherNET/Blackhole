@@ -5,6 +5,8 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.publicbans.PlayerUuids;
+import net.onelitefeather.blackhole.backend.publicbans.PublicBanListing;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseTimeline;
 import net.onelitefeather.blackhole.backend.audit.AuditAction;
 import net.onelitefeather.blackhole.backend.audit.AuditTarget;
@@ -57,6 +59,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * The one chokepoint every punishment goes through: staff templates (direct or from a resolved
@@ -108,6 +111,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
     private final WarningEventPublisher warningEvents;
     private final StaffAuditRecorder audit;
     private final Duration defaultEscalationWindow;
+    private final PublicBanListing publicListing;
 
     /**
      * @param eloScoring lazy - {@link EloService} itself depends on this service (to apply
@@ -131,9 +135,11 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
             KickService kicks,
             WarningEventPublisher warningEvents,
             StaffAuditRecorder audit,
+            PublicBanListing publicListing,
             @Value("${blackhole.punishment.escalation.default-window:P365D}") Duration defaultEscalationWindow
     ) {
         this.audit = audit;
+        this.publicListing = publicListing;
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
         this.slots = slots;
@@ -204,6 +210,9 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
     private Planned plan(PunishmentDTO.ApplyRequest request, Attribution attribution) {
         if (!OwnerHash.isValid(request.owner())) {
             return failed(ErrorKind.VALIDATION, "owner must be a sha-512 hash");
+        }
+        if (request.playerUuid() != null && PlayerUuids.parse(request.playerUuid()).isEmpty()) {
+            return failed(ErrorKind.VALIDATION, "playerUuid must be a UUID in dashed or 32-digit form");
         }
         boolean hasKey = request.templateKey() != null && !request.templateKey().isBlank();
         if (hasKey == (request.templateId() != null)) {
@@ -358,6 +367,9 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
             punishment.setRecordedByOid(attribution.recordedByOid());
             punishment.setActorOid(attribution.actorOid());
             punishment.recordEscalation(group, selection.index(), selection.stepCount(), cost);
+            UUID playerUuid = PlayerUuids.parse(request.playerUuid()).orElse(null);
+            this.publicListing.applied(punishment, template, section.enforcement(), playerUuid, now,
+                    now + selection.step().parsedDuration().toMillis());
             saved = this.punishmentRepository.save(punishment);
             this.banIds.issue(saved.getIdentifier());
             if (!place(owner, section, saved)) {
@@ -607,6 +619,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         active.getMetaData().put("recordedByOid", attribution.recordedByOid().toString());
         active.getMetaData().put(Metadata.META_DATA_KEY_UPDATE_DATE, this.clock.millis());
         active.setLifted(true);
+        this.publicListing.revoked(active, this.clock.millis());
         this.punishmentRepository.update(active);
         this.profileCache.evict(owner);
         markEvidenceRevoked(active, attribution);

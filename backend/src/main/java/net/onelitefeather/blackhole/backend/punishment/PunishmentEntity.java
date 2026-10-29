@@ -108,6 +108,29 @@ public class PunishmentEntity {
     @Column(name = "kick_target")
     private String kickTarget;
 
+    /** The internal player UUID from the apply request. Never returned by the API; cleared on erasure. */
+    @Column(name = "player_uuid")
+    private UUID playerUuid;
+
+    /** The public ban list columns: a snapshot of the template's public reason, set only when the entry is listed. */
+    @Column(name = "public_reason", length = 200)
+    private String publicReason;
+
+    @Column(name = "public_kind", length = 16)
+    private String publicKind;
+
+    @Column(name = "public_hash", length = 22)
+    private String publicHash;
+
+    @Column(name = "public_issued_day")
+    private Long publicIssuedDay;
+
+    @Column(name = "public_expires_at")
+    private Long publicExpiresAt;
+
+    @Column(name = "public_revoked_at")
+    private Long publicRevokedAt;
+
     @ManyToOne
     private PunishmentTemplateEntity template;
 
@@ -205,6 +228,69 @@ public class PunishmentEntity {
         this.template = template;
         this.metaData.putIfAbsent("importedReason", importedReason);
         this.metaData.put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
+    }
+
+    /** Stores the internal player UUID of the apply request (null when the caller did not know it). */
+    public void setPlayerUuid(UUID playerUuid) {
+        this.playerUuid = playerUuid;
+    }
+
+    public UUID getPlayerUuid() {
+        return playerUuid;
+    }
+
+    /**
+     * Lists the punishment on the public ban list: the public reason and kind are copied, the entry hash and the day
+     * are set, and the expiry instant is kept (null for a permanent entry).
+     */
+    public void publish(String reason, String kind, String hash, long issuedDay, Long expiresAt) {
+        this.publicReason = reason;
+        this.publicKind = kind;
+        this.publicHash = hash;
+        this.publicIssuedDay = issuedDay;
+        this.publicExpiresAt = expiresAt;
+    }
+
+    /** Records the revoke instant of a listed entry, so it is shown as REVOKED for the retention window. */
+    public void markPublicRevoked(long revokedAt) {
+        if (this.publicHash != null) {
+            this.publicRevokedAt = revokedAt;
+        }
+    }
+
+    /** Removes the entry from the public list and the internal UUID (erasure). The hash then answers 404. */
+    public void clearPublicListing() {
+        this.playerUuid = null;
+        this.publicReason = null;
+        this.publicKind = null;
+        this.publicHash = null;
+        this.publicIssuedDay = null;
+        this.publicExpiresAt = null;
+        this.publicRevokedAt = null;
+    }
+
+    public String getPublicHash() {
+        return publicHash;
+    }
+
+    public String getPublicReason() {
+        return publicReason;
+    }
+
+    public String getPublicKind() {
+        return publicKind;
+    }
+
+    public Long getPublicIssuedDay() {
+        return publicIssuedDay;
+    }
+
+    public Long getPublicExpiresAt() {
+        return publicExpiresAt;
+    }
+
+    public Long getPublicRevokedAt() {
+        return publicRevokedAt;
     }
 
     public String getIdentifier() {

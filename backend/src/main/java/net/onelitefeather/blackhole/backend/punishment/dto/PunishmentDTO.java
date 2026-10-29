@@ -48,8 +48,15 @@ public sealed interface PunishmentDTO {
             @Nullable @Size(max = 64) String evidenceCorrelationId,
             @Nullable KickScope scope,
             @Nullable String target,
-            @Nullable Boolean warningOnly
+            @Nullable Boolean warningOnly,
+            @Nullable @Size(max = 64) String playerUuid
     ) implements PunishmentDTO {
+
+        /** An apply request without a player UUID (the caller did not know it). */
+        public ApplyRequest(String owner, String templateKey, UUID templateId, UUID onBehalfOf, String evidenceCorrelationId,
+                            KickScope scope, String target, Boolean warningOnly) {
+            this(owner, templateKey, templateId, onBehalfOf, evidenceCorrelationId, scope, target, warningOnly, null);
+        }
 
         /** An apply request that claims no pending evidence. */
         public ApplyRequest(String owner, String templateKey, UUID templateId, UUID onBehalfOf) {

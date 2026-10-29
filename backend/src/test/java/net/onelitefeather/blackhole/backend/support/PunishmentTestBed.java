@@ -50,6 +50,8 @@ public final class PunishmentTestBed {
     public final EloTestBed eloBed = new EloTestBed();
     public final InMemoryRepository<PunishmentRepository, PunishmentEntity, String> punishments =
             InMemoryRepository.<PunishmentRepository, PunishmentEntity, String>of(PunishmentRepository.class, PunishmentEntity::getIdentifier)
+                    .finder("findByOwner", args -> this.punishments.all().stream()
+                            .filter(p -> args[0].equals(p.getOwner())).toList())
                     .finder("countByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals", args -> this.punishments.all().stream()
                             .filter(p -> args[0].equals(p.getOwner()) && args[1].equals(p.getEscalationGroup()))
                             .filter(p -> !p.isLifted() && p.getCreatedAt() >= (Long) args[2])
@@ -111,7 +113,12 @@ public final class PunishmentTestBed {
     public final PunishmentApplicationService punishmentService = new PunishmentApplicationService(
             punishments.repository(), profiles.repository(), slots, templates.repository(), eloBed.sections, eloBed.events,
             profileCache, evidence, cases.timeline, () -> this.elo, this.staffLinks.service, eloBed.clock, banIds.service,
-            kickService, warningEvents, audit, Duration.ofDays(365));
+            kickService, warningEvents, audit,
+            new net.onelitefeather.blackhole.backend.publicbans.PublicBanListing(
+                    new net.onelitefeather.blackhole.backend.publicbans.PublicBanHasher(
+                            java.util.Base64.getEncoder().encodeToString(new byte[32])),
+                    punishments.repository()),
+            Duration.ofDays(365));
     public final FakeClientRuleStore clientRules = new FakeClientRuleStore();
     public final PunishmentTemplateService templateService = new PunishmentTemplateService(
             templates.repository(), punishments.repository(), templateCache, eloBed.sections, clientRules, audit);

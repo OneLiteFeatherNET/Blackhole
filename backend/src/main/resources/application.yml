@@ -138,6 +138,19 @@ blackhole:
   # warning, so Ban IDs do not survive a restart. Elsewhere it refuses to start without the key. Losing or changing the
   # key makes every Ban ID unreadable and unusable, so back it up like any other secret. The backfill
   # issues Ban IDs to punishments that have none (right after start, then periodically).
+  # Public ban list (publicbans/). The key derives the entry hash of each listed sanction; the guard requires it
+  # outside dev and test only when ban-list clients are configured. Rotating it changes every entry hash.
+  public-bans:
+    key: ${BLACKHOLE_PUBLIC_BAN_KEY:}
+    # Ended entries (revoked or expired) stay listed this long after they end. Active entries are always listed.
+    retention: ${BLACKHOLE_PUBLIC_BANS_RETENTION:P90D}
+    # Summary counts below this minimum are withheld, so a single entry cannot be read off the summary.
+    summary-min-count: ${BLACKHOLE_PUBLIC_BANS_SUMMARY_MIN_COUNT:5}
+  # Named ban-list clients (Basic Auth). Comma-separated names; each needs one file in secrets-dir holding its
+  # Argon2id PHC hash. Clients are read once at startup: a rotation or a change is a restart.
+  ban-list:
+    clients: ${BLACKHOLE_BAN_LIST_CLIENTS:}
+    secrets-dir: ${BLACKHOLE_BAN_LIST_SECRETS_DIR:/etc/blackhole/ban-list}
   banid:
     key: ${BLACKHOLE_BANID_KEY:}
     # Key rotation recovery. After BLACKHOLE_BANID_KEY was replaced, set this to true for ONE start: the

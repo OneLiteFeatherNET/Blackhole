@@ -212,6 +212,7 @@ public class PunishmentTemplateService {
                 spec.metaData() == null ? new HashMap<>() : new HashMap<>(spec.metaData())
         );
         entity.setWarnWindow(spec.warnWindow() == null || spec.warnWindow().isBlank() ? null : spec.warnWindow().trim());
+        entity.setPublicReason(spec.publicReason() == null || spec.publicReason().isBlank() ? null : spec.publicReason().strip());
         return entity;
     }
 }
