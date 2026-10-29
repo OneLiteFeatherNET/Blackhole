@@ -4,6 +4,9 @@ import net.onelitefeather.blackhole.backend.evasion.dto.EvasionSightingDTO;
 import net.onelitefeather.blackhole.backend.evasion.service.ClientFingerprintService;
 import net.onelitefeather.blackhole.backend.evasion.service.EvasionSightingService;
 import net.onelitefeather.blackhole.backend.evasion.service.IpCorrelationService;
+import net.onelitefeather.blackhole.backend.intel.SessionOutcome;
+import net.onelitefeather.blackhole.backend.intel.SessionRecord;
+import net.onelitefeather.blackhole.backend.support.InMemorySessionStore;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.RecordingEventPublisher;
@@ -38,6 +41,7 @@ class EvasionSightingServiceTest {
                             .filter(entity -> entity.getLastSeen() >= (long) args[1]).toList())
                     .build();
     private final List<IpCorrelationTokenEntity> rows = new java.util.ArrayList<>();
+    private final InMemorySessionStore sessions = new InMemorySessionStore();
 
     private List<IpCorrelationTokenEntity> sightings() {
         return this.rows;
@@ -45,11 +49,11 @@ class EvasionSightingServiceTest {
 
     private EvasionSightingService service(String salt) {
         IpCorrelationService correlation = new IpCorrelationService(
-                this.store.repository(), new RecordingEventPublisher(), salt, 7);
+                this.store.repository(), this.sessions, new RecordingEventPublisher(), salt, 7);
         ClientFingerprintService fingerprints = new ClientFingerprintService(
                 new net.onelitefeather.blackhole.backend.support.FakeClientFingerprintStore(), new ClientFingerprintHasher((byte[]) null),
                 new RecordingEventPublisher(), this.clock, 14, 5);
-        return new EvasionSightingService(this.store.repository(), correlation, fingerprints, this.clock);
+        return new EvasionSightingService(this.store.repository(), this.sessions, correlation, fingerprints, this.clock);
     }
 
     private void seen(String owner, String token, Duration firstAgo, Duration lastAgo) {
@@ -69,6 +73,18 @@ class EvasionSightingServiceTest {
         assertTrue(response.linkedOwners().isEmpty());
         assertFalse(response.truncated());
         assertEquals(7, response.windowDays());
+    }
+
+    @Test
+    void aStoredSessionOfAnotherOwnerOnTheSameTokenIsLinkedToo() {
+        seen(ME, "t1", Duration.ofDays(2), Duration.ofDays(1));
+        this.sessions.insert(new SessionRecord(new UUID(0, 1), ALT, new UUID(0, 2), "Alt", "192.0.2.1", "t1", null, null, null,
+                null, null, null, null, SessionOutcome.ALLOWED, this.clock.millis() - Duration.ofHours(5).toMillis(), null));
+
+        EvasionSightingDTO.Response response = respond(ME);
+
+        assertEquals(1, response.linkedOwners().size(), "the session row of the other owner is read next to the legacy row");
+        assertEquals(ALT, response.linkedOwners().getFirst().owner());
     }
 
     @Test

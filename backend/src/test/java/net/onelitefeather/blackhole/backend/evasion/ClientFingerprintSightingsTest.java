@@ -45,8 +45,8 @@ class ClientFingerprintSightingsTest {
             new FakeClientFingerprintStore(), new ClientFingerprintHasher(TestKeys.randomBytes()), new RecordingEventPublisher(), clock, 14, 5);
 
     private EvasionSightingService service(String salt) {
-        return new EvasionSightingService(store.repository(),
-                new IpCorrelationService(store.repository(), new RecordingEventPublisher(), salt, 7), fingerprints, clock);
+        return new EvasionSightingService(store.repository(), new net.onelitefeather.blackhole.backend.support.InMemorySessionStore(),
+                new IpCorrelationService(store.repository(), new net.onelitefeather.blackhole.backend.support.InMemorySessionStore(), new RecordingEventPublisher(), salt, 7), fingerprints, clock);
     }
 
     private void ipSeen(String owner, String token) {
@@ -117,8 +117,8 @@ class ClientFingerprintSightingsTest {
 
     @Test
     void withoutAFingerprintKeyTheClientSignalIsReportedOff() {
-        EvasionSightingService off = new EvasionSightingService(store.repository(),
-                new IpCorrelationService(store.repository(), new RecordingEventPublisher(), "salt", 7),
+        EvasionSightingService off = new EvasionSightingService(store.repository(), new net.onelitefeather.blackhole.backend.support.InMemorySessionStore(),
+                new IpCorrelationService(store.repository(), new net.onelitefeather.blackhole.backend.support.InMemorySessionStore(), new RecordingEventPublisher(), "salt", 7),
                 new ClientFingerprintService(new FakeClientFingerprintStore(), new ClientFingerprintHasher((byte[]) null),
                         new RecordingEventPublisher(), clock, 14, 5), clock);
 

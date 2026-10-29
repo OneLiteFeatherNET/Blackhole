@@ -349,6 +349,16 @@ blackhole:
   # Ban-evasion detection (Phase 7): ip-salt gates the whole feature - POST /evasion/record
   # returns 503 rather than silently computing a weak unsalted-equivalent hash if it's unset.
   # See IpCorrelationService's javadoc for the salt rotation tradeoff before ever rotating this.
+  # Player sessions (net.onelitefeather.blackhole.backend.intel): one record per login attempt, with the clear IP and
+  # the raw UUID, kept for retention-days and then deleted. Off means /intel answers 404 and Velocity's reports are dropped.
+  intel:
+    enabled: ${BLACKHOLE_INTEL_ENABLED:true}
+    retention-days: ${BLACKHOLE_INTEL_RETENTION_DAYS:90}
+    retention-sweep-cron: ${BLACKHOLE_INTEL_RETENTION_SWEEP_CRON:`0 45 3 * * *`}
+    # MaxMind DB files mounted read-only into the pod (refreshed by a CronJob). Missing files store sessions without enrichment.
+    geoip:
+      asn-path: ${BLACKHOLE_INTEL_GEOIP_ASN_PATH:/data/geoip/asn.mmdb}
+      city-path: ${BLACKHOLE_INTEL_GEOIP_CITY_PATH:/data/geoip/city.mmdb}
   evasion:
     ip-salt: ${BLACKHOLE_EVASION_IP_SALT:}
     detection-window-days: ${BLACKHOLE_EVASION_DETECTION_WINDOW_DAYS:7}

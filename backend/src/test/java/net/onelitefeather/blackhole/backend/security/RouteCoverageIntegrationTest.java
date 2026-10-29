@@ -115,6 +115,10 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /elo/chat", MP),
             Map.entry("POST /evasion/record", MP),
             Map.entry("POST /evasion/fingerprint", P),
+            // player sessions: the proxy reports and updates them, staff read them (the proxy may not)
+            Map.entry("POST /intel/sessions", P),
+            Map.entry("PATCH /intel/sessions/{sessionId}", P),
+            Map.entry("GET /intel/players/{owner}/sessions", V),
             Map.entry("POST /profile/{owner}/session", MP),
             // admin configuration
             Map.entry("POST /section", A),

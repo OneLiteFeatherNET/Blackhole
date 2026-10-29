@@ -4,10 +4,12 @@ import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.evasion.IpCorrelationTokenEntity;
 import net.onelitefeather.blackhole.backend.evasion.IpCorrelationTokenRepository;
 import net.onelitefeather.blackhole.backend.evasion.dto.EvasionSightingDTO;
+import net.onelitefeather.blackhole.backend.intel.SessionStore;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -30,13 +32,15 @@ public class EvasionSightingService {
     private static final String REASON_SHARED_CLIENT = "SHARED_CLIENT";
 
     private final IpCorrelationTokenRepository repository;
+    private final SessionStore sessions;
     private final IpCorrelationService correlation;
     private final ClientFingerprintService fingerprints;
     private final Clock clock;
 
-    public EvasionSightingService(IpCorrelationTokenRepository repository, IpCorrelationService correlation,
-                                  ClientFingerprintService fingerprints, Clock clock) {
+    public EvasionSightingService(IpCorrelationTokenRepository repository, SessionStore sessions,
+                                  IpCorrelationService correlation, ClientFingerprintService fingerprints, Clock clock) {
         this.repository = repository;
+        this.sessions = sessions;
         this.correlation = correlation;
         this.fingerprints = fingerprints;
         this.clock = clock;
@@ -82,20 +86,32 @@ public class EvasionSightingService {
                 tokens.add(own.getToken());
             }
         }
+        tokens.addAll(this.sessions.tokensOfOwner(owner, windowStart));
         if (tokens.isEmpty()) {
             return Map.of();
         }
+        // Legacy sightings and stored sessions, as (owner, token, first, last) rows.
+        List<Seen> seen = new ArrayList<>();
+        for (IpCorrelationTokenEntity other : this.repository.findByTokenInAndLastSeenGreaterThanEquals(tokens, windowStart)) {
+            seen.add(new Seen(other.getOwnerHash(), other.getToken(), other.getFirstSeen(), other.getLastSeen()));
+        }
+        for (SessionStore.TokenSighting other : this.sessions.sightingsOfTokens(tokens, windowStart)) {
+            seen.add(new Seen(other.ownerHash(), other.token(), other.startedAt(), other.startedAt()));
+        }
         Map<String, Set<String>> addressesByOwner = new LinkedHashMap<>();
         Map<String, long[]> seenByOwner = new LinkedHashMap<>();
-        for (IpCorrelationTokenEntity other : this.repository.findByTokenInAndLastSeenGreaterThanEquals(tokens, windowStart)) {
-            if (owner.equals(other.getOwnerHash())) {
+        for (Seen other : seen) {
+            if (owner.equals(other.owner())) {
                 continue;
             }
-            addressesByOwner.computeIfAbsent(other.getOwnerHash(), key -> new HashSet<>()).add(other.getToken());
-            seenByOwner.merge(other.getOwnerHash(), new long[]{other.getFirstSeen(), other.getLastSeen(), 0},
+            addressesByOwner.computeIfAbsent(other.owner(), key -> new HashSet<>()).add(other.token());
+            seenByOwner.merge(other.owner(), new long[]{other.first(), other.last(), 0},
                     (a, b) -> new long[]{Math.min(a[0], b[0]), Math.max(a[1], b[1]), 0});
         }
-        seenByOwner.forEach((other, seen) -> seen[2] = addressesByOwner.get(other).size());
+        seenByOwner.forEach((other, value) -> value[2] = addressesByOwner.get(other).size());
         return seenByOwner;
+    }
+
+    private record Seen(String owner, String token, long first, long last) {
     }
 }
