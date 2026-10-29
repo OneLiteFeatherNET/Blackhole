@@ -22,8 +22,10 @@ public record NotificationEvent(
         @NotNull String eventId, @NotNull String eventType, @NotNull NotificationKind kind, @NotNull String identifier
 ) {
 
-    /** The routing keys the bot subscribes to. */
-    public static final String[] ROUTING_KEYS = {"report.created", "report.resolved", "appeal.submitted", "appeal.resolved"};
+    /** The routing keys the bot subscribes to: reports and appeals, then the join guard and area ban events ({@link GuardEvent}). */
+    public static final String[] ROUTING_KEYS = {
+            "report.created", "report.resolved", "appeal.submitted", "appeal.resolved",
+            "guard.level_changed", "area_ban.created", "area_ban.lifted", "guard.denials.summary"};
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
