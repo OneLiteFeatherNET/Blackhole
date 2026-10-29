@@ -15,6 +15,7 @@ import { useSessionStore } from '../../stores/session'
 import MdButton from '../md/MdButton.vue'
 import ResourceState from '../ResourceState.vue'
 import StatusPill from '../StatusPill.vue'
+import CaseLockControl from './CaseLockControl.vue'
 import ChatMarkdown, { type ChatNode } from './chat/ChatMarkdown'
 import { bannerFor, buildMarkers, buildThread, type ChatFile, type ShareMarker, type ThreadMessage } from './conversation'
 import MessageComposer from './MessageComposer.vue'
@@ -256,6 +257,14 @@ async function redacted(message: string): Promise<void> {
     <ResourceState :loading="loading && !loaded" :error="error" :has-data="loaded" @retry="reload">
       <p role="status" aria-live="polite" class="sr-only" data-testid="conversation-status">{{ announcement }}</p>
       <TicketStatus :tickets="tickets" :reference="reference" :frozen="banner === 'FROZEN'" />
+      <CaseLockControl
+        v-if="tickets.length > 0"
+        :reference="reference"
+        :tickets="tickets"
+        :assignee-name="kase.assigneeName ?? null"
+        :leak-frozen="banner === 'FROZEN'"
+        @changed="changed"
+      />
       <p v-if="thread.length === 0 && layout.tail.length === 0" class="text-body-large text-on-surface-variant" data-testid="conversation-empty">{{ t('case.conversation.empty') }}</p>
       <ol
         v-else

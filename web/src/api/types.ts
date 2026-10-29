@@ -146,6 +146,8 @@ export type MessageAuthorKind = Schemas['MessageAuthorKind']
 export type MessageChannel = Schemas['MessageChannel']
 export type CaseBanIdLeakResult = Schemas['CaseBanIdLeakResponse']
 export type CaseBanIdReissueResult = Schemas['CaseBanIdReissueResponse']
+/** The Discord ticket lock after a change: `freezeSource` is STAFF or LEAK while frozen, null when not. */
+export type StaffTicketState = Schemas['StaffTicketResponse']
 export type CaseProtocolText = Schemas['CaseProtocolText']
 /** A file staged for the next message of a case; its `attachmentId` goes into `attachmentIds`. */
 export type ChatAttachment = Schemas['ChatAttachmentStaged']

@@ -1207,6 +1207,25 @@
       "playerFile": "Player-supplied, unverified",
       "reconnecting": "Live updates paused, reconnecting."
     },
+    "lock": {
+      "title": "Ticket lock",
+      "claimedBy": "Claimed by",
+      "notClaimed": "Not claimed",
+      "appeal": "Appeal",
+      "decided": "Decided",
+      "notDecided": "Not decided yet",
+      "state": "Lock",
+      "unlocked": "Not locked",
+      "unknown": "Not known yet. Locking or unlocking here shows the state.",
+      "lockedStaff": "Locked by staff",
+      "lockedLeak": "Locked by the leak check",
+      "lock": "Lock ticket",
+      "unlock": "Unlock ticket",
+      "leak": "The leak check locked this ticket. Staff cannot unlock it, and the player cannot write while it is locked.",
+      "hint": "A locked ticket takes no messages from the player. Staff can still write.",
+      "lockedDone": "Ticket locked.",
+      "unlockedDone": "Ticket unlocked."
+    },
     "tickets": {
       "title": "Discord tickets",
       "number": "Ticket #{no}",
