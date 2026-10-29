@@ -66,6 +66,8 @@ import type {
   Report,
   ReportResolution,
   ResolvedPlayer,
+  NameHistoryOwner,
+  NameHistoryPage,
   SessionPage,
   RevokeResult,
   Section,
@@ -165,6 +167,10 @@ export interface BlackholeApi {
   evasionSightings(owner: string): Promise<ApiResult<EvasionSightings>>
   /** One page of a player's stored sessions, newest first (staff only; the page shows the raw address). */
   playerSessions(owner: string, page: number, size: number): Promise<ApiResult<SessionPage>>
+  /** One page of the names an account used, newest last seen first (staff and viewers). */
+  listPlayerNames(owner: string, page: number, size: number): Promise<ApiResult<NameHistoryPage>>
+  /** The old-name lookup: the accounts that used this exact name, ignoring case; an empty list when none did. */
+  findNameOwners(name: string): Promise<ApiResult<NameHistoryOwner[]>>
   adjustElo(owner: string, change: { section: string; delta: number; note: string }): Promise<ApiResult<EloAdjustResult>>
   /**
    * One page of a punishment's evidence (identifier or short id), oldest first. Lifted and revoked
@@ -667,6 +673,14 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     playerSessions: (owner, page, size) =>
       toResult(http.GET('/intel/players/{owner}/sessions', { params: { path: { owner }, query: { page, size } } })),
+
+    listPlayerNames: (owner, page, size) =>
+      toResult(http.GET('/intel/players/{owner}/names', { params: { path: { owner }, query: { page, size } } })),
+
+    async findNameOwners(name) {
+      const result = await toResult(http.GET('/intel/names/{name}/owners', { params: { path: { name } } }))
+      return map(result, (body) => body.owners ?? [])
+    },
 
     async evasionSightings(owner) {
       const result = await toResult(http.GET('/evasion/{owner}/sightings', { params: { path: { owner } } }))

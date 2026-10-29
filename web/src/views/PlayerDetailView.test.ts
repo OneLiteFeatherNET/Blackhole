@@ -54,6 +54,7 @@ function api(overrides: Record<string, unknown> = {}) {
     evasionSightings: vi.fn(async () => ok({ detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false })),
     clientRuleHitsOfOwner: vi.fn(async () => ok([])),
     playerSessions: vi.fn(async () => ok({ sessions: [], page: 0, size: 50, hasMore: false })),
+    listPlayerNames: vi.fn(async () => ok({ owner: OWNER, playerUuid: null, names: [], page: 0, size: 50, hasMore: false })),
     ...overrides,
   })
 }
@@ -66,6 +67,18 @@ describe('PlayerDetailView', () => {
   beforeEach(() => {
     localStorage.clear()
     sessionStorage.clear()
+  })
+
+  it('shows the name history of the player as its own section', async () => {
+    const listPlayerNames = vi.fn(async () =>
+      ok({ owner: OWNER, playerUuid: null, names: [{ name: 'Alex', firstSeen: 1, lastSeen: 2 }], page: 0, size: 50, hasMore: false }),
+    )
+    const { wrapper } = await open(OWNER, { listPlayerNames })
+
+    expect(listPlayerNames).toHaveBeenCalledWith(OWNER, 0, 50)
+    expect(wrapper.get('[aria-labelledby="names-heading"]').text()).toContain('Alex')
+
+    wrapper.unmount()
   })
 
   it('shows a score bar per section against its thresholds', async () => {

@@ -142,7 +142,9 @@
     "nameHint": "3 to 16 letters, digits or underscores",
     "invalidName": "Enter a valid name: 3 to 16 letters, digits or underscores.",
     "notFound": "No player named \"{name}\" was found.",
-    "search": "Look up"
+    "search": "Look up",
+    "choose": "Several accounts used this name. Open the one you mean.",
+    "lastSeen": "Last seen {date}"
   },
   "player": {
     "backToSearch": "Back to search",
@@ -203,6 +205,17 @@
       "weakOnly": "Every account listed here shares only the client setup with this player. That is a weak hint, no proof: a modpack or launcher is used by many unrelated players."
     },
     "activeCount": "{count} active",
+  "names": {
+   "title": "Name history",
+   "empty": "No name has been recorded for this player yet.",
+   "note": "Names are recorded from the first login after the session records began; earlier names are not known.",
+   "loadMore": "Load more",
+   "columns": {
+    "name": "Name",
+    "firstSeen": "First seen",
+    "lastSeen": "Last seen"
+   }
+  },
   "sessions": {
    "title": "Sessions",
    "empty": "No session has been recorded yet.",

@@ -142,7 +142,9 @@
     "nameHint": "3 bis 16 Buchstaben, Ziffern oder Unterstriche",
     "invalidName": "Gib einen gültigen Namen ein: 3 bis 16 Buchstaben, Ziffern oder Unterstriche.",
     "notFound": "Es wurde kein Spieler namens \"{name}\" gefunden.",
-    "search": "Suchen"
+    "search": "Suchen",
+    "choose": "Mehrere Konten haben diesen Namen benutzt. Öffne das gemeinte Konto.",
+    "lastSeen": "Zuletzt gesehen {date}"
   },
   "player": {
     "backToSearch": "Zurück zur Suche",
@@ -203,6 +205,17 @@
       "weakOnly": "Alle hier gelisteten Konten teilen mit diesem Spieler nur das Client-Setup. Das ist ein schwacher Hinweis, kein Beweis: Ein Modpack oder Launcher wird von vielen unabhängigen Spielern benutzt."
     },
     "activeCount": "{count} aktiv",
+  "names": {
+   "title": "Namensverlauf",
+   "empty": "Für diesen Spieler wurde noch kein Name erfasst.",
+   "note": "Namen werden ab dem ersten Login nach Beginn der Sitzungserfassung erfasst; frühere Namen sind nicht bekannt.",
+   "loadMore": "Mehr laden",
+   "columns": {
+    "name": "Name",
+    "firstSeen": "Zuerst gesehen",
+    "lastSeen": "Zuletzt gesehen"
+   }
+  },
   "sessions": {
    "title": "Sitzungen",
    "empty": "Bisher ist keine Sitzung erfasst.",
