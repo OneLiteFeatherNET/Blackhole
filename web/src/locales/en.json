@@ -35,6 +35,7 @@
       "reports": "{n} unresolved report | {n} unresolved reports"
     },
     "staffAccounts": "Staff accounts",
+    "rollback": "Staff rollback",
     "imports": "Imports",
     "cloudnet": "CloudNet",
     "kick": "Mass kick",
@@ -1822,5 +1823,85 @@
         "allowListed": "Allow-listed"
       }
     }
+  },
+  "rollback": {
+    "title": "Staff rollback",
+    "intro": "Undoes what one staff member's punishments did in a time window, as a manual revoke would. Preview first: nothing changes until you confirm.",
+    "mode": {
+      "label": "Whose punishments",
+      "STAFF": "Staff member",
+      "UNLINKED": "Unlinked in-game account"
+    },
+    "staff": {
+      "label": "Staff member",
+      "choose": "Choose a staff member"
+    },
+    "uuid": {
+      "invalid": "Enter the UUID with dashes, for example 069a79f4-44e9-4726-a5be-fca90e38aaf5.",
+      "label": "Minecraft UUID",
+      "hint": "The UUID of the unlinked in-game account, with dashes."
+    },
+    "window": {
+      "from": "From",
+      "to": "To",
+      "invalid": "The end must be after the start."
+    },
+    "preview": "Preview",
+    "loading": "Working...",
+    "byKind": "By kind",
+    "bySection": "By section",
+    "revocable": "Punishments to revoke",
+    "alreadyInactive": "Already inactive (not touched)",
+    "players": "Players affected",
+    "kicks": "Kicks in the window",
+    "expires": "The preview expires at {time}. Start it before then.",
+    "nothing": "Nothing matches this window. Nothing would change.",
+    "back": "Back",
+    "continue": "Continue",
+    "confirm": {
+      "title": "Roll back {name}?",
+      "counts": "Revokes {revocable} punishments of {players} players. Kicks in the window: {kicks}.",
+      "manual": "Each punishment is revoked as a manual revoke does, with you as the actor.",
+      "submit": "Start rollback"
+    },
+    "options": {
+      "marks": "Mark the {count} kicks as rolled back",
+      "marksHint": "Only a note in the history. Kicks are never revoked and no ELO changes.",
+      "suspend": "Remove the Minecraft link of this staff member",
+      "suspendHint": "Done before the first punishment is revoked. The person can link again later."
+    },
+    "reason": {
+      "label": "Reason",
+      "hint": "Shown in the audit trail. 1 to 500 characters.",
+      "tooLong": "At most 500 characters."
+    },
+    "state": {
+      "PREVIEW": "Preview",
+      "RUNNING": "Running",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled"
+    },
+    "items": {
+      "PENDING": "Pending",
+      "REVOKED": "Revoked",
+      "SKIPPED": "Skipped",
+      "FAILED": "Failed"
+    },
+    "progress": {
+      "label": "Rollback progress",
+      "cancel": "Cancel rollback",
+      "retry": "Check again",
+      "again": "New rollback"
+    },
+    "done": {
+      "COMPLETED": "Done. The punishments are revoked.",
+      "CANCELLED": "Cancelled. Items already revoked stay revoked."
+    },
+    "started": "The rollback has started.",
+    "error": {
+      "selectorInvalid": "This cannot be rolled back. Choose a staff member or an unlinked in-game account.",
+      "tooLarge": "Too many punishments match. Narrow the window and preview again."
+    },
+    "noStaff": "No staff members are known yet."
   }
 }

@@ -87,3 +87,15 @@ describe('AdminView for other roles', () => {
     wrapper.unmount()
   })
 })
+
+describe('AdminView staff rollback page', () => {
+  it('shows the rollback page at /admin/rollback with its own heading and not the staff list', async () => {
+    const { wrapper } = await mountWithApp(AdminView, { api: mockApi(adminApi()), roles: ['ADMIN'], path: '/admin/rollback' })
+
+    expect(wrapper.get('h1').text()).toBe('Staff rollback')
+    expect(wrapper.find('[data-testid="staff-rollback"]').exists(), 'rollback page').toBe(true)
+    expect(wrapper.find('[data-testid="staff-actors"]').exists(), 'no staff panel').toBe(false)
+
+    wrapper.unmount()
+  })
+})

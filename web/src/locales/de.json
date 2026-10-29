@@ -35,6 +35,7 @@
       "reports": "{n} ungelöste Meldung | {n} ungelöste Meldungen"
     },
     "staffAccounts": "Teamkonten",
+    "rollback": "Rollback",
     "imports": "Importe",
     "cloudnet": "CloudNet",
     "kick": "Massen-Kick",
@@ -1822,5 +1823,85 @@
         "allowListed": "Ausnahme"
       }
     }
+  },
+  "rollback": {
+    "title": "Rollback eines Teammitglieds",
+    "intro": "Macht rückgängig, was die Strafen eines Teammitglieds in einem Zeitraum bewirkt haben, so wie eine manuelle Aufhebung. Zuerst die Vorschau: Es ändert sich nichts, bis Sie bestätigen.",
+    "mode": {
+      "label": "Wessen Strafen",
+      "STAFF": "Teammitglied",
+      "UNLINKED": "Nicht verknüpfter Spielaccount"
+    },
+    "staff": {
+      "label": "Teammitglied",
+      "choose": "Teammitglied wählen"
+    },
+    "uuid": {
+      "invalid": "Geben Sie die UUID mit Bindestrichen ein, zum Beispiel 069a79f4-44e9-4726-a5be-fca90e38aaf5.",
+      "label": "Minecraft-UUID",
+      "hint": "Die UUID des nicht verknüpften Spielaccounts, mit Bindestrichen."
+    },
+    "window": {
+      "from": "Von",
+      "to": "Bis",
+      "invalid": "Das Ende muss nach dem Anfang liegen."
+    },
+    "preview": "Vorschau",
+    "loading": "Wird berechnet...",
+    "byKind": "Nach Art",
+    "bySection": "Nach Bereich",
+    "revocable": "Aufzuhebende Strafen",
+    "alreadyInactive": "Bereits inaktiv (unverändert)",
+    "players": "Betroffene Spieler",
+    "kicks": "Kicks im Zeitraum",
+    "expires": "Die Vorschau läuft um {time} ab. Starten Sie sie vorher.",
+    "nothing": "Im Zeitraum passt nichts. Es würde sich nichts ändern.",
+    "back": "Zurück",
+    "continue": "Weiter",
+    "confirm": {
+      "title": "{name} zurückrollen?",
+      "counts": "Hebt {revocable} Strafen von {players} Spielern auf. Kicks im Zeitraum: {kicks}.",
+      "manual": "Jede Strafe wird wie bei einer manuellen Aufhebung aufgehoben, Akteur sind Sie.",
+      "submit": "Rollback starten"
+    },
+    "options": {
+      "marks": "{count} Kicks als zurückgerollt markieren",
+      "marksHint": "Nur ein Vermerk im Verlauf. Kicks werden nie aufgehoben, am ELO ändert sich nichts.",
+      "suspend": "Minecraft-Verknüpfung dieses Teammitglieds entfernen",
+      "suspendHint": "Geschieht vor der ersten Aufhebung. Die Person kann sich später erneut verknüpfen."
+    },
+    "reason": {
+      "label": "Begründung",
+      "hint": "Steht im Audit-Log. 1 bis 500 Zeichen.",
+      "tooLong": "Höchstens 500 Zeichen."
+    },
+    "state": {
+      "PREVIEW": "Vorschau",
+      "RUNNING": "Läuft",
+      "COMPLETED": "Abgeschlossen",
+      "CANCELLED": "Abgebrochen"
+    },
+    "items": {
+      "PENDING": "Ausstehend",
+      "REVOKED": "Aufgehoben",
+      "SKIPPED": "Übersprungen",
+      "FAILED": "Fehlgeschlagen"
+    },
+    "progress": {
+      "label": "Fortschritt des Rollbacks",
+      "cancel": "Rollback abbrechen",
+      "retry": "Erneut prüfen",
+      "again": "Neuer Rollback"
+    },
+    "done": {
+      "COMPLETED": "Fertig. Die Strafen sind aufgehoben.",
+      "CANCELLED": "Abgebrochen. Bereits aufgehobene Strafen bleiben aufgehoben."
+    },
+    "started": "Der Rollback läuft.",
+    "error": {
+      "selectorInvalid": "Das kann nicht zurückgerollt werden. Wählen Sie ein Teammitglied oder einen nicht verknüpften Spielaccount.",
+      "tooLarge": "Zu viele Strafen passen. Engen Sie den Zeitraum ein und prüfen Sie erneut."
+    },
+    "noStaff": "Noch keine Teammitglieder bekannt."
   }
 }
