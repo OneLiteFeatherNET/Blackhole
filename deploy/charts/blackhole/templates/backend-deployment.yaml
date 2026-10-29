@@ -35,7 +35,11 @@ spec:
       serviceAccountName: {{ $name }}
       {{- include "blackhole.podDefaults" . | nindent 6 }}
       securityContext:
-        {{- toYaml $v.podSecurityContext | nindent 8 }}
+        {{- $psc := deepCopy $v.podSecurityContext }}
+        {{- if $v.geoip.enabled }}
+        {{- $_ := set $psc "fsGroup" $v.geoip.fsGroup }}
+        {{- end }}
+        {{- toYaml $psc | nindent 8 }}
       containers:
         - name: backend
           image: {{ include "blackhole.image" (dict "ctx" . "image" $v.image "app" true) }}
@@ -77,6 +81,11 @@ spec:
             - name: nats
               mountPath: {{ .Values.nats.credsMountPath }}
               readOnly: true
+            {{- if $v.geoip.enabled }}
+            - name: geoip
+              mountPath: {{ $v.geoip.mountPath }}
+              readOnly: true
+            {{- end }}
       volumes:
         - name: tmp
           emptyDir:
@@ -87,6 +96,13 @@ spec:
             items:
               - key: {{ include "blackhole.natsCredsKey" (dict "ctx" . "values" $v) }}
                 path: {{ include "blackhole.natsCredsKey" (dict "ctx" . "values" $v) }}
+        {{- if $v.geoip.enabled }}
+        # The GeoIP files, written by the refresh CronJob. The backend only reads them.
+        - name: geoip
+          persistentVolumeClaim:
+            claimName: {{ $v.geoip.existingClaim }}
+            readOnly: true
+        {{- end }}
       {{- include "blackhole.scheduling" (dict "ctx" . "component" "backend" "values" $v "spread" true) | nindent 6 }}
 ---
 apiVersion: v1

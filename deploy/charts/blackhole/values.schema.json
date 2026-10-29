@@ -573,6 +573,56 @@
             }
           }
         },
+        "geoip": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Offline MaxMind-format databases of the player sessions. Off renders nothing.",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "existingClaim": {
+              "type": "string",
+              "description": "PVC with asn.mmdb and country.mmdb. Required when enabled."
+            },
+            "mountPath": {
+              "type": "string",
+              "minLength": 1
+            },
+            "fsGroup": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "refresh": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Monthly CronJob that refreshes the files. Needs geoip.enabled."
+                },
+                "schedule": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "timeZone": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "baseUrl": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "image": {
+                  "$ref": "#/definitions/image"
+                },
+                "resources": {
+                  "$ref": "#/definitions/resources"
+                }
+              }
+            }
+          }
+        },
         "service": {
           "type": "object",
           "additionalProperties": false,
