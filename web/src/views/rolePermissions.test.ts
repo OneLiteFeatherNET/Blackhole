@@ -65,6 +65,7 @@ describe('role-aware controls', () => {
         eloHistory: vi.fn(async () => ok([])),
         evasionSightings: vi.fn(async () => ok({ detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false })),
         clientRuleHitsOfOwner: vi.fn(async () => ok([])),
+        playerSessions: vi.fn(async () => ok({ sessions: [], page: 0, size: 50, hasMore: false })),
       })
 
       const offered = await controls(PlayerDetailView, api, roles, ['open-apply', 'open-adjust-network', 'open-revoke-network'], {
