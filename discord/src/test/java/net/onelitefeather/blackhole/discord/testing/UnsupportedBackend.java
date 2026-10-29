@@ -86,4 +86,35 @@ public abstract class UnsupportedBackend implements BackendGateway {
     public @NotNull Result<LeakResult> leakCheck(@NotNull List<String> candidates, boolean listed, @Nullable String posterDiscordUserId, boolean posterIsBot) {
         throw new UnsupportedOperationException();
     }
+
+    @Override
+    public @NotNull BackendGateway.StaffLink staffLink(@NotNull String discordUserId) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public @NotNull BackendGateway.CaseRead caseSnapshot(@NotNull String caseReference) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public @NotNull BackendGateway.StaffOutcome claimCase(@NotNull String caseReference, long expectedVersion, @NotNull String staffOid) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public @NotNull BackendGateway.StaffOutcome setFreeze(@NotNull String caseReference, boolean frozen, @NotNull String staffOid) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public @NotNull BackendGateway.StaffOutcome review(@NotNull String appealId, @NotNull BackendGateway.Verdict verdict, @Nullable String playerMessage,
+                                                       @NotNull String staffOid) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public @NotNull Result<Closed> close(@NotNull String id, int count, @Nullable String lastMessageId, @Nullable String staffOid) {
+        throw new UnsupportedOperationException();
+    }
 }

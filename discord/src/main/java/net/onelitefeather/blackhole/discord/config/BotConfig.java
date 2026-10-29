@@ -37,6 +37,9 @@ import java.util.function.Function;
  * <p>Leak scanning: {@code DISCORD_LEAK_SCAN} ({@code PUBLIC} by default, {@code LIST} or {@code OFF}) and, for {@code LIST},
  * {@code DISCORD_LEAK_SCAN_CHANNELS}, a comma separated list of channel or category ids.</p>
  *
+ * <p>Staff ticket controls: {@code DISCORD_STAFF_ACTIONS} ({@code true} or {@code false}, default {@code false}) turns on the staff
+ * control message and its buttons in the ticket channels.</p>
+ *
  * <p>Staff audit: optional {@code DISCORD_AUDIT_WEBHOOK_URL} (a Discord webhook URL of the audit channel; unset turns the audit off)
  * and {@code DISCORD_AUDIT_MAX_DELIVER} (deliveries per entry before it is dropped, default 50).</p>
  *
@@ -52,6 +55,7 @@ import java.util.function.Function;
  * @param tickets        the appeal ticket channels
  * @param leak           which channels are scanned for posted Ban IDs
  * @param audit          where the staff action audit is posted (off when no webhook is set)
+ * @param staffActions   whether the staff control message and its buttons are on
  */
 public record BotConfig(
         @NotNull String discordToken,
@@ -65,7 +69,8 @@ public record BotConfig(
         int healthPort,
         @NotNull TicketSettings tickets,
         @NotNull LeakSettings leak,
-        @NotNull AuditSettings audit
+        @NotNull AuditSettings audit,
+        boolean staffActions
 ) {
 
     public static final String ENV_TOKEN = "DISCORD_TOKEN";
@@ -92,6 +97,7 @@ public record BotConfig(
     public static final String ENV_LEAK_SCAN_CHANNELS = "DISCORD_LEAK_SCAN_CHANNELS";
     public static final String ENV_AUDIT_WEBHOOK_URL = "DISCORD_AUDIT_WEBHOOK_URL";
     public static final String ENV_AUDIT_MAX_DELIVER = "DISCORD_AUDIT_MAX_DELIVER";
+    public static final String ENV_STAFF_ACTIONS = "DISCORD_STAFF_ACTIONS";
     static final int AUDIT_MAX_DELIVER_DEFAULT = 50;
 
     /** Which channels are scanned for Ban IDs. */
@@ -204,11 +210,26 @@ public record BotConfig(
         Duration reconcileInterval = duration(env, ENV_RECONCILE_INTERVAL, Duration.ofMinutes(5), Duration.ofSeconds(30), problems);
         LeakSettings leak = leak(env, problems);
         AuditSettings audit = audit(env, problems);
+        boolean staffActions = flag(env, ENV_STAFF_ACTIONS, problems);
         if (!problems.isEmpty()) {
             throw new ConfigException(problems);
         }
         return new BotConfig(token, guildId, teamChannelId, staffRoleId, backendUrl, panelUrl, auth, nats, healthPort,
-                new TicketSettings(ticketCategory, archiveCategory, appealChannel, deleteAfter, syncInterval, reconcileInterval), leak, audit);
+                new TicketSettings(ticketCategory, archiveCategory, appealChannel, deleteAfter, syncInterval, reconcileInterval), leak, audit,
+                staffActions);
+    }
+
+    /** An optional true or false; unset is false. */
+    private static boolean flag(Function<String, String> env, String name, List<String> problems) {
+        String value = value(env, name);
+        if (value.isEmpty() || value.equalsIgnoreCase("false")) {
+            return false;
+        }
+        if (value.equalsIgnoreCase("true")) {
+            return true;
+        }
+        problems.add(name + " must be true or false");
+        return false;
     }
 
     /** Never prints the bot token, the client secret or the audit webhook URL. */
@@ -217,7 +238,7 @@ public record BotConfig(
         return "BotConfig{discordToken=<redacted>, guildId=" + this.guildId + ", teamChannelId=" + this.teamChannelId
                 + ", staffRoleId=" + this.staffRoleId + ", backendUrl=" + this.backendUrl + ", panelUrl=" + this.panelUrl
                 + ", auth=" + this.auth + ", nats=" + this.nats + ", healthPort=" + this.healthPort + ", tickets=" + this.tickets
-                + ", leak=" + this.leak + ", audit=" + this.audit + "}";
+                + ", leak=" + this.leak + ", audit=" + this.audit + ", staffActions=" + this.staffActions + "}";
     }
 
     /**

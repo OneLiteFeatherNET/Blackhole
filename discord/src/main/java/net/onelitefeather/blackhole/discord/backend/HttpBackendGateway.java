@@ -2,12 +2,18 @@ package net.onelitefeather.blackhole.discord.backend;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import net.onelitefeather.blackhole.client.api.AppealApi;
+import net.onelitefeather.blackhole.client.api.CaseApi;
 import net.onelitefeather.blackhole.client.api.DiscordLinkApi;
 import net.onelitefeather.blackhole.client.api.DiscordNotificationsApi;
 import net.onelitefeather.blackhole.client.api.DiscordTicketsApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.DiscordAppealNotification;
+import net.onelitefeather.blackhole.client.model.AppealReviewDTO;
+import net.onelitefeather.blackhole.client.model.AppealStatus;
+import net.onelitefeather.blackhole.client.model.CaseResponse;
+import net.onelitefeather.blackhole.client.model.CaseUpdateRequest;
 import net.onelitefeather.blackhole.client.model.DiscordIngestAttachment;
 import net.onelitefeather.blackhole.client.model.DiscordIngestEmbed;
 import net.onelitefeather.blackhole.client.model.DiscordIngestItem;
@@ -22,6 +28,8 @@ import net.onelitefeather.blackhole.client.model.DiscordLinkWhoamiResponse;
 import net.onelitefeather.blackhole.client.model.DiscordOutboxItem;
 import net.onelitefeather.blackhole.client.model.DiscordReportNotification;
 import net.onelitefeather.blackhole.client.model.DiscordStaffLink;
+import net.onelitefeather.blackhole.client.model.DiscordStaffLookupResponse;
+import net.onelitefeather.blackhole.client.model.StaffTicketFreezeRequest;
 import net.onelitefeather.blackhole.client.model.DiscordTicketCloseRequest;
 import net.onelitefeather.blackhole.client.model.DiscordTicketLinkRequest;
 import net.onelitefeather.blackhole.client.model.DiscordTicketOpenRequest;
@@ -68,11 +76,15 @@ public final class HttpBackendGateway implements BackendGateway {
     private final DiscordLinkApi api;
     private final DiscordNotificationsApi notifications;
     private final DiscordTicketsApi ticketApi;
+    private final CaseApi cases;
+    private final AppealApi appeals;
 
     public HttpBackendGateway(@NotNull ApiClient client) {
         this.api = new DiscordLinkApi(client);
         this.notifications = new DiscordNotificationsApi(client);
         this.ticketApi = new DiscordTicketsApi(client);
+        this.cases = new CaseApi(client);
+        this.appeals = new AppealApi(client);
     }
 
     @Override
@@ -334,9 +346,10 @@ public final class HttpBackendGateway implements BackendGateway {
     }
 
     @Override
-    public @NotNull Result<Closed> close(@NotNull String id, int count, @Nullable String lastMessageId) {
+    public @NotNull Result<Closed> close(@NotNull String id, int count, @Nullable String lastMessageId, @Nullable String staffOid) {
         return invoke("closing a ticket", () -> {
-            var closed = this.ticketApi.closeDiscordTicket(UUID.fromString(id), new DiscordTicketCloseRequest().count(count).lastMessageId(lastMessageId));
+            var closed = this.ticketApi.closeDiscordTicket(UUID.fromString(id), new DiscordTicketCloseRequest().count(count).lastMessageId(lastMessageId)
+                    .onBehalfOf(staffOid == null ? null : UUID.fromString(staffOid)));
             return new Closed(ticket(closed.getTicket()), closed.getProtocolVersion());
         });
     }
@@ -347,6 +360,89 @@ public final class HttpBackendGateway implements BackendGateway {
             var ensured = this.ticketApi.ensureDiscordTicketProtocol(UUID.fromString(id));
             return new ProtocolEnsured(ensured.getProtocolVersion(), Boolean.TRUE.equals(ensured.getStored()));
         });
+    }
+
+    // ---- staff ticket actions ----
+
+    @Override
+    public @NotNull StaffLink staffLink(@NotNull String discordUserId) {
+        try {
+            DiscordStaffLookupResponse found = this.ticketApi.lookupDiscordStaffLink(discordUserId);
+            return new StaffLink.Linked(found.getOid().toString(), Boolean.TRUE.equals(found.getEligible()));
+        } catch (ApiException e) {
+            if (e.getCode() == 404) {
+                return new StaffLink.NotLinked();
+            }
+            LOGGER.error("Looking up a staff link failed with status {}", e.getCode());
+            return new StaffLink.Unavailable(e.getCode());
+        }
+    }
+
+    @Override
+    public @NotNull CaseRead caseSnapshot(@NotNull String caseReference) {
+        try {
+            CaseResponse found = this.cases.getCase(caseReference);
+            return new CaseRead.Found(new CaseSnapshot(found.getVersion(), found.getAssigneeName()));
+        } catch (ApiException e) {
+            LOGGER.error("Reading a case failed with status {}", e.getCode());
+            return new CaseRead.Unavailable(e.getCode());
+        }
+    }
+
+    @Override
+    public @NotNull StaffOutcome claimCase(@NotNull String caseReference, long expectedVersion, @NotNull String staffOid) {
+        UUID oid = UUID.fromString(staffOid);
+        try {
+            this.cases.updateCase(caseReference, new CaseUpdateRequest().expectedVersion(expectedVersion).clearAssignee(false)
+                    .assigneeOid(oid).onBehalfOf(oid));
+            return new StaffOutcome.Done();
+        } catch (ApiException e) {
+            return outcome("claiming a case", e);
+        }
+    }
+
+    @Override
+    public @NotNull StaffOutcome setFreeze(@NotNull String caseReference, boolean frozen, @NotNull String staffOid) {
+        try {
+            this.cases.setStaffTicketFreeze(caseReference, new StaffTicketFreezeRequest().frozen(frozen)
+                    .onBehalfOf(UUID.fromString(staffOid)));
+            return new StaffOutcome.Done();
+        } catch (ApiException e) {
+            return outcome("locking a ticket", e);
+        }
+    }
+
+    @Override
+    public @NotNull StaffOutcome review(@NotNull String appealId, @NotNull Verdict verdict, @Nullable String playerMessage, @NotNull String staffOid) {
+        AppealStatus decision = verdict == Verdict.ACCEPT ? AppealStatus.GRANTED_FULL_LIFT : AppealStatus.DENIED;
+        try {
+            this.appeals.reviewAppeal(UUID.fromString(appealId), new AppealReviewDTO().decision(decision).playerMessage(playerMessage)
+                    .onBehalfOf(UUID.fromString(staffOid)));
+            return new StaffOutcome.Done();
+        } catch (ApiException e) {
+            return outcome("deciding an appeal", e);
+        }
+    }
+
+    /** A refusal carries the server's text for the presser; an outage or a 5xx is reported as such. Nothing is logged but the status. */
+    private static StaffOutcome outcome(String what, ApiException e) {
+        if (e.getCode() == 0 || e.getCode() >= 500) {
+            LOGGER.error("The backend could not serve {} (status {})", what, e.getCode());
+            return new StaffOutcome.Unavailable(e.getCode());
+        }
+        String code = null;
+        String text = null;
+        String body = e.getResponseBody();
+        if (body != null && !body.isBlank()) {
+            try {
+                JsonNode root = JSON.readTree(body);
+                text = root.hasNonNull("errorMessage") ? root.get("errorMessage").asText() : null;
+                code = root.hasNonNull("kind") ? root.get("kind").asText() : null;
+            } catch (IOException ignored) {
+                // Not the backend's error shape: only the status is known.
+            }
+        }
+        return new StaffOutcome.Refused(e.getCode(), code, text);
     }
 
     @Override
