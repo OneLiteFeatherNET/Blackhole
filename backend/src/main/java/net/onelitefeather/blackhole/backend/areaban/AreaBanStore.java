@@ -18,6 +18,9 @@ public interface AreaBanStore {
     /** Every unlifted ban, whether or not it has expired. Read by the in-memory snapshot. */
     java.util.List<AreaBan> listUnlifted();
 
+    /** Every ban, lifted and expired ones included, newest first. The history the panel reads on request. */
+    java.util.List<AreaBan> listAll();
+
     /** The unlifted ban of an area, whether or not it has expired. */
     Optional<AreaBan> findUnlifted(AreaBan.Kind kind, String value);
 

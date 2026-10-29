@@ -41,6 +41,13 @@ public sealed interface AreaBanDTO {
                     boolean active) implements AreaBanDTO {
     }
 
+    /** @param bans the area bans that apply now */
+    @Schema(name = "AreaBanListResponse")
+    @Serdeable
+    @ReflectiveAccess
+    record ListResponse(@NonNull java.util.List<Response> bans) implements AreaBanDTO {
+    }
+
     @Schema(name = "AreaBanError")
     @Serdeable
     @ReflectiveAccess

@@ -24,7 +24,8 @@ class GuardTransitionServiceTest {
     private final GuardSettings settings = GuardSettings.of("STRICT", Duration.ofMinutes(20), "01:00-07:00", "Europe/Berlin",
             Duration.ofMinutes(5));
     private final InMemoryPresenceStore presenceStore = new InMemoryPresenceStore();
-    private final GuardPresenceService presence = new GuardPresenceService(this.presenceStore, this.settings, this.clock);
+    private final GuardPresenceService presence = new GuardPresenceService(this.presenceStore, this.settings, this.clock,
+            new GuardStateCache(new InMemoryGuardStateStore(GuardState.initial(0L))));
     private final InMemoryGuardChangeStore changes = new InMemoryGuardChangeStore();
     private final RecordingEventTransport transport = new RecordingEventTransport();
     private final DomainEventPublisher events = new DomainEventPublisher(this.transport, this.clock);

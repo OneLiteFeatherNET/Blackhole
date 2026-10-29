@@ -49,7 +49,7 @@ final class LoginCheckFixture {
     final InMemoryGuardRefusalStore refusalStore = new InMemoryGuardRefusalStore();
     final GuardRefusalService refusals = new GuardRefusalService(this.refusalStore,
             new AreaBanService(this.areaStore, this.areaBans, new DomainEventPublisher(this.transport, this.clock), this.clock),
-            new BurstSettings(false, 10, Duration.ofMinutes(5), Duration.ofHours(2)));
+            new BurstSettings(false, 10, Duration.ofMinutes(5), Duration.ofHours(2)), new SimpleMeterRegistry());
     final IntelLoginCheckService service;
 
     LoginCheckFixture() {

@@ -26,6 +26,7 @@ public class JdbcAreaBanStore implements AreaBanStore {
             """;
     private static final String FIND_BY_ID = "SELECT " + COLUMNS + " FROM area_ban WHERE id = ?";
     private static final String LIST_UNLIFTED = "SELECT " + COLUMNS + " FROM area_ban WHERE lifted_at IS NULL";
+    private static final String LIST_ALL = "SELECT " + COLUMNS + " FROM area_ban ORDER BY created_at DESC";
     private static final String FIND_UNLIFTED ="SELECT " + COLUMNS + " FROM area_ban WHERE kind = ? AND value = ? AND lifted_at IS NULL";
     private static final String LIFT = """
             UPDATE area_ban SET lifted_at = ?, lift_reason = ?, lifted_by_oid = ? WHERE id = ? AND lifted_at IS NULL
@@ -85,6 +86,21 @@ public class JdbcAreaBanStore implements AreaBanStore {
     public java.util.List<AreaBan> listUnlifted() {
         try (Connection connection = this.dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(LIST_UNLIFTED);
+             ResultSet rows = statement.executeQuery()) {
+            java.util.List<AreaBan> bans = new java.util.ArrayList<>();
+            while (rows.next()) {
+                bans.add(readRow(rows));
+            }
+            return bans;
+        } catch (SQLException e) {
+            throw new IllegalStateException("The area bans could not be read", e);
+        }
+    }
+
+    @Override
+    public java.util.List<AreaBan> listAll() {
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(LIST_ALL);
              ResultSet rows = statement.executeQuery()) {
             java.util.List<AreaBan> bans = new java.util.ArrayList<>();
             while (rows.next()) {

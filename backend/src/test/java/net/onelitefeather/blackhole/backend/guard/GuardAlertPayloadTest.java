@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.guard;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import net.onelitefeather.blackhole.backend.areaban.AreaBan;
 import net.onelitefeather.blackhole.backend.areaban.AreaBanEvents;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
@@ -49,7 +50,7 @@ class GuardAlertPayloadTest {
         Clock clock = Clock.fixed(Instant.parse("2026-10-29T12:00:00Z"), ZoneOffset.UTC);
         InMemoryGuardRefusalStore refusals = new InMemoryGuardRefusalStore();
         refusals.recordRefusal(64500L, "Example Hosting", "DE");
-        new GuardSummaryService(refusals, new DomainEventPublisher(transport, clock), clock).publish();
+        new GuardSummaryService(refusals, new DomainEventPublisher(transport, clock), clock, new SimpleMeterRegistry()).publish();
         new DomainEventPublisher(transport, clock).publish("area_ban.created", AreaBanEvents.created(burstBan()));
 
         for (RecordingEventTransport.Published published : transport.published()) {

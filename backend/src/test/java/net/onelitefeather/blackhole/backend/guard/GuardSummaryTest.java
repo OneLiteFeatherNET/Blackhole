@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.guard;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.support.RecordingEventTransport;
 import org.junit.jupiter.api.Test;
@@ -21,7 +22,7 @@ class GuardSummaryTest {
     private final RecordingEventTransport transport = new RecordingEventTransport();
     private final Clock clock = Clock.fixed(START, ZoneOffset.UTC);
     private final GuardSummaryService summary = new GuardSummaryService(this.store,
-            new DomainEventPublisher(this.transport, this.clock), this.clock);
+            new DomainEventPublisher(this.transport, this.clock), this.clock, new SimpleMeterRegistry());
 
     @Test
     void aWindowWithRefusalsPublishesOneSummaryWithTheTopAsnsInOrder() {

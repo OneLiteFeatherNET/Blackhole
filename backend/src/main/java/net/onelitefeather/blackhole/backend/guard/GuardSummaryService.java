@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.guard;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 
@@ -24,12 +25,14 @@ public class GuardSummaryService {
     private final GuardRefusalStore store;
     private final DomainEventPublisher events;
     private final Clock clock;
+    private final MeterRegistry meters;
     private long windowStart;
 
-    public GuardSummaryService(GuardRefusalStore store, DomainEventPublisher events, Clock clock) {
+    public GuardSummaryService(GuardRefusalStore store, DomainEventPublisher events, Clock clock, MeterRegistry meters) {
         this.store = store;
         this.events = events;
         this.clock = clock;
+        this.meters = meters;
         this.windowStart = clock.millis();
     }
 
@@ -55,6 +58,7 @@ public class GuardSummaryService {
         payload.put("total", total);
         payload.put("top", top);
         this.events.publish(SUMMARY_EVENT, payload);
+        this.meters.counter("blackhole.guard.summary.published").increment();
     }
 
     private static Map<String, Object> entry(GuardRefusalStore.SummaryRow row) {
