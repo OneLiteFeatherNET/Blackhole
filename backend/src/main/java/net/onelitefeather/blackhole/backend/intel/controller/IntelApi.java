@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.backend.intel.dto.SessionDTO;
+import net.onelitefeather.blackhole.backend.intel.names.dto.NameHistoryDTO;
 
 public interface IntelApi {
 
@@ -60,4 +61,35 @@ public interface IntelApi {
     @Get("/players/{owner}/sessions")
     HttpResponse<SessionDTO> sessions(@PathVariable String owner, @QueryValue(defaultValue = "0") int page,
                                       @QueryValue(defaultValue = "50") int size);
+
+    @Operation(
+            summary = "List the names a player account used",
+            description = "The names of one owner, newest last seen first, 50 per page by default. Each name keeps its first "
+                    + "and last login. The raw player UUID is shown, so only staff and the proxy's staff command may read it.",
+            operationId = "listPlayerNames",
+            tags = {"Intel"}
+    )
+    @ApiResponse(responseCode = "200", description = "One page of names; an unknown owner is an empty page",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = NameHistoryDTO.Response.class)))
+    @ApiResponse(responseCode = "400", description = "The owner or the page parameters are invalid",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = NameHistoryDTO.Error.class)))
+    @ApiResponse(responseCode = "404", description = "blackhole.intel.enabled is false")
+    @Get("/players/{owner}/names")
+    HttpResponse<NameHistoryDTO> names(@PathVariable String owner, @QueryValue(defaultValue = "0") int page,
+                                       @QueryValue(defaultValue = "50") int size);
+
+    @Operation(
+            summary = "Find the accounts that used a name",
+            description = "The old-name lookup: the accounts that used this exact name, ignoring case, at most 20, newest last "
+                    + "seen first. Each entry names the account's current name. A partial name finds nothing.",
+            operationId = "findNameOwners",
+            tags = {"Intel"}
+    )
+    @ApiResponse(responseCode = "200", description = "The owners that used the name; empty when none did",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = NameHistoryDTO.OwnerResponse.class)))
+    @ApiResponse(responseCode = "400", description = "The name is not a player name",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = NameHistoryDTO.Error.class)))
+    @ApiResponse(responseCode = "404", description = "blackhole.intel.enabled is false")
+    @Get("/names/{name}/owners")
+    HttpResponse<NameHistoryDTO> owners(@PathVariable String name);
 }

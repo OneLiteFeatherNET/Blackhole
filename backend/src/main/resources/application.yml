@@ -392,6 +392,10 @@ blackhole:
     enabled: ${BLACKHOLE_INTEL_ENABLED:true}
     retention-days: ${BLACKHOLE_INTEL_RETENTION_DAYS:90}
     retention-sweep-cron: ${BLACKHOLE_INTEL_RETENTION_SWEEP_CRON:`0 45 3 * * *`}
+    # Name history (intel/names): the names an account logged in with, kept longer than the sessions on purpose so that
+    # "first seen" stays meaningful. Deleted when not seen for name-retention-days; erasure removes them at once.
+    name-retention-days: ${BLACKHOLE_INTEL_NAME_RETENTION_DAYS:180}
+    name-retention-sweep-cron: ${BLACKHOLE_INTEL_NAME_RETENTION_SWEEP_CRON:`0 0 4 * * *`}
     # MaxMind DB files mounted read-only into the pod (refreshed by a CronJob). Missing files store sessions without enrichment.
     geoip:
       asn-path: ${BLACKHOLE_INTEL_GEOIP_ASN_PATH:/data/geoip/asn.mmdb}

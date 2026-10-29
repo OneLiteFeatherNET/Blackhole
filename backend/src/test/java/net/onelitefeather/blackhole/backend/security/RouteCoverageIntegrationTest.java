@@ -128,6 +128,9 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /intel/sessions", P),
             Map.entry("PATCH /intel/sessions/{sessionId}", P),
             Map.entry("GET /intel/players/{owner}/sessions", V),
+            // name history: staff read it, and the proxy reads it for the /blackhole <user> names command
+            Map.entry("GET /intel/players/{owner}/names", VP),
+            Map.entry("GET /intel/names/{name}/owners", VP),
             Map.entry("POST /profile/{owner}/session", MP),
             // admin configuration
             Map.entry("POST /section", A),

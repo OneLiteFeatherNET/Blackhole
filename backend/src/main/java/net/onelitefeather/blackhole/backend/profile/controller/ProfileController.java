@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.profile.controller;
 
 import net.onelitefeather.blackhole.backend.profile.ProfileAttributionGuard;
+import net.onelitefeather.blackhole.backend.intel.names.NameHistoryService;
 import net.onelitefeather.blackhole.backend.publicbans.PublicBanListing;
 import io.micronaut.security.annotation.Secured;
 import net.onelitefeather.blackhole.backend.security.Roles;
@@ -58,6 +59,7 @@ public class ProfileController {
     private final ClientRuleHitStore clientRuleHits;
     private final ClientFingerprintStore clientFingerprints;
     private final PublicBanListing publicListing;
+    private final NameHistoryService nameHistory;
 
     /**
      * Create a new ProfileController.
@@ -72,6 +74,7 @@ public class ProfileController {
      * @param discordLinks   removes the player's Discord link when the profile is erased
      * @param clientRuleHits deletes the player's client rule hits when the profile is erased
      * @param clientFingerprints deletes the player's client fingerprints when the profile is erased
+     * @param nameHistory deletes the player's names from the name history when the profile is erased
      */
     @Inject
     public ProfileController(
@@ -85,9 +88,11 @@ public class ProfileController {
             DiscordLinkService discordLinks,
             ClientRuleHitStore clientRuleHits,
             ClientFingerprintStore clientFingerprints,
-            PublicBanListing publicListing
+            PublicBanListing publicListing,
+            NameHistoryService nameHistory
     ) {
         this.publicListing = publicListing;
+        this.nameHistory = nameHistory;
         this.repository = repository;
         this.eventPublisher = eventPublisher;
         this.profileCache = profileCache;
@@ -225,6 +230,8 @@ public class ProfileController {
         // Erasure: the hits are personal data of the owner even when no punishment profile exists.
         this.clientRuleHits.deleteByOwner(owner);
         this.clientFingerprints.deleteByOwner(owner);
+        // Erasure: the names the account logged in with are personal data of the owner too.
+        this.nameHistory.eraseOwner(owner);
         // Erasure: the punishments of the owner leave the public ban list and lose their internal player UUID.
         this.publicListing.erase(owner);
         PunishmentProfileEntity entity = this.repository.findById(owner).orElse(null);

@@ -6,7 +6,9 @@ import net.onelitefeather.blackhole.backend.evasion.service.IpCorrelationService
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.intel.IpEnricher.IpEnrichment;
 import net.onelitefeather.blackhole.backend.intel.dto.SessionDTO;
+import net.onelitefeather.blackhole.backend.intel.names.NameHistoryService;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
+import net.onelitefeather.blackhole.backend.support.InMemoryNameHistoryStore;
 import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.InMemorySessionStore;
 import net.onelitefeather.blackhole.backend.support.RecordingEventTransport;
@@ -52,9 +54,11 @@ class SessionServiceTest {
                             .filter(e -> e.getToken().equals(args[0]) && e.getLastSeen() >= (long) args[1]).toList())
                     .build();
 
+    final InMemoryNameHistoryStore names = new InMemoryNameHistoryStore();
+
     SessionService service(String salt) {
         IpCorrelationService correlation = new IpCorrelationService(legacy.repository(), store, events, salt, 7);
-        return new SessionService(store, enricher, correlation, events, clock, true);
+        return new SessionService(store, enricher, correlation, events, clock, new NameHistoryService(names, true), true);
     }
 
     static SessionDTO.StartRequest start(String sessionId, String owner, SessionOutcome outcome) {
@@ -77,6 +81,19 @@ class SessionServiceTest {
         assertEquals(IP, stored.ip());
         assertEquals(SessionOutcome.ALLOWED, stored.outcome());
         assertNull(stored.endedAt(), "a start has no end yet");
+    }
+
+    @Test
+    void aStoredLoginAddsItsNameToTheNameHistoryOnceAndARepeatAddsNothing() {
+        String sessionId = newSession();
+        SessionService service = service(SALT);
+
+        service.start(start(sessionId, OWNER, SessionOutcome.ALLOWED));
+        service.start(start(sessionId, OWNER, SessionOutcome.ALLOWED));
+
+        assertEquals(1, names.all().size(), "one name for the one session and its repeat");
+        assertEquals("Steve", names.all().getFirst().name());
+        assertEquals(clock.millis(), names.all().getFirst().lastSeen(), "the name was seen at the login");
     }
 
     @Test
@@ -266,7 +283,7 @@ class SessionServiceTest {
     @Test
     void aSwitchedOffServiceAnswersNotFoundAndWritesNothing() {
         SessionService off = new SessionService(store, enricher, new IpCorrelationService(legacy.repository(), store, events, SALT, 7),
-                events, clock, false);
+                events, clock, new NameHistoryService(names, false), false);
 
         SessionDTO started = off.start(start(newSession(), OWNER, SessionOutcome.ALLOWED));
         SessionDTO listed = off.listForOwner(OWNER, null, null);
