@@ -131,6 +131,12 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             // name history: staff read it, and the proxy reads it for the /blackhole <user> names command
             Map.entry("GET /intel/players/{owner}/names", VP),
             Map.entry("GET /intel/names/{name}/owners", VP),
+            // VPN and hosting detection: the proxy asks for a verdict; staff read and set the policy and exemptions
+            Map.entry("POST /intel/login-check", P),
+            Map.entry("GET /intel/policy", V),
+            Map.entry("POST /intel/policy", M),
+            Map.entry("POST /intel/allow-list", M),
+            Map.entry("GET /intel/players/{owner}/hits", V),
             Map.entry("POST /profile/{owner}/session", MP),
             // admin configuration
             Map.entry("POST /section", A),

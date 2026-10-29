@@ -53,7 +53,13 @@ public enum ErrorKind {
     ROLLBACK_SELECTOR_INVALID(HttpStatus.BAD_REQUEST),
 
     /** A rollback's preview matches more punishments than the configured maximum; narrow the window (422). */
-    ROLLBACK_TOO_LARGE(HttpStatus.UNPROCESSABLE_ENTITY);
+    ROLLBACK_TOO_LARGE(HttpStatus.UNPROCESSABLE_ENTITY),
+
+    /** Only an admin may set a login policy to DENY (403). */
+    FORBIDDEN_POLICY(HttpStatus.FORBIDDEN),
+
+    /** Only an admin may exempt a player for good; a moderator's exemption is at most 90 days (403). */
+    FORBIDDEN_DURATION(HttpStatus.FORBIDDEN);
 
     private final HttpStatus status;
 

@@ -18,10 +18,12 @@ public class ListRefreshJob {
 
     private final List<IntelListSourceConfig> sources;
     private final ListRefreshService refresh;
+    private final IntelListMetrics metrics;
 
-    public ListRefreshJob(List<IntelListSourceConfig> sources, ListRefreshService refresh) {
+    public ListRefreshJob(List<IntelListSourceConfig> sources, ListRefreshService refresh, IntelListMetrics metrics) {
         this.sources = sources;
         this.refresh = refresh;
+        this.metrics = metrics;
     }
 
     @Scheduled(
@@ -40,8 +42,11 @@ public class ListRefreshJob {
                 continue;
             }
             try {
-                if (this.refresh.refresh(source) == ListRefreshService.Outcome.REFRESHED) {
+                ListRefreshService.Outcome outcome = this.refresh.refresh(source);
+                if (outcome == ListRefreshService.Outcome.REFRESHED) {
                     refreshed++;
+                } else if (outcome == ListRefreshService.Outcome.FAILED) {
+                    this.metrics.refreshFailed(source.getKey());
                 }
             } catch (RuntimeException e) {
                 LOGGER.warn("List source {} could not be refreshed", source.getKey());

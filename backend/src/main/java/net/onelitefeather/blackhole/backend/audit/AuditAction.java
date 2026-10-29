@@ -29,7 +29,9 @@ public enum AuditAction {
     IMPORT_RETEMPLATE("import.retemplate"),
     IMPORT_VANILLA("import.vanilla"),
     TICKET_CLOSE("ticket.close"),
-    TICKET_FREEZE("ticket.freeze");
+    TICKET_FREEZE("ticket.freeze"),
+    INTEL_POLICY_UPDATE("intel.policy.update"),
+    INTEL_ALLOW_LIST_ADD("intel.allow-list.add");
 
     private final String wireName;
 
