@@ -67,7 +67,7 @@ dependencies {
     // Offline ASN and country lookup over MaxMind DB files (DB-IP Lite or GeoLite2). Reads local files only.
     implementation("com.maxmind.db:maxmind-db:4.2.0")
     // Argon2id verification of the ban-list client passwords (publicbans/auth). Bouncy Castle 1.84, released well over two weeks ago.
-    implementation("org.bouncycastle:bcprov-jdk18on:1.85.2")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     implementation(libs.awssdk.s3) {
         exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
     }
