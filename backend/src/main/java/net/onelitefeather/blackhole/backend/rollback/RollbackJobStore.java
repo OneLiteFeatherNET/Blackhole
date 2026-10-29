@@ -20,11 +20,11 @@ public interface RollbackJobStore {
 
     /** A stored job as the execution needs it. */
     record Job(UUID id, String state, UUID requestedByOid, @Nullable UUID selectorOid, @Nullable String reason,
-               @Nullable String idempotencyKey, long previewExpiresAt) {
+               @Nullable String idempotencyKey, boolean includeMarks, long previewExpiresAt) {
     }
 
-    /** A frozen item and where its revoke stands. */
-    record Item(String identifier, String owner, String sectionKey, String state) {
+    /** A frozen item and where its revoke or mark stands. {@code kind} is {@code PUNISHMENT} or {@code KICK}. */
+    record Item(String identifier, String owner, String sectionKey, String kind, String state) {
     }
 
     /** @return the job, if it exists */
@@ -35,7 +35,7 @@ public interface RollbackJobStore {
      *
      * @return whether this call moved it
      */
-    boolean markRunning(UUID id, String reason, String idempotencyKey, long now);
+    boolean markRunning(UUID id, String reason, String idempotencyKey, boolean includeMarks, long now);
 
     /**
      * Takes the lease of one {@code RUNNING} job whose lease is free, expired or already held by {@code holder}.

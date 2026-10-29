@@ -68,7 +68,7 @@ class RollbackControllerTest extends ApiIntegrationTest {
         String job = UUID.randomUUID().toString();
 
         assertEquals(403, post(PREVIEW, previewBody(UUID.randomUUID()), moderator).status(), "preview");
-        assertEquals(403, post("/admin/rollback/" + job + "/execute", Map.of("reason", "r", "suspendLink", false), moderator,
+        assertEquals(403, post("/admin/rollback/" + job + "/execute", Map.of("reason", "r", "suspendLink", false, "includeMarks", false), moderator,
                 Map.of("Idempotency-Key", "key-1")).status(), "execute");
         assertEquals(403, get("/admin/rollback/" + job, moderator).status(), "progress");
         assertEquals(403, post("/admin/rollback/" + job + "/cancel", null, moderator).status(), "cancel");
@@ -85,7 +85,7 @@ class RollbackControllerTest extends ApiIntegrationTest {
     @Test
     void executeWithoutAnIdempotencyKeyIsRefused() {
         Reply reply = post("/admin/rollback/" + UUID.randomUUID() + "/execute", Map.of("reason", "compromised account",
-                "suspendLink", false), this.jwt.admin());
+                "suspendLink", false, "includeMarks", false), this.jwt.admin());
 
         assertEquals(400, reply.status(), reply.body());
     }
@@ -110,7 +110,7 @@ class RollbackControllerTest extends ApiIntegrationTest {
         assertEquals(1, preview.json().get("revocable"), "the one active mute is frozen");
         String jobPath = "/admin/rollback/" + preview.json().get("jobId");
 
-        Map<String, Object> execute = Map.of("reason", "compromised account", "suspendLink", false);
+        Map<String, Object> execute = Map.of("reason", "compromised account", "suspendLink", false, "includeMarks", false);
         Reply started = post(jobPath + "/execute", execute, admin, Map.of("Idempotency-Key", "key-1"));
         assertEquals(202, started.status(), started.body());
         assertEquals("RUNNING", started.json().get("state"));

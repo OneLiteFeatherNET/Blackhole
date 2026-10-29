@@ -45,8 +45,18 @@ public class RollbackRunner {
                                                       Actor actor, UUID rollbackJobId, String rollbackReason);
     }
 
+    /**
+     * The history mark of one frozen kick: the kick's metadata records the job, nothing else changes. Returns false
+     * when the identifier is no kick. {@link PunishmentApplicationService#markRolledBack} is the production implementation.
+     */
+    @FunctionalInterface
+    public interface KickMark {
+        boolean mark(String identifier, Attribution attribution, Actor actor, UUID rollbackJobId);
+    }
+
     private final RollbackJobStore jobs;
     private final ItemRevoke punishments;
+    private final KickMark kicks;
     private final DomainEventPublisher events;
     private final Clock clock;
     private final String holder;
@@ -56,14 +66,15 @@ public class RollbackRunner {
     @Inject
     public RollbackRunner(RollbackJobStore jobs, PunishmentApplicationService punishments, DomainEventPublisher events, Clock clock,
                           @Value("${blackhole.rollback.lease:PT2M}") Duration lease) {
-        this(jobs, punishments::revokeHeld, events, clock, UUID.randomUUID().toString(), lease, BATCH_SIZE);
+        this(jobs, punishments::revokeHeld, punishments::markRolledBack, events, clock, UUID.randomUUID().toString(), lease, BATCH_SIZE);
     }
 
     /** For tests and for a runner with an explicit identity. */
-    public RollbackRunner(RollbackJobStore jobs, ItemRevoke punishments, DomainEventPublisher events, Clock clock,
+    public RollbackRunner(RollbackJobStore jobs, ItemRevoke punishments, KickMark kicks, DomainEventPublisher events, Clock clock,
                           String holder, Duration lease, int batchSize) {
         this.jobs = jobs;
         this.punishments = punishments;
+        this.kicks = kicks;
         this.events = events;
         this.clock = clock;
         this.holder = holder;
@@ -109,6 +120,10 @@ public class RollbackRunner {
     }
 
     private void processItem(RollbackJobStore.Job job, RollbackJobStore.Item item, Attribution attribution, Actor admin) {
+        if ("KICK".equals(item.kind())) {
+            processKick(job, item, attribution, admin);
+            return;
+        }
         try {
             Optional<PunishmentDTO.RevokeResponse> revoked = this.punishments.revoke(item.owner(), item.sectionKey(),
                     item.identifier(), attribution, admin, job.id(), job.reason());
@@ -121,6 +136,27 @@ public class RollbackRunner {
             // No message text in the item or the log line: the code says what failed.
             LOGGER.warn("Rollback item {} of job {} failed", item.identifier(), job.id(), e.getClass().getSimpleName());
             this.jobs.markItem(job.id(), item.identifier(), "FAILED", "REVOKE_FAILED", this.clock.millis());
+        }
+    }
+
+    /**
+     * A kick is never revoked, because it is never active. With {@code includeMarks} its metadata records the job;
+     * without it the kick is skipped and nothing changes. Either way no ELO, no proxy event and no slot is touched.
+     */
+    private void processKick(RollbackJobStore.Job job, RollbackJobStore.Item item, Attribution attribution, Actor admin) {
+        if (!job.includeMarks()) {
+            this.jobs.markItem(job.id(), item.identifier(), "SKIPPED", "MARKS_NOT_REQUESTED", this.clock.millis());
+            return;
+        }
+        try {
+            if (this.kicks.mark(item.identifier(), attribution, admin, job.id())) {
+                this.jobs.markItem(job.id(), item.identifier(), "SKIPPED", "KICK_MARKED", this.clock.millis());
+            } else {
+                this.jobs.markItem(job.id(), item.identifier(), "FAILED", "MARK_FAILED", this.clock.millis());
+            }
+        } catch (RuntimeException e) {
+            LOGGER.warn("Rollback mark of item {} of job {} failed", item.identifier(), job.id(), e.getClass().getSimpleName());
+            this.jobs.markItem(job.id(), item.identifier(), "FAILED", "MARK_FAILED", this.clock.millis());
         }
     }
 

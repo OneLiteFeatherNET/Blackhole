@@ -39,9 +39,14 @@ public class RollbackExecutionService {
         this.staffLinks = staffLinks;
     }
 
-    /** A start without the optional link suspension. */
+    /** A start without the optional link suspension and without history marks. */
     public RollbackDTO start(UUID jobId, @Nullable String reason, @Nullable String idempotencyKey) {
-        return start(jobId, reason, idempotencyKey, false);
+        return start(jobId, reason, idempotencyKey, false, false);
+    }
+
+    /** A start without history marks. */
+    public RollbackDTO start(UUID jobId, @Nullable String reason, @Nullable String idempotencyKey, boolean suspendLink) {
+        return start(jobId, reason, idempotencyKey, suspendLink, false);
     }
 
     /**
@@ -49,9 +54,11 @@ public class RollbackExecutionService {
      * @param reason         the admin's justification, 1 to 500 characters
      * @param idempotencyKey the {@code Idempotency-Key} header; a repeat with the same key answers the same job
      * @param suspendLink    whether to remove the Minecraft link of the selected staff member before the items run
+     * @param includeMarks   whether the kicks in the frozen set are marked as rolled back; otherwise they are skipped
      * @return {@link RollbackDTO.Started} or a {@link RollbackDTO.Error}
      */
-    public RollbackDTO start(UUID jobId, @Nullable String reason, @Nullable String idempotencyKey, boolean suspendLink) {
+    public RollbackDTO start(UUID jobId, @Nullable String reason, @Nullable String idempotencyKey, boolean suspendLink,
+                             boolean includeMarks) {
         if (idempotencyKey == null || idempotencyKey.isBlank() || idempotencyKey.length() > MAX_KEY) {
             return error(ErrorKind.VALIDATION, "an Idempotency-Key of 1 to 64 characters is required");
         }
@@ -75,7 +82,7 @@ public class RollbackExecutionService {
         }
         boolean moved;
         try {
-            moved = this.jobs.markRunning(jobId, reason, idempotencyKey, now);
+            moved = this.jobs.markRunning(jobId, reason, idempotencyKey, includeMarks, now);
         } catch (IllegalStateException e) {
             // The idempotency key is unique per job: another job already used it.
             return error(ErrorKind.CONFLICT, "the Idempotency-Key was already used for another rollback");

@@ -62,6 +62,15 @@ final class RollbackTestSchema {
         }
     }
 
+    /** A kick row: kind KICK, never lifted and never in a slot, as the kick service stores one. */
+    static void givenKick(PGSimpleDataSource dataSource, String id, int owner, String section, UUID source, UUID recordedBy,
+                          long createdAt) {
+        run(dataSource, "INSERT INTO punishment_profiles (owner, meta_data) VALUES (?, '{}'::jsonb) ON CONFLICT DO NOTHING", owner(owner));
+        run(dataSource, "INSERT INTO punishments (identifier, source, recorded_by_oid, actor_oid, owner, section_key, permanent, lifted, created_at, "
+                + "short_id, meta_data, kind) VALUES (?, ?, ?, NULL, ?, ?, false, false, ?, 'ABCDEF02', '{\"reason\":\"because\"}'::jsonb, 'KICK')",
+                id, source, recordedBy, owner(owner), section, createdAt);
+    }
+
     static void run(PGSimpleDataSource dataSource, String sql, Object... parameters) {
         try (Connection connection = dataSource.getConnection(); PreparedStatement statement = connection.prepareStatement(sql)) {
             for (int i = 0; i < parameters.length; i++) {

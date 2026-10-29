@@ -37,11 +37,11 @@ public class JdbcRollbackJobStore implements RollbackJobStore {
             """;
 
     private static final String FIND_JOB = """
-            SELECT id, state, requested_by_oid, selector_oid, reason, idempotency_key, preview_expires_at
+            SELECT id, state, requested_by_oid, selector_oid, reason, idempotency_key, include_marks, preview_expires_at
             FROM staff_rollback_job WHERE id = ?
             """;
     private static final String MARK_RUNNING = """
-            UPDATE staff_rollback_job SET state = 'RUNNING', reason = ?, idempotency_key = ?, started_at = ?
+            UPDATE staff_rollback_job SET state = 'RUNNING', reason = ?, idempotency_key = ?, include_marks = ?, started_at = ?
             WHERE id = ? AND state = 'PREVIEW' AND preview_expires_at > ?
             """;
     // One RUNNING job at a time per runner: the row lock skips a job another runner is claiming right now.
@@ -56,7 +56,7 @@ public class JdbcRollbackJobStore implements RollbackJobStore {
             UPDATE staff_rollback_job SET locked_by = NULL, locked_until = NULL WHERE id = ? AND locked_by = ?
             """;
     private static final String NEXT_ITEMS = """
-            SELECT punishment_identifier, owner, section_key, state FROM staff_rollback_item
+            SELECT punishment_identifier, owner, section_key, kind, state FROM staff_rollback_item
             WHERE job_id = ? AND state = 'PENDING' ORDER BY punishment_identifier LIMIT ?
             """;
     private static final String MARK_ITEM = """
@@ -137,7 +137,8 @@ public class JdbcRollbackJobStore implements RollbackJobStore {
                 }
                 return Optional.of(new Job(rows.getObject("id", UUID.class), rows.getString("state"),
                         rows.getObject("requested_by_oid", UUID.class), rows.getObject("selector_oid", UUID.class),
-                        rows.getString("reason"), rows.getString("idempotency_key"), rows.getLong("preview_expires_at")));
+                        rows.getString("reason"), rows.getString("idempotency_key"), rows.getBoolean("include_marks"),
+                        rows.getLong("preview_expires_at")));
             }
         } catch (SQLException e) {
             throw new IllegalStateException("could not read the rollback job", e);
@@ -145,8 +146,8 @@ public class JdbcRollbackJobStore implements RollbackJobStore {
     }
 
     @Override
-    public boolean markRunning(UUID id, String reason, String idempotencyKey, long now) {
-        return update(MARK_RUNNING, reason, idempotencyKey, now, id, now) == 1;
+    public boolean markRunning(UUID id, String reason, String idempotencyKey, boolean includeMarks, long now) {
+        return update(MARK_RUNNING, reason, idempotencyKey, includeMarks, now, id, now) == 1;
     }
 
     @Override
@@ -180,7 +181,7 @@ public class JdbcRollbackJobStore implements RollbackJobStore {
                 List<Item> found = new ArrayList<>();
                 while (rows.next()) {
                     found.add(new Item(rows.getString("punishment_identifier"), rows.getString("owner"), rows.getString("section_key"),
-                            rows.getString("state")));
+                            rows.getString("kind"), rows.getString("state")));
                 }
                 return found;
             }

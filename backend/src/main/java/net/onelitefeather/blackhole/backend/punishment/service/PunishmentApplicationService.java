@@ -26,6 +26,7 @@ import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEvents;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentKind;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.banid.service.BanIdService;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentShortId;
@@ -669,6 +670,30 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         this.audit.record(attribution, actor, AuditAction.PUNISHMENT_REVOKE, AuditTarget.ofCase(active.getShortId()));
 
         return Optional.of(new PunishmentDTO.RevokeResponse(withEvidenceCount(active), section, scoreReset));
+    }
+
+    /**
+     * Marks a kick as rolled back by a rollback job. Only the metadata changes: a kick is never active, so nothing
+     * is enforced, no score moves and no proxy is told. The kick stays in the player's history and case. The mark is
+     * audited as the admin's action; marking the same kick again writes the same metadata.
+     *
+     * @param attribution the rollback's attribution: the admin who asked
+     * @param actor       the verified caller, for the audit entry
+     * @return whether the identifier is a kick and was marked
+     */
+    public boolean markRolledBack(String identifier, Attribution attribution, Actor actor, UUID rollbackJobId) {
+        Optional<PunishmentEntity> found = this.punishmentRepository.findById(identifier);
+        if (found.isEmpty() || found.get().getKind() != PunishmentKind.KICK) {
+            return false;
+        }
+        PunishmentEntity kick = found.get();
+        kick.getMetaData().put("rolledBackBy", attribution.source().toString());
+        kick.getMetaData().put("rollbackJobId", rollbackJobId.toString());
+        kick.getMetaData().put(Metadata.META_DATA_KEY_UPDATE_DATE, this.clock.millis());
+        this.punishmentRepository.update(kick);
+        this.profileCache.evict(kick.getOwner());
+        this.audit.record(attribution, actor, AuditAction.KICK_ROLLBACK_MARK, AuditTarget.ofCase(kick.getShortId()));
+        return true;
     }
 
     /**

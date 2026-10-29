@@ -48,6 +48,7 @@ public sealed interface RollbackDTO {
      * @param revocable        how many punishments would be revoked
      * @param alreadyInactive  how many matching punishments are already lifted or ended and are not revoked
      * @param players          how many distinct (hashed) players the revocable punishments belong to
+     * @param kicks            how many kicks in the window are frozen for a history mark (a kick is never revoked)
      * @param byKind           the revocable count per punishment kind
      * @param bySection        the revocable count per section key
      */
@@ -61,6 +62,7 @@ public sealed interface RollbackDTO {
             int revocable,
             int alreadyInactive,
             int players,
+            int kicks,
             @NonNull Map<String, Integer> byKind,
             @NonNull Map<String, Integer> bySection
     ) implements RollbackDTO {
@@ -84,11 +86,12 @@ public sealed interface RollbackDTO {
      *
      * @param reason      the justification, 1 to 500 characters, shown in the audit trail
      * @param suspendLink whether to remove the Minecraft link of the staff member before the items run
+     * @param includeMarks whether the frozen kicks are marked as rolled back; otherwise they are skipped and nothing changes
      */
     @Schema(name = "RollbackExecuteRequest")
     @Serdeable
     @ReflectiveAccess
-    record ExecuteRequest(@NonNull String reason, boolean suspendLink) implements RollbackDTO {
+    record ExecuteRequest(@NonNull String reason, boolean suspendLink, boolean includeMarks) implements RollbackDTO {
     }
 
     /**

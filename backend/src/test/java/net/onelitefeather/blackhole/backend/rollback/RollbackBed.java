@@ -1,6 +1,8 @@
 package net.onelitefeather.blackhole.backend.rollback;
 
+import net.onelitefeather.blackhole.backend.kick.KickScope;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishmentDTO;
+import net.onelitefeather.blackhole.backend.security.Attribution;
 import net.onelitefeather.blackhole.backend.support.PunishmentTestBed;
 
 import java.time.Duration;
@@ -37,6 +39,12 @@ final class RollbackBed {
         return bed.profiles.repository().findById(owner).orElseThrow().getActive().get("chat").getIdentifier();
     }
 
+    /** Stores a network kick of {@code owner} by the staff member and returns its identifier. A kick is never active. */
+    String givenKick(String owner) {
+        return this.bed.kickService.kickForTemplate(owner, KickScope.NETWORK, null, "rule break", new Attribution(STAFF, STAFF),
+                null, "kick-group", 0, 1, 0).getIdentifier();
+    }
+
     /** Freezes the given identifiers of their owners into a preview job made by the staff member. */
     void givenPreview(List<RollbackJobStore.FrozenItem> items) {
         long now = bed.eloBed.clock.millis();
@@ -53,7 +61,8 @@ final class RollbackBed {
     }
 
     RollbackRunner runner(RollbackRunner.ItemRevoke revoke, String holder, Duration lease, int batchSize) {
-        return new RollbackRunner(this.jobs, revoke, this.bed.eloBed.events, this.bed.eloBed.clock, holder, lease, batchSize);
+        return new RollbackRunner(this.jobs, revoke, this.bed.punishmentService::markRolledBack, this.bed.eloBed.events,
+                this.bed.eloBed.clock, holder, lease, batchSize);
     }
 
     RollbackRunner runner() {
