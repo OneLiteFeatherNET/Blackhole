@@ -18,7 +18,7 @@ class AreaBanServiceTest {
 
     private final Clock clock = Clock.fixed(Instant.parse("2026-10-29T12:00:00Z"), ZoneOffset.UTC);
     private final InMemoryAreaBanStore store = new InMemoryAreaBanStore();
-    private final AreaBanService service = new AreaBanService(this.store, this.clock);
+    private final AreaBanService service = new AreaBanService(this.store, new AreaBanCache(this.store), this.clock);
 
     private static AreaBanDTO.CreateRequest asn(Long seconds) {
         return new AreaBanDTO.CreateRequest("ASN", "16276", "hosting wave", seconds);
@@ -93,9 +93,9 @@ class AreaBanServiceTest {
     @Test
     void anExpiredUnliftedBanDoesNotBlockANewOne() {
         Clock later = Clock.fixed(Instant.parse("2026-10-29T12:00:00Z"), ZoneOffset.UTC);
-        AreaBanService first = new AreaBanService(this.store, later);
+        AreaBanService first = new AreaBanService(this.store, new AreaBanCache(this.store), later);
         first.create(asn(60L), ADMIN);
-        AreaBanService afterExpiry = new AreaBanService(this.store,
+        AreaBanService afterExpiry = new AreaBanService(this.store, new AreaBanCache(this.store),
                 Clock.fixed(Instant.parse("2026-10-29T13:00:00Z"), ZoneOffset.UTC));
 
         AreaBanDTO result = afterExpiry.create(asn(3600L), ADMIN);

@@ -3,11 +3,11 @@ package net.onelitefeather.blackhole.backend.guard;
 import java.util.Optional;
 
 /** A {@link GuardStateStore} held in memory. Its compare-and-set has the same meaning as the conditional UPDATE. */
-class InMemoryGuardStateStore implements GuardStateStore {
+public class InMemoryGuardStateStore implements GuardStateStore {
 
     private GuardState state;
 
-    InMemoryGuardStateStore(GuardState initial) {
+    public InMemoryGuardStateStore(GuardState initial) {
         this.state = initial;
     }
 

@@ -6,7 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /** An {@link AreaBanStore} held in memory, with the same one-unlifted-ban-per-area rule as the partial unique index. */
-class InMemoryAreaBanStore implements AreaBanStore {
+public class InMemoryAreaBanStore implements AreaBanStore {
 
     private final List<AreaBan> bans = new ArrayList<>();
 
@@ -22,6 +22,11 @@ class InMemoryAreaBanStore implements AreaBanStore {
     @Override
     public synchronized Optional<AreaBan> findById(UUID id) {
         return this.bans.stream().filter(ban -> ban.id().equals(id)).findFirst();
+    }
+
+    @Override
+    public synchronized List<AreaBan> listUnlifted() {
+        return this.bans.stream().filter(ban -> ban.liftedAt() == null).toList();
     }
 
     @Override

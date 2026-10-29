@@ -7,6 +7,7 @@ import io.micronaut.serde.annotation.Serdeable;
 import io.swagger.v3.oas.annotations.media.Schema;
 import net.onelitefeather.blackhole.backend.intel.IntelClass;
 import net.onelitefeather.blackhole.backend.intel.IntelPolicy;
+import net.onelitefeather.blackhole.backend.intel.LoginDenialReason;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.response.ErrorResponse;
 
@@ -31,12 +32,18 @@ public sealed interface LoginCheckDTO {
      * @param verdict        ALLOW, FLAG or DENY; the proxy refuses the login only on DENY
      * @param classification the class that decided the verdict, or null for a clean address
      * @param sourceKey      the source that matched that class, or null
+     * @param denialReason   why a DENY was given, or null for ALLOW and FLAG
      */
     @Schema(name = "LoginCheckResponse")
     @Serdeable
     @ReflectiveAccess
-    record Response(@NonNull IntelPolicy verdict, @Nullable IntelClass classification, @Nullable String sourceKey)
-            implements LoginCheckDTO {
+    record Response(@NonNull IntelPolicy verdict, @Nullable IntelClass classification, @Nullable String sourceKey,
+                    @Nullable LoginDenialReason denialReason) implements LoginCheckDTO {
+
+        /** An answer without a denial reason: ALLOW or FLAG, or a VPN policy DENY. */
+        public Response(IntelPolicy verdict, IntelClass classification, String sourceKey) {
+            this(verdict, classification, sourceKey, null);
+        }
     }
 
     @Schema(name = "LoginCheckError")

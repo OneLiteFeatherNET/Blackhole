@@ -1,12 +1,22 @@
 package net.onelitefeather.blackhole.backend.intel;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import net.onelitefeather.blackhole.backend.areaban.AreaBan;
+import net.onelitefeather.blackhole.backend.areaban.AreaBanCache;
+import net.onelitefeather.blackhole.backend.areaban.InMemoryAreaBanStore;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.guard.GuardLevel;
+import net.onelitefeather.blackhole.backend.guard.GuardState;
+import net.onelitefeather.blackhole.backend.guard.GuardStateCache;
+import net.onelitefeather.blackhole.backend.guard.InMemoryGuardStateStore;
+import net.onelitefeather.blackhole.backend.guard.InMemoryOwnerDirectoryStore;
+import net.onelitefeather.blackhole.backend.guard.OwnerDirectoryCache;
 import net.onelitefeather.blackhole.backend.intel.dto.LoginCheckDTO;
 import net.onelitefeather.blackhole.backend.support.InMemoryIntelRecordStore;
 import net.onelitefeather.blackhole.backend.support.RecordingEventTransport;
 import net.onelitefeather.blackhole.backend.support.TestClock;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -26,6 +36,12 @@ final class LoginCheckFixture {
     final IntelPolicyCache policies = new IntelPolicyCache(this.store);
     final IntelHitService hits = new IntelHitService(this.store);
     final IntelFlagNotices notices = new IntelFlagNotices();
+    final InMemoryAreaBanStore areaStore = new InMemoryAreaBanStore();
+    final AreaBanCache areaBans = new AreaBanCache(this.areaStore);
+    final InMemoryGuardStateStore guardStore = new InMemoryGuardStateStore(GuardState.initial(0L));
+    final GuardStateCache guard = new GuardStateCache(this.guardStore);
+    final InMemoryOwnerDirectoryStore ownerStore = new InMemoryOwnerDirectoryStore();
+    final OwnerDirectoryCache owners = new OwnerDirectoryCache(this.ownerStore, Duration.ofMinutes(60));
     final IntelLoginCheckService service;
 
     LoginCheckFixture() {
@@ -36,7 +52,34 @@ final class LoginCheckFixture {
         IpEnricher enricher = ip -> HOSTING_IP.equals(ip) ? new IpEnricher.IpEnrichment(64500L, "Example Hosting", null)
                 : IpEnricher.IpEnrichment.NONE;
         this.service = new IntelLoginCheckService(this.holder, this.policies, enricher, this.hits, this.notices,
-                new DomainEventPublisher(this.transport, this.clock), this.clock, new SimpleMeterRegistry());
+                new DomainEventPublisher(this.transport, this.clock), this.clock, new SimpleMeterRegistry(),
+                this.areaBans, this.guard, this.owners);
+    }
+
+    /** Sets the manual guard level and loads it into the cache, as the transition service would. */
+    void guardLevel(GuardLevel level) {
+        GuardState before = this.guardStore.current().orElseThrow();
+        this.guardStore.compareAndSet(before, GuardState.of(level, GuardLevel.OFF, this.clock.millis()));
+        this.guard.reload();
+    }
+
+    /** Bans an ASN for everyone, and loads the bans into the cache. */
+    void areaBanAsn(long asn) {
+        this.areaStore.insert(new AreaBan(UUID.randomUUID(), AreaBan.Kind.ASN, Long.toString(asn), "test ban",
+                AreaBan.Source.MANUAL, "admin-oid", this.clock.millis(), null, null, null, null));
+        this.areaBans.reload();
+    }
+
+    /** Marks an owner as a known player and reloads the owner directory. */
+    void known(String owner) {
+        this.ownerStore.addKnown(owner);
+        this.owners.reload();
+    }
+
+    /** Marks an owner as linked staff and reloads the owner directory. */
+    void staff(String owner) {
+        this.ownerStore.addStaff(owner);
+        this.owners.reload();
     }
 
     /** Stores the policy and the allow-list, then loads them into the in-memory cache as a replica would. */

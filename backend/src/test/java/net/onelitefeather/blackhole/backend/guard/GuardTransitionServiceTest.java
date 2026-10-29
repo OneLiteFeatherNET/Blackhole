@@ -31,7 +31,7 @@ class GuardTransitionServiceTest {
 
     private GuardTransitionService service(GuardStateStore states) {
         return new GuardTransitionService(states, this.changes, this.presence, new UnattendedEvaluator(this.settings),
-                this.events, this.clock);
+                this.events, new GuardStateCache(states), this.clock);
     }
 
     @Test

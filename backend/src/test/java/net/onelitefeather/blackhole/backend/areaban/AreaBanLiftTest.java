@@ -22,7 +22,7 @@ class AreaBanLiftTest {
     private final InMemoryAreaBanStore store = new InMemoryAreaBanStore();
 
     private AreaBanService serviceAt(Instant now) {
-        return new AreaBanService(this.store, Clock.fixed(now, ZoneOffset.UTC));
+        return new AreaBanService(this.store, new AreaBanCache(this.store), Clock.fixed(now, ZoneOffset.UTC));
     }
 
     private AreaBanDTO.Response createdBan(AreaBanService service) {
