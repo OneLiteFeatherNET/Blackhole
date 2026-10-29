@@ -87,6 +87,12 @@ publicBanKey:
   # Secret with the key BLACKHOLE_PUBLIC_BAN_KEY (at least 32 random bytes). Changing it changes every entry hash.
   existingSecret: ""
 
+# The analytics views (schema analytics, read by Metabase through the read-only role analytics_reader). The backend
+# refreshes them on this interval; the chart only passes it on. See README, Analytics.
+analytics:
+  # How often the backend refreshes the views (BLACKHOLE_ANALYTICS_REFRESH_INTERVAL). Metabase shows the age of its data.
+  refreshInterval: 15m
+
 # Microsoft Entra ID, shared by the backend (token validation) and the Discord bot (client credentials).
 auth:
   tenantId: ""
