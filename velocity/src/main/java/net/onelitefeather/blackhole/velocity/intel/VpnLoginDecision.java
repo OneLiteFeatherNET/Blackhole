@@ -2,10 +2,12 @@ package net.onelitefeather.blackhole.velocity.intel;
 
 import com.google.inject.Inject;
 import net.onelitefeather.blackhole.client.model.IntelPolicy;
+import net.onelitefeather.blackhole.client.model.LoginDenialReason;
 import net.onelitefeather.blackhole.client.model.LoginCheckResponse;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,27 +51,42 @@ public final class VpnLoginDecision {
      * {@link IntelPolicy#FLAG} when it may proceed (also when the backend gave no usable answer)
      */
     public @NotNull IntelPolicy decide(@NotNull String owner, @NotNull String ip) {
+        return verdict(owner, ip).policy();
+    }
+
+    /**
+     * @param owner the player's hashed owner
+     * @param ip    the player's address as the proxy sees it
+     * @return the backend's policy and, for a refusal, why it refused; {@code answered} is false when the
+     * backend gave no usable answer, in which case the policy is {@link IntelPolicy#ALLOW}
+     */
+    public @NotNull Verdict verdict(@NotNull String owner, @NotNull String ip) {
         CompletableFuture<LoginCheckResponse> answer = this.gateway.loginCheck(owner, ip);
-        IntelPolicy verdict;
+        LoginCheckResponse response = null;
         try {
-            LoginCheckResponse response = answer.get(this.timeout.toMillis(), TimeUnit.MILLISECONDS);
-            verdict = response == null ? null : response.getVerdict();
+            response = answer.get(this.timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             answer.cancel(true);
-            verdict = null;
             LOGGER.debug("Login check timed out after {}, allowing the login", this.timeout);
         } catch (ExecutionException e) {
-            verdict = null;
             LOGGER.debug("Login check failed, allowing the login: {}", e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            verdict = null;
         }
-        if (verdict == null) {
+        IntelPolicy policy = response == null ? null : response.getVerdict();
+        if (policy == null) {
             this.failOpen.incrementAndGet();
-            return IntelPolicy.ALLOW;
+            return new Verdict(IntelPolicy.ALLOW, null, false);
         }
-        return verdict;
+        return new Verdict(policy, response.getDenialReason(), true);
+    }
+
+    /**
+     * @param policy   the backend's verdict, or {@link IntelPolicy#ALLOW} when it gave none
+     * @param reason   why a {@link IntelPolicy#DENY} refused the login; null for a VPN policy refusal
+     * @param answered whether the backend gave a usable answer
+     */
+    public record Verdict(@NotNull IntelPolicy policy, @Nullable LoginDenialReason reason, boolean answered) {
     }
 
     /**

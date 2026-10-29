@@ -22,6 +22,8 @@ import net.onelitefeather.blackhole.velocity.evidence.MutableClock;
 import net.onelitefeather.blackhole.velocity.intel.HttpSessionBackend;
 import net.onelitefeather.blackhole.velocity.intel.SessionPlayer;
 import net.onelitefeather.blackhole.velocity.intel.SessionReporter;
+import net.onelitefeather.blackhole.velocity.guard.GuardLevelCache;
+import net.onelitefeather.blackhole.velocity.guard.GuardLoginDecision;
 import net.onelitefeather.blackhole.velocity.intel.VpnLoginDecision;
 import net.onelitefeather.blackhole.velocity.punish.StubGateway;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
@@ -87,7 +89,8 @@ class PlayerLoginListenerTest {
     private PlayerLoginListener listener(PunishmentState state, Executor executor, VpnLoginDecision vpn) {
         SessionReporter sessions = new SessionReporter(new HttpSessionBackend(new IntelApi(client)), executor,
                 () -> new UUID(0, sequence.incrementAndGet()));
-        return new PlayerLoginListener(client, state, screens(), identifier -> OptionalLong.empty(), sessions, vpn);
+        return new PlayerLoginListener(client, state, screens(), identifier -> OptionalLong.empty(), sessions,
+                new GuardLoginDecision(vpn, new GuardLevelCache()));
     }
 
     private static VpnLoginDecision vpnAnswering(IntelPolicy verdict) {

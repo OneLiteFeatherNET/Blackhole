@@ -35,6 +35,7 @@ public final class SessionPlayer {
                     case "getUsername" -> name;
                     case "getRemoteAddress" -> address;
                     case "getProtocolVersion" -> ProtocolVersion.MINECRAFT_1_21;
+                    case "hasPermission" -> false;
                     case "getVirtualHost" -> Optional.of(InetSocketAddress.createUnresolved("play.example.net", 25565));
                     case "hashCode" -> System.identityHashCode(proxy);
                     case "equals" -> proxy == args[0];
