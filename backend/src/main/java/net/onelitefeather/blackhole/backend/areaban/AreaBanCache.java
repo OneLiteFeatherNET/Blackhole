@@ -39,6 +39,11 @@ public class AreaBanCache {
                 .findFirst();
     }
 
+    /** The bans of the snapshot that apply at {@code nowMillis}: not lifted, and not past their expiry. */
+    public List<AreaBan> active(long nowMillis) {
+        return this.snapshot.stream().filter(ban -> ban.isActiveAt(nowMillis)).toList();
+    }
+
     /** Reads the unlifted bans again. A failure keeps the snapshot in use. */
     public synchronized void reload() {
         try {

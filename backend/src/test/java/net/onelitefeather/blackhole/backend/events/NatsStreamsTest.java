@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The stream and consumer settings must equal the table in design D4. */
@@ -66,6 +67,16 @@ class NatsStreamsTest {
         assertEquals(Duration.ofSeconds(30), consumer.getAckWait());
         assertEquals(DeliverPolicy.New, consumer.getDeliverPolicy());
         assertEquals(1, consumer.getMaxDeliver(), "a single attempt, as the best-effort Redis sync wants");
+    }
+
+    @Test
+    void anEphemeralConsumerHasNoNameSoTheServerDeletesItWhenItsReplicaIsGone() {
+        ConsumerConfiguration consumer = NatsStreams.ephemeral(List.of("ipban.changed"));
+
+        assertNull(consumer.getDurable(), "an ephemeral consumer is not named, so no orphan is left after a rollout");
+        assertEquals(List.of("blackhole.events.ipban.changed"), consumer.getFilterSubjects());
+        assertEquals(DeliverPolicy.New, consumer.getDeliverPolicy(), "a new replica does not replay old events");
+        assertEquals(Duration.ofSeconds(30), consumer.getInactiveThreshold(), "an idle ephemeral consumer is deleted by the server");
     }
 
     @Test

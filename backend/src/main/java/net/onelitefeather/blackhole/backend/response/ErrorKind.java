@@ -64,7 +64,9 @@ public enum ErrorKind {
     TARGET_EXEMPT(HttpStatus.CONFLICT),
 
     /** Only an admin may ban a country; a moderator may ban one ASN for up to seven days (403). */
-    FORBIDDEN_KIND(HttpStatus.FORBIDDEN);
+    FORBIDDEN_KIND(HttpStatus.FORBIDDEN),
+    /** An IP ban names a range that may not be banned: too wide, or protected (422). */
+    IP_BAN_NOT_ALLOWED(HttpStatus.UNPROCESSABLE_ENTITY);
 
     private final HttpStatus status;
 

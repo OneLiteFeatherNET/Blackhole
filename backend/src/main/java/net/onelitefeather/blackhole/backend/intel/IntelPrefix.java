@@ -97,6 +97,55 @@ public record IntelPrefix(boolean ipv4, long hi, long lo, int length) {
         return text.append('/').append(this.length).toString();
     }
 
+    /**
+     * @return the address alone, without the length: dotted IPv4, or IPv6 in the RFC 5952 compressed form (the longest run
+     * of two or more zero groups becomes {@code ::}), for example {@code 2001:db8::7}
+     */
+    public String address() {
+        if (this.ipv4) {
+            return ((this.lo >>> 24) & 0xFF) + "." + ((this.lo >>> 16) & 0xFF) + "." + ((this.lo >>> 8) & 0xFF) + "."
+                    + (this.lo & 0xFF);
+        }
+        int[] groups = new int[8];
+        for (int group = 0; group < 4; group++) {
+            groups[group] = (int) ((this.hi >>> (48 - 16 * group)) & 0xFFFF);
+            groups[group + 4] = (int) ((this.lo >>> (48 - 16 * group)) & 0xFFFF);
+        }
+        int runStart = -1;
+        int runLength = 0;
+        for (int i = 0; i < 8; ) {
+            if (groups[i] != 0) {
+                i++;
+                continue;
+            }
+            int end = i;
+            while (end < 8 && groups[end] == 0) {
+                end++;
+            }
+            if (end - i > runLength) {
+                runStart = i;
+                runLength = end - i;
+            }
+            i = end;
+        }
+        if (runLength < 2) {
+            runStart = -1;
+        }
+        StringBuilder text = new StringBuilder();
+        for (int i = 0; i < 8; i++) {
+            if (i == runStart) {
+                text.append("::");
+                i += runLength - 1;
+                continue;
+            }
+            if (!text.isEmpty() && text.charAt(text.length() - 1) != ':') {
+                text.append(':');
+            }
+            text.append(Integer.toHexString(groups[i]));
+        }
+        return text.toString();
+    }
+
     private static boolean isMapped(InetAddress address) {
         byte[] bytes = address.getAddress();
         if (bytes.length != 16) {

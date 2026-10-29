@@ -1,5 +1,8 @@
 package net.onelitefeather.blackhole.backend.intel;
 
+import com.maxmind.db.DatabaseRecord;
+import com.maxmind.db.Network;
+import com.maxmind.db.Networks;
 import com.maxmind.db.Reader;
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
@@ -13,8 +16,11 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Offline ASN and country lookup over two MaxMind DB files (DB-IP Lite or GeoLite2). The files are read from
@@ -22,7 +28,7 @@ import java.util.Optional;
  * once per hour. A missing or unreadable file yields no enrichment and one warning per hour, never an exception.
  */
 @Singleton
-public class GeoIpReader implements IpEnricher {
+public class GeoIpReader implements IpEnricher, AsnNetworks {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GeoIpReader.class);
     private static final Duration CHECK_EVERY = Duration.ofHours(1);
@@ -61,6 +67,40 @@ public class GeoIpReader implements IpEnricher {
             countryCode = iso;
         }
         return new IpEnrichment(asnNumber, organisation, countryCode);
+    }
+
+    /**
+     * Enumerates every network of the given autonomous systems in the ASN file. It walks the whole file, so it is for the
+     * feed rebuild, never for a request. An absent file yields no networks.
+     */
+    @Override
+    public long version() {
+        this.asn.current(this.clock.instant());
+        return this.asn.loadedModifiedMillis;
+    }
+
+    @Override
+    public List<IntelPrefix> networksOfAsns(Set<Long> asns) {
+        List<IntelPrefix> found = new ArrayList<>();
+        Reader reader = this.asn.current(this.clock.instant());
+        if (reader == null || asns.isEmpty()) {
+            return found;
+        }
+        try {
+            Networks<Map> networks = reader.networks(Map.class);
+            while (networks.hasNext()) {
+                DatabaseRecord<Map> record = networks.next();
+                if (record.data() != null && record.data().get("autonomous_system_number") instanceof Number number
+                        && asns.contains(number.longValue())) {
+                    Network network = record.network();
+                    found.add(IntelPrefix.ofAddress(network.ipAddress()).withLength(network.prefixLength()));
+                }
+            }
+        } catch (IOException | com.maxmind.db.InvalidNetworkException | RuntimeException e) {
+            LOGGER.warn("GeoIP ASN enumeration failed; the hosting ASN networks are left out of the feed");
+            return List.of();
+        }
+        return found;
     }
 
     private Map<?, ?> lookup(Database database, InetAddress address) {
