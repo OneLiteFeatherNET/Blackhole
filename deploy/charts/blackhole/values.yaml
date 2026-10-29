@@ -64,6 +64,24 @@ keys:
   # replaced after the first start: keep an offline copy (docs/kubernetes.md).
   existingSecret: ""
 
+# The public ban list (GET /public/bans) for named, authenticated clients. Off by default: with no clients
+# nothing of it is rendered and the backend runs without it.
+banList:
+  # Names of the clients (lower case, digits and hyphens, at most 32 characters). Each name needs a key of
+  # existingSecret that holds that client's Argon2id hash. Changing a hash or the list: raise backend.secretRevision.
+  clients: []
+  # Secret with one key per client, the key being the client name, the value its PHC hash. Hashes only: a password
+  # or a hash never goes into the values.
+  existingSecret: ""
+  # Directory the hash files are mounted read-only at (BLACKHOLE_BAN_LIST_SECRETS_DIR).
+  mountPath: /etc/blackhole/ban-list
+
+# The HMAC key of the public ban entries (BLACKHOLE_PUBLIC_BAN_KEY). Required with banList.clients. The backend
+# refuses to start in prod without it: set it before rolling a backend release that has the public ban list.
+publicBanKey:
+  # Secret with the key BLACKHOLE_PUBLIC_BAN_KEY (at least 32 random bytes). Changing it changes every entry hash.
+  existingSecret: ""
+
 # Microsoft Entra ID, shared by the backend (token validation) and the Discord bot (client credentials).
 auth:
   tenantId: ""

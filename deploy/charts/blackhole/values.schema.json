@@ -372,6 +372,41 @@
         }
       }
     },
+    "banList": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The public ban list for named clients. Off with no clients.",
+      "properties": {
+        "clients": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "Client names: lower case, digits and hyphens, at most 32 characters. Each needs a key of existingSecret.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,32}$"
+          }
+        },
+        "existingSecret": {
+          "type": "string",
+          "description": "Secret with one key per client (the client name) holding its Argon2id hash. Hashes only."
+        },
+        "mountPath": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "publicBanKey": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The HMAC key of the public ban entries. Only ever a Secret reference.",
+      "properties": {
+        "existingSecret": {
+          "type": "string",
+          "description": "Secret with the key BLACKHOLE_PUBLIC_BAN_KEY."
+        }
+      }
+    },
     "auth": {
       "type": "object",
       "additionalProperties": false,

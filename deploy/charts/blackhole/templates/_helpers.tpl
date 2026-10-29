@@ -212,6 +212,12 @@ nothing, so every render runs them.
 {{- if and .Values.backend.geoip.refresh.enabled (not .Values.backend.geoip.enabled) -}}
 {{- fail "backend.geoip.refresh.enabled needs backend.geoip.enabled: the refresh writes the files the backend reads" -}}
 {{- end -}}
+{{- if and .Values.banList.clients (not .Values.banList.existingSecret) -}}
+{{- fail "banList.existingSecret is required when banList.clients is set: the Secret with one hash key per client" -}}
+{{- end -}}
+{{- if and .Values.banList.clients (not .Values.publicBanKey.existingSecret) -}}
+{{- fail "publicBanKey.existingSecret is required when banList.clients is set: the public ban entries are hashed with that key" -}}
+{{- end -}}
 {{- if and .Values.backend.enabled .Values.web.enabled (ne (int64 .Values.backend.evidence.maxVideoBytes) (int64 .Values.web.evidence.maxVideoBytes)) -}}
 {{- fail (printf "backend.evidence.maxVideoBytes (%d) and web.evidence.maxVideoBytes (%d) must be equal: the panel would accept uploads the backend refuses, or the other way round" (int64 .Values.backend.evidence.maxVideoBytes) (int64 .Values.web.evidence.maxVideoBytes)) -}}
 {{- end -}}
