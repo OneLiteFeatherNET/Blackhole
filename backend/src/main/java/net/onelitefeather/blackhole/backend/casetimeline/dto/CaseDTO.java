@@ -91,6 +91,19 @@ public sealed interface CaseDTO {
     }
 
     /**
+     * The state of the case's appeal ticket: the newest ticket, live or not. Carries no Ban ID and no Discord id.
+     *
+     * @param state        {@code PENDING_CHANNEL}, {@code OPEN}, {@code CLOSING}, {@code CLOSED}, {@code ARCHIVED} or {@code DELETED}
+     * @param frozen       whether the channel is locked
+     * @param freezeSource {@code STAFF} or {@code LEAK} while locked, {@code null} when not
+     */
+    @Schema(name = "CaseTicket")
+    @Serdeable
+    @ReflectiveAccess
+    record Ticket(@NonNull String state, boolean frozen, @Nullable String freezeSource) {
+    }
+
+    /**
      * A case.
      *
      * @param ownerPrefix     the first characters of the player's hash, never the whole hash
@@ -102,6 +115,7 @@ public sealed interface CaseDTO {
      * @param banIdLeakReason the leak reason code; null when not leaked
      * @param playerSeenSeq   the highest seq the player's conversation read has returned (0 when none); staff show "Seen" under the last
      *                        staff message at or below it. A number only, never a time.
+     * @param ticket          the state of the newest appeal ticket; null when the case never had one
      */
     @Schema(name = "CaseResponse")
     @Serdeable
@@ -123,7 +137,8 @@ public sealed interface CaseDTO {
             @NonNull @JsonInclude(JsonInclude.Include.ALWAYS) List<Related> related,
             @Nullable Long banIdLeakedAt,
             @Nullable String banIdLeakReason,
-            long playerSeenSeq
+            long playerSeenSeq,
+            @Nullable Ticket ticket
     ) implements CaseDTO {
     }
 

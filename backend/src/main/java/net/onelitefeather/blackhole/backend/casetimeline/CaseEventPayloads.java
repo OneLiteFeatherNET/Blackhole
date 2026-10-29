@@ -117,6 +117,8 @@ public final class CaseEventPayloads {
                         text(body, "lastMessageId"), required(integer(body, "edits")), required(integer(body, "deletes")));
                 case CaseEventPayload.TICKET_ARCHIVED -> new CaseEventPayload.TicketArchived(
                         required(text(body, "ticketId")), required(text(body, "appealId")), required(integer(body, "protocolVersion")));
+                case CaseEventPayload.TICKET_FROZEN -> new CaseEventPayload.TicketFrozen(
+                        required(text(body, "ticketId")), required(text(body, "appealId")), flag(body, "frozen"), text(body, "freezeSource"));
                 case CaseEventPayload.TICKET_CHANNEL_DELETED -> new CaseEventPayload.TicketChannelDeleted(
                         required(text(body, "ticketId")), required(text(body, "appealId")), flag(body, "transcriptComplete"),
                         number(body, "lastRecordedMessageAt"));

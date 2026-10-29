@@ -24,6 +24,7 @@ import net.onelitefeather.blackhole.backend.casetimeline.CaseTags;
 import net.onelitefeather.blackhole.backend.casetimeline.SourceRows;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseDTO;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseErrorKind;
+import net.onelitefeather.blackhole.backend.discord.ticket.DiscordTicketStore;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.evidence.validation.PiiGuard;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
@@ -83,13 +84,15 @@ public class CaseService {
     private final CaseReference references;
     private final CaseEventPublisher caseEvents;
     private final MessageContent content;
+    private final DiscordTicketStore tickets;
 
     public CaseService(
             PunishmentRepository punishments, StaffActorRepository staff, CaseReader reader, CaseChanges changes,
             CaseEventRepository events, DomainEventPublisher publisher, Clock clock, BanIdService banIds, MessageContent content,
             StaffDelegation delegation,
-            StaffAuditRecorder audit
+            StaffAuditRecorder audit, DiscordTicketStore tickets
     ) {
+        this.tickets = tickets;
         this.audit = audit;
         this.delegation = delegation;
         this.punishments = punishments;
@@ -365,7 +368,14 @@ public class CaseService {
                 CaseStatus.valueOf(meta.status()), meta.assignee(), row.map(CaseReader.CaseRow::assigneeName).orElse(null),
                 CasePriority.valueOf(meta.priority()), meta.tags(), row.map(CaseReader.CaseRow::version).orElse(0L), related,
                 row.map(CaseReader.CaseRow::banIdLeakedAt).orElse(null), row.map(CaseReader.CaseRow::banIdLeakReason).orElse(null),
-                row.map(CaseReader.CaseRow::playerSeenSeq).orElse(0L));
+                row.map(CaseReader.CaseRow::playerSeenSeq).orElse(0L), ticketState(punishment.getIdentifier()));
+    }
+
+    @Nullable
+    private CaseDTO.Ticket ticketState(String punishmentIdentifier) {
+        return this.tickets.latestOf(punishmentIdentifier)
+                .map(ticket -> new CaseDTO.Ticket(ticket.state().name(), ticket.frozen(), ticket.freezeSource()))
+                .orElse(null);
     }
 
     /** {@code LIFTED} (revoked or lifted by an appeal), {@code EXPIRED} or {@code ACTIVE}. */

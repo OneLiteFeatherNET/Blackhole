@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.support;
 
+import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
 import net.onelitefeather.blackhole.backend.discord.ticket.DiscordTicket;
 import net.onelitefeather.blackhole.backend.discord.ticket.DiscordTicketStore;
 import net.onelitefeather.blackhole.backend.discord.ticket.Participant;
@@ -30,6 +31,12 @@ public final class FakeTicketStore implements DiscordTicketStore {
     public Tally tally = new Tally(0, 0, 0, 0);
     public List<OutboxItem> outbox = new ArrayList<>();
     public final Map<UUID, Long> acknowledged = new LinkedHashMap<>();
+    /** The staff freezes a store call recorded, in order. */
+    public final List<StaffFreeze> staffFreezes = new ArrayList<>();
+
+    /** A staff lock or unlock that was recorded on the case timeline, with the staff member it names. */
+    public record StaffFreeze(boolean frozen, UUID recordedBy) {
+    }
     private final AtomicLong numbers = new AtomicLong();
 
     @Override
@@ -128,6 +135,19 @@ public final class FakeTicketStore implements DiscordTicketStore {
             return Optional.empty();
         }
         return Optional.of(replace(t, to, t.channelId(), t.guildId(), t.frozen(), t.transcriptCompleteAt(), t.transcriptCount(), t.transcriptLastMessageId()));
+    }
+
+    @Override
+    public Optional<DiscordTicket> latestOf(String punishmentIdentifier) {
+        return this.tickets.values().stream().filter(t -> t.punishmentIdentifier().equals(punishmentIdentifier))
+                .max(java.util.Comparator.comparingLong(DiscordTicket::ticketNo));
+    }
+
+    @Override
+    public Optional<DiscordTicket> setStaffFrozen(UUID id, boolean frozen, long now, CaseActor actor) {
+        Optional<DiscordTicket> changed = setFrozen(id, frozen, frozen ? DiscordTicket.FREEZE_STAFF : null, now);
+        changed.ifPresent(ticket -> this.staffFreezes.add(new StaffFreeze(frozen, actor.recordedByOid())));
+        return changed;
     }
 
     @Override

@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.discord.ticket;
 
 import io.micronaut.core.annotation.Nullable;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageAuthorKind;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageChannel;
 
@@ -129,6 +130,15 @@ public interface DiscordTicketStore {
 
     /** Sets the freeze and its source ({@link DiscordTicket#FREEZE_LEAK}, {@link DiscordTicket#FREEZE_STAFF}, or {@code null} to thaw). */
     Optional<DiscordTicket> setFrozen(UUID id, boolean frozen, @Nullable String freezeSource, long now);
+
+    /**
+     * A staff lock ({@link DiscordTicket#FREEZE_STAFF}) or unlock, and the {@code ticket.frozen} case event, in one statement. Only a
+     * change of the freeze is recorded; the caller checks the state first.
+     */
+    Optional<DiscordTicket> setStaffFrozen(UUID id, boolean frozen, long now, CaseActor actor);
+
+    /** The newest ticket of the punishment, live or not, or empty when the case never had one. */
+    Optional<DiscordTicket> latestOf(String punishmentIdentifier);
 
     /** {@code CLOSED} becomes {@code ARCHIVED} and {@code ticket.archived} is appended, in one statement. Empty when it was not closed. */
     Optional<DiscordTicket> archive(UUID id, int protocolVersion, long now, UUID recordedByOid);

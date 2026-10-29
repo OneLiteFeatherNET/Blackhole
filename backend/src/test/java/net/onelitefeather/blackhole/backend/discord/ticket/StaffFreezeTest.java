@@ -15,6 +15,7 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -76,6 +77,25 @@ class StaffFreezeTest {
 
         assertEquals(new StaffTicketDTO.Response(false, null), result, "unlocked");
         assertNull(this.store.tickets.get(ticket).freezeSource(), "no source once thawed");
+    }
+
+    @Test
+    void aLockIsRecordedAgainstTheStaffMemberWhoMadeIt() {
+        givenTicket(null, false);
+
+        freeze(true);
+
+        assertEquals(List.of(new FakeTicketStore.StaffFreeze(true, MODERATOR)), this.store.staffFreezes,
+                "the case timeline names the moderator, so the lock is an event of the case");
+    }
+
+    @Test
+    void aRepeatedLockRecordsNoSecondEvent() {
+        givenTicket(DiscordTicket.FREEZE_STAFF, true);
+
+        freeze(true);
+
+        assertEquals(List.of(), this.store.staffFreezes, "a no-op writes no timeline event");
     }
 
     @Test
