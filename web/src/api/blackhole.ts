@@ -99,6 +99,10 @@ import type {
   RollbackPreviewRequest,
   RollbackProgress,
   RollbackStarted,
+  AreaBan,
+  AreaBanDraft,
+  GuardLevel,
+  GuardState,
 } from './types'
 
 export interface ApiOptions {
@@ -143,6 +147,16 @@ export interface BlackholeApi {
   /** Each proxy's SignedVelocity state; staff only. Shown as a banner while a proxy lacks the relay. */
   proxyCapabilities(): Promise<ApiResult<ProxyCapabilities>>
   /** Every client rule, enabled or not, with its hit count; any signed-in role may read them. */
+  /** The manual, automatic and effective join guard level; any signed-in role may read it. */
+  joinGuard(): Promise<ApiResult<GuardState>>
+  /** MODERATOR or ADMIN. Lowering a level is not restricted. */
+  setJoinGuardLevel(level: GuardLevel): Promise<ApiResult<GuardState>>
+  /** The area bans in force; with `includeInactive` the lifted and expired ones too, newest first. */
+  areaBans(includeInactive?: boolean): Promise<ApiResult<AreaBan[]>>
+  /** A moderator may ban one ASN for up to seven days; ADMIN only for a country or a permanent ban. */
+  createAreaBan(draft: AreaBanDraft): Promise<ApiResult<AreaBan>>
+  /** A reason is required; the ban stays in the history. */
+  liftAreaBan(identifier: string, reason: string): Promise<ApiResult<AreaBan>>
   clientRules(): Promise<ApiResult<ClientRule[]>>
   /** ADMIN only. */
   createClientRule(draft: ClientRuleDraft): Promise<ApiResult<ClientRule>>
@@ -601,6 +615,30 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       // The backend leaves an empty list out of its JSON.
       return map(result, (capabilities) => ({ proxies: capabilities.proxies ?? [] }))
     },
+
+    joinGuard: () => toResult(http.GET('/guard/state')),
+
+    setJoinGuardLevel: (level) => toResult(http.POST('/guard/level', { body: { level } })),
+
+    async areaBans(includeInactive = false) {
+      const result = await toResult(http.GET('/area-bans', { params: { query: { includeInactive } } }))
+      return map(result, (listed) => listed.bans ?? [])
+    },
+
+    createAreaBan: (draft) =>
+      toResult(
+        http.POST('/area-bans', {
+          body: {
+            kind: draft.kind,
+            value: draft.value.trim(),
+            reason: draft.reason.trim(),
+            ...(draft.durationSeconds === null ? {} : { durationSeconds: draft.durationSeconds }),
+          },
+        }),
+      ),
+
+    liftAreaBan: (identifier, reason) =>
+      toResult(http.POST('/area-bans/{id}/lift', { params: { path: { id: identifier } }, body: { reason: reason.trim() } })),
 
     async clientRules() {
       const result = await toResult(http.GET('/client-rule'))

@@ -27,6 +27,8 @@ async function mountApp(path = '/', options: { roles?: string[]; auth?: ReturnTy
         [API_KEY as symbol]: mockApi({
           proxyCapabilities: async () => ok({ proxies: [] }),
           dashboard: async () => ok({ activePunishmentsBySection: [], latestEscalations: [] }),
+          joinGuard: async () => ok({ manualLevel: 'OFF', automaticLevel: 'OFF', effectiveLevel: 'OFF', updatedAt: 0 }),
+          areaBans: async () => ok([]),
           inbox: async () => ok({ generatedAt: 0, needsAnswer: { count: 0, items: [] }, openAppeals: { count: 0, items: [] }, newReports: { count: 0, items: [] }, unassignedCases: { count: 0, items: [] } }),
           profile: async () => ok({ active: {}, history: [] }),
           eloProfile: async () => ok({ owner: '', sections: [] }),
@@ -204,8 +206,8 @@ describe('App shell', () => {
   it('shows the moderation rail on the inbox for an admin', async () => {
     const wrapper = await mountApp('/')
 
-    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text()), 'headings').toEqual(['Arbeit', 'Spieler'])
-    expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual(['Posteingang', 'Fälle', 'Einsprüche', 'Meldungen', 'Spielersuche', 'Aktive Strafen', 'Ausnahmeliste', 'VPN-Richtlinie'])
+    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text()), 'headings').toEqual(['Arbeit', 'Spieler', 'Schutz'])
+    expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual(['Posteingang', 'Fälle', 'Einsprüche', 'Meldungen', 'Spielersuche', 'Aktive Strafen', 'Ausnahmeliste', 'VPN-Richtlinie', 'Beitrittsschutz', 'Gebietssperren'])
 
     wrapper.unmount()
   })
@@ -236,7 +238,7 @@ describe('App shell', () => {
   it('shows no administration rail to a moderator on the inbox', async () => {
     const wrapper = await mountApp('/', { roles: ['MODERATOR'] })
 
-    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text())).toEqual(['Arbeit', 'Spieler'])
+    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text())).toEqual(['Arbeit', 'Spieler', 'Schutz'])
 
     wrapper.unmount()
   })
@@ -264,7 +266,7 @@ describe('App shell', () => {
     const wrapper = await mountApp('/')
     const toggle = wrapper.get('[data-testid="nav-toggle"]')
     expect(toggle.attributes('aria-label')).toBe('Navigation einklappen')
-    expect(wrapper.findAll('nav [role="group"]'), 'headings while expanded').toHaveLength(2)
+    expect(wrapper.findAll('nav [role="group"]'), 'headings while expanded').toHaveLength(3)
 
     await toggle.trigger('click')
 

@@ -21,7 +21,8 @@
       "configuration": "Configuration",
       "administration": "Administration",
       "review": "Review",
-      "system": "System"
+      "system": "System",
+      "guard": "Protection"
     },
     "brand": "Blackhole",
     "open": "Open navigation",
@@ -41,7 +42,9 @@
     "cloudnet": "CloudNet",
     "kick": "Mass kick",
     "audit": "Audit log",
-    "exemptionReviews": "Exemption reviews"
+    "exemptionReviews": "Exemption reviews",
+    "joinGuard": "Join guard",
+    "areaBans": "Area bans"
   },
   "panel": {
     "close": "Close",
@@ -1904,7 +1907,8 @@
       "selectorInvalid": "This cannot be rolled back. Choose a staff member or an unlinked in-game account.",
       "tooLarge": "Too many punishments match. Narrow the window and preview again."
     },
-    "noStaff": "No staff members are known yet."  },
+    "noStaff": "No staff members are known yet."
+  },
   "exemption": {
     "badge": {
       "linked": "Linked staff",
@@ -1961,5 +1965,95 @@
     },
     "applied": "Review applied.",
     "dismissed": "Review dismissed."
+  },
+  "guard": {
+    "title": "Join guard",
+    "intro": "Decides who may join the network right now. The level in force is the stricter of the manual level and the level the unattended evaluator sets.",
+    "effective": "Level in force",
+    "level": {
+      "OFF": "Off",
+      "STRICT": "Strict",
+      "LOCKDOWN": "Lockdown"
+    },
+    "source": {
+      "manual": "Set manually",
+      "unattended": "Set by the unattended evaluator",
+      "cleared": "No level in force"
+    },
+    "manualLevel": "Manual level",
+    "unattendedLevel": "Unattended level",
+    "updatedAt": "Last change",
+    "set": {
+      "title": "Set the manual level",
+      "hint": "A lower level is not restricted. Every change is recorded.",
+      "open": "Set level"
+    },
+    "saved": "Manual level set to {level}.",
+    "readOnly": "Only moderators and admins can change the level.",
+    "confirm": {
+      "title": "Set the join guard level?",
+      "body": "The manual level becomes {level}.",
+      "confirm": "Set level"
+    },
+    "tile": {
+      "title": "Join guard",
+      "bans": "{n} active area ban | {n} active area bans"
+    }
+  },
+  "areaBans": {
+    "title": "Area bans",
+    "intro": "Autonomous systems (ASN) and countries whose connections are refused when they join.",
+    "kind": {
+      "ASN": "ASN",
+      "COUNTRY": "Country"
+    },
+    "columns": {
+      "kind": "Kind",
+      "value": "Area",
+      "reason": "Reason",
+      "source": "Source",
+      "expires": "Expires",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "expired": "Expired",
+      "lifted": "Lifted"
+    },
+    "permanent": "Permanent",
+    "liftedAt": "Lifted on {when}",
+    "showInactive": "Show lifted and expired bans",
+    "showInactiveHint": "Lifted and expired bans stay in the history.",
+    "empty": "No area bans.",
+    "create": {
+      "open": "New area ban",
+      "title": "New area ban",
+      "intro": "Refuses joins from one autonomous system or one country.",
+      "confirm": "Ban"
+    },
+    "value": {
+      "asn": "ASN",
+      "asnHint": "The number, with or without AS",
+      "country": "Country code",
+      "countryHint": "Two letters, ISO 3166 (for example DE)"
+    },
+    "reasonHint": "Up to {max} characters. Stored with the ban.",
+    "duration": {
+      "label": "Duration",
+      "days": "{n} day | {n} days",
+      "permanent": "Permanent"
+    },
+    "moderatorLimit": "Moderators can ban for up to seven days.",
+    "created": "Area ban created.",
+    "lifted": "Area ban lifted.",
+    "lift": {
+      "open": "Lift",
+      "title": "Lift area ban",
+      "body": "{value} is no longer refused once the ban is lifted. The ban stays in the history.",
+      "reason": "Reason",
+      "reasonHint": "Required",
+      "confirm": "Lift ban"
   }
+}
 }

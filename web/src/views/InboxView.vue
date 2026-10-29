@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { useApi } from '../api/inject'
 import type { InboxItem } from '../api/types'
+import GuardTile from '../components/guard/GuardTile.vue'
 import MdCard from '../components/md/MdCard.vue'
 import MdDataTable from '../components/md/MdDataTable.vue'
 import PageShell from '../components/PageShell.vue'
@@ -47,6 +48,12 @@ const columns = computed(() => [
 
 <template>
   <PageShell :title="t('inbox.title')">
+    <ul class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <li>
+        <GuardTile />
+      </li>
+    </ul>
+
     <ResourceState
       :loading="inbox.loading.value"
       :error="inbox.error.value"

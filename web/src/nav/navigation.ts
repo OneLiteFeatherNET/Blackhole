@@ -7,6 +7,7 @@ import {
   CASES_ICON,
   CLIENT_RULES_ICON,
   INBOX_ICON,
+  LOCK_ICON,
   PLAYERS_ICON,
   PUNISHED_ICON,
   REPORTS_ICON,
@@ -63,6 +64,14 @@ export const MODERATION_GROUPS: NavGroup[] = [
       { to: '/punished', key: 'activePunishments', icon: PUNISHED_ICON },
       { to: '/intel/allow-list', key: 'allowList', icon: CHECK_ICON },
       { to: '/intel/policy', key: 'vpnPolicy', icon: ADMIN_ICON },
+    ],
+  },
+  {
+    key: 'guard',
+    heading: true,
+    items: [
+      { to: '/guard', key: 'joinGuard', icon: LOCK_ICON },
+      { to: '/area-bans', key: 'areaBans', icon: PUNISHED_ICON },
     ],
   },
 ]
