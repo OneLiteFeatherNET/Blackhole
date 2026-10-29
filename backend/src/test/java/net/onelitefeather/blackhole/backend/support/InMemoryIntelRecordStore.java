@@ -13,6 +13,7 @@ import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /** An in-memory {@link IntelRecordStore}. Reads and writes can be made to fail, as a database outage would. */
 public final class InMemoryIntelRecordStore implements IntelRecordStore {
@@ -59,6 +60,28 @@ public final class InMemoryIntelRecordStore implements IntelRecordStore {
     @Override
     public synchronized void saveAllowEntry(IntelAllowEntry entry) {
         this.allowList.put(entry.ownerHash(), entry);
+    }
+
+    @Override
+    public synchronized List<IntelAllowEntry> allowListPage(int limit, int offset) {
+        checkReadable();
+        return this.allowList.values().stream()
+                .sorted(Comparator.comparingLong(IntelAllowEntry::createdAt).reversed()
+                        .thenComparing(IntelAllowEntry::ownerHash))
+                .skip(offset)
+                .limit(limit)
+                .toList();
+    }
+
+    @Override
+    public synchronized Optional<IntelAllowEntry> findAllowEntry(String ownerHash) {
+        checkReadable();
+        return Optional.ofNullable(this.allowList.get(ownerHash));
+    }
+
+    @Override
+    public synchronized boolean deleteAllowEntry(String ownerHash) {
+        return this.allowList.remove(ownerHash) != null;
     }
 
     @Override

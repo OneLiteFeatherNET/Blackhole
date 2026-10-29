@@ -15,6 +15,7 @@ public class IntelListSourceConfig {
     private String url = "";
     private boolean enabled;
     private String attribution = "";
+    private String licence = "";
 
     public IntelListSourceConfig(@Parameter String key) {
         this.key = key;
@@ -54,5 +55,13 @@ public class IntelListSourceConfig {
 
     public void setAttribution(String attribution) {
         this.attribution = attribution;
+    }
+
+    public String getLicence() {
+        return this.licence;
+    }
+
+    public void setLicence(String licence) {
+        this.licence = licence;
     }
 }

@@ -2,9 +2,11 @@ package net.onelitefeather.blackhole.backend.intel.controller;
 
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
+import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
+import io.micronaut.http.annotation.QueryValue;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -13,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.backend.intel.dto.AllowListDTO;
 import net.onelitefeather.blackhole.backend.intel.dto.HitDTO;
+import net.onelitefeather.blackhole.backend.intel.dto.ListStatusDTO;
 import net.onelitefeather.blackhole.backend.intel.dto.PolicyDTO;
 import net.onelitefeather.blackhole.backend.security.Actor;
 
@@ -72,4 +75,52 @@ public interface IntelVpnApi {
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = HitDTO.Error.class)))
     @Get("/players/{owner}/hits")
     HttpResponse<HitDTO> hits(@PathVariable String owner);
+
+    @Operation(
+            summary = "List the VPN and hosting exemptions",
+            description = "The exemptions, newest first, 50 per page by default. Each entry says whether its expiry has passed. "
+                    + "A permanent entry never expires. Holds the owner hash, the reason and the actor only.",
+            operationId = "listIntelAllowList",
+            tags = {"Intel"}
+    )
+    @ApiResponse(responseCode = "200", description = "One page of exemptions",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AllowListDTO.Page.class)))
+    @ApiResponse(responseCode = "400", description = "The page or the size is out of range",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AllowListDTO.Error.class)))
+    @Get("/allow-list")
+    HttpResponse<AllowListDTO> listAllowList(@QueryValue(defaultValue = "0") int page,
+                                             @QueryValue(defaultValue = "50") int size);
+
+    @Operation(
+            summary = "Remove a player's VPN and hosting exemption",
+            description = "Deletes the exemption so that the player is checked against the policy again at once. The removal is "
+                    + "audited with the actor.",
+            operationId = "removeIntelAllowListEntry",
+            tags = {"Intel"}
+    )
+    @ApiResponse(responseCode = "200", description = "The exemption is removed",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AllowListDTO.Removed.class)))
+    @ApiResponse(responseCode = "400", description = "The owner is not a SHA-512 hash",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AllowListDTO.Error.class)))
+    @ApiResponse(responseCode = "403", description = "FORBIDDEN_DURATION: a moderator asked to remove a permanent exemption",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AllowListDTO.Error.class)))
+    @ApiResponse(responseCode = "404", description = "NOT_FOUND: the player has no exemption",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AllowListDTO.Error.class)))
+    @Delete("/allow-list/{owner}")
+    HttpResponse<AllowListDTO> removeAllowListEntry(@PathVariable String owner, @Parameter(hidden = true) Actor actor);
+
+    @Operation(
+            summary = "Read the VPN and hosting list sources and their refresh status",
+            description = "Every configured source with its attribution and licence, last attempt, last success and last error "
+                    + "(shortened, without URL credentials), entry and invalid counts. Status: FAILED when the last refresh "
+                    + "returned an error (the previous list stays in use); FRESH when the last success is at most two refresh "
+                    + "intervals old (12 hours at the default PT6H); otherwise STALE, which includes a source never refreshed. "
+                    + "The hosting ASNs from configuration are listed read-only.",
+            operationId = "listIntelListSources",
+            tags = {"Intel"}
+    )
+    @ApiResponse(responseCode = "200", description = "The sources and the hosting ASNs",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ListStatusDTO.Listing.class)))
+    @Get("/lists")
+    HttpResponse<ListStatusDTO> listSources();
 }

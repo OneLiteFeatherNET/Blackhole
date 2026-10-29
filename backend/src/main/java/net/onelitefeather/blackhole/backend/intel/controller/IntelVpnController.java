@@ -10,9 +10,11 @@ import net.onelitefeather.blackhole.backend.audit.AuditHeaders;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.intel.IntelAllowListService;
 import net.onelitefeather.blackhole.backend.intel.IntelHitService;
+import net.onelitefeather.blackhole.backend.intel.IntelListStatusService;
 import net.onelitefeather.blackhole.backend.intel.IntelPolicyService;
 import net.onelitefeather.blackhole.backend.intel.dto.AllowListDTO;
 import net.onelitefeather.blackhole.backend.intel.dto.HitDTO;
+import net.onelitefeather.blackhole.backend.intel.dto.ListStatusDTO;
 import net.onelitefeather.blackhole.backend.intel.dto.PolicyDTO;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.Roles;
@@ -28,12 +30,15 @@ public class IntelVpnController implements IntelVpnApi {
     private final IntelPolicyService policies;
     private final IntelAllowListService allowList;
     private final IntelHitService hits;
+    private final IntelListStatusService lists;
 
     @Inject
-    public IntelVpnController(IntelPolicyService policies, IntelAllowListService allowList, IntelHitService hits) {
+    public IntelVpnController(IntelPolicyService policies, IntelAllowListService allowList, IntelHitService hits,
+                              IntelListStatusService lists) {
         this.policies = policies;
         this.allowList = allowList;
         this.hits = hits;
+        this.lists = lists;
     }
 
     @Override
@@ -60,6 +65,32 @@ public class IntelVpnController implements IntelVpnApi {
             return AuditHeaders.audited(HttpResponse.<AllowListDTO>status(error.kind().status()).body(error), actor);
         }
         return AuditHeaders.audited(HttpResponse.ok(result), actor);
+    }
+
+    @Override
+    @Secured(Roles.VIEWER)
+    public HttpResponse<AllowListDTO> listAllowList(int page, int size) {
+        AllowListDTO result = this.allowList.list(page, size);
+        if (result instanceof AllowListDTO.Error error) {
+            return HttpResponse.<AllowListDTO>status(error.kind().status()).body(error);
+        }
+        return HttpResponse.ok(result);
+    }
+
+    @Override
+    @Secured(Roles.MODERATOR)
+    public HttpResponse<AllowListDTO> removeAllowListEntry(String owner, Actor actor) {
+        AllowListDTO result = this.allowList.remove(owner, actor);
+        if (result instanceof AllowListDTO.Error error) {
+            return AuditHeaders.audited(HttpResponse.<AllowListDTO>status(error.kind().status()).body(error), actor);
+        }
+        return AuditHeaders.audited(HttpResponse.ok(result), actor);
+    }
+
+    @Override
+    @Secured(Roles.VIEWER)
+    public HttpResponse<ListStatusDTO> listSources() {
+        return HttpResponse.ok(this.lists.listing());
     }
 
     /** VIEWER and above: the panel's read. The proxy is refused. */

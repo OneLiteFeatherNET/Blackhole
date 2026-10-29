@@ -1,6 +1,7 @@
 package net.onelitefeather.blackhole.backend.intel;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Map;
 
 /**
@@ -20,6 +21,15 @@ public interface IntelRecordStore {
 
     /** Stores an allow-list entry, replacing the entry of the same owner. */
     void saveAllowEntry(IntelAllowEntry entry);
+
+    /** @return one page of the allow-list, newest first, expired entries included */
+    List<IntelAllowEntry> allowListPage(int limit, int offset);
+
+    /** @return the allow-list entry of this owner, if there is one */
+    Optional<IntelAllowEntry> findAllowEntry(String ownerHash);
+
+    /** @return whether an entry of this owner existed and was deleted */
+    boolean deleteAllowEntry(String ownerHash);
 
     /** Stores one hit. */
     void insertHit(IntelHit hit);
