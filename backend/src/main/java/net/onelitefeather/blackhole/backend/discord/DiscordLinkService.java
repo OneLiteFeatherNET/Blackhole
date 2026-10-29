@@ -4,6 +4,9 @@ import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.discord.dto.DiscordLinkDTO;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.ActorKind;
 import net.onelitefeather.blackhole.backend.security.StaffActorEntity;
@@ -60,6 +63,7 @@ public class DiscordLinkService {
     private final DomainEventPublisher events;
     private final DiscordLinkProperties properties;
     private final Clock clock;
+    private final StaffAuditRecorder audit;
 
     public DiscordLinkService(
             DiscordLinkRepository links,
@@ -68,8 +72,10 @@ public class DiscordLinkService {
             StaffLinkCodeGenerator generator,
             DomainEventPublisher events,
             DiscordLinkProperties properties,
-            Clock clock
+            Clock clock,
+            StaffAuditRecorder audit
     ) {
+        this.audit = audit;
         this.links = links;
         this.codes = codes;
         this.actors = actors;
@@ -246,12 +252,14 @@ public class DiscordLinkService {
     }
 
     /** Removes one link on an admin's say-so. */
-    public DiscordLinkDTO adminRemove(UUID id) {
+    public DiscordLinkDTO adminRemove(UUID id, Actor admin) {
         Optional<DiscordLinkEntity> link = this.links.findById(id);
         if (link.isEmpty()) {
             return new DiscordLinkDTO.Error("there is no Discord link " + id, ErrorKind.NOT_FOUND);
         }
         remove(link.get(), RemovalReason.ADMIN);
+        // The link is named by nothing: a Discord user id is not written to the audit log.
+        this.audit.record(admin.attribution(), admin, AuditAction.DISCORD_LINK_REMOVE, AuditTarget.none());
         return new DiscordLinkDTO.RemovedResponse(1);
     }
 

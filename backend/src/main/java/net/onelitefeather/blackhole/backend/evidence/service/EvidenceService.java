@@ -2,6 +2,11 @@ package net.onelitefeather.blackhole.backend.evidence.service;
 
 import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseTimeline;
+import io.micronaut.core.annotation.Nullable;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentShortId;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.Attribution;
 import net.onelitefeather.blackhole.backend.security.StaffLinkService;
@@ -88,6 +93,7 @@ public class EvidenceService implements PunishmentEvidenceGateway {
     private final CaseTimeline caseTimeline;
     private final TranscriptAccess transcripts;
     private final Clock clock;
+    private final StaffAuditRecorder staffAudit;
     private final Path spoolDirectory;
 
     /**
@@ -105,8 +111,10 @@ public class EvidenceService implements PunishmentEvidenceGateway {
             CaseTimeline caseTimeline,
             TranscriptAccess transcripts,
             Clock clock,
-            @Value("${java.io.tmpdir}") Path spoolDirectory
+            @Value("${java.io.tmpdir}") Path spoolDirectory,
+            StaffAuditRecorder staffAudit
     ) {
+        this.staffAudit = staffAudit;
         this.items = items;
         this.audit = audit;
         this.punishments = punishments;
@@ -161,7 +169,9 @@ public class EvidenceService implements PunishmentEvidenceGateway {
         }
         EvidenceItemEntity item = newItem(target, request.kind(), request.sourceSystem(), request.capturedAt(), attribution);
         item.setContent(validated.reference(), validated.payload());
-        return attached(this.items.save(item), attribution);
+        EvidenceDTO result = attached(this.items.save(item), attribution);
+        recordAudit(attribution, actor, AuditAction.EVIDENCE_ATTACH, target.punishmentIdentifier(), target.owner());
+        return result;
     }
 
     /**
@@ -222,7 +232,9 @@ public class EvidenceService implements PunishmentEvidenceGateway {
             item.setFile(key, accepted.displayName(), accepted.contentType(), accepted.size(), accepted.sha256());
             item.setContent(null, description);
             try {
-                return attached(this.items.save(item), attribution);
+                EvidenceDTO result = attached(this.items.save(item), attribution);
+                recordAudit(attribution, actor, AuditAction.EVIDENCE_ATTACH, target.punishmentIdentifier(), target.owner());
+                return result;
             } catch (RuntimeException saveFailed) {
                 deleteQuietly(key);
                 throw saveFailed;
@@ -374,7 +386,11 @@ public class EvidenceService implements PunishmentEvidenceGateway {
             return notFound(identifier);
         }
         EvidenceDTO.Error failure = remove(item, deletion.reason(), EvidenceDeletionReason.MANUAL, note, actor.attribution());
-        return failure != null ? failure : new EvidenceDTO.DeleteResponse(1);
+        if (failure != null) {
+            return failure;
+        }
+        recordAudit(actor.attribution(), actor, AuditAction.EVIDENCE_DELETE, item.getPunishmentIdentifier(), item.getOwner());
+        return new EvidenceDTO.DeleteResponse(1);
     }
 
     /**
@@ -397,7 +413,16 @@ public class EvidenceService implements PunishmentEvidenceGateway {
             }
             deleted++;
         }
+        recordAudit(actor.attribution(), actor, AuditAction.EVIDENCE_DELETE, null, owner);
         return new EvidenceDTO.DeleteResponse(deleted);
+    }
+
+    /** Records one evidence write after it has succeeded: the case by its short id, else the owner hash, else nothing. */
+    private void recordAudit(Attribution attribution, Actor actor, AuditAction action, @Nullable String punishmentIdentifier,
+                             @Nullable String owner) {
+        AuditTarget target = punishmentIdentifier != null ? AuditTarget.ofCase(PunishmentShortId.storageKey(punishmentIdentifier))
+                : owner != null ? AuditTarget.ofPlayer(owner) : AuditTarget.none();
+        this.staffAudit.record(attribution, actor, action, target);
     }
 
     /**

@@ -1,6 +1,12 @@
 package net.onelitefeather.blackhole.backend.dashboard;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import net.onelitefeather.blackhole.backend.audit.AuditPayloadGuard;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.cache.InMemorySharedCache;
+import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.support.InMemoryStaffAuditStore;
+import net.onelitefeather.blackhole.backend.support.RecordingEventTransport;
 import net.onelitefeather.blackhole.backend.section.EnforcementKind;
 import net.onelitefeather.blackhole.backend.section.SectionCache;
 import net.onelitefeather.blackhole.backend.section.SectionEntity;
@@ -67,7 +73,9 @@ class DashboardServiceTest {
             InMemoryRepository.<SectionRepository, SectionEntity, String>of(SectionRepository.class, SectionEntity::getSectionKey).build();
     private final SectionService sectionService = new SectionService(
             sections.repository(), new SectionCache(new InMemorySharedCache(), Duration.ofMinutes(5)),
-            new RecordingEventPublisher(), key -> { });
+            new RecordingEventPublisher(), key -> { },
+            new StaffAuditRecorder(new InMemoryStaffAuditStore(), new DomainEventPublisher(new RecordingEventTransport(), clock),
+                    new AuditPayloadGuard(), clock, new SimpleMeterRegistry()));
     private final DashboardService service = new DashboardService(source, sectionService, clock);
 
     private void givenSection(String key) {

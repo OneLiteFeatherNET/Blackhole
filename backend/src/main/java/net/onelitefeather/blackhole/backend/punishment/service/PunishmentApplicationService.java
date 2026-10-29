@@ -287,7 +287,12 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         if (planned.error() != null) {
             return planned.error();
         }
-        return execute(request, planned.plan(), Map.of(), false);
+        PunishmentDTO result = execute(request, planned.plan(), Map.of(), false);
+        if (result instanceof PunishmentDTO.ApplyResponse applied) {
+            this.audit.record(planned.plan().attribution(), actor, AuditAction.PUNISHMENT_APPLY,
+                    AuditTarget.ofCase(PunishmentShortId.storageKey(applied.punishment().identifier())));
+        }
+        return result;
     }
 
     /**
@@ -618,7 +623,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
 
         SectionDTO.Response section = this.sectionService.find(request.section()).orElse(null);
         this.eventPublisher.publish("punishment.revoked", PunishmentEvents.revoked(active, section, attribution.source().toString(), attribution.recordedByOid()));
-        this.audit.record(attribution, actor, AuditAction.PUNISHMENT_REVOKE, AuditTarget.ofCase(PunishmentShortId.display(active.getShortId())));
+        this.audit.record(attribution, actor, AuditAction.PUNISHMENT_REVOKE, AuditTarget.ofCase(active.getShortId()));
 
         return new PunishmentDTO.RevokeResponse(withEvidenceCount(active), request.section(), scoreReset);
     }

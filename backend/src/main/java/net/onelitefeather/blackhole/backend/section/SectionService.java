@@ -1,8 +1,12 @@
 package net.onelitefeather.blackhole.backend.section;
 
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
+import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.section.dto.SectionDTO;
 
 import java.util.List;
@@ -22,13 +26,16 @@ public class SectionService {
     private final SectionCache cache;
     private final DomainEventPublisher eventPublisher;
     private final SectionChangeNotifier notifier;
+    private final StaffAuditRecorder audit;
 
     public SectionService(
             SectionRepository repository,
             SectionCache cache,
             DomainEventPublisher eventPublisher,
-            SectionChangeNotifier notifier
+            SectionChangeNotifier notifier,
+            StaffAuditRecorder audit
     ) {
+        this.audit = audit;
         this.repository = repository;
         this.cache = cache;
         this.eventPublisher = eventPublisher;
@@ -86,6 +93,33 @@ public class SectionService {
         }
         entity.setEnabled(false);
         return changed(this.repository.update(entity), "DISABLED");
+    }
+
+    /** {@link #create(SectionDTO.CreateRequest)} by a verified staff member; a stored section is audited. */
+    public SectionDTO create(SectionDTO.CreateRequest request, Actor actor) {
+        SectionDTO result = create(request);
+        if (result instanceof SectionDTO.Response) {
+            this.audit.record(actor.attribution(), actor, AuditAction.SECTION_CREATE, AuditTarget.ofSection(request.key()));
+        }
+        return result;
+    }
+
+    /** {@link #update(SectionDTO.UpdateRequest)} by a verified staff member; a stored section is audited. */
+    public SectionDTO update(SectionDTO.UpdateRequest request, Actor actor) {
+        SectionDTO result = update(request);
+        if (result instanceof SectionDTO.Response) {
+            this.audit.record(actor.attribution(), actor, AuditAction.SECTION_UPDATE, AuditTarget.ofSection(request.key()));
+        }
+        return result;
+    }
+
+    /** {@link #disable(String)} by a verified staff member; a disabled section is audited. */
+    public SectionDTO disable(String key, Actor actor) {
+        SectionDTO result = disable(key);
+        if (result instanceof SectionDTO.Response) {
+            this.audit.record(actor.attribution(), actor, AuditAction.SECTION_DISABLE, AuditTarget.ofSection(key));
+        }
+        return result;
     }
 
     /**

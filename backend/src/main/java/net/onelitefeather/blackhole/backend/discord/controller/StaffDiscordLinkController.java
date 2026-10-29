@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.backend.discord.controller;
 
 import io.micronaut.core.version.annotation.Version;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.security.annotation.Secured;
 import jakarta.inject.Inject;
@@ -43,7 +44,7 @@ public class StaffDiscordLinkController implements DiscordLinkApi.Staff {
         return respond(this.service.unlinkStaff(actor));
     }
 
-    static HttpResponse<DiscordLinkDTO> respond(DiscordLinkDTO result) {
+    static MutableHttpResponse<DiscordLinkDTO> respond(DiscordLinkDTO result) {
         if (result instanceof DiscordLinkDTO.Error error) {
             return HttpResponse.<DiscordLinkDTO>status(error.kind().status()).body(error);
         }

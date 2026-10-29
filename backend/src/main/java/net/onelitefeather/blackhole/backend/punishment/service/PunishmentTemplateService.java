@@ -3,6 +3,9 @@ package net.onelitefeather.blackhole.backend.punishment.service;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.clientrule.ClientRuleUsage;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateCache;
@@ -13,6 +16,7 @@ import net.onelitefeather.blackhole.backend.punishment.TemplateStep;
 import net.onelitefeather.blackhole.backend.punishment.TemplateValidator;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishTemplateDTO;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
+import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.section.SectionService;
 
 import java.util.HashMap;
@@ -34,19 +38,53 @@ public class PunishmentTemplateService {
     private final PunishmentTemplateCache templateCache;
     private final SectionService sectionService;
     private final ClientRuleUsage clientRuleUsage;
+    private final StaffAuditRecorder audit;
 
     public PunishmentTemplateService(
             PunishmentTemplateRepository templateRepository,
             PunishmentRepository punishmentRepository,
             PunishmentTemplateCache templateCache,
             SectionService sectionService,
-            ClientRuleUsage clientRuleUsage
+            ClientRuleUsage clientRuleUsage,
+            StaffAuditRecorder audit
     ) {
+        this.audit = audit;
         this.templateRepository = templateRepository;
         this.punishmentRepository = punishmentRepository;
         this.templateCache = templateCache;
         this.sectionService = sectionService;
         this.clientRuleUsage = clientRuleUsage;
+    }
+
+    /** {@link #create(PunishTemplateDTO.CreateRequest)} by a verified staff member; a stored template is audited. */
+    public PunishTemplateDTO create(PunishTemplateDTO.CreateRequest request, Actor actor) {
+        PunishTemplateDTO result = create(request);
+        if (result instanceof PunishTemplateDTO.Response stored) {
+            recordAudit(actor, AuditAction.TEMPLATE_CREATE, stored.key());
+        }
+        return result;
+    }
+
+    /** {@link #update(PunishTemplateDTO.UpdateRequest)} by a verified staff member; a stored template is audited. */
+    public PunishTemplateDTO update(PunishTemplateDTO.UpdateRequest request, Actor actor) {
+        PunishTemplateDTO result = update(request);
+        if (result instanceof PunishTemplateDTO.Response stored) {
+            recordAudit(actor, AuditAction.TEMPLATE_UPDATE, stored.key());
+        }
+        return result;
+    }
+
+    /** {@link #remove(UUID)} by a verified staff member; a removed template is audited. */
+    public PunishTemplateDTO remove(UUID identifier, Actor actor) {
+        PunishTemplateDTO result = remove(identifier);
+        if (result instanceof PunishTemplateDTO.Response removed) {
+            recordAudit(actor, AuditAction.TEMPLATE_REMOVE, removed.key());
+        }
+        return result;
+    }
+
+    private void recordAudit(Actor actor, AuditAction action, String key) {
+        this.audit.record(actor.attribution(), actor, action, AuditTarget.ofTemplate(key));
     }
 
     /**

@@ -54,7 +54,7 @@ class ReportServiceTest {
     private final ReportFeedbackService feedback = new ReportFeedbackService(
             feedbackStore.repository(), poked::add, events, bed.eloBed.clock, Duration.ofDays(14));
     private final ReportService service = new ReportService(
-            reports.repository(), feedback, bed.evidence, events, bed.punishmentService, scoring, mapping, bed.eloBed.clock, 5, 50, Duration.ofMinutes(10), -100, 50);
+            reports.repository(), feedback, bed.evidence, events, bed.punishmentService, scoring, mapping, bed.eloBed.clock, 5, 50, Duration.ofMinutes(10), -100, 50, bed.audit);
 
     private UUID givenReport(ReportCategory category) {
         UUID id = UUID.randomUUID();
@@ -283,7 +283,7 @@ class ReportServiceTest {
         ReportService broken = new ReportService(reports.repository(),
                 new ReportFeedbackService(feedbackStore.repository(), owner -> { throw new IllegalStateException("redis down"); },
                         events, bed.eloBed.clock, Duration.ofDays(14)),
-                bed.evidence, events, bed.punishmentService, scoring, mapping, bed.eloBed.clock, 5, 50, Duration.ofMinutes(10), -100, 50);
+                bed.evidence, events, bed.punishmentService, scoring, mapping, bed.eloBed.clock, 5, 50, Duration.ofMinutes(10), -100, 50, bed.audit);
 
         assertInstanceOf(ReportService.ResolveResult.Success.class,
                 broken.resolve(id, new ReportResolutionDTO(ReportStatus.DISMISSED, "note", null), MODERATOR));

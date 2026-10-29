@@ -1,7 +1,14 @@
 package net.onelitefeather.blackhole.backend.section;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import net.onelitefeather.blackhole.backend.audit.AuditPayloadGuard;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.cache.CacheKeys;
 import net.onelitefeather.blackhole.backend.cache.InMemorySharedCache;
+import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.support.InMemoryStaffAuditStore;
+import net.onelitefeather.blackhole.backend.support.RecordingEventTransport;
+import net.onelitefeather.blackhole.backend.support.TestClock;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.section.dto.SectionDTO;
 import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
@@ -9,8 +16,13 @@ import net.onelitefeather.blackhole.backend.support.RecordingEventPublisher;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditEntry;
+import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.security.ActorKind;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -25,7 +37,24 @@ class SectionServiceTest {
             InMemoryRepository.<SectionRepository, SectionEntity, String>of(SectionRepository.class, SectionEntity::getSectionKey).build();
     private final RecordingEventPublisher events = new RecordingEventPublisher();
     private final List<String> notified = new ArrayList<>();
-    private final SectionService service = new SectionService(repository.repository(), sectionCache, events, notified::add);
+    private final InMemoryStaffAuditStore auditStore = new InMemoryStaffAuditStore();
+    private final SectionService service = new SectionService(repository.repository(), sectionCache, events, notified::add,
+            new StaffAuditRecorder(this.auditStore, new DomainEventPublisher(new RecordingEventTransport(), new TestClock()),
+                    new AuditPayloadGuard(), new TestClock(), new SimpleMeterRegistry()));
+
+    @Test
+    void aStaffDisableRecordsOneSectionDisableEntryNamedByKey() {
+        service.create(pvp());
+        Actor admin = new Actor(UUID.fromString("00000000-0000-0000-0000-0000000000a2"), "Admin", ActorKind.HUMAN, false, true);
+
+        service.disable("pvp", admin);
+
+        assertEquals(1, this.auditStore.rows().size(), "exactly one audit entry for the disable");
+        StaffAuditEntry row = this.auditStore.rows().getFirst();
+        assertEquals("section.disable", row.action());
+        assertEquals("SECTION", row.targetKind());
+        assertEquals("pvp", row.targetRef());
+    }
 
     private static SectionDTO.CreateRequest pvp() {
         return new SectionDTO.CreateRequest("pvp", "PvP", EnforcementKind.BAN, null, null, 1000, 700, "P3D", 300, 700, "banned", null);

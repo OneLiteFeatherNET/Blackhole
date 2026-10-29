@@ -17,6 +17,9 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEvents;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateEntity;
@@ -79,6 +82,7 @@ public class VanillaImportService {
     private final ImportTemplateResolver templateResolver;
     private final CaseTimeline caseTimeline;
     private final Clock clock;
+    private final StaffAuditRecorder audit;
 
     public VanillaImportService(
             JsonMapper jsonMapper,
@@ -88,8 +92,10 @@ public class VanillaImportService {
             ProfileCache profileCache,
             ImportTemplateResolver templateResolver,
             CaseTimeline caseTimeline,
-            Clock clock
+            Clock clock,
+            StaffAuditRecorder audit
     ) {
+        this.audit = audit;
         this.jsonMapper = jsonMapper;
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
@@ -245,6 +251,9 @@ public class VanillaImportService {
         List<VanillaImportDTO.ReasonGroup> reasonGroups = groups.entrySet().stream()
                 .map(group -> new VanillaImportDTO.ReasonGroup(group.getKey().get(0), group.getKey().get(1), group.getValue()))
                 .toList();
+        if (!dryRun) {
+            this.audit.record(actor.attribution(), actor, AuditAction.IMPORT_VANILLA, AuditTarget.none());
+        }
         return new VanillaImportDTO.Result(dryRun, entries.size(), imported, skippedExisting, invalid, invalidEntries, ipsTotal, ipsTotal, reasonGroups);
     }
 

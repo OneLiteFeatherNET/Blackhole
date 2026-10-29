@@ -39,7 +39,7 @@ class AppealDecisionServiceTest {
             InMemoryRepository.<AppealRepository, AppealEntity, UUID>of(AppealRepository.class, AppealEntity::getIdentifier).build();
     private final AppealDecisionService service = new AppealDecisionService(
             appeals.repository(), bed.punishments.repository(), bed.profiles.repository(), bed.slots, bed.profileCache,
-            bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.evidence, bed.staffLinks.service, bed.cases.timeline, bed.banIds.service, new net.onelitefeather.blackhole.backend.support.RecordingProtocols(), bed.staffLinks.profileService, bed.eloBed.clock);
+            bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.evidence, bed.staffLinks.service, bed.cases.timeline, bed.banIds.service, new net.onelitefeather.blackhole.backend.support.RecordingProtocols(), bed.staffLinks.profileService, bed.eloBed.clock, bed.audit);
 
     /** A staff mute that cost 80 ELO; the chat score is 920 afterwards. */
     private PunishmentEntity givenStaffMute() {

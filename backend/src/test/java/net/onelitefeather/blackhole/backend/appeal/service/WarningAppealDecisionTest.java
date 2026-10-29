@@ -42,7 +42,7 @@ class WarningAppealDecisionTest {
     private final AppealDecisionService service = new AppealDecisionService(
             appeals.repository(), bed.punishments.repository(), bed.profiles.repository(), bed.slots, bed.profileCache,
             bed.elo, bed.eloBed.sections, bed.eloBed.events, bed.evidence, bed.staffLinks.service, bed.cases.timeline,
-            bed.banIds.service, new RecordingProtocols(), bed.staffLinks.profileService, bed.eloBed.clock);
+            bed.banIds.service, new RecordingProtocols(), bed.staffLinks.profileService, bed.eloBed.clock, bed.audit);
 
     /** A warning step that costs {@link #COST} ELO; the chat score is 995 afterwards. */
     private PunishmentEntity givenWarning() {

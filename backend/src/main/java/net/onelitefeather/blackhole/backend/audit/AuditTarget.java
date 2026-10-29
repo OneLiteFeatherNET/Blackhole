@@ -6,7 +6,8 @@ import io.micronaut.core.annotation.Nullable;
  * What a staff action was about. A case is named by its short id, a player by its owner hash, a section or
  * server by its key. Never a Ban ID, an IP address or a raw UUID.
  *
- * @param kind the target kind, one of {@code CASE}, {@code PLAYER}, {@code SECTION}, {@code SERVER}, {@code NONE}
+ * @param kind the target kind, one of {@code CASE}, {@code PLAYER}, {@code SECTION}, {@code SERVER}, {@code CLIENT_RULE},
+ *             {@code TEMPLATE}, {@code NONE}
  * @param ref  the case short id, owner hash, section key or server name
  */
 public record AuditTarget(String kind, @Nullable String ref) {
@@ -27,6 +28,14 @@ public record AuditTarget(String kind, @Nullable String ref) {
         return new AuditTarget("SERVER", name);
     }
 
+    public static AuditTarget ofClientRule(String key) {
+        return new AuditTarget("CLIENT_RULE", key);
+    }
+
+    public static AuditTarget ofTemplate(String key) {
+        return new AuditTarget("TEMPLATE", key);
+    }
+
     public static AuditTarget none() {
         return new AuditTarget("NONE", null);
     }
@@ -43,6 +52,7 @@ public record AuditTarget(String kind, @Nullable String ref) {
         return switch (kind) {
             case "CASE" -> "/cases/" + ref;
             case "PLAYER" -> "/players/" + ref;
+            case "CLIENT_RULE" -> "/client-rules";
             default -> null;
         };
     }

@@ -1,5 +1,8 @@
 package net.onelitefeather.blackhole.backend.appeal.service;
 
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.Attribution;
 import net.onelitefeather.blackhole.backend.security.StaffLinkService;
@@ -82,6 +85,7 @@ public class AppealDecisionService {
     private final AppealProtocolGenerator protocols;
     private final StaffProfileService staffProfiles;
     private final Clock clock;
+    private final StaffAuditRecorder audit;
 
     public AppealDecisionService(
             AppealRepository appealRepository,
@@ -98,8 +102,10 @@ public class AppealDecisionService {
             BanIdService banIds,
             AppealProtocolGenerator protocols,
             StaffProfileService staffProfiles,
-            Clock clock
+            Clock clock,
+            StaffAuditRecorder audit
     ) {
+        this.audit = audit;
         this.staffProfiles = staffProfiles;
         this.appealRepository = appealRepository;
         this.punishmentRepository = punishmentRepository;
@@ -195,6 +201,7 @@ public class AppealDecisionService {
         AppealEntity saved = this.appealRepository.update(appeal);
         recordDecision(saved, punishment, review, reviewer);
         publishResolved(appealIdentifier, saved, punishment, review);
+        this.audit.record(reviewer.attribution(), reviewer, AuditAction.APPEAL_REVIEW, AuditTarget.ofCase(punishment.getShortId()));
 
         return AppealReviewResult.decided(saved);
     }

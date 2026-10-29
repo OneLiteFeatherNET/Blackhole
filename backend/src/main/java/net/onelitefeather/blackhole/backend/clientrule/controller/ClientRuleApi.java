@@ -65,7 +65,7 @@ public interface ClientRuleApi {
     @ApiResponse(responseCode = "404", description = "Rule not found",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ClientRuleDTO.Error.class)))
     @Delete("/{key}")
-    HttpResponse<ClientRuleDTO> delete(@PathVariable String key);
+    HttpResponse<ClientRuleDTO> delete(@PathVariable String key, @Parameter(hidden = true) Actor actor);
 
     @Operation(
             summary = "List client rules",
