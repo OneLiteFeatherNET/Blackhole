@@ -187,6 +187,8 @@ export interface TemplateDraft {
   escalationWindow: string | null
   /** ISO-8601; warnings older than it stop counting towards escalation. Null: the escalation window applies. */
   warnWindow?: string | null
+  /** Shown on the public ban list for punishments from this template; only ADMIN may set it. */
+  publicReason?: string | null
   steps: TemplateStep[]
 }
 

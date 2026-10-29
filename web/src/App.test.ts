@@ -30,6 +30,7 @@ async function mountApp(path = '/', options: { roles?: string[]; auth?: ReturnTy
           inbox: async () => ok({ generatedAt: 0, needsAnswer: { count: 0, items: [] }, openAppeals: { count: 0, items: [] }, newReports: { count: 0, items: [] }, unassignedCases: { count: 0, items: [] } }),
           profile: async () => ok({ active: {}, history: [] }),
           eloProfile: async () => ok({ owner: '', sections: [] }),
+          playerSessions: async () => ok({ sessions: [], page: 0, size: 50, hasMore: false }),
           eloHistory: async () => ok([]),
           evasionSightings: async () => ok({ detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false }),
           clientRuleHitsOfOwner: async () => ok([]),

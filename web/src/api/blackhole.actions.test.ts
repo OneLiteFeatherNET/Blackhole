@@ -21,6 +21,22 @@ describe('staff actions', () => {
     expect(JSON.parse(calls[0]!.body)).toEqual({ owner: OWNER, templateKey: 'hacking' })
   })
 
+  it('sends the player uuid with the apply when the panel knows it', async () => {
+    const { api, calls } = apiWith([{ body: { step: 1, stepCount: 3 } }])
+
+    await api.applyTemplate(OWNER, 'hacking', '123e4567-e89b-12d3-a456-426614174000')
+
+    expect(JSON.parse(calls[0]!.body)).toEqual({ owner: OWNER, templateKey: 'hacking', playerUuid: '123e4567-e89b-12d3-a456-426614174000' })
+  })
+
+  it('omits the player uuid when the panel does not know it', async () => {
+    const { api, calls } = apiWith([{ body: { step: 1, stepCount: 3 } }])
+
+    await api.applyTemplate(OWNER, 'hacking', null)
+
+    expect(JSON.parse(calls[0]!.body)).not.toHaveProperty('playerUuid')
+  })
+
   it('previews through its own endpoint so nothing is applied', async () => {
     const preview = { step: 2, stepCount: 3, scoreAfter: 750, escalatesToPermanent: false }
     const { api, calls } = apiWith([{ body: preview }])
@@ -129,8 +145,19 @@ describe('template management', () => {
       escalationGroup: null,
       escalationWindow: 'P30D',
       warnWindow: 'P7D',
+      publicReason: null,
       steps: [{ kind: 'PUNISH', duration: 'P1D', eloCost: 100 }],
     })
+  })
+
+  it('sends the public reason trimmed, and null when it is blank', async () => {
+    const { api, calls } = apiWith([{ body: { key: 'hacking' } }, { body: { key: 'hacking' } }])
+
+    await api.createTemplate({ ...draft, publicReason: '  Cheating is not tolerated  ' })
+    await api.createTemplate({ ...draft, publicReason: '   ' })
+
+    expect(JSON.parse(calls[0]!.body).publicReason).toBe('Cheating is not tolerated')
+    expect(JSON.parse(calls[1]!.body).publicReason).toBeNull()
   })
 
   it('sends a warning step with its kind and no duration', async () => {

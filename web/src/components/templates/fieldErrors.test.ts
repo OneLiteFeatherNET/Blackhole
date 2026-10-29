@@ -23,6 +23,12 @@ describe('templateFieldErrors', () => {
     expect(templateFieldErrors("there is no section with key 'ghost'").fields).toHaveProperty('section')
   })
 
+  it('maps a refused public reason to its own field', () => {
+    expect(templateFieldErrors('publicReason must not contain a UUID').fields).toEqual({
+      publicReason: 'publicReason must not contain a UUID',
+    })
+  })
+
   it('maps the step count rules to the step list', () => {
     expect(templateFieldErrors('a template needs at least one step; permanent templates do not exist').fields).toHaveProperty('steps')
   })

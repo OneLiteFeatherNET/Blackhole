@@ -13,7 +13,7 @@ import MdSelect from '../md/MdSelect.vue'
 // With `report` the dialog resolves that report as actioned with the chosen template (one call to the
 // resolve route, which applies the template and links it to the report) instead of applying it alone,
 // and offers the templates whose section fits the report's category first.
-const props = defineProps<{ open: boolean; owner: string; report?: Report }>()
+const props = defineProps<{ open: boolean; owner: string; playerUuid?: string | null; report?: Report }>()
 const emit = defineEmits<{ close: []; done: [message: string] }>()
 
 const { t, locale } = useI18n()
@@ -97,7 +97,7 @@ async function confirm(): Promise<void> {
     emit('done', t('reports.detail.actioned', { section: preview.value.section }))
     return
   }
-  const result = await api.applyTemplate(props.owner, selected.value)
+  const result = await api.applyTemplate(props.owner, selected.value, props.playerUuid ?? null)
   applying.value = false
   if (!result.ok) {
     error.value = result.error.message

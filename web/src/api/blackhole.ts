@@ -152,7 +152,8 @@ export interface BlackholeApi {
   reviewAppeal(identifier: string, decision: AppealDecision): Promise<ApiResult<Appeal>>
   /** What applying the template would do right now; changes nothing. */
   previewApply(owner: string, templateKey: string): Promise<ApiResult<ApplyPreview>>
-  applyTemplate(owner: string, templateKey: string): Promise<ApiResult<ApplyResult>>
+  /** `playerUuid` is sent only when the caller knows the player's UUID; the public ban list needs it. */
+  applyTemplate(owner: string, templateKey: string, playerUuid?: string | null): Promise<ApiResult<ApplyResult>>
   revoke(owner: string, section: string): Promise<ApiResult<RevokeResult>>
   /** Takes one player off the network, a server or a section. The answer is immediate; poll {@link kick} for the outcome. A repeated key answers the same kick. */
   kickPlayer(request: KickRequest, idempotencyKey: string): Promise<ApiResult<KickAccepted>>
@@ -397,6 +398,7 @@ function templateBody(draft: TemplateDraft) {
     escalationGroup: draft.escalationGroup?.trim() || null,
     escalationWindow: draft.escalationWindow?.trim() || null,
     warnWindow: draft.warnWindow?.trim() || null,
+    publicReason: draft.publicReason?.trim() || null,
     // Only a punishment step has a duration; a kick and a warning are moments, so they are sent without one.
     steps: draft.steps.map((step) => {
       const kind = step.kind ?? 'PUNISH'
@@ -649,8 +651,8 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     previewApply: (owner, templateKey) =>
       toResult(http.POST('/punishment/preview', { body: { owner, templateKey } })),
 
-    applyTemplate: (owner, templateKey) =>
-      toResult(http.POST('/punishment/apply', { body: { owner, templateKey } })),
+    applyTemplate: (owner, templateKey, playerUuid) =>
+      toResult(http.POST('/punishment/apply', { body: { owner, templateKey, ...(playerUuid ? { playerUuid } : {}) } })),
 
     revoke: (owner, section) =>
       toResult(http.POST('/punishment/revoke', { body: { owner, section } })),

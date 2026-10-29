@@ -18,6 +18,7 @@ const TEMPLATE_RULES: Rule[] = [
   { pattern: /^key /, field: () => 'key' },
   { pattern: /^a template with key /, field: () => 'key' },
   { pattern: /^reason /, field: () => 'reason' },
+  { pattern: /^publicReason /, field: () => 'publicReason' },
   { pattern: /^section |^there is no section /, field: () => 'section' },
   { pattern: /^escalationGroup /, field: () => 'escalationGroup' },
   { pattern: /^escalationWindow /, field: () => 'escalationWindow' },
