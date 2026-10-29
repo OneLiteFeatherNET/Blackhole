@@ -464,6 +464,11 @@ blackhole:
       zone: ${BLACKHOLE_GUARD_UNATTENDED_ZONE:Europe/Berlin}   # the zone the night window is read in
     presence:
       ttl: ${BLACKHOLE_GUARD_PRESENCE_TTL:PT5M}   # a proxy heartbeat older than this no longer counts as staff on the proxy
+    # How often each replica reloads its in-memory area bans, guard level and known or staff owners. A write made on
+    # this replica is loaded at once; this interval is how a write made on another replica is seen.
+    snapshot-interval: ${BLACKHOLE_GUARD_SNAPSHOT_INTERVAL:PT2M}
+    lockdown:
+      min-playtime: ${BLACKHOLE_GUARD_LOCKDOWN_MIN_PLAYTIME:PT60M}   # recorded playtime that makes an owner a known player
   evasion:
     ip-salt: ${BLACKHOLE_EVASION_IP_SALT:}
     detection-window-days: ${BLACKHOLE_EVASION_DETECTION_WINDOW_DAYS:7}

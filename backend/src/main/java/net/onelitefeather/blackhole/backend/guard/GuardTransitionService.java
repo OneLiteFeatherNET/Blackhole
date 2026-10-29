@@ -26,6 +26,7 @@ public class GuardTransitionService {
     private final GuardPresenceService presence;
     private final UnattendedEvaluator evaluator;
     private final DomainEventPublisher events;
+    private final GuardStateCache cache;
     private final Clock clock;
 
     public GuardTransitionService(
@@ -34,6 +35,7 @@ public class GuardTransitionService {
             GuardPresenceService presence,
             UnattendedEvaluator evaluator,
             DomainEventPublisher events,
+            GuardStateCache cache,
             Clock clock
     ) {
         this.states = states;
@@ -41,6 +43,7 @@ public class GuardTransitionService {
         this.presence = presence;
         this.evaluator = evaluator;
         this.events = events;
+        this.cache = cache;
         this.clock = clock;
     }
 
@@ -59,6 +62,7 @@ public class GuardTransitionService {
             long now = this.clock.millis();
             GuardState next = GuardState.of(level, before.automatic(), now);
             if (this.states.compareAndSet(before, next)) {
+                this.cache.reload();
                 recordIfEffectiveChanged(before, next, GuardChange.Source.MANUAL, actorOid);
                 return Optional.of(next);
             }
@@ -88,6 +92,7 @@ public class GuardTransitionService {
             LOGGER.info("The join guard changed concurrently, the unattended level is re-evaluated at the next tick");
             return false;
         }
+        this.cache.reload();
         GuardChange.Source source = automatic == GuardLevel.OFF ? GuardChange.Source.CLEARED : GuardChange.Source.UNATTENDED;
         recordIfEffectiveChanged(before, next, source, null);
         return true;

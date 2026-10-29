@@ -25,10 +25,12 @@ public class AreaBanService {
     }
 
     private final AreaBanStore store;
+    private final AreaBanCache cache;
     private final Clock clock;
 
-    public AreaBanService(AreaBanStore store, Clock clock) {
+    public AreaBanService(AreaBanStore store, AreaBanCache cache, Clock clock) {
         this.store = store;
+        this.cache = cache;
         this.clock = clock;
     }
 
@@ -79,6 +81,7 @@ public class AreaBanService {
         if (!this.store.insert(ban)) {
             return error("this area is already banned", ErrorKind.CONFLICT);
         }
+        this.cache.reload();
         return response(ban, now);
     }
 
@@ -104,6 +107,7 @@ public class AreaBanService {
         if (!this.store.lift(lifted)) {
             return error("this area ban is already lifted", ErrorKind.CONFLICT);
         }
+        this.cache.reload();
         return response(lifted, now);
     }
 

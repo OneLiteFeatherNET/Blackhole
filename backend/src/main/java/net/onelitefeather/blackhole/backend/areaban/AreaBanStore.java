@@ -15,6 +15,9 @@ public interface AreaBanStore {
 
     Optional<AreaBan> findById(UUID id);
 
+    /** Every unlifted ban, whether or not it has expired. Read by the in-memory snapshot. */
+    java.util.List<AreaBan> listUnlifted();
+
     /** The unlifted ban of an area, whether or not it has expired. */
     Optional<AreaBan> findUnlifted(AreaBan.Kind kind, String value);
 

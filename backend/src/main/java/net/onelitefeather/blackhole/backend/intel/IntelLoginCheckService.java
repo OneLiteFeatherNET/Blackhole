@@ -4,7 +4,12 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.areaban.AreaBanCache;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.guard.GuardLevel;
+import net.onelitefeather.blackhole.backend.guard.GuardLevelRules;
+import net.onelitefeather.blackhole.backend.guard.GuardStateCache;
+import net.onelitefeather.blackhole.backend.guard.OwnerDirectoryCache;
 import net.onelitefeather.blackhole.backend.intel.IntelClassifier.Match;
 import net.onelitefeather.blackhole.backend.intel.IpEnricher.IpEnrichment;
 import net.onelitefeather.blackhole.backend.intel.dto.LoginCheckDTO;
@@ -46,6 +51,9 @@ public class IntelLoginCheckService {
     private final DomainEventPublisher events;
     private final Clock clock;
     private final MeterRegistry meters;
+    private final AreaBanCache areaBans;
+    private final GuardStateCache guard;
+    private final OwnerDirectoryCache owners;
 
     public IntelLoginCheckService(
             IntelClassifierHolder classifier,
@@ -55,7 +63,10 @@ public class IntelLoginCheckService {
             IntelFlagNotices notices,
             DomainEventPublisher events,
             Clock clock,
-            MeterRegistry meters
+            MeterRegistry meters,
+            AreaBanCache areaBans,
+            GuardStateCache guard,
+            OwnerDirectoryCache owners
     ) {
         this.classifier = classifier;
         this.policies = policies;
@@ -65,6 +76,9 @@ public class IntelLoginCheckService {
         this.events = events;
         this.clock = clock;
         this.meters = meters;
+        this.areaBans = areaBans;
+        this.guard = guard;
+        this.owners = owners;
     }
 
     public LoginCheckDTO check(LoginCheckDTO.CheckRequest request) {
@@ -86,8 +100,32 @@ public class IntelLoginCheckService {
             return new LoginCheckDTO.Error("ip must be an IPv4 or IPv6 address", ErrorKind.VALIDATION);
         }
         long now = this.clock.millis();
+        String owner = request.owner();
         IpEnrichment enrichment = this.enricher.enrich(request.ip());
+
+        // Order of design.md decision 2: staff, area bans, the guard level, then the VPN policy.
+        if (this.owners.isStaff(owner)) {
+            return count(new LoginCheckDTO.Response(IntelPolicy.ALLOW, null, null), "ALLOW");
+        }
+        if (this.areaBans.applying(enrichment.asn(), enrichment.countryCode(), now).isPresent()) {
+            return count(new LoginCheckDTO.Response(IntelPolicy.DENY, null, null, LoginDenialReason.AREA_BAN), "DENY");
+        }
         List<Match> matches = this.classifier.get().classify(address.get(), enrichment.asn());
+        boolean allowListed = this.policies.allowListed(owner, now);
+        if (!allowListed) {
+            GuardLevel level = this.guard.effective();
+            if (GuardLevelRules.refusesUnknownOwner(level, this.owners.isKnown(owner))) {
+                return count(new LoginCheckDTO.Response(IntelPolicy.DENY, null, null, LoginDenialReason.GUARD_LOCKDOWN),
+                        "DENY");
+            }
+            if (!matches.isEmpty()) {
+                Match strictMatch = strictest(matches, this.policies);
+                if (GuardLevelRules.refusesClassification(level, strictMatch.kind())) {
+                    return count(new LoginCheckDTO.Response(IntelPolicy.DENY, strictMatch.kind(), strictMatch.sourceKey(),
+                            LoginDenialReason.GUARD_STRICT), "DENY");
+                }
+            }
+        }
         if (matches.isEmpty()) {
             return count(new LoginCheckDTO.Response(IntelPolicy.ALLOW, null, null), "ALLOW");
         }
@@ -98,19 +136,19 @@ public class IntelLoginCheckService {
             classes.add(match.kind());
             sources.add(match.sourceKey());
         }
-        boolean allowListed = this.policies.allowListed(request.owner(), now);
         IntelVerdict verdict = IntelVerdict.decide(this.policies.policies(), classes, allowListed);
         Match deciding = strictest(matches, this.policies);
 
         if (verdict.policy() != IntelPolicy.ALLOW || allowListed) {
-            Optional<UUID> hitId = this.hits.record(new IntelHit(UUID.randomUUID(), request.owner(), request.ip(),
+            Optional<UUID> hitId = this.hits.record(new IntelHit(UUID.randomUUID(), owner, request.ip(),
                     join(classes), truncate(String.join(",", sources)), enrichment.asn(), enrichment.asOrg(),
                     verdict.policy(), allowListed, now));
             if (hitId.isPresent() && verdict.policy() == IntelPolicy.FLAG) {
-                notify(request.owner(), hitId.get(), deciding.kind(), now);
+                notify(owner, hitId.get(), deciding.kind(), now);
             }
         }
-        return count(new LoginCheckDTO.Response(verdict.policy(), deciding.kind(), deciding.sourceKey()),
+        LoginDenialReason reason = verdict.policy() == IntelPolicy.DENY ? LoginDenialReason.VPN_POLICY : null;
+        return count(new LoginCheckDTO.Response(verdict.policy(), deciding.kind(), deciding.sourceKey(), reason),
                 verdict.policy().name());
     }
 
