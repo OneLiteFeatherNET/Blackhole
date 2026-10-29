@@ -21,10 +21,3 @@ The player page SHALL show the last addresses on record and offer "Ban IP" for e
 #### Scenario: Shared address warning
 - **WHEN** a moderator opens the ban dialog with "also ban last IP" for an address used by five other accounts
 - **THEN** the dialog shows the count of other accounts before submit
-
-### Requirement: Firewall status on the dashboard
-The dashboard SHALL show a status tile for the firewall layer with the states in sync, pending changes, unreachable and disabled. The tile MUST NOT show the alias contents or any address, and MUST be visible to ADMIN and VIEWER.
-
-#### Scenario: Firewall unreachable
-- **WHEN** the `ipban-firewall` health indicator is DOWN
-- **THEN** the tile shows "unreachable" with the time of the last success

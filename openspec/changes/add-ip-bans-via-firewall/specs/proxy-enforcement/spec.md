@@ -16,7 +16,7 @@ The proxy SHALL deny a login whose address lies inside an active IP ban, using t
 - **THEN** no HTTP request to the backend is made for that check
 
 ### Requirement: Proxy enforces the address it sees
-The proxy SHALL match IP bans against the address of the player's connection as Velocity sees it. The proxy MUST NOT attempt to resolve a different address, and the firewall layer is documented as valid only where the proxy sees the player's address.
+The proxy SHALL match IP bans against the address of the player's connection as Velocity sees it. The proxy MUST NOT attempt to resolve a different address, and the firewall feeds (`firewall-feed`) are documented as valid only where the firewall sees the player's address.
 
 #### Scenario: Direct connection
 - **WHEN** a player connects directly to the proxy
