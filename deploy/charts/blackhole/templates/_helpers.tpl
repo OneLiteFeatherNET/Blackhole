@@ -220,6 +220,9 @@ nothing, so every render runs them.
 {{- if and .Values.banList.clients (not .Values.banList.existingSecret) -}}
 {{- fail "banList.existingSecret is required when banList.clients is set: the Secret with one hash key per client" -}}
 {{- end -}}
+{{- if and .Values.banList.clients (not .Values.banList.trustedIngress) -}}
+{{- fail "banList.trustedIngress is required when banList.clients is set: the addresses or CIDRs of the ingress peers (the cloudflared pods in tunnel mode, the api-proxy pods in nginx mode) whose X-Forwarded-Proto is trusted" -}}
+{{- end -}}
 {{- if and .Values.banList.clients (not .Values.publicBanKey.existingSecret) -}}
 {{- fail "publicBanKey.existingSecret is required when banList.clients is set: the public ban entries are hashed with that key" -}}
 {{- end -}}

@@ -57,6 +57,7 @@ secretKeyRef entries in the Deployment.
 {{- if .Values.banList.clients }}
 {{- $_ := set $c "BLACKHOLE_BAN_LIST_CLIENTS" (join "," .Values.banList.clients) }}
 {{- $_ := set $c "BLACKHOLE_BAN_LIST_SECRETS_DIR" .Values.banList.mountPath }}
+{{- $_ := set $c "BLACKHOLE_BAN_LIST_TRUSTED_INGRESS" .Values.banList.trustedIngress }}
 {{- end }}
 {{- range $key, $value := $v.config }}
 {{- $_ := set $c $key $value }}

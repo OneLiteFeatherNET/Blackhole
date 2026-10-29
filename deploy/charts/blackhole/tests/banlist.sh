@@ -9,7 +9,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 backend='select(.kind == "Deployment" and .metadata.name == "t-backend") | .spec.template.spec'
 clients='{website,partner-a}'
 enabled=(--set "banList.clients=${clients}" --set banList.existingSecret=blackhole-ban-list
-  --set publicBanKey.existingSecret=blackhole-public-ban)
+  --set publicBanKey.existingSecret=blackhole-public-ban --set banList.trustedIngress=10.42.0.0/16)
 
 # --- off by default: nothing of the feature is rendered ----------------------------------------------------------
 off="${WORK_DIR}/off.yaml"
@@ -62,7 +62,7 @@ assert_eq "the chart renders no Secret object with the feature on" "0" "$(y "${o
 expect_render_failure "clients need their Secret" "banList.existingSecret is required" prod-values.yaml \
   --set "banList.clients=${clients}" --set publicBanKey.existingSecret=blackhole-public-ban
 expect_render_failure "clients need the public ban key" "publicBanKey.existingSecret is required" prod-values.yaml \
-  --set "banList.clients=${clients}" --set banList.existingSecret=blackhole-ban-list
+  --set "banList.clients=${clients}" --set banList.existingSecret=blackhole-ban-list --set banList.trustedIngress=10.42.0.0/16
 expect_render_failure "a client name with capitals is refused" "/banList/clients" prod-values.yaml \
   --set 'banList.clients={Website}' --set banList.existingSecret=blackhole-ban-list \
   --set publicBanKey.existingSecret=blackhole-public-ban
@@ -111,5 +111,20 @@ assert_refused "clients empty: /public/bans/summary is refused" "${routed_off}" 
 assert_refused "clients empty: /public itself stays refused" "${routed_off}" /public
 assert_eq "clients empty: the nginx proxy has no list route" "0" \
   "$(grep -c 'public/bans' <(render prod-values.yaml --set backend.externalApi.mode=nginx) || true)"
+
+# --- the trusted ingress: the peers whose X-Forwarded-Proto the backend believes ---------------------------------
+trusted="${WORK_DIR}/trusted.yaml"
+render_to prod-values.yaml "${trusted}" "${enabled[@]}" --set 'banList.trustedIngress=10.42.0.0/16\,fd00:42::/48'
+assert_eq "the trusted ingress peers render into the backend settings" "10.42.0.0/16,fd00:42::/48" \
+  "$(configmap_value "${trusted}" t-backend BLACKHOLE_BAN_LIST_TRUSTED_INGRESS)"
+expect_render_failure "clients need the trusted ingress" "banList.trustedIngress is required" prod-values.yaml \
+  --set "banList.clients=${clients}" --set banList.existingSecret=blackhole-ban-list \
+  --set publicBanKey.existingSecret=blackhole-public-ban
+expect_render_failure "a trusted ingress that is not an address or CIDR is refused" "/banList/trustedIngress" prod-values.yaml \
+  "${enabled[@]}" --set 'banList.trustedIngress=10.42.0.0/16 evil'
+listoff_trusted="${WORK_DIR}/listoff-trusted.yaml"
+render_to prod-values.yaml "${listoff_trusted}" --set banList.trustedIngress=10.42.0.0/16
+assert_eq "the trusted ingress is not rendered with the list off" "0" \
+  "$(grep -c 'BLACKHOLE_BAN_LIST_TRUSTED_INGRESS' "${listoff_trusted}" || true)"
 
 finish

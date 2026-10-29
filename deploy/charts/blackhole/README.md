@@ -77,7 +77,7 @@ offline copy of it before the first install.
 | `web` | the same common keys, `oidc.*`, `evidence.*`, `ingress` or `httpRoute`, `pdb` |
 | `portal` | the same common keys, `origin`, `ingress` or `httpRoute`, `pdb` |
 | `discord` | the common keys, `existingSecret`, `auditWebhookKey`, `clientId`, `authScope`, `panelUrl` (the panel base URL, `BLACKHOLE_PANEL_URL`, also the base of the audit links), `ids.*`, `config` (intervals), `metrics.podMonitor`; always exactly one replica |
-| `banList`, `publicBanKey` | the public ban list: `clients` (empty = off), `existingSecret`, `mountPath`; and the key's Secret. See Public ban list |
+| `banList`, `publicBanKey` | the public ban list: `clients` (empty = off), `existingSecret`, `mountPath`, `trustedIngress` (required with clients); and the key's Secret. See Public ban list |
 | `clamav` | `enabled`, `externalHost`, `image`, `unprivileged`, `limits.*`, `persistence.{size,storageClass}` |
 
 Defaults and sizing (a first guess, tuned after the first week of metrics):
@@ -155,6 +155,16 @@ HTTP Basic Auth; the backend checks the password against an Argon2id hash per cl
   string (`$argon2id$v=19$m=19456,t=2,p=1$...`). Each key is mounted read-only as a file of that name in
   `banList.mountPath` (default `/etc/blackhole/ban-list`, `BLACKHOLE_BAN_LIST_SECRETS_DIR`). Only the listed keys
   are mounted. Hashes only: the chart refuses any plaintext value, and no password exists in the chart.
+- `banList.trustedIngress`: required with clients (the render fails without it). The peers whose `X-Forwarded-Proto`
+  the backend trusts, as comma separated addresses or CIDRs (`BLACKHOLE_BAN_LIST_TRUSTED_INGRESS`). Any other peer
+  gets 403 `HTTPS_REQUIRED`, so an empty or wrong value refuses every client. Which value fits:
+  - tunnel mode (`backend.externalApi.mode: paths`): the cloudflared pods connect straight to the backend Service, so
+    the source of their requests is their pod IPs. Use the pod CIDR of the cluster (or the CIDR the cloudflared
+    deployment runs in), e.g. `10.42.0.0/16`. Only a peer in that range can set the header.
+  - nginx mode (`mode: nginx`): the backend sees the api-proxy pods as the peer, and the proxy sets
+    `X-Forwarded-Proto https` itself. Use the pod CIDR the api-proxy runs in, which is usually the same cluster pod
+    CIDR.
+  Use the pod network, never a Service or node range: those would let a node or another workload set the header.
 - `publicBanKey.existingSecret`: the Secret with `BLACKHOLE_PUBLIC_BAN_KEY`, passed as `secretKeyRef`. It renders
   whether or not clients are set, because the public entries are hashed with it. It is required with clients.
   The backend requires it only once `banList.clients` is set, so with the list off no key is needed. Create the
@@ -174,7 +184,7 @@ The backend's external host (`backend.externalApi`) is a Cloudflare tunnel Ingre
 Service. The chart sets neither an HTTP-to-HTTPS redirect nor `X-Forwarded-Proto`: TLS ends at the Cloudflare edge,
 which redirects HTTP to HTTPS and adds `X-Forwarded-Proto: https` to proxied requests. Both are zone settings of
 the edge, not of the chart, so they cannot be checked here. The `HTTPS_REQUIRED` check of the backend (403 over
-plain HTTP) relies on that header, and the backend must trust it only from this ingress. The `web` and `portal`
+plain HTTP) relies on that header, and the backend trusts it only from the peers of `banList.trustedIngress`. The `web` and `portal`
 HTTPRoutes (dev) use the `https` listener of the Envoy Gateway, whose redirect lives in the cluster's Gateway
 configuration. The chart adds no change for this.
 
@@ -225,5 +235,5 @@ adds kubeconform v0.8.0.
 | `tests/workloads.sh` | env and Secret wiring, probes, strategies, PDBs, ClamAV, `secretRevision` |
 | `tests/exposure.sh` | hosts, Ingress class, the route table against the cloudflared path semantics |
 | `tests/psa.sh` | the `restricted` Pod Security fields on every pod |
-| `tests/banlist.sh` | the public ban list is off by default; client names, hash files (read-only, one per client) and the public key only as Secret references; plaintext refused |
+| `tests/banlist.sh` | the public ban list is off by default; client names, hash files (read-only, one per client) and the public key only as Secret references; the trusted ingress is required with clients; plaintext refused |
 | `tests/geoip.sh` | the GeoIP volume (read-only in the backend), the paths, the refresh job (pinned, no secrets, restricted) and the switches |
