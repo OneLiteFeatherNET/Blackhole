@@ -19,8 +19,8 @@ public interface RollbackJobStore {
     void insertPreview(PreviewJob job, List<FrozenItem> items);
 
     /** A stored job as the execution needs it. */
-    record Job(UUID id, String state, UUID requestedByOid, @Nullable String reason, @Nullable String idempotencyKey,
-               long previewExpiresAt) {
+    record Job(UUID id, String state, UUID requestedByOid, @Nullable UUID selectorOid, @Nullable String reason,
+               @Nullable String idempotencyKey, long previewExpiresAt) {
     }
 
     /** A frozen item and where its revoke stands. */

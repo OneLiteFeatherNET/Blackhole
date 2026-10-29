@@ -5,6 +5,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
+import net.onelitefeather.blackhole.backend.security.StaffLinkService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,21 +29,29 @@ public class RollbackExecutionService {
     private final RollbackJobStore jobs;
     private final DomainEventPublisher events;
     private final Clock clock;
+    private final StaffLinkService staffLinks;
 
     @Inject
-    public RollbackExecutionService(RollbackJobStore jobs, DomainEventPublisher events, Clock clock) {
+    public RollbackExecutionService(RollbackJobStore jobs, DomainEventPublisher events, Clock clock, StaffLinkService staffLinks) {
         this.jobs = jobs;
         this.events = events;
         this.clock = clock;
+        this.staffLinks = staffLinks;
+    }
+
+    /** A start without the optional link suspension. */
+    public RollbackDTO start(UUID jobId, @Nullable String reason, @Nullable String idempotencyKey) {
+        return start(jobId, reason, idempotencyKey, false);
     }
 
     /**
      * @param jobId          the previewed job
      * @param reason         the admin's justification, 1 to 500 characters
      * @param idempotencyKey the {@code Idempotency-Key} header; a repeat with the same key answers the same job
+     * @param suspendLink    whether to remove the Minecraft link of the selected staff member before the items run
      * @return {@link RollbackDTO.Started} or a {@link RollbackDTO.Error}
      */
-    public RollbackDTO start(UUID jobId, @Nullable String reason, @Nullable String idempotencyKey) {
+    public RollbackDTO start(UUID jobId, @Nullable String reason, @Nullable String idempotencyKey, boolean suspendLink) {
         if (idempotencyKey == null || idempotencyKey.isBlank() || idempotencyKey.length() > MAX_KEY) {
             return error(ErrorKind.VALIDATION, "an Idempotency-Key of 1 to 64 characters is required");
         }
@@ -74,8 +83,23 @@ public class RollbackExecutionService {
         if (!moved) {
             return error(ErrorKind.CONFLICT, "the rollback was already started");
         }
+        if (suspendLink && job.selectorOid() != null) {
+            suspendLink(job);
+        }
         publish(jobId, job.requestedByOid());
         return new RollbackDTO.Started(jobId, "RUNNING", false);
+    }
+
+    /**
+     * Removes the selected staff member's Minecraft link before the first item runs. A failure is logged and does not
+     * stop the rollback: the punishments are still undone, and the link can be removed by hand.
+     */
+    private void suspendLink(RollbackJobStore.Job job) {
+        try {
+            this.staffLinks.removeForRollback(job.selectorOid(), job.requestedByOid());
+        } catch (RuntimeException e) {
+            LOGGER.warn("Could not remove the staff link of rollback {}; the rollback continues", job.id(), e);
+        }
     }
 
     private void publish(UUID jobId, UUID requestedByOid) {

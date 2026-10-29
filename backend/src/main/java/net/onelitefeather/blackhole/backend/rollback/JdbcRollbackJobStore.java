@@ -37,7 +37,8 @@ public class JdbcRollbackJobStore implements RollbackJobStore {
             """;
 
     private static final String FIND_JOB = """
-            SELECT id, state, requested_by_oid, reason, idempotency_key, preview_expires_at FROM staff_rollback_job WHERE id = ?
+            SELECT id, state, requested_by_oid, selector_oid, reason, idempotency_key, preview_expires_at
+            FROM staff_rollback_job WHERE id = ?
             """;
     private static final String MARK_RUNNING = """
             UPDATE staff_rollback_job SET state = 'RUNNING', reason = ?, idempotency_key = ?, started_at = ?
@@ -131,8 +132,8 @@ public class JdbcRollbackJobStore implements RollbackJobStore {
                     return Optional.empty();
                 }
                 return Optional.of(new Job(rows.getObject("id", UUID.class), rows.getString("state"),
-                        rows.getObject("requested_by_oid", UUID.class), rows.getString("reason"), rows.getString("idempotency_key"),
-                        rows.getLong("preview_expires_at")));
+                        rows.getObject("requested_by_oid", UUID.class), rows.getObject("selector_oid", UUID.class),
+                        rows.getString("reason"), rows.getString("idempotency_key"), rows.getLong("preview_expires_at")));
             }
         } catch (SQLException e) {
             throw new IllegalStateException("could not read the rollback job", e);
