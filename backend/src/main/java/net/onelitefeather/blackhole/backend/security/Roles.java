@@ -17,7 +17,10 @@ public final class Roles {
     public static final String VIEWER = "VIEWER";
     /** The Velocity proxy (app-only token). Implied by nothing. */
     public static final String PROXY = "PROXY";
-    /** The Discord bot (app-only token, role Blackhole.Discord): only the /discord/** routes. Implied by nothing. */
+    /**
+     * The Discord bot (app-only token, role Blackhole.Discord): the /discord/** routes and the delegation routes that name a
+     * staff member through onBehalfOf (see StaffDelegation). Implied by nothing.
+     */
     public static final String DISCORD = "DISCORD";
     /** Prometheus scraping. Implied by nothing. */
     public static final String METRICS = "METRICS";

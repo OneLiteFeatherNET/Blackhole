@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.appeal.service;
 
+import net.onelitefeather.blackhole.backend.support.StaffDelegations;
 import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
 import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
 import net.onelitefeather.blackhole.backend.appeal.AppealReviewResult;
@@ -54,7 +55,7 @@ class AppealReviewDiscordTest {
                     .build();
     private final InMemoryRepository<StaffActorRepository, StaffActorEntity, UUID> actors =
             InMemoryRepository.<StaffActorRepository, StaffActorEntity, UUID>of(StaffActorRepository.class, StaffActorEntity::getOid).build();
-    private final StaffDelegation delegation = new StaffDelegation(this.links.repository(), this.actors.repository(), this.bed.eloBed.clock,
+    private final StaffDelegation delegation = new StaffDelegation(this.links.repository(), this.actors.repository(), StaffDelegations.emptyStaffLinks(), this.bed.eloBed.clock,
             Duration.ofHours(24));
     private final AppealDecisionService service = new AppealDecisionService(
             this.appeals.repository(), this.bed.punishments.repository(), this.bed.profiles.repository(), this.bed.slots, this.bed.profileCache,

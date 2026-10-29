@@ -29,7 +29,8 @@ public interface GuardApi {
 
     @Operation(
             summary = "Set the manual join guard level",
-            description = "OFF, STRICT or LOCKDOWN. Lowering a level is not restricted. The change is recorded with the actor.",
+            description = "OFF, STRICT or LOCKDOWN. Lowering a level is not restricted. The change is recorded with the actor. "
+                    + "The proxy and the Discord bot set it for a staff member named by onBehalfOf.",
             operationId = "setJoinGuardLevel",
             tags = {"Guard"}
     )

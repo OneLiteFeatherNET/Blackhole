@@ -7,7 +7,7 @@ import io.micronaut.core.annotation.Nullable;
  * server by its key. Never a Ban ID, an IP address or a raw UUID.
  *
  * @param kind the target kind, one of {@code CASE}, {@code PLAYER}, {@code SECTION}, {@code SERVER}, {@code CLIENT_RULE},
- *             {@code TEMPLATE}, {@code NONE}
+ *             {@code TEMPLATE}, {@code AREA_BAN}, {@code NONE}
  * @param ref  the case short id, owner hash, section key or server name
  */
 public record AuditTarget(String kind, @Nullable String ref) {
@@ -34,6 +34,11 @@ public record AuditTarget(String kind, @Nullable String ref) {
 
     public static AuditTarget ofTemplate(String key) {
         return new AuditTarget("TEMPLATE", key);
+    }
+
+    /** An area ban is named by its area: the ASN number or the country code, never an address. */
+    public static AuditTarget ofAreaBan(String area) {
+        return new AuditTarget("AREA_BAN", area);
     }
 
     public static AuditTarget none() {

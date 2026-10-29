@@ -2,8 +2,14 @@ package net.onelitefeather.blackhole.backend.areaban;
 
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.areaban.dto.AreaBanDTO;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
+import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.security.Attribution;
+import net.onelitefeather.blackhole.backend.security.StaffDelegation;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -22,20 +28,21 @@ public class AreaBanService {
     static final Duration MODERATOR_LIMIT = Duration.ofDays(7);
     static final int REASON_MAX = 200;
 
-    /** The caller of a request: the token's oid, and whether it carries the admin role. */
-    public record Actor(String oid, boolean admin) {
-    }
-
     private final AreaBanStore store;
     private final AreaBanCache cache;
     private final DomainEventPublisher events;
     private final Clock clock;
+    private final StaffDelegation delegation;
+    private final StaffAuditRecorder audit;
 
-    public AreaBanService(AreaBanStore store, AreaBanCache cache, DomainEventPublisher events, Clock clock) {
+    public AreaBanService(AreaBanStore store, AreaBanCache cache, DomainEventPublisher events, Clock clock,
+                          StaffDelegation delegation, StaffAuditRecorder audit) {
         this.store = store;
         this.cache = cache;
         this.events = events;
         this.clock = clock;
+        this.delegation = delegation;
+        this.audit = audit;
     }
 
     /**
@@ -60,17 +67,22 @@ public class AreaBanService {
             return Optional.empty();
         }
         this.cache.reload();
-        this.events.publish(AreaBanEvents.CREATED_EVENT, AreaBanEvents.created(ban));
+        this.events.publish(AreaBanEvents.CREATED_EVENT, AreaBanEvents.created(ban, null));
         return Optional.of(ban);
     }
 
     /**
      * Creates a ban. An unlifted ban of the same area that has already expired is lifted first, so an expired ban does not
-     * block a new one.
+     * block a new one. The limits apply to the staff member the write is for: the delegated one for a machine caller.
      *
-     * @param durationSeconds the ban length, or null for a permanent ban
+     * @param actor the verified caller; a machine caller names the staff member in the request's onBehalfOf
      */
     public AreaBanDTO create(AreaBanDTO.CreateRequest request, Actor actor) {
+        StaffDelegation.Outcome delegated = this.delegation.attributeGuard(actor, request.onBehalfOf());
+        if (delegated instanceof StaffDelegation.Outcome.Refused refused) {
+            return error(refused.message(), refused.errorKind());
+        }
+        StaffDelegation.Outcome.Allowed by = (StaffDelegation.Outcome.Allowed) delegated;
         Optional<AreaBan.Kind> kind = parseKind(request.kind());
         if (kind.isEmpty()) {
             return error("kind must be ASN or COUNTRY", ErrorKind.VALIDATION);
@@ -87,14 +99,14 @@ public class AreaBanService {
         if (reason.isEmpty() || reason.length() > REASON_MAX) {
             return error("reason must be 1 to 200 characters", ErrorKind.VALIDATION);
         }
-        if (kind.get() == AreaBan.Kind.COUNTRY && !actor.admin()) {
+        if (kind.get() == AreaBan.Kind.COUNTRY && !by.admin()) {
             return error("only an admin may ban a country", ErrorKind.FORBIDDEN_KIND);
         }
         if (request.durationSeconds() != null && request.durationSeconds() <= 0) {
             return error("durationSeconds must be positive, or omitted for a permanent ban", ErrorKind.VALIDATION);
         }
         Duration duration = request.durationSeconds() == null ? null : Duration.ofSeconds(request.durationSeconds());
-        if (!actor.admin() && (duration == null || duration.compareTo(MODERATOR_LIMIT) > 0)) {
+        if (!by.admin() && (duration == null || duration.compareTo(MODERATOR_LIMIT) > 0)) {
             return error("a moderator may ban for up to seven days only", ErrorKind.FORBIDDEN_DURATION);
         }
 
@@ -106,18 +118,24 @@ public class AreaBanService {
             }
             this.store.lift(existing.get().lifted(now, "expired", null));
         }
-        AreaBan ban = new AreaBan(UUID.randomUUID(), kind.get(), value.get(), reason, AreaBan.Source.MANUAL, actor.oid(),
-                now, duration == null ? null : now + duration.toMillis(), null, null, null);
+        AreaBan ban = new AreaBan(UUID.randomUUID(), kind.get(), value.get(), reason, AreaBan.Source.MANUAL,
+                by.attribution().source().toString(), now, duration == null ? null : now + duration.toMillis(), null, null, null);
         if (!this.store.insert(ban)) {
             return error("this area is already banned", ErrorKind.CONFLICT);
         }
         this.cache.reload();
-        this.events.publish(AreaBanEvents.CREATED_EVENT, AreaBanEvents.created(ban));
+        this.events.publish(AreaBanEvents.CREATED_EVENT, AreaBanEvents.created(ban, by.displayName()));
+        this.audit.record(by.attribution(), actor, AuditAction.AREA_BAN_CREATE, AuditTarget.ofAreaBan(ban.value()));
         return response(ban, now);
     }
 
     /** Lifts an unlifted ban. A reason is required, and the ban must still apply. */
     public AreaBanDTO lift(String id, AreaBanDTO.LiftRequest request, Actor actor) {
+        StaffDelegation.Outcome delegated = this.delegation.attributeGuard(actor, request.onBehalfOf());
+        if (delegated instanceof StaffDelegation.Outcome.Refused refused) {
+            return error(refused.message(), refused.errorKind());
+        }
+        Attribution by = ((StaffDelegation.Outcome.Allowed) delegated).attribution();
         Optional<UUID> uuid = uuid(id);
         if (uuid.isEmpty()) {
             return error("id must be a UUID", ErrorKind.VALIDATION);
@@ -134,12 +152,13 @@ public class AreaBanService {
         if (ban.get().liftedAt() != null) {
             return error("this area ban is already lifted", ErrorKind.CONFLICT);
         }
-        AreaBan lifted = ban.get().lifted(now, reason, actor.oid());
+        AreaBan lifted = ban.get().lifted(now, reason, by.source().toString());
         if (!this.store.lift(lifted)) {
             return error("this area ban is already lifted", ErrorKind.CONFLICT);
         }
         this.cache.reload();
         this.events.publish(AreaBanEvents.LIFTED_EVENT, AreaBanEvents.lifted(lifted));
+        this.audit.record(by, actor, AuditAction.AREA_BAN_LIFT, AuditTarget.ofAreaBan(lifted.value()));
         return response(lifted, now);
     }
 

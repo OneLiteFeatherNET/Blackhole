@@ -13,6 +13,10 @@ public record GuardChange(long changedAt, GuardLevel previous, GuardLevel next, 
         /** The unattended evaluator raised the automatic level. */
         UNATTENDED,
         /** The unattended evaluator cleared the automatic level because staff came back. */
-        CLEARED
+        CLEARED,
+        /** A staff member set the manual level in game, through the proxy. */
+        IN_GAME,
+        /** A staff member set the manual level through the Discord bot. */
+        DISCORD
     }
 }

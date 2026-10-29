@@ -50,9 +50,10 @@ public class GuardTransitionService {
     /**
      * Sets the manual level. A concurrent change is retried against the fresh row a few times.
      *
+     * @param source MANUAL for the panel and the API, IN_GAME for the proxy, DISCORD for the bot
      * @return the state that is in force afterwards, or empty when the guard row is missing or kept losing the race
      */
-    public Optional<GuardState> setManual(GuardLevel level, String actorOid) {
+    public Optional<GuardState> setManual(GuardLevel level, String actorOid, GuardChange.Source source) {
         for (int attempt = 0; attempt < MANUAL_ATTEMPTS; attempt++) {
             Optional<GuardState> current = this.states.current();
             if (current.isEmpty()) {
@@ -63,7 +64,7 @@ public class GuardTransitionService {
             GuardState next = GuardState.of(level, before.automatic(), now);
             if (this.states.compareAndSet(before, next)) {
                 this.cache.reload();
-                recordIfEffectiveChanged(before, next, GuardChange.Source.MANUAL, actorOid);
+                recordIfEffectiveChanged(before, next, source, actorOid);
                 return Optional.of(next);
             }
         }
@@ -106,6 +107,9 @@ public class GuardTransitionService {
         this.events.publish(LEVEL_CHANGED_EVENT, Map.of(
                 "level", after.effective().name(),
                 "previous", before.effective().name(),
+                "manual", after.manual().name(),
+                "unattended", after.automatic().name(),
+                "changedAt", after.updatedAt(),
                 "source", source.name()));
     }
 }

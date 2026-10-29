@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.guard;
 
+import net.onelitefeather.blackhole.backend.support.StaffDelegations;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -55,7 +56,7 @@ class GuardLogPrivacyTest {
         Clock clock = Clock.fixed(Instant.ofEpochMilli(START), ZoneOffset.UTC);
         InMemoryAreaBanStore areas = new InMemoryAreaBanStore();
         AreaBanService bans = new AreaBanService(areas, new AreaBanCache(areas),
-                new DomainEventPublisher(transport, clock), clock);
+                new DomainEventPublisher(transport, clock), clock, StaffDelegations.withoutLinks(clock), StaffDelegations.recorder(clock));
         InMemoryGuardRefusalStore refusals = new InMemoryGuardRefusalStore();
         GuardRefusalService service = new GuardRefusalService(refusals, bans,
                 new BurstSettings(true, 2, Duration.ofMinutes(5), Duration.ofHours(2)), new SimpleMeterRegistry());

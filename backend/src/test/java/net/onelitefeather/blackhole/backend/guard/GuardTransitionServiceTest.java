@@ -103,7 +103,7 @@ class GuardTransitionServiceTest {
     void settingTheManualLevelRecordsTheActorAndPublishes() {
         InMemoryGuardStateStore states = new InMemoryGuardStateStore(GuardState.initial(0L));
 
-        Optional<GuardState> result = service(states).setManual(GuardLevel.STRICT, "actor-oid");
+        Optional<GuardState> result = service(states).setManual(GuardLevel.STRICT, "actor-oid", GuardChange.Source.MANUAL);
 
         assertEquals(GuardLevel.STRICT, result.orElseThrow().effective(), "the manual STRICT must be in force");
         assertEquals("actor-oid", this.changes.changes().getFirst().actorOid(), "the history must name the actor");
@@ -115,7 +115,7 @@ class GuardTransitionServiceTest {
     void settingTheSameManualLevelAgainWritesNoHistory() {
         InMemoryGuardStateStore states = new InMemoryGuardStateStore(GuardState.of(GuardLevel.STRICT, GuardLevel.OFF, 0L));
 
-        service(states).setManual(GuardLevel.STRICT, "actor-oid");
+        service(states).setManual(GuardLevel.STRICT, "actor-oid", GuardChange.Source.MANUAL);
 
         assertTrue(this.changes.changes().isEmpty(), "setting the level it already has must not write a history row");
         assertTrue(this.transport.published().isEmpty(), "setting the level it already has must not publish");

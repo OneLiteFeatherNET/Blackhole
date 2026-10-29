@@ -41,9 +41,9 @@ public class GuardController implements GuardApi {
     }
 
     @Override
-    @Secured(Roles.MODERATOR)
+    @Secured({Roles.MODERATOR, Roles.PROXY, Roles.DISCORD})
     public HttpResponse<GuardDTO> setLevel(GuardDTO.CreateRequest request, Actor actor) {
-        GuardDTO result = this.guard.setLevel(request, actor.oid().toString());
+        GuardDTO result = this.guard.setLevel(request, actor);
         if (result instanceof GuardDTO.Error error) {
             return AuditHeaders.audited(HttpResponse.<GuardDTO>status(error.kind().status()).body(error), actor);
         }

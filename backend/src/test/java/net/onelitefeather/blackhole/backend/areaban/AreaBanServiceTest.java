@@ -1,5 +1,9 @@
 package net.onelitefeather.blackhole.backend.areaban;
 
+import java.util.UUID;
+import net.onelitefeather.blackhole.backend.security.ActorKind;
+import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.support.StaffDelegations;
 import net.onelitefeather.blackhole.backend.areaban.dto.AreaBanDTO;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.support.RecordingEventTransport;
@@ -15,13 +19,15 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 class AreaBanServiceTest {
 
-    private static final AreaBanService.Actor MODERATOR = new AreaBanService.Actor("moderator-oid", false);
-    private static final AreaBanService.Actor ADMIN = new AreaBanService.Actor("admin-oid", true);
+    private static final Actor MODERATOR = new Actor(UUID.fromString("00000000-0000-4000-8000-0000000000a1"), "Moderator",
+            ActorKind.HUMAN, false, false);
+    private static final Actor ADMIN = new Actor(UUID.fromString("00000000-0000-4000-8000-0000000000a2"), "Admin",
+            ActorKind.HUMAN, false, true);
 
     private final Clock clock = Clock.fixed(Instant.parse("2026-10-29T12:00:00Z"), ZoneOffset.UTC);
     private final InMemoryAreaBanStore store = new InMemoryAreaBanStore();
     private final AreaBanService service = new AreaBanService(this.store, new AreaBanCache(this.store),
-            new DomainEventPublisher(new RecordingEventTransport(), this.clock), this.clock);
+            new DomainEventPublisher(new RecordingEventTransport(), this.clock), this.clock, StaffDelegations.withoutLinks(this.clock), StaffDelegations.recorder(this.clock));
 
     private static AreaBanDTO.CreateRequest asn(Long seconds) {
         return new AreaBanDTO.CreateRequest("ASN", "16276", "hosting wave", seconds);
@@ -97,11 +103,11 @@ class AreaBanServiceTest {
     void anExpiredUnliftedBanDoesNotBlockANewOne() {
         Clock later = Clock.fixed(Instant.parse("2026-10-29T12:00:00Z"), ZoneOffset.UTC);
         AreaBanService first = new AreaBanService(this.store, new AreaBanCache(this.store),
-                new DomainEventPublisher(new RecordingEventTransport(), later), later);
+                new DomainEventPublisher(new RecordingEventTransport(), later), later, StaffDelegations.withoutLinks(later), StaffDelegations.recorder(later));
         first.create(asn(60L), ADMIN);
         Clock afterTheHour = Clock.fixed(Instant.parse("2026-10-29T13:00:00Z"), ZoneOffset.UTC);
         AreaBanService afterExpiry = new AreaBanService(this.store, new AreaBanCache(this.store),
-                new DomainEventPublisher(new RecordingEventTransport(), afterTheHour), afterTheHour);
+                new DomainEventPublisher(new RecordingEventTransport(), afterTheHour), afterTheHour, StaffDelegations.withoutLinks(afterTheHour), StaffDelegations.recorder(afterTheHour));
 
         AreaBanDTO result = afterExpiry.create(asn(3600L), ADMIN);
 

@@ -33,9 +33,15 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
     /** A moderator, an admin, or the Discord bot naming the staff member it acts for (the delegation routes). */
     private static final Set<String> MAD = Set.of("MODERATOR", "ADMIN", "DISCORD");
     private static final Set<String> MD = Set.of("MODERATOR", "DISCORD");
-    /** The routes on which the Discord bot may act for a linked staff member (StaffDelegation): nowhere else. */
+    /** A moderator, or the proxy or the Discord bot naming the staff member it acts for (the guard and area ban routes). */
+    private static final Set<String> MPD = Set.of("MODERATOR", "PROXY", "DISCORD");
+    /**
+     * The routes on which the Discord bot may act for a linked staff member (StaffDelegation): nowhere else. The guard level
+     * and the area ban routes are also delegation routes, so the proxy and the bot may act for staff there.
+     */
     private static final Set<String> DELEGATION_ROUTES = Set.of("POST /appeal/{identifier}/review", "PATCH /case/{reference}",
-            "PUT /case/{reference}/ticket/freeze", "POST /discord/tickets/{id}/close");
+            "PUT /case/{reference}/ticket/freeze", "POST /discord/tickets/{id}/close", "POST /guard/level", "POST /area-bans",
+            "POST /area-bans/{id}/lift");
     private static final Set<String> AUTHENTICATED = Set.of("isAuthenticated()");
     private static final Set<String> ANONYMOUS = Set.of("isAnonymous()");
     /** A valid player session (PlayerSessionRule.ROLE): neither a staff role nor the proxy. */
@@ -153,11 +159,11 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /intel/players/{owner}/hits", V),
             // join guard: staff read and set the level, the proxy reports its staff presence; area bans are staff actions
             Map.entry("GET /guard/state", V),
-            Map.entry("POST /guard/level", M),
+            Map.entry("POST /guard/level", MPD),
             Map.entry("POST /guard/presence", P),
             Map.entry("GET /area-bans", V),
-            Map.entry("POST /area-bans", M),
-            Map.entry("POST /area-bans/{id}/lift", M),
+            Map.entry("POST /area-bans", MPD),
+            Map.entry("POST /area-bans/{id}/lift", MPD),
             Map.entry("POST /profile/{owner}/session", MP),
             // IP bans: staff create and lift (a moderator within the duration limit, an admin permanently), viewers read,
             // the proxy reads its active list

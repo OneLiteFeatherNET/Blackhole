@@ -33,7 +33,10 @@ public enum AuditAction {
     TICKET_FREEZE("ticket.freeze"),
     INTEL_POLICY_UPDATE("intel.policy.update"),
     INTEL_ALLOW_LIST_ADD("intel.allow-list.add"),
-    INTEL_ALLOW_LIST_REMOVE("intel.allow-list.remove");
+    INTEL_ALLOW_LIST_REMOVE("intel.allow-list.remove"),
+    GUARD_LEVEL_SET("guard.level.set"),
+    AREA_BAN_CREATE("area-ban.create"),
+    AREA_BAN_LIFT("area-ban.lift");
 
     private final String wireName;
 
