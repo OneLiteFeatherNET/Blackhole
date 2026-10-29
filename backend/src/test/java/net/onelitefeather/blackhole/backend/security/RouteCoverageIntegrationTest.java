@@ -136,6 +136,9 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /intel/policy", V),
             Map.entry("POST /intel/policy", M),
             Map.entry("POST /intel/allow-list", M),
+            Map.entry("GET /intel/allow-list", V),
+            Map.entry("DELETE /intel/allow-list/{owner}", M),
+            Map.entry("GET /intel/lists", V),
             Map.entry("GET /intel/players/{owner}/hits", V),
             Map.entry("POST /profile/{owner}/session", MP),
             // admin configuration

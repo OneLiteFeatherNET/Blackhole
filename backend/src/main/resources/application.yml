@@ -432,12 +432,14 @@ blackhole:
           url: ${BLACKHOLE_INTEL_LISTS_X4BNET_VPN_URL:`https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output/vpn/ipv4.txt`}
           enabled: ${BLACKHOLE_INTEL_LISTS_X4BNET_VPN_ENABLED:false}
           attribution: "X4BNet lists_vpn, MIT, copyright 2024 X4B (Mathew Heard), https://github.com/X4BNet/lists_vpn"
+          licence: MIT
         # X4BNet lists_vpn. output/datacenter is VPN and datacenter ranges, so it is classified as hosting.
         x4bnet-datacenter:
           kind: HOSTING
           url: ${BLACKHOLE_INTEL_LISTS_X4BNET_DATACENTER_URL:`https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output/datacenter/ipv4.txt`}
           enabled: ${BLACKHOLE_INTEL_LISTS_X4BNET_DATACENTER_ENABLED:false}
           attribution: "X4BNet lists_vpn, MIT, copyright 2024 X4B (Mathew Heard), https://github.com/X4BNet/lists_vpn"
+          licence: MIT
   evasion:
     ip-salt: ${BLACKHOLE_EVASION_IP_SALT:}
     detection-window-days: ${BLACKHOLE_EVASION_DETECTION_WINDOW_DAYS:7}

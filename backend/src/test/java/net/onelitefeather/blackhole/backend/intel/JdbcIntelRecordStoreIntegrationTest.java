@@ -12,7 +12,9 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Runs the VPN detection migration on a fresh schema and checks the record store's SQL against real PostgreSQL. */
 @Tag("integration")
@@ -74,6 +76,26 @@ class JdbcIntelRecordStoreIntegrationTest extends PostgresIntegrationTest {
 
         assertEquals(2, this.store.deleteHitsCreatedBefore(250L), "the two hits before the cutoff are deleted");
         assertEquals(1, this.store.hitsOf(OWNER, 50).size(), "the newest hit stays");
+    }
+
+    @Test
+    void theAllowListPagesNewestFirstAndADeletedEntryIsGone() {
+        String older = "d".repeat(128);
+        String middle = "e".repeat(128);
+        String newest = "f".repeat(128);
+        UUID actor = UUID.randomUUID();
+        this.store.saveAllowEntry(new IntelAllowEntry(older, "reason one", actor, null, 100L));
+        this.store.saveAllowEntry(new IntelAllowEntry(newest, "reason three", actor, 900L, 300L));
+        this.store.saveAllowEntry(new IntelAllowEntry(middle, "reason two", actor, 500L, 200L));
+
+        assertEquals(List.of(300L, 200L), this.store.allowListPage(2, 0).stream().map(IntelAllowEntry::createdAt).toList(),
+                "the first page is the two newest entries");
+        assertEquals(List.of(100L), this.store.allowListPage(2, 2).stream().map(IntelAllowEntry::createdAt).toList(),
+                "the second page holds the oldest entry");
+
+        assertTrue(this.store.deleteAllowEntry(middle), "an existing entry is deleted");
+        assertFalse(this.store.deleteAllowEntry(middle), "a second delete finds nothing");
+        assertEquals(2, this.store.loadAllowList().size(), "the other two entries stay");
     }
 
     private static IntelHit hit(long createdAt, IntelPolicy verdict) {

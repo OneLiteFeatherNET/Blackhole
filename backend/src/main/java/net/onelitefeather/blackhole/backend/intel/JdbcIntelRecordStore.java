@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /** PostgreSQL implementation of {@link IntelRecordStore}: one statement per operation, no transaction. */
@@ -30,6 +31,14 @@ public class JdbcIntelRecordStore implements IntelRecordStore {
             ON CONFLICT (owner_hash) DO UPDATE SET reason = EXCLUDED.reason, actor_oid = EXCLUDED.actor_oid,
                 expires_at = EXCLUDED.expires_at, created_at = EXCLUDED.created_at
             """;
+    private static final String ALLOW_LIST_PAGE = """
+            SELECT owner_hash, reason, actor_oid, expires_at, created_at FROM vpn_allow_list
+            ORDER BY created_at DESC, owner_hash LIMIT ? OFFSET ?
+            """;
+    private static final String FIND_ALLOW_ENTRY = """
+            SELECT owner_hash, reason, actor_oid, expires_at, created_at FROM vpn_allow_list WHERE owner_hash = ?
+            """;
+    private static final String DELETE_ALLOW_ENTRY = "DELETE FROM vpn_allow_list WHERE owner_hash = ?";
     private static final String INSERT_HIT = """
             INSERT INTO vpn_detection_hit (id, owner_hash, ip, classification, source_key, asn, organisation, verdict,
                 allow_listed, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -82,12 +91,7 @@ public class JdbcIntelRecordStore implements IntelRecordStore {
              ResultSet rows = statement.executeQuery()) {
             List<IntelAllowEntry> entries = new ArrayList<>();
             while (rows.next()) {
-                String owner = rows.getString(1);
-                String reason = rows.getString(2);
-                UUID actor = UUID.fromString(rows.getString(3));
-                long expires = rows.getLong(4);
-                Long expiresAt = rows.wasNull() ? null : expires;
-                entries.add(new IntelAllowEntry(owner, reason, actor, expiresAt, rows.getLong(5)));
+                entries.add(allowEntry(rows));
             }
             return entries;
         } catch (SQLException e) {
@@ -99,6 +103,52 @@ public class JdbcIntelRecordStore implements IntelRecordStore {
     public void saveAllowEntry(IntelAllowEntry entry) {
         update(SAVE_ALLOW_ENTRY, entry.ownerHash(), entry.reason(), entry.actorOid().toString(), entry.expiresAt(),
                 entry.createdAt());
+    }
+
+    @Override
+    public List<IntelAllowEntry> allowListPage(int limit, int offset) {
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(ALLOW_LIST_PAGE)) {
+            statement.setInt(1, limit);
+            statement.setInt(2, offset);
+            try (ResultSet rows = statement.executeQuery()) {
+                List<IntelAllowEntry> entries = new ArrayList<>();
+                while (rows.next()) {
+                    entries.add(allowEntry(rows));
+                }
+                return entries;
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("could not read the intel allow-list", e);
+        }
+    }
+
+    @Override
+    public Optional<IntelAllowEntry> findAllowEntry(String ownerHash) {
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(FIND_ALLOW_ENTRY)) {
+            statement.setString(1, ownerHash);
+            try (ResultSet rows = statement.executeQuery()) {
+                return rows.next() ? Optional.of(allowEntry(rows)) : Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("could not read the intel allow-list entry", e);
+        }
+    }
+
+    @Override
+    public boolean deleteAllowEntry(String ownerHash) {
+        return update(DELETE_ALLOW_ENTRY, ownerHash) == 1;
+    }
+
+    /** Reads one allow-list row: owner, reason, actor, expiry (null when permanent), creation time. */
+    private static IntelAllowEntry allowEntry(ResultSet rows) throws SQLException {
+        String owner = rows.getString(1);
+        String reason = rows.getString(2);
+        UUID actor = UUID.fromString(rows.getString(3));
+        long expires = rows.getLong(4);
+        Long expiresAt = rows.wasNull() ? null : expires;
+        return new IntelAllowEntry(owner, reason, actor, expiresAt, rows.getLong(5));
     }
 
     @Override
