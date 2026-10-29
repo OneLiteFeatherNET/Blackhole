@@ -1,5 +1,8 @@
 package net.onelitefeather.blackhole.backend.casetimeline;
 
+import net.onelitefeather.blackhole.backend.discord.ticket.DiscordTicket;
+import net.onelitefeather.blackhole.backend.discord.ticket.TicketState;
+import net.onelitefeather.blackhole.backend.support.FakeTicketStore;
 import net.onelitefeather.blackhole.backend.support.StaffDelegations;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseDTO;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseErrorKind;
@@ -63,9 +66,11 @@ class CaseServiceTest {
     private final InMemoryStaffAuditStore auditStore = new InMemoryStaffAuditStore();
     private final StaffAuditRecorder audit = new StaffAuditRecorder(this.auditStore,
             new DomainEventPublisher(new RecordingEventTransport(), this.clock), new AuditPayloadGuard(), this.clock, new SimpleMeterRegistry());
+    private final FakeTicketStore tickets = new FakeTicketStore();
     private final CaseService service = new CaseService(
             this.punishments.repository(), this.staff.repository(), this.store, this.store, this.log, this.events, this.clock,
-            this.banIds.service, new MessageContent("onelitefeather.net"), StaffDelegations.withoutLinks(this.clock), this.audit);
+            this.banIds.service, new MessageContent("onelitefeather.net"), StaffDelegations.withoutLinks(this.clock), this.audit,
+            this.tickets);
 
     private void givenPunishment(String identifier) {
         this.punishments.given(new PunishmentEntity(identifier, UUID.randomUUID(), OWNER, "network", false, 1L, null, new HashMap<>()), identifier);
@@ -97,6 +102,31 @@ class CaseServiceTest {
         assertEquals(List.of(new CaseEventPayload.StatusChanged("OPEN", "IN_REVIEW")), this.log.all().stream().map(CaseEventRecord::payload).toList());
         assertEquals(ActorTrust.VERIFIED, this.log.all().getFirst().actorTrust(), "a web action is verified");
         assertEquals(ALICE.oid(), this.log.all().getFirst().actorOid());
+    }
+
+    private void givenTicket(TicketState state, boolean frozen, String freezeSource) {
+        UUID id = UUID.randomUUID();
+        this.tickets.tickets.put(id, new DiscordTicket(id, 1, ID, UUID.randomUUID(), UUID.randomUUID(), state, "123456789012345678",
+                "223456789012345678", frozen, 0, 0, null, null, null, 1L, 1L, freezeSource));
+    }
+
+    @Test
+    void theCaseShowsTheStateOfItsTicketWithoutTheDiscordIds() {
+        givenPunishment(ID);
+        givenTicket(TicketState.OPEN, true, DiscordTicket.FREEZE_STAFF);
+
+        CaseDTO.Response response = assertInstanceOf(CaseDTO.Response.class, this.service.get(ID));
+
+        assertEquals(new CaseDTO.Ticket("OPEN", true, "STAFF"), response.ticket(), "the lock made in Discord is visible to the panel");
+    }
+
+    @Test
+    void aCaseWithoutATicketShowsNoTicketState() {
+        givenPunishment(ID);
+
+        CaseDTO.Response response = assertInstanceOf(CaseDTO.Response.class, this.service.get(ID));
+
+        assertNull(response.ticket(), "a case that never had an appeal ticket has no ticket state");
     }
 
     @Test
@@ -144,7 +174,8 @@ class CaseServiceTest {
             }
         };
         CaseService racing = new CaseService(this.punishments.repository(), this.staff.repository(), racingReader, this.store, this.log,
-                this.events, this.clock, this.banIds.service, new MessageContent("onelitefeather.net"), StaffDelegations.withoutLinks(this.clock), this.audit);
+                this.events, this.clock, this.banIds.service, new MessageContent("onelitefeather.net"), StaffDelegations.withoutLinks(this.clock), this.audit,
+                this.tickets);
 
         CaseDTO result = racing.update(ID, patch(0, CaseStatus.CLOSED, null, null, null), ALICE);
 

@@ -5,6 +5,7 @@ import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.audit.AuditAction;
 import net.onelitefeather.blackhole.backend.audit.AuditTarget;
 import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseErrorKind;
 import net.onelitefeather.blackhole.backend.casetimeline.service.CaseReference;
 import net.onelitefeather.blackhole.backend.discord.dto.StaffTicketDTO;
@@ -72,7 +73,7 @@ public class StaffTicketService {
             if (ticket.frozen()) {
                 return response(ticket);
             }
-            return changed(ticket, true, DiscordTicket.FREEZE_STAFF, by, actor, punishment);
+            return changed(ticket, true, by, actor, punishment);
         }
         if (!ticket.frozen()) {
             return response(ticket);
@@ -81,7 +82,7 @@ public class StaffTicketService {
             return new StaffTicketDTO.Error("the channel was locked by the leak check; staff cannot unlock it", ErrorKind.CONFLICT,
                     "FREEZE_BY_LEAK");
         }
-        return changed(ticket, false, null, by, actor, punishment);
+        return changed(ticket, false, by, actor, punishment);
     }
 
     @Nullable
@@ -90,9 +91,8 @@ public class StaffTicketService {
         return live.isEmpty() ? null : live.getFirst();
     }
 
-    private StaffTicketDTO changed(DiscordTicket ticket, boolean frozen, @Nullable String source, Attribution by, Actor actor,
-                                   PunishmentEntity punishment) {
-        DiscordTicket after = this.store.setFrozen(ticket.id(), frozen, source, this.clock.millis()).orElse(ticket);
+    private StaffTicketDTO changed(DiscordTicket ticket, boolean frozen, Attribution by, Actor actor, PunishmentEntity punishment) {
+        DiscordTicket after = this.store.setStaffFrozen(ticket.id(), frozen, this.clock.millis(), CaseActor.of(by)).orElse(ticket);
         this.events.publish(FROZEN_EVENT, after.id().toString(),
                 Map.of("ticketId", after.id().toString(), "frozen", after.frozen()), failure -> { });
         if (!by.source().equals(by.recordedByOid())) {

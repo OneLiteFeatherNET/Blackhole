@@ -9,6 +9,7 @@ import io.micronaut.jdbc.DataSourceResolver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseChangeNotifier;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventSignals;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageAuthorKind;
 import net.onelitefeather.blackhole.backend.casetimeline.MessageChannel;
@@ -91,6 +92,25 @@ public class JdbcDiscordTicketStore implements DiscordTicketStore {
                        upd.id::text, 'STAFF',
                        jsonb_build_object('ticketId', upd.id::text, 'appealId', upd.appeal_id::text, 'protocolVersion', ?::int),
                        'ticket.archived:' || upd.id::text
+                FROM upd
+                ON CONFLICT (dedupe_key) DO NOTHING
+                RETURNING 1
+            )
+            SELECT %1$s FROM upd
+            """.formatted(TICKET_COLUMNS);
+
+    private static final String STAFF_FREEZE = """
+            WITH upd AS (
+                UPDATE discord_ticket SET frozen = ?, freeze_source = ?, updated_at = ?
+                WHERE id = ? RETURNING %1$s
+            ), ev AS (
+                INSERT INTO case_event (identifier, punishment_identifier, type, payload_version, occurred_at, origin, actor_trust,
+                                        actor_oid, recorded_by_oid, actor_source, subject_id, visibility, payload, dedupe_key)
+                SELECT gen_random_uuid(), upd.punishment_identifier, 'ticket.frozen', 1, ?::bigint, 'LIVE', ?::varchar, ?::uuid, ?::uuid,
+                       ?::uuid, upd.id::text, 'STAFF',
+                       jsonb_strip_nulls(jsonb_build_object('ticketId', upd.id::text, 'appealId', upd.appeal_id::text,
+                                         'frozen', upd.frozen, 'freezeSource', upd.freeze_source)),
+                       'ticket.frozen:' || upd.id::text || ':' || ?::varchar
                 FROM upd
                 ON CONFLICT (dedupe_key) DO NOTHING
                 RETURNING 1
@@ -405,6 +425,30 @@ public class JdbcDiscordTicketStore implements DiscordTicketStore {
             statement.setLong(3, now);
             statement.setObject(4, id);
         }, JdbcDiscordTicketStore::ticket);
+    }
+
+    @Override
+    public Optional<DiscordTicket> setStaffFrozen(UUID id, boolean frozen, long now, CaseActor actor) {
+        Optional<DiscordTicket> changed = one(STAFF_FREEZE, statement -> {
+            statement.setBoolean(1, frozen);
+            statement.setString(2, frozen ? DiscordTicket.FREEZE_STAFF : null);
+            statement.setLong(3, now);
+            statement.setObject(4, id);
+            statement.setLong(5, now);
+            statement.setString(6, actor.trust().name());
+            statement.setObject(7, actor.actorOid());
+            statement.setObject(8, actor.recordedByOid());
+            statement.setObject(9, actor.actorSource());
+            statement.setString(10, String.valueOf(now));
+        }, JdbcDiscordTicketStore::ticket);
+        changed.ifPresent(ticket -> CaseEventSignals.byDedupeKey(this.dataSource, this.notifier, "ticket.frozen:" + id + ":" + now));
+        return changed;
+    }
+
+    @Override
+    public Optional<DiscordTicket> latestOf(String punishmentIdentifier) {
+        return one("SELECT " + TICKET_COLUMNS + " FROM discord_ticket WHERE punishment_identifier = ? ORDER BY ticket_no DESC LIMIT 1",
+                statement -> statement.setString(1, punishmentIdentifier), JdbcDiscordTicketStore::ticket);
     }
 
     @Override

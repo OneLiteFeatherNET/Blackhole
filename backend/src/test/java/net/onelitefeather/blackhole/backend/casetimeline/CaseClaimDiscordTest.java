@@ -18,6 +18,7 @@ import net.onelitefeather.blackhole.backend.security.StaffActorRepository;
 import net.onelitefeather.blackhole.backend.support.BanIdTestBed;
 import net.onelitefeather.blackhole.backend.support.FakeCaseStore;
 import net.onelitefeather.blackhole.backend.support.InMemoryCaseEventRepository;
+import net.onelitefeather.blackhole.backend.support.FakeTicketStore;
 import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.InMemoryStaffAuditStore;
 import net.onelitefeather.blackhole.backend.support.RecordingEventTransport;
@@ -56,7 +57,8 @@ class CaseClaimDiscordTest {
     private final CaseService service = new CaseService(
             this.punishments.repository(), this.staff.repository(), this.store, this.store, this.log,
             new RecordingEventPublisher(), this.clock, new BanIdTestBed(this.punishments.repository()).service,
-            new MessageContent("onelitefeather.net"), this.linked.delegation(), StaffDelegations.recorder(this.clock, this.auditStore));
+            new MessageContent("onelitefeather.net"), this.linked.delegation(), StaffDelegations.recorder(this.clock, this.auditStore),
+            new FakeTicketStore());
 
     /** A case with one punishment and a moderator who is a known staff member, linked to Discord, with a fresh snapshot. */
     private void givenCaseAndLinkedModerator() {

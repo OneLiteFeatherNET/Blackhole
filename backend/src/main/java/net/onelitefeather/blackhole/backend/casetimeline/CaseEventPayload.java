@@ -59,6 +59,7 @@ public sealed interface CaseEventPayload {
     String TICKET_TRANSCRIPT_COMPLETE = "ticket.transcript_complete";
     String TICKET_ARCHIVED = "ticket.archived";
     String TICKET_CHANNEL_DELETED = "ticket.channel_deleted";
+    String TICKET_FROZEN = "ticket.frozen";
 
     /**
      * The only event types a player-facing reader may return, on top of the {@code PLAYER} visibility
@@ -863,6 +864,32 @@ public sealed interface CaseEventPayload {
             map.put("ticketId", ticketId);
             map.put("appealId", appealId);
             map.put("protocolVersion", protocolVersion);
+            return map;
+        }
+    }
+
+    /**
+     * The staff lock of the ticket channel was set or lifted. {@code freezeSource} is {@code STAFF} while locked, {@code null} once unlocked.
+     * Staff only; carries no Discord id.
+     */
+    record TicketFrozen(String ticketId, String appealId, boolean frozen, @Nullable String freezeSource) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return TICKET_FROZEN;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("ticketId", ticketId);
+            map.put("appealId", appealId);
+            map.put("frozen", frozen);
+            put(map, "freezeSource", freezeSource);
             return map;
         }
     }
