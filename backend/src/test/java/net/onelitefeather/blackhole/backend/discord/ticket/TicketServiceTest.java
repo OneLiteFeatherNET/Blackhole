@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.discord.ticket;
 
+import net.onelitefeather.blackhole.backend.support.StaffDelegations;
 import net.onelitefeather.blackhole.backend.casetimeline.BanIdLeakReason;
 import net.onelitefeather.blackhole.backend.casetimeline.BanIdLeakSource;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
@@ -15,13 +16,37 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.ActorKind;
+import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
+import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.BanIdTestBed;
+import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
+import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.FakeCaseStore;
+import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
+import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.FakeTicketStore;
+import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
+import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.InMemoryCaseEventRepository;
+import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
+import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
+import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
+import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
 import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.RecordingEventPublisher;
+import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
+import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.RecordingProtocols;
+import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
+import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.TestClock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,6 +83,8 @@ class TicketServiceTest {
     private final InMemoryProtocolStore protocolStore = new InMemoryProtocolStore();
     private final RecordingProtocols generator = new RecordingProtocols();
     private final RecordingEventPublisher events = new RecordingEventPublisher();
+    private final InMemoryRepository<AppealRepository, AppealEntity, UUID> appealRows =
+            InMemoryRepository.<AppealRepository, AppealEntity, UUID>of(AppealRepository.class, AppealEntity::getIdentifier).build();
     private final InMemoryRepository<PunishmentRepository, PunishmentEntity, String> punishments =
             InMemoryRepository.<PunishmentRepository, PunishmentEntity, String>of(PunishmentRepository.class, PunishmentEntity::getIdentifier).build();
     private final BanIdTestBed banIds = new BanIdTestBed(this.punishments.repository());
@@ -74,7 +101,7 @@ class TicketServiceTest {
             this.appealCalls++;
             return this.appealOutcome;
         }, this.cases, this.cases, this.protocolStore, this.generator, this.events, this.clock, DiscordTicketProperties.defaults(),
-                new SharePosts(null, null));
+                new SharePosts(null, null), StaffDelegations.withoutLinks(this.clock), StaffDelegations.recorder(this.clock), this.appealRows.repository());
     }
 
     private DiscordTicketDTO.Opened open(String discordUser, String ban, String statement) {

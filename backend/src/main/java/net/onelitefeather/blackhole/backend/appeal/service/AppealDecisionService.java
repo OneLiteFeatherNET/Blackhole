@@ -3,8 +3,10 @@ package net.onelitefeather.blackhole.backend.appeal.service;
 import net.onelitefeather.blackhole.backend.audit.AuditAction;
 import net.onelitefeather.blackhole.backend.audit.AuditTarget;
 import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentShortId;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.Attribution;
+import net.onelitefeather.blackhole.backend.security.StaffDelegation;
 import net.onelitefeather.blackhole.backend.security.StaffLinkService;
 import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
 import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
@@ -84,8 +86,9 @@ public class AppealDecisionService {
     private final BanIdService banIds;
     private final AppealProtocolGenerator protocols;
     private final StaffProfileService staffProfiles;
-    private final Clock clock;
+    private final StaffDelegation delegation;
     private final StaffAuditRecorder audit;
+    private final Clock clock;
 
     public AppealDecisionService(
             AppealRepository appealRepository,
@@ -102,10 +105,12 @@ public class AppealDecisionService {
             BanIdService banIds,
             AppealProtocolGenerator protocols,
             StaffProfileService staffProfiles,
+            StaffDelegation delegation,
             Clock clock,
             StaffAuditRecorder audit
     ) {
         this.audit = audit;
+        this.delegation = delegation;
         this.staffProfiles = staffProfiles;
         this.appealRepository = appealRepository;
         this.punishmentRepository = punishmentRepository;
@@ -123,6 +128,10 @@ public class AppealDecisionService {
         this.clock = clock;
     }
 
+    private static boolean isBlank(String text) {
+        return text == null || text.isBlank();
+    }
+
     /**
      * Decides an eligible appeal end to end: looks it up, applies the status guard,
      * decision-validity check, self-review rejection, SEVERE-tier full-lift ban, and
@@ -130,7 +139,16 @@ public class AppealDecisionService {
      * and persists the decided appeal. The single entry point {@code AppealController.review}
      * calls, so the controller never branches on business rules itself.
      */
-    public AppealReviewResult reviewAppeal(UUID appealIdentifier, AppealReviewDTO review, Actor reviewer) {
+    public AppealReviewResult reviewAppeal(UUID appealIdentifier, AppealReviewDTO review, Actor caller) {
+        StaffDelegation.Outcome delegated = this.delegation.attribute(caller, review.onBehalfOf());
+        if (delegated instanceof StaffDelegation.Outcome.Refused refused) {
+            return AppealReviewResult.delegationRefused(refused);
+        }
+        Attribution by = ((StaffDelegation.Outcome.Allowed) delegated).attribution();
+        // The decision is the staff member's: the bot only records it. A reject from the bot needs the message to the player.
+        if (!by.source().equals(by.recordedByOid()) && review.decision() == AppealStatus.DENIED && isBlank(review.playerMessage())) {
+            return AppealReviewResult.invalidDecision("a reject from Discord needs a message to the player");
+        }
         AppealEntity appeal = this.appealRepository.findById(appealIdentifier).orElse(null);
         if (appeal == null) {
             return AppealReviewResult.notFound();
@@ -148,7 +166,7 @@ public class AppealDecisionService {
                 return AppealReviewResult.invalidPlayerMessage(problem);
             }
             // A message to the player is written under the reviewer's name: without one, nothing is decided.
-            if (this.staffProfiles.namedDisplayName(reviewer.oid()).isEmpty()) {
+            if (this.staffProfiles.namedDisplayName(by.source()).isEmpty()) {
                 return AppealReviewResult.staffProfileRequired();
             }
         }
@@ -156,9 +174,10 @@ public class AppealDecisionService {
         PunishmentEntity punishment = appeal.getPunishment();
         // Compared by the reviewer's verified oid: the punishment's attributed source, or the principal that recorded it.
         // ... or the staff member behind an in-game ban: the stored actor, or whoever the source is linked to now.
-        if (reviewer.oid().equals(punishment.getSource()) || reviewer.oid().equals(punishment.getRecordedByOid())
-                || reviewer.oid().equals(punishment.getActorOid())
-                || this.staffLinks.linkedOid(punishment.getSource()).filter(reviewer.oid()::equals).isPresent()) {
+        UUID reviewer = by.source();
+        if (reviewer.equals(punishment.getSource()) || reviewer.equals(punishment.getRecordedByOid())
+                || reviewer.equals(punishment.getActorOid())
+                || this.staffLinks.linkedOid(punishment.getSource()).filter(reviewer::equals).isPresent()) {
             return AppealReviewResult.selfReview();
         }
 
@@ -184,24 +203,24 @@ public class AppealDecisionService {
         }
 
         DecisionOutcome outcome = applyDecision(
-                punishment, appeal.getAppellantHash(), review.decision(), review.newExpirationAt(), reviewer.oid()
+                punishment, appeal.getAppellantHash(), review.decision(), review.newExpirationAt(), reviewer
         );
         if (outcome == DecisionOutcome.PUNISHMENT_NOT_ACTIVE) {
             return AppealReviewResult.punishmentNotActive();
         }
         if (review.decision() == AppealStatus.GRANTED_FULL_LIFT) {
-            markEvidenceLifted(punishment, appealIdentifier, reviewer.attribution());
+            markEvidenceLifted(punishment, appealIdentifier, by);
         }
 
         appeal.setStatus(review.decision());
-        appeal.setDecidedBy(reviewer.oid());
-        appeal.setRecordedByOid(reviewer.oid());
+        appeal.setDecidedBy(reviewer);
+        appeal.setRecordedByOid(by.recordedByOid());
         appeal.setDecisionNote(review.decisionNote());
         appeal.setUpdatedAt(this.clock.millis());
         AppealEntity saved = this.appealRepository.update(appeal);
-        recordDecision(saved, punishment, review, reviewer);
+        recordDecision(saved, punishment, review, by);
         publishResolved(appealIdentifier, saved, punishment, review);
-        this.audit.record(reviewer.attribution(), reviewer, AuditAction.APPEAL_REVIEW, AuditTarget.ofCase(punishment.getShortId()));
+        this.audit.record(by, caller, AuditAction.APPEAL_REVIEW, AuditTarget.ofCase(punishment.getShortId()));
 
         return AppealReviewResult.decided(saved);
     }
@@ -285,12 +304,12 @@ public class AppealDecisionService {
     }
 
     /** Records the decision, and the lift of a granted full-lift appeal, in the punishment's case. */
-    private void recordDecision(AppealEntity decided, PunishmentEntity punishment, AppealReviewDTO review, Actor reviewer) {
+    private void recordDecision(AppealEntity decided, PunishmentEntity punishment, AppealReviewDTO review, Attribution by) {
         this.caseTimeline.appealDecided(decided, review.newExpirationAt());
         if (review.playerMessage() != null) {
             // The reviewer's name was checked before the decision was written; the message keeps it as a snapshot.
-            String displayName = this.staffProfiles.namedDisplayName(reviewer.oid()).orElse(null);
-            this.caseTimeline.decisionMessage(decided, review.playerMessage(), CaseActor.of(reviewer.attribution()), displayName);
+            String displayName = this.staffProfiles.namedDisplayName(by.source()).orElse(null);
+            this.caseTimeline.decisionMessage(decided, review.playerMessage(), CaseActor.of(by), displayName);
         }
         if (review.decision() == AppealStatus.GRANTED_FULL_LIFT) {
             this.caseTimeline.lifted(punishment, decided.getIdentifier(), decided.getRecordedByOid());

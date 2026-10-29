@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.discord.ticket;
 
+import io.micronaut.core.annotation.Nullable;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,7 +36,7 @@ public class JdbcDiscordTicketStore implements DiscordTicketStore {
     private static final String UNIQUE_VIOLATION = "23505";
     private static final String TICKET_COLUMNS = "id, ticket_no, punishment_identifier, appeal_id, owner_participant_id, state, channel_id, "
             + "guild_id, frozen, ingested_cursor, relayed_seq, transcript_count, transcript_last_message_id, transcript_complete_at, "
-            + "created_at, updated_at";
+            + "created_at, updated_at, freeze_source";
     private static final String PARTICIPANT_COLUMNS = "id, punishment_identifier, kind, discord_user_id, display_name, bot, created_at, erased_at";
 
     private static final String ENSURE_PARTICIPANT = """
@@ -396,11 +398,12 @@ public class JdbcDiscordTicketStore implements DiscordTicketStore {
     }
 
     @Override
-    public Optional<DiscordTicket> setFrozen(UUID id, boolean frozen, long now) {
-        return one("UPDATE discord_ticket SET frozen = ?, updated_at = ? WHERE id = ? RETURNING " + TICKET_COLUMNS, statement -> {
+    public Optional<DiscordTicket> setFrozen(UUID id, boolean frozen, @Nullable String freezeSource, long now) {
+        return one("UPDATE discord_ticket SET frozen = ?, freeze_source = ?, updated_at = ? WHERE id = ? RETURNING " + TICKET_COLUMNS, statement -> {
             statement.setBoolean(1, frozen);
-            statement.setLong(2, now);
-            statement.setObject(3, id);
+            statement.setString(2, freezeSource);
+            statement.setLong(3, now);
+            statement.setObject(4, id);
         }, JdbcDiscordTicketStore::ticket);
     }
 
@@ -582,7 +585,7 @@ public class JdbcDiscordTicketStore implements DiscordTicketStore {
         return new DiscordTicket(rows.getObject(1, UUID.class), rows.getLong(2), rows.getString(3), rows.getObject(4, UUID.class),
                 rows.getObject(5, UUID.class), TicketState.valueOf(rows.getString(6)), rows.getString(7), rows.getString(8), rows.getBoolean(9),
                 rows.getLong(10), rows.getLong(11), rows.getObject(12, Integer.class), rows.getObject(13, Long.class),
-                rows.getObject(14, Long.class), rows.getLong(15), rows.getLong(16));
+                rows.getObject(14, Long.class), rows.getLong(15), rows.getLong(16), rows.getString(17));
     }
 
     private static Participant participant(ResultSet rows) throws SQLException {

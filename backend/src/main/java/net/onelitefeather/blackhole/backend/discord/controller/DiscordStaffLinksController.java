@@ -13,7 +13,9 @@ import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.discord.DiscordLinkService;
 import net.onelitefeather.blackhole.backend.discord.dto.DiscordLinkDTO;
+import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.security.Roles;
+import net.onelitefeather.blackhole.backend.security.StaffDelegation;
 
 /** Part of the {@code /discord/**} facade (role {@code DISCORD} only): the live staff links for the channel access reconcile. */
 @Version(ApiVersion.V1)
@@ -21,15 +23,25 @@ import net.onelitefeather.blackhole.backend.security.Roles;
 public class DiscordStaffLinksController implements DiscordStaffLinksApi {
 
     private final DiscordLinkService service;
+    private final StaffDelegation delegation;
 
     @Inject
-    public DiscordStaffLinksController(DiscordLinkService service) {
+    public DiscordStaffLinksController(DiscordLinkService service, StaffDelegation delegation) {
         this.service = service;
+        this.delegation = delegation;
     }
 
     @Override
     @Secured(Roles.DISCORD)
     public HttpResponse<DiscordLinkDTO> list() {
         return HttpResponse.ok(this.service.staffLinks());
+    }
+
+    @Override
+    @Secured(Roles.DISCORD)
+    public HttpResponse<DiscordLinkDTO> lookup(String discordUserId) {
+        return this.delegation.lookup(discordUserId)
+                .<HttpResponse<DiscordLinkDTO>>map(found -> HttpResponse.ok(new DiscordLinkDTO.StaffLookupResponse(found.oid(), found.eligible())))
+                .orElseGet(() -> HttpResponse.notFound(new DiscordLinkDTO.Error("there is no live staff link for this Discord user", ErrorKind.NOT_FOUND)));
     }
 }

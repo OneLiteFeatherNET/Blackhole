@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.casetimeline;
 
+import net.onelitefeather.blackhole.backend.support.StaffDelegations;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseDTO;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseErrorKind;
 import net.onelitefeather.blackhole.backend.casetimeline.service.CaseService;
@@ -64,7 +65,7 @@ class CaseServiceTest {
             new DomainEventPublisher(new RecordingEventTransport(), this.clock), new AuditPayloadGuard(), this.clock, new SimpleMeterRegistry());
     private final CaseService service = new CaseService(
             this.punishments.repository(), this.staff.repository(), this.store, this.store, this.log, this.events, this.clock,
-            this.banIds.service, new MessageContent("onelitefeather.net"), this.audit);
+            this.banIds.service, new MessageContent("onelitefeather.net"), StaffDelegations.withoutLinks(this.clock), this.audit);
 
     private void givenPunishment(String identifier) {
         this.punishments.given(new PunishmentEntity(identifier, UUID.randomUUID(), OWNER, "network", false, 1L, null, new HashMap<>()), identifier);
@@ -143,7 +144,7 @@ class CaseServiceTest {
             }
         };
         CaseService racing = new CaseService(this.punishments.repository(), this.staff.repository(), racingReader, this.store, this.log,
-                this.events, this.clock, this.banIds.service, new MessageContent("onelitefeather.net"), this.audit);
+                this.events, this.clock, this.banIds.service, new MessageContent("onelitefeather.net"), StaffDelegations.withoutLinks(this.clock), this.audit);
 
         CaseDTO result = racing.update(ID, patch(0, CaseStatus.CLOSED, null, null, null), ALICE);
 

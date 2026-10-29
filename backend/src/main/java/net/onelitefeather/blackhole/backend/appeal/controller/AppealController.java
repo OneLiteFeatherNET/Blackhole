@@ -88,7 +88,7 @@ public class AppealController implements AppealApi {
     }
 
     @Override
-    @Secured(Roles.MODERATOR)
+    @Secured({Roles.MODERATOR, Roles.ADMIN, Roles.DISCORD})
     public HttpResponse<?> review(UUID identifier, AppealReviewDTO review, Actor actor) {
         AppealReviewResult result = this.decisionService.reviewAppeal(identifier, review, actor);
         return switch (result.kind()) {
@@ -97,7 +97,8 @@ public class AppealController implements AppealApi {
             case INVALID_DECISION, SEVERE_FULL_LIFT_DISALLOWED, DURATION_REDUCTION_MISSING_EXPIRY, DURATION_REDUCTION_EXPIRY_NOT_FUTURE,
                     DURATION_REDUCTION_NOT_SHORTER ->
                     HttpResponse.badRequest(result.message());
-            case SELF_REVIEW -> HttpResponse.status(HttpStatus.FORBIDDEN, result.message());
+            case SELF_REVIEW, DELEGATION_FORBIDDEN -> HttpResponse.status(HttpStatus.FORBIDDEN, result.message());
+            case ON_BEHALF_OF_REJECTED -> HttpResponse.badRequest(result.message());
             case INVALID_PLAYER_MESSAGE -> HttpResponse.status(HttpStatus.UNPROCESSABLE_ENTITY, result.message());
             case STAFF_PROFILE_REQUIRED -> HttpResponse.status(HttpStatus.CONFLICT, result.message());
             case DECIDED -> HttpResponse.ok(withEvidenceCount(result.appeal()));

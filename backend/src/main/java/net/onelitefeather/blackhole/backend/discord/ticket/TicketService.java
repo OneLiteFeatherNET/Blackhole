@@ -2,6 +2,10 @@ package net.onelitefeather.blackhole.backend.discord.ticket;
 
 import io.micronaut.core.annotation.Nullable;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.banid.service.BanIdService;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseChanges;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseReader;
@@ -13,9 +17,12 @@ import net.onelitefeather.blackhole.backend.discord.dto.DiscordTicketDTO;
 import net.onelitefeather.blackhole.backend.discord.dto.DiscordTicketDTO.Code;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentShortId;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.security.Attribution;
+import net.onelitefeather.blackhole.backend.security.StaffDelegation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,12 +75,19 @@ public class TicketService {
     private final Clock clock;
     private final DiscordTicketProperties properties;
     private final SharePosts shares;
+    private final StaffDelegation delegation;
+    private final StaffAuditRecorder audit;
+    private final AppealRepository appealRows;
 
     public TicketService(
             DiscordTicketStore store, BanIdService banIds, PunishmentRepository punishments, TicketAppeals appeals, CaseReader reader,
             CaseChanges changes, ProtocolStore protocols, AppealProtocolGenerator generator, DomainEventPublisher events, Clock clock,
-            DiscordTicketProperties properties, SharePosts shares
+            DiscordTicketProperties properties, SharePosts shares, StaffDelegation delegation, StaffAuditRecorder audit,
+            AppealRepository appealRows
     ) {
+        this.appealRows = appealRows;
+        this.delegation = delegation;
+        this.audit = audit;
         this.shares = shares;
         this.store = store;
         this.banIds = banIds;
@@ -194,8 +208,8 @@ public class TicketService {
             }
             return toDto(this.store.ticket(id).orElse(ticket));
         }
-        if (request.frozen() != null && request.frozen() != ticket.frozen()) {
-            ticket = this.store.setFrozen(id, request.frozen(), now).orElse(ticket);
+        if (request.frozen() != null) {
+            ticket = mirrorFreeze(ticket, request.frozen(), now);
         }
         if (request.channelId() != null) {
             DiscordTicketDTO.Error failed = channel(ticket, request);
@@ -212,6 +226,23 @@ public class TicketService {
             ticket = this.store.ticket(id).orElse(ticket);
         }
         return toDto(ticket);
+    }
+
+    /**
+     * The bot's freeze mirror. A freeze from the leak path is always a {@code LEAK}; a thaw lifts only a leak freeze, so a channel
+     * locked by staff stays locked until a staff member unlocks it.
+     */
+    private DiscordTicket mirrorFreeze(DiscordTicket ticket, boolean frozen, long now) {
+        if (frozen) {
+            if (ticket.frozen() && DiscordTicket.FREEZE_LEAK.equals(ticket.freezeSource())) {
+                return ticket;
+            }
+            return this.store.setFrozen(ticket.id(), true, DiscordTicket.FREEZE_LEAK, now).orElse(ticket);
+        }
+        if (!ticket.frozen() || DiscordTicket.FREEZE_STAFF.equals(ticket.freezeSource())) {
+            return ticket;
+        }
+        return this.store.setFrozen(ticket.id(), false, null, now).orElse(ticket);
     }
 
     private DiscordTicketDTO.Error channel(DiscordTicket ticket, DiscordTicketDTO.PatchRequest request) {
@@ -302,6 +333,19 @@ public class TicketService {
         if (request.count() < 0 || last == null) {
             return error(ErrorKind.VALIDATION, "count is not negative and lastMessageId is a Discord id", null);
         }
+        Attribution by = bot.attribution();
+        if (request.onBehalfOf() != null) {
+            // A staff member closes the ticket from Discord: the decision must come first, and the close is recorded under that member.
+            StaffDelegation.Outcome delegated = this.delegation.attribute(bot, request.onBehalfOf());
+            if (delegated instanceof StaffDelegation.Outcome.Refused refused) {
+                return error(refused.reason() == StaffDelegation.Reason.NOT_DISCORD ? ErrorKind.VALIDATION : ErrorKind.FORBIDDEN,
+                        refused.message(), null);
+            }
+            by = ((StaffDelegation.Outcome.Allowed) delegated).attribution();
+            if (!decided(ticket.appealId())) {
+                return invalidState(ticket.state(), TicketState.CLOSED);
+            }
+        }
 
         long now = this.clock.millis();
         boolean recorded = this.store.complete(id, request.count(), last, now, bot.oid());
@@ -318,6 +362,9 @@ public class TicketService {
             case STORED, UNCHANGED -> {
                 if (recorded) {
                     publish(CLOSED_EVENT, current);
+                }
+                if (!by.source().equals(by.recordedByOid())) {
+                    this.audit.record(by, bot, AuditAction.TICKET_CLOSE, closeTarget(current));
                 }
                 return new DiscordTicketDTO.Closed(toDto(current), result.version(), result.outcome().name());
             }
@@ -338,6 +385,19 @@ public class TicketService {
                 return error(ErrorKind.UNAVAILABLE, "the protocol could not be stored; repeat the close request", null);
             }
         }
+    }
+
+    private boolean decided(UUID appealId) {
+        return this.appealRows.findById(appealId).map(appeal -> switch (appeal.getStatus()) {
+            case GRANTED_FULL_LIFT, GRANTED_DURATION_REDUCTION, DENIED -> true;
+            default -> false;
+        }).orElse(false);
+    }
+
+    private AuditTarget closeTarget(DiscordTicket ticket) {
+        return this.punishments.findById(ticket.punishmentIdentifier())
+                .map(punishment -> AuditTarget.ofCase(PunishmentShortId.display(punishment.getShortId())))
+                .orElseGet(AuditTarget::none);
     }
 
     /**

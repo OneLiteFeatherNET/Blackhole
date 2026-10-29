@@ -30,7 +30,12 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentShortId;
 import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.security.ActorKind;
+import net.onelitefeather.blackhole.backend.security.Attribution;
+import net.onelitefeather.blackhole.backend.security.StaffDelegation;
 import net.onelitefeather.blackhole.backend.security.StaffActorRepository;
 
 import java.time.Clock;
@@ -68,6 +73,8 @@ public class CaseService {
 
     private final PunishmentRepository punishments;
     private final StaffActorRepository staff;
+    private final StaffDelegation delegation;
+    private final StaffAuditRecorder audit;
     private final CaseReader reader;
     private final CaseChanges changes;
     private final CaseEventRepository events;
@@ -76,14 +83,15 @@ public class CaseService {
     private final CaseReference references;
     private final CaseEventPublisher caseEvents;
     private final MessageContent content;
-    private final StaffAuditRecorder audit;
 
     public CaseService(
             PunishmentRepository punishments, StaffActorRepository staff, CaseReader reader, CaseChanges changes,
             CaseEventRepository events, DomainEventPublisher publisher, Clock clock, BanIdService banIds, MessageContent content,
+            StaffDelegation delegation,
             StaffAuditRecorder audit
     ) {
         this.audit = audit;
+        this.delegation = delegation;
         this.punishments = punishments;
         this.staff = staff;
         this.reader = reader;
@@ -195,6 +203,12 @@ public class CaseService {
         if (found.error() != null) {
             return found.error();
         }
+        StaffDelegation.Outcome delegated = this.delegation.attribute(actor, request.onBehalfOf());
+        if (delegated instanceof StaffDelegation.Outcome.Refused refused) {
+            return error(refused.reason() == StaffDelegation.Reason.NOT_DISCORD ? CaseErrorKind.VALIDATION : CaseErrorKind.FORBIDDEN,
+                    refused.message());
+        }
+        Attribution by = ((StaffDelegation.Outcome.Allowed) delegated).attribution();
         if (request.expectedVersion() == null) {
             return error(CaseErrorKind.VALIDATION, "expectedVersion is required");
         }
@@ -225,19 +239,19 @@ public class CaseService {
             return view(punishment);
         }
         long now = this.clock.millis();
-        CaseActor by = CaseActor.of(actor.attribution());
+        CaseActor writer = CaseActor.of(by);
         if (current.isEmpty()) {
             this.changes.ensureCase(punishment.getIdentifier(), now);
         }
-        List<CaseChanges.Appended> appended = this.changes.update(punishment.getIdentifier(), version, now, by, before, after);
+        List<CaseChanges.Appended> appended = this.changes.update(punishment.getIdentifier(), version, now, writer, before, after);
         if (appended.isEmpty()) {
             return stale();
         }
         for (CaseChanges.Appended event : appended) {
             payloads.stream().filter(payload -> payload.type().equals(event.type())).findFirst()
-                    .ifPresent(payload -> publish(punishment, event, by, now, payload.toMap()));
+                    .ifPresent(payload -> publish(punishment, event, writer, now, payload.toMap()));
         }
-        recordAudit(actor, AuditAction.CASE_UPDATE, punishment);
+        this.audit.record(by, actor, AuditAction.CASE_UPDATE, AuditTarget.ofCase(punishment.getShortId()));
         return view(punishment);
     }
 

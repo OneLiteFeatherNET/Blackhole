@@ -127,7 +127,8 @@ public interface DiscordTicketStore {
      */
     Optional<DiscordTicket> transition(UUID id, Set<TicketState> from, TicketState to, long now);
 
-    Optional<DiscordTicket> setFrozen(UUID id, boolean frozen, long now);
+    /** Sets the freeze and its source ({@link DiscordTicket#FREEZE_LEAK}, {@link DiscordTicket#FREEZE_STAFF}, or {@code null} to thaw). */
+    Optional<DiscordTicket> setFrozen(UUID id, boolean frozen, @Nullable String freezeSource, long now);
 
     /** {@code CLOSED} becomes {@code ARCHIVED} and {@code ticket.archived} is appended, in one statement. Empty when it was not closed. */
     Optional<DiscordTicket> archive(UUID id, int protocolVersion, long now, UUID recordedByOid);

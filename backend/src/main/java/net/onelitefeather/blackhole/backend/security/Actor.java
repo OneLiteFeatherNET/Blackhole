@@ -16,22 +16,36 @@ import java.util.UUID;
  * @param admin       whether the principal holds the {@code ADMIN} role, for rules such as "the author or an admin"
  * @param panel       whether the request declares the team panel as its surface ({@code X-Blackhole-Surface: panel});
  *                    a declaration, not verified, read by {@link ActorArgumentBinder}
+ * @param discord     whether the principal holds the {@code DISCORD} role (the bot), which may act for a linked staff member
+ *                    through {@code onBehalfOf} on the routes that {@link StaffDelegation} covers
  * @param receipt     whether the staff action of this request was recorded in the audit log; written by the recorder
  */
 public record Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy, boolean admin, boolean panel,
-                    AuditReceipt receipt) {
+                    boolean discord, AuditReceipt receipt) {
 
     public Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy) {
-        this(oid, displayName, kind, proxy, false, false, new AuditReceipt());
+        this(oid, displayName, kind, proxy, false, false, false, new AuditReceipt());
     }
 
     public Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy, boolean admin) {
-        this(oid, displayName, kind, proxy, admin, false, new AuditReceipt());
+        this(oid, displayName, kind, proxy, admin, false, false, new AuditReceipt());
+    }
+
+    public Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy, boolean admin, boolean panel) {
+        this(oid, displayName, kind, proxy, admin, panel, false, new AuditReceipt());
+    }
+
+    public Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy, boolean admin, boolean panel, AuditReceipt receipt) {
+        this(oid, displayName, kind, proxy, admin, panel, false, receipt);
+    }
+
+    public Actor(UUID oid, @Nullable String displayName, ActorKind kind, boolean proxy, boolean admin, boolean panel, boolean discord) {
+        this(oid, displayName, kind, proxy, admin, panel, discord, new AuditReceipt());
     }
 
     /** This caller, with the declared surface of the request; the receipt of the request is kept. */
     public Actor withPanel(boolean panel) {
-        return new Actor(this.oid, this.displayName, this.kind, this.proxy, this.admin, panel, this.receipt);
+        return new Actor(this.oid, this.displayName, this.kind, this.proxy, this.admin, panel, this.discord, this.receipt);
     }
 
     /** The attribution of a write the caller makes in its own name. */
