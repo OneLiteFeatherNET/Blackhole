@@ -47,7 +47,13 @@ public enum ErrorKind {
     KICK_TARGET_INVALID(HttpStatus.UNPROCESSABLE_ENTITY),
 
     /** A warning was asked for, but the template's ladder reached a step that is not a warning (422). */
-    WARN_STEP_REQUIRED(HttpStatus.UNPROCESSABLE_ENTITY);
+    WARN_STEP_REQUIRED(HttpStatus.UNPROCESSABLE_ENTITY),
+
+    /** A rollback's selector is not a human staff actor, such as the proxy's service principal (400). */
+    ROLLBACK_SELECTOR_INVALID(HttpStatus.BAD_REQUEST),
+
+    /** A rollback's preview matches more punishments than the configured maximum; narrow the window (422). */
+    ROLLBACK_TOO_LARGE(HttpStatus.UNPROCESSABLE_ENTITY);
 
     private final HttpStatus status;
 

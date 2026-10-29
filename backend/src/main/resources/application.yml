@@ -293,6 +293,11 @@ blackhole:
   # it, NOT_ONLINE (NO_PROXY_ANSWER for a mass kick) at or after it when no proxy answered positively.
   kick:
     ack-timeout: ${BLACKHOLE_KICK_ACK_TIMEOUT:PT5S}
+  # Staff rollback (add-staff-rollback). preview-ttl is how long a frozen preview stays startable (ISO-8601);
+  # max-items caps how many punishments one preview may freeze, so one job and its NATS burst stay bounded.
+  rollback:
+    preview-ttl: ${BLACKHOLE_ROLLBACK_PREVIEW_TTL:PT1H}
+    max-items: ${BLACKHOLE_ROLLBACK_MAX_ITEMS:5000}
   # Punishment case: an append-only timeline of what happens to each punishment. The flows record
   # their events after their own write; a failed recording is counted in
   # blackhole.case.record.failures and never fails the write. CaseReconciler repairs lost recordings
