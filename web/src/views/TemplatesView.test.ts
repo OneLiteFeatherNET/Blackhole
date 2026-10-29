@@ -120,6 +120,7 @@ describe('TemplatesView: create', () => {
       escalationGroup: null,
       escalationWindow: null,
       warnWindow: null,
+      publicReason: null,
       steps: [{ kind: 'PUNISH', duration: 'PT1H', eloCost: 0 }],
     })
     expect(wrapper.find('[role="dialog"]').exists(), 'dialog closed after saving').toBe(false)
@@ -229,6 +230,7 @@ describe('TemplatesView: edit', () => {
       escalationGroup: 'cheating',
       escalationWindow: 'P90D',
       warnWindow: null,
+      publicReason: null,
       steps: [
         { kind: 'PUNISH', duration: 'P1D', eloCost: 100 },
         { kind: 'PUNISH', duration: 'P7D', eloCost: 150 },

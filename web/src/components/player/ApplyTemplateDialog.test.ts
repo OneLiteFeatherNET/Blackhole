@@ -110,7 +110,7 @@ describe('ApplyTemplateDialog', () => {
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
 
-    expect(api.applyTemplate).toHaveBeenCalledWith(OWNER, 'hacking')
+    expect(api.applyTemplate).toHaveBeenCalledWith(OWNER, 'hacking', null)
     expect(wrapper.emitted('done')).toEqual([['Applied step 2 of 3; the score is now 750.']])
 
     wrapper.unmount()

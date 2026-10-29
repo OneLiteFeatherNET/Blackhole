@@ -43,6 +43,19 @@ const events = ref<EloEvent[] | null>(null)
 const eventsLoading = ref(false)
 const eventsError = ref<ApiError | null>(null)
 
+// The UUID is not in the profile; the newest session of the player is the one place it is shown, so the
+// apply sends it when that session exists. Without a session the apply goes out without it.
+const playerUuid = ref<string | null>(null)
+watch(
+  () => props.owner,
+  async (owner) => {
+    const result = await api.playerSessions(owner, 0, 1)
+    if (owner !== props.owner) return // the player changed while the answer was on its way
+    playerUuid.value = result.ok ? (result.data.sessions[0]?.playerUuid ?? null) : null
+  },
+  { immediate: true },
+)
+
 const sectionOptions = computed(() =>
   (player.data.value?.elo.sections ?? []).map((entry) => ({ value: entry.section, label: entry.displayName })),
 )
@@ -169,7 +182,7 @@ async function warned(done: string): Promise<void> {
         <ClientRuleHits :owner="owner" />
       </section>
 
-      <ApplyTemplateDialog :open="applyOpen" :owner="owner" @close="applyOpen = false" @done="finished" />
+      <ApplyTemplateDialog :open="applyOpen" :owner="owner" :player-uuid="playerUuid" @close="applyOpen = false" @done="finished" />
       <WarnDialog
         v-if="session.moderator"
         :open="warnOpen"

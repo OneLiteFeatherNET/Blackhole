@@ -11,12 +11,17 @@ import MdIconButton from '../md/MdIconButton.vue'
 import MdSelect from '../md/MdSelect.vue'
 import MdTextField from '../md/MdTextField.vue'
 import { templateFieldErrors, type FieldErrors } from './fieldErrors'
+import { useSessionStore } from '../../stores/session'
 
 const props = defineProps<{ open: boolean; template: Template | null; sections: Section[] }>()
 const emit = defineEmits<{ close: []; saved: [message: string] }>()
 
 const { t, locale } = useI18n()
 const api = useApi()
+const session = useSessionStore()
+
+/** The public ban list shows at most this many characters of a template's public reason (the backend checks the same). */
+const PUBLIC_REASON_MAX = 200
 
 type StepKindValue = NonNullable<TemplateStep['kind']>
 
@@ -42,6 +47,7 @@ const section = ref('')
 const escalationGroup = ref('')
 const escalationWindow = ref('')
 const warnWindow = ref('')
+const publicReason = ref('')
 const steps = ref<StepRow[]>([])
 const errors = ref<FieldErrors>({ fields: {}, general: [] })
 const saving = ref(false)
@@ -77,6 +83,7 @@ watch(
     escalationGroup.value = source?.escalationGroup ?? ''
     escalationWindow.value = source?.escalationWindow ?? ''
     warnWindow.value = source?.warnWindow ?? ''
+    publicReason.value = source?.publicReason ?? ''
     steps.value = source
       ? source.steps.map((step) => newRow(step.duration ?? '', String(step.eloCost), step.kind ?? 'PUNISH'))
       : [newRow()]
@@ -101,7 +108,7 @@ const addStep = () => steps.value.push(newRow())
 const fieldError = (name: string) => errors.value.fields[name] ?? ''
 
 // A message about a field is stale as soon as the form is edited.
-watch([key, reason, section, escalationGroup, escalationWindow, warnWindow, steps], () => {
+watch([key, reason, section, escalationGroup, escalationWindow, warnWindow, publicReason, steps], () => {
   if (Object.keys(errors.value.fields).length > 0) errors.value = { fields: {}, general: errors.value.general }
 }, { deep: true })
 const WHOLE_NUMBER = /^\d+$/
@@ -150,6 +157,9 @@ async function save(): Promise<void> {
     const problem = durationError(value)
     if (problem) local[field] = problem
   }
+  if (session.administrator && publicReason.value.length > PUBLIC_REASON_MAX) {
+    local.publicReason = t('templates.editor.publicReasonTooLong', { max: PUBLIC_REASON_MAX })
+  }
   if (Object.keys(local).length > 0) {
     errors.value = { fields: local, general: [] }
     if (local.escalationWindow || local.warnWindow) advancedOpen.value = true
@@ -161,6 +171,8 @@ async function save(): Promise<void> {
     key: key.value,
     reason: reason.value,
     section: section.value,
+    // Only an administrator edits the public reason; for anyone else the stored one is sent back unchanged.
+    publicReason: session.administrator ? publicReason.value.trim() || null : (props.template?.publicReason ?? null),
     escalationGroup: escalationGroup.value.trim() || null,
     escalationWindow: escalationWindow.value.trim() ? (parseDuration(escalationWindow.value) as { iso: string }).iso : null,
     warnWindow: warnWindow.value.trim() ? (parseDuration(warnWindow.value) as { iso: string }).iso : null,
@@ -212,6 +224,16 @@ const ICON = {
       <div class="grid gap-6 sm:grid-cols-2">
         <MdTextField v-model="key" required :label="t('templates.editor.key')" :error="fieldError('key')" :supporting-text="t('templates.editor.keyHint')" />
         <MdTextField v-model="reason" required :label="t('templates.editor.reason')" :error="fieldError('reason')" :supporting-text="t('templates.editor.reasonHint')" />
+      </div>
+
+      <div v-if="session.administrator" class="flex flex-col gap-1">
+        <MdTextField
+          v-model="publicReason"
+          :label="t('templates.editor.publicReason')"
+          :error="fieldError('publicReason')"
+          :supporting-text="t('templates.editor.publicReasonCounter', { count: publicReason.length, max: PUBLIC_REASON_MAX })"
+        />
+        <p class="px-4 text-body-small text-on-surface-variant">{{ t('templates.editor.publicReasonHint') }}</p>
       </div>
 
       <fieldset class="flex flex-col gap-4 rounded-md-md border border-outline-variant p-4">

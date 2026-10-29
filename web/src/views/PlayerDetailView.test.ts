@@ -217,10 +217,34 @@ describe('PlayerDetailView', () => {
       await wrapper.get('[data-testid="confirm"]').trigger('click')
       await flushPromises()
 
-      expect(applyTemplate).toHaveBeenCalledWith(OWNER, 'hacking')
+      expect(applyTemplate).toHaveBeenCalledWith(OWNER, 'hacking', null)
       expect(profileCall, 'profile loaded again after the action').toHaveBeenCalledTimes(2)
       expect(wrapper.find('[role="dialog"]').exists(), 'dialog closed').toBe(false)
       expect(wrapper.get('[role="status"]').text()).toContain('Applied step 2 of 3; the score is now 750.')
+
+      wrapper.unmount()
+    })
+
+    it('applies a template with the player uuid that the newest session shows', async () => {
+      const uuid = '11111111-2222-3333-4444-555555555555'
+      const session = { sessionId: 's-1', owner: OWNER, playerUuid: uuid, playerName: 'Steve', ip: null, asOrg: null, outcome: 'ALLOWED', startedAt: 1, endedAt: null }
+      const applyTemplate = vi.fn(async () => ok({ step: 2, stepCount: 3, scoreAfter: 750, section: 'network' }))
+      const { wrapper } = await open(OWNER, {
+        templates: vi.fn(async () => ok([template])),
+        previewApply: vi.fn(async () => ok(preview)),
+        playerSessions: vi.fn(async () => ok({ sessions: [session], page: 0, size: 1, hasMore: false })),
+        applyTemplate,
+      })
+      await flushPromises()
+
+      await wrapper.get('[data-testid="open-apply"]').trigger('click')
+      await flushPromises()
+      await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'hacking')
+      await flushPromises()
+      await wrapper.get('[data-testid="confirm"]').trigger('click')
+      await flushPromises()
+
+      expect(applyTemplate).toHaveBeenCalledWith(OWNER, 'hacking', uuid)
 
       wrapper.unmount()
     })
