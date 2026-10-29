@@ -50,6 +50,8 @@ public final class PunishmentTestBed {
     public final EloTestBed eloBed = new EloTestBed();
     public final InMemoryRepository<PunishmentRepository, PunishmentEntity, String> punishments =
             InMemoryRepository.<PunishmentRepository, PunishmentEntity, String>of(PunishmentRepository.class, PunishmentEntity::getIdentifier)
+                    .finder("findByOwner", args -> this.punishments.all().stream()
+                            .filter(p -> args[0].equals(p.getOwner())).toList())
                     .finder("countByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals", args -> this.punishments.all().stream()
                             .filter(p -> args[0].equals(p.getOwner()) && args[1].equals(p.getEscalationGroup()))
                             .filter(p -> !p.isLifted() && p.getCreatedAt() >= (Long) args[2])
