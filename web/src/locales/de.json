@@ -8,6 +8,8 @@
     "reports": "Meldungen",
     "playerLookup": "Spielersuche",
     "activePunishments": "Aktive Strafen",
+    "allowList": "Ausnahmeliste",
+    "vpnPolicy": "VPN-Richtlinie",
     "sections": "Bereiche",
     "templates": "Vorlagen",
     "appealTerms": "Einspruchsbedingungen",
@@ -1743,6 +1745,82 @@
       "confirmHint": "\"{target}\" genau eintippen.",
       "submit": "Alle kicken",
       "result": "Status: {status}. Von {count} Proxys zugestellt."
+    }
+  },
+  "intel": {
+    "classes": {
+      "VPN": "VPN",
+      "HOSTING": "Hosting",
+      "PROXY": "Proxy"
+    },
+    "classHint": {
+      "VPN": "Bekannte VPN-Netze.",
+      "HOSTING": "Hosting- und Rechenzentrumsnetze.",
+      "PROXY": "Bekannte offene Proxys."
+    },
+    "policies": {
+      "ALLOW": "Erlauben",
+      "FLAG": "Markieren",
+      "DENY": "Ablehnen"
+    },
+    "policy": {
+      "title": "VPN- und Hosting-Richtlinie",
+      "intro": "Was mit einer Anmeldung von einer VPN-, Hosting- oder Proxy-Adresse geschieht. Nur ein Administrator kann das ändern.",
+      "policyLabel": "Neue Richtlinie",
+      "save": "Änderung prüfen",
+      "confirmTitle": "Richtlinie ändern?",
+      "confirmBody": "{classification}: von {previous} zu {next} ändern?",
+      "confirm": "Richtlinie ändern",
+      "saved": "Richtlinie für {classification} als {policy} gespeichert."
+    },
+    "sources": {
+      "title": "Listenquellen",
+      "VPN": "VPN-Netze",
+      "HOSTING": "Rechenzentrums- und Hosting-Bereiche"
+    },
+    "source": {
+      "licence": "Lizenz: {licence}",
+      "status": {
+        "FRESH": "Aktuell",
+        "STALE": "Veraltet",
+        "FAILED": "Fehlgeschlagen"
+      },
+      "notReported": "Status nicht gemeldet",
+      "lastOk": "Letzte erfolgreiche Aktualisierung: {when}"
+    },
+    "allowList": {
+      "title": "Ausnahmeliste",
+      "intro": "Befreit einen Spieler für eine Zeit von der VPN- und Hosting-Richtlinie. Der Grund wird mit der Ausnahme gespeichert.",
+      "readonly": "Nur Moderatoren können Ausnahmen anlegen.",
+      "player": "Spielername",
+      "playerHint": "Der Name wird vor dem Speichern der Ausnahme dem Spieler zugeordnet.",
+      "reason": "Grund",
+      "reasonRequired": "Nenne einen Grund für die Ausnahme. Senden bleibt bis dahin deaktiviert.",
+      "reasonTooLong": "Höchstens 200 Zeichen.",
+      "duration": "Dauer",
+      "days": "{days} Tage",
+      "permanent": "Dauerhaft",
+      "permanentLabel": "Dauerhaft",
+      "expired": "Abgelaufen",
+      "until": "Bis {when}",
+      "submit": "Ausnahme hinzufügen",
+      "added": "In diesem Besuch hinzugefügt"
+    },
+    "hits": {
+      "title": "VPN- und Hosting-Anmeldungen",
+      "hint": "Anmeldungen dieses Spielers von einer VPN-, Hosting- oder Proxy-Adresse. Die Adresse selbst wird nicht angezeigt.",
+      "empty": "Für diesen Spieler wurde keine VPN- oder Hosting-Anmeldung erfasst.",
+      "allowListedYes": "Bei der letzten Anmeldung auf der Ausnahmeliste.",
+      "allowListedNo": "Bei der letzten Anmeldung nicht auf der Ausnahmeliste.",
+      "yes": "Ja",
+      "no": "Nein",
+      "columns": {
+        "time": "Zeit",
+        "class": "Klasse",
+        "source": "Quelle",
+        "verdict": "Entscheidung",
+        "allowListed": "Ausnahme"
+      }
     }
   }
 }

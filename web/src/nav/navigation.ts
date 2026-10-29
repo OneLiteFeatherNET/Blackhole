@@ -2,6 +2,7 @@ import type { CountKey } from './navCounts'
 import {
   ADMIN_ICON,
   APPEAL_CONDITIONS_ICON,
+  CHECK_ICON,
   APPEALS_ICON,
   CASES_ICON,
   CLIENT_RULES_ICON,
@@ -60,6 +61,8 @@ export const MODERATION_GROUPS: NavGroup[] = [
     items: [
       { to: '/players', key: 'playerLookup', icon: PLAYERS_ICON },
       { to: '/punished', key: 'activePunishments', icon: PUNISHED_ICON },
+      { to: '/intel/allow-list', key: 'allowList', icon: CHECK_ICON },
+      { to: '/intel/policy', key: 'vpnPolicy', icon: ADMIN_ICON },
     ],
   },
 ]

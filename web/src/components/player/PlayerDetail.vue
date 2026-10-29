@@ -17,6 +17,7 @@ import ClientRuleHits from '../clientrules/ClientRuleHits.vue'
 import EloHistory from './EloHistory.vue'
 import EvasionHints from './EvasionHints.vue'
 import NameHistory from './NameHistory.vue'
+import IntelHitsSection from './IntelHitsSection.vue'
 import PlayerSessions from './PlayerSessions.vue'
 import PunishmentHistory from './PunishmentHistory.vue'
 import RevokeDialog from './RevokeDialog.vue'
@@ -177,6 +178,11 @@ async function warned(done: string): Promise<void> {
       </section>
 
       <NameHistory :owner="owner" />
+
+      <section aria-labelledby="intel-heading">
+        <h2 id="intel-heading" class="mb-3 text-title-medium">{{ t('intel.hits.title') }}</h2>
+        <IntelHitsSection :owner="owner" />
+      </section>
 
       <PlayerSessions :owner="owner" />
 

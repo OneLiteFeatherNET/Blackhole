@@ -27,6 +27,16 @@ export type NameHistoryPage = Schemas['NameHistoryPage']
 export type NameHistoryName = Schemas['NameHistoryName']
 export type NameHistoryOwner = Schemas['NameHistoryOwner']
 export type EvasionLinkedOwner = Schemas['EvasionLinkedOwner']
+/** A login address class of the VPN and hosting detection. */
+export type IntelClass = Schemas['IntelClass']
+/** What happens to a login of a class: ALLOW, FLAG or DENY. */
+export type IntelPolicy = Schemas['IntelPolicy']
+/** The stored policy of one class; `previous` is set when a change replaced a value. */
+export type IntelPolicyEntry = Schemas['PolicyResponse']
+/** An allow-list exemption; `expiresAt` is null for a permanent one. */
+export type AllowListEntry = Schemas['AllowListResponse']
+/** One VPN or hosting login of a player; `allowListed` is whether the owner was exempt at that login. */
+export type IntelHit = Schemas['HitResponse']
 export type EloAdjustResult = Schemas['EloAdjustResponse']
 export type ApplyResult = Schemas['PunishmentApplyResponse']
 export type RevokeResult = Schemas['PunishmentRevokeResponse']

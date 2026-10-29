@@ -27,7 +27,7 @@ describe('visibleGroups for the moderation workspace', () => {
     expect(shape(access, 'moderation')).toEqual([
       ['home', false, ['inbox']],
       ['work', true, ['cases', 'appeals', 'reports']],
-      ['players', true, ['playerLookup', 'activePunishments']],
+      ['players', true, ['playerLookup', 'activePunishments', 'allowList', 'vpnPolicy']],
     ])
   })
 
@@ -47,6 +47,8 @@ describe('visibleGroups for the moderation workspace', () => {
       ['reports', '/reports'],
       ['playerLookup', '/players'],
       ['activePunishments', '/punished'],
+      ['allowList', '/intel/allow-list'],
+      ['vpnPolicy', '/intel/policy'],
     ])
   })
 
@@ -98,6 +100,8 @@ describe('navigation labels', () => {
     expect(label('nav.groups.players', 'en')).toBe('Players')
     expect(label('nav.playerLookup', 'en')).toBe('Player lookup')
     expect(label('nav.activePunishments', 'en')).toBe('Active punishments')
+    expect(label('nav.allowList', 'en')).toBe('Allow-list')
+    expect(label('nav.vpnPolicy', 'en')).toBe('VPN policy')
   })
 
   it('names the administration destinations and groups in English', () => {

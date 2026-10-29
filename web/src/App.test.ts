@@ -33,6 +33,7 @@ async function mountApp(path = '/', options: { roles?: string[]; auth?: ReturnTy
           playerSessions: async () => ok({ sessions: [], page: 0, size: 50, hasMore: false }),
           eloHistory: async () => ok([]),
           evasionSightings: async () => ok({ detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false }),
+          intelHits: async () => ok([]),
           clientRuleHitsOfOwner: async () => ok([]),
           staffLinkStatus: async () => ok({ linked: false }),
           discordLinkStatus: async () => ok({ linked: false }),
@@ -203,7 +204,7 @@ describe('App shell', () => {
     const wrapper = await mountApp('/')
 
     expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text()), 'headings').toEqual(['Arbeit', 'Spieler'])
-    expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual(['Posteingang', 'Fälle', 'Einsprüche', 'Meldungen', 'Spielersuche', 'Aktive Strafen'])
+    expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual(['Posteingang', 'Fälle', 'Einsprüche', 'Meldungen', 'Spielersuche', 'Aktive Strafen', 'Ausnahmeliste', 'VPN-Richtlinie'])
 
     wrapper.unmount()
   })

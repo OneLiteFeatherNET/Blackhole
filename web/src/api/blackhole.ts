@@ -56,6 +56,11 @@ import type {
   KickResult,
   EloAdjustResult,
   EvasionSightings,
+  AllowListEntry,
+  IntelClass,
+  IntelHit,
+  IntelPolicy,
+  IntelPolicyEntry,
   EloEvent,
   EloProfile,
   Evidence,
@@ -165,6 +170,14 @@ export interface BlackholeApi {
   kick(id: string): Promise<ApiResult<KickResult>>
   /** Other owners that shared a hashed network address with this one; hashes only, never an IP. */
   evasionSightings(owner: string): Promise<ApiResult<EvasionSightings>>
+  /** The login policy of every VPN, hosting and proxy class (any staff role). */
+  intelPolicies(): Promise<ApiResult<IntelPolicyEntry[]>>
+  /** Sets the policy of one class (ADMIN in the panel; the backend also refuses DENY below ADMIN). */
+  setIntelPolicy(classification: IntelClass, policy: IntelPolicy): Promise<ApiResult<IntelPolicyEntry>>
+  /** Exempts a player for 1 to 90 days, or permanently when `durationDays` is null (ADMIN only). The reason is required. */
+  addIntelAllowListEntry(request: { owner: string; reason: string; durationDays: number | null }): Promise<ApiResult<AllowListEntry>>
+  /** The newest VPN and hosting logins of a player, at most 50 (staff only; the backend keeps the clear address). */
+  intelHits(owner: string): Promise<ApiResult<IntelHit[]>>
   /** One page of a player's stored sessions, newest first (staff only; the page shows the raw address). */
   playerSessions(owner: string, page: number, size: number): Promise<ApiResult<SessionPage>>
   /** One page of the names an account used, newest last seen first (staff and viewers). */
@@ -680,6 +693,18 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     async findNameOwners(name) {
       const result = await toResult(http.GET('/intel/names/{name}/owners', { params: { path: { name } } }))
       return map(result, (body) => body.owners ?? [])
+    },
+
+    async intelPolicies() {
+      return map(await toResult(http.GET('/intel/policy')), (listing) => listing.policies)
+    },
+
+    setIntelPolicy: (classification, policy) => toResult(http.POST('/intel/policy', { body: { classification, policy } })),
+
+    addIntelAllowListEntry: (request) => toResult(http.POST('/intel/allow-list', { body: request })),
+
+    async intelHits(owner) {
+      return map(await toResult(http.GET('/intel/players/{owner}/hits', { params: { path: { owner } } })), (page) => page.hits)
     },
 
     async evasionSightings(owner) {

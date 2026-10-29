@@ -52,6 +52,7 @@ function api(overrides: Record<string, unknown> = {}) {
     eloProfile: vi.fn(async () => ok(elo)),
     eloHistory: vi.fn(async () => ok(events)),
     evasionSightings: vi.fn(async () => ok({ detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false })),
+    intelHits: vi.fn(async () => ok([])),
     clientRuleHitsOfOwner: vi.fn(async () => ok([])),
     playerSessions: vi.fn(async () => ok({ sessions: [], page: 0, size: 50, hasMore: false })),
     listPlayerNames: vi.fn(async () => ok({ owner: OWNER, playerUuid: null, names: [], page: 0, size: 50, hasMore: false })),
