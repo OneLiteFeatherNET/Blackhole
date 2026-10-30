@@ -89,7 +89,7 @@ function submit(): void {
       :error="problemText('absenceThresholdMinutes')"
     />
     <MdCheckbox v-model="form.nightWindowEnabled" data-testid="settings-night-enabled" :label="t('guard.settings.nightEnabled')" />
-    <div class="flex flex-wrap items-start gap-4">
+    <div class="grid items-start gap-4 sm:grid-cols-2">
       <MdTextField
         v-model="form.nightWindowStart"
         data-testid="settings-night-start"
@@ -104,6 +104,7 @@ function submit(): void {
         type="time"
         required
         :label="t('guard.settings.nightEnd')"
+        :supporting-text="t('guard.settings.nightEndHelp')"
       />
     </div>
     <MdSelect
