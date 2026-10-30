@@ -127,10 +127,12 @@ assert_eq "discord has no Service" "0" "$(y "${prod}" '[select(.kind == "Service
 
 # --- images ----------------------------------------------------------------------------------------------------------------
 img() { y "$1" "$(dep "$2") | .spec.template.spec.containers[0].image"; }
-assert_eq "backend image falls back to the appVersion" "harbor.onelitefeather.dev/onelitefeather/blackhole:1.0.0" "$(img "${prod}" t-backend)"
-assert_eq "web image" "harbor.onelitefeather.dev/onelitefeather/blackhole-web:1.0.0" "$(img "${prod}" t-web)"
-assert_eq "portal image" "harbor.onelitefeather.dev/onelitefeather/blackhole-portal:1.0.0" "$(img "${prod}" t-portal)"
-assert_eq "discord image" "harbor.onelitefeather.dev/onelitefeather/blackhole-discord:1.0.0" "$(img "${prod}" t-discord)"
+# The default image tag is the chart's appVersion, which release-please bumps; read it instead of hard-coding it.
+app_version="$(yq eval '.appVersion' "${CHART_DIR}/Chart.yaml")"
+assert_eq "backend image falls back to the appVersion" "harbor.onelitefeather.dev/onelitefeather/blackhole:${app_version}" "$(img "${prod}" t-backend)"
+assert_eq "web image" "harbor.onelitefeather.dev/onelitefeather/blackhole-web:${app_version}" "$(img "${prod}" t-web)"
+assert_eq "portal image" "harbor.onelitefeather.dev/onelitefeather/blackhole-portal:${app_version}" "$(img "${prod}" t-portal)"
+assert_eq "discord image" "harbor.onelitefeather.dev/onelitefeather/blackhole-discord:${app_version}" "$(img "${prod}" t-discord)"
 assert_eq "the global tag moves all four Blackhole images (dev backend)" "harbor.onelitefeather.dev/onelitefeather/blackhole:main-1790000000-abcdef1" "$(img "${dev}" t-backend)"
 assert_eq "the global tag moves all four Blackhole images (dev discord)" "harbor.onelitefeather.dev/onelitefeather/blackhole-discord:main-1790000000-abcdef1" "$(img "${dev}" t-discord)"
 assert_eq "ClamAV is pinned and ignores the global tag" "docker.io/clamav/clamav:1.5.4" "$(img "${prod}" t-clamav)"
