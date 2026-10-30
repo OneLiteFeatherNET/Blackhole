@@ -9,7 +9,7 @@
 #     -e BLACKHOLE_BACKEND_URL=http://backend:8080 \
 #     -e BLACKHOLE_PORTAL_ORIGIN=https://appeal.onelitefeather.net blackhole-portal
 
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 COPY portal/package.json portal/package-lock.json ./portal/
 RUN cd portal && npm ci
@@ -17,7 +17,7 @@ COPY portal ./portal
 # vite build writes dist/, nitro build bundles the server and its assets into .output/.
 RUN cd portal && npm run build
 
-FROM node:24-alpine
+FROM node:26-alpine
 WORKDIR /app
 ENV NODE_ENV=production \
     NITRO_HOST=0.0.0.0 \
