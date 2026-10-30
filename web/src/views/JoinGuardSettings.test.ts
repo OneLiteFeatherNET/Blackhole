@@ -105,6 +105,30 @@ describe('JoinGuardView next night window', () => {
   })
 })
 
+describe('JoinGuardView night window fields', () => {
+  it('labels the night window start field with a short label and no supporting text', async () => {
+    const { mount } = setup(settings())
+    const { wrapper } = await mount(ADMIN)
+    await flushPromises()
+
+    const start = wrapper.get('[data-testid="settings-night-start"]')
+    expect(start.get('label').text(), 'the start label stays short').toBe('Night window start *')
+    expect(start.find('p').exists(), 'the start field has no supporting text').toBe(false)
+    wrapper.unmount()
+  })
+
+  it('labels the night window end field short and puts the exclusion in its supporting text', async () => {
+    const { mount } = setup(settings())
+    const { wrapper } = await mount(ADMIN)
+    await flushPromises()
+
+    const end = wrapper.get('[data-testid="settings-night-end"]')
+    expect(end.get('label').text(), 'the end label stays short').toBe('Night window end *')
+    expect(end.get('p').text(), 'the exclusion is explained under the field').toBe('This time is not included in the night window.')
+    wrapper.unmount()
+  })
+})
+
 describe('JoinGuardView saving the settings', () => {
   it('saves a change of the threshold without asking for confirmation', async () => {
     const { api, mount } = setup(settings())
