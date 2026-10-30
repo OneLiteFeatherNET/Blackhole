@@ -113,6 +113,8 @@ import net.onelitefeather.blackhole.velocity.nats.JnatsBusClient;
 import net.onelitefeather.blackhole.velocity.nats.NatsSyncService;
 import net.onelitefeather.blackhole.velocity.section.BackendSectionSource;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
+import net.onelitefeather.blackhole.velocity.sentry.SentryConfig;
+import net.onelitefeather.blackhole.velocity.sentry.SentryReporter;
 import net.onelitefeather.blackhole.client.model.ServerTargetKind;
 import net.kyori.adventure.text.minimessage.translation.MiniMessageTranslationStore;
 import net.kyori.adventure.translation.GlobalTranslator;
@@ -156,10 +158,14 @@ public class BlackholeVelocity {
     private static final Duration KICK_POLL = Duration.ofMillis(500);
     private static final Duration KICK_GIVE_UP = Duration.ofSeconds(15);
 
+    /** The version of the built jar (its manifest); the @Plugin annotation below carries an older, fixed one. */
+    private static final String PLUGIN_VERSION = BlackholeVelocity.class.getPackage().getImplementationVersion();
+
     private final Injector injector;
     private final ProxyServer server;
     private final Path dataDirectory;
     private final Logger logger;
+    private final SentryReporter sentry;
     private ApiClient client;
     private BlackholeConfig config;
     private BusClient busClient;
@@ -174,10 +180,21 @@ public class BlackholeVelocity {
         this.server = server;
         this.logger = logger;
         this.dataDirectory = dataDirectory;
+        // First thing the plugin does, so that a failure of the proxy initialisation is reported as well.
+        this.sentry = SentryReporter.start(SentryConfig.fromEnvironment(System::getenv, PLUGIN_VERSION), logger);
     }
 
     @Subscribe
     public void onProxyInitialisation(ProxyInitializeEvent event) {
+        try {
+            initialise();
+        } catch (RuntimeException | Error e) {
+            this.sentry.capture(e, "proxy-initialisation");
+            throw e;
+        }
+    }
+
+    private void initialise() {
         registerTranslations();
         this.config = BlackholeConfig.load(dataDirectory.resolve("config.json"));
         this.logger.info("Loaded configuration with base URL: {}", config.getBaseUrl());
@@ -201,6 +218,7 @@ public class BlackholeVelocity {
         PunishmentMirror mirror = new PunishmentMirror(clock);
         BackendGateway backend = new HttpBackendGateway(this.client, clock);
         NatsConfig natsConfig = this.config.getNats().withEnvironment(System::getenv);
+        this.sentry.registerSecret(natsConfig.getCredsFile());
         // The sync service is created first (it is the cache trust) and told about the bus once the reactions below exist.
         ExecutorService eventThread = Executors.newSingleThreadExecutor(task -> {
             Thread thread = new Thread(task, "blackhole-nats-events");
@@ -216,6 +234,8 @@ public class BlackholeVelocity {
                 new CachedBanIds(backend, clock, chatCapture.getTimeout()));
         CloudNetConfig cloudNetConfig = this.config.getCloudnet().withEnvironment(System::getenv);
         CloudNetView cloudNet = CloudNets.detect(cloudNetConfig.getIntegration(), BlackholeVelocity.class.getClassLoader(), this.logger);
+        this.sentry.tag("proxy.id", proxyIdOf(cloudNetConfig, cloudNet));
+        cloudNet.ownName().ifPresent(name -> this.sentry.tag("service.name", name));
         ServerResolver servers = new ServerResolver(cloudNet, sections, this.logger::warn);
         EnforcementActions actions = new EnforcementActions(this.server, sections, state, this.config, clock, screens, servers);
         PunishmentSyncHandler syncHandler = new PunishmentSyncHandler(mirror, actions);
@@ -307,7 +327,7 @@ public class BlackholeVelocity {
         );
         // Without this Brigadier rejects incomplete input ("elo") as an unknown command before Cloud can answer with the usage line.
         commandManager.brigadierManager().settings().set(BrigadierSetting.FORCE_EXECUTABLE, true);
-        CommandErrorHandlers.register(commandManager);
+        CommandErrorHandlers.register(commandManager, error -> this.sentry.capture(error, "command"));
         BackendAuthGuard.register(commandManager, () -> this.authReady);
         AnnotationParser<CommandSource> annotationParser = new AnnotationParser<>(commandManager, CommandSource.class);
         annotationParser.parse(childInjector.getInstance(TargetParser.class));
@@ -428,6 +448,7 @@ public class BlackholeVelocity {
         if (this.eventThread != null) {
             this.eventThread.shutdownNow();
         }
+        this.sentry.close();
     }
 
     /**
@@ -437,6 +458,7 @@ public class BlackholeVelocity {
      */
     private TokenSource authenticate(Clock clock) {
         AuthConfig auth = this.config.getAuth().withEnvironment(System::getenv);
+        this.sentry.registerSecret(auth.getClientSecret());
         try {
             if (!auth.isComplete()) {
                 this.logger.error("The backend credentials are incomplete, missing: {}. Backend calls and staff commands "

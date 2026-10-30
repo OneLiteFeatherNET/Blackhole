@@ -14,6 +14,8 @@ dependencies {
     implementation(libs.cloud.velocity)
     // Receives the backend's events (subscribe-only, no publishing); relocated in the shadow jar.
     implementation(libs.nats.jnats)
+    // Reports the plugin's own errors to the self-hosted Sentry; off unless SENTRY_DSN is set. Relocated in the shadow jar.
+    implementation(libs.sentry)
 
     // client's jackson-databind is `implementation`-scoped there, so it isn't exposed
     // transitively - needed here directly to read the event envelopes of NatsSyncService.
@@ -38,6 +40,11 @@ tasks {
     shadowJar {
         // Other plugins on the proxy may ship their own NATS client.
         relocate("io.nats", "net.onelitefeather.blackhole.velocity.libs.nats")
+        relocate("io.sentry", "net.onelitefeather.blackhole.velocity.libs.sentry")
+        // The plugin reads its release from this attribute: the @Plugin annotation carries its own, older version.
+        manifest {
+            attributes("Implementation-Version" to project.version)
+        }
     }
     runVelocity {
         // Configure the Velocity version for our task.
