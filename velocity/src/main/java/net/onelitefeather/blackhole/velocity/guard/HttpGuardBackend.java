@@ -14,6 +14,7 @@ import net.onelitefeather.blackhole.client.model.GuardStateResponse;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.UUID;
 
 /** The guard and area ban calls over HTTP through the generated {@link GuardApi} and {@link AreaBansApi}. */
 public final class HttpGuardBackend implements GuardBackend {
@@ -37,13 +38,13 @@ public final class HttpGuardBackend implements GuardBackend {
     }
 
     @Override
-    public GuardStateResponse setLevel(String level) throws ApiException {
-        return this.guardApi.setJoinGuardLevel(new GuardLevelRequest().level(level));
+    public GuardStateResponse setLevel(UUID onBehalfOf, String level) throws ApiException {
+        return this.guardApi.setJoinGuardLevel(new GuardLevelRequest().level(level).onBehalfOf(onBehalfOf));
     }
 
     @Override
-    public AreaBanResponse createAreaBan(AreaBanCreateRequest request) throws ApiException {
-        return this.areaBansApi.createAreaBan(request);
+    public AreaBanResponse createAreaBan(UUID onBehalfOf, AreaBanCreateRequest request) throws ApiException {
+        return this.areaBansApi.createAreaBan(request.onBehalfOf(onBehalfOf));
     }
 
     @Override
@@ -52,7 +53,7 @@ public final class HttpGuardBackend implements GuardBackend {
     }
 
     @Override
-    public AreaBanResponse liftAreaBan(String id, String reason) throws ApiException {
-        return this.areaBansApi.liftAreaBan(id, new AreaBanLiftRequest().reason(reason));
+    public AreaBanResponse liftAreaBan(UUID onBehalfOf, String id, String reason) throws ApiException {
+        return this.areaBansApi.liftAreaBan(id, new AreaBanLiftRequest().reason(reason).onBehalfOf(onBehalfOf));
     }
 }

@@ -136,6 +136,23 @@ class GuardLoginDecisionTest {
     }
 
     @Test
+    void anAreaBanDenialCarriesTheExpiryTheBackendGave() {
+        this.gateway.loginCheckAnswer = CompletableFuture.completedFuture(new LoginCheckResponse()
+                .verdict(IntelPolicy.DENY).denialReason(LoginDenialReason.AREA_BAN).expiresAt(1_800_000_000_000L));
+
+        GuardLoginDecision.Outcome outcome = decision().decide(OWNER, IP, false);
+
+        assertEquals(Long.valueOf(1_800_000_000_000L), outcome.expiresAt(), "the screen needs the end of the ban to show it");
+    }
+
+    @Test
+    void aPermanentAreaBanDenialCarriesNoExpiry() {
+        answerWith(IntelPolicy.DENY, LoginDenialReason.AREA_BAN);
+
+        assertNull(decision().decide(OWNER, IP, false).expiresAt(), "a permanent ban has no end to show");
+    }
+
+    @Test
     void aFreshProxyWithoutAnyLevelAllowsTheLoginDuringAnOutage() {
         GuardLoginDecision decision = silentBackendDecision();
 

@@ -11,6 +11,8 @@ import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -21,13 +23,22 @@ class GuardScreensTest {
 
     private static final String ADDRESS = "203.0.113.7";
     private static final String BAN_REASON = "botnet wave from provider X";
+    private static final Instant NOW = Instant.parse("2026-10-30T10:00:00Z");
 
     private static PunishmentScreens screens() {
-        return new PunishmentScreens(Clock.systemUTC(), new BlackholeConfig(), TestData.standardRegistry(), (component, locale) -> component);
+        return screensAt(NOW);
+    }
+
+    private static PunishmentScreens screensAt(Instant now) {
+        return new PunishmentScreens(Clock.fixed(now, ZoneOffset.UTC), new BlackholeConfig(), TestData.standardRegistry(), (component, locale) -> component);
+    }
+
+    private static Long inTwoHours() {
+        return NOW.plusSeconds(2 * 3600).toEpochMilli();
     }
 
     private static String english(LoginDenialReason reason) {
-        return Rendered.english(screens().loginDenial(Locale.ENGLISH, reason)).text();
+        return Rendered.english(screens().loginDenial(Locale.ENGLISH, reason, null)).text();
     }
 
     @Test
@@ -53,7 +64,7 @@ class GuardScreensTest {
 
     @Test
     void aDenialWithoutAReasonShowsTheVpnScreen() {
-        String text = Rendered.english(screens().loginDenial(Locale.ENGLISH, null)).text();
+        String text = Rendered.english(screens().loginDenial(Locale.ENGLISH, null, null)).text();
 
         assertTrue(text.contains("VPN and hosting connections are not allowed"), "a DENY without a reason is the VPN screen: " + text);
     }
@@ -70,7 +81,7 @@ class GuardScreensTest {
 
     @Test
     void aGermanClientGetsTheGermanLockdownText() {
-        String text = Rendered.german(screens().loginDenial(Locale.GERMAN, LoginDenialReason.GUARD_LOCKDOWN)).text();
+        String text = Rendered.german(screens().loginDenial(Locale.GERMAN, LoginDenialReason.GUARD_LOCKDOWN, null)).text();
 
         assertTrue(text.contains("bekannte Spieler"), "the German lockdown text is shown: " + text);
     }
@@ -81,8 +92,43 @@ class GuardScreensTest {
         PunishmentScreens screens = new PunishmentScreens(Clock.systemUTC(), new BlackholeConfig(), TestData.standardRegistry(),
                 TranslatableComponentRenderer.usingTranslationSource(empty));
 
-        String text = PlainTextComponentSerializer.plainText().serialize(screens.loginDenial(Locale.GERMAN, LoginDenialReason.GUARD_LOCKDOWN));
+        String text = PlainTextComponentSerializer.plainText().serialize(screens.loginDenial(Locale.GERMAN, LoginDenialReason.GUARD_LOCKDOWN, null));
 
         assertTrue(text.contains("only open to known players"), "the English fallback is shown: " + text);
+    }
+
+    @Test
+    void anAreaBanWithAnExpiryShowsTheTimeLeft() {
+        String text = Rendered.english(screensAt(NOW).loginDenial(Locale.ENGLISH, LoginDenialReason.AREA_BAN, inTwoHours())).text();
+
+        assertTrue(text.contains("Remaining: 2 hours"), "the time left is shown: " + text);
+    }
+
+    @Test
+    void anAreaBanWithAnExpiryShowsTheDateItEnds() {
+        String text = Rendered.english(screensAt(NOW).loginDenial(Locale.ENGLISH, LoginDenialReason.AREA_BAN, inTwoHours())).text();
+
+        assertTrue(text.contains("until Oct 30, 2026"), "the end date is shown in the punishment screen format: " + text);
+    }
+
+    @Test
+    void anAreaBanWithoutAnExpiryIsShownAsPermanent() {
+        String text = Rendered.english(screensAt(NOW).loginDenial(Locale.ENGLISH, LoginDenialReason.AREA_BAN, null)).text();
+
+        assertTrue(text.contains("Duration: permanent"), "a permanent area ban says so: " + text);
+    }
+
+    @Test
+    void aGermanAreaBanWithoutAnExpiryIsShownAsPermanent() {
+        String text = Rendered.german(screensAt(NOW).loginDenial(Locale.GERMAN, LoginDenialReason.AREA_BAN, null)).text();
+
+        assertTrue(text.contains("Dauer: dauerhaft"), "a permanent area ban says so in German: " + text);
+    }
+
+    @Test
+    void aGuardRefusalShowsNoDurationEvenWhenAnExpiryIsGiven() {
+        String text = Rendered.english(screensAt(NOW).loginDenial(Locale.ENGLISH, LoginDenialReason.GUARD_STRICT, inTwoHours())).text();
+
+        assertFalse(text.contains("Remaining:") || text.contains("Duration:"), "only an area ban has a duration: " + text);
     }
 }

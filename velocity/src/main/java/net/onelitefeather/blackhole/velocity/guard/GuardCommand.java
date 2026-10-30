@@ -5,6 +5,7 @@ import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.GuardStateResponse;
+import net.onelitefeather.blackhole.velocity.component.GuardMessages;
 import net.onelitefeather.blackhole.velocity.component.Permissions;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
@@ -30,14 +31,19 @@ public final class GuardCommand {
     @Permission(Permissions.GUARD)
     @CommandDescription("Show the join guard level")
     public void status(CommandContext<Player> context) {
-        send(context.sender(), GuardArguments.parse(""));
+        handle(context.sender(), "");
     }
 
     @Command(value = "guard <level>", requiredSender = Player.class)
     @Permission(Permissions.GUARD)
     @CommandDescription("Set the manual join guard level: off, strict or lockdown")
     public void set(CommandContext<Player> context, @Argument("level") @NotNull String level) {
-        send(context.sender(), GuardArguments.parse(level));
+        handle(context.sender(), level);
+    }
+
+    /** Reads what the sender typed and makes the one backend call it asks for, in the sender's name. */
+    void handle(@NotNull Player sender, @NotNull String input) {
+        send(sender, GuardArguments.parse(input));
     }
 
     private void send(Player sender, GuardArguments.Result result) {
@@ -45,12 +51,12 @@ public final class GuardCommand {
             if (result instanceof GuardArguments.Status) {
                 sender.sendMessage(describe(this.backend.state()));
             } else if (result instanceof GuardArguments.SetLevel set) {
-                sender.sendMessage(describe(this.backend.setLevel(set.level().name())));
+                sender.sendMessage(describe(this.backend.setLevel(sender.getUniqueId(), set.level().name())));
             } else if (result instanceof GuardArguments.Invalid invalid) {
                 sender.sendMessage(Component.text(invalid.message()));
             }
         } catch (ApiException e) {
-            sender.sendMessage(Component.text("The join guard could not be changed: " + e.getMessage()));
+            sender.sendMessage(GuardMessages.refusal(GuardRefusal.of(e)));
         }
     }
 

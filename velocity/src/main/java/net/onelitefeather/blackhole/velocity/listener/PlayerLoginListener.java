@@ -87,7 +87,7 @@ public final class PlayerLoginListener {
         if (access.refused()) {
             this.sessions.reportStart(player, SessionOutcome.DENIED);
             event.setResult(ResultedEvent.ComponentResult.denied(
-                    this.screens.loginDenial(PunishmentScreens.localeOf(player), access.reason())));
+                    this.screens.loginDenial(PunishmentScreens.localeOf(player), access.reason(), access.expiresAt())));
             return;
         }
         this.sessions.reportStart(player, SessionOutcome.ALLOWED);

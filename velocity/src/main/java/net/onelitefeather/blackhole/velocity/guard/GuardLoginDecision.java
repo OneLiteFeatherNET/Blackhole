@@ -17,10 +17,11 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class GuardLoginDecision {
 
     /**
-     * @param policy the verdict; {@link IntelPolicy#DENY} refuses the login
-     * @param reason why a refusal happened; null for a VPN policy refusal and for every admitted login
+     * @param policy    the verdict; {@link IntelPolicy#DENY} refuses the login
+     * @param reason    why a refusal happened; null for a VPN policy refusal and for every admitted login
+     * @param expiresAt when an area ban refusal ends, in epoch milliseconds; null for a permanent ban and for every other outcome
      */
-    public record Outcome(@NotNull IntelPolicy policy, @Nullable LoginDenialReason reason) {
+    public record Outcome(@NotNull IntelPolicy policy, @Nullable LoginDenialReason reason, @Nullable Long expiresAt) {
 
         /**
          * @return whether the login must be refused
@@ -50,14 +51,14 @@ public final class GuardLoginDecision {
     public @NotNull Outcome decide(@NotNull String owner, @NotNull String ip, boolean staff) {
         VpnLoginDecision.Verdict verdict = this.vpn.verdict(owner, ip);
         if (verdict.answered()) {
-            return new Outcome(verdict.policy(), verdict.reason());
+            return new Outcome(verdict.policy(), verdict.reason(), verdict.expiresAt());
         }
         if (this.levels.current() == GuardLevel.LOCKDOWN && !staff) {
             this.failClosed.incrementAndGet();
-            return new Outcome(IntelPolicy.DENY, LoginDenialReason.GUARD_LOCKDOWN);
+            return new Outcome(IntelPolicy.DENY, LoginDenialReason.GUARD_LOCKDOWN, null);
         }
         this.failOpen.incrementAndGet();
-        return new Outcome(IntelPolicy.ALLOW, null);
+        return new Outcome(IntelPolicy.ALLOW, null, null);
     }
 
     /**

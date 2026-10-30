@@ -212,17 +212,18 @@ public final class PunishmentScreens {
     /**
      * The disconnect screen of a login the backend refused, chosen by its reason: an area ban, the strict
      * or the lockdown guard. A refusal without a reason (or for the VPN policy) shows the VPN screen. The
-     * screens name no address, no owner, no player and no area ban reason.
+     * screens name no address, no owner, no player and no area ban reason. An area ban also says how long
+     * it lasts: until its end when the backend gave one, permanent otherwise.
      *
+     * @param expiresAt when the area ban ends, in epoch milliseconds; null for a permanent ban; not used by the other reasons
      * @return the text, in the locale's translation or the English text where there is none
      */
-    public @NotNull Component loginDenial(@NotNull Locale locale, @Nullable LoginDenialReason reason) {
+    public @NotNull Component loginDenial(@NotNull Locale locale, @Nullable LoginDenialReason reason, @Nullable Long expiresAt) {
         if (reason == null) {
             return vpnDenial(locale);
         }
         return switch (reason) {
-            case AREA_BAN -> this.renderer.render(
-                    Component.translatable("guard.screen.area_ban").fallback(AREA_BAN_TEXT), locale);
+            case AREA_BAN -> areaBanDenial(locale, expiresAt);
             case GUARD_STRICT -> this.renderer.render(
                     Component.translatable("guard.screen.strict").fallback(STRICT_TEXT), locale);
             case GUARD_LOCKDOWN -> this.renderer.render(
@@ -319,12 +320,26 @@ public final class PunishmentScreens {
         if (punishment.expiresAt() == null) {
             return Component.translatable("punishment.screen.duration.permanent");
         }
-        Duration remaining = Duration.ofMillis(punishment.expiresAt() - this.clock.millis());
+        return remainingUntil(punishment.expiresAt(), locale);
+    }
+
+    /** The time left and the end date of a temporary punishment, in the same words and format for every screen. */
+    private Component remainingUntil(long expiresAt, Locale locale) {
+        Duration remaining = Duration.ofMillis(expiresAt - this.clock.millis());
         DateTimeFormatter format = new DateTimeFormatterBuilder()
                 .appendLocalized(FormatStyle.MEDIUM, FormatStyle.SHORT)
                 .toFormatter(locale);
-        String until = format.format(Instant.ofEpochMilli(punishment.expiresAt()).atZone(this.config.getZone()));
+        String until = format.format(Instant.ofEpochMilli(expiresAt).atZone(this.config.getZone()));
         return Component.translatable("punishment.screen.duration.temporary", DurationTag.remaining(remaining), Component.text(until));
+    }
+
+    /** The area ban denial: the text, then how long it lasts, the end date when the backend gave one. */
+    private Component areaBanDenial(Locale locale, @Nullable Long expiresAt) {
+        Component ends = expiresAt == null
+                ? Component.translatable("punishment.screen.duration.permanent")
+                : remainingUntil(expiresAt, locale);
+        Component blocked = Component.translatable("guard.screen.area_ban").fallback(AREA_BAN_TEXT);
+        return this.renderer.render(Component.join(JoinConfiguration.newlines(), blocked, ends), locale);
     }
 
     private @Nullable Component id(@Nullable String identifier) {

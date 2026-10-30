@@ -76,17 +76,18 @@ public final class VpnLoginDecision {
         IntelPolicy policy = response == null ? null : response.getVerdict();
         if (policy == null) {
             this.failOpen.incrementAndGet();
-            return new Verdict(IntelPolicy.ALLOW, null, false);
+            return new Verdict(IntelPolicy.ALLOW, null, false, null);
         }
-        return new Verdict(policy, response.getDenialReason(), true);
+        return new Verdict(policy, response.getDenialReason(), true, response.getExpiresAt());
     }
 
     /**
-     * @param policy   the backend's verdict, or {@link IntelPolicy#ALLOW} when it gave none
-     * @param reason   why a {@link IntelPolicy#DENY} refused the login; null for a VPN policy refusal
-     * @param answered whether the backend gave a usable answer
+     * @param policy    the backend's verdict, or {@link IntelPolicy#ALLOW} when it gave none
+     * @param reason    why a {@link IntelPolicy#DENY} refused the login; null for a VPN policy refusal
+     * @param answered  whether the backend gave a usable answer
+     * @param expiresAt when an area ban denial ends, in epoch milliseconds; null for a permanent ban and for every other verdict
      */
-    public record Verdict(@NotNull IntelPolicy policy, @Nullable LoginDenialReason reason, boolean answered) {
+    public record Verdict(@NotNull IntelPolicy policy, @Nullable LoginDenialReason reason, boolean answered, @Nullable Long expiresAt) {
     }
 
     /**
