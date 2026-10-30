@@ -25,6 +25,7 @@ public class GuardTransitionService {
     private final GuardChangeStore changes;
     private final GuardPresenceService presence;
     private final UnattendedEvaluator evaluator;
+    private final GuardSettingsStore settings;
     private final DomainEventPublisher events;
     private final GuardStateCache cache;
     private final Clock clock;
@@ -34,6 +35,7 @@ public class GuardTransitionService {
             GuardChangeStore changes,
             GuardPresenceService presence,
             UnattendedEvaluator evaluator,
+            GuardSettingsStore settings,
             DomainEventPublisher events,
             GuardStateCache cache,
             Clock clock
@@ -42,6 +44,7 @@ public class GuardTransitionService {
         this.changes = changes;
         this.presence = presence;
         this.evaluator = evaluator;
+        this.settings = settings;
         this.events = events;
         this.cache = cache;
         this.clock = clock;
@@ -84,7 +87,8 @@ public class GuardTransitionService {
         }
         GuardState before = current.get();
         long now = this.clock.millis();
-        GuardLevel automatic = this.evaluator.automaticLevel(this.presence.staffPresent(), this.presence.lastStaffSeen(), now);
+        UnattendedSettings stored = this.settings.current();
+        GuardLevel automatic = this.evaluator.automaticLevel(stored, this.presence.staffPresent(), this.presence.lastStaffSeen(), now);
         if (automatic == before.automatic()) {
             return false;
         }

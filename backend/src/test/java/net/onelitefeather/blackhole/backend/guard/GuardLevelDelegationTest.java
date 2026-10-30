@@ -36,7 +36,8 @@ class GuardLevelDelegationTest {
                 Duration.ofMinutes(5));
         GuardPresenceService presence = new GuardPresenceService(new InMemoryPresenceStore(), settings, CLOCK, cache);
         GuardTransitionService transitions = new GuardTransitionService(this.states, this.changes, presence,
-                new UnattendedEvaluator(settings), new DomainEventPublisher(new RecordingEventTransport(), CLOCK), cache, CLOCK);
+                new UnattendedEvaluator(), InMemoryGuardSettingsStore.configured(),
+                new DomainEventPublisher(new RecordingEventTransport(), CLOCK), cache, CLOCK);
         return new GuardService(this.states, transitions, this.linked.delegation(), StaffDelegations.recorder(CLOCK));
     }
 

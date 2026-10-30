@@ -1991,6 +1991,35 @@
     },
     "saved": "Manual level set to {level}.",
     "readOnly": "Only moderators and admins can change the level.",
+    "settings": {
+      "title": "Unattended settings",
+      "intro": "Applied on every replica within about 30 seconds. Every save is recorded.",
+      "level": "Unattended level",
+      "threshold": "Absence threshold in minutes",
+      "thresholdHelp": "From 5 to 240 minutes, whole minutes only.",
+      "nightWindow": "Night window",
+      "nightEnabled": "Night window applies",
+      "nightStart": "Night window starts",
+      "nightEnd": "Night window ends (this time is not included)",
+      "zone": "Time zone",
+      "window": "{start} to {end}",
+      "nextWindow": "Next night window: {window}, in your time zone. Configured zone: {zone}.",
+      "noNightWindow": "No night window applies: the window is disabled.",
+      "disabled": "Disabled",
+      "minutesValue": "{n} minutes",
+      "save": "Save settings",
+      "saved": "Unattended settings saved.",
+      "readOnly": "Only administrators can change these settings.",
+      "problem": {
+        "threshold": "Enter a whole number of minutes from {min} to {max}.",
+        "window": "Start and end must be different times in HH:mm.",
+        "zone": "Choose a time zone."
+      },
+      "confirm": {
+        "title": "Set the unattended level to {level}?",
+        "body": "While no staff member is online, only players the network knows may join. Set {level} only when unknown players must be kept out."
+      }
+    },
     "confirm": {
       "title": "Set the join guard level?",
       "body": "The manual level becomes {level}.",

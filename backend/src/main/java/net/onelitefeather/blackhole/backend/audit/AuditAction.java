@@ -36,7 +36,8 @@ public enum AuditAction {
     INTEL_ALLOW_LIST_REMOVE("intel.allow-list.remove"),
     GUARD_LEVEL_SET("guard.level.set"),
     AREA_BAN_CREATE("area-ban.create"),
-    AREA_BAN_LIFT("area-ban.lift");
+    AREA_BAN_LIFT("area-ban.lift"),
+    GUARD_SETTINGS_SET("guard.settings.set");
 
     private final String wireName;
 

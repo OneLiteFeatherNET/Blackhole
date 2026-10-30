@@ -7,6 +7,20 @@ import JoinGuardView from './JoinGuardView.vue'
 
 const NOW = Date.UTC(2030, 0, 3, 12, 0)
 
+/** The stored unattended settings every view test starts from; the settings section has its own tests. */
+const STORED_SETTINGS = {
+  unattendedLevel: 'STRICT',
+  absenceThresholdMinutes: 20,
+  nightWindowEnabled: true,
+  nightWindowStart: '01:00',
+  nightWindowEnd: '07:00',
+  timeZone: 'Europe/Berlin',
+  updatedAt: Date.UTC(2030, 0, 3, 12, 0),
+  updatedByOid: null,
+  nextNightWindowStart: Date.UTC(2030, 0, 4, 0, 0),
+  nextNightWindowEnd: Date.UTC(2030, 0, 4, 6, 0),
+}
+
 function state(overrides: Partial<GuardState> = {}): GuardState {
   return { manualLevel: 'OFF', automaticLevel: 'OFF', effectiveLevel: 'OFF', updatedAt: NOW, ...overrides }
 }
@@ -14,6 +28,7 @@ function state(overrides: Partial<GuardState> = {}): GuardState {
 function setup(initial: GuardState, overrides: Record<string, unknown> = {}) {
   const api = {
     joinGuard: vi.fn(async () => ok(initial)),
+    joinGuardSettings: vi.fn(async () => ok(STORED_SETTINGS)),
     setJoinGuardLevel: vi.fn(async (level: string) => ok(state({ manualLevel: level, effectiveLevel: level }))),
     ...overrides,
   }

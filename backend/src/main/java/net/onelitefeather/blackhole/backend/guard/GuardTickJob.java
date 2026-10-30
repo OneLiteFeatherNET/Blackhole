@@ -14,9 +14,11 @@ public class GuardTickJob {
     private static final Logger LOGGER = LoggerFactory.getLogger(GuardTickJob.class);
 
     private final GuardTransitionService transitions;
+    private final GuardStateCache cache;
 
     public GuardTickJob(GuardTransitionService transitions, GuardStateCache cache, MeterRegistry meters) {
         this.transitions = transitions;
+        this.cache = cache;
         Gauge.builder("blackhole.guard.level", cache, value -> value.effective().ordinal())
                 .description("The join guard level in force: 0 OFF, 1 STRICT, 2 LOCKDOWN")
                 .register(meters);
@@ -33,5 +35,7 @@ public class GuardTickJob {
             // A scheduled task must not throw, or the scheduler may stop running it.
             LOGGER.error("Join guard tick failed, trying again at the next interval", e);
         }
+        // Every replica follows the stored level within this tick, whichever replica wrote it. A failed reload keeps the level in use.
+        this.cache.reload();
     }
 }

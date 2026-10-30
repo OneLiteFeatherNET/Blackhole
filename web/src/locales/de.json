@@ -1991,6 +1991,35 @@
     },
     "saved": "Manuelle Stufe auf {level} gesetzt.",
     "readOnly": "Nur Moderation und Administration können die Stufe ändern.",
+    "settings": {
+      "title": "Einstellungen ohne Aufsicht",
+      "intro": "Wirkt auf jedem Replikat innerhalb von etwa 30 Sekunden. Jede Speicherung wird festgehalten.",
+      "level": "Stufe ohne Aufsicht",
+      "threshold": "Abwesenheitsschwelle in Minuten",
+      "thresholdHelp": "Von 5 bis 240 Minuten, nur ganze Minuten.",
+      "nightWindow": "Nachtfenster",
+      "nightEnabled": "Nachtfenster gilt",
+      "nightStart": "Nachtfenster beginnt",
+      "nightEnd": "Nachtfenster endet (diese Uhrzeit gehört nicht dazu)",
+      "zone": "Zeitzone",
+      "window": "{start} bis {end}",
+      "nextWindow": "Nächstes Nachtfenster: {window} in Ihrer Zeitzone. Eingestellte Zeitzone: {zone}.",
+      "noNightWindow": "Kein Nachtfenster gilt: Das Fenster ist deaktiviert.",
+      "disabled": "Deaktiviert",
+      "minutesValue": "{n} Minuten",
+      "save": "Einstellungen speichern",
+      "saved": "Einstellungen ohne Aufsicht gespeichert.",
+      "readOnly": "Nur Administratorinnen und Administratoren können diese Einstellungen ändern.",
+      "problem": {
+        "threshold": "Bitte eine ganze Zahl an Minuten von {min} bis {max} eingeben.",
+        "window": "Beginn und Ende müssen verschiedene Uhrzeiten im Format HH:mm sein.",
+        "zone": "Bitte eine Zeitzone wählen."
+      },
+      "confirm": {
+        "title": "Stufe ohne Aufsicht auf {level} setzen?",
+        "body": "Solange kein Teammitglied online ist, dürfen nur dem Netzwerk bekannte Spielerinnen und Spieler beitreten. {level} nur setzen, wenn unbekannte Spielerinnen und Spieler ferngehalten werden müssen."
+      }
+    },
     "confirm": {
       "title": "Beitrittsschutz setzen?",
       "body": "Die manuelle Stufe wird {level}.",

@@ -29,9 +29,10 @@ class GuardTransitionServiceTest {
     private final InMemoryGuardChangeStore changes = new InMemoryGuardChangeStore();
     private final RecordingEventTransport transport = new RecordingEventTransport();
     private final DomainEventPublisher events = new DomainEventPublisher(this.transport, this.clock);
+    private final InMemoryGuardSettingsStore settingsStore = InMemoryGuardSettingsStore.configured();
 
     private GuardTransitionService service(GuardStateStore states) {
-        return new GuardTransitionService(states, this.changes, this.presence, new UnattendedEvaluator(this.settings),
+        return new GuardTransitionService(states, this.changes, this.presence, new UnattendedEvaluator(), this.settingsStore,
                 this.events, new GuardStateCache(states), this.clock);
     }
 
