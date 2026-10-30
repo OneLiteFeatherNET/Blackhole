@@ -455,6 +455,9 @@ blackhole:
   # Join guard (openspec add-join-guard). The unattended level is raised while no staff member is on a proxy, after the
   # absence threshold or inside the night window, and is cleared the moment staff return. It may be STRICT or LOCKDOWN,
   # never OFF. LOCKDOWN is not automatic by default: set it only when unknown players must be kept out unattended.
+  # The unattended.* values below seed the stored settings on the first start only (openspec configure-join-guard-in-panel).
+  # After that the stored settings win: edit them in the panel or with PUT /guard/settings, and a later change to these
+  # environment variables has no effect.
   guard:
     tick-interval: ${BLACKHOLE_GUARD_TICK_INTERVAL:PT30S}   # how often the unattended level is re-evaluated
     unattended:

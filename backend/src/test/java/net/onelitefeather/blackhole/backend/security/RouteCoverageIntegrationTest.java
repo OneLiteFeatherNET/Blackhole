@@ -161,6 +161,9 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /guard/state", V),
             Map.entry("POST /guard/level", MPD),
             Map.entry("POST /guard/presence", P),
+            // join guard settings: staff read the stored unattended settings, only an administrator replaces them
+            Map.entry("GET /guard/settings", V),
+            Map.entry("PUT /guard/settings", A),
             Map.entry("GET /area-bans", V),
             Map.entry("POST /area-bans", MPD),
             Map.entry("POST /area-bans/{id}/lift", MPD),
