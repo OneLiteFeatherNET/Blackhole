@@ -31,7 +31,7 @@ public class GuardController implements GuardApi {
     }
 
     @Override
-    @Secured(Roles.VIEWER)
+    @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<GuardDTO> state() {
         GuardDTO result = this.guard.state();
         if (result instanceof GuardDTO.Error error) {
