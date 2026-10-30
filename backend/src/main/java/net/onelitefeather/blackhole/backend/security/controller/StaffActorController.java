@@ -6,6 +6,7 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.security.annotation.Secured;
 import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
+import net.onelitefeather.blackhole.backend.problem.ProblemMapper;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.security.StaffActorService;
@@ -38,7 +39,7 @@ public class StaffActorController implements StaffActorApi {
     public HttpResponse<StaffActorDTO> anonymize(UUID oid, Actor actor) {
         StaffActorDTO result = this.staffActorService.anonymize(oid, actor);
         if (result instanceof StaffActorDTO.Error error) {
-            return HttpResponse.<StaffActorDTO>status(error.kind().status()).body(error);
+            return ProblemMapper.fromKind(error, error.kind(), ProblemMapper.instance()).response();
         }
         return HttpResponse.ok(result);
     }

@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
+import net.onelitefeather.blackhole.backend.problem.ProblemMapper;
 import net.onelitefeather.blackhole.backend.discord.dto.DiscordLeakCheckDTO;
 import net.onelitefeather.blackhole.backend.discord.leak.LeakCheckService;
 import net.onelitefeather.blackhole.backend.security.Actor;
@@ -41,7 +42,7 @@ public class DiscordLeakCheckController implements DiscordLeakCheckApi {
     public HttpResponse<DiscordLeakCheckDTO> check(DiscordLeakCheckDTO.Request request, Actor actor) {
         DiscordLeakCheckDTO result = this.service.check(request, actor);
         if (result instanceof DiscordLeakCheckDTO.Error error) {
-            return HttpResponse.<DiscordLeakCheckDTO>status(error.kind().status()).body(error);
+            return ProblemMapper.fromKind(error, error.kind(), ProblemMapper.instance()).response();
         }
         return HttpResponse.ok(result);
     }

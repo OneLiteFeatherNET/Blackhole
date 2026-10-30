@@ -1,13 +1,22 @@
 package net.onelitefeather.blackhole.backend.problem;
 
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
+import io.micronaut.http.MediaType;
+import io.micronaut.http.context.ServerRequestContext;
+import io.micronaut.web.router.RouteAttributes;
+import io.micronaut.web.router.RouteMatch;
+import io.micronaut.web.router.UriRouteInfo;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicError;
+import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.response.ErrorResponse;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * The one place that turns a failure into a status and a problem body (design D5). Controllers and
@@ -17,10 +26,24 @@ public final class ProblemMapper {
 
     /** The HTTP status to send and the problem body to send with it. */
     public record Mapped(HttpStatus status, ProblemDetail body) {
+
+        /**
+         * The problem as a response. A route's declared body type is its success body; a problem is the other body the same
+         * route sends, so the type parameter is the route's and the runtime body is the problem.
+         */
+        @SuppressWarnings("unchecked")
+        public <T> HttpResponse<T> response() {
+            return HttpResponse.<T>status(this.status)
+                    .contentType(MediaType.of(ProblemDetail.CONTENT_TYPE))
+                    .body((T) this.body);
+        }
     }
 
     private static final String PUBLIC_DETAIL = "The request could not be completed; see code for the reason.";
     private static final String UNEXPECTED_DETAIL = "An unexpected error occurred.";
+
+    /** The instance of a problem for a request that matched no route: a fixed value, never the unmatched path. */
+    public static final String NO_ROUTE_INSTANCE = "about:blank";
 
     private ProblemMapper() {
         throw new UnsupportedOperationException("This class cannot be instantiated");
@@ -31,11 +54,32 @@ public final class ProblemMapper {
      * the type, title and {@code code} member.
      */
     public static Mapped fromError(ErrorResponse error, HttpStatus status, @Nullable String code, String instance) {
+        return fromError(error, status, code, instance, Map.of());
+    }
+
+    /**
+     * As {@link #fromError(ErrorResponse, HttpStatus, String, String)}, with further extension members such as
+     * {@code availableFrom}. A {@code null} extension is left out of the body.
+     */
+    public static Mapped fromError(
+            ErrorResponse error, HttpStatus status, @Nullable String code, String instance, Map<String, Object> extensions
+    ) {
         Objects.requireNonNull(error, "error");
+        Map<String, Object> members = new HashMap<>(extensions);
         if (code == null) {
-            return of(status, ProblemType.forStatus(status), status.getReason(), error.errorMessage(), instance, Map.of());
+            return of(status, ProblemType.forStatus(status), status.getReason(), error.errorMessage(), instance, members);
         }
-        return of(status, ProblemType.forCode(code), ProblemType.titleOf(code), error.errorMessage(), instance, Map.of("code", code));
+        members.put("code", code);
+        return of(status, ProblemType.forCode(code), ProblemType.titleOf(code), error.errorMessage(), instance, members);
+    }
+
+    /**
+     * An expected failure named by its kind: the status is the kind's. An {@link ErrorKind#INVALID_CODE} keeps its name as the
+     * machine {@code code}, the one the link clients branch on.
+     */
+    public static Mapped fromKind(ErrorResponse error, ErrorKind kind, String instance) {
+        String code = kind == ErrorKind.INVALID_CODE ? kind.name() : null;
+        return fromError(error, kind.status(), code, instance);
     }
 
     /** An expected failure of a public route. The status comes from the kind; {@code availableFrom} is kept when present. */
@@ -56,6 +100,25 @@ public final class ProblemMapper {
     /** Any failure nobody expected: always a 500 with a fixed detail, never the cause. */
     public static Mapped unexpected(String instance) {
         return fromStatus(HttpStatus.INTERNAL_SERVER_ERROR, UNEXPECTED_DETAIL, instance, Map.of());
+    }
+
+    /**
+     * The {@code instance} of a problem: the URI template of the route that matched the request, so no identifier from the
+     * path is echoed ({@code /discord/link/{discordUserId}}). A request that matched no route gets {@link #NO_ROUTE_INSTANCE}.
+     */
+    public static String instance(HttpRequest<?> request) {
+        Optional<RouteMatch<?>> match = RouteAttributes.getRouteMatch(request);
+        if (match.isPresent() && match.get().getRouteInfo() instanceof UriRouteInfo<?, ?> route) {
+            return route.getUriMatchTemplate().toString();
+        }
+        return NO_ROUTE_INSTANCE;
+    }
+
+    /** The {@code instance} of a problem a controller answers with, for the request being served. */
+    public static String instance() {
+        return ServerRequestContext.currentRequest()
+                .map(ProblemMapper::instance)
+                .orElseThrow(() -> new IllegalStateException("a problem is answered outside a request"));
     }
 
     private static Mapped of(

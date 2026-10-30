@@ -255,7 +255,7 @@ public class DiscordLinkService {
     public DiscordLinkDTO adminRemove(UUID id, Actor admin) {
         Optional<DiscordLinkEntity> link = this.links.findById(id);
         if (link.isEmpty()) {
-            return new DiscordLinkDTO.Error("there is no Discord link " + id, ErrorKind.NOT_FOUND);
+            return new DiscordLinkDTO.Error("there is no such Discord link", ErrorKind.NOT_FOUND);
         }
         remove(link.get(), RemovalReason.ADMIN);
         // The link is named by nothing: a Discord user id is not written to the audit log.

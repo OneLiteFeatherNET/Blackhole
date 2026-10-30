@@ -16,6 +16,7 @@ import net.onelitefeather.blackhole.backend.discord.ingest.DiscordIngestService;
 import net.onelitefeather.blackhole.backend.discord.ticket.TicketService;
 import net.onelitefeather.blackhole.backend.discord.ticket.TicketState;
 import net.onelitefeather.blackhole.backend.evidence.controller.SafeFileResponse;
+import net.onelitefeather.blackhole.backend.problem.ProblemMapper;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.Roles;
@@ -23,7 +24,9 @@ import net.onelitefeather.blackhole.backend.security.Roles;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -66,7 +69,7 @@ public class DiscordTicketController implements DiscordTicketApi {
         DiscordAttachmentService.Reply reply = this.attachments.download(id, attachmentId);
         return switch (reply) {
             case DiscordAttachmentService.Reply.Content content -> SafeFileResponse.of(content.download(), false);
-            case DiscordAttachmentService.Reply.Failure failure -> HttpResponse.status(failure.error().kind().status()).body(failure.error());
+            case DiscordAttachmentService.Reply.Failure failure -> problem(failure.error());
         };
     }
 
@@ -126,8 +129,18 @@ public class DiscordTicketController implements DiscordTicketApi {
 
     private static HttpResponse<DiscordTicketDTO> respond(DiscordTicketDTO result) {
         if (result instanceof DiscordTicketDTO.Error error) {
-            return HttpResponse.<DiscordTicketDTO>status(error.kind().status()).body(error);
+            return problem(error);
         }
         return HttpResponse.ok(result);
+    }
+
+    /** A ticket failure as a problem: the code is the machine code, and the data the bot acts on stays beside it. */
+    private static <T> HttpResponse<T> problem(DiscordTicketDTO.Error error) {
+        Map<String, Object> extensions = new HashMap<>();
+        extensions.put("availableFrom", error.availableFrom());
+        extensions.put("backendCount", error.backendCount());
+        extensions.put("backendLastMessageId", error.backendLastMessageId());
+        String code = error.code() == null ? null : error.code().name();
+        return ProblemMapper.fromError(error, error.kind().status(), code, ProblemMapper.instance(), extensions).response();
     }
 }
