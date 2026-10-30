@@ -56,7 +56,7 @@ dependencyResolutionManagement {
             version("logstash-logback-encoder", "9.0")
             version("opentelemetry-instrumentation-alpha", "2.20.1-alpha")
             version("janino", "3.1.12")
-            version("awssdk", "2.57.7")
+            version("awssdk", "2.57.8")
             // Discord gateway client for the bot (discord module). Pinned on purpose: bump after checking Maven Central and the 2 week age rule.
             version("jda", "6.7.0")
             // NATS client for the domain event bus (backend and Discord bot). Pinned on purpose: bump after checking Maven Central and the 2 week age rule.
