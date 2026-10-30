@@ -61,6 +61,7 @@ Names are chosen in the values; the keys inside are fixed.
 | `backend.metrics.serviceMonitor.oauth2.existingSecret` | `blackhole-metrics` | `BLACKHOLE_METRICS_CLIENT_ID`, `BLACKHOLE_METRICS_CLIENT_SECRET` (only with the ServiceMonitor) |
 | `publicBanKey.existingSecret` | `blackhole-public-ban` | `BLACKHOLE_PUBLIC_BAN_KEY` (the HMAC key of the public ban entries; see Public ban list) |
 | `banList.existingSecret` | `blackhole-ban-list` | one key per client, named after the client, holding its Argon2id hash (see Public ban list) |
+| `firewallFeed.existingSecret` | `blackhole-firewall-feed` | one key per firewall client, named after the client, holding the SHA-256 hex of its token (see Firewall feed) |
 | `global.imagePullSecrets` | `harbor-pull` | a `kubernetes.io/dockerconfigjson` Secret |
 
 `BLACKHOLE_BANID_KEY` cannot be replaced after the first start (every Ban ID becomes unreadable). Keep an
@@ -78,6 +79,7 @@ offline copy of it before the first install.
 | `portal` | the same common keys, `origin`, `ingress` or `httpRoute`, `pdb` |
 | `discord` | the common keys, `existingSecret`, `auditWebhookKey`, `clientId`, `authScope`, `panelUrl` (the panel base URL, `BLACKHOLE_PANEL_URL`, also the base of the audit links), `ids.*`, `config` (intervals), `metrics.podMonitor`; always exactly one replica |
 | `banList`, `publicBanKey` | the public ban list: `clients` (empty = off), `existingSecret`, `mountPath`, `trustedIngress` (required with clients); and the key's Secret. See Public ban list |
+| `firewallFeed` | the firewall pull feeds: `clients` (empty = off), `existingSecret`, `mountPath`, `allowedSources` (optional). See Firewall feed |
 | `analytics` | `refreshInterval` (15m): how often the backend refreshes the Metabase views. See Analytics |
 | `clamav` | `enabled`, `externalHost`, `image`, `unprivileged`, `limits.*`, `persistence.{size,storageClass}` |
 
@@ -189,6 +191,42 @@ plain HTTP) relies on that header, and the backend trusts it only from the peers
 HTTPRoutes (dev) use the `https` listener of the Envoy Gateway, whose redirect lives in the cluster's Gateway
 configuration. The chart adds no change for this.
 
+## Firewall feed
+
+Off by default: with `firewallFeed.clients` empty the backend serves nothing on `/firewall/feed/...`, and nothing of
+it is rendered. The firewall fetches two plain-text feeds, `/firewall/feed/{token}/ips` and `/firewall/feed/{token}/networks`,
+with its own token. The backend never calls the firewall and holds no firewall credential.
+
+- `firewallFeed.clients`: the firewall client names (`[a-z0-9-]{1,32}`). They render into `BLACKHOLE_FIREWALL_FEED_CLIENTS`.
+- `firewallFeed.existingSecret`: a Secret with one key per client, the key being the client's name, the value the
+  lowercase SHA-256 hex of its token (64 characters). Each key is mounted read-only as a file of that name in
+  `firewallFeed.mountPath` (default `/etc/blackhole/firewall-feed`, `BLACKHOLE_FIREWALL_FEED_SECRETS_DIR`). Only the
+  listed keys are mounted. The chart refuses a plaintext token value; the Secret holds hashes only.
+- `firewallFeed.allowedSources`: optional, comma separated IP addresses or CIDRs (`BLACKHOLE_FIREWALL_FEED_ALLOWED_SOURCES`).
+  Empty admits every peer that presents a valid token. A peer outside the list gets the same 404 as an unknown token.
+  The backend checks the TCP peer, so the list works only where the firewall reaches the backend directly. Behind a
+  tunnel or a proxy the peer is that component, and the list would refuse the firewall.
+- Rotation: write the new hash into the Secret key, then raise `backend.secretRevision`. The backend reads the hash files
+  once at start, so a changed Secret needs the revision raised. Removing a client: remove its name from
+  `firewallFeed.clients` and raise the revision.
+
+Create a client's token and hash on a workstation. The token goes to the firewall once and is never stored; only the hash
+goes to the cluster:
+
+```shell
+# 32 random bytes, base64url without padding (the backend requires at least 32 bytes).
+TOKEN="$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=')"
+# SHA-256 hex of the token string, without a trailing newline (printf, not echo).
+HASH="$(printf '%s' "${TOKEN}" | sha256sum | cut -d' ' -f1)"
+kubectl -n <namespace> create secret generic blackhole-firewall-feed --from-literal=office-fw="${HASH}"
+```
+
+The firewall URL is `https://<feed host>/firewall/feed/<token>/ips` (and `/networks`). It must be HTTPS: the token is in the
+path, so plain HTTP would send it in clear text. The ingress in front of the backend has to reject plain HTTP on that path;
+the backend never redirects it, because a redirect would send the token first. The plaintext token goes only into the
+firewall's alias configuration, never into the values, the Secret, a ticket or a chat. The chart does not publish
+`/firewall/feed` on any host yet: until an ingress route is added for it, the feed is reachable only on the backend Service.
+
 ## Analytics (Metabase)
 
 The backend keeps seven materialized views in the `analytics` schema of the database and refreshes them every
@@ -255,5 +293,6 @@ adds kubeconform v0.8.0.
 | `tests/exposure.sh` | hosts, Ingress class, the route table against the cloudflared path semantics |
 | `tests/psa.sh` | the `restricted` Pod Security fields on every pod |
 | `tests/banlist.sh` | the public ban list is off by default; client names, hash files (read-only, one per client) and the public key only as Secret references; the trusted ingress is required with clients; plaintext refused |
+| `tests/firewall-feed.sh` | the firewall feed is off by default; client names, hash files (read-only, one per client) and the allow-list reach the backend as configuration; a plaintext token, a host name in the allow-list and a missing Secret are refused |
 | `tests/analytics.sh` | the analytics refresh interval reaches the backend as configuration (15m by default); no Metabase Secret is rendered |
 | `tests/geoip.sh` | the GeoIP volume (read-only in the backend), the paths, the refresh job (pinned, no secrets, restricted) and the switches |

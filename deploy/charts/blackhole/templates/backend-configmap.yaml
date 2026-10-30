@@ -60,6 +60,11 @@ secretKeyRef entries in the Deployment.
 {{- $_ := set $c "BLACKHOLE_BAN_LIST_SECRETS_DIR" .Values.banList.mountPath }}
 {{- $_ := set $c "BLACKHOLE_BAN_LIST_TRUSTED_INGRESS" .Values.banList.trustedIngress }}
 {{- end }}
+{{- if .Values.firewallFeed.clients }}
+{{- $_ := set $c "BLACKHOLE_FIREWALL_FEED_CLIENTS" (join "," .Values.firewallFeed.clients) }}
+{{- $_ := set $c "BLACKHOLE_FIREWALL_FEED_SECRETS_DIR" .Values.firewallFeed.mountPath }}
+{{- $_ := set $c "BLACKHOLE_FIREWALL_FEED_ALLOWED_SOURCES" .Values.firewallFeed.allowedSources }}
+{{- end }}
 {{- range $key, $value := $v.config }}
 {{- $_ := set $c $key $value }}
 {{- end }}

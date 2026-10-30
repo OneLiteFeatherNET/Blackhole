@@ -226,6 +226,9 @@ nothing, so every render runs them.
 {{- if and .Values.banList.clients (not .Values.publicBanKey.existingSecret) -}}
 {{- fail "publicBanKey.existingSecret is required when banList.clients is set: the public ban entries are hashed with that key" -}}
 {{- end -}}
+{{- if and .Values.firewallFeed.clients (not .Values.firewallFeed.existingSecret) -}}
+{{- fail "firewallFeed.existingSecret is required when firewallFeed.clients is set: the Secret with one hash key per client" -}}
+{{- end -}}
 {{- if and .Values.backend.enabled .Values.web.enabled (ne (int64 .Values.backend.evidence.maxVideoBytes) (int64 .Values.web.evidence.maxVideoBytes)) -}}
 {{- fail (printf "backend.evidence.maxVideoBytes (%d) and web.evidence.maxVideoBytes (%d) must be equal: the panel would accept uploads the backend refuses, or the other way round" (int64 .Values.backend.evidence.maxVideoBytes) (int64 .Values.web.evidence.maxVideoBytes)) -}}
 {{- end -}}
