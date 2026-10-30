@@ -206,9 +206,19 @@ with its own token. The backend never calls the firewall and holds no firewall c
   Empty admits every peer that presents a valid token. A peer outside the list gets the same 404 as an unknown token.
   The backend checks the TCP peer, so the list works only where the firewall reaches the backend directly. Behind a
   tunnel or a proxy the peer is that component, and the list would refuse the firewall.
-- Rotation: write the new hash into the Secret key, then raise `backend.secretRevision`. The backend reads the hash files
-  once at start, so a changed Secret needs the revision raised. Removing a client: remove its name from
+- Rotation without a gap (the backend accepts two tokens per client, the current `<name>` key and the optional
+  `<name>.next` key):
+  1. Add the key `<name>.next` to the Secret with the hash of the new token, and raise `backend.secretRevision`.
+     Both tokens now work; the old one keeps working.
+  2. Change the firewall's alias to the new token. Watch the feed answer 200 with it.
+  3. Set the key `<name>` to the new hash, delete `<name>.next`, and raise `backend.secretRevision` again. The old token
+     stops working.
+  The chart mounts `<name>.next` as an optional file, so a client without a rotation needs no such key. The backend reads
+  the hash files once at start, which is why each step raises the revision. Removing a client: remove its name from
   `firewallFeed.clients` and raise the revision.
+- Route: while `firewallFeed.clients` is set, the external API host also routes `/firewall/feed/...` (the same anchored
+  expression as `/public/bans`, in the tunnel and the nginx mode), because the firewall sits outside the cluster. Other
+  paths under `/firewall` stay refused.
 
 Create a client's token and hash on a workstation. The token goes to the firewall once and is never stored; only the hash
 goes to the cluster:
@@ -224,8 +234,9 @@ kubectl -n <namespace> create secret generic blackhole-firewall-feed --from-lite
 The firewall URL is `https://<feed host>/firewall/feed/<token>/ips` (and `/networks`). It must be HTTPS: the token is in the
 path, so plain HTTP would send it in clear text. The ingress in front of the backend has to reject plain HTTP on that path;
 the backend never redirects it, because a redirect would send the token first. The plaintext token goes only into the
-firewall's alias configuration, never into the values, the Secret, a ticket or a chat. The chart does not publish
-`/firewall/feed` on any host yet: until an ingress route is added for it, the feed is reachable only on the backend Service.
+firewall's alias configuration, never into the values, the Secret, a ticket or a chat. The feed is reached through the
+external API host (`backend.externalApi`, the tunnel or the nginx proxy) by the route above. The edge of that host
+(Cloudflare) redirects plain HTTP to HTTPS, which is a zone setting, not a chart setting, so it cannot be checked here.
 
 ## Analytics (Metabase)
 
@@ -293,6 +304,6 @@ adds kubeconform v0.8.0.
 | `tests/exposure.sh` | hosts, Ingress class, the route table against the cloudflared path semantics |
 | `tests/psa.sh` | the `restricted` Pod Security fields on every pod |
 | `tests/banlist.sh` | the public ban list is off by default; client names, hash files (read-only, one per client) and the public key only as Secret references; the trusted ingress is required with clients; plaintext refused |
-| `tests/firewall-feed.sh` | the firewall feed is off by default; client names, hash files (read-only, one per client) and the allow-list reach the backend as configuration; a plaintext token, a host name in the allow-list and a missing Secret are refused |
+| `tests/firewall-feed.sh` | the firewall feed is off by default; client names, hash files (read-only, one per client, plus the optional `<name>.next` rotation key) and the allow-list reach the backend as configuration; `/firewall/feed` is routed only with clients, in both modes; a plaintext token, a host name in the allow-list and a missing Secret are refused |
 | `tests/analytics.sh` | the analytics refresh interval reaches the backend as configuration (15m by default); no Metabase Secret is rendered |
 | `tests/geoip.sh` | the GeoIP volume (read-only in the backend), the paths, the refresh job (pinned, no secrets, restricted) and the switches |

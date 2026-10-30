@@ -193,6 +193,10 @@ The tunnel (cloudflared) matches it as an unanchored regular expression against 
 {{- if .Values.banList.clients -}}
 {{- $alternatives = append $alternatives "public/bans(/|$)" -}}
 {{- end -}}
+{{- /* The firewall pull feeds: the firewall sits outside the cluster and fetches /firewall/feed/{token}/... through this host. */ -}}
+{{- if .Values.firewallFeed.clients -}}
+{{- $alternatives = append $alternatives "firewall/feed(/|$)" -}}
+{{- end -}}
 {{- printf "^/(%s)" (join "|" $alternatives) -}}
 {{- end -}}
 

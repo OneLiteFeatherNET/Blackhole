@@ -122,13 +122,18 @@ spec:
         {{- end }}
         {{- if .Values.firewallFeed.clients }}
         # One SHA-256 hash per firewall client, read-only: the backend checks the token in the feed path against them.
+        # The optional <name>.next key is the hash of the next token during a rotation. optional lets a missing key
+        # skip its file instead of failing the pod; the backend still refuses a client whose own file is missing.
         - name: firewall-feed
           secret:
             secretName: {{ .Values.firewallFeed.existingSecret }}
+            optional: true
             items:
               {{- range .Values.firewallFeed.clients }}
               - key: {{ . }}
                 path: {{ . }}
+              - key: {{ . }}.next
+                path: {{ . }}.next
               {{- end }}
         {{- end }}
         {{- if $v.geoip.enabled }}

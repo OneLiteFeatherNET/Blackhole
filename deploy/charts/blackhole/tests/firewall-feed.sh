@@ -32,15 +32,46 @@ assert_eq "the allow-list reaches the backend as configured" "203.0.113.10,198.5
   "$(configmap_value "${on}" t-backend BLACKHOLE_FIREWALL_FEED_ALLOWED_SOURCES)"
 assert_eq "the firewall feed volume comes from the feed Secret" "blackhole-firewall-feed" \
   "$(y "${on}" "${backend} | .volumes[] | select(.name == \"firewall-feed\") | .secret.secretName")"
-assert_eq "the volume maps one key per client, each as a file named after it" \
-  "office-fw:office-fw,partner-b:partner-b" \
-  "$(y "${on}" "${backend} | .volumes[] | select(.name == \"firewall-feed\") | [.secret.items[] | .key + \":\" + .path] | join(\",\")")"
 assert_eq "the hash files are mounted at the directory the backend reads" "/etc/blackhole/firewall-feed" \
   "$(y "${on}" "${backend} | .containers[0].volumeMounts[] | select(.name == \"firewall-feed\") | .mountPath")"
 assert_eq "the hash files are mounted read-only" "true" \
   "$(y "${on}" "${backend} | .containers[0].volumeMounts[] | select(.name == \"firewall-feed\") | .readOnly")"
 assert_eq "the chart renders no Secret object with the feed on" "0" \
   "$(y "${on}" '[select(.kind == "Secret")] | length')"
+
+assert_eq "the volume also maps the rotation key of each client, optionally" \
+  "office-fw:office-fw,office-fw.next:office-fw.next,partner-b:partner-b,partner-b.next:partner-b.next" \
+  "$(y "${on}" "${backend} | .volumes[] | select(.name == \"firewall-feed\") | [.secret.items[] | .key + \":\" + .path] | join(\",\")")"
+assert_eq "the feed volume tolerates a missing rotation key" "true" \
+  "$(y "${on}" "${backend} | .volumes[] | select(.name == \"firewall-feed\") | .secret.optional")"
+
+# --- the external API host routes /firewall/feed only with clients ---------------------------------------------------
+# The same anchored expression the tunnel and the nginx proxy use (see banlist.sh and exposure.sh).
+api_path_regex() { # <manifests> -> the path regex of the API host rule
+  y "$1" 'select(.kind == "Ingress" and .metadata.name == "t-backend-api") | .spec.rules[0].http.paths[0].path'
+}
+routed() { # <regex> <path> -> pass when the tunnel would send the path to the backend
+  if printf '%s\n' "$2" | grep -Eq -e "$1"; then return 0; else return 1; fi
+}
+assert_routed() { # <message> <manifests> <path>
+  if routed "$(api_path_regex "$2")" "$3"; then pass; else fail "$1 ($3 is not routed)"; fi
+}
+assert_refused() { # <message> <manifests> <path>
+  if routed "$(api_path_regex "$2")" "$3"; then fail "$1 ($3 is routed)"; else pass; fi
+}
+feed_path="/firewall/feed/TOKEN-PLACEHOLDER/ips"
+assert_routed "clients set: the firewall feed is routed" "${on}" "${feed_path}"
+assert_routed "clients set: the networks feed is routed" "${on}" "/firewall/feed/TOKEN-PLACEHOLDER/networks"
+assert_refused "clients set: /firewall/feedx is not routed" "${on}" "/firewall/feedx/TOKEN-PLACEHOLDER/ips"
+assert_refused "clients set: /firewall itself stays refused" "${on}" "/firewall"
+assert_refused "clients set: /firewall/admin stays refused" "${on}" "/firewall/admin/ips"
+assert_eq "clients set: the nginx proxy routes the feed too" "1" \
+  "$(grep -c 'firewall/feed' <(render prod-values.yaml "${enabled[@]}" --set backend.externalApi.mode=nginx) || true)"
+routed_off="${WORK_DIR}/routed-off.yaml"
+render_to prod-values.yaml "${routed_off}"
+assert_refused "clients empty: the firewall feed is refused" "${routed_off}" "${feed_path}"
+assert_eq "clients empty: the nginx proxy has no feed route" "0" \
+  "$(grep -c 'firewall/feed' <(render prod-values.yaml --set backend.externalApi.mode=nginx) || true)"
 
 # --- without an allow-list: the setting is empty, which admits every peer with a valid token -----------------------
 open="${WORK_DIR}/open.yaml"
