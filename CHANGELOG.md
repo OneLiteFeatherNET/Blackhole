@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.1.0](https://github.com/OneLiteFeatherNET/Blackhole/compare/v2.0.0...v2.1.0) (2026-10-30)
+
+
+### Features
+
+* **velocity:** report plugin errors to sentry ([#516](https://github.com/OneLiteFeatherNET/Blackhole/issues/516)) ([624148f](https://github.com/OneLiteFeatherNET/Blackhole/commit/624148ff3481c2d04e2cfd9941eb56983cf36b9e))
+
+
+### Bug Fixes
+
+* **velocity:** register the name history command without a second user node ([#515](https://github.com/OneLiteFeatherNET/Blackhole/issues/515)) ([8ed1526](https://github.com/OneLiteFeatherNET/Blackhole/commit/8ed152685766dc6737b4ff2d467b8cb2e8de0fb5))
+* **web:** make the night window fields readable ([#513](https://github.com/OneLiteFeatherNET/Blackhole/issues/513)) ([f92bb7a](https://github.com/OneLiteFeatherNET/Blackhole/commit/f92bb7a9d2204ba01b394c901718653884db3356))
+
 ## [2.0.0](https://github.com/OneLiteFeatherNET/Blackhole/compare/v1.0.0...v2.0.0) (2026-10-30)
 
 
