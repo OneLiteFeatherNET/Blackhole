@@ -38,11 +38,18 @@ allowed=(
   /punishment /punishment/active /punishment/7/evidence /profile/abc /elo/abc /section /section/all /template
   /report /report/1/feedback /evasion/record /evidence/1 /appeal/1 /staff-link /player/lookup/name
   /player-discord-link /cloudnet/catalogue
+  # what the Velocity proxy calls beyond those (its generated Api clients: IntelApi, GuardApi, AreaBansApi, KickApi, WarningApi, ClientRuleApi, ProxyApi)
+  /intel/sessions /intel/sessions/7 /intel/login-check /intel/players/abc/names /intel/names/steve/owners
+  /guard/state /guard/presence /guard/level /area-bans /area-bans/1/lift /kick /kick/mass /kick/1
+  /kick/1/deliveries /warn/pending /warn/1 /warn/1/acknowledge /client-rule /client-rule/hit
+  /client-rule/catalogue /proxy/capabilities
 )
 blocked=(
   / /public /public/session /public/appeal/1 /public/punishment /discord/tickets /discord/leak-check /prometheus
   /swagger/views/swagger-ui /health /health/readiness /auth/me /admin/import /admin/staff-link /dashboard
   /cloudnet /x/punishment /api/profile
+  # siblings of the proxy routes that the proxy never calls
+  /intel/policy /intel/allow-list /guard/settings /staff-discord-link/me /discord/link/confirm /admin/audit
 )
 
 check_route_table() { # <label> <rules file> <service for allowed routes>

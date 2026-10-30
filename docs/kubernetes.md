@@ -131,8 +131,12 @@ PodDisruptionBudget (`maxUnavailable: 1`) with more than one replica and spread 
 
 `blackhole-api.onelitefeather.net` routes only these prefixes to the backend: `/punishment`, `/profile`, `/elo`,
 `/section`, `/template`, `/report`, `/evasion`, `/evidence`, `/appeal`, `/staff-link`, `/player` (which also covers
-`/player-discord-link`) and `/cloudnet/catalogue`. Everything else, in particular `/public` (the anonymous player
-login), `/discord`, `/prometheus`, `/swagger`, `/health`, `/admin` and `/auth`, is answered with 404 by the edge.
+`/player-discord-link`), `/cloudnet/catalogue`, `/intel/sessions`, `/intel/login-check`, `/intel/players`,
+`/intel/names` (login check and session tracking), `/guard/state`, `/guard/presence`, `/guard/level` (join guard),
+`/area-bans`, `/kick`, `/warn`, `/client-rule` and `/proxy/capabilities`. The last ones are the routes the Velocity
+proxy calls. The narrower `intel` and `guard` entries keep `/intel/policy`, `/intel/allow-list` and
+`/guard/settings` off the host. Everything else, in particular `/public` (the anonymous player login), `/discord`,
+`/prometheus`, `/swagger`, `/health`, `/admin` and `/auth`, is answered with 404 by the edge.
 The boundary behind that is the backend's own token check (Entra token with the `Blackhole.Proxy` app role).
 
 ## How to

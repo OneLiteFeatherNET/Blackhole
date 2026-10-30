@@ -303,6 +303,20 @@ backend:
       - staff-link
       - player
       - cloudnet/catalogue
+      # Narrowed to the sub-paths the proxy calls where the controller has siblings it must not expose
+      # (/intel/policy, /intel/allow-list, /guard/settings). /player also carries /player-discord-link.
+      - intel/sessions
+      - intel/login-check
+      - intel/players
+      - intel/names
+      - guard/state
+      - guard/presence
+      - guard/level
+      - area-bans
+      - kick
+      - warn
+      - client-rule
+      - proxy/capabilities
     nginx:
       image:
         registry: docker.io
