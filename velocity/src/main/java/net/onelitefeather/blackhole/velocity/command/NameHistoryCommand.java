@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * {@code /blackhole <user> names}: the names a player used, newest first. The player is resolved online
+ * {@code /blackhole names <user>}: the names a player used, newest first. The player is resolved online
  * first, then live, then through the old-name route; an old name that several accounts used lists them
  * and picks none.
  */
@@ -62,7 +62,7 @@ public final class NameHistoryCommand {
         this.zone = zone;
     }
 
-    @Command("blackhole <user> names")
+    @Command("blackhole names <user>")
     @Permission("blackhole.user.info")
     @CommandDescription("List the names a player has used, newest first")
     public void names(
