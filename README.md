@@ -182,6 +182,12 @@ chat delivered). Staff notices for new reports arrive as `report.created` events
 report from the backend (the proxy's token needs the `PROXY` role, which may read a single report) and
 takes the player names from its online players.
 
+**Error reporting (optional).** The plugin reports its own failures (a failed start, a failed command) to Sentry.
+It is off unless `SENTRY_DSN` is set in the proxy's environment; the DSN is never read from `config.json`.
+`SENTRY_ENVIRONMENT` (default `prod`), `SENTRY_RELEASE` (default: the plugin version) and
+`SENTRY_SEND_DEFAULT_PII` (default `true`) set the rest. Ban IDs, bearer tokens and the client secret are
+removed before anything is sent.
+
 **Upgrading from the Redis-based plugin (breaking).** The plugin no longer reads `redisUri` and has no Redis or
 Dragonfly client: it enforces over HTTP plus NATS only. Set `nats.url` and `nats.credsFile` (or `NATS_URL` and
 `NATS_CREDS_FILE`) before updating. A leftover `redisUri` is ignored with one warning at startup; remove it

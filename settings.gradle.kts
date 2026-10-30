@@ -61,6 +61,8 @@ dependencyResolutionManagement {
             version("jda", "6.7.0")
             // NATS client for the domain event bus (backend and Discord bot). Pinned on purpose: bump after checking Maven Central and the 2 week age rule.
             version("jnats", "2.26.4")
+            // Error reporting of the velocity plugin. Pinned on purpose: 8.62.0 is younger than the 2 week age rule, bump after it is old enough.
+            version("sentry", "8.61.0")
 
             library("jetbrains.annotations", "org.jetbrains", "annotations").versionRef("jetbrains.annotations")
 
@@ -98,6 +100,7 @@ dependencyResolutionManagement {
             // Discord bot (discord module). JDA is hidden behind small interfaces, voice (opus-java) is excluded.
             library("jda", "net.dv8tion", "JDA").versionRef("jda")
             library("nats-jnats", "io.nats", "jnats").versionRef("jnats")
+            library("sentry", "io.sentry", "sentry").versionRef("sentry")
 
             plugin("micronaut.application", "io.micronaut.application").versionRef("micronaut")
             plugin("micronaut.aot", "io.micronaut.aot").versionRef("micronaut")
