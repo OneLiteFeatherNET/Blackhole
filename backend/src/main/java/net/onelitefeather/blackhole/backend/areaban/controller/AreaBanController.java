@@ -30,7 +30,7 @@ public class AreaBanController implements AreaBanApi {
     }
 
     @Override
-    @Secured(Roles.VIEWER)
+    @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<AreaBanDTO> list(boolean includeInactive) {
         return HttpResponse.ok(this.areaBans.list(includeInactive));
     }
