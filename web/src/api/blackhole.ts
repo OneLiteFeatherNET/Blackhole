@@ -104,6 +104,8 @@ import type {
   AreaBan,
   AreaBanDraft,
   GuardLevel,
+  GuardSettings,
+  GuardSettingsRequest,
   GuardState,
 } from './types'
 
@@ -153,6 +155,10 @@ export interface BlackholeApi {
   joinGuard(): Promise<ApiResult<GuardState>>
   /** MODERATOR or ADMIN. Lowering a level is not restricted. */
   setJoinGuardLevel(level: GuardLevel): Promise<ApiResult<GuardState>>
+  /** The stored unattended settings with the next night window; any signed-in role may read them. */
+  joinGuardSettings(): Promise<ApiResult<GuardSettings>>
+  /** ADMIN only. Replaces the whole settings object; a refused value answers VALIDATION with its message. */
+  setJoinGuardSettings(request: GuardSettingsRequest): Promise<ApiResult<GuardSettings>>
   /** The area bans in force; with `includeInactive` the lifted and expired ones too, newest first. */
   areaBans(includeInactive?: boolean): Promise<ApiResult<AreaBan[]>>
   /** A moderator may ban one ASN for up to seven days; ADMIN only for a country or a permanent ban. */
@@ -627,6 +633,10 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     joinGuard: () => toResult(http.GET('/guard/state')),
 
     setJoinGuardLevel: (level) => toResult(http.POST('/guard/level', { body: { level } })),
+
+    joinGuardSettings: () => toResult(http.GET('/guard/settings')),
+
+    setJoinGuardSettings: (request) => toResult(http.PUT('/guard/settings', { body: request })),
 
     async areaBans(includeInactive = false) {
       const result = await toResult(http.GET('/area-bans', { params: { query: { includeInactive } } }))

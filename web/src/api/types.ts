@@ -349,6 +349,10 @@ export interface ActivePunishmentQuery {
 export type GuardLevel = 'OFF' | 'STRICT' | 'LOCKDOWN'
 /** The manual level, the unattended (automatic) level and the level in force, which is the stricter of the two. */
 export type GuardState = Schemas['GuardStateResponse']
+/** The stored unattended settings and the next night window, as the backend answers them. */
+export type GuardSettings = Schemas['GuardSettingsResponse']
+/** The whole settings object an administrator saves. */
+export type GuardSettingsRequest = Schemas['GuardSettingsRequest']
 export type AreaBanKind = 'ASN' | 'COUNTRY'
 /** An autonomous system or country ban; `expiresAt` and `liftedAt` are null when they do not apply. */
 export type AreaBan = Schemas['AreaBanResponse']
