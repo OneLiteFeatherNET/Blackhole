@@ -7,6 +7,7 @@ import net.onelitefeather.blackhole.client.model.GuardPresenceResponse;
 import net.onelitefeather.blackhole.client.model.GuardStateResponse;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * The guard and area ban calls the proxy makes. Blocking; callers run them off the server thread.
@@ -29,18 +30,20 @@ public interface GuardBackend {
     GuardPresenceResponse presence(String proxyId, int staffOnline) throws ApiException;
 
     /**
-     * @param level OFF, STRICT or LOCKDOWN
+     * @param onBehalfOf the Minecraft UUID of the staff member who makes the change
+     * @param level      OFF, STRICT or LOCKDOWN
      * @return the state after the change
      * @throws ApiException if the backend refused or did not answer
      */
-    GuardStateResponse setLevel(String level) throws ApiException;
+    GuardStateResponse setLevel(UUID onBehalfOf, String level) throws ApiException;
 
     /**
-     * @param request the area ban to create
+     * @param onBehalfOf the Minecraft UUID of the staff member who makes the ban
+     * @param request    the area ban to create
      * @return the ban as stored
      * @throws ApiException if the backend refused or did not answer
      */
-    AreaBanResponse createAreaBan(AreaBanCreateRequest request) throws ApiException;
+    AreaBanResponse createAreaBan(UUID onBehalfOf, AreaBanCreateRequest request) throws ApiException;
 
     /**
      * @return the area bans that apply now
@@ -49,10 +52,11 @@ public interface GuardBackend {
     List<AreaBanResponse> activeAreaBans() throws ApiException;
 
     /**
-     * @param id     the ban's id
-     * @param reason why it is lifted
+     * @param onBehalfOf the Minecraft UUID of the staff member who lifts the ban
+     * @param id         the ban's id
+     * @param reason     why it is lifted
      * @return the ban after the lift
      * @throws ApiException if the backend refused or did not answer
      */
-    AreaBanResponse liftAreaBan(String id, String reason) throws ApiException;
+    AreaBanResponse liftAreaBan(UUID onBehalfOf, String id, String reason) throws ApiException;
 }

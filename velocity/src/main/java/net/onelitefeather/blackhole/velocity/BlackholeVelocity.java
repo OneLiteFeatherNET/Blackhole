@@ -15,7 +15,9 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import net.onelitefeather.blackhole.client.api.IntelApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.velocity.intel.HttpSessionBackend;
+import net.onelitefeather.blackhole.velocity.guard.AreaBanCommand;
 import net.onelitefeather.blackhole.velocity.guard.GuardBackend;
+import net.onelitefeather.blackhole.velocity.guard.GuardCommand;
 import net.onelitefeather.blackhole.velocity.guard.GuardHeartbeatTask;
 import net.onelitefeather.blackhole.velocity.guard.GuardLevelCache;
 import net.onelitefeather.blackhole.velocity.intel.SessionReporter;
@@ -321,6 +323,8 @@ public class BlackholeVelocity {
         annotationParser.parse(childInjector.getInstance(LinkCommand.class));
         annotationParser.parse(childInjector.getInstance(ReportCommand.class));
         annotationParser.parse(childInjector.getInstance(DiscordCommand.class));
+        annotationParser.parse(childInjector.getInstance(GuardCommand.class));
+        annotationParser.parse(childInjector.getInstance(AreaBanCommand.class));
         // The join guard's staff presence: one beat per interval, sent off the server thread.
         GuardHeartbeatTask guardHeartbeat = new GuardHeartbeatTask(childInjector.getInstance(GuardBackend.class),
                 childInjector.getInstance(GuardLevelCache.class), proxyIdOf(cloudNetConfig, cloudNet));

@@ -6,6 +6,7 @@ import net.kyori.adventure.text.Component;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.AreaBanCreateRequest;
 import net.onelitefeather.blackhole.client.model.AreaBanResponse;
+import net.onelitefeather.blackhole.velocity.component.GuardMessages;
 import net.onelitefeather.blackhole.velocity.component.Permissions;
 import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotations.Argument;
@@ -32,11 +33,15 @@ public final class AreaBanCommand {
     @Permission(Permissions.AREABAN)
     @CommandDescription("Ban an ASN or a country for a while, or lift such a ban")
     public void areaban(CommandContext<Player> context, @Argument("details") @Greedy @NotNull String details) {
-        Player sender = context.sender();
+        handle(context.sender(), details);
+    }
+
+    /** Reads what the sender typed and makes the backend calls it asks for, in the sender's name. */
+    void handle(@NotNull Player sender, @NotNull String details) {
         AreaBanArguments.Result result = AreaBanArguments.parse(details, sender::hasPermission);
         try {
             if (result instanceof AreaBanArguments.Ban ban) {
-                AreaBanResponse created = this.backend.createAreaBan(new AreaBanCreateRequest()
+                AreaBanResponse created = this.backend.createAreaBan(sender.getUniqueId(), new AreaBanCreateRequest()
                         .kind(ban.kind().name()).value(ban.value()).reason(ban.reason()).durationSeconds(ban.durationSeconds()));
                 sender.sendMessage(Component.text("Area ban " + created.getKind() + " " + created.getValue() + " is in force"));
             } else if (result instanceof AreaBanArguments.Lift lift) {
@@ -45,7 +50,7 @@ public final class AreaBanCommand {
                 sender.sendMessage(Component.text(invalid.message()));
             }
         } catch (ApiException e) {
-            sender.sendMessage(Component.text("The area ban was not changed: " + e.getMessage()));
+            sender.sendMessage(GuardMessages.refusal(GuardRefusal.of(e)));
         }
     }
 
@@ -57,7 +62,7 @@ public final class AreaBanCommand {
             sender.sendMessage(Component.text("No active area ban for " + lift.kind().name() + " " + lift.value()));
             return;
         }
-        this.backend.liftAreaBan(active.getId(), lift.reason());
+        this.backend.liftAreaBan(sender.getUniqueId(), active.getId(), lift.reason());
         sender.sendMessage(Component.text("Area ban " + lift.kind().name() + " " + lift.value() + " is lifted"));
     }
 }
