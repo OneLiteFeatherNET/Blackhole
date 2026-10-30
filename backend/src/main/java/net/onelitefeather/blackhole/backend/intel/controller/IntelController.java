@@ -49,7 +49,7 @@ public class IntelController implements IntelApi {
         return respond(this.sessions.listForOwner(owner, page, size));
     }
 
-    /** VIEWER and above, and the proxy, for the /blackhole &lt;user&gt; names command. */
+    /** VIEWER and above, and the proxy, for the /blackhole names &lt;user&gt; command. */
     @Override
     @Secured({Roles.VIEWER, Roles.PROXY})
     public HttpResponse<NameHistoryDTO> names(String owner, int page, int size) {
