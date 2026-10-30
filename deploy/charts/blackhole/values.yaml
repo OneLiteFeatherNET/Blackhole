@@ -87,6 +87,22 @@ publicBanKey:
   # Secret with the key BLACKHOLE_PUBLIC_BAN_KEY (at least 32 random bytes). Changing it changes every entry hash.
   existingSecret: ""
 
+# The firewall pull feeds (GET /firewall/feed/{token}/ips and /networks), read by the firewall. Off by default: with
+# clients empty the backend serves nothing and nothing of it is rendered. See README, Firewall feed.
+firewallFeed:
+  # Names of the firewall clients (lower case, digits and hyphens, at most 32 characters). Each name needs a key of
+  # existingSecret that holds the SHA-256 hex of that client's token. Changing a hash or the list: raise backend.secretRevision.
+  clients: []
+  # Secret with one key per client, the key being the client name, the value the lowercase SHA-256 hex of its token
+  # (64 characters). Hashes only: the plaintext token goes to the firewall and nowhere else.
+  existingSecret: ""
+  # Directory the hash files are mounted read-only at (BLACKHOLE_FIREWALL_FEED_SECRETS_DIR).
+  mountPath: /etc/blackhole/firewall-feed
+  # Optional: comma separated IP addresses or CIDRs that may read the feeds (BLACKHOLE_FIREWALL_FEED_ALLOWED_SOURCES).
+  # Empty admits every peer that presents a valid token. Host names are refused by the backend. The address checked is
+  # the TCP peer, so the list works only on a direct route to the backend, not behind a tunnel. See README, Firewall feed.
+  allowedSources: ""
+
 # The analytics views (schema analytics, read by Metabase through the read-only role analytics_reader). The backend
 # refreshes them on this interval; the chart only passes it on. See README, Analytics.
 analytics:

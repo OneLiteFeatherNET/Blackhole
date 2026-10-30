@@ -424,6 +424,35 @@
         }
       }
     },
+    "firewallFeed": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The firewall pull feeds. Off with no clients. Hashes only, never a token.",
+      "properties": {
+        "clients": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "Firewall client names: lower case, digits and hyphens, at most 32 characters. Each needs a key of existingSecret.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,32}$"
+          }
+        },
+        "existingSecret": {
+          "type": "string",
+          "description": "Secret with one key per client (the client name) holding the lowercase SHA-256 hex of its token."
+        },
+        "mountPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "allowedSources": {
+          "type": "string",
+          "description": "Comma separated IP addresses or CIDRs (IPv4 or IPv6) that may read the feeds. Empty admits every peer.",
+          "pattern": "^$|^[0-9A-Fa-f:.]+(/[0-9]{1,3})?(,[0-9A-Fa-f:.]+(/[0-9]{1,3})?)*$"
+        }
+      }
+    },
     "auth": {
       "type": "object",
       "additionalProperties": false,
