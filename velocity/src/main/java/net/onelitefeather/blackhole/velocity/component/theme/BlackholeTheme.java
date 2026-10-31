@@ -102,6 +102,17 @@ public final class BlackholeTheme implements TagResolver {
         return MINI_MESSAGE;
     }
 
+    /**
+     * The message with the Blackhole prefix in front, the same component the {@code <bh:prefix>} tag inserts. For texts
+     * that are built in code rather than read from a bundle.
+     *
+     * @param message the text after the prefix
+     * @return the prefix followed by the message
+     */
+    public static @NotNull Component prefixed(@NotNull Component message) {
+        return PREFIX.append(message);
+    }
+
     /** @return the names after {@code bh:} that the theme defines */
     public static @NotNull Set<String> tagNames() {
         return TAGS.keySet();

@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import static net.onelitefeather.blackhole.velocity.guard.Refusals.withBody;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** {@code /guard} writes the level for the staff member who typed it, and tells them about a refusal. */
 class GuardCommandTest {
@@ -30,6 +31,13 @@ class GuardCommandTest {
 
         assertEquals(List.of(new FakeGuardBackend.Write("level STRICT", STAFF)), this.backend.writes,
                 "the backend attributes the change to the Minecraft UUID of the sender");
+    }
+
+    @Test
+    void theLevelLineStartsWithThePrefix() {
+        this.command.handle(this.staff.player(), "strict");
+
+        assertTrue(this.staff.texts().getFirst().startsWith("Blackhole » "), this.staff.texts().toString());
     }
 
     @Test
