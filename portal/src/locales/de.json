@@ -66,7 +66,8 @@
     "title": "Einspruch einlegen",
     "notice": "Pro Strafe kann ein Einspruch offen sein. Erkläre in eigenen Worten, warum die Strafe überprüft werden soll.",
     "label": "Deine Stellungnahme",
-    "hint": "Nenne keine IP-Adressen, UUIDs oder Ban-Codes. Dateien kannst du nicht anhängen; beschreibe Beweise als Text.",
+    "hint": "Nenne keine IP-Adressen, UUIDs oder Ban-Codes. Beschreibe deine Gründe mit eigenen Worten.",
+    "filesHint": "Angehängte Dateien werden im Gespräch gesendet, sobald der Einspruch eingereicht ist.",
     "counter": "{count} von {max} Zeichen",
     "submit": "Einspruch senden",
     "sending": "Wird gesendet ...",
@@ -150,13 +151,15 @@
     "fileCount": "{count} von {max} Dateien",
     "dropHere": "Dateien hier ablegen, um sie anzuhängen",
     "formatHint": "Formatierung: **fett**, *kursiv*, `code`, Listen mit - oder 1., Zitate mit >, und Links wie [Text](https://example.org). Es gibt keine Vorschau.",
+  "enterHint": "Mit Enter sendest du die Nachricht, mit Umschalt+Enter beginnst du eine neue Zeile.",
     "uploading": "Wird hochgeladen ...",
     "remove": "{name} entfernen",
     "removeShort": "Entfernen",
     "download": "{name} herunterladen",
     "state": {
       "uploading": "Wird hochgeladen",
-      "staged": "Bereit zum Senden"
+      "staged": "Bereit zum Senden",
+      "picked": "Wird nach dem Einreichen gesendet"
     },
     "file": {
       "pdf": "PDF-Dokument",

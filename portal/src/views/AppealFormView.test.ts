@@ -1,7 +1,7 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PortalApi } from '../api/portal'
-import { APPEAL_OPEN, CONDITIONS, entry, fail, facts, mountPortal, ok, page, signedInApi } from '../test/helpers'
+import { APPEAL_OPEN, CONDITIONS, entry, fail, facts, mountPortal, ok, page, POSTED, signedInApi } from '../test/helpers'
 
 let mounted: Awaited<ReturnType<typeof mountPortal>> | undefined
 afterEach(() => {
@@ -19,6 +19,25 @@ async function openForm(methods: Partial<PortalApi> = {}) {
 async function send(wrapper: Awaited<ReturnType<typeof openForm>>) {
   await wrapper.get('#conditions-confirm').setValue(true)
   await wrapper.get('form').trigger('submit')
+}
+
+function pick(wrapper: Awaited<ReturnType<typeof openForm>>, files: File[]) {
+  const input = wrapper.get('[data-testid="file-input"]')
+  Object.defineProperty(input.element, 'files', { value: files, configurable: true })
+  return input.trigger('change')
+}
+
+function pdf(name = 'appeal.pdf') {
+  return new File(['%PDF-1.4'], name, { type: 'application/pdf' })
+}
+
+function png(name = 'shot.png') {
+  return new File(['png'], name, { type: 'image/png' })
+}
+
+/** Filing with a file: the appeal is open after the filing, so the conversation follows. */
+function openAfterFiling() {
+  return { punishment: vi.fn().mockResolvedValueOnce(ok(facts())).mockResolvedValue(ok(facts({ appealState: 'OPEN' }))) }
 }
 
 describe('appeal form', () => {
@@ -105,6 +124,120 @@ describe('appeal form', () => {
     await wrapper.findAll('button').find((b) => b.text() === 'Back')!.trigger('click')
 
     expect(wrapper.get('h1').text()).toBe('Your punishment')
+  })
+
+  describe('files', () => {
+    it('lets the player pick files and shows them as chips, without uploading them yet', async () => {
+      const uploadAttachment = vi.fn()
+      const wrapper = await openForm({ uploadAttachment })
+
+      await pick(wrapper, [pdf()])
+      await flushPromises()
+
+      expect(uploadAttachment).not.toHaveBeenCalled()
+      expect(wrapper.get('[data-testid="chips"] li').text()).toContain('appeal.pdf')
+      expect(wrapper.get('[data-testid="chips"] li').text()).toContain('Sent after filing')
+      expect(wrapper.get('#file-count').text()).toBe('1 of 5 files')
+    })
+
+    it('refuses a file of a type the chat does not accept, shows the reason, and filing still goes through', async () => {
+      const fileAppeal = vi.fn(async () => ok(APPEAL_OPEN))
+      const wrapper = await openForm({ fileAppeal, ...openAfterFiling() })
+
+      await pick(wrapper, [new File(['<svg onload=x()>'], 'vector.svg', { type: 'image/svg+xml' })])
+      await flushPromises()
+
+      expect(wrapper.get('[role="alert"]').text()).toContain('This file type is not allowed')
+      expect(wrapper.findAll('[data-testid="chips"] li')).toHaveLength(0)
+      await wrapper.get('textarea').setValue('a statement')
+      await send(wrapper)
+      await flushPromises()
+
+      expect(fileAppeal).toHaveBeenCalledOnce()
+      expect(wrapper.get('h1').text()).toBe('Conversation with the team')
+    })
+
+    it('uploads the picked files after filing and sends them as one message with a fresh key', async () => {
+      const uploadAttachment = vi.fn().mockResolvedValueOnce(ok({ attachmentId: 'a1b2c3d4-0000-4000-8000-000000000001', name: 'shot.png', contentType: 'image/png', size: 3 })).mockResolvedValueOnce(ok({ attachmentId: 'a1b2c3d4-0000-4000-8000-000000000002', name: 'appeal.pdf', contentType: 'application/pdf', size: 9 }))
+      const postMessage = vi.fn(async () => ok(POSTED))
+      const wrapper = await openForm({ fileAppeal: async () => ok(APPEAL_OPEN), uploadAttachment, postMessage, ...openAfterFiling() })
+      await pick(wrapper, [png(), pdf()])
+      await flushPromises()
+
+      await wrapper.get('textarea').setValue('my statement')
+      await send(wrapper)
+      await flushPromises()
+
+      expect(uploadAttachment).toHaveBeenCalledTimes(2)
+      expect(postMessage).toHaveBeenCalledOnce()
+      expect(postMessage).toHaveBeenCalledWith(undefined, expect.stringMatching(/^[0-9a-f-]{36}$/), ['a1b2c3d4-0000-4000-8000-000000000001', 'a1b2c3d4-0000-4000-8000-000000000002'])
+      expect(mounted!.session.state.drafts.files).toHaveLength(0)
+      expect(wrapper.get('h1').text()).toBe('Conversation with the team')
+    })
+
+    it('sends no message after filing when no file was picked', async () => {
+      const postMessage = vi.fn()
+      const wrapper = await openForm({ fileAppeal: async () => ok(APPEAL_OPEN), postMessage, ...openAfterFiling() })
+
+      await wrapper.get('textarea').setValue('my statement')
+      await send(wrapper)
+      await flushPromises()
+
+      expect(postMessage).not.toHaveBeenCalled()
+    })
+
+    it('does not upload a file the player removed before filing', async () => {
+      const uploadAttachment = vi.fn(async () => ok({ attachmentId: 'a1b2c3d4-0000-4000-8000-000000000003', name: 'appeal.pdf', contentType: 'application/pdf', size: 9 }))
+      const postMessage = vi.fn(async () => ok(POSTED))
+      const wrapper = await openForm({ fileAppeal: async () => ok(APPEAL_OPEN), uploadAttachment, postMessage, ...openAfterFiling() })
+      await pick(wrapper, [png(), pdf()])
+      await wrapper.get('button[aria-label="Remove shot.png"]').trigger('click')
+
+      await wrapper.get('textarea').setValue('my statement')
+      await send(wrapper)
+      await flushPromises()
+
+      expect(uploadAttachment).toHaveBeenCalledOnce()
+      expect(postMessage).toHaveBeenCalledWith(undefined, expect.any(String), ['a1b2c3d4-0000-4000-8000-000000000003'])
+    })
+
+    it('keeps a file whose upload failed in the composer with its reason, and the appeal stays filed', async () => {
+      const uploadAttachment = vi.fn().mockResolvedValueOnce(ok({ attachmentId: 'a1b2c3d4-0000-4000-8000-000000000004', name: 'shot.png', contentType: 'image/png', size: 3 })).mockResolvedValueOnce(fail('FILE_FLAGGED', 422))
+      const postMessage = vi.fn(async () => ok(POSTED))
+      const fileAppeal = vi.fn(async () => ok(APPEAL_OPEN))
+      const wrapper = await openForm({ fileAppeal, uploadAttachment, postMessage, ...openAfterFiling() })
+      await pick(wrapper, [png(), pdf()])
+      await flushPromises()
+
+      await wrapper.get('textarea').setValue('my statement')
+      await send(wrapper)
+      await flushPromises()
+
+      expect(fileAppeal).toHaveBeenCalledOnce()
+      expect(postMessage).toHaveBeenCalledWith(undefined, expect.any(String), ['a1b2c3d4-0000-4000-8000-000000000004'])
+      expect(wrapper.get('h1').text()).toBe('Conversation with the team')
+      const chips = wrapper.findAll('[data-testid="chips"] li')
+      expect(chips).toHaveLength(1)
+      expect(chips[0]!.text()).toContain('appeal.pdf')
+      expect(chips[0]!.text()).toContain('The file could not be accepted.')
+    })
+
+    it('keeps the uploaded files in the composer, ready to send, when their message is refused', async () => {
+      const uploadAttachment = vi.fn(async () => ok({ attachmentId: 'a1b2c3d4-0000-4000-8000-000000000005', name: 'shot.png', contentType: 'image/png', size: 3 }))
+      const postMessage = vi.fn(async () => fail<never>('UNAVAILABLE', 503))
+      const wrapper = await openForm({ fileAppeal: async () => ok(APPEAL_OPEN), uploadAttachment, postMessage, ...openAfterFiling() })
+      await pick(wrapper, [png()])
+      await flushPromises()
+
+      await wrapper.get('textarea').setValue('my statement')
+      await send(wrapper)
+      await flushPromises()
+
+      expect(wrapper.get('h1').text()).toBe('Conversation with the team')
+      const chip = wrapper.get('[data-testid="chips"] li')
+      expect(chip.text()).toContain('shot.png')
+      expect(chip.text()).toContain('Ready to send')
+    })
   })
 
   describe('appeal conditions', () => {
