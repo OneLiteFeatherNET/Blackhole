@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.1.1](https://github.com/OneLiteFeatherNET/Blackhole/compare/v2.1.0...v2.1.1) (2026-10-31)
+
+
+### Bug Fixes
+
+* **deps:** update dependency io.sentry:sentry to v8.61.1 ([#521](https://github.com/OneLiteFeatherNET/Blackhole/issues/521)) ([4b15813](https://github.com/OneLiteFeatherNET/Blackhole/commit/4b1581307faae61dc50caae8dd68862b65111072))
+* **deps:** update dependency io.sentry:sentry to v8.62.0 ([#522](https://github.com/OneLiteFeatherNET/Blackhole/issues/522)) ([4ebb1fe](https://github.com/OneLiteFeatherNET/Blackhole/commit/4ebb1feb0e1dddac0ce23215fb4e91eb4e4086ff))
+* **deps:** update dependency software.amazon.awssdk:s3 to v2.57.8 ([#518](https://github.com/OneLiteFeatherNET/Blackhole/issues/518)) ([4a4dfd3](https://github.com/OneLiteFeatherNET/Blackhole/commit/4a4dfd3c7864f8e15011082a2b10a3a1ad8a24f7))
+* **velocity:** show the prefix on warning messages ([#523](https://github.com/OneLiteFeatherNET/Blackhole/issues/523)) ([e57d7e9](https://github.com/OneLiteFeatherNET/Blackhole/commit/e57d7e94e4fe8195bb2ed367022d598a5d2ade2e))
+* **warning:** update the stored warning when a player acknowledges it ([#524](https://github.com/OneLiteFeatherNET/Blackhole/issues/524)) ([85459e5](https://github.com/OneLiteFeatherNET/Blackhole/commit/85459e5acdebe2b3dc0b70d0574af5e6e2873220))
+
 ## [2.1.0](https://github.com/OneLiteFeatherNET/Blackhole/compare/v2.0.0...v2.1.0) (2026-10-30)
 
 
