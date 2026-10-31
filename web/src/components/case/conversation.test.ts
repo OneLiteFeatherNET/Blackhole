@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { timelineItem } from '../../test/cases'
-import { bannerFor, buildThread } from './conversation'
+import { bannerFor, buildThread, dayKey, dayLabel, startsDay } from './conversation'
 
 const M1 = '3f2b8c1e-0000-4000-8000-000000000011'
 const PLAYER_ACTOR = { trust: 'PLAYER' as const }
@@ -87,5 +87,30 @@ describe('bannerFor', () => {
 
   it('follows the newest leak after an earlier one was cleared by a reissue', () => {
     expect(bannerFor(1700, [leak(1, true), leak(9, false)])).toBe('FORFEITED')
+  })
+})
+
+describe('day grouping', () => {
+  const utcKey = (ms: number) => dayKey(ms, 'en', 'UTC')
+  const NOON_JULY_1 = Date.UTC(2026, 6, 1, 12, 0)
+
+  it('keys two times of the same calendar day alike and the next day apart', () => {
+    expect(utcKey(NOON_JULY_1)).toBe(utcKey(Date.UTC(2026, 6, 1, 23, 59)))
+    expect(utcKey(NOON_JULY_1)).not.toBe(utcKey(Date.UTC(2026, 6, 2, 0, 0)))
+  })
+
+  it('uses the locale for the key and the divider text', () => {
+    expect(dayKey(NOON_JULY_1, 'de', 'UTC')).toBe('01.07.2026')
+    expect(dayLabel(NOON_JULY_1, 'en', 'UTC')).toBe('Wednesday, July 1, 2026')
+    expect(dayLabel(NOON_JULY_1, 'de', 'UTC')).toBe('Mittwoch, 1. Juli 2026')
+  })
+
+  it('starts a day at the first message of a thread', () => {
+    expect(startsDay(null, NOON_JULY_1, utcKey)).toBe(true)
+  })
+
+  it('starts a day when the calendar day changes, and not within one day', () => {
+    expect(startsDay(NOON_JULY_1, Date.UTC(2026, 6, 1, 20, 0), utcKey), 'same day').toBe(false)
+    expect(startsDay(NOON_JULY_1, Date.UTC(2026, 6, 2, 9, 0), utcKey), 'next day').toBe(true)
   })
 })

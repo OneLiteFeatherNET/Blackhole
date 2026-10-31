@@ -22,13 +22,13 @@ function setup(options: { roles?: string[]; kase?: Partial<Case>; updateCase?: u
 const combobox = (wrapper: Awaited<ReturnType<ReturnType<typeof setup>['mount']>>['wrapper'], id: string) => wrapper.get(`[data-testid="${id}"] [role="combobox"]`)
 
 describe('CaseHeader: facts', () => {
-  it('shows the player prefix, section, punishment state and the staff metadata', async () => {
+  it('shows the player prefix and the staff metadata; the state pills are in the case bar', async () => {
     const { mount } = setup({ kase: { status: 'IN_REVIEW', priority: 'HIGH', tags: ['spam'], assigneeOid: OTHER, assigneeName: 'Ada' } })
     const { wrapper } = await mount()
 
     expect(wrapper.find('h1, h2').exists(), 'the page title names the case, the header adds no heading').toBe(false)
     expect(wrapper.get('[data-testid="player-prefix"]').text()).toBe('abcdef12…')
-    expect(wrapper.get('[data-testid="punishment-state"]').text()).toBe('Active')
+    expect(wrapper.find('[data-testid="punishment-state"]').exists(), 'shown once, in the case bar').toBe(false)
     expect(combobox(wrapper, 'status').text()).toContain('In review')
     expect(combobox(wrapper, 'priority').text()).toContain('High')
     expect(combobox(wrapper, 'assignee').text()).toContain('Ada')

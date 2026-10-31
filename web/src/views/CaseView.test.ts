@@ -5,7 +5,7 @@ import { fail, mockApi, mountWithApp, ok } from '../test/mount'
 import { chooseOption } from '../test/select'
 import CaseView from './CaseView.vue'
 
-function setup(options: { roles?: string[]; kase?: Parameters<typeof caseResponse>[0]; extra?: Record<string, unknown> } = {}) {
+function setup(options: { roles?: string[]; kase?: Parameters<typeof caseResponse>[0]; path?: string; extra?: Record<string, unknown> } = {}) {
   const api = {
     caseDetail: vi.fn(async () => ok(caseResponse(options.kase))),
     caseTimeline: vi.fn(async () => ok(timelinePage([timelineItem()]))),
@@ -19,7 +19,7 @@ function setup(options: { roles?: string[]; kase?: Parameters<typeof caseRespons
   }
   return {
     api,
-    mount: () => mountWithApp(CaseView, { api: mockApi(api), path: '/cases/p-0001', props: { reference: 'p-0001' }, roles: options.roles }),
+    mount: () => mountWithApp(CaseView, { api: mockApi(api), path: options.path ?? '/cases/p-0001', props: { reference: 'p-0001' }, roles: options.roles }),
   }
 }
 
@@ -209,6 +209,173 @@ describe('CaseView: redaction as admin', () => {
     expect(redactCaseNote).toHaveBeenCalledWith('p-0001', NOTE, 'PERSONAL_DATA')
     expect(wrapper.get('[data-testid="note-removed"]').text()).toBe('Removed (data protection)')
     expect(wrapper.text()).not.toContain('phone 555')
+
+    wrapper.unmount()
+  })
+})
+
+describe('CaseView: tabs', () => {
+  const panel = (wrapper: { get: (selector: string) => { element: Element } }, tab: string) => wrapper.get(`#case-panel-${tab}`).element as HTMLElement
+  const shown = (wrapper: { get: (selector: string) => { element: Element } }, tab: string) => panel(wrapper, tab).style.display !== 'none'
+  const message = (seq: number, id: string) =>
+    timelineItem({ seq, type: 'message.added', subjectId: id, payload: { messageId: id, author: { kind: 'PLAYER' }, channel: 'PORTAL', text: 'hello' }, actor: { trust: 'PLAYER' } })
+
+  it('shows the overview when the link names no tab', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-testid="tab-overview"]').attributes('aria-selected')).toBe('true')
+    expect(shown(wrapper, 'overview')).toBe(true)
+    expect(shown(wrapper, 'conversation')).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('opens the tab the link names', async () => {
+    const { mount } = setup({ path: '/cases/p-0001?tab=conversation' })
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-testid="tab-conversation"]').attributes('aria-selected')).toBe('true')
+    expect(shown(wrapper, 'conversation')).toBe(true)
+    expect(shown(wrapper, 'overview')).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('falls back to the overview for an unknown tab', async () => {
+    const { mount } = setup({ path: '/cases/p-0001?tab=settings' })
+    const { wrapper } = await mount()
+
+    expect(shown(wrapper, 'overview')).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('keeps every panel mounted and hides all but the active one', async () => {
+    const { mount } = setup({ path: '/cases/p-0001?tab=audit' })
+    const { wrapper } = await mount()
+
+    for (const tab of ['overview', 'conversation', 'audit']) expect(panel(wrapper, tab).isConnected, tab).toBe(true)
+    expect(['overview', 'conversation', 'audit'].filter((tab) => shown(wrapper, tab))).toEqual(['audit'])
+    expect(wrapper.get('#case-panel-audit').attributes('role')).toBe('tabpanel')
+    expect(wrapper.get('[data-testid="tab-audit"]').attributes('aria-controls')).toBe('case-panel-audit')
+
+    wrapper.unmount()
+  })
+
+  it('switches the tab in the URL, keeps the other parameters and adds no history entry', async () => {
+    const { api, mount } = setup({ path: '/cases/p-0001?tab=overview&from=list' })
+    const { wrapper, router } = await mount()
+    const replace = vi.spyOn(router, 'replace')
+    const push = vi.spyOn(router, 'push')
+
+    await wrapper.get('[data-testid="tab-audit"]').trigger('click')
+    await flushPromises()
+
+    expect(replace).toHaveBeenCalledWith({ query: { tab: 'audit', from: 'list' } })
+    expect(push).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.query).toEqual({ tab: 'audit', from: 'list' })
+    expect(shown(wrapper, 'audit')).toBe(true)
+    expect(api.caseDetail, 'the case is not loaded again').toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+  })
+
+  it('keeps the case bar above the tabs, so it shows on every tab', async () => {
+    const { mount } = setup({ roles: ['MODERATOR', 'VIEWER'] })
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="tab-conversation"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="case-bar"]').isVisible()).toBe(true)
+    expect(wrapper.get('[data-testid="case-bar"]').element.closest('[role="tabpanel"]'), 'not inside a panel').toBeNull()
+
+    wrapper.unmount()
+  })
+
+  it('counts the messages that arrive while another tab is open, and clears the count when the tab opens', async () => {
+    let stream: { onChanged?: () => void } = {}
+    let thread = [] as ReturnType<typeof timelineItem>[]
+    const { mount } = setup({
+      extra: {
+        caseConversation: vi.fn(async () => ok(thread)),
+        openCaseEvents: (_reference: string, handlers: { onChanged?: () => void }) => {
+          stream = handlers
+          return { close() {} }
+        },
+      },
+    })
+    const { wrapper } = await mount()
+
+    thread = [message(1, 'm-1')]
+    stream.onChanged?.()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="tab-badge-conversation"]').text()).toBe('1')
+    expect(wrapper.get('[data-testid="tab-conversation"]').text(), 'the singular for one message').toMatch(/1 new message$/)
+
+    await wrapper.get('[data-testid="tab-conversation"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="tab-badge-conversation"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('uses the plural label for several new messages', async () => {
+    let stream: { onChanged?: () => void } = {}
+    let thread = [] as ReturnType<typeof timelineItem>[]
+    const { mount } = setup({
+      extra: {
+        caseConversation: vi.fn(async () => ok(thread)),
+        openCaseEvents: (_reference: string, handlers: { onChanged?: () => void }) => {
+          stream = handlers
+          return { close() {} }
+        },
+      },
+    })
+    const { wrapper } = await mount()
+
+    thread = [message(1, 'm-1'), message(2, 'm-2')]
+    stream.onChanged?.()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="tab-conversation"]').text()).toMatch(/2 new messages$/)
+
+    wrapper.unmount()
+  })
+
+  it('shows no count for the messages that were there when the page loaded', async () => {
+    const { mount } = setup({ extra: { caseConversation: vi.fn(async () => ok([message(1, 'm-1'), message(2, 'm-2')])) } })
+    const { wrapper } = await mount()
+
+    expect(wrapper.find('[data-testid="tab-badge-conversation"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+})
+
+describe('CaseView: case bar', () => {
+  it('closes the case from the case bar with the version that was read', async () => {
+    const { api, mount } = setup({ roles: ['MODERATOR', 'VIEWER'], extra: { updateCase: vi.fn(async () => ok(caseResponse({ version: 4, status: 'CLOSED' }))) } })
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="close-case"]').trigger('click')
+    await flushPromises()
+
+    expect(api.updateCase).toHaveBeenCalledWith('p-0001', { expectedVersion: 3, status: 'CLOSED' })
+    expect(wrapper.get('[data-testid="case-status"]').text()).toBe('Closed')
+    expect(wrapper.get('[data-testid="reopen-case"]').text()).toBe('Reopen')
+
+    wrapper.unmount()
+  })
+
+  it('gives a viewer no close action', async () => {
+    const { mount } = setup({ roles: ['VIEWER'] })
+    const { wrapper } = await mount()
+
+    expect(wrapper.find('[data-testid="close-case"]').exists()).toBe(false)
 
     wrapper.unmount()
   })
