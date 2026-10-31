@@ -86,7 +86,7 @@ public class WarningService {
         if (!pending.acknowledge(this.clock.millis())) {
             return new WarningDTO.Acknowledged(pending.getAcknowledgedAt());
         }
-        PunishmentEntity saved = this.punishments.save(pending);
+        PunishmentEntity saved = this.punishments.update(pending);
         this.caseTimeline.acknowledged(saved);
         return new WarningDTO.Acknowledged(saved.getAcknowledgedAt());
     }
