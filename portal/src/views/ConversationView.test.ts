@@ -195,6 +195,95 @@ describe('polling', () => {
   })
 })
 
+/** Gives the thread the geometry of a scrolling box. `scrollTop` is a plain value the test reads and the view writes. */
+function stubThread(geometry: { scrollHeight: number; clientHeight: number; scrollTop: number }): HTMLElement {
+  const el = document.querySelector<HTMLElement>('[role="log"]')!
+  Object.defineProperty(el, 'scrollHeight', { value: geometry.scrollHeight, configurable: true })
+  Object.defineProperty(el, 'clientHeight', { value: geometry.clientHeight, configurable: true })
+  Object.defineProperty(el, 'scrollTop', { value: geometry.scrollTop, writable: true, configurable: true })
+  return el
+}
+
+/** A thread 1000 px high in a 400 px window: the end is reached at a scroll position of 600. */
+const END = 1000
+
+describe('messenger layout', () => {
+  it('gives the thread its own scroll area, with the composer below it', async () => {
+    const { wrapper } = await openConversation()
+
+    const log = wrapper.get('[role="log"]')
+    expect(log.classes()).toContain('overflow-y-auto')
+    expect(log.classes()).toContain('min-h-80')
+    expect(log.element.compareDocumentPosition(wrapper.get('[data-testid="composer"]').element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('lands at the newest message when the conversation is first opened', async () => {
+    const { wrapper } = await openConversation({
+      conversation: async () => {
+        stubThread({ scrollHeight: END, clientHeight: 400, scrollTop: 0 })
+        return ok(page([entry(1), entry(2, { text: 'newest' })]))
+      },
+    })
+
+    expect(wrapper.get('[role="log"]').element.scrollTop).toBe(END)
+  })
+
+  it('follows a new message while the reader is at the end', async () => {
+    const replies = [page([entry(1)]), page([entry(1), entry(2, { text: 'reply' })])]
+    const { wrapper } = await openConversation({ conversation: async () => ok(replies.shift() ?? replies[0]!) })
+    const thread = stubThread({ scrollHeight: END, clientHeight: 400, scrollTop: 600 })
+
+    await tick(15_000)
+
+    expect(wrapper.get('[role="log"]').text()).toContain('reply')
+    expect(thread.scrollTop).toBe(END)
+  })
+
+  it('keeps the position while the reader is scrolled up', async () => {
+    const replies = [page([entry(1)]), page([entry(1), entry(2, { text: 'reply' })])]
+    const { wrapper } = await openConversation({ conversation: async () => ok(replies.shift() ?? replies[0]!) })
+    const thread = stubThread({ scrollHeight: END, clientHeight: 400, scrollTop: 100 })
+
+    await tick(15_000)
+
+    expect(wrapper.get('[role="log"]').text()).toContain('reply')
+    expect(thread.scrollTop).toBe(100)
+  })
+
+  it('follows a new message at 48 px from the end', async () => {
+    const replies = [page([entry(1)]), page([entry(1), entry(2, { text: 'reply' })])]
+    const { conversation } = await openConversation({ conversation: async () => ok(replies.shift() ?? replies[0]!) })
+    const thread = stubThread({ scrollHeight: END, clientHeight: 400, scrollTop: END - 400 - 48 })
+
+    await tick(15_000)
+
+    expect(conversation).toHaveBeenCalledTimes(2)
+    expect(thread.scrollTop).toBe(END)
+  })
+
+  it('does not follow a new message at 49 px from the end', async () => {
+    const replies = [page([entry(1)]), page([entry(1), entry(2, { text: 'reply' })])]
+    const { conversation } = await openConversation({ conversation: async () => ok(replies.shift() ?? replies[0]!) })
+    const thread = stubThread({ scrollHeight: END, clientHeight: 400, scrollTop: END - 400 - 49 })
+
+    await tick(15_000)
+
+    expect(conversation).toHaveBeenCalledTimes(2)
+    expect(thread.scrollTop).toBe(END - 400 - 49)
+  })
+
+  it('shows the own message at the end after sending from further up', async () => {
+    const { wrapper } = await openConversation({ postMessage: async () => ok(POSTED) })
+    const thread = stubThread({ scrollHeight: END, clientHeight: 400, scrollTop: 100 })
+
+    await wrapper.get('textarea#message').setValue('my reply')
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(thread.scrollTop).toBe(END)
+  })
+})
+
 describe('composer', () => {
   it('is labelled, counts characters and sends with the button', async () => {
     const postMessage = vi.fn(async () => ok(POSTED))

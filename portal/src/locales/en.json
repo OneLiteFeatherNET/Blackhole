@@ -66,7 +66,8 @@
     "title": "File an appeal",
     "notice": "You can have one appeal open per punishment. Explain in your own words why the punishment should be reviewed.",
     "label": "Your statement",
-    "hint": "Do not include IP addresses, UUIDs or ban codes. You cannot attach files; describe evidence in text.",
+    "hint": "Do not include IP addresses, UUIDs or ban codes. Describe your reasons in your own words.",
+    "filesHint": "Attached files are sent in the conversation as soon as the appeal is filed.",
     "counter": "{count} of {max} characters",
     "submit": "Send appeal",
     "sending": "Sending...",
@@ -150,13 +151,15 @@
     "fileCount": "{count} of {max} files",
     "dropHere": "Drop the files to attach them",
     "formatHint": "Formatting: **bold**, *italic*, `code`, lists starting with - or 1., quotes starting with >, and links like [text](https://example.org). There is no preview.",
+  "enterHint": "Press Enter to send and Shift+Enter for a new line.",
     "uploading": "Uploading...",
     "remove": "Remove {name}",
     "removeShort": "Remove",
     "download": "Download {name}",
     "state": {
       "uploading": "Uploading",
-      "staged": "Ready to send"
+      "staged": "Ready to send",
+      "picked": "Sent after filing"
     },
     "file": {
       "pdf": "PDF document",

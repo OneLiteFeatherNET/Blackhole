@@ -35,17 +35,22 @@ export function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-/** A file in the composer: staged on the server once `attachmentId` is set. Lives in memory only. */
+/**
+ * A file in the composer: staged on the server once `attachmentId` is set. `picked` is a file of the
+ * appeal form that waits in memory until the appeal is filed. Lives in memory only.
+ */
 export interface DraftFile {
   key: string
   name: string
   size: number
   type: string
-  state: 'uploading' | 'staged' | 'failed'
+  state: 'uploading' | 'staged' | 'failed' | 'picked'
   attachmentId?: string
   /** A local object URL for the preview of an image; released when the file leaves the draft. */
   preview?: string
   code?: ErrorCode
+  /** The picked file itself, kept until it is uploaded. */
+  source?: File
 }
 
 /** Frees the preview of a draft file. jsdom has no object URLs, so the call is guarded. */
