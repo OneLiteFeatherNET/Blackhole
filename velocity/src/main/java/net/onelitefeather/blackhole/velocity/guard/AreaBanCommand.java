@@ -8,6 +8,7 @@ import net.onelitefeather.blackhole.client.model.AreaBanCreateRequest;
 import net.onelitefeather.blackhole.client.model.AreaBanResponse;
 import net.onelitefeather.blackhole.velocity.component.GuardMessages;
 import net.onelitefeather.blackhole.velocity.component.Permissions;
+import net.onelitefeather.blackhole.velocity.component.theme.BlackholeTheme;
 import org.incendo.cloud.annotation.specifier.Greedy;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
@@ -43,11 +44,11 @@ public final class AreaBanCommand {
             if (result instanceof AreaBanArguments.Ban ban) {
                 AreaBanResponse created = this.backend.createAreaBan(sender.getUniqueId(), new AreaBanCreateRequest()
                         .kind(ban.kind().name()).value(ban.value()).reason(ban.reason()).durationSeconds(ban.durationSeconds()));
-                sender.sendMessage(Component.text("Area ban " + created.getKind() + " " + created.getValue() + " is in force"));
+                sender.sendMessage(BlackholeTheme.prefixed(Component.text("Area ban " + created.getKind() + " " + created.getValue() + " is in force")));
             } else if (result instanceof AreaBanArguments.Lift lift) {
                 lift(sender, lift);
             } else if (result instanceof AreaBanArguments.Invalid invalid) {
-                sender.sendMessage(Component.text(invalid.message()));
+                sender.sendMessage(BlackholeTheme.prefixed(Component.text(invalid.message())));
             }
         } catch (ApiException e) {
             sender.sendMessage(GuardMessages.refusal(GuardRefusal.of(e)));
@@ -59,10 +60,10 @@ public final class AreaBanCommand {
                 .filter(ban -> ban.getKind().equals(lift.kind().name()) && ban.getValue().equals(lift.value()))
                 .findFirst().orElse(null);
         if (active == null) {
-            sender.sendMessage(Component.text("No active area ban for " + lift.kind().name() + " " + lift.value()));
+            sender.sendMessage(BlackholeTheme.prefixed(Component.text("No active area ban for " + lift.kind().name() + " " + lift.value())));
             return;
         }
         this.backend.liftAreaBan(sender.getUniqueId(), active.getId(), lift.reason());
-        sender.sendMessage(Component.text("Area ban " + lift.kind().name() + " " + lift.value() + " is lifted"));
+        sender.sendMessage(BlackholeTheme.prefixed(Component.text("Area ban " + lift.kind().name() + " " + lift.value() + " is lifted")));
     }
 }

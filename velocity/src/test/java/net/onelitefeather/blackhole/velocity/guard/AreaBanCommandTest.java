@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import static net.onelitefeather.blackhole.velocity.guard.Refusals.withBody;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** {@code /areaban} writes and lifts bans for the staff member who typed it, and tells them about a refusal. */
 class AreaBanCommandTest {
@@ -61,5 +62,29 @@ class AreaBanCommandTest {
         this.command.handle(this.staff.player(), "asn 16276 1d spam");
 
         assertEquals("guard.error.staff_role_stale", keyOf(this.staff.messages().getFirst()), "the stale role gets its own message");
+    }
+
+    @Test
+    void theBanConfirmationStartsWithThePrefix() {
+        this.command.handle(this.staff.player(), "asn 16276 1d spam");
+
+        assertTrue(this.staff.texts().getFirst().startsWith("Blackhole » "), this.staff.texts().toString());
+    }
+
+    @Test
+    void theLiftConfirmationStartsWithThePrefix() {
+        this.backend.activeBans.add(new AreaBanResponse().id("ban-7").kind("ASN").value("16276").reason("spam")
+                .source("PROXY").createdAt(0L).active(true));
+
+        this.command.handle(this.staff.player(), "lift asn 16276 appeal accepted");
+
+        assertTrue(this.staff.texts().getFirst().startsWith("Blackhole » "), this.staff.texts().toString());
+    }
+
+    @Test
+    void anInvalidAreaBanLineStartsWithThePrefix() {
+        this.command.handle(this.staff.player(), "");
+
+        assertTrue(this.staff.texts().getFirst().startsWith("Blackhole » "), this.staff.texts().toString());
     }
 }

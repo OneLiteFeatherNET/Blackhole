@@ -7,6 +7,7 @@ import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.GuardStateResponse;
 import net.onelitefeather.blackhole.velocity.component.GuardMessages;
 import net.onelitefeather.blackhole.velocity.component.Permissions;
+import net.onelitefeather.blackhole.velocity.component.theme.BlackholeTheme;
 import org.incendo.cloud.annotations.Argument;
 import org.incendo.cloud.annotations.Command;
 import org.incendo.cloud.annotations.CommandDescription;
@@ -53,7 +54,7 @@ public final class GuardCommand {
             } else if (result instanceof GuardArguments.SetLevel set) {
                 sender.sendMessage(describe(this.backend.setLevel(sender.getUniqueId(), set.level().name())));
             } else if (result instanceof GuardArguments.Invalid invalid) {
-                sender.sendMessage(Component.text(invalid.message()));
+                sender.sendMessage(BlackholeTheme.prefixed(Component.text(invalid.message())));
             }
         } catch (ApiException e) {
             sender.sendMessage(GuardMessages.refusal(GuardRefusal.of(e)));
@@ -61,7 +62,7 @@ public final class GuardCommand {
     }
 
     private static Component describe(GuardStateResponse state) {
-        return Component.text("Join guard: " + state.getEffectiveLevel() + " (manual " + state.getManualLevel()
-                + ", unattended " + state.getAutomaticLevel() + ")");
+        return BlackholeTheme.prefixed(Component.text("Join guard: " + state.getEffectiveLevel() + " (manual " + state.getManualLevel()
+                + ", unattended " + state.getAutomaticLevel() + ")"));
     }
 }
