@@ -62,7 +62,7 @@ dependencyResolutionManagement {
             // NATS client for the domain event bus (backend and Discord bot). Pinned on purpose: bump after checking Maven Central and the 2 week age rule.
             version("jnats", "2.26.4")
             // Error reporting of the velocity plugin. Pinned on purpose: 8.62.0 is younger than the 2 week age rule, bump after it is old enough.
-            version("sentry", "8.61.0")
+            version("sentry", "8.61.1")
 
             library("jetbrains.annotations", "org.jetbrains", "annotations").versionRef("jetbrains.annotations")
 
