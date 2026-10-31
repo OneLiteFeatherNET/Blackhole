@@ -971,6 +971,20 @@
   },
   "case": {
     "title": "Fall",
+    "tabs": {
+      "label": "Bereiche des Falls",
+      "overview": "Übersicht",
+      "conversation": "Konversation",
+      "audit": "Notizen & Audit",
+      "unseen": "{n} neue Nachricht | {n} neue Nachrichten"
+    },
+    "bar": {
+      "title": "Fallstatus",
+      "close": "Schließen",
+      "reopen": "Wieder öffnen",
+      "closed": "Fall geschlossen.",
+      "reopened": "Fall wieder geöffnet."
+    },
     "open": "Fall öffnen",
     "back": "Zurück zu allen Fällen",
     "header": {
@@ -1174,6 +1188,8 @@
     },
     "conversation": {
       "title": "Unterhaltung",
+      "chatHint": "Enter sendet, Umschalt+Enter fügt eine Zeile ein. Der Spieler kann das lesen. Keine UUIDs, IP-Adressen oder Ban-IDs.",
+      "adminTools": "Admin-Werkzeuge",
       "thread": "{count} Nachrichten",
       "empty": "Noch keine Nachrichten.",
       "player": "Spieler",

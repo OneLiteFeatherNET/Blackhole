@@ -5,7 +5,7 @@
 // and delete their own messages; admins can also remove the text of any message or of the whole
 // player side. A viewer reads only. The thread follows the case's event stream and polls as a safety
 // net: every 30 s while the stream is open, every 15 s without it.
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../../api/inject'
 import type { ApiError, ApiResult, CaseTimelineItem, CaseWithSeen, NoteRedactionReason } from '../../api/types'
@@ -17,7 +17,7 @@ import ResourceState from '../ResourceState.vue'
 import StatusPill from '../StatusPill.vue'
 import CaseLockControl from './CaseLockControl.vue'
 import ChatMarkdown, { type ChatNode } from './chat/ChatMarkdown'
-import { bannerFor, buildMarkers, buildThread, type ChatFile, type ShareMarker, type ThreadMessage } from './conversation'
+import { bannerFor, buildMarkers, buildThread, dayKey, dayLabel, startsDay, type ChatFile, type ShareMarker, type ThreadMessage } from './conversation'
 import MessageComposer from './MessageComposer.vue'
 import ParticipantErasure, { type ErasableParticipant } from './ParticipantErasure.vue'
 import ReasonDialog from './ReasonDialog.vue'
@@ -28,9 +28,11 @@ const REDACTION_REASONS: NoteRedactionReason[] = ['PERSONAL_DATA', 'ERASURE_REQU
 /** Polling is the safety net: with a stream it is slow, without one it is what keeps the thread fresh. */
 const POLL_WITH_STREAM_MS = 30_000
 const POLL_WITHOUT_STREAM_MS = 15_000
+/** A reader this close to the end of the thread follows new messages; further up they keep their place. */
+const FOLLOW_PX = 48
 
-const props = defineProps<{ kase: CaseWithSeen }>()
-const emit = defineEmits<{ changed: [message: string] }>()
+const props = withDefaults(defineProps<{ kase: CaseWithSeen; active?: boolean }>(), { active: true })
+const emit = defineEmits<{ changed: [message: string]; messages: [count: number] }>()
 
 const { t, locale } = useI18n()
 const api = useApi()
@@ -63,14 +65,18 @@ const participants = computed<ErasableParticipant[]>(() =>
 )
 const hasPlayerText = computed(() => thread.value.some((message) => message.author === 'PLAYER' && !message.redacted))
 
-/** Share markers go in front of the first message that comes after them; the rest trail the thread. */
+/** Share markers go in front of the first message that comes after them; the rest trail the thread. A day divider goes before the first message of each calendar day. */
 const layout = computed(() => {
   const markers = buildMarkers(events.value)
+  const dayOf = (epochMillis: number) => dayKey(epochMillis, locale.value)
   let index = 0
+  let previous: number | null = null
   const blocks = thread.value.map((message) => {
     const before: ShareMarker[] = []
     while (index < markers.length && markers[index]!.seq < message.firstSeq) before.push(markers[index++]!)
-    return { message, markers: before }
+    const day = startsDay(previous, message.occurredAt, dayOf) ? dayLabel(message.occurredAt, locale.value) : null
+    previous = message.occurredAt
+    return { message, markers: before, day }
   })
   return { blocks, tail: markers.slice(index) }
 })
@@ -99,6 +105,41 @@ async function reload(): Promise<void> {
   loaded.value = true
   events.value = result.data
 }
+
+// The thread scrolls on its own. Whether a change keeps the reader at the end is decided before the DOM
+// changes (pre-flush), and the scroll happens after it. A hidden thread has no size, so opening its tab
+// scrolls to the end on the next tick.
+const scroller = useTemplateRef<HTMLElement>('scroller')
+
+function scrollToEnd(): void {
+  const element = scroller.value
+  if (element) element.scrollTop = element.scrollHeight
+}
+
+watch(
+  thread,
+  () => {
+    const element = scroller.value
+    const follow = element === null || element.scrollHeight - element.scrollTop - element.clientHeight <= FOLLOW_PX
+    if (follow) void nextTick(scrollToEnd)
+  },
+  { flush: 'pre' },
+)
+
+watch(
+  () => props.active,
+  (active) => {
+    if (active) void nextTick(scrollToEnd)
+  },
+)
+
+// The count of messages, once the thread has been loaded: CaseView shows what arrived while another tab was open.
+watch(
+  () => [loaded.value, thread.value.length] as const,
+  ([isLoaded, count]) => {
+    if (isLoaded) emit('messages', count)
+  },
+)
 
 async function refreshAfterChange(): Promise<void> {
   await reload()
@@ -209,7 +250,12 @@ function send(text: string, key: string, attachmentIds: string[]): Promise<ApiRe
       ? api.postCaseMessage(reference.value, text, key, attachmentIds)
       : api.postCaseMessage(reference.value, text, key)
   return request.then(async (result) => {
-    if (result.ok) await changed(t('case.conversation.sent'))
+    if (result.ok) {
+      await changed(t('case.conversation.sent'))
+      // The sender lands on their own message, even after scrolling up: the thread has been reloaded.
+      await nextTick()
+      scrollToEnd()
+    }
     return result
   })
 }
@@ -257,26 +303,30 @@ async function redacted(message: string): Promise<void> {
 
     <ResourceState :loading="loading && !loaded" :error="error" :has-data="loaded" @retry="reload">
       <p role="status" aria-live="polite" class="sr-only" data-testid="conversation-status">{{ announcement }}</p>
-      <TicketStatus :tickets="tickets" :reference="reference" :frozen="banner === 'FROZEN'" />
-      <CaseLockControl
-        v-if="tickets.length > 0"
-        :reference="reference"
-        :tickets="tickets"
-        :assignee-name="kase.assigneeName ?? null"
-        :leak-frozen="banner === 'FROZEN'"
-        :known="knownLock"
-        @changed="changed"
-      />
+      <div v-if="tickets.length > 0" class="flex flex-col gap-2 rounded-md-md bg-surface-container-low p-3" data-testid="conversation-strip">
+        <TicketStatus :tickets="tickets" :reference="reference" :frozen="banner === 'FROZEN'" />
+        <CaseLockControl
+          v-if="tickets.length > 0"
+          :reference="reference"
+          :tickets="tickets"
+          :assignee-name="kase.assigneeName ?? null"
+          :leak-frozen="banner === 'FROZEN'"
+          :known="knownLock"
+          @changed="changed"
+        />
+      </div>
       <p v-if="thread.length === 0 && layout.tail.length === 0" class="text-body-large text-on-surface-variant" data-testid="conversation-empty">{{ t('case.conversation.empty') }}</p>
       <ol
         v-else
-        class="flex flex-col gap-3"
+        ref="scroller"
+        class="flex h-[60dvh] min-h-80 flex-col gap-3 overflow-y-auto overscroll-contain"
         role="log"
         aria-live="polite"
         :aria-label="t('case.conversation.thread', { count: thread.length })"
         data-testid="thread"
       >
         <template v-for="block in layout.blocks" :key="block.message.id">
+          <li v-if="block.day" class="self-center rounded-md-full bg-surface-container-high px-3 py-1 text-label-medium text-on-surface-variant" data-testid="day-divider">{{ block.day }}</li>
           <li
             v-for="marker in block.markers"
             :key="marker.key"
@@ -383,20 +433,27 @@ async function redacted(message: string): Promise<void> {
         >{{ markerText(marker) }}</li>
       </ol>
 
-      <div v-if="session.administrator && hasPlayerText" class="mt-1">
-        <MdButton variant="outlined" data-testid="erase-player" @click="erasing = true">{{ t('case.conversation.erasePlayer') }}</MdButton>
-      </div>
-      <ParticipantErasure v-if="session.administrator" :reference="reference" :participants="participants" @done="changed" />
     </ResourceState>
 
     <MessageComposer
       v-if="session.moderator"
+      chat
       :label="t('case.conversation.newLabel')"
       :submit-label="t('case.conversation.send')"
       :save="send"
       :upload="uploadFile"
     />
     <p v-else class="text-body-medium text-on-surface-variant" data-testid="conversation-read-only">{{ t('case.conversation.readOnly') }}</p>
+
+    <details v-if="session.administrator && loaded" class="rounded-md-md border border-outline-variant p-3" data-testid="admin-tools">
+      <summary class="cursor-pointer text-label-large">{{ t('case.conversation.adminTools') }}</summary>
+      <div class="mt-3 flex flex-col gap-3">
+        <div v-if="hasPlayerText">
+          <MdButton variant="outlined" data-testid="erase-player" @click="erasing = true">{{ t('case.conversation.erasePlayer') }}</MdButton>
+        </div>
+        <ParticipantErasure :reference="reference" :participants="participants" @done="changed" />
+      </div>
+    </details>
 
     <ReasonDialog
       :open="redacting !== null"

@@ -971,6 +971,20 @@
   },
   "case": {
     "title": "Case",
+    "tabs": {
+      "label": "Case sections",
+      "overview": "Overview",
+      "conversation": "Conversation",
+      "audit": "Notes & audit",
+      "unseen": "{n} new message | {n} new messages"
+    },
+    "bar": {
+      "title": "Case status",
+      "close": "Close",
+      "reopen": "Reopen",
+      "closed": "Case closed.",
+      "reopened": "Case reopened."
+    },
     "open": "Open case",
     "back": "Back to all cases",
     "header": {
@@ -1174,6 +1188,8 @@
     },
     "conversation": {
       "title": "Conversation",
+      "chatHint": "Enter sends, Shift+Enter adds a line. The player can read this. No UUIDs, IP addresses or Ban IDs.",
+      "adminTools": "Admin tools",
       "thread": "{count} messages",
       "empty": "No messages yet.",
       "player": "Player",
