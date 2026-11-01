@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.3.0](https://github.com/OneLiteFeatherNET/Blackhole/compare/v2.2.0...v2.3.0) (2026-11-01)
+
+
+### Features
+
+* **case:** group cases by player ([#534](https://github.com/OneLiteFeatherNET/Blackhole/issues/534)) ([9d8537a](https://github.com/OneLiteFeatherNET/Blackhole/commit/9d8537a0b4c79932776275f887b07fb1338a58df))
+
+
+### Documentation
+
+* **openspec:** propose add-case-bulk-actions ([#525](https://github.com/OneLiteFeatherNET/Blackhole/issues/525)) ([74ae00f](https://github.com/OneLiteFeatherNET/Blackhole/commit/74ae00f0b06607fca940a2975d3ee4cc9429e40d))
+
 ## [2.2.0](https://github.com/OneLiteFeatherNET/Blackhole/compare/v2.1.1...v2.2.0) (2026-10-31)
 
 
