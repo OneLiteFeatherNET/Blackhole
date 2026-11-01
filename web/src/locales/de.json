@@ -1178,9 +1178,19 @@
         "assignee": "Bearbeiter",
         "priority": "Priorität",
         "tags": "Tags",
-        "activity": "Letzte Aktivität"
+        "activity": "Letzte Aktivität",
+        "player": "Spieler"
       },
-      "noneYet": "Noch keine Fälle."
+      "noneYet": "Noch keine Fälle.",
+      "view": "Ansicht",
+      "viewCases": "Alle Fälle",
+      "viewPlayer": "Nach Spieler",
+      "groupSummary": "{open} offen, {total} insgesamt",
+      "expandGroup": "Fälle von {player} anzeigen",
+      "collapseGroup": "Fälle von {player} ausblenden",
+      "groupCases": "Fälle von {player}",
+      "loadFailed": "Die Fälle konnten nicht geladen werden.",
+      "unknownPlayer": "Spieler {hash}"
     },
     "reason": {
       "label": "Grund",

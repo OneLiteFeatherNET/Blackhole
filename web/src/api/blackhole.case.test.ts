@@ -41,6 +41,26 @@ describe('case reads', () => {
 
     expect(Object.fromEntries(new URL(calls[0]!.url).searchParams)).toEqual({ status: 'OPEN', tag: 'spam', page: '2' })
   })
+
+  it('sends the owner of one player to the case list only', async () => {
+    const owner = 'ab'.repeat(64)
+    const { calls, api: client } = api([{ body: { items: [] } }])
+
+    await client.cases({ owner, page: 0 })
+
+    expect(new URL(calls[0]!.url).pathname).toBe('/api/case')
+    expect(new URL(calls[0]!.url).searchParams.get('owner')).toBe(owner)
+  })
+
+  it('lists the groups of players on the groups route with the same filters', async () => {
+    const { calls, api: client } = api([{ body: { items: [], page: 0, size: 20, totalSize: 0, totalPages: 0 } }])
+
+    await client.caseGroups({ status: 'OPEN', page: 1 })
+
+    const url = new URL(calls[0]!.url)
+    expect(url.pathname).toBe('/api/case/groups')
+    expect(Object.fromEntries(url.searchParams)).toEqual({ status: 'OPEN', page: '1' })
+  })
 })
 
 describe('case writes', () => {

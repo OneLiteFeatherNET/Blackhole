@@ -7,6 +7,7 @@ import type {
   ActivePunishmentQuery,
   ApiResult,
   Case,
+  CaseGroupPage,
   CaseListPage,
   CaseListQuery,
   CaseTimelinePage,
@@ -308,6 +309,8 @@ export interface BlackholeApi {
 
   /** One page of cases, newest activity first. */
   cases(query?: CaseListQuery): Promise<ApiResult<CaseListPage>>
+  /** One page of players with a matching case; the filters are those of {@link cases}, without `owner`. */
+  caseGroups(query?: Omit<CaseListQuery, 'owner'>): Promise<ApiResult<CaseGroupPage>>
   /** The punishments whose short id (`#` and eight hex characters) matches; several if short ids collide, none if nothing matches. */
   punishmentsByShortId(shortId: string): Promise<ApiResult<Punishment[]>>
   /** A case by punishment identifier or short id; its `version` is what {@link updateCase} must send back. */
@@ -989,6 +992,9 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     cases: (query = {}) =>
       toResult(http.GET('/case', { querySerializer: caseListQuery(query) })),
+
+    caseGroups: (query = {}) =>
+      toResult(http.GET('/case/groups', { querySerializer: caseListQuery(query) })),
 
     punishmentsByShortId: async (shortId) =>
       map(await toResult(http.GET('/punishment/short/{shortId}', { params: { path: { shortId } } })), (all) => all ?? []),

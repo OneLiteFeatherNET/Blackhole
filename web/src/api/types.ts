@@ -149,6 +149,8 @@ export type ActivePunishmentPage = Schemas['ActivePunishmentPage']
 export type Case = Schemas['CaseResponse']
 export type CaseListItem = Schemas['CaseListItem']
 export type CaseListPage = Schemas['CaseListPage']
+export type CaseGroupItem = Schemas['CaseGroupItem']
+export type CaseGroupPage = Schemas['CaseGroupPage']
 export type CaseRelated = Schemas['CaseRelated']
 export type CaseStatus = Schemas['CaseStatus']
 export type CasePriority = Schemas['CasePriority']
@@ -324,6 +326,8 @@ export interface CaseListQuery {
   assignee?: string
   tag?: string
   priority?: CasePriority
+  /** The full owner hash of one player: the list of that player's cases (the expansion of a group). */
+  owner?: string
   page?: number
   size?: number
 }

@@ -16,6 +16,9 @@ function item(overrides: Partial<CaseListItem> = {}): CaseListItem {
     tags: ['spam', 'chat'],
     punishmentCreatedAt: Date.UTC(2026, 6, 1),
     lastActivityAt: Date.UTC(2026, 6, 2),
+    playerName: null,
+    ownerShort: 'abababababab',
+    version: 1,
     ...overrides,
   }
 }
