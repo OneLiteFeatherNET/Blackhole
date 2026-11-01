@@ -29,10 +29,15 @@ function item(overrides: Partial<CaseListItem> = {}): CaseListItem {
   }
 }
 
-function setup(groups: CaseGroupItem[] = [group()]) {
-  const caseGroups = vi.fn(async () => ok({ items: groups, page: 0, size: 20, totalSize: groups.length, totalPages: 1 }))
+function setup(groups: CaseGroupItem[] = [group()], totalPages = 1) {
+  const caseGroups = vi.fn(async () => ok({ items: groups, page: 0, size: 20, totalSize: groups.length, totalPages }))
   const cases = vi.fn(async () => ok({ items: [item()], page: 0, size: 20, totalSize: 1, totalPages: 1 }))
-  return { caseGroups, cases, mount: () => mountWithApp(CasePlayerGroups, { api: mockApi({ caseGroups, cases }), path: '/cases' }) }
+  return {
+    caseGroups,
+    cases,
+    mount: (props: Record<string, unknown> = {}) =>
+      mountWithApp(CasePlayerGroups, { api: mockApi({ caseGroups, cases }), path: '/cases', props }),
+  }
 }
 
 describe('CasePlayerGroups', () => {
@@ -96,6 +101,103 @@ describe('CasePlayerGroups', () => {
     const names = wrapper.findAll('[data-testid="case-group-toggle"]').map((button) => button.text())
     expect(names[0]).toContain('Steve')
     expect(names[1]).toContain('Alex')
+
+    wrapper.unmount()
+  })
+
+  it('leaves the visible counts to the screen reader: the toggle has no label that replaces them', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+    await flushPromises()
+
+    const toggle = wrapper.get('[data-testid="case-group-toggle"]')
+    expect(toggle.attributes('aria-label')).toBeUndefined()
+    expect(toggle.text()).toContain('3 open, 4 in total')
+
+    wrapper.unmount()
+  })
+
+  it('points aria-controls at the case list only while the group is expanded', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+    await flushPromises()
+    const toggle = wrapper.get('[data-testid="case-group-toggle"]')
+    expect(toggle.attributes('aria-controls')).toBeUndefined()
+
+    await toggle.trigger('click')
+    await flushPromises()
+
+    const controls = wrapper.get('[data-testid="case-group-toggle"]').attributes('aria-controls')
+    expect(controls).toBeDefined()
+    expect(wrapper.find(`#${controls}`).exists()).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('shows an error with a retry when the groups cannot be loaded', async () => {
+    const caseGroups = vi.fn(async () => ({ ok: false as const, error: { status: 500, message: 'boom', kind: 'UNAVAILABLE' } }))
+    const { wrapper } = await mountWithApp(CasePlayerGroups, { api: mockApi({ caseGroups }), path: '/cases' })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="case-group-toggle"]').exists()).toBe(false)
+    expect(wrapper.find('[role="alert"]').exists()).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('shows the empty state when no player has a matching case', async () => {
+    const { mount } = setup([])
+    const { wrapper } = await mount()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="case-groups-empty"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="case-group-toggle"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('offers to clear the filters when the empty result comes from filters', async () => {
+    const { mount } = setup([])
+    const { wrapper } = await mount({ filtersApplied: true })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="groups-clear-filters"]').trigger('click')
+
+    expect(wrapper.emitted('clear-filters')).toHaveLength(1)
+
+    wrapper.unmount()
+  })
+
+  it('starts again from the first group page on a filter change and reloads exactly once', async () => {
+    const { caseGroups, mount } = setup([group()], 5)
+    const { wrapper } = await mount()
+    await flushPromises()
+    for (let step = 0; step < 3; step++) {
+      await wrapper.get('[data-testid="next"]').trigger('click')
+      await flushPromises()
+    }
+    expect(caseGroups).toHaveBeenLastCalledWith(expect.objectContaining({ page: 3 }))
+    const before = caseGroups.mock.calls.length
+
+    await wrapper.setProps({ status: 'CLOSED' })
+    await flushPromises()
+
+    expect(caseGroups.mock.calls.length - before).toBe(1)
+    expect(caseGroups).toHaveBeenLastCalledWith(expect.objectContaining({ page: 0, status: 'CLOSED' }))
+
+    wrapper.unmount()
+  })
+
+  it('reloads once on a filter change while already on the first page', async () => {
+    const { caseGroups, mount } = setup()
+    const { wrapper } = await mount()
+    await flushPromises()
+    const before = caseGroups.mock.calls.length
+
+    await wrapper.setProps({ tag: 'spam' })
+    await flushPromises()
+
+    expect(caseGroups.mock.calls.length - before).toBe(1)
 
     wrapper.unmount()
   })

@@ -12,7 +12,7 @@ export interface Resource<T> {
  * Loads data when the component mounts and again on {@link Resource.reload}. A reload keeps the
  * previous data on screen until the new data arrives, so lists do not flash empty after an action.
  */
-export function useResource<T>(fetcher: () => Promise<ApiResult<T>>): Resource<T> {
+export function useResource<T>(fetcher: () => Promise<ApiResult<T>>, options: { immediate?: boolean } = {}): Resource<T> {
   const data = shallowRef<T | null>(null) as Ref<T | null>
   const error = ref<ApiError | null>(null)
   const loading = ref(true)
@@ -29,6 +29,7 @@ export function useResource<T>(fetcher: () => Promise<ApiResult<T>>): Resource<T
     loading.value = false
   }
 
-  onMounted(reload)
+  // A resource that is not needed yet (the flat list while another view is shown) waits for its first reload.
+  if (options.immediate !== false) onMounted(reload)
   return { data, error, loading, reload }
 }

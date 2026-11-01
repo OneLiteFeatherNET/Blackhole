@@ -48,26 +48,34 @@ const values = ref<Record<string, string>>(fromQuery(route.query))
 const page = ref(0)
 // The chosen view is remembered in this browser only; the filters apply to both views.
 const view = ref<CasesViewMode>(readCasesView())
-watch(view, (mode) => writeCasesView(mode))
+watch(view, (mode) => {
+  writeCasesView(mode)
+  // The flat list is requested only while it is shown, so switching back to it loads it once.
+  if (mode === 'cases') void cases.reload()
+})
 
 const filtersApplied = computed(() => Object.values(values.value).some((value) => value !== ''))
 
-const cases = useResource(() =>
-  api.cases({
-    status: (values.value.status || undefined) as CaseStatus | undefined,
-    assignee: values.value.mine ? session.me?.oid : undefined,
-    tag: values.value.tag || undefined,
-    page: page.value,
-  }),
+const cases = useResource(
+  () =>
+    api.cases({
+      status: (values.value.status || undefined) as CaseStatus | undefined,
+      assignee: values.value.mine ? session.me?.oid : undefined,
+      tag: values.value.tag || undefined,
+      page: page.value,
+    }),
+  { immediate: view.value === 'cases' },
 )
 
-// Any filter starts again at the first page, and the query follows the filters.
+// Any filter starts again at the first page, and the query follows the filters. The flat list reloads only while shown.
 watch(values, (next) => {
   page.value = 0
-  void cases.reload()
+  if (view.value === 'cases') void cases.reload()
   void router.replace({ query: toQuery(next) })
 })
-watch(page, () => void cases.reload())
+watch(page, () => {
+  if (view.value === 'cases') void cases.reload()
+})
 
 // Back and forward change the query; the filters follow it.
 watch(
@@ -141,6 +149,8 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
       :status="(values.status || undefined) as CaseStatus | undefined"
       :assignee="values.mine ? session.me?.oid : undefined"
       :tag="values.tag || undefined"
+      :filters-applied="filtersApplied"
+      @clear-filters="clearFilters"
     />
 
     <template v-else>

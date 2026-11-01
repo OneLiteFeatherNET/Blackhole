@@ -86,4 +86,30 @@ describe('CasesView player column and grouped view', () => {
 
     wrapper.unmount()
   })
+
+  it('does not request the flat case list while the grouped view is shown', async () => {
+    window.localStorage.setItem(STORAGE_KEY, 'player')
+    const { cases, mount } = setup()
+    const { wrapper } = await mount()
+    await flushPromises()
+
+    expect(cases).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
+
+  it('requests the flat case list once when the viewer switches back to it', async () => {
+    window.localStorage.setItem(STORAGE_KEY, 'player')
+    const { cases, mount } = setup()
+    const { wrapper } = await mount()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="view-cases"]').trigger('click')
+    await flushPromises()
+
+    expect(cases).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('tbody tr').exists()).toBe(true)
+
+    wrapper.unmount()
+  })
 })
