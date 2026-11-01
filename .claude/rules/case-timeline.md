@@ -52,6 +52,10 @@ SQL keyword).
   (reason is a code, deduped per note). The timeline serves `redactedAt` and an empty payload.
 - **Reads** go through `CaseReader` (never write). The timeline cursor is `occurredAt:seq` (keyset on the
   timeline order), page size default 50, max 200. `actor.name` is joined from `staff_actor`.
+- **Player column and groups** (`GET /case/groups`, `VIEWER`): the list item carries `playerName` (newest name of the owner
+  from `player_name_history`, lateral join in the same statement) and `ownerShort`, never the raw UUID. The groups are one
+  statement paged over owners with the list's own filter builder, so counts match what the list shows. `GET /case?owner=`
+  expands a group; the owner must be the full 128-character hash. Only case rows are listed and grouped.
 - **Domain events** `case.<type>` (`CaseEvents`): ids, hashed owner, `seq`, trust, `from`/`to`, never text.
   Published after the write in a try/catch. Lifecycle facts are not republished as `case.*`.
 
