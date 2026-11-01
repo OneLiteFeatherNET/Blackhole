@@ -32,6 +32,10 @@ public class JdbcCaseReader implements CaseReader {
                      AND (p.meta_data ->> 'expiration_date')::numeric <= ?, FALSE)""";
     private static final String STATE = "CASE WHEN p.lifted THEN 'LIFTED' WHEN " + EXPIRED + " THEN 'EXPIRED' ELSE 'ACTIVE' END";
 
+    /** The newest name of the owner, one lookup per row; the raw player UUID of the name history is never selected. */
+    private static final String PLAYER_NAME = """
+            LEFT JOIN LATERAL (SELECT n.name FROM player_name_history n WHERE n.owner_hash = p.owner
+            ORDER BY n.last_seen DESC, n.name_lower LIMIT 1) n ON TRUE """;
     private static final String FIND = """
             SELECT c.status, c.assignee_oid, a.display_name, c.priority, c.tags::text, c.version, c.created_at, c.updated_at,
                    c.ban_id_leaked_at, c.ban_id_leak_reason, c.player_seen_seq
@@ -118,6 +122,54 @@ public class JdbcCaseReader implements CaseReader {
     public ListPage list(ListQuery query, long now) {
         List<Object> parameters = new ArrayList<>();
         parameters.add(now);
+        StringBuilder where = where(query, now, parameters);
+        if (query.owner() != null) {
+            where.append(" AND p.owner = ?");
+            parameters.add(query.owner());
+        }
+        parameters.add(query.size());
+        parameters.add((long) query.page() * query.size());
+        String sql = "SELECT c.punishment_identifier, p.short_id, p.section_key, " + STATE + ", c.status, c.assignee_oid, a.display_name, "
+                + "c.priority, c.tags::text, p.created_at, "
+                + "COALESCE((SELECT max(e.occurred_at) FROM case_event e WHERE e.punishment_identifier = c.punishment_identifier), c.created_at), "
+                + "p.owner, n.name, c.version, count(*) OVER () "
+                + "FROM punishment_case c JOIN punishments p ON p.identifier = c.punishment_identifier "
+                + "LEFT JOIN staff_actor a ON a.oid = c.assignee_oid " + PLAYER_NAME + where
+                + " ORDER BY 11 DESC, c.punishment_identifier LIMIT ? OFFSET ?";
+        long[] total = {0};
+        List<Listed> items = query(sql, parameters, row -> {
+            total[0] = row.getLong(15);
+            return new Listed(row.getString(1), PunishmentShortId.display(row.getString(2)), row.getString(3), row.getString(4),
+                    new CaseMeta(row.getString(5), row.getObject(6, UUID.class), row.getString(8), tags(row.getString(9))),
+                    row.getString(7), row.getLong(10), row.getLong(11), row.getString(13), row.getString(12), row.getLong(14));
+        });
+        return new ListPage(items, total[0]);
+    }
+
+    @Override
+    public GroupPage groups(ListQuery query, long now) {
+        List<Object> parameters = new ArrayList<>();
+        StringBuilder where = where(query, now, parameters);
+        parameters.add(query.size());
+        parameters.add((long) query.page() * query.size());
+        String sql = "SELECT g.owner, n.name, g.open_count, g.total_count, g.last_activity, count(*) OVER () FROM ("
+                + "SELECT p.owner, count(*) AS total_count, count(*) FILTER (WHERE c.status <> 'CLOSED') AS open_count, "
+                + "max(COALESCE((SELECT max(e.occurred_at) FROM case_event e WHERE e.punishment_identifier = c.punishment_identifier), "
+                + "c.created_at)) AS last_activity "
+                + "FROM punishment_case c JOIN punishments p ON p.identifier = c.punishment_identifier" + where + " GROUP BY p.owner) g "
+                + "LEFT JOIN LATERAL (SELECT n.name FROM player_name_history n WHERE n.owner_hash = g.owner "
+                + "ORDER BY n.last_seen DESC, n.name_lower LIMIT 1) n ON TRUE "
+                + "ORDER BY 5 DESC, 1 LIMIT ? OFFSET ?";
+        long[] total = {0};
+        List<Group> items = query(sql, parameters, row -> {
+            total[0] = row.getLong(6);
+            return new Group(row.getString(1), row.getString(2), row.getLong(3), row.getLong(4), row.getLong(5));
+        });
+        return new GroupPage(items, total[0]);
+    }
+
+    /** The WHERE clause of the case list and of the groups: the same filters, so a group counts what the list shows. */
+    private static StringBuilder where(ListQuery query, long now, List<Object> parameters) {
         StringBuilder where = new StringBuilder(" WHERE TRUE");
         filter(where, parameters, "c.status = ?", query.status());
         filter(where, parameters, "c.assignee_oid = ?", query.assignee());
@@ -140,22 +192,7 @@ public class JdbcCaseReader implements CaseReader {
                 }
             }
         }
-        parameters.add(query.size());
-        parameters.add((long) query.page() * query.size());
-        String sql = "SELECT c.punishment_identifier, p.short_id, p.section_key, " + STATE + ", c.status, c.assignee_oid, a.display_name, "
-                + "c.priority, c.tags::text, p.created_at, "
-                + "COALESCE((SELECT max(e.occurred_at) FROM case_event e WHERE e.punishment_identifier = c.punishment_identifier), c.created_at), "
-                + "count(*) OVER () FROM punishment_case c JOIN punishments p ON p.identifier = c.punishment_identifier "
-                + "LEFT JOIN staff_actor a ON a.oid = c.assignee_oid" + where
-                + " ORDER BY 11 DESC, c.punishment_identifier LIMIT ? OFFSET ?";
-        long[] total = {0};
-        List<Listed> items = query(sql, parameters, row -> {
-            total[0] = row.getLong(12);
-            return new Listed(row.getString(1), PunishmentShortId.display(row.getString(2)), row.getString(3), row.getString(4),
-                    new CaseMeta(row.getString(5), row.getObject(6, UUID.class), row.getString(8), tags(row.getString(9))),
-                    row.getString(7), row.getLong(10), row.getLong(11));
-        });
-        return new ListPage(items, total[0]);
+        return where;
     }
 
     private static void filter(StringBuilder where, List<Object> parameters, String condition, Object value) {

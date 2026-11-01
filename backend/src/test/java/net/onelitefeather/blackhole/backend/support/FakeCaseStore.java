@@ -82,6 +82,11 @@ public final class FakeCaseStore implements CaseReader, CaseChanges {
     }
 
     @Override
+    public GroupPage groups(ListQuery query, long now) {
+        throw new UnsupportedOperationException("SQL, tested against PostgreSQL");
+    }
+
+    @Override
     public void ensureCase(String punishmentIdentifier, long now) {
         this.metas.putIfAbsent(punishmentIdentifier, CaseMeta.defaults());
     }

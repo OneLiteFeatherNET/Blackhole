@@ -198,7 +198,13 @@ public sealed interface CaseDTO {
     ) implements CaseDTO {
     }
 
-    /** One row of the case list. */
+    /**
+     * One row of the case list.
+     *
+     * @param playerName the newest name of the player from the name history; null when none is known (or it was removed)
+     * @param ownerShort the first characters of the player's hash, the fallback for the name; never the whole hash
+     * @param version    the optimistic version of the case, 0 when it has no row yet
+     */
     @Schema(name = "CaseListItem")
     @Serdeable
     @ReflectiveAccess
@@ -213,8 +219,44 @@ public sealed interface CaseDTO {
             @NonNull CasePriority priority,
             @NonNull @JsonInclude(JsonInclude.Include.ALWAYS) List<String> tags,
             long punishmentCreatedAt,
+            long lastActivityAt,
+            @Nullable String playerName,
+            @NonNull String ownerShort,
+            long version
+    ) {
+    }
+
+    /**
+     * One player in the groups. {@code owner} is the full hash: the expansion of a group sends it back as the
+     * {@code owner} filter of the case list. The raw player UUID is never part of it.
+     *
+     * @param openCount  the matching cases whose status is not CLOSED
+     * @param totalCount the matching cases
+     */
+    @Schema(name = "CaseGroupItem")
+    @Serdeable
+    @ReflectiveAccess
+    record GroupItem(
+            @NonNull String owner,
+            @NonNull String ownerShort,
+            @Nullable String playerName,
+            long openCount,
+            long totalCount,
             long lastActivityAt
     ) {
+    }
+
+    /** One page of the groups by player; paging is over players. */
+    @Schema(name = "CaseGroupPage")
+    @Serdeable
+    @ReflectiveAccess
+    record GroupPage(
+            @NonNull @JsonInclude(JsonInclude.Include.ALWAYS) List<GroupItem> items,
+            int page,
+            int size,
+            long totalSize,
+            int totalPages
+    ) implements CaseDTO {
     }
 
     /** One page of the case list. */

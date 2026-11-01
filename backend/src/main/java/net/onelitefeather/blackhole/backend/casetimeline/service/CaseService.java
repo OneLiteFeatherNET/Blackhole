@@ -68,6 +68,7 @@ public class CaseService {
     static final int MAX_LIST_SIZE = 100;
     static final int MAX_RELATED = 20;
     private static final int OWNER_PREFIX = 12;
+    private static final Pattern OWNER = Pattern.compile("^[a-fA-F0-9]{128}$");
     private static final Pattern TYPE_FILTER = Pattern.compile("[a-z_]+(\\.[a-z_]+)*");
     private static final Pattern CURSOR = Pattern.compile("(\\d{1,18}):(\\d{1,18})");
     private static final List<String> STATES = List.of("ACTIVE", "EXPIRED", "LIFTED");
@@ -173,26 +174,74 @@ public class CaseService {
         return new CaseDTO.TimelinePage(shown.stream().map(this::toItem).toList(), next);
     }
 
-    /** The case list, newest activity first. */
+    /** The case list, newest activity first. {@code owner}, when given, narrows the list to one player. */
     public CaseDTO list(
+            @Nullable CaseStatus status, @Nullable UUID assignee, @Nullable String tag, @Nullable CasePriority priority,
+            @Nullable String section, @Nullable String punishmentState, @Nullable Integer page, @Nullable Integer size,
+            @Nullable String owner
+    ) {
+        CaseDTO.Error invalid = invalidFilter(tag, punishmentState);
+        if (invalid != null) {
+            return invalid;
+        }
+        if (owner != null && !OWNER.matcher(owner).matches()) {
+            return error(CaseErrorKind.VALIDATION, "owner is the 128 character hash of a player");
+        }
+        int pageNumber = page == null ? 0 : Math.max(0, page);
+        int pageSize = size == null ? DEFAULT_LIST_SIZE : Math.max(1, Math.min(size, MAX_LIST_SIZE));
+        CaseReader.ListPage result = this.reader.list(
+                listQuery(status, assignee, tag, priority, section, punishmentState, pageNumber, pageSize, owner), this.clock.millis());
+        List<CaseDTO.ListItem> items = result.items().stream().map(row -> new CaseDTO.ListItem(
+                row.identifier(), row.shortId(), row.section(), row.state(), CaseStatus.valueOf(row.meta().status()), row.meta().assignee(),
+                row.assigneeName(), CasePriority.valueOf(row.meta().priority()), row.meta().tags(), row.createdAt(), row.lastActivityAt(),
+                row.playerName(), shortOwner(row.owner()), row.version())).toList();
+        return new CaseDTO.ListPage(items, pageNumber, pageSize, result.total(), (int) Math.ceil(result.total() / (double) pageSize));
+    }
+
+    /**
+     * The players with at least one case that matches the filters, newest activity first. Each group counts the matching
+     * cases only; paging is over players, so one player's cases never span two pages.
+     */
+    public CaseDTO groups(
             @Nullable CaseStatus status, @Nullable UUID assignee, @Nullable String tag, @Nullable CasePriority priority,
             @Nullable String section, @Nullable String punishmentState, @Nullable Integer page, @Nullable Integer size
     ) {
+        CaseDTO.Error invalid = invalidFilter(tag, punishmentState);
+        if (invalid != null) {
+            return invalid;
+        }
+        int pageNumber = page == null ? 0 : Math.max(0, page);
+        int pageSize = size == null ? DEFAULT_LIST_SIZE : Math.max(1, Math.min(size, MAX_LIST_SIZE));
+        CaseReader.GroupPage result = this.reader.groups(
+                listQuery(status, assignee, tag, priority, section, punishmentState, pageNumber, pageSize, null), this.clock.millis());
+        List<CaseDTO.GroupItem> items = result.items().stream().map(group -> new CaseDTO.GroupItem(
+                group.owner(), shortOwner(group.owner()), group.playerName(), group.openCount(), group.totalCount(),
+                group.lastActivityAt())).toList();
+        return new CaseDTO.GroupPage(items, pageNumber, pageSize, result.total(), (int) Math.ceil(result.total() / (double) pageSize));
+    }
+
+    @Nullable
+    private static CaseDTO.Error invalidFilter(@Nullable String tag, @Nullable String punishmentState) {
         if (tag != null && !CaseTags.VALID.matcher(tag).matches()) {
             return error(CaseErrorKind.VALIDATION, "a tag is a slug of lower case letters, digits and dashes");
         }
         if (punishmentState != null && !STATES.contains(punishmentState)) {
             return error(CaseErrorKind.VALIDATION, "punishmentState is ACTIVE, EXPIRED or LIFTED");
         }
-        int pageNumber = page == null ? 0 : Math.max(0, page);
-        int pageSize = size == null ? DEFAULT_LIST_SIZE : Math.max(1, Math.min(size, MAX_LIST_SIZE));
-        CaseReader.ListPage result = this.reader.list(new CaseReader.ListQuery(
-                status == null ? null : status.name(), assignee, tag, priority == null ? null : priority.name(), section, punishmentState,
-                pageNumber, pageSize), this.clock.millis());
-        List<CaseDTO.ListItem> items = result.items().stream().map(row -> new CaseDTO.ListItem(
-                row.identifier(), row.shortId(), row.section(), row.state(), CaseStatus.valueOf(row.meta().status()), row.meta().assignee(),
-                row.assigneeName(), CasePriority.valueOf(row.meta().priority()), row.meta().tags(), row.createdAt(), row.lastActivityAt())).toList();
-        return new CaseDTO.ListPage(items, pageNumber, pageSize, result.total(), (int) Math.ceil(result.total() / (double) pageSize));
+        return null;
+    }
+
+    private static CaseReader.ListQuery listQuery(
+            @Nullable CaseStatus status, @Nullable UUID assignee, @Nullable String tag, @Nullable CasePriority priority,
+            @Nullable String section, @Nullable String punishmentState, int page, int size, @Nullable String owner
+    ) {
+        return new CaseReader.ListQuery(status == null ? null : status.name(), assignee, tag, priority == null ? null : priority.name(),
+                section, punishmentState, page, size, owner);
+    }
+
+    /** The short owner for the screen: the first characters of the hash, never the whole of it. */
+    private static String shortOwner(String owner) {
+        return owner.substring(0, Math.min(OWNER_PREFIX, owner.length()));
     }
 
     /**
@@ -361,9 +410,8 @@ public class CaseService {
         List<CaseDTO.Related> related = this.reader.related(punishment.getOwner(), punishment.getIdentifier(), now, MAX_RELATED).stream()
                 .map(other -> new CaseDTO.Related(other.identifier(), other.shortId(), other.section(), other.state(), other.caseStatus(), other.createdAt()))
                 .toList();
-        String owner = punishment.getOwner();
         return new CaseDTO.Response(punishment.getIdentifier(), PunishmentShortId.display(punishment.getShortId()),
-                owner.substring(0, Math.min(OWNER_PREFIX, owner.length())), punishment.getSectionKey(), state(punishment, now),
+                shortOwner(punishment.getOwner()), punishment.getSectionKey(), state(punishment, now),
                 punishment.isPermanent(), punishment.getCreatedAt() == null ? 0 : punishment.getCreatedAt(),
                 CaseStatus.valueOf(meta.status()), meta.assignee(), row.map(CaseReader.CaseRow::assigneeName).orElse(null),
                 CasePriority.valueOf(meta.priority()), meta.tags(), row.map(CaseReader.CaseRow::version).orElse(0L), related,

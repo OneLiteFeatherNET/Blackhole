@@ -82,6 +82,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /client-rule/hits", V),
             Map.entry("GET /client-rule/{key}/hits", V),
             Map.entry("GET /case", V),
+            Map.entry("GET /case/groups", V),
             Map.entry("GET /case/{reference}", V),
             Map.entry("GET /case/{reference}/timeline", V),
             Map.entry("GET /case/{reference}/protocol", V),

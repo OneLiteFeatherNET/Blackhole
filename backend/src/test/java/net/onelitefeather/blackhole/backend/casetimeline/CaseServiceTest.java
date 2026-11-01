@@ -172,6 +172,11 @@ class CaseServiceTest {
             public ListPage list(ListQuery query, long now) {
                 return new ListPage(List.of(), 0);
             }
+
+            @Override
+            public GroupPage groups(ListQuery query, long now) {
+                return new GroupPage(List.of(), 0);
+            }
         };
         CaseService racing = new CaseService(this.punishments.repository(), this.staff.repository(), racingReader, this.store, this.log,
                 this.events, this.clock, this.banIds.service, new MessageContent("onelitefeather.net"), StaffDelegations.withoutLinks(this.clock), this.audit,
