@@ -197,6 +197,16 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void aViewerMayListTheGroupsOfPlayers() {
+        assertAuthorized(get("/case/groups", this.jwt.viewer()), "viewer on GET /case/groups");
+    }
+
+    @Test
+    void theProxyCannotListTheGroupsOfPlayers() {
+        assertEquals(403, get("/case/groups", this.jwt.proxy()).status(), "proxy on GET /case/groups");
+    }
+
+    @Test
     void aViewerCannotAddANote() {
         assertEquals(403, post("/case/unknown-punishment/notes", Map.of("text", "x"), this.jwt.viewer()).status(), "viewer on a case write");
     }

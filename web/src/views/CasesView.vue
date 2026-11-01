@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { type LocationQuery, RouterLink, useRoute, useRouter } from 'vue-router'
 import { useApi } from '../api/inject'
 import type { CaseListItem, CaseStatus } from '../api/types'
+import CasePlayerGroups from '../components/case/CasePlayerGroups.vue'
 import DataTable, { type DataColumn } from '../components/DataTable.vue'
 import EmptyState from '../components/EmptyState.vue'
 import FilterToolbar, { type FilterDef } from '../components/FilterToolbar.vue'
@@ -14,6 +15,7 @@ import MdButton from '../components/md/MdButton.vue'
 import { useResource } from '../composables/useResource'
 import { formatDateTime } from '../format'
 import { useSessionStore } from '../stores/session'
+import { type CasesViewMode, readCasesView, writeCasesView } from './casesViewMemory'
 
 const STATUSES: CaseStatus[] = ['OPEN', 'IN_REVIEW', 'WAITING', 'CLOSED']
 const TAG = /^[a-z0-9-]{1,32}$/
@@ -44,25 +46,36 @@ function toQuery(filters: Record<string, string>): LocationQuery {
 
 const values = ref<Record<string, string>>(fromQuery(route.query))
 const page = ref(0)
+// The chosen view is remembered in this browser only; the filters apply to both views.
+const view = ref<CasesViewMode>(readCasesView())
+watch(view, (mode) => {
+  writeCasesView(mode)
+  // The flat list is requested only while it is shown, so switching back to it loads it once.
+  if (mode === 'cases') void cases.reload()
+})
 
 const filtersApplied = computed(() => Object.values(values.value).some((value) => value !== ''))
 
-const cases = useResource(() =>
-  api.cases({
-    status: (values.value.status || undefined) as CaseStatus | undefined,
-    assignee: values.value.mine ? session.me?.oid : undefined,
-    tag: values.value.tag || undefined,
-    page: page.value,
-  }),
+const cases = useResource(
+  () =>
+    api.cases({
+      status: (values.value.status || undefined) as CaseStatus | undefined,
+      assignee: values.value.mine ? session.me?.oid : undefined,
+      tag: values.value.tag || undefined,
+      page: page.value,
+    }),
+  { immediate: view.value === 'cases' },
 )
 
-// Any filter starts again at the first page, and the query follows the filters.
+// Any filter starts again at the first page, and the query follows the filters. The flat list reloads only while shown.
 watch(values, (next) => {
   page.value = 0
-  void cases.reload()
+  if (view.value === 'cases') void cases.reload()
   void router.replace({ query: toQuery(next) })
 })
-watch(page, () => void cases.reload())
+watch(page, () => {
+  if (view.value === 'cases') void cases.reload()
+})
 
 // Back and forward change the query; the filters follow it.
 watch(
@@ -95,6 +108,7 @@ const filters = computed<FilterDef[]>(() => [
 
 const columns = computed<DataColumn<CaseListItem>[]>(() => [
   { key: 'shortId', label: t('case.list.columns.case'), priority: 1 },
+  { key: 'playerName', label: t('case.list.columns.player'), priority: 2 },
   { key: 'section', label: t('case.list.columns.section'), priority: 3 },
   { key: 'punishmentState', label: t('case.list.columns.punishment'), priority: 2 },
   { key: 'status', label: t('case.list.columns.status'), priority: 1 },
@@ -111,6 +125,35 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
       <FilterToolbar v-model="values" :filters="filters" />
     </template>
 
+    <div role="group" :aria-label="t('case.list.view')" class="mb-3 flex gap-2">
+      <MdButton
+        variant="outlined"
+        data-testid="view-cases"
+        :aria-pressed="view === 'cases' ? 'true' : 'false'"
+        @click="view = 'cases'"
+      >
+        {{ t('case.list.viewCases') }}
+      </MdButton>
+      <MdButton
+        variant="outlined"
+        data-testid="view-player"
+        :aria-pressed="view === 'player' ? 'true' : 'false'"
+        @click="view = 'player'"
+      >
+        {{ t('case.list.viewPlayer') }}
+      </MdButton>
+    </div>
+
+    <CasePlayerGroups
+      v-if="view === 'player'"
+      :status="(values.status || undefined) as CaseStatus | undefined"
+      :assignee="values.mine ? session.me?.oid : undefined"
+      :tag="values.tag || undefined"
+      :filters-applied="filtersApplied"
+      @clear-filters="clearFilters"
+    />
+
+    <template v-else>
     <DataTable
       v-if="cases.loading.value && cases.data.value === null"
       :caption="t('case.list.title')"
@@ -135,6 +178,7 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
             >
               {{ row.shortId }}
             </RouterLink>
+            <template v-else-if="column.key === 'playerName'">{{ row.playerName ?? t('case.list.unknownPlayer', { hash: row.ownerShort }) }}</template>
             <StatusPill v-else-if="column.key === 'punishmentState'" :label="t(`case.state.${row.punishmentState}`)" />
             <StatusPill v-else-if="column.key === 'status'" :label="t(`case.status.${row.status}`)" tone="primary" />
             <template v-else-if="column.key === 'assigneeName'">{{ row.assigneeName ?? (row.assigneeOid ? `${row.assigneeOid.slice(0, 8)}…` : t('case.header.unassigned')) }}</template>
@@ -163,5 +207,6 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
         </nav>
       </template>
     </ResourceState>
+    </template>
   </PageShell>
 </template>

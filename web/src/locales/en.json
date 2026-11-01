@@ -1178,9 +1178,19 @@
         "assignee": "Assignee",
         "priority": "Priority",
         "tags": "Tags",
-        "activity": "Last activity"
+        "activity": "Last activity",
+        "player": "Player"
       },
-      "noneYet": "No cases yet."
+      "noneYet": "No cases yet.",
+      "view": "View",
+      "viewCases": "All cases",
+      "viewPlayer": "By player",
+      "groupSummary": "{open} open, {total} in total",
+      "expandGroup": "Show the cases of {player}",
+      "collapseGroup": "Hide the cases of {player}",
+      "groupCases": "Cases of {player}",
+      "loadFailed": "The cases could not be loaded.",
+      "unknownPlayer": "Player {hash}"
     },
     "reason": {
       "label": "Reason",

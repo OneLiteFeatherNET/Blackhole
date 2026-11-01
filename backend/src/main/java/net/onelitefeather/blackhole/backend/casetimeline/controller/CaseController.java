@@ -39,9 +39,19 @@ public class CaseController implements CaseApi {
     @Secured(Roles.VIEWER)
     public HttpResponse<CaseDTO> list(
             @Nullable CaseStatus status, @Nullable UUID assignee, @Nullable String tag, @Nullable CasePriority priority,
+            @Nullable String section, @Nullable String punishmentState, @Nullable Integer page, @Nullable Integer size,
+            @Nullable String owner
+    ) {
+        return toResponse(this.caseService.list(status, assignee, tag, priority, section, punishmentState, page, size, owner));
+    }
+
+    @Override
+    @Secured(Roles.VIEWER)
+    public HttpResponse<CaseDTO> groups(
+            @Nullable CaseStatus status, @Nullable UUID assignee, @Nullable String tag, @Nullable CasePriority priority,
             @Nullable String section, @Nullable String punishmentState, @Nullable Integer page, @Nullable Integer size
     ) {
-        return toResponse(this.caseService.list(status, assignee, tag, priority, section, punishmentState, page, size));
+        return toResponse(this.caseService.groups(status, assignee, tag, priority, section, punishmentState, page, size));
     }
 
     @Override

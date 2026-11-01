@@ -24,6 +24,11 @@ class CaseApiIntegrationTest extends ApiIntegrationTest {
     private static final String OWNER = "c4".repeat(64);
     private static final UUID ALICE = UUID.fromString("a11ce000-0000-4000-8000-000000000001");
     private static final UUID BOB = UUID.fromString("b0b00000-0000-4000-8000-000000000002");
+    /** The raw player UUID of the name history: it must never appear in a response. */
+    private static final UUID PLAYER_UUID = UUID.fromString("5e5e5e5e-0000-4000-8000-000000000005");
+    /** Owners of the grouping tests, each with its own name rows. */
+    private static final String GROUPED = "d1".repeat(64);
+    private static final String NAMED = "e1".repeat(64);
 
     private String moderator(UUID oid) {
         return this.jwt.delegated().groups(TestJwtIssuer.MODERATOR_GROUP).claim("oid", oid.toString()).claim("name", "Staff " + oid.toString().substring(0, 4)).sign();
@@ -245,6 +250,67 @@ class CaseApiIntegrationTest extends ApiIntegrationTest {
 
         assertEquals(200, reply.status(), reply.body());
         assertEquals(List.of(id), ((List<?>) reply.json().get("items")).stream().map(item -> ((Map<?, ?>) item).get("punishmentIdentifier")).toList());
+    }
+
+    private void givenNameOf(String owner, String name) {
+        this.context.getBean(net.onelitefeather.blackhole.backend.intel.names.NameHistoryStore.class).upsert(owner, PLAYER_UUID, name, 1L);
+    }
+
+    /** A punishment of {@code owner} with a case row (the list and the groups read case rows only). */
+    private String givenListedCaseOf(String owner) {
+        String id = UUID.randomUUID().toString();
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("creation_date", 1L);
+        meta.put("update_date", 1L);
+        this.context.getBean(PunishmentRepository.class).save(new PunishmentEntity(id, UUID.randomUUID(), owner, "network", false, 1L, null, meta));
+        patch("/case/" + id, Map.of("expectedVersion", 0, "status", "IN_REVIEW"), moderator(ALICE));
+        return id;
+    }
+
+    @Test
+    void theGroupsRouteAnswersTheGroupsAndNotACaseLookup() {
+        givenListedCaseOf(GROUPED);
+
+        Reply reply = get("/case/groups", this.jwt.viewer());
+
+        assertEquals(200, reply.status(), reply.body());
+        assertTrue(reply.json().containsKey("items"), "/case/groups is the group list, not a case named 'groups'");
+    }
+
+    @Test
+    void aGroupCarriesTheOwnerForTheExpansionAndNoRawPlayerUuid() {
+        givenNameOf(GROUPED, "GroupedName");
+        givenListedCaseOf(GROUPED);
+
+        Reply reply = get("/case/groups?status=IN_REVIEW", this.jwt.viewer());
+
+        assertEquals(200, reply.status(), reply.body());
+        assertTrue(reply.body().contains(GROUPED), "the owner is what the expansion sends back");
+        assertTrue(reply.body().contains("GroupedName"));
+        assertFalse(reply.body().contains(PLAYER_UUID.toString()), "the raw player UUID is never served");
+    }
+
+    @Test
+    void aListItemCarriesThePlayerNameAndTheShortOwnerButNeverTheRawUuid() {
+        givenNameOf(NAMED, "ListedName");
+        String id = givenListedCaseOf(NAMED);
+
+        Reply reply = get("/case?status=IN_REVIEW&owner=" + NAMED, this.jwt.viewer());
+
+        assertEquals(200, reply.status(), reply.body());
+        Map<?, ?> item = (Map<?, ?>) ((List<?>) reply.json().get("items")).stream()
+                .filter(candidate -> id.equals(((Map<?, ?>) candidate).get("punishmentIdentifier"))).findFirst().orElseThrow();
+        assertEquals("ListedName", item.get("playerName"));
+        assertEquals(NAMED.substring(0, 12), item.get("ownerShort"));
+        assertEquals(1, ((Number) item.get("version")).intValue());
+        assertFalse(reply.body().contains(PLAYER_UUID.toString()), "the raw player UUID is never served");
+    }
+
+    @Test
+    void aMalformedOwnerIsRefused() {
+        Reply reply = get("/case?owner=not-a-hash", this.jwt.viewer());
+
+        assertEquals(400, reply.status(), reply.body());
     }
 
     @Test

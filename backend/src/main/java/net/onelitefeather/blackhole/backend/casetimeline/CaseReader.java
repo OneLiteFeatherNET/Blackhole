@@ -44,22 +44,44 @@ public interface CaseReader {
     ) {
     }
 
-    /** One row of the case list. */
+    /**
+     * One row of the case list. {@code playerName} is the newest name of the owner in the name history (null when none);
+     * {@code owner} is the full hash, which the service never returns to the caller in a list item.
+     */
     record Listed(
             String identifier, String shortId, @Nullable String section, String state, CaseMeta meta, @Nullable String assigneeName,
-            long createdAt, long lastActivityAt
+            long createdAt, long lastActivityAt, @Nullable String playerName, String owner, long version
     ) {
     }
 
-    /** The filters of the case list; a {@code null} filter does not filter. */
+    /**
+     * The filters of the case list; a {@code null} filter does not filter. {@code owner} narrows the list to one player
+     * (the full owner hash, validated by the caller).
+     */
     record ListQuery(
             @Nullable String status, @Nullable UUID assignee, @Nullable String tag, @Nullable String priority,
-            @Nullable String section, @Nullable String state, int page, int size
+            @Nullable String section, @Nullable String state, int page, int size, @Nullable String owner
     ) {
+
+        public ListQuery(@Nullable String status, @Nullable UUID assignee, @Nullable String tag, @Nullable String priority,
+                         @Nullable String section, @Nullable String state, int page, int size) {
+            this(status, assignee, tag, priority, section, state, page, size, null);
+        }
     }
 
     /** One page of the case list. */
     record ListPage(List<Listed> items, long total) {
+    }
+
+    /**
+     * One player in the groups: the cases of {@code owner} that match the filters. {@code openCount} counts the cases whose
+     * status is not {@code CLOSED}; {@code lastActivityAt} is the newest event (or the creation) of any of them.
+     */
+    record Group(String owner, @Nullable String playerName, long openCount, long totalCount, long lastActivityAt) {
+    }
+
+    /** One page of groups; the total counts groups, not cases. */
+    record GroupPage(List<Group> items, long total) {
     }
 
     Optional<CaseRow> find(String punishmentIdentifier);
@@ -74,4 +96,7 @@ public interface CaseReader {
     List<CaseEventRecord> subject(String punishmentIdentifier, String subjectId);
 
     ListPage list(ListQuery query, long now);
+
+    /** One page of players with a matching case, ordered by last activity, newest first. {@code query.owner} is ignored. */
+    GroupPage groups(ListQuery query, long now);
 }
