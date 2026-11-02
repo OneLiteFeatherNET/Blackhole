@@ -104,6 +104,12 @@ public class BlackholeConfig {
     private MuteConfig mute;
 
     /**
+     * The startup settings: what the proxy does with players when its initialisation failed. Absent in configs
+     * written before this setting existed, which {@link #getStartup()} treats as the defaults.
+     */
+    private StartupConfig startup;
+
+    /**
      * The bound of the punishment mirror. Absent in configs written before this setting existed, which
      * {@link #getMirror()} treats as the defaults.
      */
@@ -131,6 +137,13 @@ public class BlackholeConfig {
      */
     public @NotNull MuteConfig getMute() {
         return mute == null ? new MuteConfig() : mute;
+    }
+
+    /**
+     * @return the startup settings; the defaults for configs written before they existed
+     */
+    public @NotNull StartupConfig getStartup() {
+        return startup == null ? new StartupConfig() : startup;
     }
 
     /**
