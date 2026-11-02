@@ -1733,12 +1733,46 @@
   },
   "inbox": {
     "title": "Posteingang",
-    "needsAnswer": "Wartet auf Antwort",
-    "openAppeals": "Offene Einsprüche",
-    "newReports": "Neue Meldungen",
-    "unassignedCases": "Nicht zugewiesene Fälle",
     "showAll": "Alle anzeigen",
-    "empty": "Nichts wartet gerade"
+    "sections": {
+      "assigned": "Mir zugewiesen",
+      "urgent": "Nicht zugewiesen und dringend",
+      "appeals": "Einsprüche, die auf eine Entscheidung warten",
+      "answers": "Antworten ausstehend",
+      "reports": "Offene Meldungen"
+    },
+    "empty": {
+      "assigned": "Dir ist kein Fall zugewiesen. Fälle, die du übernimmst, erscheinen hier.",
+      "urgent": "Kein dringender Fall wartet ohne Zuständigkeit.",
+      "appeals": "Kein Einspruch wartet auf eine Entscheidung.",
+      "answers": "Kein Spieler wartet auf eine Antwort.",
+      "reports": "Keine Meldung ist offen."
+    },
+    "noIdentity": "Dein Konto hat noch keine Mitarbeiter-Identität.",
+    "readOnly": "Nur lesen: Moderatorinnen und Moderatoren bearbeiten Fälle und Einsprüche.",
+    "assign": "Mir zuweisen",
+    "close": "Schließen",
+    "undo": "Rückgängig",
+    "assignedNotice": "Fall {reference} ist dir zugewiesen.",
+    "undone": "Die Zuweisung ist rückgängig gemacht.",
+    "closeDialog": {
+      "headline": "Fall {reference} schließen?",
+      "text": "Der Fall wird geschlossen. Du kannst ihn auf seiner Seite wieder öffnen.",
+      "confirm": "Fall schließen",
+      "cancel": "Abbrechen"
+    },
+    "conflict": "Der Fall hat sich inzwischen geändert. Lade die Seite neu, um ihn zu sehen.",
+    "types": {
+      "case": "Fall",
+      "appeal": "Einspruch",
+      "report": "Meldung",
+      "player": "Spieler"
+    },
+    "states": {
+      "appeal": "Wartet auf Entscheidung",
+      "answer": "Antwort ausstehend",
+      "report": "Offen"
+    }
   },
   "filters": {
     "clearAll": "Alle löschen",
