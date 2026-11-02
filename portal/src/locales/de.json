@@ -24,6 +24,7 @@
     "submitting": "Wird geprüft ...",
     "invalid": "Diese Ban-ID kann nicht verwendet werden. Prüfe sie und versuche es noch einmal.",
     "unavailable": "Das Einspruchsportal ist gerade nicht erreichbar. Bitte versuche es in einigen Minuten erneut.",
+    "rateLimited": "Zu viele Versuche, bitte warte einen Moment.",
     "privacy": "Halte deine Ban-ID geheim. Wer sie kennt, kann deine Strafe einsehen, und wenn sie öffentlich geteilt wird, verfällt dein Recht auf Einspruch.",
     "challengeFailed": "Die Prüfung wurde nicht angenommen. Bitte versuche es erneut."
   },
@@ -81,6 +82,7 @@
     "submit": "Einspruch senden",
     "sending": "Wird gesendet ...",
     "errors": {
+      "RATE_LIMITED": "Zu viele Versuche, bitte warte einen Moment.",
       "NOT_ELIGIBLE": "Du kannst noch keinen Einspruch einlegen. Ab dem {date} ist es möglich.",
       "FORFEITED": "Das Recht auf Einspruch gegen diese Strafe ist verfallen, weil die Ban-ID öffentlich geteilt wurde.",
       "FROZEN": "Dieser Einspruch ist eingefroren, weil die Ban-ID öffentlich geteilt wurde.",
@@ -136,6 +138,7 @@
       "OTHER": "Über deinen Einspruch wurde entschieden."
     },
     "errors": {
+      "RATE_LIMITED": "Zu viele Versuche, bitte warte einen Moment.",
       "FROZEN": "Dieses Gespräch ist eingefroren, weil die Ban-ID öffentlich geteilt wurde.",
       "NO_APPEAL": "Lege zuerst einen Einspruch ein, bevor du schreibst.",
       "CONFLICT": "Du kannst gerade keine Nachricht schreiben.",
@@ -192,6 +195,7 @@
       "reconnecting": "Verbindung wird wiederhergestellt. Neue Nachrichten können etwas länger brauchen."
     },
     "errors": {
+      "RATE_LIMITED": "Zu viele Versuche, bitte warte einen Moment.",
       "TOO_MANY": "Du kannst höchstens {max} Dateien an eine Nachricht anhängen.",
       "UNSUPPORTED_TYPE": "Dieser Dateityp ist nicht erlaubt. Verwende PNG, JPEG, WebP, PDF oder reinen Text.",
       "TOO_LARGE": "Die Datei ist größer als 10 MB.",

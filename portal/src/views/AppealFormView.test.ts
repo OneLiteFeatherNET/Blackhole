@@ -118,6 +118,16 @@ describe('appeal form', () => {
     expect(mounted!.session.state.drafts.statement).toBe('a long statement')
   })
 
+  it('asks the player to wait when filing is rate limited', async () => {
+    const wrapper = await openForm({ fileAppeal: async () => fail<never>('RATE_LIMITED', 429) })
+
+    await wrapper.get('textarea').setValue('my statement')
+    await send(wrapper)
+    await flushPromises()
+
+    expect(wrapper.get('[role="alert"]').text()).toBe('Too many attempts, please wait a moment.')
+  })
+
   it('goes back to the punishment page', async () => {
     const wrapper = await openForm()
 

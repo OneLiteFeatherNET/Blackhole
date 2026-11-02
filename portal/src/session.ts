@@ -27,7 +27,7 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
     expiresAt: null as string | null,
     punishment: null as PunishmentFacts | null,
     /** Set after a failed login; the same value for every cause of failure. */
-    loginError: null as 'INVALID_BAN_ID' | 'UNAVAILABLE' | 'CHALLENGE_FAILED' | null,
+    loginError: null as 'INVALID_BAN_ID' | 'UNAVAILABLE' | 'CHALLENGE_FAILED' | 'RATE_LIMITED' | null,
     busy: false,
     /** Unsent text. Survives the expiry page so a long statement is not lost; gone on logout or when the tab closes. */
     drafts: { statement: '', message: '', files: [] as DraftFile[] },
@@ -69,7 +69,8 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
       enter(result.data)
       await refreshPunishment()
     } else {
-      state.loginError = result.error.code === 'UNAVAILABLE' ? 'UNAVAILABLE' : null
+      const code = result.error.code
+      state.loginError = code === 'UNAVAILABLE' || code === 'RATE_LIMITED' ? code : null
       state.phase = 'login'
     }
   }
@@ -90,6 +91,8 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
         await refreshPunishment()
       } else if (result.error.code === 'CHALLENGE_FAILED') {
         state.loginError = 'CHALLENGE_FAILED'
+      } else if (result.error.code === 'RATE_LIMITED') {
+        state.loginError = 'RATE_LIMITED'
       } else {
         state.loginError = result.error.code === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'INVALID_BAN_ID'
       }

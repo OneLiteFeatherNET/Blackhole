@@ -247,6 +247,15 @@ describe('login', () => {
     expect(JSON.parse(answers[0]!.body)).toEqual({ code: 'INVALID_BAN_ID' })
   })
 
+  it('answers a rate limit on sign-in as a rate limit, whatever the body, and never as a wrong Ban ID', async () => {
+    const { send } = bff([{ status: 429, text: '<html>Too Many Requests</html>' }])
+
+    const response = await send(...post('/api/session', { banId: BAN_ID }))
+
+    expect(response.status).toBe(429)
+    expect(await response.json()).toEqual({ code: 'RATE_LIMITED' })
+  })
+
   it('sets no cookie on a failed login', async () => {
     const { send } = bff([{ status: 401 }])
 
@@ -486,11 +495,21 @@ describe('error mapping', () => {
     [413, {}, 413, { code: 'TOO_LARGE' }],
     [422, { message: 'ip found' }, 422, { code: 'PII_REJECTED' }],
     [400, { message: 'too long' }, 400, { code: 'VALIDATION' }],
-    [429, {}, 400, { code: 'VALIDATION' }],
+    [429, {}, 429, { code: 'RATE_LIMITED' }],
+    [429, { message: 'slow down' }, 429, { code: 'RATE_LIMITED' }],
     [500, { trace: 'at com.example' }, 503, { code: 'UNAVAILABLE' }],
     [502, {}, 503, { code: 'UNAVAILABLE' }],
   ])('maps backend %i %j to %i %j', (status, body, expectedStatus, expectedError) => {
     expect(mapBackendError(status, body)).toEqual({ status: expectedStatus, error: expectedError })
+  })
+
+  it('answers a rate limit on any route with the same rate-limit code', async () => {
+    const { send } = bff([{ status: 429, body: {} }])
+
+    const response = await send('/api/punishment', { headers: { cookie: session } })
+
+    expect(response.status).toBe(429)
+    expect(await response.json()).toEqual({ code: 'RATE_LIMITED' })
   })
 
   it('relays a too long text, which the backend answers with 400, as a validation error', async () => {
