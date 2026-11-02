@@ -90,6 +90,8 @@ must be clear what state something is in and where something happens.
   shown per entity, cross-links, and confirmation and undo for state changes.
 - `staff-list-detail`: the list-detail layout for cases, appeals and reports, its URL, its keyboard
   movement and its behaviour per window size.
+- `staff-panel-security`: redirect allow-list, authorization per request, short ids behind sign-in,
+  no action on navigation, no secret in an address, referrer policy and the ASVS Level 2 review (design decision 8).
 
 ### Modified Capabilities
 

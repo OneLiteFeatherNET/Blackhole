@@ -488,6 +488,41 @@ Existing endpoints that take a secret or a raw identifier in the path, and there
 panel URL: `GET /staff-link/by-minecraft/{uuid}` (raw Minecraft UUID), `GET /punishment/{reference}/ban-id` (Ban ID reveal),
 and the feed route with its token. The panel calls these as actions or not at all.
 
+## Decision 8: security requirements for the URLs
+
+Each rule has a requirement with scenarios in `specs/staff-panel-security`. The standard is named per rule.
+
+1. **Redirects are same-origin and allow-listed.** Standard: CWE-601 (open redirect). The post-login return path
+   uses `safeReturnTo` in `web/src/auth/authService.ts`, which only checks for a leading slash today. It is extended
+   to resolve the target against the panel origin with `new URL`, to reject backslashes and control characters, and
+   to accept only a route name from the router's allow-list. Old-URL redirects use the same check. Test: phase 1.
+2. **The URL is never the authorization.** Standard: OWASP API Security Top 10 2023, API1 (BOLA) and API5 (BFLA);
+   OWASP ASVS Level 2, V4 (access control). Every endpoint behind a deep link checks the role on each request
+   (`@Secured` with the `Roles` of the endpoint). The route guard only decides what to show. Every read-by-id endpoint
+   of the companion change has a 401 test (no token) and a 403 test (role below the minimum). Every phase has an
+   authorization test for each new route.
+3. **Short ids are lookup keys, not secrets, and stay in staff URLs.** Standard: OWASP ASVS Level 2, V2 and V3
+   (authentication and session). A short id such as `#A1B2C3D4` has 32 bits, so it can be guessed. It therefore
+   never grants access (rule 2 still applies) and appears only in staff URLs behind sign-in. Public and portal URLs
+   carry no staff id. A signed-out visit starts sign-in before any staff data is requested.
+4. **No action runs on navigation.** Standard: CWE-352 (state change without intent) and RFC 9110, section 13.1
+   (conditional requests: `If-Match`, `412 Precondition Failed`). Child routes that change state (`/close`,
+   `/resolve`, `/revoke`, `/lift`, `/anonymize`, `/ack`, `/disable`, `/cancel`, `/decide`) render a confirmation and
+   send nothing on mount. The confirmed request carries the version read with the entity: `expectedVersion` in the
+   body (the case update already does this, and answers 409 on a stale version), or `If-Match` where the endpoint
+   supports an ETag. **Known gap:** endpoints without any version field (for example some admin toggles) are
+   confirmed by the dialog only; each such endpoint is listed in the companion change so that a version can be
+   added.
+5. **No secret in an address.** Standard: CWE-598 (sensitive information in the query string) and GDPR principle 1
+   (`openspec/config.yaml`). The route table has no parameter named for a secret, Ban ID, name, raw UUID, IP, Discord
+   id or token; a test fails when one is added (phase 1, and each later phase). The hash fragment is not sent to the
+   server. `Referrer-Policy: no-referrer` is already set by `web/server/lib/headers.ts` and tested in
+   `web/server/__tests__/handlers.test.ts`; the test is extended to every route the router defines (ASVS Level 2, V14).
+   Note: the existing `GET /staff-link/by-minecraft/{uuid}` takes a raw Minecraft UUID in its path. No panel route
+   calls it from an address.
+6. **ASVS Level 2 review per phase.** Standard: OWASP ASVS Level 2 (V2, V3, V4, V5, V7, V14). Each phase pull request
+   states the items it touches. The review is one line in `tasks.md` for that phase and is checked before merge.
+
 ## Risks and trade-offs
 
 - **The "me" section depends on the verified oid.** If `/auth/me` returns no oid, section 1 says so (decision 1).
