@@ -9,6 +9,7 @@
       "de": "Deutsch"
     },
     "logout": "Abmelden",
+    "logoutFailed": "Abmelden hat nicht geklappt. Bitte versuche es erneut.",
     "loading": "Wird geladen ...",
     "footer": "Diese Seite ist nur für Spielerinnen und Spieler mit einer Ban-ID. Deine Sitzung endet nach 30 Minuten ohne Aktivität."
   },

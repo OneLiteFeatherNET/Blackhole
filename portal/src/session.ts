@@ -29,6 +29,8 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
     /** Set after a failed login; the same value for every cause of failure. */
     loginError: null as 'INVALID_BAN_ID' | 'UNAVAILABLE' | 'CHALLENGE_FAILED' | null,
     busy: false,
+    /** The last sign-out was not confirmed by the backend: the player is still signed in. */
+    logoutFailed: false,
     /** Unsent text. Survives the expiry page so a long statement is not lost; gone on logout or when the tab closes. */
     drafts: { statement: '', message: '', files: [] as DraftFile[] },
   })
@@ -99,7 +101,13 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
   }
 
   async function logout() {
-    await api.logout()
+    state.logoutFailed = false
+    const result = await api.logout()
+    // The visit ends only when the backend confirms it (or has already ended it). Otherwise the player stays, and is told.
+    if (!result.ok && result.error.code !== 'SESSION_EXPIRED') {
+      state.logoutFailed = true
+      return
+    }
     csrf.value = null
     state.punishment = null
     state.expiresAt = null

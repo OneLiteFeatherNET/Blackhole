@@ -98,6 +98,40 @@ describe('logout', () => {
     expect(document.body.textContent).not.toContain('Hacked client')
   })
 
+  it('stays signed in and says so when the sign-out fails', async () => {
+    mounted = await mountPortal(signedInApi({ logout: async () => fail<never>('UNAVAILABLE', 503) }))
+
+    await mounted.wrapper.findAll('button').find((b) => b.text() === 'Sign out')!.trigger('click')
+    await flushPromises()
+
+    expect(mounted.wrapper.get('[role="alert"]').text()).toContain('Could not sign out')
+    expect(mounted.wrapper.text(), 'the punishment is still on screen').toContain('Hacked client')
+    expect(mounted.wrapper.find('input#ban-id').exists(), 'no login form').toBe(false)
+  })
+
+  it('signs out after a retry that succeeds', async () => {
+    const logout = vi.fn().mockResolvedValueOnce(fail<never>('UNAVAILABLE', 503)).mockResolvedValue(ok(null))
+    mounted = await mountPortal(signedInApi({ logout }))
+
+    await mounted.wrapper.findAll('button').find((b) => b.text() === 'Sign out')!.trigger('click')
+    await flushPromises()
+    await mounted.wrapper.findAll('button').find((b) => b.text() === 'Sign out')!.trigger('click')
+    await flushPromises()
+
+    expect(logout).toHaveBeenCalledTimes(2)
+    expect(mounted.wrapper.find('input#ban-id').exists()).toBe(true)
+    expect(mounted.wrapper.text(), 'the earlier failure is gone').not.toContain('Could not sign out')
+  })
+
+  it('signs out when the backend already ended the session', async () => {
+    mounted = await mountPortal(signedInApi({ logout: async () => fail<never>('SESSION_EXPIRED', 401) }))
+
+    await mounted.wrapper.findAll('button').find((b) => b.text() === 'Sign out')!.trigger('click')
+    await flushPromises()
+
+    expect(mounted.wrapper.find('input#ban-id').exists()).toBe(true)
+  })
+
   it('discards unsent drafts', async () => {
     mounted = await mountPortal(signedInApi({ logout: async () => ok(null) }))
     mounted.session.state.drafts.message = 'unsent'

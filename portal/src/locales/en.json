@@ -9,6 +9,7 @@
       "de": "Deutsch"
     },
     "logout": "Sign out",
+    "logoutFailed": "Could not sign out. Please try again.",
     "loading": "Loading...",
     "footer": "This page is only for players who received a Ban ID. Your session ends after 30 minutes without activity."
   },
