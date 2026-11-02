@@ -517,4 +517,77 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
         assertEquals(403, post(path, Map.of(), this.jwt.proxy()).status(), "proxy on a participant erase");
         assertAuthorized(post(path, Map.of(), this.jwt.admin()), "admin on a participant erase");
     }
+
+    // ---- the read-by-id routes of the staff panel (add-staff-panel-read-endpoints) ----
+
+    private static final String UNKNOWN_ID = UUID.randomUUID().toString();
+    private static final String UNKNOWN_HASH = "ee".repeat(64);
+
+    @Test
+    void aViewerMayReadOneAppealAndAnUnknownIdIsNotFound() {
+        assertEquals(404, get("/appeal/" + UNKNOWN_ID, this.jwt.viewer()).status(), "viewer on an unknown appeal");
+        assertEquals(403, get("/appeal/" + UNKNOWN_ID, this.jwt.proxy()).status(), "proxy on the appeal read");
+        assertEquals(403, get("/appeal/" + UNKNOWN_ID, this.jwt.noGroup()).status(), "a token without a Blackhole role");
+        assertEquals(401, get("/appeal/" + UNKNOWN_ID, null).status(), "no token");
+    }
+
+    @Test
+    void aViewerAndTheProxyMayReadOneAreaBanAndAnUnknownIdIsNotFound() {
+        assertEquals(404, get("/area-bans/" + UNKNOWN_ID, this.jwt.viewer()).status(), "viewer on an unknown area ban");
+        assertEquals(404, get("/area-bans/" + UNKNOWN_ID, this.jwt.proxy()).status(), "proxy on an unknown area ban");
+        assertEquals(403, get("/area-bans/" + UNKNOWN_ID, this.jwt.discord()).status(), "the bot may not read an area ban");
+        assertEquals(403, get("/area-bans/" + UNKNOWN_ID, this.jwt.noGroup()).status(), "a token without a Blackhole role");
+        assertEquals(401, get("/area-bans/" + UNKNOWN_ID, null).status(), "no token");
+    }
+
+    @Test
+    void aViewerMayReadOneAllowListEntryAndTheProxyMayNot() {
+        assertEquals(404, get("/intel/allow-list/" + UNKNOWN_HASH, this.jwt.viewer()).status(), "viewer on an unknown exemption");
+        assertEquals(403, get("/intel/allow-list/" + UNKNOWN_HASH, this.jwt.proxy()).status(), "proxy on the allow-list");
+        assertEquals(403, get("/intel/allow-list/" + UNKNOWN_HASH, this.jwt.noGroup()).status(), "a token without a Blackhole role");
+        assertEquals(401, get("/intel/allow-list/" + UNKNOWN_HASH, null).status(), "no token");
+    }
+
+    @Test
+    void anAllowListOwnerThatIsNotAHashIsBadRequestForAViewer() {
+        assertEquals(400, get("/intel/allow-list/Steve", this.jwt.viewer()).status(), "a player name");
+        assertEquals(400, get("/intel/allow-list/" + UUID.randomUUID(), this.jwt.viewer()).status(), "a raw player UUID");
+        assertEquals(400, get("/intel/allow-list/" + "ab".repeat(63) + "a", this.jwt.viewer()).status(), "127 characters");
+    }
+
+    @Test
+    void aViewerMayReadOneTermsVersionAndOnlyAPositiveIntegerIsAVersion() {
+        assertEquals(404, get("/appeal-conditions/versions/999999", this.jwt.viewer()).status(), "viewer on an unknown version");
+        assertEquals(400, get("/appeal-conditions/versions/latest", this.jwt.viewer()).status(), "not an integer");
+        assertEquals(400, get("/appeal-conditions/versions/0", this.jwt.viewer()).status(), "versions start at 1");
+        assertEquals(403, get("/appeal-conditions/versions/1", this.jwt.noGroup()).status(), "a token without a Blackhole role");
+        assertEquals(401, get("/appeal-conditions/versions/1", null).status(), "no token");
+    }
+
+    @Test
+    void theAdminOnlyReadsAreForbiddenBelowAdminBeforeAnyLookup() {
+        assertEquals(403, get("/exemption/reviews/" + UNKNOWN_ID, this.jwt.viewer()).status(), "viewer on an unknown review: 403, not 404");
+        assertEquals(403, get("/exemption/reviews/" + UNKNOWN_ID, this.jwt.moderator()).status(), "moderator on a review");
+        assertEquals(403, get("/admin/audit/" + UNKNOWN_ID, this.jwt.moderator()).status(), "moderator on an audit entry");
+        assertEquals(403, get("/admin/audit/" + UNKNOWN_ID, this.jwt.viewer()).status(), "viewer on an audit entry");
+        assertEquals(403, get("/admin/staff-actor/" + UNKNOWN_ID, this.jwt.moderator()).status(), "moderator on a staff actor");
+        assertEquals(403, get("/admin/staff-actor/" + UNKNOWN_ID, this.jwt.viewer()).status(), "viewer on a staff actor");
+    }
+
+    @Test
+    void anAdminGetsNotFoundForAnUnknownAdminOnlyEntryAndNoTokenIsUnauthorized() {
+        assertEquals(404, get("/exemption/reviews/" + UNKNOWN_ID, this.jwt.admin()).status(), "admin on an unknown review");
+        assertEquals(404, get("/admin/audit/" + UNKNOWN_ID, this.jwt.admin()).status(), "admin on an unknown audit entry");
+        assertEquals(404, get("/admin/staff-actor/" + UNKNOWN_ID, this.jwt.admin()).status(), "admin on an unknown staff actor");
+        assertEquals(401, get("/exemption/reviews/" + UNKNOWN_ID, null).status(), "no token on a review");
+        assertEquals(401, get("/admin/audit/" + UNKNOWN_ID, null).status(), "no token on an audit entry");
+        assertEquals(401, get("/admin/staff-actor/" + UNKNOWN_ID, null).status(), "no token on a staff actor");
+    }
+
+    @Test
+    void aMalformedIdentifierOfAnAdminReadIsBadRequestForAnAdmin() {
+        assertEquals(400, get("/exemption/reviews/not-a-uuid", this.jwt.admin()).status(), "a review id is a UUID");
+        assertEquals(400, get("/admin/audit/not-a-uuid", this.jwt.admin()).status(), "an audit id is a UUID");
+        assertEquals(400, get("/admin/staff-actor/not-a-uuid", this.jwt.admin()).status(), "a staff object id is a UUID");
+    }
 }

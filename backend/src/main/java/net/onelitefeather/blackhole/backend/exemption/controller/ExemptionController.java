@@ -50,6 +50,12 @@ public class ExemptionController implements ExemptionApi {
 
     @Override
     @Secured(Roles.ADMIN)
+    public HttpResponse<ExemptionDTO> review(UUID id) {
+        return respond(this.reviews.find(id));
+    }
+
+    @Override
+    @Secured(Roles.ADMIN)
     public HttpResponse<ExemptionDTO> apply(UUID id, ExemptionDTO.DecisionRequest request, Actor actor) {
         return respond(this.reviews.decide(id, true, request.justification(), actor));
     }

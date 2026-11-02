@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.appealconditions.controller;
 
+import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Body;
@@ -40,6 +41,21 @@ public interface AppealConditionsApi {
                     array = @ArraySchema(schema = @Schema(implementation = AppealConditionsDTO.Response.class))))
     @Get("/versions")
     HttpResponse<List<AppealConditionsDTO.Response>> versions();
+
+    @Operation(
+            summary = "One version of the appeal conditions",
+            description = "The text of one saved version, by its number. A saved version never changes.",
+            operationId = "getAppealConditionVersion",
+            tags = {"AppealConditions"}
+    )
+    @ApiResponse(responseCode = "200", description = "The version",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AppealConditionsDTO.Response.class)))
+    @ApiResponse(responseCode = "400", description = "The version is not an integer of 1 or more",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AppealConditionsDTO.Error.class)))
+    @ApiResponse(responseCode = "404", description = "NOT_FOUND: there is no such version",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AppealConditionsDTO.Error.class)))
+    @Get("/versions/{version}")
+    HttpResponse<AppealConditionsDTO> version(@PathVariable int version);
 
     @Operation(
             summary = "Save the appeal conditions as a new version",

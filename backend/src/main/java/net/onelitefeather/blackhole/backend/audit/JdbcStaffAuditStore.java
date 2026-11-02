@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.audit;
 
+import java.util.Optional;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.jdbc.DataSourceResolver;
 import jakarta.inject.Inject;
@@ -35,6 +36,11 @@ public class JdbcStaffAuditStore implements StaffAuditStore {
               AND (CAST(? AS VARCHAR) IS NULL OR target_ref = CAST(? AS VARCHAR))
             ORDER BY seq DESC
             LIMIT ?
+            """;
+    private static final String FIND = """
+            SELECT identifier, occurred_at, actor_oid, actor_name, surface, action, target_kind, target_ref, recorded_by_oid
+            FROM staff_audit
+            WHERE identifier = ?
             """;
     private static final String DELETE_OLDER = """
             DELETE FROM staff_audit WHERE seq IN (SELECT seq FROM staff_audit WHERE occurred_at < ? ORDER BY seq LIMIT ?)
@@ -96,6 +102,25 @@ public class JdbcStaffAuditStore implements StaffAuditStore {
             }
         } catch (SQLException e) {
             throw new IllegalStateException("could not read the staff audit entries", e);
+        }
+    }
+
+    @Override
+    public Optional<StaffAuditEntry> findById(UUID auditId) {
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(FIND)) {
+            statement.setObject(1, auditId);
+            try (ResultSet rows = statement.executeQuery()) {
+                if (!rows.next()) {
+                    return Optional.empty();
+                }
+                return Optional.of(new StaffAuditEntry(rows.getObject("identifier", UUID.class),
+                        rows.getLong("occurred_at"), rows.getObject("actor_oid", UUID.class), rows.getString("actor_name"),
+                        Surface.valueOf(rows.getString("surface")), rows.getString("action"), rows.getString("target_kind"),
+                        rows.getString("target_ref"), rows.getObject("recorded_by_oid", UUID.class)));
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("could not read the staff audit entry", e);
         }
     }
 

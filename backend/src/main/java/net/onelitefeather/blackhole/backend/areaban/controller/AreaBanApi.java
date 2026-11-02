@@ -31,6 +31,21 @@ public interface AreaBanApi {
             description = "true to include the lifted and expired bans") boolean includeInactive);
 
     @Operation(
+            summary = "One area ban",
+            description = "The area ban with this id, lifted and expired ones included. The id is the one the list returns.",
+            operationId = "getAreaBan",
+            tags = {"Area bans"}
+    )
+    @ApiResponse(responseCode = "200", description = "The area ban",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AreaBanDTO.Response.class)))
+    @ApiResponse(responseCode = "400", description = "The id is not a UUID",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AreaBanDTO.Error.class)))
+    @ApiResponse(responseCode = "404", description = "NOT_FOUND: there is no such area ban",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AreaBanDTO.Error.class)))
+    @Get("/area-bans/{id}")
+    HttpResponse<AreaBanDTO> get(@PathVariable String id);
+
+    @Operation(
             summary = "Ban an autonomous system or a country",
             description = "A moderator may ban one ASN for up to seven days. An admin may ban a country, or an ASN without a limit.",
             operationId = "createAreaBan",
