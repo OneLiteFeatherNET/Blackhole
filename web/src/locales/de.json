@@ -2275,5 +2275,18 @@
       "submit": "Aufheben",
       "done": "Die IP-Sperre wurde aufgehoben."
     }
+  },
+  "integration": {
+    "title": "Erkennung einer Integration",
+    "reportedBy": "Gemeldet von {source}",
+    "signalNotVerdict": "Ein Hinweis, kein Urteil: das Team entscheidet.",
+    "kind": "Art",
+    "server": "Server",
+    "detectionTime": "Zeitpunkt",
+    "reportedSeverity": "Gemeldete Schwere",
+    "payload": "Gemeldete Werte",
+    "field": "Feld",
+    "value": "Wert",
+    "notReported": "nicht gemeldet"
   }
 }
