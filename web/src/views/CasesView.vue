@@ -5,6 +5,7 @@ import { type LocationQuery, RouterLink, useRoute, useRouter } from 'vue-router'
 import { useApi } from '../api/inject'
 import type { CaseListItem, CaseStatus } from '../api/types'
 import CasePlayerGroups from '../components/case/CasePlayerGroups.vue'
+import { CASE_STATUS_TONE, PRIORITY_TONE, punishmentStateTone } from '../components/case/caseTones'
 import DataTable, { type DataColumn } from '../components/DataTable.vue'
 import EmptyState from '../components/EmptyState.vue'
 import FilterToolbar, { type FilterDef } from '../components/FilterToolbar.vue'
@@ -148,6 +149,7 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
       :caption="t('case.list.title')"
       :columns="columns"
       :rows="[]"
+      class="bg-surface-container-low"
       loading
     />
 
@@ -158,6 +160,7 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
           :caption="t('case.list.title')"
           :columns="columns"
           :rows="cases.data.value.items"
+          class="bg-surface-container-low"
         >
           <template #cell="{ row, column }">
             <RouterLink
@@ -168,11 +171,23 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
               {{ row.shortId }}
             </RouterLink>
             <template v-else-if="column.key === 'playerName'">{{ row.playerName ?? t('case.list.unknownPlayer', { hash: row.ownerShort }) }}</template>
-            <StatusPill v-else-if="column.key === 'punishmentState'" :label="t(`case.state.${row.punishmentState}`)" />
-            <StatusPill v-else-if="column.key === 'status'" :label="t(`case.status.${row.status}`)" tone="primary" />
+            <StatusPill
+              v-else-if="column.key === 'punishmentState'"
+              :label="t(`case.state.${row.punishmentState}`)"
+              :tone="punishmentStateTone(row.punishmentState)"
+            />
+            <StatusPill v-else-if="column.key === 'status'" :label="t(`case.status.${row.status}`)" :tone="CASE_STATUS_TONE[row.status]" />
             <template v-else-if="column.key === 'assigneeName'">{{ row.assigneeName ?? (row.assigneeOid ? `${row.assigneeOid.slice(0, 8)}…` : t('case.header.unassigned')) }}</template>
-            <template v-else-if="column.key === 'priority'">{{ t(`case.priority.${row.priority}`) }}</template>
-            <template v-else-if="column.key === 'tags'">{{ row.tags.join(', ') }}</template>
+            <StatusPill v-else-if="column.key === 'priority'" :label="t(`case.priority.${row.priority}`)" :tone="PRIORITY_TONE[row.priority]" />
+            <ul v-else-if="column.key === 'tags'" class="flex flex-wrap gap-1" :aria-label="t('case.header.tags')">
+              <li
+                v-for="tag in row.tags"
+                :key="tag"
+                class="inline-flex h-6 items-center rounded-md-sm border border-outline px-2 text-label-medium whitespace-nowrap text-on-surface-variant"
+              >
+                {{ tag }}
+              </li>
+            </ul>
             <template v-else-if="column.key === 'lastActivityAt'">{{ formatDateTime(row.lastActivityAt, locale) }}</template>
             <template v-else>{{ row[column.key] }}</template>
           </template>

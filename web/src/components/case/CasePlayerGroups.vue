@@ -8,6 +8,7 @@ import { RouterLink } from 'vue-router'
 import { useApi } from '../../api/inject'
 import type { CaseGroupItem, CaseListItem, CaseStatus } from '../../api/types'
 import EmptyState from '../EmptyState.vue'
+import { CASE_STATUS_TONE, punishmentStateTone } from './caseTones'
 import MdButton from '../md/MdButton.vue'
 import ResourceState from '../ResourceState.vue'
 import StatusPill from '../StatusPill.vue'
@@ -108,7 +109,7 @@ function refreshGroups(): void {
           <li
             v-for="(group, index) in groups.data.value.items"
             :key="group.owner"
-            class="rounded-md-md border border-outline-variant"
+            class="rounded-md-md border border-outline-variant bg-surface-container-low"
             data-testid="case-group"
           >
             <button
@@ -136,8 +137,8 @@ function refreshGroups(): void {
                   >
                     {{ item.shortId }}
                   </RouterLink>
-                  <StatusPill :label="t(`case.status.${item.status}`)" tone="primary" />
-                  <StatusPill :label="t(`case.state.${item.punishmentState}`)" />
+                  <StatusPill :label="t(`case.status.${item.status}`)" :tone="CASE_STATUS_TONE[item.status]" />
+                  <StatusPill :label="t(`case.state.${item.punishmentState}`)" :tone="punishmentStateTone(item.punishmentState)" />
                 </li>
               </ul>
               <nav
