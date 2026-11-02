@@ -19,6 +19,29 @@ describe('locale files', () => {
       expect(value, key).toBeTruthy()
     }
   })
+
+  it('define the selection and accordion strings in both languages, with the placeholders in each', () => {
+    const keys = [
+      'case.selection.count',
+      'case.selection.limit',
+      'case.selection.clear',
+      'case.selection.edit',
+      'case.list.select.player',
+      'case.list.select.loaded',
+      'case.bulk.title',
+      'case.bulk.summary',
+      'case.bulk.change',
+      'case.bulk.apply',
+      'case.events.bulkEdited',
+    ]
+    for (const key of keys) {
+      const german = key.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown>)[part], de) as string
+      const english = key.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown>)[part], en) as string
+      expect(german, key).toBeTruthy()
+      expect(english, key).toBeTruthy()
+      expect([...german.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort(), key).toEqual([...english.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort())
+    }
+  })
 })
 
 describe('terminology of the configuration pages', () => {

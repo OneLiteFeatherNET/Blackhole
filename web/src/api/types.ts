@@ -160,6 +160,19 @@ export type CaseUpdate = Omit<Schemas['CaseUpdateRequest'], 'clearAssignee' | 'a
   /** The staff member to assign, or null to remove the assignee; absent leaves it alone. */
   assigneeOid?: string | null
 }
+export type CaseBulkOutcome = Schemas['CaseBulkOutcome']
+export type CaseBulkItem = Schemas['CaseBulkItem']
+export type CaseBulkResult = Schemas['CaseBulkResult']
+/** One shared change for many cases. Each case carries the version it was read at; the change is sent in chunks. */
+export interface CaseBulkChange {
+  cases: Array<{ punishmentIdentifier: string; expectedVersion: number }>
+  status?: CaseStatus
+  /** The staff member to assign, or null to remove the assignee; absent leaves it alone. */
+  assigneeOid?: string | null
+  priority?: CasePriority
+  addTags?: string[]
+  removeTags?: string[]
+}
 export type NoteRedactionReason = Schemas['NoteRedactionReason']
 export type ActorTrust = Schemas['ActorTrust']
 export type CaseActorInfo = Schemas['CaseActorInfo']

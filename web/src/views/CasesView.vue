@@ -1,21 +1,23 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { type LocationQuery, RouterLink, useRoute, useRouter } from 'vue-router'
+import { type LocationQuery, useRoute, useRouter } from 'vue-router'
 import { useApi } from '../api/inject'
 import type { CaseListItem, CaseStatus } from '../api/types'
+import CaseListCell from '../components/case/CaseListCell.vue'
+import CaseBulkDialog from '../components/case/CaseBulkDialog.vue'
 import CasePlayerGroups from '../components/case/CasePlayerGroups.vue'
-import { CASE_STATUS_TONE, PRIORITY_TONE, punishmentStateTone } from '../components/case/caseTones'
+import CaseSelectionBar from '../components/case/CaseSelectionBar.vue'
 import DataTable, { type DataColumn } from '../components/DataTable.vue'
 import EmptyState from '../components/EmptyState.vue'
 import FilterToolbar, { type FilterDef } from '../components/FilterToolbar.vue'
 import PageShell from '../components/PageShell.vue'
 import ResourceState from '../components/ResourceState.vue'
-import StatusPill from '../components/StatusPill.vue'
 import MdButton from '../components/md/MdButton.vue'
+import MdCheckbox from '../components/md/MdCheckbox.vue'
 import MdSegmentedButton, { type SegmentOption } from '../components/md/MdSegmentedButton.vue'
+import { useCaseSelection } from '../composables/useCaseSelection'
 import { useResource } from '../composables/useResource'
-import { formatDateTime } from '../format'
 import { useSessionStore } from '../stores/session'
 import { type CasesViewMode, readCasesView, writeCasesView } from './casesViewMemory'
 
@@ -23,7 +25,7 @@ const STATUSES: CaseStatus[] = ['OPEN', 'IN_REVIEW', 'WAITING', 'CLOSED']
 const TAG = /^[a-z0-9-]{1,32}$/
 const FILTER_KEYS = ['status', 'mine', 'tag'] as const
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const api = useApi()
 const session = useSessionStore()
 const route = useRoute()
@@ -50,13 +52,35 @@ const values = ref<Record<string, string>>(fromQuery(route.query))
 const page = ref(0)
 // The chosen view is remembered in this browser only; the filters apply to both views.
 const view = ref<CasesViewMode>(readCasesView())
+// The selection belongs to the list on screen: a change of view ends it, like a change of filter or page.
+const selection = useCaseSelection()
+const bulkOpen = ref(false)
+// The grouped view reloads its groups and open players when this moves.
+const groupsRevision = ref(0)
+
+function reloadList(): void {
+  if (view.value === 'cases') void cases.reload()
+  else groupsRevision.value++
+}
+
+// A finished batch ends the selection it was made from, and the list shows the new state of the cases.
+function onBulkDone(): void {
+  selection.clear()
+  reloadList()
+}
+
 watch(view, (mode) => {
   writeCasesView(mode)
+  selection.clear()
   // The flat list is requested only while it is shown, so switching back to it loads it once.
   if (mode === 'cases') void cases.reload()
 })
 
 const filtersApplied = computed(() => Object.values(values.value).some((value) => value !== ''))
+
+// The header checkbox of the flat list works on the rows of this page only.
+const pageItems = computed(() => cases.data.value?.items ?? [])
+const pageSelection = computed(() => selection.summary(pageItems.value))
 
 const cases = useResource(
   () =>
@@ -72,10 +96,12 @@ const cases = useResource(
 // Any filter starts again at the first page, and the query follows the filters. The flat list reloads only while shown.
 watch(values, (next) => {
   page.value = 0
+  selection.clear()
   if (view.value === 'cases') void cases.reload()
   void router.replace({ query: toQuery(next) })
 })
 watch(page, () => {
+  selection.clear()
   if (view.value === 'cases') void cases.reload()
 })
 
@@ -132,7 +158,14 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
       <FilterToolbar v-model="values" :filters="filters" />
     </template>
 
-    <MdSegmentedButton v-model="view" :label="t('case.list.view')" :options="viewOptions" class="mb-3" />
+    <CaseSelectionBar :count="selection.count.value" :at-cap="selection.atCap.value" :cap="selection.cap" @clear="selection.clear()">
+      <template #actions>
+        <MdButton variant="tonal" data-testid="selection-edit" @click="bulkOpen = true">{{ t('case.selection.edit') }}</MdButton>
+      </template>
+    </CaseSelectionBar>
+
+    <!-- The page column stretches its children; self-start keeps the switch as wide as its two segments. -->
+    <MdSegmentedButton v-model="view" :label="t('case.list.view')" :options="viewOptions" class="mb-3 self-start" />
 
     <CasePlayerGroups
       v-if="view === 'player'"
@@ -140,6 +173,9 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
       :assignee="values.mine ? session.me?.oid : undefined"
       :tag="values.tag || undefined"
       :filters-applied="filtersApplied"
+      :columns="columns"
+      :selection="selection"
+      :revision="groupsRevision"
       @clear-filters="clearFilters"
     />
 
@@ -160,36 +196,31 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
           :caption="t('case.list.title')"
           :columns="columns"
           :rows="cases.data.value.items"
+          leading
           class="bg-surface-container-low"
         >
-          <template #cell="{ row, column }">
-            <RouterLink
-              v-if="column.key === 'shortId'"
-              :to="{ name: 'case', params: { reference: row.punishmentIdentifier } }"
-              class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
-            >
-              {{ row.shortId }}
-            </RouterLink>
-            <template v-else-if="column.key === 'playerName'">{{ row.playerName ?? t('case.list.unknownPlayer', { hash: row.ownerShort }) }}</template>
-            <StatusPill
-              v-else-if="column.key === 'punishmentState'"
-              :label="t(`case.state.${row.punishmentState}`)"
-              :tone="punishmentStateTone(row.punishmentState)"
+          <template #head-leading>
+            <MdCheckbox
+              hide-label
+              :label="t('case.list.select.page')"
+              :model-value="pageSelection.checked"
+              :indeterminate="pageSelection.indeterminate"
+              :disabled="!pageSelection.checked && selection.atCap.value"
+              @update:model-value="(value: boolean) => selection.toggleMany(pageItems, value)"
             />
-            <StatusPill v-else-if="column.key === 'status'" :label="t(`case.status.${row.status}`)" :tone="CASE_STATUS_TONE[row.status]" />
-            <template v-else-if="column.key === 'assigneeName'">{{ row.assigneeName ?? (row.assigneeOid ? `${row.assigneeOid.slice(0, 8)}…` : t('case.header.unassigned')) }}</template>
-            <StatusPill v-else-if="column.key === 'priority'" :label="t(`case.priority.${row.priority}`)" :tone="PRIORITY_TONE[row.priority]" />
-            <ul v-else-if="column.key === 'tags'" class="flex flex-wrap gap-1" :aria-label="t('case.header.tags')">
-              <li
-                v-for="tag in row.tags"
-                :key="tag"
-                class="inline-flex h-6 items-center rounded-md-sm border border-outline px-2 text-label-medium whitespace-nowrap text-on-surface-variant"
-              >
-                {{ tag }}
-              </li>
-            </ul>
-            <template v-else-if="column.key === 'lastActivityAt'">{{ formatDateTime(row.lastActivityAt, locale) }}</template>
-            <template v-else>{{ row[column.key] }}</template>
+          </template>
+          <template #cell-leading="{ row }">
+            <MdCheckbox
+              data-testid="case-select"
+              hide-label
+              :label="t('case.list.select.case', { id: row.shortId })"
+              :model-value="selection.isSelected(row.punishmentIdentifier)"
+              :disabled="!selection.canSelect(row.punishmentIdentifier)"
+              @update:model-value="(value: boolean) => selection.toggle(row, value)"
+            />
+          </template>
+          <template #cell="{ row, column }">
+            <CaseListCell :row="row" :column="column" />
           </template>
         </DataTable>
 
@@ -212,5 +243,7 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
       </template>
     </ResourceState>
     </template>
+
+    <CaseBulkDialog :open="bulkOpen" :cases="selection.items.value" @close="bulkOpen = false" @done="onBulkDone" @reload="reloadList" />
   </PageShell>
 </template>
