@@ -16,6 +16,18 @@ const state = session.state
 
 type View = 'case' | 'appeal' | 'conversation'
 const view = ref<View>('case')
+/** The notice of the appeal filing, shown in the composer of the conversation it opens. */
+const filedNotice = ref('')
+
+function onFiled(notice: string) {
+  filedNotice.value = notice
+  view.value = 'conversation'
+}
+
+function openConversation() {
+  filedNotice.value = ''
+  view.value = 'conversation'
+}
 
 // Leaving the session (logout or expiry) always lands on the case page after the next sign-in.
 watch(
@@ -84,9 +96,9 @@ function pick(code: Locale) {
     <LoginView v-else-if="state.phase === 'login'" />
     <ExpiredView v-else-if="state.phase === 'expired'" />
     <template v-else>
-      <CaseView v-if="view === 'case'" @appeal="view = 'appeal'" @conversation="view = 'conversation'" />
-      <AppealFormView v-else-if="view === 'appeal'" @back="view = 'case'" @filed="view = 'conversation'" />
-      <ConversationView v-else @back="view = 'case'" />
+      <CaseView v-if="view === 'case'" @appeal="view = 'appeal'" @conversation="openConversation" />
+      <AppealFormView v-else-if="view === 'appeal'" @back="view = 'case'" @filed="onFiled" />
+      <ConversationView v-else :filed-notice="filedNotice" @back="view = 'case'" />
     </template>
   </main>
 
