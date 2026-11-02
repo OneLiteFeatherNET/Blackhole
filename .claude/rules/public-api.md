@@ -63,6 +63,11 @@ Detail: `openspec/changes/add-appeal-portal/` (design decisions 4 to 9, specs `a
   a file that was sent already or is gone: 409 `FILES_UNAVAILABLE`). Text is trimmed, 1 to `blackhole.public.message.max-length` (400),
   no control character but newline (400), `PiiGuard` (422). Text may be absent when the message carries files.
 - **Leaked (`LIMITED`)**: facts only; filing 409 `FORFEITED`, posting 409 `FROZEN`/`NO_APPEAL`, conversation and appeal reads 403.
+- **Proof-of-work challenge** (`publicapi/challenge/`, `openspec/changes/add-portal-bot-challenge`): `POST /public/session` and
+  `POST /public/appeal` need a solved ALTCHA `altcha` field for their purpose (`sign-in`, `appeal`), checked before any Ban ID or
+  statement read. A solution is reserved once in Dragonfly (`SET NX PX`, not `SharedCache`); no reserve answer means 503
+  `UNAVAILABLE` with nothing created. The check is off only in dev and test; the key `BLACKHOLE_PUBLIC_CHALLENGE_KEY` is required
+  elsewhere (`ChallengeKeyGuard`). Metric `blackhole.public.challenge{outcome}` carries no other tag.
 - **No rate limiting here** (the edge owns it); no `X-Forwarded-For` is read or stored; request bodies are never logged
   (`logback.xml` pins the HTTP loggers). Controllers are thin (`PublicController` implements `PublicApi`), DTOs sealed per resource,
   every answer `no-store`, errors are `PublicErrorBody {code, availableFrom?}`.

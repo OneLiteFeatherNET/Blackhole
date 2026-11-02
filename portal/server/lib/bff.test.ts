@@ -284,6 +284,62 @@ describe('login', () => {
     }
   })
 
+  it('forwards the solved challenge with the Ban ID and nothing else of the challenge', async () => {
+    const { send, calls } = bff([{ body: LOGIN_OK }])
+
+    await send(...post('/api/session', { banId: BAN_ID, altcha: 'SOLVED-PAYLOAD' }))
+
+    expect(JSON.parse(calls[0]!.body)).toEqual({ banId: BAN_ID, altcha: 'SOLVED-PAYLOAD' })
+  })
+
+  it('answers a refused challenge as CHALLENGE_FAILED, not as a forbidden request', async () => {
+    const { send } = bff([{ status: 403, body: { code: 'CHALLENGE_FAILED' } }])
+
+    const response = await send(...post('/api/session', { banId: BAN_ID, altcha: 'SOLVED-PAYLOAD' }))
+
+    expect(response.status).toBe(403)
+    expect(await response.json()).toEqual({ code: 'CHALLENGE_FAILED' })
+  })
+
+  it('keeps every other 403 as FORBIDDEN', () => {
+    expect(mapBackendError(403, { code: 'SOMETHING_ELSE' })).toEqual({ status: 403, error: { code: 'FORBIDDEN' } })
+  })
+
+  it('accepts a solved challenge of exactly the 8 KiB limit', async () => {
+    const { send, calls } = bff([{ body: LOGIN_OK }])
+
+    await send(...post('/api/session', { banId: BAN_ID, altcha: 'A'.repeat(8192) }))
+
+    expect(calls).toHaveLength(1)
+  })
+
+  it('rejects a challenge above the 8 KiB limit before it reaches the backend', async () => {
+    const { send, calls } = bff()
+
+    const response = await send(...post('/api/session', { banId: BAN_ID, altcha: 'A'.repeat(8193) }))
+
+    expect(response.status).toBe(400)
+    expect(calls).toEqual([])
+  })
+
+  it('rejects a challenge that is not a string', async () => {
+    const { send, calls } = bff()
+
+    const response = await send(...post('/api/session', { banId: BAN_ID, altcha: { solved: true } }))
+
+    expect(response.status).toBe(400)
+    expect(calls).toEqual([])
+  })
+
+  it('relays the challenge of a purpose to the backend challenge route, with no session', async () => {
+    const { send, calls } = bff([{ body: { enabled: false } }])
+
+    const response = await send('/api/challenge?purpose=sign-in')
+
+    expect(response.status).toBe(200)
+    expect(calls[0]?.url).toContain('/public/challenge?purpose=sign-in')
+  })
+
   it('rejects a body above 16 KiB', async () => {
     const { send, calls } = bff()
 

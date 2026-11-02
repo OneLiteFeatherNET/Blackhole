@@ -210,6 +210,22 @@ blackhole:
       absolute: ${BLACKHOLE_PUBLIC_SESSION_ABSOLUTE:PT4H}
       # How often sessions past either limit are deleted.
       sweep-interval: ${BLACKHOLE_PUBLIC_SESSION_SWEEP_INTERVAL:PT1M}
+    # Proof-of-work challenge (ALTCHA) in front of sign-in and appeal filing. Each solution works once; a missing,
+    # wrong or replayed one answers 403 CHALLENGE_FAILED. Only dev and test may switch it off (enabled: false), and
+    # outside them the key is required: base64 of 32 random bytes, set from the operator's secret, never committed.
+    challenge:
+      # Off only in the dev and test environments; elsewhere a false value stops the application from starting.
+      enabled: ${BLACKHOLE_PUBLIC_CHALLENGE_ENABLED:true}
+      # The HMAC key that signs the challenges (openssl rand -base64 32). Required outside dev and test.
+      key: ${BLACKHOLE_PUBLIC_CHALLENGE_KEY:}
+      # PBKDF2 iterations the browser must run per try. Provisional: measure on a mid-range phone before a change.
+      cost: ${BLACKHOLE_PUBLIC_CHALLENGE_COST:5000}
+      # Hex prefix the derived key must start with, an even number of characters ("00" is about 256 tries).
+      key-prefix: "${BLACKHOLE_PUBLIC_CHALLENGE_KEY_PREFIX:00}"
+      # How long a challenge is valid (ISO-8601). A slow Ban ID typed after the solve needs a new solve.
+      expiry: ${BLACKHOLE_PUBLIC_CHALLENGE_EXPIRY:PT5M}
+      # The longest wait for the Dragonfly reserve of a solution; a timeout or error fails closed with 503.
+      store-timeout: ${BLACKHOLE_PUBLIC_CHALLENGE_STORE_TIMEOUT:PT0.5S}
     message:
       # The longest player message and appeal statement, in characters (never above 2000, the cap of
       # every conversation message).

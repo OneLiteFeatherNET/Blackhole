@@ -3,6 +3,9 @@ package net.onelitefeather.blackhole.backend.publicapi;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import net.onelitefeather.blackhole.backend.PostgresIntegrationTest;
 import net.onelitefeather.blackhole.backend.casetimeline.JdbcCaseReader;
+import net.onelitefeather.blackhole.backend.publicapi.challenge.ChallengeGate;
+import net.onelitefeather.blackhole.backend.publicapi.challenge.ChallengeMetrics;
+import net.onelitefeather.blackhole.backend.publicapi.challenge.PublicChallengeProperties;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicSessionDTO;
 import net.onelitefeather.blackhole.backend.publicapi.service.PlayerSessionService;
 import net.onelitefeather.blackhole.backend.security.PlayerSession;
@@ -51,10 +54,17 @@ class PlayerSessionServiceIntegrationTest extends PostgresIntegrationTest {
         banIds = new BanIdTestBed(null);
         SecureRandom random = SecureRandom.getInstance("SHA1PRNG");
         random.setSeed(42L);
+        // The challenge is switched off here: these tests are about Ban IDs and sessions, not the challenge.
+        ChallengeGate challenge = new ChallengeGate(new PublicChallengeProperties(false, "", 1, "00", Duration.ofMinutes(5), Duration.ofMillis(500)),
+                null, null, clock, new ChallengeMetrics(meters));
         service = new PlayerSessionService(banIds.service, new JdbcCaseReader(db.dataSource), new JdbcPlayerSessionStore(db.dataSource),
-                new PlayerSessionProperties(Duration.ofMinutes(30), Duration.ofHours(4), Duration.ofMinutes(1)), clock, meters, random);
+                new PlayerSessionProperties(Duration.ofMinutes(30), Duration.ofHours(4), Duration.ofMinutes(1)), clock, meters, challenge, random);
         givenPunishment(ID);
         banId = banIds.issueFor(ID);
+    }
+
+    private PublicSessionDTO login(String typedBanId) {
+        return service.login(typedBanId, null);
     }
 
     private void givenPunishment(String id) {
@@ -69,7 +79,7 @@ class PlayerSessionServiceIntegrationTest extends PostgresIntegrationTest {
     }
 
     private PublicSessionDTO.Created login() {
-        return assertInstanceOf(PublicSessionDTO.Created.class, service.login(banId));
+        return assertInstanceOf(PublicSessionDTO.Created.class, login(banId));
     }
 
     private Optional<PlayerSession> authenticate(String token) {
@@ -133,7 +143,7 @@ class PlayerSessionServiceIntegrationTest extends PostgresIntegrationTest {
         givenPunishment("other-punishment");
         String otherBanId = banIds.issueFor("other-punishment");
         PublicSessionDTO.Created mine = login();
-        PublicSessionDTO.Created theirs = assertInstanceOf(PublicSessionDTO.Created.class, service.login(otherBanId));
+        PublicSessionDTO.Created theirs = assertInstanceOf(PublicSessionDTO.Created.class, login(otherBanId));
 
         assertEquals(ID, authenticate(mine.token()).orElseThrow().punishmentIdentifier());
         assertEquals("other-punishment", authenticate(theirs.token()).orElseThrow().punishmentIdentifier());
@@ -144,7 +154,7 @@ class PlayerSessionServiceIntegrationTest extends PostgresIntegrationTest {
         List<String> wrong = Arrays.asList(null, "", "   ", "ABCD", "ZZZZZZZZ", "#ZZZZZZZZ", "U" + banId.substring(1),
                 banId + "9", "A1B2C3D4", "<script>", "x".repeat(500));
 
-        List<PublicSessionDTO> answers = wrong.stream().map(service::login).toList();
+        List<PublicSessionDTO> answers = wrong.stream().map(this::login).toList();
 
         for (PublicSessionDTO answer : answers) {
             PublicSessionDTO.Error error = assertInstanceOf(PublicSessionDTO.Error.class, answer);
@@ -156,8 +166,8 @@ class PlayerSessionServiceIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void theBanIdIsAcceptedHowAPlayerMayTypeIt() {
-        assertInstanceOf(PublicSessionDTO.Created.class, service.login("#" + banId.toLowerCase()));
-        assertInstanceOf(PublicSessionDTO.Created.class, service.login(" " + banId.substring(0, 4) + " " + banId.substring(4) + " "));
+        assertInstanceOf(PublicSessionDTO.Created.class, login("#" + banId.toLowerCase()));
+        assertInstanceOf(PublicSessionDTO.Created.class, login(" " + banId.substring(0, 4) + " " + banId.substring(4) + " "));
     }
 
     @Test
@@ -269,8 +279,8 @@ class PlayerSessionServiceIntegrationTest extends PostgresIntegrationTest {
     @Test
     void loginsAreCountedByResultWithNothingElseInTheTags() {
         login();
-        service.login("ZZZZZZZZ");
-        service.login("ZZZZZZZZ");
+        login("ZZZZZZZZ");
+        login("ZZZZZZZZ");
         givenLeakedBanId();
         login();
 
