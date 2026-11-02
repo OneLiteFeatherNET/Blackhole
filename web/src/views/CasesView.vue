@@ -12,6 +12,7 @@ import PageShell from '../components/PageShell.vue'
 import ResourceState from '../components/ResourceState.vue'
 import StatusPill from '../components/StatusPill.vue'
 import MdButton from '../components/md/MdButton.vue'
+import MdSegmentedButton, { type SegmentOption } from '../components/md/MdSegmentedButton.vue'
 import { useResource } from '../composables/useResource'
 import { formatDateTime } from '../format'
 import { useSessionStore } from '../stores/session'
@@ -106,6 +107,11 @@ const filters = computed<FilterDef[]>(() => [
   { kind: 'tag', id: 'tag', label: t('case.list.tag'), pattern: TAG, invalid: t('case.header.tagInvalid') },
 ])
 
+const viewOptions = computed<SegmentOption<CasesViewMode>[]>(() => [
+  { value: 'cases', label: t('case.list.viewCases'), testid: 'view-cases' },
+  { value: 'player', label: t('case.list.viewPlayer'), testid: 'view-player' },
+])
+
 const columns = computed<DataColumn<CaseListItem>[]>(() => [
   { key: 'shortId', label: t('case.list.columns.case'), priority: 1 },
   { key: 'playerName', label: t('case.list.columns.player'), priority: 2 },
@@ -125,24 +131,7 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
       <FilterToolbar v-model="values" :filters="filters" />
     </template>
 
-    <div role="group" :aria-label="t('case.list.view')" class="mb-3 flex gap-2">
-      <MdButton
-        variant="outlined"
-        data-testid="view-cases"
-        :aria-pressed="view === 'cases' ? 'true' : 'false'"
-        @click="view = 'cases'"
-      >
-        {{ t('case.list.viewCases') }}
-      </MdButton>
-      <MdButton
-        variant="outlined"
-        data-testid="view-player"
-        :aria-pressed="view === 'player' ? 'true' : 'false'"
-        @click="view = 'player'"
-      >
-        {{ t('case.list.viewPlayer') }}
-      </MdButton>
-    </div>
+    <MdSegmentedButton v-model="view" :label="t('case.list.view')" :options="viewOptions" class="mb-3" />
 
     <CasePlayerGroups
       v-if="view === 'player'"
