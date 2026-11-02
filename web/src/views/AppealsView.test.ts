@@ -5,6 +5,7 @@ import type { Appeal } from '../api/types'
 import { timelineItem, timelinePage } from '../test/cases'
 import { evidenceItem, evidencePage } from '../test/evidence'
 import { fail, mockApi, mountWithApp, ok } from '../test/mount'
+import MdTextField from '../components/md/MdTextField.vue'
 import AppealsView from './AppealsView.vue'
 
 const APPELLANT = 'ab'.repeat(64)
@@ -443,7 +444,7 @@ describe('AppealsView: message to the player', () => {
   async function decide(wrapper: Wrapper, message: string) {
     await wrapper.get('[data-testid="decide-a-1"]').trigger('click')
     await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'DENIED')
-    await wrapper.get('[data-testid="player-message"]').setValue(message)
+    await wrapper.get('[data-testid="player-message"] textarea').setValue(message)
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
   }
@@ -455,7 +456,7 @@ describe('AppealsView: message to the player', () => {
     await wrapper.get('[data-testid="decide-a-1"]').trigger('click')
     await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'DENIED')
     await dialogField(wrapper, 'Note').setValue('internal reason')
-    await wrapper.get('[data-testid="player-message"]').setValue('  We looked again.  ')
+    await wrapper.get('[data-testid="player-message"] textarea').setValue('  We looked again.  ')
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
 
@@ -487,8 +488,8 @@ describe('AppealsView: message to the player', () => {
     await decide(wrapper, 'x'.repeat(2001))
 
     expect(wrapper.get('[data-testid="player-message-counter"]').text()).toBe('2001 / 2000')
-    expect(wrapper.get('[data-testid="player-message-hint"]').text()).toBe('A message has at most 2000 characters.')
-    expect(wrapper.get('[data-testid="player-message-hint"]').attributes('role')).toBe('alert')
+    expect(wrapper.get('[data-testid="player-message"] textarea').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.get('[data-testid="player-message"]').text()).toContain('A message has at most 2000 characters.')
     expect(api.reviewAppeal).not.toHaveBeenCalled()
 
     wrapper.unmount()
@@ -502,6 +503,38 @@ describe('AppealsView: message to the player', () => {
     await decide(wrapper, 'ABCD2345')
 
     expect(wrapper.get('[data-testid="error"]').text()).toContain('must not contain a Ban ID')
+
+    wrapper.unmount()
+  })
+
+  it('says why Save decision is disabled, and drops the reason once a decision is chosen', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="decide-a-1"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="confirm"]').attributes('disabled')).toBeDefined()
+    const reason = wrapper.get('[data-testid="confirm-reason"]')
+    expect(reason.text()).toBe('Choose a decision to save it.')
+    expect(wrapper.get('[data-testid="confirm"]').attributes('aria-describedby')).toBe(reason.attributes('id'))
+
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'DENIED')
+
+    expect(wrapper.find('[data-testid="confirm-reason"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="confirm"]').attributes('disabled')).toBeUndefined()
+
+    wrapper.unmount()
+  })
+
+  it('gives the message to the player the same outlined field as the note', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="decide-a-1"]').trigger('click')
+
+    const labels = wrapper.findAllComponents(MdTextField).map((field) => field.props('label'))
+    expect(labels).toEqual(expect.arrayContaining(['Note', 'Message to the player']))
+    expect(dialogField(wrapper, 'Message to the player').element.tagName).toBe('TEXTAREA')
 
     wrapper.unmount()
   })

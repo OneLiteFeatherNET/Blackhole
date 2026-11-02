@@ -20,7 +20,7 @@ const decision = ref('')
 const note = ref('')
 const playerMessage = ref('')
 const messageError = ref('')
-const messageId = useId()
+const reasonId = useId()
 const newEnd = ref('')
 const endError = ref('')
 const error = ref('')
@@ -107,30 +107,35 @@ async function confirm(): Promise<void> {
         :supporting-text="t('appeals.decide.newEndHint')"
       />
       <MdTextField v-model="note" :label="t('appeals.decide.note')" :supporting-text="t('appeals.decide.noteHint')" />
+      <!-- The same outlined field as the note; its own hint or error shows under it, and the counter counts its text. -->
       <div class="flex flex-col gap-1">
-        <label :for="messageId" class="text-label-large text-on-surface-variant">{{ t('appeals.decide.playerMessage') }}</label>
-        <textarea
-          :id="messageId"
+        <MdTextField
           v-model="playerMessage"
-          rows="3"
-          :aria-invalid="messageError ? 'true' : undefined"
-          :aria-describedby="`${messageId}-hint`"
-          class="w-full rounded-md-xs border bg-transparent p-3 text-body-large text-on-surface outline-none focus:border-2 focus:-outline-offset-2 focus:outline-2 focus:outline-primary"
-          :class="messageError ? 'border-error border-2' : 'border-outline hover:border-on-surface'"
+          multiline
+          :rows="3"
+          :label="t('appeals.decide.playerMessage')"
+          :error="messageError"
+          :supporting-text="t('appeals.decide.playerMessageHint')"
           data-testid="player-message"
         />
-        <p :id="`${messageId}-hint`" class="text-body-small" :class="messageError ? 'text-error' : 'text-on-surface-variant'" :role="messageError ? 'alert' : undefined" data-testid="player-message-hint">
-          {{ messageError || t('appeals.decide.playerMessageHint') }}
-        </p>
-        <span class="text-body-small text-on-surface-variant" data-testid="player-message-counter">{{ playerMessage.length }} / {{ MAX_CASE_MESSAGE_LENGTH }}</span>
+        <span class="px-4 text-body-small text-on-surface-variant" data-testid="player-message-counter">{{ playerMessage.length }} / {{ MAX_CASE_MESSAGE_LENGTH }}</span>
       </div>
       <p v-if="error" data-testid="error" role="alert" class="rounded-md-md bg-error-container p-3 text-on-error-container">
         {{ error }}
       </p>
+      <!-- Why Save decision is disabled, said in words and linked to the button. -->
+      <p v-if="!decision" :id="reasonId" class="text-body-small text-on-surface-variant" data-testid="confirm-reason">
+        {{ t('appeals.decide.confirmReason') }}
+      </p>
     </div>
     <template #actions>
       <MdButton variant="text" data-testid="cancel" @click="emit('close')">{{ t('actions.cancel') }}</MdButton>
-      <MdButton data-testid="confirm" :disabled="!decision || saving" @click="confirm">{{ t('appeals.decide.confirm') }}</MdButton>
+      <MdButton
+        data-testid="confirm"
+        :disabled="!decision || saving"
+        :aria-describedby="!decision ? reasonId : undefined"
+        @click="confirm"
+      >{{ t('appeals.decide.confirm') }}</MdButton>
     </template>
   </MdDialog>
 </template>
