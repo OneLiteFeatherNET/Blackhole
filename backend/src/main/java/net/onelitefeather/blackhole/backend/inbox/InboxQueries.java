@@ -105,7 +105,7 @@ public class InboxQueries implements InboxSource {
      * The newest event of each punishment (the highest seq), for the punishments with an event in the window. The window is the
      * newest event's own time, so an older change of a case is not reported again once a newer one exists.
      */
-    private static final String LATEST_CHANGES = """
+    static final String LATEST_CHANGES = """
             SELECT l.punishment_identifier, p.short_id, l.type, l.appeal_id, l.occurred_at, l.actor_trust, l.actor_oid, s.display_name
             FROM (
                 SELECT DISTINCT ON (e.punishment_identifier)
