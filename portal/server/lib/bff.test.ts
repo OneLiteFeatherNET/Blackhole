@@ -348,6 +348,31 @@ describe('login', () => {
     expect(response.status).toBe(413)
     expect(calls).toEqual([])
   })
+
+  it('answers 413 for a chunked body above the cap without reading it to the end', async () => {
+    const { send, calls } = bff()
+    const chunk = new TextEncoder().encode(`"${'A'.repeat(1023)}"`)
+    let pulls = 0
+    // 10 000 chunks of 1 KiB: a body that is buffered in full would be read to the end (10 MB).
+    const chunked = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1
+        if (pulls > 10_000) controller.close()
+        else controller.enqueue(chunk)
+      },
+    })
+
+    const response = await send('/api/session', {
+      method: 'POST',
+      body: chunked,
+      duplex: 'half',
+      headers: { 'content-type': 'application/json', origin: ORIGIN },
+    } as RequestInit)
+
+    expect(response.status).toBe(413)
+    expect(pulls, 'reading stops once the cap is passed').toBeLessThan(32)
+    expect(calls).toEqual([])
+  })
 })
 
 describe('CSRF and Origin', () => {
