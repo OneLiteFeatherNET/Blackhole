@@ -45,6 +45,18 @@ function stateLabel(value: string) {
         <dd class="text-body-large text-on-surface">{{ t('case.evidenceCount', { count: facts.evidenceCount }) }}</dd>
       </dl>
     </section>
+    <div v-else-if="state.punishmentFailed" class="flex flex-col gap-3">
+      <p role="alert" class="rounded-md-sm bg-error-container px-4 py-3 text-body-medium text-on-error-container">{{ t('case.loadFailed') }}</p>
+      <div>
+        <button
+          type="button"
+          class="md-state inline-flex h-10 items-center rounded-md-full border border-outline px-6 text-label-large text-primary"
+          @click="session.refreshPunishment()"
+        >
+          {{ t('case.retry') }}
+        </button>
+      </div>
+    </div>
     <p v-else role="status" class="text-body-large text-on-surface-variant">{{ t('app.loading') }}</p>
 
     <section v-if="facts" aria-labelledby="appeal-title" class="rounded-md-lg bg-surface-container-low p-6">

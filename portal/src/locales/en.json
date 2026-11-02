@@ -42,6 +42,8 @@
     "signIn": "Sign in again"
   },
   "case": {
+    "loadFailed": "Your punishment could not be loaded right now. Please try again.",
+    "retry": "Try again",
     "title": "Your punishment",
     "type": "Type",
     "reason": "Reason",

@@ -85,6 +85,30 @@ describe('punishment page', () => {
   })
 })
 
+describe('a punishment that cannot be loaded', () => {
+  it('shows an error and no endless loading message when the request fails', async () => {
+    mounted = await mountPortal(signedInApi({ punishment: async () => fail('UNAVAILABLE', 503) }))
+    await flushPromises()
+
+    expect(mounted.wrapper.get('[role="alert"]').text()).toContain('could not be loaded')
+    expect(mounted.wrapper.text(), 'no loading message left behind').not.toContain('Loading')
+    expect(mounted.wrapper.findAll('button').map((button) => button.text())).toContain('Try again')
+  })
+
+  it('loads the punishment when the player asks again', async () => {
+    const punishment = vi.fn().mockResolvedValueOnce(fail('UNAVAILABLE', 503)).mockResolvedValue(ok(facts()))
+    mounted = await mountPortal(signedInApi({ punishment }))
+    await flushPromises()
+
+    await mounted.wrapper.findAll('button').find((button) => button.text() === 'Try again')!.trigger('click')
+    await flushPromises()
+
+    expect(punishment, 'the request is sent again').toHaveBeenCalledTimes(2)
+    expect(mounted.wrapper.get('dl').text()).toContain('Hacked client')
+    expect(mounted.wrapper.find('[role="alert"]').exists()).toBe(false)
+  })
+})
+
 describe('logout', () => {
   it('signs out, forgets the punishment and shows the login', async () => {
     const logout = vi.fn(async () => ok(null))
