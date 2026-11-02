@@ -35,6 +35,19 @@ describe('securityHeaders', () => {
     }
   })
 
+  it('denies the sensitive device features in Permissions-Policy', () => {
+    const policy = securityHeaders()['Permissions-Policy']!
+
+    for (const feature of ['camera', 'microphone', 'geolocation', 'payment', 'usb']) {
+      expect(policy, `${feature} is denied`).toContain(`${feature}=()`)
+    }
+  })
+
+  it('isolates the browsing context from other origins with same-origin COOP and CORP', () => {
+    expect(securityHeaders()['Cross-Origin-Opener-Policy']).toBe('same-origin')
+    expect(securityHeaders()['Cross-Origin-Resource-Policy']).toBe('same-origin')
+  })
+
   it('sends no referrer', () => {
     expect(securityHeaders()['Referrer-Policy']).toBe('no-referrer')
   })

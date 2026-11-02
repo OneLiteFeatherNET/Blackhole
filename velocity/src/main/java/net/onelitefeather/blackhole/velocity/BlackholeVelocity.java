@@ -55,7 +55,9 @@ import net.onelitefeather.blackhole.velocity.cloudnet.HttpCatalogueSink;
 import net.onelitefeather.blackhole.velocity.cloudnet.CloudNets;
 import net.onelitefeather.blackhole.velocity.cloudnet.ServerResolver;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
+import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.velocity.config.BlackholeApiClients;
+import net.onelitefeather.blackhole.velocity.config.ProfileConfig;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.config.ChatCaptureConfig;
 import net.onelitefeather.blackhole.velocity.clientrule.BackendRuleSource;
@@ -133,6 +135,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
@@ -228,8 +231,23 @@ public class BlackholeVelocity {
         });
         this.eventThread = eventThread;
         AtomicReference<NatsSyncService> sync = new AtomicReference<>();
-        PunishmentState state = new PunishmentState(sections, mirror, owner -> backend.profile(owner), clock,
-                () -> sync.get() != null && sync.get().trusted(), natsConfig.getCacheMaxAge());
+        // Profile reads get clients of their own, so each is cut off at its timeout; a login waits longer than a chat message or connect.
+        ProfileConfig profileConfig = this.config.getProfile();
+        BackendGateway chatProfiles = new HttpBackendGateway(
+                BlackholeApiClients.create(this.config.getBaseUrl(), tokens).setReadTimeout(profileConfig.getChatTimeout()), clock);
+        BackendGateway loginProfiles = new HttpBackendGateway(
+                BlackholeApiClients.create(this.config.getBaseUrl(), tokens).setReadTimeout(profileConfig.getLoginTimeout()), clock);
+        PunishmentState state = new PunishmentState(sections, mirror, new PunishmentState.ProfileReader() {
+            @Override
+            public Optional<PunishProfileDTO> read(String owner) throws Exception {
+                return chatProfiles.profile(owner);
+            }
+
+            @Override
+            public Optional<PunishProfileDTO> readAtLogin(String owner) throws Exception {
+                return loginProfiles.profile(owner);
+            }
+        }, clock, () -> sync.get() != null && sync.get().trusted(), natsConfig.getCacheMaxAge());
         ChatCaptureConfig chatCapture = this.config.getEvidence().getChatCapture();
         PunishmentScreens screens = new PunishmentScreens(clock, this.config, sections, GlobalTranslator.renderer(),
                 new CachedBanIds(backend, clock, chatCapture.getTimeout()));

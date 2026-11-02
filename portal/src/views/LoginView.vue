@@ -26,7 +26,7 @@ async function submit() {
 
 <template>
   <section aria-labelledby="login-title" class="rounded-md-lg bg-surface-container p-6">
-    <h1 id="login-title" class="text-headline-small text-on-surface">{{ t('login.title') }}</h1>
+    <h1 id="login-title" tabindex="-1" class="text-headline-small text-on-surface">{{ t('login.title') }}</h1>
     <p class="mt-2 text-body-large text-on-surface-variant">{{ t('login.intro') }}</p>
 
     <form class="mt-6 flex flex-col gap-4" novalidate @submit.prevent="submit">
@@ -59,6 +59,9 @@ async function submit() {
         </p>
         <p v-else-if="state.loginError === 'CHALLENGE_FAILED'" class="rounded-md-sm bg-error-container px-4 py-3 text-body-medium text-on-error-container">
           {{ t('login.challengeFailed') }}
+        </p>
+        <p v-else-if="state.loginError === 'RATE_LIMITED'" class="rounded-md-sm bg-error-container px-4 py-3 text-body-medium text-on-error-container">
+          {{ t('login.rateLimited') }}
         </p>
       </div>
 
