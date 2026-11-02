@@ -98,6 +98,12 @@ public class BlackholeConfig {
     private MuteConfig mute;
 
     /**
+     * The bound of the punishment mirror. Absent in configs written before this setting existed, which
+     * {@link #getMirror()} treats as the defaults.
+     */
+    private MirrorConfig mirror;
+
+    /**
      * Creates a new configuration with default values.
      */
     public BlackholeConfig() {
@@ -119,6 +125,13 @@ public class BlackholeConfig {
      */
     public @NotNull MuteConfig getMute() {
         return mute == null ? new MuteConfig() : mute;
+    }
+
+    /**
+     * @return the punishment mirror bound; the default bound for configs written before it existed
+     */
+    public @NotNull MirrorConfig getMirror() {
+        return mirror == null ? new MirrorConfig() : mirror;
     }
 
     /**

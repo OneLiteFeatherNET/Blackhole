@@ -93,6 +93,14 @@ public final class PunishmentState {
         return Enforcement.serverBan(this.mirror.active(owner), this.sections, serverName, facts, this.clock.millis());
     }
 
+    /**
+     * Forgets the player's mirrored state. Used for a login that is denied: the player never connects, so
+     * no disconnect would ever drop the entry.
+     */
+    public void forget(String owner) {
+        this.mirror.forget(owner);
+    }
+
     private void ensureLoaded(String owner) {
         if (!this.trust.trusted() || !this.mirror.isFresh(owner, this.maxAge)) {
             load(owner);

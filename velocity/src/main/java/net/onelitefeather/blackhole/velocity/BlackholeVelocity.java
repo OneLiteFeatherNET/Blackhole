@@ -98,6 +98,7 @@ import net.onelitefeather.blackhole.velocity.enforcement.MuteCommandGate;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteNoticeCooldown;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteNotices;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
+import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
 import net.onelitefeather.blackhole.velocity.enforcement.RelayState;
@@ -215,7 +216,8 @@ public class BlackholeVelocity {
                 SessionReporter.boundedExecutor(), UUID::randomUUID);
 
         SectionRegistry sections = new SectionRegistry(new BackendSectionSource(this.client));
-        PunishmentMirror mirror = new PunishmentMirror(clock);
+        PunishmentMirror mirror = new PunishmentMirror(clock, this.config.getMirror().getMaxOwners(),
+                () -> this.server.getAllPlayers().stream().map(player -> UUIDConverter.convertToSHA(player.getUniqueId())).toList());
         BackendGateway backend = new HttpBackendGateway(this.client, clock);
         NatsConfig natsConfig = this.config.getNats().withEnvironment(System::getenv);
         this.sentry.registerSecret(natsConfig.getCredsFile());
