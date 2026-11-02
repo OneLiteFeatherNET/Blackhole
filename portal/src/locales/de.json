@@ -43,6 +43,8 @@
     "signIn": "Erneut anmelden"
   },
   "case": {
+    "loadFailed": "Deine Sperre konnte gerade nicht geladen werden. Bitte versuche es erneut.",
+    "retry": "Erneut versuchen",
     "title": "Deine Strafe",
     "type": "Art",
     "reason": "Grund",

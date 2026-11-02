@@ -26,6 +26,8 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
     scope: 'FULL' as PlayerScope,
     expiresAt: null as string | null,
     punishment: null as PunishmentFacts | null,
+    /** The last request for the punishment failed for another reason than an ended session. */
+    punishmentFailed: false,
     /** Set after a failed login; the same value for every cause of failure. */
     loginError: null as 'INVALID_BAN_ID' | 'UNAVAILABLE' | 'CHALLENGE_FAILED' | null,
     busy: false,
@@ -58,9 +60,11 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
   }
 
   async function refreshPunishment() {
+    state.punishmentFailed = false
     const result = await api.punishment()
     if (!alive(result)) return
     if (result.ok) state.punishment = result.data
+    else state.punishmentFailed = true
   }
 
   async function bootstrap() {
