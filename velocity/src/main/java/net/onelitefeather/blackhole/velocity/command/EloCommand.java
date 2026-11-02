@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.velocity.command;
 
+import net.onelitefeather.blackhole.velocity.utils.LogIds;
 import com.google.inject.Inject;
 import com.velocitypowered.api.command.CommandSource;
 import net.kyori.adventure.text.Component;
@@ -48,7 +49,7 @@ public final class EloCommand {
         try {
             elo = this.backend.elo(user.ownerHash());
         } catch (ApiException e) {
-            LOGGER.error("Failed to load the ELO of {}: {}", user.name(), e.getMessage());
+            LOGGER.error("Failed to load the ELO of {}: {}", LogIds.of(user.ownerHash()), e.getMessage());
             context.sender().sendMessage(Component.translatable("elo.error"));
             return;
         }
@@ -56,7 +57,7 @@ public final class EloCommand {
         try {
             profile = this.backend.profile(user.ownerHash());
         } catch (ApiException e) {
-            LOGGER.debug("Profile of {} unavailable for the ELO view: {}", user.name(), e.getMessage());
+            LOGGER.debug("Profile of {} unavailable for the ELO view: {}", LogIds.of(user.ownerHash()), e.getMessage());
         }
 
         context.sender().sendMessage(ProfileMessages.elo(user.name(), EloReport.rows(elo, profile), Mode.of(context.sender())));
