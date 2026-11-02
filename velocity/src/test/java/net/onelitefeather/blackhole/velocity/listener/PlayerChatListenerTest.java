@@ -25,14 +25,24 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Proxy;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -174,5 +184,105 @@ class PlayerChatListenerTest {
         assertTrue(event.getResult().isAllowed(), "an unmuted message is delivered");
         assertEquals(List.of(MESSAGE), scored, "and submitted for ELO scoring");
         assertTrue(alice.disconnects.isEmpty(), "nothing else happens to an unmuted player");
+    }
+
+    /** Holds the submitted tasks until the test runs them, so the test decides when a signal is sent. */
+    private static final class ManualExecutor implements Executor {
+        final Deque<Runnable> pending = new ArrayDeque<>();
+
+        @Override
+        public void execute(Runnable task) {
+            this.pending.add(task);
+        }
+
+        void runAll() {
+            while (!this.pending.isEmpty()) {
+                this.pending.poll().run();
+            }
+        }
+    }
+
+    @Test
+    void theDeliveryDecisionDoesNotRunTheChatSignalOnTheEventThread() {
+        ManualExecutor signals = new ManualExecutor();
+        RecordingPlayer alice = new RecordingPlayer(ProtocolVersion.MINECRAFT_1_21);
+        PlayerChatEvent event = new PlayerChatEvent(alice.player, MESSAGE);
+        PlayerChatListener listener = new PlayerChatListener(elo, state, punishmentIdentifier -> OptionalLong.empty(),
+                new MuteChatDenial(false), notices, signals);
+
+        listener.onChat(event);
+
+        assertTrue(event.getResult().isAllowed(), "the decision is made without waiting for the signal");
+        assertTrue(scored.isEmpty(), "the signal is queued, not sent on the event thread");
+        signals.runAll();
+        assertEquals(List.of(MESSAGE), scored, "the queued signal is still submitted");
+    }
+
+    @Test
+    void aBlockedChatSignalDoesNotHoldTheDeliveryDecision() {
+        CountDownLatch release = new CountDownLatch(1);
+        EloApi blocked = new EloApi(new net.onelitefeather.blackhole.client.invoker.ApiClient()) {
+            @Override
+            public EloChatSignalResponse submitChatSignal(EloChatSignalRequest request) {
+                try {
+                    release.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return new EloChatSignalResponse();
+            }
+        };
+        ExecutorService signals = Executors.newSingleThreadExecutor();
+        try {
+            PlayerChatListener listener = new PlayerChatListener(blocked, state, punishmentIdentifier -> OptionalLong.empty(),
+                    new MuteChatDenial(false), notices, signals);
+            RecordingPlayer alice = new RecordingPlayer(ProtocolVersion.MINECRAFT_1_21);
+            PlayerChatEvent event = new PlayerChatEvent(alice.player, MESSAGE);
+
+            assertTimeoutPreemptively(Duration.ofSeconds(5), () -> listener.onChat(event),
+                    "the chat must not wait for a blocked chat signal");
+
+            assertTrue(event.getResult().isAllowed(), "the message is delivered while the signal is still blocked");
+        } finally {
+            release.countDown();
+            signals.shutdownNow();
+        }
+    }
+
+    @Test
+    void aChatSignalThatCannotBeQueuedIsDroppedAndCounted() throws InterruptedException {
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        EloApi blocked = new EloApi(new net.onelitefeather.blackhole.client.invoker.ApiClient()) {
+            @Override
+            public EloChatSignalResponse submitChatSignal(EloChatSignalRequest request) {
+                started.countDown();
+                try {
+                    release.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return new EloChatSignalResponse();
+            }
+        };
+        ExecutorService signals = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(1),
+                new ThreadPoolExecutor.AbortPolicy());
+        try {
+            PlayerChatListener listener = new PlayerChatListener(blocked, state, punishmentIdentifier -> OptionalLong.empty(),
+                    new MuteChatDenial(false), notices, signals);
+            RecordingPlayer alice = new RecordingPlayer(ProtocolVersion.MINECRAFT_1_21);
+            listener.onChat(new PlayerChatEvent(alice.player, "first"));
+            assertTrue(started.await(5, TimeUnit.SECONDS), "the first signal occupies the only thread");
+            listener.onChat(new PlayerChatEvent(alice.player, "second"));
+            PlayerChatEvent third = new PlayerChatEvent(alice.player, "third");
+
+            listener.onChat(third);
+
+            assertEquals(1L, listener.droppedSignals(), "the signal that does not fit the queue is dropped and counted");
+            assertTrue(third.getResult().isAllowed(), "a dropped signal never changes the delivery");
+        } finally {
+            release.countDown();
+            signals.shutdownNow();
+        }
     }
 }
