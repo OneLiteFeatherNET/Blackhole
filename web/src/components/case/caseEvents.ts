@@ -49,6 +49,7 @@ const KNOWN: Record<string, EventInfo> = {
   'case.assignee_changed': { key: 'assigneeChanged', icon: 'person' },
   'case.tags_changed': { key: 'tagsChanged', icon: 'label' },
   'case.priority_changed': { key: 'priorityChanged', icon: 'priority' },
+  'case.bulk_edited': { key: 'bulkEdited', icon: 'edit' },
   'note.added': { key: 'noteAdded', icon: 'note' },
   'note.edited': { key: 'noteEdited', icon: 'edit' },
   'note.redacted': { key: 'noteRedacted', icon: 'delete' },

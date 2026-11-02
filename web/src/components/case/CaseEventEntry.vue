@@ -51,6 +51,30 @@ function lookup(prefix: string, value: string | null): string {
   return te(`${prefix}.${value}`) ? t(`${prefix}.${value}`) : value
 }
 
+/** One changed field of a bulk edit: "Status: Open to Closed". Unknown fields give no line. */
+function bulkChangeLine(change: Record<string, unknown>): string {
+  const name = text(change.field)
+  const from = change.from
+  const to = change.to
+  const fromTo = (a: string, b: string) => t('case.detail.fromTo', { from: a, to: b })
+  switch (name) {
+    case 'STATUS':
+      return t('case.bulk.change', { field: t('case.header.status'), change: fromTo(lookup('case.status', text(from)), lookup('case.status', text(to))) })
+    case 'PRIORITY':
+      return t('case.bulk.change', { field: t('case.header.priority'), change: fromTo(lookup('case.priority', text(from)), lookup('case.priority', text(to))) })
+    case 'ASSIGNEE': {
+      const who = (oid: unknown) => (text(oid) ? `${text(oid)!.slice(0, 8)}…` : t('case.header.unassigned'))
+      return t('case.bulk.change', { field: t('case.header.assignee'), change: fromTo(who(from), who(to)) })
+    }
+    case 'TAGS': {
+      const tags = (value: unknown) => (list(value).length > 0 ? list(value).join(', ') : t('case.header.noTags'))
+      return t('case.bulk.change', { field: t('case.header.tags'), change: fromTo(tags(from), tags(to)) })
+    }
+    default:
+      return ''
+  }
+}
+
 /** The one line below the title, built from ids and numbers in the payload only. */
 const detail = computed(() => {
   const e = props.event
@@ -95,6 +119,15 @@ const detail = computed(() => {
       const removed = list(field(e, 'removed'))
       if (added.length) parts.push(t('case.detail.tagsAdded', { tags: added.join(', ') }))
       if (removed.length) parts.push(t('case.detail.tagsRemoved', { tags: removed.join(', ') }))
+      break
+    }
+    case 'case.bulk_edited': {
+      // One line per changed field, from the payload's change list. Assignees are oids: only their short form is shown.
+      const changes = Array.isArray(field(e, 'changes')) ? (field(e, 'changes') as Array<Record<string, unknown>>) : []
+      for (const change of changes) {
+        const line = bulkChangeLine(change)
+        if (line) parts.push(line)
+      }
       break
     }
     case 'note.redacted':

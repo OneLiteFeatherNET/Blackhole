@@ -1058,6 +1058,7 @@
       "statusChanged": "Status geändert",
       "assigneeChanged": "Bearbeiter geändert",
       "tagsChanged": "Tags geändert",
+      "bulkEdited": "In einer Sammelaktion geändert",
       "priorityChanged": "Priorität geändert",
       "noteAdded": "Notiz hinzugefügt",
       "noteEdited": "Notiz bearbeitet",
@@ -1190,7 +1191,41 @@
       "collapseGroup": "Fälle von {player} ausblenden",
       "groupCases": "Fälle von {player}",
       "loadFailed": "Die Fälle konnten nicht geladen werden.",
-      "unknownPlayer": "Spieler {hash}"
+      "unknownPlayer": "Spieler {hash}",
+      "select": {
+        "column": "Auswählen",
+        "page": "Alle Fälle dieser Seite auswählen",
+        "case": "Fall {id} auswählen",
+        "player": "Alle Fälle von {player} auswählen",
+        "loaded": "Geladen {loaded} von {total}"
+      }
+    },
+    "bulk": {
+      "title": "{count} Fälle bearbeiten",
+      "change": "{field}: {change}",
+      "hint": "Die Änderung wird für jeden Fall einzeln angewendet. Ein zwischenzeitlich geänderter Fall wird als Konflikt gemeldet; die anderen werden trotzdem geändert.",
+      "keep": "Beibehalten",
+      "addTags": "Tags hinzufügen",
+      "removeTags": "Tags entfernen",
+      "close": "Schließen",
+      "apply": "Auf {count} Fälle anwenden",
+      "running": "Änderung wird angewendet",
+      "summary": "Aktualisiert {updated}, unverändert {unchanged}, Konflikte {conflicts}, nicht gefunden {notFound}, fehlgeschlagen {failed}.",
+      "reload": "Fälle neu laden",
+      "outcome": {
+        "UPDATED": "Aktualisiert",
+        "UNCHANGED": "Unverändert",
+        "CONFLICT": "Konflikt",
+        "NOT_FOUND": "Nicht gefunden",
+        "FAILED": "Fehlgeschlagen"
+      }
+    },
+    "selection": {
+      "region": "Ausgewählte Fälle",
+      "count": "{count} ausgewählt",
+      "limit": "Die Auswahl ist auf {cap} Fälle begrenzt.",
+      "clear": "Auswahl aufheben",
+      "edit": "Auswahl bearbeiten"
     },
     "reason": {
       "label": "Grund",

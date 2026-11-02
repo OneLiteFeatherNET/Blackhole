@@ -1058,6 +1058,7 @@
       "statusChanged": "Status changed",
       "assigneeChanged": "Assignee changed",
       "tagsChanged": "Tags changed",
+      "bulkEdited": "Changed in bulk",
       "priorityChanged": "Priority changed",
       "noteAdded": "Note added",
       "noteEdited": "Note edited",
@@ -1190,7 +1191,41 @@
       "collapseGroup": "Hide the cases of {player}",
       "groupCases": "Cases of {player}",
       "loadFailed": "The cases could not be loaded.",
-      "unknownPlayer": "Player {hash}"
+      "unknownPlayer": "Player {hash}",
+      "select": {
+        "column": "Select",
+        "page": "Select all cases on this page",
+        "case": "Select case {id}",
+        "player": "Select all cases of {player}",
+        "loaded": "Loaded {loaded} of {total}"
+      }
+    },
+    "bulk": {
+      "title": "Edit {count} cases",
+      "change": "{field}: {change}",
+      "hint": "The change is applied to each case on its own. A case that changed meanwhile is reported as a conflict; the others still change.",
+      "keep": "Keep",
+      "addTags": "Add tags",
+      "removeTags": "Remove tags",
+      "close": "Close",
+      "apply": "Apply to {count} cases",
+      "running": "Applying the change",
+      "summary": "Updated {updated}, unchanged {unchanged}, conflicts {conflicts}, not found {notFound}, failed {failed}.",
+      "reload": "Reload the cases",
+      "outcome": {
+        "UPDATED": "Updated",
+        "UNCHANGED": "Unchanged",
+        "CONFLICT": "Conflict",
+        "NOT_FOUND": "Not found",
+        "FAILED": "Failed"
+      }
+    },
+    "selection": {
+      "region": "Selected cases",
+      "count": "{count} selected",
+      "limit": "Selection is limited to {cap} cases.",
+      "clear": "Clear selection",
+      "edit": "Edit selected"
     },
     "reason": {
       "label": "Reason",

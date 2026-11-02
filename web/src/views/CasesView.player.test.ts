@@ -55,7 +55,9 @@ describe('CasesView player column and grouped view', () => {
     const { wrapper } = await mount()
 
     const headers = wrapper.findAll('thead th').map((header) => header.text())
-    expect(headers.slice(0, 3)).toEqual(['Case', 'Player', 'Section'])
+    // The first header is the selection checkbox column, whose name is its label.
+    expect(headers.slice(0, 1)).toEqual(['Select all cases on this page'])
+    expect(headers.slice(1, 4)).toEqual(['Case', 'Player', 'Section'])
 
     wrapper.unmount()
   })
@@ -69,7 +71,8 @@ describe('CasesView player column and grouped view', () => {
 
     expect(caseGroups).toHaveBeenCalled()
     expect(wrapper.get('[data-testid="view-player"]').attributes('aria-pressed')).toBe('true')
-    expect(wrapper.find('tbody tr').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="case-group"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="case-group-rows"]').exists()).toBe(false)
     expect(window.localStorage.getItem(STORAGE_KEY)).toBe('player')
 
     wrapper.unmount()

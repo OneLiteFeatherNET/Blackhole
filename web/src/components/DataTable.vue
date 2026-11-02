@@ -30,13 +30,17 @@ const props = withDefaults(
     sort?: SortState | null
     loading?: boolean
     error?: string | null
+    /** Adds a column before the data columns, for a selection checkbox; its header and cells come from the slots below. */
+    leading?: boolean
   }>(),
-  { captionVisible: false, sort: null, loading: false, error: null },
+  { captionVisible: false, sort: null, loading: false, error: null, leading: false },
 )
 const emit = defineEmits<{ sort: [key: string] }>()
 
 defineSlots<{
   cell?(props: { row: T; column: DataColumn<T> }): unknown
+  'head-leading'?(): unknown
+  'cell-leading'?(props: { row: T; index: number }): unknown
   empty?(): unknown
 }>()
 
@@ -60,7 +64,7 @@ function cellClasses(column: DataColumn<T>): string[] {
     aria-busy="true"
     class="overflow-hidden rounded-md-md border border-outline-variant"
   >
-    <SkeletonRows :rows="3" :columns="props.columns.length" />
+    <SkeletonRows :rows="3" :columns="props.columns.length + (props.leading ? 1 : 0)" />
   </div>
 
   <div v-else-if="props.rows.length === 0">
@@ -76,6 +80,9 @@ function cellClasses(column: DataColumn<T>): string[] {
       <caption :class="props.captionVisible ? 'p-3 text-left text-title-small' : 'sr-only'">{{ props.caption }}</caption>
       <thead class="bg-surface-container-high text-label-medium text-on-surface-variant max-[840px]:sr-only">
         <tr>
+          <th v-if="props.leading" scope="col" class="px-2 py-1 align-middle font-medium">
+            <slot name="head-leading" />
+          </th>
           <th
             v-for="column in props.columns"
             :key="column.key"
@@ -102,6 +109,9 @@ function cellClasses(column: DataColumn<T>): string[] {
           :key="index"
           class="border-t border-outline-variant hover:bg-on-surface/(--md-sys-state-hover-opacity) max-[840px]:flex max-[840px]:flex-col"
         >
+          <td v-if="props.leading" class="px-2 py-1 align-middle max-[840px]:flex max-[840px]:items-center">
+            <slot name="cell-leading" :row="row" :index="index" />
+          </td>
           <td
             v-for="column in props.columns"
             :key="column.key"

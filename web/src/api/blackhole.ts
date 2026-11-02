@@ -7,6 +7,8 @@ import type {
   ActivePunishmentQuery,
   ApiResult,
   Case,
+  CaseBulkChange,
+  CaseBulkItem,
   CaseGroupPage,
   CaseListPage,
   CaseListQuery,
@@ -324,6 +326,12 @@ export interface BlackholeApi {
   caseConversation(reference: string): Promise<ApiResult<CaseTimelineItem[]>>
   /** Changes staff metadata; a stale `expectedVersion` answers 409 and changes nothing. */
   updateCase(reference: string, change: CaseUpdate): Promise<ApiResult<Case>>
+  /**
+   * Applies one shared change to many cases. The list is sent in chunks of CASE_BULK_CHUNK, one after the other, and
+   * `onProgress` is told the cases answered so far. A refused chunk marks its cases FAILED with the message; the
+   * other chunks are still sent. The result has one item per case, in request order.
+   */
+  bulkEditCases(change: CaseBulkChange, options?: { onProgress?: (done: number, total: number) => void }): Promise<ApiResult<CaseBulkItem[]>>
   /** Adds a staff note (1 to 4000 characters, no UUID or IP); resolves to the new note id. */
   addCaseNote(reference: string, text: string): Promise<ApiResult<{ noteId: string; seq: number }>>
   editCaseNote(reference: string, noteId: string, text: string): Promise<ApiResult<{ noteId: string; seq: number }>>
@@ -399,6 +407,8 @@ const PAGE_SIZE = 200
 const CONVERSATION_TYPES = ['message', 'ban_id.leak_marked', 'ticket', 'protocol.stored', 'appeal.decided', 'evidence.shared', 'evidence.share_revoked']
 const CONVERSATION_PAGE_SIZE = 200
 const CONVERSATION_MAX_PAGES = 10
+/** The most cases one `POST /case/bulk` carries (the server's limit). */
+export const CASE_BULK_CHUNK = 100
 const MAX_PAGES = 25
 
 /**
@@ -1018,6 +1028,38 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
         items.push(...result.data.items)
         if (!result.data.nextCursor) break
         cursor = result.data.nextCursor
+      }
+      return { ok: true, data: items }
+    },
+
+    bulkEditCases: async (change, options = {}) => {
+      const items: CaseBulkItem[] = []
+      const total = change.cases.length
+      for (let start = 0; start < total; start += CASE_BULK_CHUNK) {
+        const chunk = change.cases.slice(start, start + CASE_BULK_CHUNK)
+        const result = await toResult(
+          http.POST('/case/bulk', {
+            body: {
+              cases: chunk,
+              status: change.status,
+              // As in updateCase: an absent assigneeOid cannot say "remove", so null becomes the explicit flag.
+              assigneeOid: change.assigneeOid ?? undefined,
+              clearAssignee: change.assigneeOid === null,
+              priority: change.priority,
+              addTags: change.addTags,
+              removeTags: change.removeTags,
+            },
+          }),
+        )
+        if (result.ok) {
+          items.push(...result.data.items)
+        } else {
+          const message = result.error.message
+          for (const c of chunk) {
+            items.push({ punishmentIdentifier: c.punishmentIdentifier, outcome: 'FAILED', changed: false, version: c.expectedVersion, currentVersion: null, auditWritten: false, message })
+          }
+        }
+        options.onProgress?.(start + chunk.length, total)
       }
       return { ok: true, data: items }
     },
