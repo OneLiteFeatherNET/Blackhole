@@ -36,6 +36,7 @@ public final class FakeCaseStore implements CaseReader, CaseChanges {
     private int collisions;
     private int conflictingClaims;
     private final List<Claim> claims = new ArrayList<>();
+    private final java.util.Set<String> failingBulk = new java.util.HashSet<>();
 
     public FakeCaseStore(InMemoryCaseEventRepository log) {
         this.log = log;
@@ -59,6 +60,15 @@ public final class FakeCaseStore implements CaseReader, CaseChanges {
         CaseMeta meta = this.metas.get(punishmentIdentifier);
         return meta == null ? Optional.empty() : Optional.of(new CaseRow(meta, null, this.versions.getOrDefault(punishmentIdentifier, 0L), 0, 0,
                 this.leaks.get(punishmentIdentifier), this.leaks.containsKey(punishmentIdentifier) ? "OTHER" : null, 0));
+    }
+
+    @Override
+    public Map<String, CaseRow> findAll(java.util.Collection<String> punishmentIdentifiers) {
+        Map<String, CaseRow> rows = new HashMap<>();
+        for (String identifier : punishmentIdentifiers) {
+            find(identifier).ifPresent(row -> rows.put(identifier, row));
+        }
+        return rows;
     }
 
     @Override
@@ -105,6 +115,28 @@ public final class FakeCaseStore implements CaseReader, CaseChanges {
         this.metas.put(punishmentIdentifier, after);
         this.versions.merge(punishmentIdentifier, 1L, Long::sum);
         return appended;
+    }
+
+    /** The next bulk edit of this case fails with a storage error, as a dropped connection would. */
+    public void failBulkEditOf(String punishment) {
+        this.failingBulk.add(punishment);
+    }
+
+    @Override
+    public Appended bulkEdit(String punishmentIdentifier, long expectedVersion, long now, CaseActor actor, CaseMeta before, CaseMeta after,
+                             String batchId) {
+        if (this.failingBulk.contains(punishmentIdentifier)) {
+            throw new IllegalStateException("could not bulk edit the case of " + punishmentIdentifier);
+        }
+        if (this.versions.getOrDefault(punishmentIdentifier, 0L) != expectedVersion) {
+            return null;
+        }
+        this.log.append(new CaseEventDraft(punishmentIdentifier, CaseEventPayload.BulkEdited.of(batchId, before, after), now,
+                CaseEventOrigin.LIVE, actor, null, "bulk:" + batchId + ":" + punishmentIdentifier));
+        CaseEventRecord stored = this.log.all().getLast();
+        this.metas.put(punishmentIdentifier, after);
+        this.versions.merge(punishmentIdentifier, 1L, Long::sum);
+        return new Appended(stored.identifier(), stored.seq(), stored.type());
     }
 
     @Override

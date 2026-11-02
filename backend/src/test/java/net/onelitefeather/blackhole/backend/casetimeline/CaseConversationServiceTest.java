@@ -494,6 +494,12 @@ class CaseConversationServiceTest {
         }
 
         @Override
+        public Appended bulkEdit(String punishmentIdentifier, long expectedVersion, long now, CaseActor actor, CaseMeta before, CaseMeta after,
+                                 String batchId) {
+            return store.bulkEdit(punishmentIdentifier, expectedVersion, now, actor, before, after, batchId);
+        }
+
+        @Override
         public Appended editNote(String punishmentIdentifier, String noteId, String text, long now, CaseActor actor) {
             return store.editNote(punishmentIdentifier, noteId, text, now, actor);
         }

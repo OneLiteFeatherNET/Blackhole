@@ -111,6 +111,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /warn/{id}/acknowledge", P),
             // moderation
             Map.entry("PATCH /case/{reference}", MD),
+            Map.entry("POST /case/bulk", M),
             Map.entry("PUT /case/{reference}/ticket/freeze", MAD),
             Map.entry("POST /case/{reference}/notes", M),
             Map.entry("PUT /case/{reference}/notes/{noteId}", M),

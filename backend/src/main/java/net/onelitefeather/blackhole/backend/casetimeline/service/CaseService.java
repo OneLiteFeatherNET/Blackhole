@@ -8,6 +8,7 @@ import net.onelitefeather.blackhole.backend.banid.service.BanIdService;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.casetimeline.ActorTrust;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseChangeRules;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseChanges;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventDraft;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventOrigin;
@@ -40,11 +41,9 @@ import net.onelitefeather.blackhole.backend.security.StaffDelegation;
 import net.onelitefeather.blackhole.backend.security.StaffActorRepository;
 
 import java.time.Clock;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TreeSet;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -266,7 +265,7 @@ public class CaseService {
         }
         List<String> tags = null;
         if (request.tags() != null) {
-            tags = normalizeTags(request.tags());
+            tags = CaseChangeRules.normalizeTags(request.tags());
             if (tags == null) {
                 return error(CaseErrorKind.VALIDATION, "tags are at most " + CaseTags.MAX + " slugs of [a-z0-9-], 1 to 32 characters each");
             }
@@ -281,11 +280,8 @@ public class CaseService {
         if (request.expectedVersion() != version) {
             return stale();
         }
-        CaseMeta after = new CaseMeta(
-                request.status() != null ? request.status().name() : before.status(),
-                request.clearAssignee() ? null : request.assigneeOid() != null ? request.assigneeOid() : before.assignee(),
-                request.priority() != null ? request.priority().name() : before.priority(),
-                tags != null ? tags : before.tags());
+        CaseMeta after = CaseChangeRules.replace(before, request.status() != null ? request.status().name() : null,
+                request.assigneeOid(), request.clearAssignee(), request.priority() != null ? request.priority().name() : null, tags);
         List<CaseEventPayload> payloads = after.diffFrom(before);
         if (payloads.isEmpty()) {
             return view(punishment);
@@ -472,18 +468,6 @@ public class CaseService {
 
     private boolean isKnownHuman(UUID oid) {
         return this.staff.findById(oid).filter(actor -> actor.getKind() == ActorKind.HUMAN).isPresent();
-    }
-
-    /** The sorted unique tags, or {@code null} when a tag is no slug or there are too many. */
-    static @Nullable List<String> normalizeTags(List<String> tags) {
-        TreeSet<String> unique = new TreeSet<>();
-        for (String tag : tags) {
-            if (tag == null || !CaseTags.VALID.matcher(tag).matches()) {
-                return null;
-            }
-            unique.add(tag);
-        }
-        return unique.size() > CaseTags.MAX ? null : new ArrayList<>(unique);
     }
 
     private @Nullable CaseDTO.Error checkText(@Nullable String text) {

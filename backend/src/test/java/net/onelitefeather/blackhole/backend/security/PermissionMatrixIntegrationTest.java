@@ -217,6 +217,40 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void aViewerCannotBulkEditCases() {
+        assertEquals(403, post("/case/bulk", Map.of("cases", List.of()), this.jwt.viewer()).status(), "viewer on a bulk edit");
+    }
+
+    @Test
+    void theDiscordBotCannotBulkEditCases() {
+        assertEquals(403, post("/case/bulk", Map.of("cases", List.of()), this.jwt.discord()).status(), "discord on a bulk edit");
+    }
+
+    @Test
+    void theProxyCannotBulkEditCases() {
+        assertEquals(403, post("/case/bulk", Map.of("cases", List.of()), this.jwt.proxy()).status(), "proxy on a bulk edit");
+    }
+
+    @Test
+    void aBulkEditNamingOnBehalfOfIsRefusedAndNotDelegated() {
+        Map<String, Object> body = Map.of("cases", List.of(Map.of("punishmentIdentifier", "unknown-punishment", "expectedVersion", 0)),
+                "clearAssignee", false, "status", "CLOSED", "onBehalfOf", UUID.randomUUID().toString());
+
+        ApiIntegrationTest.Reply reply = post("/case/bulk", body, this.jwt.moderator());
+        assertEquals(400, reply.status(), "a bulk edit has no delegation field: " + reply.body());
+    }
+
+    @Test
+    void aModeratorMayBulkEditCases() {
+        assertAuthorized(post("/case/bulk", Map.of("cases", List.of()), this.jwt.moderator()), "moderator on a bulk edit");
+    }
+
+    @Test
+    void anAdminMayBulkEditCases() {
+        assertAuthorized(post("/case/bulk", Map.of("cases", List.of()), this.jwt.admin()), "admin on a bulk edit");
+    }
+
+    @Test
     void aModeratorCannotRedactANote() {
         assertEquals(403, post("/case/unknown-punishment/notes/" + EVIDENCE + "/redact", Map.of("reason", "OTHER"), this.jwt.moderator()).status(),
                 "moderator on redaction");
