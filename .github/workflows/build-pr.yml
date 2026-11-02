@@ -14,7 +14,14 @@ jobs:
       ONELITEFEATHER_MAVEN_PASSWORD: ${{ secrets.ONELITEFEATHER_MAVEN_PASSWORD }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          # Only Ubuntu runs Docker-based (Testcontainers) integration tests; the others skip them.
+          - os: ubuntu-latest
+            gradle-args: ""
+          - os: windows-latest
+            gradle-args: "-PexcludeTags=integration"
+          - os: macos-latest
+            gradle-args: "-PexcludeTags=integration"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -28,13 +35,14 @@ jobs:
         with:
           node-version: 24
       - name: Setup Gradle
-        # Caches the Gradle user home (dependencies, wrapper) across runs. Only the default branch writes the
-        # cache; pull request builds read it.
+        # Caches the Gradle user home (dependencies, wrapper). Each pull request writes its own
+        # cache entry, which only later runs of that pull request can restore. The default
+        # branch cache is the fallback.
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
-          cache-read-only: ${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
+          cache-read-only: false
       - name: Build on ${{ matrix.os }}
-        run: ./gradlew clean build
+        run: ./gradlew clean build ${{ matrix.gradle-args }}
 
   web_image:
     if: github.repository_owner == 'OneLiteFeatherNET'
