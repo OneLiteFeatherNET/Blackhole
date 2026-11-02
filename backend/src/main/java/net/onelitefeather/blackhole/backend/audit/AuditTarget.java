@@ -32,6 +32,11 @@ public record AuditTarget(String kind, @Nullable String ref) {
         return new AuditTarget("CLIENT_RULE", key);
     }
 
+    /** An integration registration is named by its source system (for example vulcan), never by a client id or secret. */
+    public static AuditTarget ofIntegration(String sourceSystem) {
+        return new AuditTarget("INTEGRATION", sourceSystem);
+    }
+
     public static AuditTarget ofTemplate(String key) {
         return new AuditTarget("TEMPLATE", key);
     }

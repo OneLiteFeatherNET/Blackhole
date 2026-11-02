@@ -20,6 +20,7 @@ import java.util.List;
  * @param machineProxy   values granting PROXY on app-only tokens
  * @param machineMetrics values granting METRICS on app-only tokens
  * @param machineDiscord values granting DISCORD on app-only tokens
+ * @param machineIntegration values granting INTEGRATION on app-only tokens; the integration registry is the client gate
  */
 @ConfigurationProperties("blackhole.security.roles")
 public record RoleMappingProperties(
@@ -31,7 +32,8 @@ public record RoleMappingProperties(
         @NonNull List<String> metrics,
         @NonNull List<String> machineProxy,
         @NonNull List<String> machineMetrics,
-        @NonNull List<String> machineDiscord
+        @NonNull List<String> machineDiscord,
+        @NonNull List<String> machineIntegration
 ) {
 
     @ConfigurationInject

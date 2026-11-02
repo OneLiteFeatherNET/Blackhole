@@ -117,6 +117,9 @@ import net.onelitefeather.blackhole.velocity.nats.JnatsBusClient;
 import net.onelitefeather.blackhole.velocity.nats.NatsSyncService;
 import net.onelitefeather.blackhole.velocity.section.BackendSectionSource;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
+import net.onelitefeather.blackhole.velocity.section.SectionWarmup;
+import net.onelitefeather.blackhole.velocity.enforcement.EnforcementHealth;
+import net.onelitefeather.blackhole.velocity.listener.MaintenanceLoginGuard;
 import net.onelitefeather.blackhole.velocity.sentry.SentryConfig;
 import net.onelitefeather.blackhole.velocity.sentry.SentryReporter;
 import net.onelitefeather.blackhole.client.model.ServerTargetKind;
@@ -174,7 +177,9 @@ public class BlackholeVelocity {
     private BlackholeConfig config;
     private BusClient busClient;
     private ExecutorService eventThread;
+    private ExecutorService sessionExecutor;
     private volatile boolean authReady;
+    private final EnforcementHealth health = new EnforcementHealth();
     private CommandRuleListener commandRuleListener;
     private MuteCommandListener muteCommands;
     private PlayerChatListener chatListener;
@@ -191,11 +196,18 @@ public class BlackholeVelocity {
 
     @Subscribe
     public void onProxyInitialisation(ProxyInitializeEvent event) {
+        // Registered before the initialisation: if it fails, players are refused instead of let in unchecked.
+        this.server.getEventManager().register(this, new MaintenanceLoginGuard(this.health,
+                () -> this.config == null || this.config.getStartup().isDenyUnenforcedLogins()));
         try {
             initialise();
+            this.health.enforcing();
         } catch (RuntimeException | Error e) {
+            this.health.failed(e);
+            this.sentry.tag("enforcing", "false");
             this.sentry.capture(e, "proxy-initialisation");
-            throw e;
+            this.logger.error("Blackhole failed to start: punishments, bans and mutes are NOT enforced on this proxy until it "
+                    + "is restarted with a working configuration. Non-staff logins are refused meanwhile: {}", e.toString(), e);
         }
     }
 
@@ -216,8 +228,9 @@ public class BlackholeVelocity {
         // Its own client: the session reports get the report timeout as their read timeout, the other calls keep theirs.
         ApiClient reportClient = BlackholeApiClients.create(this.config.getBaseUrl(), tokens)
                 .setReadTimeout(this.config.getIntel().getReportTimeout());
+        this.sessionExecutor = SessionReporter.boundedExecutor();
         SessionReporter sessions = new SessionReporter(new HttpSessionBackend(new IntelApi(reportClient)),
-                SessionReporter.boundedExecutor(), UUID::randomUUID);
+                this.sessionExecutor, UUID::randomUUID);
 
         SectionRegistry sections = new SectionRegistry(new BackendSectionSource(this.client));
         PunishmentMirror mirror = new PunishmentMirror(clock, this.config.getMirror().getMaxOwners(),
@@ -302,7 +315,8 @@ public class BlackholeVelocity {
         if (this.busClient.start(natsSync)) {
             this.logger.info("Connecting to the event bus at {} in the background", natsConfig.getUrl());
         }
-        sections.reload();
+        // Off the startup path: the proxy starts at once and the first load is retried until the backend answers.
+        new SectionWarmup(sections, (delay, task) -> this.server.getScheduler().buildTask(this, task).delay(delay).schedule()).start();
         // An event may be lost, so the section list heals itself (tab completion, enforcement kinds).
         server.getScheduler().buildTask(this, sections::reload).delay(SECTION_REFRESH).repeat(SECTION_REFRESH).schedule();
         long cloudNetSections = sections.all().stream().filter(section -> section.targetKind() != ServerTargetKind.PATTERN).count();
@@ -469,6 +483,9 @@ public class BlackholeVelocity {
         }
         if (this.chatListener != null) {
             this.chatListener.close();
+        }
+        if (this.sessionExecutor != null) {
+            this.sessionExecutor.shutdownNow();
         }
         this.sentry.close();
     }

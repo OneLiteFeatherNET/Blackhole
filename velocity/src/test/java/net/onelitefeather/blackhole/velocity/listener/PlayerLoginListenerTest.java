@@ -214,6 +214,28 @@ class PlayerLoginListenerTest {
     }
 
     @Test
+    void aBackendOutageLogsTheOwnerIdAndNeverThePlayersName() {
+        ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(PlayerLoginListener.class);
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> appender = new ch.qos.logback.core.read.ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            PunishmentState state = new PunishmentState(TestData.standardRegistry(), mirror, owner -> {
+                throw new IllegalStateException("backend down");
+            }, clock, () -> false, Duration.ofMinutes(1));
+
+            listener(state, RUN_AT_ONCE).onLogin(new LoginEvent(SessionPlayer.alice()));
+
+            List<String> logged = appender.list.stream().map(ch.qos.logback.classic.spi.ILoggingEvent::getFormattedMessage).toList();
+            assertFalse(logged.isEmpty(), "the outage is logged");
+            assertTrue(logged.stream().noneMatch(line -> line.contains(SessionPlayer.ALICE_NAME)), "a log line names the player: " + logged);
+            assertTrue(logged.stream().anyMatch(line -> line.contains(ALICE.substring(0, 8))), "the owner id identifies the line: " + logged);
+        } finally {
+            logger.detachAppender(appender);
+        }
+    }
+
+    @Test
     void aSessionBackendThatRefusesTheReportDoesNotChangeTheLogin() {
         transport.answer(503, "");
         PlayerLoginListener listener = listener(stateWithProfile(Optional.empty()), RUN_AT_ONCE);

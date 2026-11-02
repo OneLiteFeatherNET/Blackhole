@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.velocity.listener;
 
+import net.onelitefeather.blackhole.velocity.utils.LogIds;
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.ResultedEvent;
 import com.velocitypowered.api.event.Subscribe;
@@ -71,7 +72,7 @@ public final class PlayerLoginListener {
         try {
             ban = this.state.onLogin(uuidHash);
         } catch (PunishmentState.Unavailable e) {
-            LOGGER.error("Could not check the punishments of {}, allowing the login: {}", player.getUsername(), e.getMessage());
+            LOGGER.error("Could not check the punishments of {}, allowing the login: {}", LogIds.of(uuidHash), e.getMessage());
             this.sessions.reportStart(player, SessionOutcome.ALLOWED);
             return;
         }
@@ -101,7 +102,7 @@ public final class PlayerLoginListener {
             this.punishProfileApi.updateSessionInfo(uuidHash,
                     new SessionInfoDTO().owner(uuidHash).protocolVersion(player.getProtocolVersion().getProtocol()));
         } catch (ApiException e) {
-            LOGGER.debug("Session info not recorded for {}: {}", player.getUsername(), e.getMessage());
+            LOGGER.debug("Session info not recorded for {}: {}", LogIds.of(uuidHash), e.getMessage());
         }
     }
 }
