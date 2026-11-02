@@ -23,3 +23,5 @@ CREATE TABLE integration_detection (
 
 CREATE INDEX integration_detection_owner_occurred_idx ON integration_detection (owner, occurred_at);
 CREATE INDEX integration_detection_received_idx ON integration_detection (received_at);
+-- The retention sweep deletes unattached rows older than a cut-off; this partial index serves exactly that predicate.
+CREATE INDEX integration_detection_sweep_idx ON integration_detection (occurred_at) WHERE attached_evidence_id IS NULL;
