@@ -30,18 +30,28 @@ the backend verifies it; the UI only decides what to offer.
   | `MODERATOR` | and: apply, revoke and adjust punishments, resolve reports, decide appeals, add and upload evidence |
   | `ADMIN` | and: create, edit and disable sections, create, edit and delete templates, delete evidence |
 
-- **Navigation.** A side navigation groups the pages as Übersicht, Moderation (Fälle, Einsprüche, Meldungen,
-  Spieler), Regelwerk (Bereiche, Vorlagen) and System (Verwaltung, `ADMIN` only; a group without a visible
-  entry is left out). From 1200 px it is a drawer that can be folded into a rail (the choice is kept in
-  `localStorage`); from 768 px it is a rail; below that a menu button opens a modal drawer. The top bar
-  carries the product mark and the account menu (account, theme, language, sign-out). An unknown path shows
-  a "Seite nicht gefunden" page after sign-in. Fälle, Einsprüche and Meldungen carry a badge with the open
-  work (open cases, appeals awaiting review, unresolved reports; hidden at 0, "99+" above 99). Appeals and
-  reports come from `GET /dashboard/summary`, cases from the `totalSize` of `GET /case?status=OPEN&size=1`;
-  refreshed on every navigation and every 60 s.
+- **Navigation.** The moderation pages are grouped by the job they serve: Heute (Posteingang), Arbeit (Fälle,
+  Einsprüche, Meldungen), Spieler (Spielersuche, Aktive Strafen) and Schutz (Beitrittsschutz, Gebietssperren,
+  IP-Sperren, Ausnahmeliste, VPN-Richtlinie). Administration (`ADMIN` only, behind the workspace switcher)
+  keeps Konfiguration, Prüfung and System. Every destination has its own icon; a group without a visible entry
+  is left out. There is no navigation drawer. By window width (MD3 size classes): below 600 dp a navigation bar
+  at the bottom shows Posteingang, Fälle, Einsprüche, Meldungen and "Mehr"; from 600 dp to 839 dp a collapsed
+  rail shows the five top destinations and "Mehr", which opens the full navigation as a modal (Escape and the
+  scrim close it); from 840 dp an expanded rail with the group headings is always shown. The top bar carries
+  the product mark, the search, the keyboard shortcut button, the workspace switcher (`ADMIN`) and the account
+  menu (account, theme, language, sign-out). An unknown path shows a "Seite nicht gefunden" page after sign-in.
+  Posteingang, Fälle, Einsprüche and Meldungen carry a badge with the open work (hidden at 0, "99+" above 99,
+  the number is in the accessible label). Appeals and reports come from `GET /dashboard/summary`, cases from the
+  `totalSize` of `GET /case?status=OPEN&size=1`; refreshed on every navigation and every 60 s.
+- **Keyboard shortcuts.** `g` and then a letter opens a page: `g i` Posteingang, `g c` Fälle, `g a` Einsprüche,
+  `g r` Meldungen, `g p` Spielersuche. `?` opens the list of shortcuts. The keys do nothing while focus is in a
+  text field, a text area, a select or editable content, or while a dialog is open. A `g` is cancelled by any
+  other key (there is no timer).
 - **Search.** The search field in the top bar (shortcut `/`) opens a player by name (`GET /player/resolve/{name}`)
   or a case by `#A1B2C3D4` (`GET /punishment/short/{shortId}`; when short ids collide the matches are listed
-  to pick from) or by a full punishment id. Arrow keys select, Enter opens, Escape closes. A Ban ID lookup
+  to pick from) or by a full punishment id; a report by `report:` and its id. Every hit names its type (Spieler,
+  Fall, Meldung). Appeals are not searchable until `GET /appeal/{identifier}` exists. Arrow keys select, Enter
+  opens, Escape closes; the field is emptied on every navigation. A Ban ID lookup
   does not exist yet (see `openspec/changes/add-appeal-portal`).
 - **Motion.** State changes use the MD3 motion tokens (`--md-sys-motion-easing-*`, `--md-sys-motion-duration-*`
   in `src/styles/main.css`) and only animate `opacity` and `transform`: a fade-through between pages, scale and
@@ -278,6 +288,8 @@ checks the behaviour above; CI runs it for every pull request.
 Interactive elements are native elements with visible focus rings (MD3 state layers), dialogs keep
 focus inside and close on Escape, tables and groups are labelled, the score bars are `role="meter"`
 with a spoken value and name their zone in text (never by color alone), errors are announced with
-`role="alert"` and every field has a visible label. `tests/contrast.test.ts` checks the WCAG
+`role="alert"` and every field has a visible label. The navigation is a labelled `nav` landmark (the bar on
+compact windows, the rail elsewhere) with `aria-current="page"` on the current destination, its targets are at
+least 48 px high, and the keyboard shortcuts are listed in a dialog (`?`). `tests/contrast.test.ts` checks the WCAG
 contrast of the color pairs the UI uses (4.5:1 for text, 3:1 for borders and the focus ring) in the
 light scheme and both dark schemes.
