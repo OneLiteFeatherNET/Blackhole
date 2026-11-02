@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref, watch } from 'vue'
+import { computed, inject, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import logo from './assets/logo.png'
 import { SUPPORTED_LOCALES, type Locale } from './i18n'
@@ -28,6 +28,20 @@ function openConversation() {
   filedNotice.value = ''
   view.value = 'conversation'
 }
+
+/**
+ * A new view takes the focus to its heading, so a screen reader says where the player is now. The first load does not
+ * move the focus; a view without a heading yet (the punishment while it loads) takes it on the page itself.
+ */
+watch(
+  () => [view.value, state.phase] as const,
+  async (_now, before) => {
+    if (before[1] === 'loading') return
+    await nextTick()
+    const target = document.querySelector<HTMLElement>('main h1') ?? document.getElementById('main')
+    target?.focus()
+  },
+)
 
 // Leaving the session (logout or expiry) always lands on the case page after the next sign-in.
 watch(

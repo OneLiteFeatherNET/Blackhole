@@ -296,7 +296,7 @@ const failureText = computed(() => {
 <template>
   <section aria-labelledby="conversation-title" class="flex flex-col gap-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <h1 id="conversation-title" class="text-headline-small text-on-surface">{{ t('conversation.title') }}</h1>
+      <h1 id="conversation-title" tabindex="-1" class="text-headline-small text-on-surface">{{ t('conversation.title') }}</h1>
       <button
         type="button"
         class="md-state inline-flex h-10 items-center justify-center rounded-md-full px-6 text-label-large text-primary"
@@ -337,6 +337,7 @@ const failureText = computed(() => {
       v-if="!forbidden"
       ref="thread"
       role="log"
+      tabindex="0"
       aria-live="polite"
       aria-relevant="additions"
       :aria-label="t('conversation.thread')"

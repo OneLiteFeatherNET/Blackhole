@@ -1,6 +1,6 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fail, facts, mountPortal, ok, signedInApi } from '../test/helpers'
+import { APPEAL_OPEN, fail, facts, mountPortal, ok, signedInApi } from '../test/helpers'
 
 let mounted: Awaited<ReturnType<typeof mountPortal>> | undefined
 afterEach(() => {
@@ -20,6 +20,15 @@ describe('punishment page', () => {
     expect(text).toContain('Survival')
     expect(text).toContain('2 items on file')
     expect(mounted.wrapper.findAll('dl time').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('takes the focus to the heading of the view it opens', async () => {
+    mounted = await mountPortal(signedInApi({ appeal: async () => ok(APPEAL_OPEN) }, facts({ appealState: 'AVAILABLE' })))
+    await mounted.wrapper.findAll('button').find((b) => b.text() === 'File an appeal')!.trigger('click')
+    await flushPromises()
+
+    expect(document.activeElement?.tagName).toBe('H1')
+    expect(document.activeElement?.textContent?.trim()).toBe('File an appeal')
   })
 
   it('shows permanent instead of an expiry', async () => {

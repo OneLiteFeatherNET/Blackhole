@@ -142,7 +142,7 @@ async function submit() {
 
 <template>
   <section aria-labelledby="appeal-form-title" class="rounded-md-lg bg-surface-container p-6">
-    <h1 id="appeal-form-title" class="text-headline-small text-on-surface">{{ t('appealForm.title') }}</h1>
+    <h1 id="appeal-form-title" tabindex="-1" class="text-headline-small text-on-surface">{{ t('appealForm.title') }}</h1>
     <p class="mt-2 text-body-large text-on-surface-variant">{{ t('appealForm.notice') }}</p>
 
     <div class="mt-6 rounded-md-lg bg-surface-container-high p-6" data-testid="conditions">
