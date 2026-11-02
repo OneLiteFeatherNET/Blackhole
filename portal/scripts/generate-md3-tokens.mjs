@@ -1,4 +1,4 @@
-// Generates the MD3 color tokens (light + dark) from one seed color (OLF Pink, Vibrant scheme).
+// Generates the MD3 color tokens (light + dark) from design/tokens/seed.json (OLF Pink primary, neutral surfaces).
 // Output: src/styles/md3-tokens.generated.css, consumed by src/styles/main.css.
 // Runs before dev/build/test (see package.json pre-scripts).
 //
@@ -8,8 +8,8 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { createServer } from 'vite'
 
-// The seed is shared with web/ (design/tokens/seed.json), so both apps carry the same brand colour.
-const { seed: SEED } = JSON.parse(readFileSync(fileURLToPath(new URL('../../design/tokens/seed.json', import.meta.url)), 'utf8'))
+// The seed and accents are shared with web/ (design/tokens/seed.json), so both apps carry the same brand colours.
+const { seed: SEED, accents: ACCENTS } = JSON.parse(readFileSync(fileURLToPath(new URL('../../design/tokens/seed.json', import.meta.url)), 'utf8'))
 const OUT = fileURLToPath(new URL('../src/styles/md3-tokens.generated.css', import.meta.url))
 
 // MD3 color role (kebab-case CSS name) -> MaterialDynamicColors property.
@@ -53,14 +53,49 @@ const ROLES = {
   'scrim': 'scrim',
 }
 
-const { hexFromArgb, argbFromHex, Hct, SchemeVibrant, MaterialDynamicColors } = await loadLibrary()
+// Neutral surfaces: the neutral palettes keep the seed's hue at a chroma of 2 (surfaces) and 4 (variant, outlines).
+const NEUTRAL_CHROMA = 2
+const NEUTRAL_VARIANT_CHROMA = 4
 
-const seed = Hct.fromInt(argbFromHex(SEED))
+// success and warning are not MD3 core roles. Each is an accent harmonised to the seed (Blend.harmonize), with the
+// MD3 accent tones: [colour, on-colour, container, on-container].
+const ACCENT_TONES = { light: [40, 100, 90, 10], dark: [80, 20, 30, 90] }
+const ACCENT_ROLES = ['success', 'warning']
+
+const { hexFromArgb, argbFromHex, Hct, Blend, TonalPalette, DynamicScheme, Variant, MaterialDynamicColors } =
+  await loadLibrary()
+
+const seedArgb = argbFromHex(SEED)
+const seedHct = Hct.fromInt(seedArgb)
+// Primary is the seed's own palette; secondary and tertiary are the brand accents, so the three hues differ.
+const palettes = {
+  primaryPalette: TonalPalette.fromInt(seedArgb),
+  secondaryPalette: TonalPalette.fromInt(argbFromHex(ACCENTS.secondary)),
+  tertiaryPalette: TonalPalette.fromInt(argbFromHex(ACCENTS.tertiary)),
+  neutralPalette: TonalPalette.fromHueAndChroma(seedHct.hue, NEUTRAL_CHROMA),
+  neutralVariantPalette: TonalPalette.fromHueAndChroma(seedHct.hue, NEUTRAL_VARIANT_CHROMA),
+}
+const accent = (name, isDark) => {
+  const palette = TonalPalette.fromInt(Blend.harmonize(argbFromHex(ACCENTS[name]), seedArgb))
+  const [color, on, container, onContainer] = ACCENT_TONES[isDark ? 'dark' : 'light']
+  return {
+    [name]: palette.tone(color),
+    [`on-${name}`]: palette.tone(on),
+    [`${name}-container`]: palette.tone(container),
+    [`on-${name}-container`]: palette.tone(onContainer),
+  }
+}
 const scheme = (isDark) => {
-  const s = new SchemeVibrant(seed, isDark, 0)
-  return Object.fromEntries(
-    Object.entries(ROLES).map(([css, prop]) => [css, hexFromArgb(MaterialDynamicColors[prop].getArgb(s))]),
-  )
+  const s = new DynamicScheme({
+    sourceColorHct: seedHct,
+    variant: Variant.NEUTRAL,
+    contrastLevel: 0,
+    isDark,
+    ...palettes,
+  })
+  const core = Object.entries(ROLES).map(([css, prop]) => [css, MaterialDynamicColors[prop].getArgb(s)])
+  const accents = ACCENT_ROLES.flatMap((name) => Object.entries(accent(name, isDark)))
+  return Object.fromEntries([...core, ...accents].map(([css, argb]) => [css, hexFromArgb(argb)]))
 }
 
 const light = scheme(false)

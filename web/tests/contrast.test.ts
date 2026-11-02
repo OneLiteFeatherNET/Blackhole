@@ -71,6 +71,13 @@ const PAIRS: Array<[string, string, number, string]> = [
   ['primary', 'surface-container', UI, 'upload progress bar'],
   // The case list: the table and the player groups sit on surface-container-low; outlined pills and chips border it.
   ['outline', 'surface-container-low', UI, 'outlined pills, tag chips and the segmented button on lifted cards and tables'],
+  // success and warning: text and filled buttons, and the status pills on their containers.
+  ['success', 'surface', TEXT, 'success text, lifted punishments'],
+  ['warning', 'surface', TEXT, 'warning text, waiting and high-priority labels'],
+  ['on-success', 'success', TEXT, 'filled success buttons'],
+  ['on-warning', 'warning', TEXT, 'filled warning buttons'],
+  ['on-success-container', 'success-container', TEXT, 'success pills'],
+  ['on-warning-container', 'warning-container', TEXT, 'warning pills'],
 ]
 
 describe.each(Object.entries(schemes))('%s scheme contrast', (_name, colors) => {
@@ -83,5 +90,59 @@ describe.each(Object.entries(schemes))('%s scheme contrast', (_name, colors) => 
 
   it.each(PAIRS)('%s on %s reaches %s:1 (%s)', (foreground, background, minimum) => {
     expect(contrast(colors[foreground]!, colors[background]!)).toBeGreaterThanOrEqual(minimum)
+  })
+})
+
+/** The hue in degrees of a #rrggbb colour (0 for greys). */
+function hueOf(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255) as [number, number, number]
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const d = max - min
+  if (d === 0) return 0
+  const hue = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4
+  return (hue * 60 + 360) % 360
+}
+
+/** The gap between two hues on the colour wheel, 0 to 180 degrees. */
+function hueGap(a: string, b: string): number {
+  const gap = Math.abs(hueOf(a) - hueOf(b))
+  return Math.min(gap, 360 - gap)
+}
+
+/** The spread between the largest and smallest channel: 0 for a grey, larger for a stronger tint. */
+function channelSpread(hex: string): number {
+  const channels = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+  return Math.max(...channels) - Math.min(...channels)
+}
+
+// The surfaces the app stacks; neutral means the seed's tint no longer shows on them.
+const SURFACES = [
+  'background',
+  'surface',
+  'surface-container-lowest',
+  'surface-container-low',
+  'surface-container',
+  'surface-container-high',
+  'surface-container-highest',
+]
+
+describe.each(Object.entries(schemes))('%s scheme palette', (_name, colors) => {
+  it.each(SURFACES)('keeps %s near-neutral (channel spread at most 10)', (role) => {
+    expect(channelSpread(colors[role]!), role).toBeLessThanOrEqual(10)
+  })
+
+  it('keeps primary in the OLF pink hues (300 to 360 degrees)', () => {
+    expect(hueOf(colors.primary!)).toBeGreaterThanOrEqual(300)
+    expect(hueOf(colors.primary!)).toBeLessThanOrEqual(360)
+  })
+
+  it('gives secondary a hue at least 30 degrees from primary', () => {
+    expect(hueGap(colors.primary!, colors.secondary!)).toBeGreaterThanOrEqual(30)
+  })
+
+  it('gives tertiary a hue at least 30 degrees from primary and secondary', () => {
+    expect(hueGap(colors.primary!, colors.tertiary!)).toBeGreaterThanOrEqual(30)
+    expect(hueGap(colors.secondary!, colors.tertiary!)).toBeGreaterThanOrEqual(30)
   })
 })
