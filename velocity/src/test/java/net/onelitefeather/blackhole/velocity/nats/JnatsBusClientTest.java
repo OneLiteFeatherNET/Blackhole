@@ -56,6 +56,13 @@ class JnatsBusClientTest {
     }
 
     @Test
+    void aSlowConsumerIsTreatedAsADisconnectSoTheCacheIsNotTrusted() {
+        JnatsBusClient.errorListener(listener).slowConsumerDetected(null, null);
+
+        assertEquals(List.of("disconnected"), events, "messages were dropped, so nothing cached from events may be trusted");
+    }
+
+    @Test
     void secretsInTheUrlAreNotLogged() {
         assertEquals("nats://nats.example.test:4222", JnatsBusClient.redact("nats://user:pass@nats.example.test:4222"));
         assertEquals("wss://nats.example.test", JnatsBusClient.redact("wss://nats.example.test"));
