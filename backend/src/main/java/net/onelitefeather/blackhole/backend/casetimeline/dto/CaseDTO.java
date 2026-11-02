@@ -291,6 +291,86 @@ public sealed interface CaseDTO {
     record RedactResponse(@NonNull String noteId, int redactedVersions) implements CaseDTO {
     }
 
+    /**
+     * A bulk edit: one change applied to up to 100 cases, each guarded by its own version. The change names at least one field.
+     * Adds and removes are tags only: a bulk edit does not replace a case's tags.
+     *
+     * @param cases       the cases, each with its full identifier and the version the caller read; no duplicates
+     * @param status      the new status for every case
+     * @param assigneeOid the staff member to assign to every case
+     * @param clearAssignee removes the assignee from every case
+     * @param priority    the new priority for every case
+     * @param addTags     tags to add to each case
+     * @param removeTags  tags to remove from each case
+     */
+    @Schema(name = "CaseBulkRequest")
+    @Serdeable
+    @ReflectiveAccess
+    record BulkRequest(
+            @NonNull List<BulkCase> cases,
+            @Nullable CaseStatus status,
+            @Nullable UUID assigneeOid,
+            boolean clearAssignee,
+            @Nullable CasePriority priority,
+            @Nullable List<String> addTags,
+            @Nullable List<String> removeTags
+    ) implements CaseDTO {
+    }
+
+    /**
+     * One case of a bulk edit.
+     *
+     * @param punishmentIdentifier the full identifier of the punishment, never a short id
+     * @param expectedVersion      the {@code version} of the case the caller read
+     */
+    @Schema(name = "CaseBulkCase")
+    @Serdeable
+    @ReflectiveAccess
+    record BulkCase(@NonNull String punishmentIdentifier, @NonNull Long expectedVersion) {
+    }
+
+    /**
+     * The outcome of a bulk edit: a counter per outcome and one item per case, in request order.
+     *
+     * @param batchId the id every event and audit of this batch carries
+     */
+    @Schema(name = "CaseBulkResult")
+    @Serdeable
+    @ReflectiveAccess
+    record BulkResult(
+            @NonNull String batchId,
+            int updated,
+            int unchanged,
+            int conflicts,
+            int notFound,
+            int failed,
+            @NonNull @JsonInclude(JsonInclude.Include.ALWAYS) List<BulkItem> items
+    ) implements CaseDTO {
+    }
+
+    /**
+     * What happened to one case.
+     *
+     * @param version        the case's version after this item: the new one when it changed, the current one otherwise
+     * @param currentVersion the version the case has now, set only for a {@code CONFLICT}
+     * @param changed        whether the case was written
+     * @param auditWritten   whether the audit entry of a changed case was written; false when the write failed after the change
+     * @param message        why the case failed or conflicted; null otherwise
+     */
+    @Schema(name = "CaseBulkItem")
+    @Serdeable
+    @ReflectiveAccess
+    record BulkItem(
+            @NonNull String punishmentIdentifier,
+            @NonNull CaseBulkOutcome outcome,
+            boolean changed,
+            long version,
+            @Nullable Long currentVersion,
+            boolean auditWritten,
+            @Nullable String message
+    ) {
+    }
+
     @Schema(name = "CaseError")
     @Serdeable
     @ReflectiveAccess

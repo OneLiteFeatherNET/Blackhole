@@ -2,7 +2,9 @@ package net.onelitefeather.blackhole.backend.casetimeline;
 
 import io.micronaut.core.annotation.Nullable;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -85,6 +87,9 @@ public interface CaseReader {
     }
 
     Optional<CaseRow> find(String punishmentIdentifier);
+
+    /** The stored case rows of the given punishments in one read; a punishment without a row is not in the map. */
+    Map<String, CaseRow> findAll(Collection<String> punishmentIdentifiers);
 
     /** Up to {@code limit} other punishments of {@code owner}, newest first. */
     List<Related> related(String owner, String excludedIdentifier, long now, int limit);

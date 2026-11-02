@@ -52,6 +52,20 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
                    ?::uuid, ?::uuid, ?::uuid, 'STAFF', ?::jsonb FROM upd
             """;
     private static final String UPDATE_TAIL = " RETURNING identifier, seq, type";
+    /** One case of a bulk edit: the state and its {@code case.bulk_edited} event in one statement, guarded by the version. */
+    private static final String BULK_EDIT = """
+            WITH upd AS (
+                UPDATE punishment_case SET status = ?, assignee_oid = ?, priority = ?, tags = ?::jsonb,
+                                           version = version + 1, updated_at = ?
+                WHERE punishment_identifier = ? AND version = ?
+                RETURNING punishment_identifier
+            )
+            INSERT INTO case_event (identifier, punishment_identifier, type, payload_version, occurred_at, origin, actor_trust,
+                                    actor_oid, recorded_by_oid, actor_source, visibility, payload, dedupe_key)
+            SELECT ?::uuid, upd.punishment_identifier, ?::varchar, 1::smallint, ?::bigint, 'LIVE', ?::varchar,
+                   ?::uuid, ?::uuid, ?::uuid, 'STAFF', ?::jsonb, ?::varchar FROM upd
+            RETURNING identifier, seq, type
+            """;
     private static final String EDIT_NOTE = """
             INSERT INTO case_event (identifier, punishment_identifier, type, payload_version, occurred_at, origin, actor_trust,
                                     actor_oid, recorded_by_oid, actor_source, subject_id, visibility, payload)
@@ -309,6 +323,38 @@ public class JdbcCaseWriter implements CaseWriter, CaseChanges {
             return notified(punishmentIdentifier, appended(statement));
         } catch (SQLException e) {
             throw new IllegalStateException("could not update the case of " + punishmentIdentifier, e);
+        }
+    }
+
+    @Override
+    public Appended bulkEdit(String punishmentIdentifier, long expectedVersion, long now, CaseActor actor, CaseMeta before, CaseMeta after,
+                             String batchId) {
+        if (after.diffFrom(before).isEmpty()) {
+            throw new IllegalArgumentException("nothing changes");
+        }
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(BULK_EDIT)) {
+            int index = 0;
+            statement.setString(++index, after.status());
+            JdbcCaseEventRepository.setUuid(statement, ++index, after.assignee());
+            statement.setString(++index, after.priority());
+            statement.setString(++index, tagsJson(after.tags()));
+            statement.setLong(++index, now);
+            statement.setString(++index, punishmentIdentifier);
+            statement.setLong(++index, expectedVersion);
+            statement.setObject(++index, UUID.randomUUID());
+            statement.setString(++index, CaseEventPayload.CASE_BULK_EDITED);
+            statement.setLong(++index, now);
+            statement.setString(++index, actor.trust().name());
+            JdbcCaseEventRepository.setUuid(statement, ++index, actor.actorOid());
+            JdbcCaseEventRepository.setUuid(statement, ++index, actor.recordedByOid());
+            JdbcCaseEventRepository.setUuid(statement, ++index, actor.actorSource());
+            statement.setString(++index, CaseEventPayloads.toJson(CaseEventPayload.BulkEdited.of(batchId, before, after)));
+            statement.setString(++index, "bulk:" + batchId + ":" + punishmentIdentifier);
+            List<Appended> appended = notified(punishmentIdentifier, appended(statement));
+            return appended.isEmpty() ? null : appended.getFirst();
+        } catch (SQLException e) {
+            throw new IllegalStateException("could not bulk edit the case of " + punishmentIdentifier, e);
         }
     }
 

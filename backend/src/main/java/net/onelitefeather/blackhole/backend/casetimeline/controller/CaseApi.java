@@ -139,6 +139,23 @@ public interface CaseApi {
     HttpResponse<CaseDTO> update(@PathVariable String reference, @Body CaseDTO.UpdateRequest request, @Parameter(hidden = true) Actor actor);
 
     @Operation(
+            summary = "Change several cases",
+            description = "Applies one change (status, assignee, priority, tags to add or remove) to 1 to 100 cases, each with its own "
+                    + "expectedVersion. Each case is changed on its own, with its event and audit entry; a conflict or failure of one case "
+                    + "does not stop the others. The answer has one item per case, in request order. Not one transaction.",
+            operationId = "bulkUpdateCases",
+            tags = {"Case"}
+    )
+    @ApiResponse(responseCode = "200", description = "One outcome per case",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = CaseDTO.BulkResult.class)))
+    @ApiResponse(responseCode = "400", description = "No case, more than 100, a duplicate, no change, or an invalid tag; nothing changed",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = CaseDTO.Error.class)))
+    @ApiResponse(responseCode = "422", description = "The assignee is not a known human staff member; nothing changed",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = CaseDTO.Error.class)))
+    @Post("/bulk")
+    HttpResponse<CaseDTO> bulk(@Body CaseDTO.BulkRequest request, @Parameter(hidden = true) Actor actor);
+
+    @Operation(
             summary = "Add a note",
             description = "Adds an internal staff note of 1 to 4000 characters. It must not contain a UUID or an IP address.",
             operationId = "addCaseNote",

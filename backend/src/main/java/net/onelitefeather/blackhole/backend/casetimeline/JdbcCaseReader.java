@@ -14,7 +14,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -70,6 +72,36 @@ public class JdbcCaseReader implements CaseReader {
                 row.getString(3), row.getLong(6), row.getLong(7), row.getLong(8), row.getObject(9, Long.class), row.getString(10),
                 row.getLong(11)));
         return rows.stream().findFirst();
+    }
+
+    @Override
+    public Map<String, CaseRow> findAll(Collection<String> punishmentIdentifiers) {
+        if (punishmentIdentifiers.isEmpty()) {
+            return Map.of();
+        }
+        String placeholders = String.join(",", java.util.Collections.nCopies(punishmentIdentifiers.size(), "?"));
+        String sql = "SELECT c.punishment_identifier, c.status, c.assignee_oid, a.display_name, c.priority, c.tags::text, c.version, "
+                + "c.created_at, c.updated_at, c.ban_id_leaked_at, c.ban_id_leak_reason, c.player_seen_seq "
+                + "FROM punishment_case c LEFT JOIN staff_actor a ON a.oid = c.assignee_oid WHERE c.punishment_identifier IN (" + placeholders + ")";
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql)) {
+            int index = 0;
+            for (String identifier : punishmentIdentifiers) {
+                statement.setString(++index, identifier);
+            }
+            try (ResultSet rows = statement.executeQuery()) {
+                Map<String, CaseRow> found = new java.util.HashMap<>();
+                while (rows.next()) {
+                    found.put(rows.getString(1), new CaseRow(
+                            new CaseMeta(rows.getString(2), rows.getObject(3, UUID.class), rows.getString(5), tags(rows.getString(6))),
+                            rows.getString(4), rows.getLong(7), rows.getLong(8), rows.getLong(9), rows.getObject(10, Long.class),
+                            rows.getString(11), rows.getLong(12)));
+                }
+                return found;
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("could not read the cases of " + punishmentIdentifiers.size() + " punishments", e);
+        }
     }
 
     @Override

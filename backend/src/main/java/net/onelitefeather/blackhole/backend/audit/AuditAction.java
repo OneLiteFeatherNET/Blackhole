@@ -5,6 +5,7 @@ public enum AuditAction {
     PUNISHMENT_APPLY("punishment.apply"),
     PUNISHMENT_REVOKE("punishment.revoke"),
     CASE_UPDATE("case.update"),
+    CASE_BULK_UPDATE("case.bulk_update"),
     CASE_NOTE_ADD("case.note.add"),
     CASE_NOTE_EDIT("case.note.edit"),
     CASE_NOTE_REDACT("case.note.redact"),

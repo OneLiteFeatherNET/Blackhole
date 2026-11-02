@@ -11,6 +11,7 @@ import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.casetimeline.CasePriority;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseStatus;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseDTO;
+import net.onelitefeather.blackhole.backend.casetimeline.service.CaseBulkService;
 import net.onelitefeather.blackhole.backend.casetimeline.service.CaseService;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
 import net.onelitefeather.blackhole.backend.security.Actor;
@@ -29,10 +30,12 @@ import java.util.UUID;
 public class CaseController implements CaseApi {
 
     private final CaseService caseService;
+    private final CaseBulkService bulkService;
 
     @Inject
-    public CaseController(CaseService caseService) {
+    public CaseController(CaseService caseService, CaseBulkService bulkService) {
         this.caseService = caseService;
+        this.bulkService = bulkService;
     }
 
     @Override
@@ -73,6 +76,13 @@ public class CaseController implements CaseApi {
     @Secured({Roles.MODERATOR, Roles.DISCORD})
     public HttpResponse<CaseDTO> update(String reference, CaseDTO.UpdateRequest request, Actor actor) {
         return toResponse(this.caseService.update(reference, request, actor));
+    }
+
+    /** Moderators only: the Discord bot and the proxy are not granted a bulk edit, and the body has no delegation field. */
+    @Override
+    @Secured(Roles.MODERATOR)
+    public HttpResponse<CaseDTO> bulk(CaseDTO.BulkRequest request, Actor actor) {
+        return toResponse(this.bulkService.bulk(request, actor));
     }
 
     @Override
