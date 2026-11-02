@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.inbox;
 
+import net.onelitefeather.blackhole.backend.casetimeline.ActorTrust;
+import java.util.UUID;
 import io.micronaut.jdbc.DataSourceResolver;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -97,6 +99,53 @@ public class InboxQueries implements InboxSource {
         long[] total = {0};
         query("SELECT count(*) " + from(section), parameters(section), result -> total[0] = result.getLong(1));
         return total[0];
+    }
+
+    /**
+     * The newest event of each punishment (the highest seq), for the punishments with an event in the window. The window is the
+     * newest event's own time, so an older change of a case is not reported again once a newer one exists.
+     */
+    private static final String LATEST_CHANGES = """
+            SELECT l.punishment_identifier, p.short_id, l.type, l.appeal_id, l.occurred_at, l.actor_trust, l.actor_oid, s.display_name
+            FROM (
+                SELECT DISTINCT ON (e.punishment_identifier)
+                       e.punishment_identifier, e.type, e.payload ->> 'appealId' AS appeal_id, e.occurred_at,
+                       e.actor_trust, e.actor_oid
+                FROM case_event e
+                WHERE e.punishment_identifier IN (SELECT w.punishment_identifier FROM case_event w WHERE w.occurred_at >= ?)
+                ORDER BY e.punishment_identifier, e.seq DESC
+            ) l
+            LEFT JOIN punishments p ON p.identifier = l.punishment_identifier
+            LEFT JOIN staff_actor s ON s.oid = l.actor_oid
+            WHERE l.occurred_at >= ?
+            """;
+
+    @Override
+    public List<LatestChange> latestChangesSince(long since) {
+        List<LatestChange> changes = new ArrayList<>();
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(LATEST_CHANGES)) {
+            statement.setLong(1, since);
+            statement.setLong(2, since);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    changes.add(new LatestChange(result.getString(1), result.getString(2), result.getString(3),
+                            result.getString(4), result.getLong(5), trust(result.getString(6)),
+                            result.getObject(7, UUID.class), result.getString(8)));
+                }
+            }
+        } catch (SQLException e) {
+            throw new InboxUnavailableException("could not read the inbox", e);
+        }
+        return changes;
+    }
+
+    private static ActorTrust trust(String name) {
+        try {
+            return ActorTrust.valueOf(name);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            return ActorTrust.UNVERIFIED;
+        }
     }
 
     private static String select(InboxSection section) {
