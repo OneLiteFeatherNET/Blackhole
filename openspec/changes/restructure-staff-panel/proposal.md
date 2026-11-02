@@ -41,9 +41,13 @@ must be clear what state something is in and where something happens.
   workspace switcher kept from `redesign-ux`). Each destination has its own icon, badges show open counts,
   and the top destinations have keyboard shortcuts. The global search is scoped by type and loses its
   suggestions on navigation. (Decision 2.)
-- **Unique, stable URLs for every entity and view state.** `/appeals/:id` gets a real detail page. `/reports/:id`
-  gets a resolve action. Players keep the owner address and never get a name or a Ban ID in the URL. Tabs and
-  filters are in the query. Every old URL keeps working through a redirect. (Decision 3, URL table in `design.md`.)
+- **Unique, stable URLs for every entity and every view, not only the four main ones.** Maintainer decision
+  (2026-11-02): every case, appeal, report, player, punishment, warning, IP and area ban, allow-list entry,
+  template, section, client rule, appeal term version, exemption review, staff member, rollback job, kick,
+  audit entry and evidence item has its own address. Create, edit and action states are routes, so Back closes
+  a dialog and a link opens the same state. Tabs, filters, sort and page are in the address. Items inside a page
+  are reached by `#event-<id>`. Old addresses redirect. No Ban ID, raw UUID, name, IP or secret is ever in an
+  address. (Decisions 3 and 7; the full inventory and URL table are in `design.md`.)
 - **One entity header, one timeline, cross-links.** Case, appeal, report and player pages share a header that
   shows the type, a short id, a state pill, the player, the assignee, the primary action and the breadcrumb.
   Each page shows what happened on it, and links to the case, appeal, report, player and punishment that
@@ -52,13 +56,15 @@ must be clear what state something is in and where something happens.
 - **List-detail on expanded widths.** Cases, appeals and reports keep the list on the left and open the item
   on the right. The URL names the open item, so Back, reload and sharing work. Compact widths show one pane.
   (Decision 5.)
-- **Phased delivery.** Seven small code PRs, each usable on its own, in the order of `tasks.md`. (Decision 6.)
+- **Phased delivery.** Fifteen small code PRs, each usable on its own and each shipping its URLs with its
+  screens, in the order of `tasks.md`. (Decision 6.)
 
 ## Out of scope
 
-- **The backend read endpoints.** `GET /appeal/{identifier}` and the inbox fields (assignee, priority, status,
-  kind, last actor) are the separate change `add-staff-panel-read-endpoints` (`feat(api)`). Until it merges,
-  the appeal page is not started and the inbox uses the existing `GET /inbox` and `GET /case` filters. The "changed by others" section waits for them too.
+- **The backend read endpoints.** Seven reads that load one item without its list (appeal, exemption review,
+  area ban, allow-list entry, audit entry, staff member, one terms version) and the inbox fields (assignee,
+  priority, status, kind, last actor) are the separate change `add-staff-panel-read-endpoints` (`feat(api)`),
+  listed in `design.md` 7.3. The phases that need them wait; the others use existing reads.
 - **Bulk actions on cases.** They are `add-case-bulk-actions`. This change only uses its docked toolbar pattern
   as a reference.
 - **The case page tabs and messenger.** They are `add-case-workspace-tabs`. This change reuses that tab
@@ -92,14 +98,14 @@ decisions as listed in `design.md` ("What this supersedes").
 
 ## Impact
 
-- **Web only**: `web/src/router/index.ts`, `web/src/nav/` (groups, icons, badges), `web/src/App.vue` (shell),
+- **Web only**: `web/src/router/index.ts` (about 50 routes after this change), `web/src/nav/` (groups, icons, badges), `web/src/App.vue` (shell),
   `web/src/views/` (inbox, appeals, reports, case, player), new components for the header, the list-detail
   layout, the appeal detail page and the shortcut handler, German and English strings, and tests.
 - **Backend, API, migrations, generated client, Velocity plugin**: none in this change.
 - **Depends on**:
   - `add-case-workspace-tabs` for the case tab query.
-  - `add-staff-panel-read-endpoints` for phase 6 (the appeal read) and for the "changed by others" inbox section,
-    which is a follow-up after the seven phases. The other phases do not need it.
+  - `add-staff-panel-read-endpoints` for phases 8, 11, 12, 14 and 15 (listed in `design.md` 7.3), and for the
+    "changed by others" inbox section, which is a follow-up after the fifteen phases.
 
 ## Breaking
 

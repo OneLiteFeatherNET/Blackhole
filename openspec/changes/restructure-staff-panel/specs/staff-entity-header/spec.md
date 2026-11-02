@@ -80,3 +80,16 @@ Each entity page SHALL link to the entities it belongs to: a case to its appeal,
 #### Scenario: Player to filtered cases
 - **WHEN** a moderator opens a player's cases link
 - **THEN** the case list opens with `owner` set to the player's owner hash in the query
+
+### Requirement: Copy link on every entity header
+Every entity header SHALL offer a copy-link action that copies the absolute URL of the current view, including the query
+and the hash. The action SHALL confirm the copy in text. It SHALL NOT copy a Ban ID, a name, an IP or a raw UUID, because
+none of these is in a canonical address.
+
+#### Scenario: Copy a case link with an open note
+- **WHEN** a moderator copies the link while the note `#event-7f3c2a10` is open
+- **THEN** the clipboard holds the case address with `?tab=notes-audit#event-7f3c2a10`
+
+#### Scenario: Copy in a read-only view
+- **WHEN** a VIEWER copies the link of a report
+- **THEN** the link is copied, because reading the entity is allowed for every role

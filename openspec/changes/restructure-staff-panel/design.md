@@ -23,14 +23,14 @@ Nothing in `redesign-ux` is edited; this change is the next step on top of it.
 **Decision.** The inbox (`/`) shows sections in this order. Each section has a count (not capped), the first ten
 rows, and a "Show all" link to the same list filtered in the URL.
 
-| # | Section | Rows | Source (after phase 1) | Viewer | Moderator | Admin |
+| # | Section | Rows | Source (phase 2) | Viewer | Moderator | Admin |
 |---|---|---|---|---|---|---|
 | 1 | Assigned to me | cases with `assignee` = my oid, not closed, oldest activity first | `GET /case?assignee=<oid>&status=` (oid from `GET /auth/me`) | read | read, Close, Assign to me | as moderator |
 | 2 | Unassigned and urgent | cases with no assignee and priority URGENT or HIGH, not closed | `GET /case?priority=URGENT` and `GET /case?priority=HIGH`, merged; rows without an assignee kept | read | read, Assign to me | as moderator |
 | 3 | Appeals waiting for a decision | pending appeals without a decision | `GET /inbox` `openAppeals` | read | read, Open | as moderator |
 | 4 | Answers waiting | appeal chats whose last visible message is from the player | `GET /inbox` `needsAnswer` | read | read, Open | as moderator |
 | 5 | Open reports | reports with status OPEN | `GET /inbox` `newReports` | read | read, Open | as moderator |
-| 6 | Changed by others today | cases and appeals whose last change came from another staff member | needs the follow-up after `add-staff-panel-read-endpoints` (not in phases 1-7) | read | read | as moderator |
+| 6 | Changed by others today | cases and appeals whose last change came from another staff member | needs the follow-up after `add-staff-panel-read-endpoints` (not one of the fifteen phases) | read | read | as moderator |
 
 Rules:
 
@@ -162,64 +162,51 @@ Rules:
 - *Icons only, no labels, on the rail.* Rejected: the audit found the icons ambiguous; labels stay on the rail.
 - *More than five items in the bar.* Rejected: M3 limits the bar to five; the extra groups sit behind "More".
 
-## Decision 3: unique, stable, shareable URLs
+## Decision 3: unique, stable, shareable URLs for every entity and view state
 
-**Question.** What is the address of every entity and every view state, and how are players addressed without
-putting a name or a Ban ID in a URL?
+**Scope (maintainer decision, 2026-11-02).** Every entity and every view of the panel gets a URL, not only
+cases, appeals, reports and players. The full inventory, the canonical URL of each entity and the old-to-new
+table are in decision 7. The rules are requirements in `specs/staff-deep-links`.
 
-**Decision.**
+**Rules in short:**
 
-- **Entities** get one canonical URL each, and the same URL opens the same entity for anyone with access:
-  - Case: `/cases/:reference`, where `:reference` is the case's short reference (`shortId`). The label
-    `#A1B2C3D4` in the UI has no `#` in the URL.
-  - Appeal: `/appeals/:id`, where `:id` is the appeal identifier (UUID). The appeal page is new (phase 6).
-  - Report: `/reports/:id`, where `:id` is the report identifier (UUID). Exists.
-  - Player: `/players/:owner`, where `:owner` is the owner hash. Exists.
-- **Players are not renamed to a readable address.** Options considered:
-  1. *Name in the URL* (`/players/by-name/Steve`). Rejected: a player name in the path is written to access logs,
-     browser history and referrers. Principle 1 allows names to be stored, but nothing needs them in a URL.
-  2. *A new short owner id.* Rejected: it is a new key to store, keep unique and erase, for a readable title
-     that the header can show anyway.
-  3. *Keep the owner hash, show the readable name in the header and the page title.* **Chosen.** The owner hash
-     is stable and already in use; the title shows the last known name from the name history.
-- **Name lookup** stays in the search box and on `/players`. The name is sent to `GET /player/resolve/{name}`,
-  and the browser then replaces the address with `/players/:owner`. The name is never in the address bar.
-- **Ban IDs never appear in a URL, a log or an event.** No route takes a Ban ID or a punishment identifier.
-  The case and appeal pages reach punishments through their own ids.
-- **View state** is in the query, so a link opens the same view:
-  - Tab: `?tab=` (case tabs from `add-case-workspace-tabs`; player and appeal pages use the same parameter).
-  - Filters: `?status=`, `?assignee=` (`me` or an oid), `?priority=`, `?section=`, `?tag=`, `?q=` on lists.
-  - Queue: `?view=mine|unassigned|appeals|reports` on the inbox (opens the same section list).
-  - Open item in a list-detail layout: the item's own URL (`/cases/:ref?status=open`), so the list state and the
-    open item are both in the address (decision 5).
-  - Unknown or missing parameter values fall back to the default and are removed with `replace`, not left in
-    the address as garbage.
-- **Filters are not stored** on the device or the server. The URL is the only memory. A nav click to `/cases`
-  opens the defaults (open, all assignees). The open question below lists the alternative.
+- **One canonical URL per entity and per view state.** Opening it shows the same view for any staff member with access.
+- **Reload, Back and Forward restore the exact view**: tab, filters, sort, page, open item and open dialog.
+- **Dialogs, forms and confirmations are routes.** A create, edit or action state is a child route (`/new`,
+  `/edit`, `/revoke`, `/lift`). The parent page stays rendered and the dialog renders over it while its route is
+  active. Back closes it, a reload reopens it, and the link can be shared.
+- **Tabs and sub-tabs**: a tab that is only a view is `?tab=`. A tab that belongs to one item is a path segment.
+- **Filters, sort, page and cursor are query parameters.** Nothing about a list lives in component state alone.
+- **The open item of a list-detail is in the path** (`/cases/:reference`), the list state in the query.
+- **Items inside a page** (a note, a message, a protocol, a timeline event, a share) are addressed by a hash:
+  `#event-<id>`. The hash is not sent to the server, so it stays out of access logs. The item is highlighted
+  when the page opens and stays highlighted until the reader clicks elsewhere or navigates. No timer.
+- **Copy link** is on every entity header. It copies the absolute URL of the current view, including query and hash.
+- **Unknown ids** show the panel's not-found view with a link back to the list. A child route with a missing item
+  never opens an empty dialog.
+- **Old URLs redirect** and keep their query string. No existing panel URL returns 404.
+- **URL-only state.** Filters, sort and page are never written to local storage, session storage or a server
+  preference. The URL is the only memory (see the open question on remembered filters).
 
-**URL table (old to new).** "Kept" means the URL does not change.
+**Players keep the owner hash (alternatives rejected).** A name in the path (`/players/by-name/Steve`) would be
+written to access logs, browser history and referrers, and nothing needs it there. A new short owner id would be
+one more key to store, keep unique and erase, for a title the header can show anyway. The owner hash is stable,
+already in use, and the header shows the last known name from the name history. The name lookup stays in the
+search box and calls `GET /player/resolve/{name}`.
 
-| Old URL | New URL | Status | Notes |
-|---|---|---|---|
-| `/` | `/` | kept | Inbox. Adds `?view=`. |
-| `/cases` | `/cases` | kept | Adds `?status=`, `?assignee=`, `?priority=`, `?section=`, `?tag=`. Old `status` values unchanged. |
-| `/cases/:reference` | `/cases/:reference` | kept | Adds `?tab=` (from `add-case-workspace-tabs`). In list-detail, the list is the parent. |
-| `/cases/:reference?status=…` | `/cases/:reference?status=…` | kept | The list state is kept while an item is open. |
-| `/appeals` | `/appeals` | kept | `?show=all` becomes `?status=all`; `?show=all` redirects with the query kept. Default `?status=pending`. |
-| `/appeals?show=all` | `/appeals?status=all` | redirect | Phase 5. |
-| `/appeals/:id` | `/appeals/:id` | **new** | Phase 6. Needs `add-staff-panel-read-endpoints`. Before that, the list-detail pane shows the appeal from the list response. |
-| `/reports` | `/reports` | kept | Adds `?status=open` (default) and `?player=` (owner hash). |
-| `/reports/:id` | `/reports/:id` | kept | Adds the resolve action; no new URL. |
-| `/players` | `/players` | kept | The search box resolves a name and replaces the address with `/players/:owner`. |
-| `/players/:owner` | `/players/:owner` | kept | Adds `?tab=` (punishments, reports, cases, evasion, names). |
-| `/punished` | `/punished` | kept | Adds `?kind=`. |
-| `/ip-bans`, `/guard`, `/area-bans`, `/intel/policy`, `/intel/allow-list` | same | kept | No change. |
-| `/admin` | `/admin/templates` | kept (`redesign-ux`) | |
-| `/templates`, `/sections`, `/client-rules`, `/appeal-conditions` | `/admin/...` | kept (`redesign-ux`) | Old routes redirect, query kept. |
-| `/admin/staff`, `/admin/imports`, `/admin/cloudnet`, `/admin/kick`, `/admin/audit`, `/admin/rollback` | same | kept | |
+**Identifiers that may appear in a URL.** Only identifiers that staff already see in the panel:
 
-Every redirect keeps the query. A link that has no route (for example `/cases/:reference/timeline`) lands on
-the case page with `?tab=notes-audit`, not on "not found".
+- short ids: case reference, punishment short id;
+- UUIDs already shown to staff: appeal, report, evidence, audit, kick, rollback, warning, IP ban, area ban
+  identifiers, and note, message, protocol and share ids;
+- the owner hash of a player (as today);
+- the staff member's oid (already shown as assignee and author);
+- a section key, a client rule key, a template id, an intel classification and an appeal-terms version number.
+
+**Never in a URL, a query, a hash, a log or an event** (GDPR principle 1, and the Ban ID rule of the maintainer):
+a Ban ID, a player's raw UUID (including a Minecraft UUID, which the staff-link lookup takes as a path value
+today; the panel does not use that route in a URL), a player name, an IP address, a Discord user id, a feed token,
+a session, or any other secret. The Ban ID is revealed as an action on the case, never as a route.
 
 ## Decision 4: one entity header, the activity, cross-links, undo
 
@@ -261,7 +248,7 @@ report, player). What exists and what is added:
 | Entity | Shown now | Added here |
 |---|---|---|
 | Case | timeline (`GET /case/:ref/timeline`), notes, protocols | status changes with the previous status and the actor's name; assignments |
-| Appeal | conversation (`caseTimeline`), decision text | the decision and its time as the last item; needs the appeal read (phase 6) |
+| Appeal | conversation (`caseTimeline`), decision text | the decision and its time as the last item; needs the appeal read (phase 8) |
 | Report | the report fields only | status changes (resolution) as the report's own history. Not in the backend yet: the page shows "created" and "resolved" with the times. The timeline for reports is an open question. |
 | Player | punishments, reports, evasion, names | links to the cases and appeals of the player, in date order |
 
@@ -325,7 +312,7 @@ Rules:
   (back to the list URL), and the focus returns to the row. Shortcuts are off in text fields.
 - **Selection is visible**: the open row has a selected state and `aria-current="true"`.
 - **Bulk actions** stay in `add-case-bulk-actions`; the docked toolbar pattern is used when they land.
-- **Appeals** use the same layout once `/appeals/:id` exists (phase 6). Until then the appeals list keeps its
+- **Appeals** use the same layout once `/appeals/:id` exists (phase 8). Until then the appeals list keeps its
   table and its decision dialog.
 
 **Alternatives rejected.**
@@ -336,25 +323,170 @@ Rules:
 
 ## Decision 6: phases
 
-Each phase is one code PR, `feat(web)`, usable on its own. The order keeps the panel working after each one.
-Phase 1 needs nothing from the backend. Phases that need the companion change say so.
+Each phase is one code PR, `feat(web)`, usable on its own, and small enough to review in one sitting. The
+order keeps the panel working after each one. Phase 1 is the foundation that every later phase uses: routes
+for dialogs, copy link and the not-found view. Each area after it is addressed in its own phase, so an
+area's URLs ship with its screens and no URL is added without a page behind it.
 
-| # | PR title | Needs | Why this order |
+| # | PR title | Needs | Covers (rows of 7.1) |
 |---|---|---|---|
-| 1 | `feat(web): turn the inbox into a work queue` | nothing new (`/inbox`, `/case`, `/auth/me`) | The biggest pain, and no navigation change. |
-| 2 | `feat(web): group the navigation by job and add badges and shortcuts` | nothing | Once the inbox is useful, the rail can point to it. |
-| 3 | `feat(web): add the entity header with state, owner and breadcrumbs` | nothing | Every later page uses the header. |
-| 4 | `feat(web): open cases and reports in list and detail panes` | nothing | Cases and reports exist already; appeals follow in phase 6. |
-| 5 | `feat(web): add shareable urls for view state and a name-free player lookup` | nothing | Query parameters and the redirects of `show=all`. |
-| 6 | `feat(web): add the appeal detail page at /appeals/:id` | `add-staff-panel-read-endpoints` (`GET /appeal/{identifier}`) | Needs the appeal read. Until then appeals keep the list. |
-| 7 | `feat(web): resolve reports on their page and undo case closing` | nothing | The resolve endpoint exists; undo uses the case timeline. |
+| 1 | `feat(web): open dialogs from the route and add copy link` | nothing | the dialog pattern, the copy-link button, not-found for unknown ids (all rows use it) |
+| 2 | `feat(web): turn the inbox into a work queue` | nothing (`/inbox`, `/case`, `/auth/me`) | 1 |
+| 3 | `feat(web): group the navigation by job and add badges and shortcuts` | nothing | navigation for all rows |
+| 4 | `feat(web): add the entity header with state, owner and breadcrumbs` | `add-case-workspace-tabs` merged | header for rows 2, 4, 7, 9, 13, 38 (shell) |
+| 5 | `feat(web): open cases and reports in list and detail panes` | nothing | rows 2, 9 (list-detail with the open item in the path) |
+| 6 | `feat(web): keep list filters and sort in the url and redirect old paths` | nothing | query state of every list (rows 1, 6, 8, 12, 16, 18, 24, 27, 29, 31, 35, 37, 41, 46, 48) and the redirects of 7.2; name lookup replaces the address |
+| 7 | `feat(web): address case notes, messages, protocols and evidence by url` | nothing | rows 2 to 5, `#event-<id>` highlight, child routes for note and message edits |
+| 8 | `feat(web): add the appeal detail page at /appeals/:id` | companion `GET /appeal/{identifier}` | rows 6, 7 |
+| 9 | `feat(web): resolve and dismiss reports on their own routes` | nothing | row 9 |
+| 10 | `feat(web): address players, punishments and warnings by url` | nothing | rows 10 to 15 (punish, warn, ELO, kick and revoke as child routes) |
+| 11 | `feat(web): address staff accounts and links by staff id` | companion `GET /admin/staff-actor/{oid}` | rows 37 to 40 |
+| 12 | `feat(web): address rollback, kick, audit and import entries by url` | companion `GET /admin/audit/{auditId}` for the audit entry | rows 41 to 49 |
+| 13 | `feat(web): address templates, sections, client rules and appeal terms by url` | optional companion for one terms version | rows 27 to 34 |
+| 14 | `feat(web): address exemption reviews by url` | companion `GET /exemption/reviews/{id}` | rows 35, 36 |
+| 15 | `feat(web): address ip bans, area bans, guard, vpn policy and allow list by url` | companions `GET /area-bans/{id}`, `GET /intel/allow-list/{owner}` | rows 16 to 25 |
 
-The keyboard list movement (`j`, `k`, `Enter`, `Esc`) is part of phase 4, not a phase of its own.
+Phases 8, 11, 12, 14 and 15 wait for the companion change. The other phases do not. If the companion merges
+in parts, each part unblocks its phase. The "changed by others" inbox section (decision 1, section 6) is a web
+PR after phase 2 and the `GET /inbox` fields of the companion change. It is not one of the fifteen phases.
 
-The companion change `add-staff-panel-read-endpoints` (`feat(api)`) is proposed separately and merged before
-phase 6. It adds `GET /appeal/{identifier}` and the inbox fields `kind`, `status`, `priority`, `assignee` and
-`lastActor`. Inbox section 6 (changed by others) follows that change in its own small web PR; it is not one of
-the seven phases above.
+The keyboard list movement (`j`, `k`, `Enter`, `Esc`) is part of phase 5, not a phase of its own.
+
+Phase 1 is the only place where the dialog pattern is defined. Phases 7 to 15 use it and do not invent their own
+open state for dialogs.
+
+The companion change `add-staff-panel-read-endpoints` (`feat(api)`) is proposed separately and merged in parts,
+before the phases that need it (table in 7.3). It must not be merged into any web PR.
+
+## Decision 7: every entity and view has a URL
+
+Inventory from `web/src/router/index.ts`, every list view, every dialog, drawer and sheet that shows or edits one
+thing, every tab and every admin tab. "Read by id today" says whether the backend has a read of one item without
+the list. "Companion" names the read endpoints that `add-staff-panel-read-endpoints` must add (listed below the
+tables). Dialogs that open from a route take the child-route forms of decision 3.
+
+### 7.1 Inventory and canonical URLs
+
+| # | Entity or view | Today | Canonical URL | Create, edit and action routes | Tabs and query | Read by id today |
+|---|---|---|---|---|---|---|
+| 1 | Inbox | `/` | `/` | none | `?view=mine\|unassigned\|appeals\|answers\|reports` | n/a |
+| 2 | Case | `/cases/:reference` | `/cases/:ref` | close and reopen are actions with undo, no route; notes `/cases/:ref/notes/new`, `/cases/:ref/notes/:noteId/edit`, `/cases/:ref/notes/:noteId/redact`; messages `/cases/:ref/messages/:messageId/edit`, `/cases/:ref/messages/:messageId/redact`; participant erasure `/cases/:ref/participants/:participantId/erase` | `?tab=overview\|conversation\|notes-audit`; list state `?status=` etc. | yes, `GET /case/{ref}` |
+| 3 | Case timeline event, note, message, share (items of a case) | in the case page | `/cases/:ref?tab=notes-audit#event-<id>` (conversation items use `?tab=conversation#event-<id>`) | as in row 2 | the hash | yes (timeline, notes) |
+| 4 | Case protocol | in the case page (`CaseProtocolApi`) | `/cases/:ref/protocols/:evidenceId` | download is an action | none | yes, `GET /case/{ref}/protocol/{evidenceId}` |
+| 5 | Evidence item (chat attachment, link, file) | `EvidencePanel`, `EvidenceItem`, `EvidenceDialog` | `/evidence/:id` (item page with its case and punishment links) | add `/cases/:ref/evidence/new`, share `/evidence/:id/share`, delete `/evidence/:id/delete` | none | yes, `GET /evidence/{identifier}` |
+| 6 | Appeal list | `/appeals` (table, decision dialog) | `/appeals?status=pending\|all` | none | `status`, `q` | list only |
+| 7 | Appeal detail (new) | none | `/appeals/:id?tab=conversation\|decision\|case` | decide `/appeals/:id/decide` | `tab` | **no**, companion |
+| 8 | Report list | `/reports` | `/reports?status=open\|resolved\|all&player=<owner>` | none | `status`, `player` | list only |
+| 9 | Report detail | `/reports/:id` | `/reports/:id` | resolve `/reports/:id/resolve`, dismiss `/reports/:id/dismiss` | none | yes, `GET /report/{identifier}` |
+| 10 | Player lookup | `/players` | `/players` | none (name is typed, never in the URL) | none | by name only, `GET /player/resolve/{name}` |
+| 11 | Player | `/players/:owner` | `/players/:owner?tab=overview\|punishments\|reports\|cases\|evasion\|elo\|names\|intel\|warnings\|evidence` | punish `/players/:owner/punish`, warn `/players/:owner/warn`, ELO adjust `/players/:owner/elo/adjust`, kick `/players/:owner/kick`, exemption `/players/:owner/exemption` | `tab` | yes, `GET /elo/{owner}`, `GET /evasion/{owner}/sightings`, `GET /exemption/{owner}` |
+| 12 | Active punishments list | `/punished` | `/punished?kind=&state=` | none | `kind`, `state` | list only |
+| 13 | Punishment | none (shown in player and case) | `/punished/:shortId?tab=details\|evidence\|history` | revoke `/punished/:shortId/revoke` | `tab` | yes, `GET /punishment/short/{shortId}` |
+| 14 | Warning | `WarnDialog` in player | `/warnings/:id` | none | none | yes, `GET /warn/{id}` |
+| 15 | Ban ID reveal | `BanIdPanel` on the case | **none**: an action on the case, never a URL | the reveal and leak and reissue actions stay on the case | none | action only |
+| 16 | IP bans list | `/ip-bans` | `/ip-bans?status=active\|lifted` | new `/ip-bans/new` | `status` | list only |
+| 17 | IP ban detail | none (`IpBanLiftDialog`) | `/ip-bans/:id` | lift `/ip-bans/:id/lift` | none | yes, `GET /ipban/{id}` |
+| 18 | Area bans list | `/area-bans` | `/area-bans?status=active\|lifted` | new `/area-bans/new` | `status` | list only |
+| 19 | Area ban detail | none (`AreaBanLiftDialog`) | `/area-bans/:id` | lift `/area-bans/:id/lift` | none | **no**, companion |
+| 20 | Join guard state | `/guard` | `/guard` | level `/guard/level` (action) | none | yes, `GET /guard/state` |
+| 21 | Join guard settings | on `/guard` | `/guard/settings` | edit `/guard/settings/edit` | none | yes, `GET /guard/settings` |
+| 22 | VPN policy | `/intel/policy` | `/intel/policy` (list of classes) | edit `/intel/policy/:classification/edit` | none | one small list, no companion |
+| 23 | VPN policy entry | none | `/intel/policy/:classification` | as row 22 | none | from the list |
+| 24 | Allow list | `/intel/allow-list` | `/intel/allow-list?page=` | new `/intel/allow-list/new`, remove `/intel/allow-list/:owner/remove` | `page` | list only |
+| 25 | Allow-list entry | none | `/intel/allow-list/:owner` | as row 24 | none | **no**, companion |
+| 26 | Player intel hits | in the player | `/players/:owner?tab=intel` | none | `tab` | yes, `GET /intel/players/{owner}/hits` |
+| 27 | Templates (admin) | `/admin/templates` | `/admin/templates?q=` | new `/admin/templates/new`, edit `/admin/templates/:id/edit` (delete there) | `q` | yes, `GET /template/{identifier}` |
+| 28 | Template detail | none | `/admin/templates/:id` | as row 27 | none | yes |
+| 29 | Sections (admin) | `/admin/sections` | `/admin/sections?q=` | new `/admin/sections/new`, edit `/admin/sections/:key/edit`, disable `/admin/sections/:key/disable` | `q` | yes, `GET /section/{key}` |
+| 30 | Section detail | none | `/admin/sections/:key` | as row 29 | none | yes |
+| 31 | Client rules (admin) | `/admin/client-rules` | `/admin/client-rules?q=` | new `/admin/client-rules/new`, edit `/admin/client-rules/:key/edit` | `q` | yes, `GET /client-rule/{key}` |
+| 32 | Client rule detail | none | `/admin/client-rules/:key?tab=details\|hits` | as row 31 | `tab` | yes; hits `GET /client-rule/{key}/hits` |
+| 33 | Appeal terms (current) | `/admin/appeal-terms` | `/admin/appeal-terms` | new version `/admin/appeal-terms/new` | none | yes, `GET /appeal-conditions/` |
+| 34 | Appeal terms version | none (version list) | `/admin/appeal-terms/versions/:version` | as row 33 | none | from the versions list (one small request), companion optional |
+| 35 | Exemption reviews (admin) | `/admin/exemption-reviews` | `/admin/exemption-reviews?status=open\|decided` | none | `status` | list only |
+| 36 | Exemption review detail | `ExemptionDecisionDialog` | `/admin/exemption-reviews/:id` | decide `/admin/exemption-reviews/:id/decide` | none | **no**, companion |
+| 37 | Staff accounts (admin) | `/admin/staff` | `/admin/staff?q=` | none | `q` | list only |
+| 38 | Staff member | none | `/admin/staff/:oid?tab=profile\|links\|activity` | anonymize `/admin/staff/:oid/anonymize`, unlink links as actions | `tab` | **no**, companion |
+| 39 | Minecraft and Discord links of a staff member | `StaffLinksPanel`, `DiscordLinksPanel` | `/admin/staff/:oid?tab=links` (no link has its own URL, no Minecraft UUID or Discord id appears) | unlink as an action | `tab` | via row 38 |
+| 40 | My profile and my links | account menu, `AccountLinkDialog` | `/profile`, `/profile/link/minecraft`, `/profile/link/discord` | link forms are child routes | none | yes, `GET /staff-profile/me`, `GET /staff-link/me`, `GET /discord/link/me` |
+| 41 | Rollback jobs (admin) | `/admin/rollback` | `/admin/rollback?status=` | new (preview) `/admin/rollback/new`, cancel `/admin/rollback/:id/cancel` | `status` | yes, `GET /admin/rollback/{id}` |
+| 42 | Rollback job detail | in the rollback panel | `/admin/rollback/:id` | as row 41 | none | yes |
+| 43 | Imports (admin) | `/admin/imports` (vanilla import, punishment groups) | `/admin/imports?tab=vanilla\|punishments&group=<key>` | vanilla import form `/admin/imports/vanilla/new` | `tab`, `group` | groups are one read, no id needed |
+| 44 | CloudNet (admin) | `/admin/cloudnet` | `/admin/cloudnet?tab=catalogue\|proxies` | none | `tab` | catalogue is one read |
+| 45 | CloudNet entry | in the catalogue | `/admin/cloudnet/:kind/:name` (kinds as the catalogue names them, confirmed in phase 12) | none | none | from the catalogue read |
+| 46 | Kick (admin) | `/admin/kick` | `/admin/kick?status=` | new `/admin/kick/new`, acknowledge `/admin/kick/:id/ack` | `status` | list only |
+| 47 | Kick detail | `KickDialog` result | `/admin/kick/:id` | as row 46 | none | yes, `GET /kick/{id}` |
+| 48 | Audit log (admin) | `/admin/audit` | `/admin/audit?actor=<oid>&action=&surface=&cursor=` | none | the filters and cursor | list only |
+| 49 | Audit entry | expandable row | `/admin/audit/:auditId` | none | none | **no**, companion |
+| 50 | Global search | top bar dropdown | not a page: every hit is a link to its canonical URL | none | none | n/a |
+| 51 | Sign-in, no access, not found, leave | `/auth/*`, `/no-access`, `/leave`, catch-all | unchanged | none | `reason`, the leave target in the hash | n/a |
+
+### 7.2 Old URL to new URL (every route in `web/src/router/index.ts`)
+
+"Kept" means the URL does not change. "Query" means a query parameter is added or renamed. "Redirect" means the
+old URL redirects and keeps its query. "New" means the URL did not exist.
+
+| Old URL | New URL | Kind |
+|---|---|---|
+| `/` | `/` | kept, adds `?view=` |
+| `/punished` | `/punished` | kept, adds `?kind=`, `?state=`; detail `/punished/:shortId` new |
+| `/ip-bans` | `/ip-bans` | kept, adds `?status=`; `/ip-bans/:id` new |
+| `/players` | `/players` | kept; name lookup replaces the address with the owner URL |
+| `/players/:owner` | `/players/:owner` | kept, adds `?tab=` and child routes for actions |
+| `/intel/policy` | `/intel/policy` | kept; `/intel/policy/:classification` new |
+| `/intel/allow-list` | `/intel/allow-list` | kept, adds `?page=`; `/intel/allow-list/:owner` new |
+| `/reports` | `/reports` | kept, adds `?status=`, `?player=` |
+| `/reports/:id` | `/reports/:id` | kept, adds `/resolve`, `/dismiss` child routes |
+| `/appeals` | `/appeals` | kept, adds `?status=` |
+| `/appeals?show=all` | `/appeals?status=all` | query renamed, redirect |
+| `/appeals/:id` | `/appeals/:id` | new (detail page) |
+| `/cases` | `/cases` | kept, adds `?status=`, `?assignee=`, `?priority=`, `?section=`, `?tag=`, `?owner=` |
+| `/cases/:reference` | `/cases/:ref` | kept, adds `?tab=`, child routes, `#event-<id>` |
+| `/guard` | `/guard` | kept; `/guard/settings` new |
+| `/area-bans` | `/area-bans` | kept, adds `?status=`; `/area-bans/:id` new |
+| `/admin` | `/admin/templates` | redirect (from `redesign-ux`) |
+| `/admin/templates` | `/admin/templates` | kept; `/admin/templates/:id` and create and edit routes new |
+| `/admin/sections` | `/admin/sections` | kept; `/admin/sections/:key` and child routes new |
+| `/admin/client-rules` | `/admin/client-rules` | kept; `/admin/client-rules/:key` new, `?tab=` |
+| `/admin/appeal-terms` | `/admin/appeal-terms` | kept; `/versions/:version` and `/new` new |
+| `/admin/exemption-reviews` | `/admin/exemption-reviews` | kept, adds `?status=`; `/:id` new |
+| `/admin/staff` | `/admin/staff` | kept, adds `?q=`; `/admin/staff/:oid` new |
+| `/admin/rollback` | `/admin/rollback` | kept; `/admin/rollback/:id` and `/new` new |
+| `/admin/imports` | `/admin/imports` | kept, adds `?tab=`, `?group=`; `/vanilla/new` new |
+| `/admin/cloudnet` | `/admin/cloudnet` | kept, adds `?tab=`; `/:kind/:name` new |
+| `/admin/kick` | `/admin/kick` | kept, adds `?status=`; `/:id` and `/new` new |
+| `/admin/audit` | `/admin/audit` | kept, adds filters and cursor; `/:auditId` new |
+| `/templates` | `/admin/templates` | redirect, query kept |
+| `/sections` | `/admin/sections` | redirect, query kept |
+| `/client-rules` | `/admin/client-rules` | redirect, query kept |
+| `/appeal-conditions` | `/admin/appeal-terms` | redirect, query kept |
+| `/no-access` | `/no-access` | kept |
+| `/auth/callback`, `/auth/error` | same | kept |
+| `/leave` | `/leave` | kept |
+| `/:pathMatch(.*)*` | same, not-found view | kept; a removed or mistyped path shows the not-found view with a link back, never a blank page |
+| (no route today) `/cases/:ref/timeline` | `/cases/:ref?tab=notes-audit` | redirect, for a link that used the old timeline name |
+
+### 7.3 Companion read endpoints (`add-staff-panel-read-endpoints`, `feat(api)`)
+
+A deep link must load one item without loading its list. These reads do not exist today and are needed:
+
+| Endpoint | Returns | Needed by row | Phase |
+|---|---|---|---|
+| `GET /appeal/{identifier}` | one `AppealDTO` (identifier, punishment, appellant hash, statement, status, decision, times) | 7 | 8 |
+| `GET /exemption/reviews/{id}` | one exemption review | 36 | 14 |
+| `GET /area-bans/{id}` | one area ban (the list endpoint exists) | 19 | 15 |
+| `GET /intel/allow-list/{owner}` | one allow-list entry by owner hash | 25 | 15 |
+| `GET /admin/audit/{auditId}` | one audit entry, same fields as the list item | 49 | 12 |
+| `GET /admin/staff-actor/{oid}` | one staff actor with its roles and link status (no raw Minecraft UUID in the response beyond what the staff-link response already carries) | 38, 39 | 11 |
+| `GET /appeal-conditions/versions/{version}` | one terms version (optional: the versions list is small) | 34 | 13 |
+
+Not needed (existing read by id): templates, sections, client rules, punishment by short id, warnings, IP bans,
+kicks, rollback jobs, reports, cases, evidence, case protocols, guard settings, ELO and evasion by owner, exemption
+status by owner, Discord tickets, staff profile and staff link of the caller.
+
+Existing endpoints that take a secret or a raw identifier in the path, and therefore must never be the target of a
+panel URL: `GET /staff-link/by-minecraft/{uuid}` (raw Minecraft UUID), `GET /punishment/{reference}/ban-id` (Ban ID reveal),
+and the feed route with its token. The panel calls these as actions or not at all.
 
 ## Risks and trade-offs
 
@@ -365,7 +497,8 @@ the seven phases above.
   are off in text fields and dialogs.
 - **Names in the header.** The player's name is shown in the header, not in the URL. Names are personal data
   already stored under principle 1; their display stays in the panel for staff only.
-- **More PRs.** Seven PRs take longer than one. Each one is small and leaves the panel usable.
+- **More PRs.** Fifteen PRs take longer than one. Each one is small, leaves the panel usable, and
+  ships its URLs together with its screens.
 
 ## Open questions for the maintainer
 
