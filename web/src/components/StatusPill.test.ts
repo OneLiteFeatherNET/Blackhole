@@ -10,6 +10,8 @@ describe('StatusPill', () => {
     ['primary', 'bg-primary-container'],
     ['secondary', 'bg-secondary-container'],
     ['tertiary', 'bg-tertiary-container'],
+    ['success', 'bg-success-container'],
+    ['warning', 'bg-warning-container'],
   ] as const)('gives the %s tone its own container colour', (tone, expectedClass) => {
     const wrapper = mount(StatusPill, { props: { label: 'Open', tone } })
 
