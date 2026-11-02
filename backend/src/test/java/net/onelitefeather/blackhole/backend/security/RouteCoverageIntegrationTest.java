@@ -30,6 +30,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
     private static final Set<String> MP = Set.of("MODERATOR", "PROXY");
     private static final Set<String> A = Set.of("ADMIN");
     private static final Set<String> D = Set.of("DISCORD");
+    private static final Set<String> INTEGRATION = Set.of("INTEGRATION");
     /** A moderator, an admin, or the Discord bot naming the staff member it acts for (the delegation routes). */
     private static final Set<String> MAD = Set.of("MODERATOR", "ADMIN", "DISCORD");
     private static final Set<String> MD = Set.of("MODERATOR", "DISCORD");
@@ -183,6 +184,8 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /integration/registrations", A),
             Map.entry("GET /integration/registrations/{id}", A),
             Map.entry("PATCH /integration/registrations/{id}", A),
+            // detection intake: only the integration principal, never a staff role or the proxy
+            Map.entry("POST /integration/detections", INTEGRATION),
             Map.entry("POST /section", A),
             Map.entry("POST /section/update", A),
             Map.entry("POST /section/{key}/disable", A),

@@ -14,6 +14,9 @@ public interface IntegrationStore {
 
     Optional<Stored> find(long id);
 
+    /** The enabled registration whose Entra client id is {@code entraClientId}; empty when none is enabled for it. */
+    Optional<Stored> findByClientId(String entraClientId);
+
     /** Every registration, ordered by source system. */
     List<Stored> list();
 

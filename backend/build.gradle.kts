@@ -71,6 +71,9 @@ dependencies {
     implementation("org.json:json:20240303")
     // Argon2id verification of the ban-list client passwords (publicbans/auth). Bouncy Castle 1.84, released well over two weeks ago.
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
+    // JSON Schema 2020-12 validation of integration detection payloads (openspec add-integration-evidence, decision 5).
+    // Apache-2.0, uploaded to Maven Central on 2026-10-02; Jackson 2 like the rest of the backend.
+    implementation("com.networknt:json-schema-validator:2.0.8")
     implementation(libs.awssdk.s3) {
         exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
     }
