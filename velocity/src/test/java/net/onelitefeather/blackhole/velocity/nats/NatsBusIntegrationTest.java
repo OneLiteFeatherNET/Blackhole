@@ -158,6 +158,8 @@ class NatsBusIntegrationTest {
      * Waits, bounded by {@link #WAIT_SECONDS}, until the {@code expected} event has arrived, then reads the events up to
      * it. Connection-state events ({@code connected}, {@code disconnected}) that arrived before it are skipped, because
      * the connection may report its state more than once. Any other event that arrived before it fails the test.
+     * A skipped event counts as awaited, so the next wait for the same text waits for its next arrival instead of
+     * returning at once on the arrival that was skipped here.
      */
     private void awaitEvent(String expected) throws InterruptedException {
         int ordinal = this.awaited.merge(expected, 1, Integer::sum) - 1;
@@ -171,6 +173,7 @@ class NatsBusIntegrationTest {
             }
             assertTrue(event.equals("connected") || event.equals("disconnected"),
                     "expected '" + expected + "' but got '" + event + "'");
+            this.awaited.merge(event, 1, Integer::sum);
         }
     }
     /** A raw connection of the proxy's user whose server errors are collected. */
