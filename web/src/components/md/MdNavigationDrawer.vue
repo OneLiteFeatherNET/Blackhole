@@ -126,7 +126,7 @@ function onKeydown(event: KeyboardEvent): void {
               <a
                 :href="href"
                 :aria-current="isCurrent(item.to) ? 'page' : undefined"
-                class="group text-label-large text-on-surface outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                class="group text-label-large text-on-surface focus-ring"
                 :class="
                   props.mode === 'rail'
                     ? 'flex w-full flex-col items-center gap-1 rounded-md-md py-1 text-label-medium'

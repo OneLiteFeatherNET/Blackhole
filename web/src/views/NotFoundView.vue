@@ -19,7 +19,7 @@ onMounted(() => heading.value?.focus())
     <RouterLink
       to="/"
       data-testid="back-to-dashboard"
-      class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+      class="text-primary underline underline-offset-2 focus-ring"
     >
       {{ t('notFound.back') }}
     </RouterLink>

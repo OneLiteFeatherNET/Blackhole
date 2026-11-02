@@ -583,6 +583,7 @@
       "note": "Note",
       "noteHint": "Optional; recorded with the decision",
       "confirm": "Save decision",
+      "confirmReason": "Choose a decision to save it.",
       "playerMessage": "Message to the player",
       "playerMessageHint": "Optional; the player can read it in the appeal portal. 1 to 2000 characters, no UUIDs, IP addresses or Ban IDs. The note above stays internal."
     },

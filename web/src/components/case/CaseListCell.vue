@@ -19,7 +19,7 @@ const { t, locale } = useI18n()
   <RouterLink
     v-if="column.key === 'shortId'"
     :to="{ name: 'case', params: { reference: row.punishmentIdentifier } }"
-    class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+    class="text-primary underline underline-offset-2 focus-ring"
   >
     {{ row.shortId }}
   </RouterLink>
