@@ -133,4 +133,16 @@ describe('MdNavigationDrawer', () => {
 
     wrapper.unmount()
   })
+
+  it('gives every navigation link the shared focus ring', async () => {
+    const { wrapper } = await setup()
+
+    const links = wrapper.findAll('a')
+    expect(links.length).toBeGreaterThan(0)
+    for (const link of links) {
+      expect(link.classes(), link.text()).toContain('focus-ring')
+    }
+
+    wrapper.unmount()
+  })
 })

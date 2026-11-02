@@ -26,7 +26,7 @@ const variantClasses = {
 } as const
 
 const classes = computed(() => [
-  'md-state inline-flex h-10 min-w-16 cursor-pointer items-center justify-center gap-2 rounded-md-full px-6 text-control whitespace-nowrap disabled:pointer-events-none disabled:opacity-(--md-sys-state-disabled-opacity)',
+  'md-state focus-ring inline-flex h-10 min-w-16 cursor-pointer items-center justify-center gap-2 rounded-md-full px-6 text-control whitespace-nowrap disabled:pointer-events-none disabled:opacity-(--md-sys-state-disabled-opacity)',
   variantClasses[props.variant],
 ])
 </script>

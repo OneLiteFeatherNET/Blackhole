@@ -61,7 +61,7 @@ const columns = computed(() => [
       <RouterLink
         v-else-if="column.key === 'shortId'"
         :to="{ name: 'case', params: { reference: row.identifier } }"
-        class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+        class="text-primary underline underline-offset-2 focus-ring"
         :data-testid="`open-case-${row.identifier}`"
       >
         {{ t('case.open') }}

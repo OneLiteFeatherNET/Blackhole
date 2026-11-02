@@ -80,7 +80,7 @@ const columns = computed(() => [
             >
               <RouterLink
                 :to="SECTION_LINKS[key].item(item)"
-                class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+                class="text-primary underline underline-offset-2 focus-ring"
               >
                 {{ item.reference ?? shortHash(item.id) }}
               </RouterLink>
@@ -91,7 +91,7 @@ const columns = computed(() => [
           <RouterLink
             data-testid="show-all"
             :to="SECTION_LINKS[key].all"
-            class="self-start text-label-large text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+            class="self-start text-label-large text-primary underline underline-offset-2 focus-ring"
           >
             {{ t('inbox.showAll') }}
           </RouterLink>
@@ -139,7 +139,7 @@ const columns = computed(() => [
                 v-if="column.key === 'owner'"
                 :to="`/players/${row.owner}`"
                 :title="row.owner"
-                class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+                class="text-primary underline underline-offset-2 focus-ring"
               >
                 {{ shortHash(row.owner) }}
               </RouterLink>

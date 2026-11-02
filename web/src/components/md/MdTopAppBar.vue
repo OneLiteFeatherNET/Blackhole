@@ -11,7 +11,7 @@ defineProps<{ brand: string; brandLabel?: string }>()
     <RouterLink
       to="/"
       :aria-label="brandLabel ?? brand"
-      class="relative flex shrink-0 items-center gap-2 rounded-md-full text-title-large text-on-surface outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      class="relative flex shrink-0 items-center gap-2 rounded-md-full text-title-large text-on-surface focus-ring"
     >
       <svg viewBox="0 0 24 24" class="h-8 w-8 text-primary" aria-hidden="true">
         <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />

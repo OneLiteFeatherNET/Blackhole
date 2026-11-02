@@ -170,7 +170,7 @@ const detailItems = computed(() => {
               <RouterLink
                 v-if="linkOf(row)"
                 :to="linkOf(row)!"
-                class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+                class="text-primary underline underline-offset-2 focus-ring"
               >
                 {{ targetText(row) }}
               </RouterLink>
@@ -207,7 +207,7 @@ const detailItems = computed(() => {
         <RouterLink
           v-if="linkOf(selected)"
           :to="linkOf(selected)!"
-          class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+          class="text-primary underline underline-offset-2 focus-ring"
         >
           {{ t(selected.targetKind === 'PLAYER' ? 'audit.detail.openPlayer' : 'audit.detail.openCase') }}
         </RouterLink>

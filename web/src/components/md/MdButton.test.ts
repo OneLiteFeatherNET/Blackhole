@@ -60,4 +60,10 @@ describe('MdButton', () => {
     expect(wrapper.classes()).toContain('disabled:opacity-(--md-sys-state-disabled-opacity)')
     expect(wrapper.classes()).not.toContain('disabled:opacity-[0.38]')
   })
+
+  it('carries the shared focus ring, so keyboard focus is visible', () => {
+    const wrapper = mount(MdButton, { slots: { default: 'Speichern' } })
+
+    expect(wrapper.classes()).toContain('focus-ring')
+  })
 })
