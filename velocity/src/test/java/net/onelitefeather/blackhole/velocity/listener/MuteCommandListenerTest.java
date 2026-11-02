@@ -1,95 +1,132 @@
 package net.onelitefeather.blackhole.velocity.listener;
 
 import com.velocitypowered.api.event.command.CommandExecuteEvent;
-import net.onelitefeather.blackhole.client.model.EnforcementKind;
-import net.onelitefeather.blackhole.velocity.RecordingProxy;
+import com.velocitypowered.api.event.command.CommandExecuteEvent.InvocationInfo;
+import com.velocitypowered.api.event.command.CommandExecuteEvent.SignedState;
+import com.velocitypowered.api.event.command.CommandExecuteEvent.Source;
+import com.velocitypowered.api.proxy.Player;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.renderer.ComponentRenderer;
 import net.onelitefeather.blackhole.velocity.TestData;
+import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
+import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
+import net.onelitefeather.blackhole.velocity.enforcement.BanIds;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteCommandGate;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteNoticeCooldown;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteNotices;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
-import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncMessage;
 import net.onelitefeather.blackhole.velocity.evidence.MutableClock;
-import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.lang.reflect.Proxy;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** A muted player may not run the commands a mute covers; an unknown mute state never blocks a command. */
+/** Covered commands of players whose mute state is unknown, with the backend stubbed: nothing touches the network. */
 class MuteCommandListenerTest {
 
+    private static final UUID ALICE_ID = UUID.fromString("00000000-0000-0000-0000-00000000000a");
+    private static final String LINE = "msg bob hi";
+
     private final MutableClock clock = new MutableClock();
-    private final RecordingProxy recording = new RecordingProxy("lobby", "lobby");
-    private final String owner = UUIDConverter.convertToSHA(this.recording.uuid);
-    private final PunishmentMirror mirror = new PunishmentMirror(this.clock);
-    private boolean backendDown;
+    private final PunishmentMirror mirror = new PunishmentMirror(clock);
+    private final PunishmentScreens screens = new PunishmentScreens(clock, new BlackholeConfig(), TestData.standardRegistry(),
+            (ComponentRenderer<Locale>) (component, locale) -> component, BanIds.NONE);
+    private final MuteNotices notices = new MuteNotices(screens, new MuteNoticeCooldown(clock, Duration.ofSeconds(30)));
 
-    private final SectionRegistry registry = TestData.standardRegistry();
-    private final PunishmentState state = new PunishmentState(this.registry, this.mirror, owner -> {
-        if (this.backendDown) {
-            throw new IllegalStateException("backend down");
+    private static final class RecordingPlayer {
+        final List<Component> messages = new ArrayList<>();
+        final List<Component> disconnects = new ArrayList<>();
+        final Player player;
+
+        RecordingPlayer() {
+            this.player = (Player) Proxy.newProxyInstance(RecordingPlayer.class.getClassLoader(), new Class<?>[]{Player.class},
+                    (proxy, method, args) -> switch (method.getName()) {
+                        case "getUniqueId" -> ALICE_ID;
+                        case "getUsername" -> "Alice";
+                        case "sendMessage" -> {
+                            messages.add((Component) args[0]);
+                            yield null;
+                        }
+                        case "disconnect" -> {
+                            disconnects.add((Component) args[0]);
+                            yield null;
+                        }
+                        case "hashCode" -> ALICE_ID.hashCode();
+                        case "equals" -> proxy == args[0];
+                        case "toString" -> "RecordingPlayer";
+                        default -> throw new UnsupportedOperationException(method.getName());
+                    });
         }
-        return Optional.empty();
-    }, this.clock, () -> true, Duration.ofMinutes(1));
-
-    private final MuteCommandListener listener = new MuteCommandListener(
-            new MuteCommandGate(List.of("msg", "tell", "w", "whisper", "me", "r", "reply"), false), this.state,
-            identifier -> OptionalLong.empty(),
-            new MuteNotices(RecordingProxy.screens(this.registry), new MuteNoticeCooldown(this.clock, Duration.ofSeconds(30))));
-
-    private CommandExecuteEvent run(String command) {
-        CommandExecuteEvent event = new CommandExecuteEvent(this.recording.player(), command);
-        this.listener.onCommand(event);
-        return event;
     }
 
-    private void mute() {
-        this.mirror.load(this.owner, List.of(new PunishmentSyncMessage(this.owner, "chat", EnforcementKind.MUTE.name(),
-                PunishmentSyncMessage.STATE_SET, "p1", null, "spam", null, false)));
+    private MuteCommandListener listener(PunishmentState.ProfileReader reader, boolean relayPresent) {
+        PunishmentState state = new PunishmentState(TestData.standardRegistry(), mirror, reader, clock, () -> true, Duration.ofMinutes(1));
+        return new MuteCommandListener(new MuteCommandGate(List.of("msg"), relayPresent), state,
+                punishmentIdentifier -> OptionalLong.empty(), notices);
     }
 
-    @Test
-    void aMutedPlayerRunningAMutedCommandIsDeniedAndTold() {
-        mute();
+    private static PunishmentState.ProfileReader backendDown() {
+        return owner -> {
+            throw new IOException("backend down");
+        };
+    }
 
-        CommandExecuteEvent event = run("msg bob hello");
-
-        assertFalse(event.getResult().isAllowed(), "a muted player cannot whisper");
-        assertEquals(1, this.recording.messages.size(), "the player is told about the mute, once");
+    private static CommandExecuteEvent command(Player player, SignedState signed) {
+        return new CommandExecuteEvent(player, LINE, new InvocationInfo(signed, Source.PLAYER));
     }
 
     @Test
-    void aMutedPlayerMayStillRunACommandTheMuteDoesNotCover() {
-        mute();
+    void anUnknownMuteStateWithTheBackendDownDeniesAnUnsignedCommand() {
+        RecordingPlayer alice = new RecordingPlayer();
+        CommandExecuteEvent event = command(alice.player, SignedState.UNSIGNED);
 
-        CommandExecuteEvent event = run("help");
+        listener(backendDown(), false).onCommand(event);
 
-        assertTrue(event.getResult().isAllowed(), "only the configured commands are covered");
+        assertFalse(event.getResult().isAllowed(), "a covered command whose mute state is unknown must not run");
     }
 
     @Test
-    void aPlayerWithoutAMuteMayRunAMutedCommand() {
-        CommandExecuteEvent event = run("msg bob hello");
+    void anUnknownMuteStateWithTheBackendDownTellsThePlayerChatIsUnavailable() {
+        RecordingPlayer alice = new RecordingPlayer();
 
-        assertTrue(event.getResult().isAllowed());
-        assertTrue(this.recording.messages.isEmpty());
+        listener(backendDown(), false).onCommand(command(alice.player, SignedState.UNSIGNED));
+
+        assertEquals(List.of(notices.unavailable()), alice.messages, "the player gets the neutral unavailable notice, not the mute screen");
+        assertTrue(alice.disconnects.isEmpty(), "an unknown state never disconnects the sender");
     }
 
     @Test
-    void anUnknownMuteStateNeverBlocksTheCommand() {
-        this.backendDown = true;
+    void anUnknownMuteStateWithTheBackendSayingNotMutedRunsTheCommand() {
+        RecordingPlayer alice = new RecordingPlayer();
+        CommandExecuteEvent event = command(alice.player, SignedState.UNSIGNED);
 
-        CommandExecuteEvent event = run("msg bob hello");
+        listener(owner -> Optional.empty(), false).onCommand(event);
 
-        assertTrue(event.getResult().isAllowed(), "the mute state being unknown never blocks a player");
+        assertTrue(event.getResult().isAllowed(), "the backend answered that the player is not muted, so the command runs");
+        assertTrue(alice.messages.isEmpty(), "no notice is sent to an unmuted player");
+    }
+
+    @Test
+    void aSignedCommandWithAnUnknownMuteStateRunsWithoutSignedVelocityRatherThanDisconnecting() {
+        RecordingPlayer alice = new RecordingPlayer();
+        CommandExecuteEvent event = command(alice.player, SignedState.SIGNED_WITH_ARGS);
+
+        listener(backendDown(), false).onCommand(event);
+
+        assertTrue(event.getResult().isAllowed(), "denying a signed command would make Velocity kick the sender");
+        assertTrue(alice.disconnects.isEmpty(), "the sender is not disconnected on an unknown state");
     }
 }

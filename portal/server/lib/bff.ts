@@ -146,6 +146,9 @@ export function mapBackendError(status: number, body: unknown): { status: number
     }
     case status === 413:
       return { status: 413, error: { code: 'TOO_LARGE' } }
+    case status === 429:
+      // The limit is the infrastructure's: the answer says only that the player must wait, never anything about a Ban ID.
+      return { status: 429, error: { code: 'RATE_LIMITED' } }
     case status === 422:
       return { status: 422, error: { code: 'PII_REJECTED' } }
     case status >= 400 && status < 500:
@@ -255,6 +258,8 @@ export function createBffHandler({ config, fetchImpl }: Declared) {
 
     const changesState = route.method !== 'GET'
     if (changesState && getHeader(event, 'origin') !== config.portalOrigin) return fail(event, 403, 'ORIGIN')
+    // The browser marks a request that another site started; the Origin check refuses it too, this says so first.
+    if (changesState && getHeader(event, 'sec-fetch-site') === 'cross-site') return fail(event, 403, 'ORIGIN')
 
     const token = getCookie(event, SESSION_COOKIE)
     if (route.session && !token) {
@@ -281,7 +286,7 @@ export function createBffHandler({ config, fetchImpl }: Declared) {
     const headers = new Headers({ accept: backendAccept(route) })
     if (body.json !== undefined) headers.set('content-type', 'application/json')
     if (route.session && token) headers.set('authorization', `Bearer ${token}`)
-    const client = getRequestIP(event, { xForwardedFor: true })
+    const client = getRequestIP(event)
     if (client) headers.set('x-forwarded-for', client)
     const idempotency = getHeader(event, IDEMPOTENCY_HEADER)
     if (idempotency && IDEMPOTENCY_SHAPE.test(idempotency) && changesState) headers.set(IDEMPOTENCY_HEADER, idempotency)
@@ -369,7 +374,7 @@ async function relayUpload(event: H3Event, { config, fetchImpl, token }: Declare
   if (!source) return fail(event, 400, 'BAD_REQUEST')
 
   const headers = new Headers({ accept: 'application/json', authorization: `Bearer ${token}`, 'content-type': type, 'content-length': String(declared) })
-  const client = getRequestIP(event, { xForwardedFor: true })
+  const client = getRequestIP(event)
   if (client) headers.set('x-forwarded-for', client)
   let upstream: Response
   try {
@@ -435,6 +440,7 @@ function relayEvents(event: H3Event, upstream: Response, abort: AbortController)
 /** Login: every failure is the same answer; a good answer turns the token into cookies and never reaches the page. */
 async function finishLogin(event: H3Event, upstream: Response) {
   if (upstream.status >= 500) return fail(event, 503, 'UNAVAILABLE')
+  if (upstream.status === 429) return fail(event, 429, 'RATE_LIMITED')
   if (upstream.status === 403) {
     // The challenge refusal is its own answer: it says nothing about the Ban ID, which was never read.
     const refused = (await parseJson(upstream)) as { code?: unknown } | undefined

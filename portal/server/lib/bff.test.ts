@@ -247,6 +247,15 @@ describe('login', () => {
     expect(JSON.parse(answers[0]!.body)).toEqual({ code: 'INVALID_BAN_ID' })
   })
 
+  it('answers a rate limit on sign-in as a rate limit, whatever the body, and never as a wrong Ban ID', async () => {
+    const { send } = bff([{ status: 429, text: '<html>Too Many Requests</html>' }])
+
+    const response = await send(...post('/api/session', { banId: BAN_ID }))
+
+    expect(response.status).toBe(429)
+    expect(await response.json()).toEqual({ code: 'RATE_LIMITED' })
+  })
+
   it('sets no cookie on a failed login', async () => {
     const { send } = bff([{ status: 401 }])
 
@@ -372,6 +381,36 @@ describe('login', () => {
     expect(response.status).toBe(413)
     expect(pulls, 'reading stops once the cap is passed').toBeLessThan(32)
     expect(calls).toEqual([])
+  })
+})
+
+describe('Sec-Fetch-Site', () => {
+  it('refuses a state-changing request the browser marks cross-site, before the backend is called', async () => {
+    const { send, calls } = bff()
+
+    const response = await send(...post('/api/session', { banId: BAN_ID }, { 'sec-fetch-site': 'cross-site' }))
+
+    expect(response.status).toBe(403)
+    expect(calls).toEqual([])
+  })
+
+  it.each([['same-origin'], ['none'], [undefined]])('lets a state-changing request marked %s through', async (fetchSite) => {
+    const { send, calls } = bff([{ body: LOGIN_OK }])
+
+    const response = await send(...post('/api/session', { banId: BAN_ID }, fetchSite === undefined ? {} : { 'sec-fetch-site': fetchSite }))
+
+    expect(response.status).toBe(200)
+    expect(calls).toHaveLength(1)
+  })
+})
+
+describe('client address', () => {
+  it('does not forward a client-set X-Forwarded-For to the backend', async () => {
+    const { send, calls } = bff([{ body: {} }])
+
+    await send('/api/punishment', { headers: { cookie: session, 'x-forwarded-for': '203.0.113.9' } })
+
+    expect(calls[0]?.headers.get('x-forwarded-for')).not.toBe('203.0.113.9')
   })
 })
 
@@ -511,11 +550,21 @@ describe('error mapping', () => {
     [413, {}, 413, { code: 'TOO_LARGE' }],
     [422, { message: 'ip found' }, 422, { code: 'PII_REJECTED' }],
     [400, { message: 'too long' }, 400, { code: 'VALIDATION' }],
-    [429, {}, 400, { code: 'VALIDATION' }],
+    [429, {}, 429, { code: 'RATE_LIMITED' }],
+    [429, { message: 'slow down' }, 429, { code: 'RATE_LIMITED' }],
     [500, { trace: 'at com.example' }, 503, { code: 'UNAVAILABLE' }],
     [502, {}, 503, { code: 'UNAVAILABLE' }],
   ])('maps backend %i %j to %i %j', (status, body, expectedStatus, expectedError) => {
     expect(mapBackendError(status, body)).toEqual({ status: expectedStatus, error: expectedError })
+  })
+
+  it('answers a rate limit on any route with the same rate-limit code', async () => {
+    const { send } = bff([{ status: 429, body: {} }])
+
+    const response = await send('/api/punishment', { headers: { cookie: session } })
+
+    expect(response.status).toBe(429)
+    expect(await response.json()).toEqual({ code: 'RATE_LIMITED' })
   })
 
   it('relays a too long text, which the backend answers with 400, as a validation error', async () => {

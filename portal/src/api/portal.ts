@@ -101,7 +101,8 @@ export function createPortalApi({ fetch: fetchImpl, csrf }: PortalApiOptions): P
     } catch {
       // An answer without a body (a proxy error page) is treated as unavailable below.
     }
-    const code = typeof parsed.code === 'string' ? (parsed.code as ErrorCode) : 'UNAVAILABLE'
+    // A rate limit is recognised by its status alone: an edge answer has no body the portal can read.
+    const code: ErrorCode = response.status === 429 ? 'RATE_LIMITED' : typeof parsed.code === 'string' ? (parsed.code as ErrorCode) : 'UNAVAILABLE'
     const availableFrom = typeof parsed.availableFrom === 'string' ? { availableFrom: parsed.availableFrom } : {}
     return { ok: false, error: { status: response.status, code, ...availableFrom } }
   }

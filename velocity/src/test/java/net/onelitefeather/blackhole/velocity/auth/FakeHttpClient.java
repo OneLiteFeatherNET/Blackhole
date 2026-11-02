@@ -37,10 +37,21 @@ public final class FakeHttpClient extends HttpClient {
     private final List<Scripted> script = new ArrayList<>();
     private final List<HttpRequest> requests = new ArrayList<>();
     private final List<String> bodies = new ArrayList<>();
+    private boolean neverAnswers;
 
     /** Queues an answer; once the queue is empty the last answer is repeated. */
     public FakeHttpClient answer(int status, String body) {
         this.script.add(new Scripted(status, body));
+        return this;
+    }
+
+    /**
+     * Makes the backend never answer, the way the JDK client sees it: a request that carries a timeout fails
+     * with {@link java.net.http.HttpTimeoutException}. A request without a timeout fails the test instead, since
+     * such a call would wait forever.
+     */
+    public FakeHttpClient neverAnswers() {
+        this.neverAnswers = true;
         return this;
     }
 
@@ -57,6 +68,12 @@ public final class FakeHttpClient extends HttpClient {
     public synchronized <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> handler) throws IOException {
         this.requests.add(request);
         this.bodies.add(read(request));
+        if (this.neverAnswers) {
+            if (request.timeout().isEmpty()) {
+                throw new AssertionError("the request has no timeout, so a backend that never answers would block it forever");
+            }
+            throw new java.net.http.HttpTimeoutException("no response within " + request.timeout().get());
+        }
         Scripted answer = this.script.get(Math.min(this.requests.size(), this.script.size()) - 1);
         @SuppressWarnings("unchecked")
         T body = (T) new ByteArrayInputStream(answer.body().getBytes(StandardCharsets.UTF_8));
