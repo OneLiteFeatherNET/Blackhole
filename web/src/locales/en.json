@@ -2275,5 +2275,18 @@
       "submit": "Lift ban",
       "done": "The IP ban was lifted."
     }
+  },
+  "integration": {
+    "title": "Integration detection",
+    "reportedBy": "Reported by {source}",
+    "signalNotVerdict": "A signal, not a verdict: staff decide.",
+    "kind": "Kind",
+    "server": "Server",
+    "detectionTime": "Time",
+    "reportedSeverity": "Reported severity",
+    "payload": "Reported values",
+    "field": "Field",
+    "value": "Value",
+    "notReported": "not reported"
   }
 }

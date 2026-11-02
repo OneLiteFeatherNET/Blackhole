@@ -106,6 +106,9 @@ function pick(code: Locale) {
   </header>
 
   <main id="main" tabindex="-1" class="mx-auto max-w-3xl px-4 py-8 sm:px-8">
+    <p v-if="state.logoutFailed" role="alert" class="mb-6 rounded-md-sm bg-error-container px-4 py-3 text-body-medium text-on-error-container">
+      {{ t('app.logoutFailed') }}
+    </p>
     <p v-if="state.phase === 'loading'" role="status" class="text-body-large text-on-surface-variant">{{ t('app.loading') }}</p>
     <LoginView v-else-if="state.phase === 'login'" />
     <ExpiredView v-else-if="state.phase === 'expired'" />

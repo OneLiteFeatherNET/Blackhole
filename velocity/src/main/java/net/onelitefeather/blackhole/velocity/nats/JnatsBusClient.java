@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.velocity.nats;
 
 import io.nats.client.Connection;
 import io.nats.client.ConnectionListener;
+import io.nats.client.Consumer;
 import io.nats.client.Dispatcher;
 import io.nats.client.ErrorListener;
 import io.nats.client.Nats;
@@ -32,7 +33,9 @@ public final class JnatsBusClient implements BusClient {
     private final Duration reconnectWait;
     private final Executor connector;
     private final CountDownLatch closed = new CountDownLatch(1);
-    private volatile Connection connection;
+    /** Guards the hand-over of {@link #connection} against {@link #close()}: a connection opened after close is closed at once. */
+    private final Object lock = new Object();
+    private Connection connection;
 
     /**
      * @param url           server URL(s), comma separated
@@ -72,11 +75,13 @@ public final class JnatsBusClient implements BusClient {
         while (this.closed.getCount() > 0) {
             try {
                 Connection opened = Nats.connectReconnectOnConnect(options);
-                if (this.closed.getCount() == 0) {
-                    opened.close();
-                    return;
+                synchronized (this.lock) {
+                    if (this.closed.getCount() == 0) {
+                        opened.close();
+                        return;
+                    }
+                    this.connection = opened;
                 }
-                this.connection = opened;
                 Dispatcher dispatcher = opened.createDispatcher(message -> listener.message(message.getSubject(), message.getData()));
                 for (String subject : Subjects.SUBSCRIPTIONS) {
                     dispatcher.subscribe(subject);
@@ -113,7 +118,7 @@ public final class JnatsBusClient implements BusClient {
                 .reconnectWait(this.reconnectWait)
                 .connectionTimeout(Duration.ofSeconds(5))
                 .connectionListener(connectionListener(listener, subscribed))
-                .errorListener(ERRORS);
+                .errorListener(errorListener(listener));
         if (!this.credsFile.isBlank()) {
             builder.credentialPath(this.credsFile);
         }
@@ -139,17 +144,29 @@ public final class JnatsBusClient implements BusClient {
         };
     }
 
-    private static final ErrorListener ERRORS = new ErrorListener() {
-        @Override
-        public void errorOccurred(Connection conn, String error) {
-            LOGGER.warn("NATS error: {}", error);
-        }
+    /**
+     * Logs the errors of the connection. A slow consumer means the client dropped events, so it is a disconnect for the
+     * listener: nothing cached from events may be trusted until the subscriptions are in place again.
+     */
+    static ErrorListener errorListener(Listener listener) {
+        return new ErrorListener() {
+            @Override
+            public void errorOccurred(Connection conn, String error) {
+                LOGGER.warn("NATS error: {}", error);
+            }
 
-        @Override
-        public void exceptionOccurred(Connection conn, Exception exp) {
-            LOGGER.warn("NATS exception: {}", exp.getMessage());
-        }
-    };
+            @Override
+            public void exceptionOccurred(Connection conn, Exception exp) {
+                LOGGER.warn("NATS exception: {}", exp.getMessage());
+            }
+
+            @Override
+            public void slowConsumerDetected(Connection conn, Consumer consumer) {
+                LOGGER.warn("NATS slow consumer: events were dropped, distrusting the cache until the bus resubscribes");
+                listener.disconnected();
+            }
+        };
+    }
 
     /** The URL without any user info, which may hold a secret. */
     static String redact(String url) {
@@ -158,8 +175,11 @@ public final class JnatsBusClient implements BusClient {
 
     @Override
     public void close() {
-        this.closed.countDown();
-        Connection current = this.connection;
+        Connection current;
+        synchronized (this.lock) {
+            this.closed.countDown();
+            current = this.connection;
+        }
         if (current != null) {
             try {
                 current.close();

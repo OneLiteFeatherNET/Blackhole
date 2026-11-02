@@ -92,6 +92,7 @@ import net.onelitefeather.blackhole.velocity.listener.PlayerChatListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerClientBrandListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerDisconnectListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerLoginListener;
+import net.onelitefeather.blackhole.velocity.listener.PostConnectBanListener;
 import net.onelitefeather.blackhole.velocity.listener.ServerConnectListener;
 import net.onelitefeather.blackhole.velocity.module.BlackholeClientModule;
 import net.onelitefeather.blackhole.velocity.enforcement.EnforcementActions;
@@ -100,6 +101,7 @@ import net.onelitefeather.blackhole.velocity.enforcement.MuteCommandGate;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteNoticeCooldown;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteNotices;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
+import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
 import net.onelitefeather.blackhole.velocity.enforcement.RelayState;
@@ -137,7 +139,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.Locale;
 import java.util.ResourceBundle;
@@ -219,16 +220,13 @@ public class BlackholeVelocity {
                 SessionReporter.boundedExecutor(), UUID::randomUUID);
 
         SectionRegistry sections = new SectionRegistry(new BackendSectionSource(this.client));
-        PunishmentMirror mirror = new PunishmentMirror(clock);
+        PunishmentMirror mirror = new PunishmentMirror(clock, this.config.getMirror().getMaxOwners(),
+                () -> this.server.getAllPlayers().stream().map(player -> UUIDConverter.convertToSHA(player.getUniqueId())).toList());
         BackendGateway backend = new HttpBackendGateway(this.client, clock);
         NatsConfig natsConfig = this.config.getNats().withEnvironment(System::getenv);
         this.sentry.registerSecret(natsConfig.getCredsFile());
         // The sync service is created first (it is the cache trust) and told about the bus once the reactions below exist.
-        ExecutorService eventThread = Executors.newSingleThreadExecutor(task -> {
-            Thread thread = new Thread(task, "blackhole-nats-events");
-            thread.setDaemon(true);
-            return thread;
-        });
+        ExecutorService eventThread = NatsSyncService.boundedExecutor();
         this.eventThread = eventThread;
         AtomicReference<NatsSyncService> sync = new AtomicReference<>();
         // Profile reads get clients of their own, so each is cut off at its timeout; a login waits longer than a chat message or connect.
@@ -384,6 +382,7 @@ public class BlackholeVelocity {
         }
         server.getEventManager().register(this, childInjector.getInstance(PlayerClientBrandListener.class));
         server.getEventManager().register(this, childInjector.getInstance(ServerConnectListener.class));
+        server.getEventManager().register(this, childInjector.getInstance(PostConnectBanListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerDisconnectListener.class));
         if (clientRuleListener != null) {
             server.getEventManager().register(this, clientRuleListener);
