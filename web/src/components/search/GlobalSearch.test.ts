@@ -35,7 +35,7 @@ describe('GlobalSearch', () => {
 
     await input.setValue('Steve')
 
-    expect(wrapper.findAll('[role="option"]').map((o) => o.text())).toEqual(['Open player "Steve"'])
+    expect(wrapper.findAll('[role="option"]').map((o) => o.text())).toEqual(['Player Open player "Steve"'])
     expect(input.attributes('aria-expanded')).toBe('true')
     wrapper.unmount()
   })
@@ -251,6 +251,21 @@ describe('GlobalSearch', () => {
     press('/')
 
     expect(document.activeElement).not.toBe(element)
+  })
+
+  it('names the type of every hit: player for a name, case for a case id, report for a report id', async () => {
+    const { wrapper, input } = await setup()
+
+    await input.setValue('Steve')
+    expect(wrapper.get('[data-testid="search-type"]').text()).toBe('Player')
+
+    await input.setValue('#A1B2C3D4')
+    expect(wrapper.get('[data-testid="search-type"]').text()).toBe('Case')
+
+    await input.setValue('report:3F2B8C1E-0000-4000-8000-000000000001')
+    expect(wrapper.get('[data-testid="search-type"]').text()).toBe('Report')
+
+    wrapper.unmount()
   })
 
   it('exposes the field as a labelled combobox with the shortcut', async () => {

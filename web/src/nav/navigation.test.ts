@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { i18n } from '../i18n'
-import { visibleGroups, type WorkspaceKey } from './navigation'
+import { SHORTCUT_TARGETS, flatDestinations, primaryDestinations, visibleGroups, type WorkspaceKey } from './navigation'
 
 const ADMIN = { hasAccess: true, administrator: true }
 const MODERATOR = { hasAccess: true, administrator: false }
@@ -25,10 +25,10 @@ describe('visibleGroups for the moderation workspace', () => {
 
   it.each([['administrator', ADMIN], ['moderator', MODERATOR]])('lists the inbox, then Work, Players and Protection for an %s', (_role, access) => {
     expect(shape(access, 'moderation')).toEqual([
-      ['home', false, ['inbox']],
+      ['today', true, ['inbox']],
       ['work', true, ['cases', 'appeals', 'reports']],
-      ['players', true, ['playerLookup', 'activePunishments', 'allowList', 'vpnPolicy']],
-      ['guard', true, ['joinGuard', 'areaBans', 'ipBans']],
+      ['players', true, ['playerLookup', 'activePunishments']],
+      ['protection', true, ['joinGuard', 'areaBans', 'ipBans', 'allowList', 'vpnPolicy']],
     ])
   })
 
@@ -48,12 +48,29 @@ describe('visibleGroups for the moderation workspace', () => {
       ['reports', '/reports'],
       ['playerLookup', '/players'],
       ['activePunishments', '/punished'],
-      ['allowList', '/intel/allow-list'],
-      ['vpnPolicy', '/intel/policy'],
       ['joinGuard', '/guard'],
       ['areaBans', '/area-bans'],
       ['ipBans', '/ip-bans'],
+      ['allowList', '/intel/allow-list'],
+      ['vpnPolicy', '/intel/policy'],
     ])
+  })
+
+  it('marks the five top destinations as primary, in the order of the shortcuts', () => {
+    expect(primaryDestinations(visibleGroups(MODERATOR, 'moderation')).map((item) => item.key)).toEqual(['inbox', 'cases', 'appeals', 'reports', 'playerLookup'])
+  })
+
+  it('gives every destination of both workspaces its own icon', () => {
+    const all = [...visibleGroups(ADMIN, 'moderation'), ...visibleGroups(ADMIN, 'administration')].flatMap((group) => group.items)
+    const icons = all.map((item) => item.icon)
+
+    expect(all.length).toBe(22)
+    expect(new Set(icons).size, 'distinct icons').toBe(icons.length)
+    expect(flatDestinations(visibleGroups(ADMIN, 'administration'))).toHaveLength(11)
+  })
+
+  it('binds the chords g i, g c, g a, g r and g p to their destinations', () => {
+    expect(SHORTCUT_TARGETS).toEqual({ i: '/', c: '/cases', a: '/appeals', r: '/reports', p: '/players' })
   })
 
   it('badges the inbox with its total and the work items with their own counts', () => {
@@ -104,7 +121,9 @@ describe('navigation labels', () => {
   it('names the moderation destinations with the glossary terms in English', () => {
     expect(label('nav.inbox', 'en')).toBe('Inbox')
     expect(label('nav.groups.work', 'en')).toBe('Work')
+    expect(label('nav.groups.today', 'en')).toBe('Today')
     expect(label('nav.groups.players', 'en')).toBe('Players')
+    expect(label('nav.groups.protection', 'en')).toBe('Protection')
     expect(label('nav.playerLookup', 'en')).toBe('Player lookup')
     expect(label('nav.activePunishments', 'en')).toBe('Active punishments')
     expect(label('nav.allowList', 'en')).toBe('Allow-list')
@@ -128,6 +147,8 @@ describe('navigation labels', () => {
     expect(label('nav.appeals', 'de')).toBe('Einsprüche')
     expect(label('nav.reports', 'de')).toBe('Meldungen')
     expect(label('nav.groups.work', 'de')).toBe('Arbeit')
+    expect(label('nav.groups.today', 'de')).toBe('Heute')
+    expect(label('nav.groups.protection', 'de')).toBe('Schutz')
     expect(label('nav.groups.players', 'de')).toBe('Spieler')
     expect(label('nav.playerLookup', 'de')).toBe('Spielersuche')
     expect(label('nav.activePunishments', 'de')).toBe('Aktive Strafen')

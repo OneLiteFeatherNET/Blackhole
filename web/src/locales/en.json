@@ -16,19 +16,26 @@
     "clientRules": "Client rules",
     "administration": "Administration",
     "groups": {
+      "today": "Today",
       "work": "Work",
       "players": "Players",
       "configuration": "Configuration",
       "administration": "Administration",
       "review": "Review",
       "system": "System",
-      "guard": "Protection"
+      "protection": "Protection"
+    },
+    "more": "More",
+    "shortcuts": {
+      "open": "Keyboard shortcuts",
+      "title": "Keyboard shortcuts",
+      "intro": "Outside text fields, press g and then a letter to open a page. Press ? to show this list.",
+      "help": "Show this list",
+      "then": "then",
+      "close": "Close"
     },
     "brand": "Blackhole",
-    "open": "Open navigation",
     "close": "Close navigation",
-    "collapse": "Collapse navigation",
-    "expand": "Expand navigation",
     "breadcrumbs": "Breadcrumbs",
     "badge": {
       "inbox": "{n} item needs attention | {n} items need attention",
@@ -1524,7 +1531,12 @@
     "hint": "Enter a player name (3 to 16 characters), a case id such as #A1B2C3D4 or report: and a report id.",
     "caseNotFound": "Nothing matches the case id {id}.",
     "ambiguous": "The id {id} matches {n} cases. Pick one.",
-    "report": "Open report {id}"
+    "report": "Open report {id}",
+    "types": {
+      "player": "Player",
+      "case": "Case",
+      "report": "Report"
+    }
   },
   "appealConditions": {
     "title": "Appeal terms",

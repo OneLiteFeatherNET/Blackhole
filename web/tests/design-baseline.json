@@ -11,7 +11,6 @@
     "src/components/evidence/DeleteEvidenceDialog.vue",
     "src/components/evidence/EvidenceItem.vue",
     "src/components/evidence/EvidenceShareDialog.vue",
-    "src/components/md/MdNavigationDrawer.vue",
     "src/components/md/MdTopAppBar.vue",
     "src/components/player/AdjustDialog.vue",
     "src/components/player/SectionScores.vue",

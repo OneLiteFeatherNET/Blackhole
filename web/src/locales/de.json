@@ -16,19 +16,26 @@
     "clientRules": "Client-Regeln",
     "administration": "Verwaltung",
     "groups": {
+      "today": "Heute",
       "work": "Arbeit",
       "players": "Spieler",
       "configuration": "Konfiguration",
       "administration": "Verwaltung",
       "review": "Prüfung",
       "system": "System",
-      "guard": "Schutz"
+      "protection": "Schutz"
+    },
+    "more": "Mehr",
+    "shortcuts": {
+      "open": "Tastenkürzel",
+      "title": "Tastenkürzel",
+      "intro": "Außerhalb von Textfeldern drückst du g und dann einen Buchstaben, um eine Seite zu öffnen. Mit ? wird diese Liste angezeigt.",
+      "help": "Diese Liste anzeigen",
+      "then": "dann",
+      "close": "Schließen"
     },
     "brand": "Blackhole",
-    "open": "Navigation öffnen",
     "close": "Navigation schließen",
-    "collapse": "Navigation einklappen",
-    "expand": "Navigation ausklappen",
     "breadcrumbs": "Navigationspfad",
     "badge": {
       "inbox": "{n} Vorgang braucht Aufmerksamkeit | {n} Vorgänge brauchen Aufmerksamkeit",
@@ -1524,7 +1531,12 @@
     "hint": "Gib einen Spielernamen (3 bis 16 Zeichen), eine Fall-ID wie #A1B2C3D4 oder report: und eine Meldungs-ID ein.",
     "caseNotFound": "Zur Fall-ID {id} wurde nichts gefunden.",
     "ambiguous": "Die ID {id} passt zu {n} Fällen. Wähle einen aus.",
-    "report": "Meldung {id} öffnen"
+    "report": "Meldung {id} öffnen",
+    "types": {
+      "player": "Spieler",
+      "case": "Fall",
+      "report": "Meldung"
+    }
   },
   "appealConditions": {
     "title": "Einspruchsbedingungen",
