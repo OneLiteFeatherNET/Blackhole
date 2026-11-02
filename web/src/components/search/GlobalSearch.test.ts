@@ -193,6 +193,31 @@ describe('GlobalSearch', () => {
     wrapper.unmount()
   })
 
+  it('closes the list and empties the field when the route changes', async () => {
+    const { wrapper, router, input } = await setup()
+    await input.setValue('Steve')
+    expect(wrapper.find('[role="option"]').exists(), 'list before the route change').toBe(true)
+
+    await router.push('/cases')
+    await flushPromises()
+
+    expect(wrapper.find('[role="option"]').exists(), 'list after the route change').toBe(false)
+    expect(input.element.value, 'text after the route change').toBe('')
+    wrapper.unmount()
+  })
+
+  it('keeps the focus in the field when Escape closes the list', async () => {
+    const { wrapper, input } = await setup()
+    input.element.focus()
+    await input.setValue('Steve')
+
+    await input.trigger('keydown', { key: 'Escape' })
+
+    expect(wrapper.find('[role="option"]').exists(), 'list').toBe(false)
+    expect(document.activeElement, 'focus').toBe(input.element)
+    wrapper.unmount()
+  })
+
   it('focuses the field when / is pressed outside a text field', async () => {
     const { wrapper, input } = await setup()
 
