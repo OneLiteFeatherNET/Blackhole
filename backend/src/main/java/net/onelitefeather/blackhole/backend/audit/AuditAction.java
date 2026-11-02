@@ -38,7 +38,10 @@ public enum AuditAction {
     GUARD_LEVEL_SET("guard.level.set"),
     AREA_BAN_CREATE("area-ban.create"),
     AREA_BAN_LIFT("area-ban.lift"),
-    GUARD_SETTINGS_SET("guard.settings.set");
+    GUARD_SETTINGS_SET("guard.settings.set"),
+    INTEGRATION_REGISTER("integration.registered"),
+    INTEGRATION_UPDATE("integration.updated"),
+    INTEGRATION_DISABLE("integration.disabled");
 
     private final String wireName;
 

@@ -70,6 +70,8 @@ public class BlackholeRolesFinder implements RolesFinder {
         grantMachine(roles, claimValues, azp, this.mapping.machineProxy(), this.machineClients.proxy(), Roles.PROXY);
         grantMachine(roles, claimValues, azp, this.mapping.machineMetrics(), this.machineClients.metrics(), Roles.METRICS);
         grantMachine(roles, claimValues, azp, this.mapping.machineDiscord(), this.machineClients.discord(), Roles.DISCORD);
+        // No azp allow-list here: an integration's client id is checked against its registration row by the service.
+        grant(roles, claimValues, this.mapping.machineIntegration(), Roles.INTEGRATION);
         return List.copyOf(roles);
     }
 

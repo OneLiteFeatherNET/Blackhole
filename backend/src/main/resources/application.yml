@@ -131,6 +131,9 @@ blackhole:
       machine-metrics: ${BLACKHOLE_AUTH_MACHINE_ROLE_METRICS:Blackhole.Metrics}
       # The Discord bot (discord module) acts with this app role; it only reaches /discord/**.
       machine-discord: ${BLACKHOLE_AUTH_MACHINE_ROLE_DISCORD:Blackhole.Discord}
+      # A third-party detection integration (its own Entra app registration per instance or task, see the
+      # integration module) acts with this app role; it only reaches POST /integration/detections.
+      machine-integration: ${BLACKHOLE_AUTH_MACHINE_ROLE_INTEGRATION:Blackhole.Integration}
       # Client ids (the azp claim, never appid) allowed to act with each machine role. An app-only
       # token with the role value but another azp gets no role. Comma separated; empty means nobody,
       # so production must set these. The dev defaults are in application-dev.yml.

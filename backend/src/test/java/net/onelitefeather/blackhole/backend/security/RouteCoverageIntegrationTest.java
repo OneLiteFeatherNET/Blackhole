@@ -179,6 +179,10 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /ipban/{id}", V),
             Map.entry("POST /ipban/{id}/lift", M),
             // admin configuration
+            Map.entry("GET /integration/registrations", A),
+            Map.entry("POST /integration/registrations", A),
+            Map.entry("GET /integration/registrations/{id}", A),
+            Map.entry("PATCH /integration/registrations/{id}", A),
             Map.entry("POST /section", A),
             Map.entry("POST /section/update", A),
             Map.entry("POST /section/{key}/disable", A),
