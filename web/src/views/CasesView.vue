@@ -5,6 +5,7 @@ import { type LocationQuery, RouterLink, useRoute, useRouter } from 'vue-router'
 import { useApi } from '../api/inject'
 import type { CaseListItem, CaseStatus } from '../api/types'
 import CasePlayerGroups from '../components/case/CasePlayerGroups.vue'
+import { CASE_STATUS_TONE, PRIORITY_TONE, punishmentStateTone } from '../components/case/caseTones'
 import DataTable, { type DataColumn } from '../components/DataTable.vue'
 import EmptyState from '../components/EmptyState.vue'
 import FilterToolbar, { type FilterDef } from '../components/FilterToolbar.vue'
@@ -12,6 +13,7 @@ import PageShell from '../components/PageShell.vue'
 import ResourceState from '../components/ResourceState.vue'
 import StatusPill from '../components/StatusPill.vue'
 import MdButton from '../components/md/MdButton.vue'
+import MdSegmentedButton, { type SegmentOption } from '../components/md/MdSegmentedButton.vue'
 import { useResource } from '../composables/useResource'
 import { formatDateTime } from '../format'
 import { useSessionStore } from '../stores/session'
@@ -106,6 +108,11 @@ const filters = computed<FilterDef[]>(() => [
   { kind: 'tag', id: 'tag', label: t('case.list.tag'), pattern: TAG, invalid: t('case.header.tagInvalid') },
 ])
 
+const viewOptions = computed<SegmentOption<CasesViewMode>[]>(() => [
+  { value: 'cases', label: t('case.list.viewCases'), testid: 'view-cases' },
+  { value: 'player', label: t('case.list.viewPlayer'), testid: 'view-player' },
+])
+
 const columns = computed<DataColumn<CaseListItem>[]>(() => [
   { key: 'shortId', label: t('case.list.columns.case'), priority: 1 },
   { key: 'playerName', label: t('case.list.columns.player'), priority: 2 },
@@ -125,24 +132,7 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
       <FilterToolbar v-model="values" :filters="filters" />
     </template>
 
-    <div role="group" :aria-label="t('case.list.view')" class="mb-3 flex gap-2">
-      <MdButton
-        variant="outlined"
-        data-testid="view-cases"
-        :aria-pressed="view === 'cases' ? 'true' : 'false'"
-        @click="view = 'cases'"
-      >
-        {{ t('case.list.viewCases') }}
-      </MdButton>
-      <MdButton
-        variant="outlined"
-        data-testid="view-player"
-        :aria-pressed="view === 'player' ? 'true' : 'false'"
-        @click="view = 'player'"
-      >
-        {{ t('case.list.viewPlayer') }}
-      </MdButton>
-    </div>
+    <MdSegmentedButton v-model="view" :label="t('case.list.view')" :options="viewOptions" class="mb-3" />
 
     <CasePlayerGroups
       v-if="view === 'player'"
@@ -159,6 +149,7 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
       :caption="t('case.list.title')"
       :columns="columns"
       :rows="[]"
+      class="bg-surface-container-low"
       loading
     />
 
@@ -169,6 +160,7 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
           :caption="t('case.list.title')"
           :columns="columns"
           :rows="cases.data.value.items"
+          class="bg-surface-container-low"
         >
           <template #cell="{ row, column }">
             <RouterLink
@@ -179,11 +171,23 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
               {{ row.shortId }}
             </RouterLink>
             <template v-else-if="column.key === 'playerName'">{{ row.playerName ?? t('case.list.unknownPlayer', { hash: row.ownerShort }) }}</template>
-            <StatusPill v-else-if="column.key === 'punishmentState'" :label="t(`case.state.${row.punishmentState}`)" />
-            <StatusPill v-else-if="column.key === 'status'" :label="t(`case.status.${row.status}`)" tone="primary" />
+            <StatusPill
+              v-else-if="column.key === 'punishmentState'"
+              :label="t(`case.state.${row.punishmentState}`)"
+              :tone="punishmentStateTone(row.punishmentState)"
+            />
+            <StatusPill v-else-if="column.key === 'status'" :label="t(`case.status.${row.status}`)" :tone="CASE_STATUS_TONE[row.status]" />
             <template v-else-if="column.key === 'assigneeName'">{{ row.assigneeName ?? (row.assigneeOid ? `${row.assigneeOid.slice(0, 8)}…` : t('case.header.unassigned')) }}</template>
-            <template v-else-if="column.key === 'priority'">{{ t(`case.priority.${row.priority}`) }}</template>
-            <template v-else-if="column.key === 'tags'">{{ row.tags.join(', ') }}</template>
+            <StatusPill v-else-if="column.key === 'priority'" :label="t(`case.priority.${row.priority}`)" :tone="PRIORITY_TONE[row.priority]" />
+            <ul v-else-if="column.key === 'tags'" class="flex flex-wrap gap-1" :aria-label="t('case.header.tags')">
+              <li
+                v-for="tag in row.tags"
+                :key="tag"
+                class="inline-flex h-6 items-center rounded-md-sm border border-outline px-2 text-label-medium whitespace-nowrap text-on-surface-variant"
+              >
+                {{ tag }}
+              </li>
+            </ul>
             <template v-else-if="column.key === 'lastActivityAt'">{{ formatDateTime(row.lastActivityAt, locale) }}</template>
             <template v-else>{{ row[column.key] }}</template>
           </template>

@@ -69,6 +69,8 @@ const PAIRS: Array<[string, string, number, string]> = [
   ['error', 'surface-container', TEXT, 'upload error text'],
   ['primary', 'surface-container-low', TEXT, 'links in lifted evidence items'],
   ['primary', 'surface-container', UI, 'upload progress bar'],
+  // The case list: the table and the player groups sit on surface-container-low; outlined pills and chips border it.
+  ['outline', 'surface-container-low', UI, 'outlined pills, tag chips and the segmented button on lifted cards and tables'],
 ]
 
 describe.each(Object.entries(schemes))('%s scheme contrast', (_name, colors) => {

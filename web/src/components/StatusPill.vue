@@ -1,14 +1,18 @@
 <script setup lang="ts">
 // A read-only status label (not interactive, unlike MdChip). The tone is never the only signal:
-// the text always says what the status is.
-withDefaults(defineProps<{ label: string; tone?: 'neutral' | 'error' | 'primary' | 'tertiary' }>(), {
-  tone: 'neutral',
-})
+// the text always says what the status is. Each tone is one MD3 role pair; the case tones are mapped in
+// components/case/caseTones.ts.
+withDefaults(
+  defineProps<{ label: string; tone?: 'neutral' | 'outline' | 'error' | 'primary' | 'secondary' | 'tertiary' }>(),
+  { tone: 'neutral' },
+)
 
 const toneClasses = {
   neutral: 'bg-surface-container-highest text-on-surface-variant',
+  outline: 'border border-outline text-on-surface-variant',
   error: 'bg-error-container text-on-error-container',
   primary: 'bg-primary-container text-on-primary-container',
+  secondary: 'bg-secondary-container text-on-secondary-container',
   tertiary: 'bg-tertiary-container text-on-tertiary-container',
 } as const
 </script>

@@ -5,7 +5,8 @@ The single source for the colours and brand values that `web/` and `portal/` sha
 
 ## Files
 
-- `seed.json`: the MD3 seed colour. The scheme (light and dark, tonal spot) is derived from it.
+- `seed.json`: the MD3 source colour, OLF Pink `#EC008B`. The scheme (light and dark, Vibrant) is derived from it.
+  Both `web/` and `portal/` read it, so the two apps share one brand colour.
 - `brand.json`: the OLF brand values that are not MD3 roles (the hero gradient).
 
 ## Rules

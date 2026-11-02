@@ -4,11 +4,12 @@
 //
 // The color library ships extensionless ESM imports that Node cannot resolve natively,
 // so it is loaded through Vite's module loader.
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { createServer } from 'vite'
 
-const SEED = '#EC008B'
+// The seed is shared with web/ (design/tokens/seed.json), so both apps carry the same brand colour.
+const { seed: SEED } = JSON.parse(readFileSync(fileURLToPath(new URL('../../design/tokens/seed.json', import.meta.url)), 'utf8'))
 const OUT = fileURLToPath(new URL('../src/styles/md3-tokens.generated.css', import.meta.url))
 
 // MD3 color role (kebab-case CSS name) -> MaterialDynamicColors property.

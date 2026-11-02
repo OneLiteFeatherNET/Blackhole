@@ -9,6 +9,7 @@ import type { Case, CaseStatus } from '../../api/types'
 import { useSessionStore } from '../../stores/session'
 import MdButton from '../md/MdButton.vue'
 import StatusPill from '../StatusPill.vue'
+import { CASE_STATUS_TONE, punishmentStateTone } from './caseTones'
 
 const props = defineProps<{ kase: Case }>()
 const emit = defineEmits<{ updated: [kase: Case]; reload: []; message: [text: string] }>()
@@ -22,7 +23,7 @@ const conflict = ref(false)
 const error = ref('')
 
 const closed = computed(() => props.kase.status === 'CLOSED')
-const stateTone = computed(() => (props.kase.punishmentState === 'ACTIVE' ? 'error' : 'neutral'))
+const stateTone = computed(() => punishmentStateTone(props.kase.punishmentState))
 
 // A fresh version means the user is looking at current data again.
 watch(
@@ -54,7 +55,7 @@ async function toggle(): Promise<void> {
 
 <template>
   <section :aria-label="t('case.bar.title')" class="flex flex-wrap items-center gap-3 rounded-md-lg bg-surface-container p-3" data-testid="case-bar">
-    <StatusPill :label="t(`case.status.${kase.status}`)" data-testid="case-status" />
+    <StatusPill :label="t(`case.status.${kase.status}`)" :tone="CASE_STATUS_TONE[kase.status]" data-testid="case-status" />
     <StatusPill :label="t(`case.state.${kase.punishmentState}`)" :tone="stateTone" data-testid="punishment-state" />
     <StatusPill v-if="kase.permanent" :label="t('player.permanent')" tone="error" />
 
