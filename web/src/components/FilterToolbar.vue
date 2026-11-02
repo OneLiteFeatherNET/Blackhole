@@ -23,7 +23,7 @@ export type FilterDef =
 // One row on desktop, wrapping on phones, always in the order search, select, toggle group, tag. The page's primary
 // action goes in the `actions` slot at the end. Every applied filter shows as an input chip below the toolbar, and
 // "Clear all" appears when more than one is applied. A tag becomes a value on submit; there is no submit button.
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import MdButton from './md/MdButton.vue'
 import MdChip from './md/MdChip.vue'
@@ -38,15 +38,27 @@ const { t } = useI18n()
 const ORDER: FilterDef['kind'][] = ['search', 'select', 'toggle-group', 'tag']
 const ordered = computed(() => [...props.filters].sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind)))
 
-// What the tag field shows before it is submitted, and the error of a tag that cannot exist.
+// What the tag field types before it is submitted, and the error of a tag that cannot exist. A tag field shows its
+// value unless the user is typing a draft on top of it: the draft is dropped whenever the value changes from outside
+// (a chip removed, Back, another page), so the field always reflects the route query.
 const drafts = ref<Record<string, string>>({})
 const tagErrors = ref<Record<string, string>>({})
 
 const valueOf = (id: string): string => props.modelValue[id] ?? ''
+const draftOf = (id: string): string => drafts.value[id] ?? valueOf(id)
 
 function set(id: string, value: string): void {
   emit('update:modelValue', { ...props.modelValue, [id]: value })
 }
+
+watch(
+  () => props.modelValue,
+  (next, previous) => {
+    for (const filter of props.filters) {
+      if (filter.kind === 'tag' && (next[filter.id] ?? '') !== (previous?.[filter.id] ?? '')) delete drafts.value[filter.id]
+    }
+  },
+)
 
 // A selected toggle pressed again is cleared: "All" and "no filter" are the same choice.
 function toggle(filter: FilterDef, option: FilterOption): void {
@@ -54,12 +66,13 @@ function toggle(filter: FilterDef, option: FilterOption): void {
 }
 
 function submitTag(filter: Extract<FilterDef, { kind: 'tag' }>): void {
-  const value = (drafts.value[filter.id] ?? '').trim().toLowerCase()
+  const value = draftOf(filter.id).trim().toLowerCase()
   if (value && !filter.pattern.test(value)) {
     tagErrors.value = { ...tagErrors.value, [filter.id]: filter.invalid }
     return
   }
   tagErrors.value = { ...tagErrors.value, [filter.id]: '' }
+  delete drafts.value[filter.id]
   set(filter.id, value)
 }
 
@@ -138,7 +151,8 @@ const testidOf = (filter: FilterDef, option: FilterOption) => option.testid ?? `
           @submit.prevent="submitTag(filter)"
         >
           <MdTextField
-            v-model="drafts[filter.id]"
+            :model-value="draftOf(filter.id)"
+            @update:model-value="drafts[filter.id] = $event"
             :label="filter.label"
             :error="tagErrors[filter.id]"
             dense
