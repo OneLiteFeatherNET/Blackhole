@@ -1,4 +1,10 @@
 {
-  "$comment": "OLF Pink, the MD3 source colour for web/ and portal/ (Vibrant scheme). Read by both generators. Change it here only.",
-  "seed": "#EC008B"
+  "$comment": "OLF Pink, the MD3 source colour for web/ and portal/. It is the primary palette; the neutral surfaces are low-chroma and derived from its hue. secondary and tertiary are the brand accents (violet and cyan). success and warning are harmonised to the seed with Blend.harmonize. Read by both generators. Change it here only.",
+  "seed": "#EC008B",
+  "accents": {
+    "secondary": "#7B2CBF",
+    "tertiary": "#27A9E1",
+    "success": "#00A86B",
+    "warning": "#E8C100"
+  }
 }
