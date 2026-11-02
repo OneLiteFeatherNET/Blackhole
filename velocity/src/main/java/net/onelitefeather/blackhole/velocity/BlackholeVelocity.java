@@ -90,6 +90,7 @@ import net.onelitefeather.blackhole.velocity.listener.PlayerChatListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerClientBrandListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerDisconnectListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerLoginListener;
+import net.onelitefeather.blackhole.velocity.listener.PostConnectBanListener;
 import net.onelitefeather.blackhole.velocity.listener.ServerConnectListener;
 import net.onelitefeather.blackhole.velocity.module.BlackholeClientModule;
 import net.onelitefeather.blackhole.velocity.enforcement.EnforcementActions;
@@ -364,6 +365,7 @@ public class BlackholeVelocity {
         }
         server.getEventManager().register(this, childInjector.getInstance(PlayerClientBrandListener.class));
         server.getEventManager().register(this, childInjector.getInstance(ServerConnectListener.class));
+        server.getEventManager().register(this, childInjector.getInstance(PostConnectBanListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerDisconnectListener.class));
         if (clientRuleListener != null) {
             server.getEventManager().register(this, clientRuleListener);
