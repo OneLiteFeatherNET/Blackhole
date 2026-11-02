@@ -72,6 +72,7 @@
     "openConversation": "Gespräch öffnen"
   },
   "appealForm": {
+    "filedNotSent": "Der Einspruch ist eingereicht. {count} Datei wurde nicht gesendet: {reason} | Der Einspruch ist eingereicht. {count} Dateien wurden nicht gesendet: {reason}",
     "title": "Einspruch einlegen",
     "notice": "Pro Strafe kann ein Einspruch offen sein. Erkläre in eigenen Worten, warum die Strafe überprüft werden soll.",
     "label": "Deine Stellungnahme",

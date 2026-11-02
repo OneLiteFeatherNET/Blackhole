@@ -72,6 +72,7 @@
     "openConversation": "Open conversation"
   },
   "appealForm": {
+    "filedNotSent": "Appeal filed. {count} file was not sent: {reason} | Appeal filed. {count} files were not sent: {reason}",
     "title": "File an appeal",
     "notice": "You can have one appeal open per punishment. Explain in your own words why the punishment should be reviewed.",
     "label": "Your statement",

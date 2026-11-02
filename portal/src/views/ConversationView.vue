@@ -13,6 +13,9 @@ import { formatDate, formatDateTime } from '../format'
 import { SESSION_KEY } from '../session'
 
 defineEmits<{ back: [] }>()
+/** The notice of a filing that just opened this conversation; it stays until the next message is sent. */
+const props = defineProps<{ filedNotice?: string }>()
+const filedNotice = ref(props.filedNotice ?? '')
 
 /** Polling cadence: 15 s without a live stream, 30 s as a safety net beside one (design decision 10). */
 const POLL_MS = 15_000
@@ -198,6 +201,7 @@ async function send() {
   if (attempt?.signature !== signature) attempt = { signature, key: crypto.randomUUID() }
   sending.value = true
   failure.value = null
+  filedNotice.value = ''
   try {
     // A text-only message is sent exactly as before; files add their ids, and the text may then be absent.
     const result =
@@ -365,7 +369,7 @@ const failureText = computed(() => {
       </ol>
     </div>
 
-    <ChatComposer v-if="canPost" :sending="sending" :failure="failureText" @send="send" />
+    <ChatComposer v-if="canPost" :sending="sending" :failure="failureText || filedNotice" @send="send" />
     <p v-else-if="loaded && !forbidden && appealState !== 'FROZEN'" class="text-body-medium text-on-surface-variant">{{ t('conversation.readOnly') }}</p>
 
     <p v-if="canDownload" class="text-body-medium">
