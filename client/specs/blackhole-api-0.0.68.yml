@@ -4672,6 +4672,18 @@ paths:
                 $ref: "#/components/schemas/PublicError"
         "401":
           description: The session is missing or expired
+        "403":
+          description: "CHALLENGE_FAILED: no valid solved challenge for appeal; nothing is recorded"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
+        "503":
+          description: "UNAVAILABLE: the replay store did not answer; no appeal is filed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
         "409":
           description: "FORFEITED, FROZEN, NOT_ELIGIBLE or CONDITIONS_CHANGED"
           content:
@@ -5043,6 +5055,32 @@ paths:
                 $ref: "#/components/schemas/PublicPunishment"
         "401":
           description: The session is missing or expired
+  /public/challenge:
+    get:
+      tags:
+      - Public
+      summary: The proof-of-work challenge
+      description: "A signed ALTCHA challenge for the purpose sign-in or appeal, to be solved in the browser and sent back in the altcha field of the sign-in or the filing. Each solution works once. Anonymous; it needs no store, so it answers while the replay store is down. Answers {enabled: false} when the check is switched off (dev and test only)."
+      operationId: publicChallenge
+      parameters:
+      - name: purpose
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "The challenge to solve, or {enabled: false}"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicChallenge"
+        "400":
+          description: "UNKNOWN_PURPOSE: the purpose is missing or is not sign-in or appeal"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
   /public/session:
     get:
       tags:
@@ -5084,6 +5122,18 @@ paths:
                 $ref: "#/components/schemas/PublicLogin"
         "401":
           description: "INVALID_BAN_ID, always the same"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
+        "403":
+          description: "CHALLENGE_FAILED: no valid solved challenge for sign-in"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicError"
+        "503":
+          description: "UNAVAILABLE: the replay store did not answer; no session is created"
           content:
             application/json:
               schema:
@@ -6456,42 +6506,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/AllowListError'
   /intel/allow-list/{owner}:
-    get:
-      tags:
-      - Intel
-      summary: One VPN and hosting exemption
-      description: The exemption of one player by its owner hash, with the fields of the list entry. Never a name or an address.
-      operationId: getIntelAllowListEntry
-      parameters:
-      - name: owner
-        in: path
-        required: true
-        schema:
-          type: string
-          pattern: '^[a-fA-F0-9]{128}$'
-      responses:
-        '200':
-          description: The exemption
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AllowListEntry'
-        '400':
-          description: The owner is not a SHA-512 hash
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AllowListError'
-        '401':
-          description: No valid token
-        '403':
-          description: The token has no role of the allow-list
-        '404':
-          description: 'NOT_FOUND: the player has no exemption'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AllowListError'
     delete:
       tags:
       - Intel
@@ -6823,220 +6837,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GuardSettingsError'
-  /appeal/{identifier}:
-    get:
-      tags:
-      - Appeal
-      summary: Get one appeal
-      description: One appeal by its identifier, with its evidence count. Holds no Ban ID and no raw player UUID.
-      operationId: getAppeal
-      parameters:
-      - name: identifier
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        '200':
-          description: The appeal
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AppealDTO'
-        '400':
-          description: The identifier is not a UUID
-        '401':
-          description: No valid token
-        '403':
-          description: The token has no role of the appeal list
-        '404':
-          description: There is no such appeal
-  /exemption/reviews/{id}:
-    get:
-      tags:
-      - Exemption
-      summary: One exemption review
-      description: 'One item of the admin queue in any state: open, applied or dismissed. Holds the owner hash and the section, never a name or an address.'
-      operationId: getExemptionReview
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        '200':
-          description: The review
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ExemptionReviewResponse'
-        '400':
-          description: The id is not a UUID
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ExemptionError'
-        '401':
-          description: No valid token
-        '403':
-          description: The caller is not an admin
-        '404':
-          description: 'NOT_FOUND: there is no such review'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ExemptionError'
-  /area-bans/{id}:
-    get:
-      tags:
-      - Area bans
-      summary: One area ban
-      description: The area ban with this id, lifted and expired ones included. The id is the one the list returns.
-      operationId: getAreaBan
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-      responses:
-        '200':
-          description: The area ban
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AreaBanResponse'
-        '400':
-          description: The id is not a UUID
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AreaBanError'
-        '401':
-          description: No valid token
-        '403':
-          description: The token has no role of the area ban list
-        '404':
-          description: 'NOT_FOUND: there is no such area ban'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AreaBanError'
-  /admin/audit/{auditId}:
-    get:
-      tags:
-      - Audit
-      summary: One staff audit entry
-      description: One entry of the audit log by its audit id, with the fields of the list item. Read only.
-      operationId: getStaffAuditEntry
-      parameters:
-      - name: auditId
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        '200':
-          description: The audit entry
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuditItem'
-        '400':
-          description: The audit id is not a UUID
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuditError'
-        '401':
-          description: No valid token
-        '403':
-          description: The caller is not an admin
-        '404':
-          description: 'NOT_FOUND: there is no such entry'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuditError'
-  /admin/staff-actor/{oid}:
-    get:
-      tags:
-      - Auth
-      summary: One staff actor
-      description: The known staff principal with this object id, with the fields of the list item.
-      operationId: getStaffActor
-      parameters:
-      - name: oid
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
-      responses:
-        '200':
-          description: The staff actor
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StaffActorItem'
-        '400':
-          description: The object id is not a UUID
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StaffActorError'
-        '401':
-          description: No valid token
-        '403':
-          description: The caller is not an admin
-        '404':
-          description: 'NOT_FOUND: unknown staff actor'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StaffActorError'
-  /appeal-conditions/versions/{version}:
-    get:
-      tags:
-      - AppealConditions
-      summary: One version of the appeal conditions
-      description: The text of one saved version, by its number. A saved version never changes.
-      operationId: getAppealConditionVersion
-      parameters:
-      - name: version
-        in: path
-        required: true
-        schema:
-          type: integer
-          format: int32
-          minimum: 1
-      responses:
-        '200':
-          description: The version
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AppealConditions'
-        '400':
-          description: The version is not an integer of 1 or more
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AppealConditionsError'
-        '401':
-          description: No valid token
-        '403':
-          description: The token has no role of the appeal conditions
-        '404':
-          description: 'NOT_FOUND: there is no such version'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AppealConditionsError'
   /area-bans:
     get:
       tags:
@@ -11034,64 +10834,6 @@ components:
         errorMessage:
           type: string
       description: The inbox could not be read
-    InboxChangedItem:
-      required:
-      - kind
-      - id
-      - change
-      - at
-      type: object
-      properties:
-        kind:
-          $ref: '#/components/schemas/InboxChangeKind'
-        id:
-          type: string
-          description: Short reference of the case, or the appeal identifier of an appeal row
-        reference:
-          type: string
-          description: Short reference of the punishment, when there is one
-        change:
-          $ref: '#/components/schemas/InboxChange'
-        byName:
-          type: string
-          description: Staff display name, null once anonymized
-        at:
-          type: integer
-          description: Epoch millis of the latest event
-          format: int64
-      description: A case or appeal changed last by another staff member
-    InboxChangedSection:
-      required:
-      - count
-      - items
-      type: object
-      properties:
-        count:
-          type: integer
-          description: How many changes the window holds, not capped
-          format: int64
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/InboxChangedItem'
-      description: 'Changes by other staff in the window: the full count and at most ten items'
-    InboxChangeKind:
-      type: string
-      enum:
-      - CASE
-      - APPEAL
-    InboxChange:
-      type: string
-      enum:
-      - STATUS
-      - ASSIGNEE
-      - PRIORITY
-      - TAGS
-      - NOTE
-      - MESSAGE
-      - APPEAL_FILED
-      - APPEAL_DECIDED
-      - OTHER
     InboxItem:
       required:
       - id
@@ -11133,9 +10875,7 @@ components:
           $ref: "#/components/schemas/InboxSection"
         unassignedCases:
           $ref: "#/components/schemas/InboxSection"
-        changedByOthers:
-          $ref: '#/components/schemas/InboxChangedSection'
-      description: The four sections of the inbox, and the changes by other staff in the last 24 hours
+      description: The four sections of the inbox
     InboxSection:
       required:
       - count
@@ -11649,6 +11389,10 @@ components:
           type: integer
           format: int32
           nullable: true
+        altcha:
+          type: string
+          nullable: true
+          description: The solved proof-of-work challenge for appeal filing, required while the challenge is enabled
     PublicAppealSummary:
       required:
       - availableFrom
@@ -11830,6 +11574,57 @@ components:
           nullable: true
         text:
           type: string
+    PublicChallenge:
+      required:
+      - parameters
+      - signature
+      type: object
+      properties:
+        parameters:
+          $ref: "#/components/schemas/PublicChallengeParameters"
+        signature:
+          type: string
+      description: The challenge to solve; the widget sends its parameters back unchanged
+    PublicChallengeParameters:
+      required:
+      - algorithm
+      - cost
+      - data
+      - expiresAt
+      - keyLength
+      - keyPrefix
+      - nonce
+      - salt
+      type: object
+      properties:
+        algorithm:
+          type: string
+        nonce:
+          type: string
+        salt:
+          type: string
+        cost:
+          type: integer
+          format: int32
+        keyLength:
+          type: integer
+          format: int32
+        keyPrefix:
+          type: string
+        expiresAt:
+          type: integer
+          format: int64
+          description: The expiry in Unix seconds
+        data:
+          $ref: "#/components/schemas/PublicChallengeData"
+    PublicChallengeData:
+      required:
+      - purpose
+      type: object
+      properties:
+        purpose:
+          type: string
+          description: sign-in or appeal
     PublicError:
       required:
       - code
@@ -11837,6 +11632,7 @@ components:
       properties:
         code:
           type: string
+          description: "A stable code. CHALLENGE_FAILED (403) for a missing, wrong, expired or reused challenge; UNAVAILABLE (503) when the replay store cannot answer"
         availableFrom:
           type: string
           nullable: true
@@ -11863,6 +11659,10 @@ components:
         banId:
           type: string
           nullable: true
+        altcha:
+          type: string
+          nullable: true
+          description: The solved proof-of-work challenge for sign-in, required while the challenge is enabled
     PublicMessage:
       required:
       - messageId
