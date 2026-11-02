@@ -93,6 +93,8 @@ public sealed interface ExemptionDTO {
     }
 
     /** An expected failure. */
+    @Serdeable
+    @ReflectiveAccess
     record Error(@NonNull String errorMessage, @NonNull ErrorKind kind) implements ExemptionDTO, ErrorResponse {
     }
 }
