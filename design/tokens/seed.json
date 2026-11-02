@@ -1,4 +1,4 @@
 {
-  "$comment": "MD3 colour seed for web/ and portal/. Read by web/scripts/generate-md3-tokens.mjs. Change it here only.",
-  "seed": "#6750A4"
+  "$comment": "OLF Pink, the MD3 source colour for web/ and portal/ (Vibrant scheme). Read by both generators. Change it here only.",
+  "seed": "#EC008B"
 }
