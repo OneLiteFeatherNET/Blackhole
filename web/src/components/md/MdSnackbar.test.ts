@@ -34,4 +34,15 @@ describe('MdSnackbar', () => {
     expect(wrapper.emitted('close')).toHaveLength(1)
     wrapper.unmount()
   })
+
+  it('keeps the message for a longer time when the caller asks for one, such as an undo window', () => {
+    const wrapper = mount(MdSnackbar, { props: { open: true, message: 'Zugewiesen', actionLabel: 'Rückgängig', autoCloseMs: 10_000 } })
+
+    vi.advanceTimersByTime(9999)
+    expect(wrapper.emitted('close')).toBeUndefined()
+
+    vi.advanceTimersByTime(1)
+    expect(wrapper.emitted('close')).toHaveLength(1)
+    wrapper.unmount()
+  })
 })

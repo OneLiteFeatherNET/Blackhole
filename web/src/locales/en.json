@@ -1734,12 +1734,46 @@
   },
   "inbox": {
     "title": "Inbox",
-    "needsAnswer": "Needs an answer",
-    "openAppeals": "Open appeals",
-    "newReports": "New reports",
-    "unassignedCases": "Unassigned cases",
     "showAll": "Show all",
-    "empty": "Nothing waiting"
+    "sections": {
+      "assigned": "Assigned to me",
+      "urgent": "Unassigned and urgent",
+      "appeals": "Appeals waiting for a decision",
+      "answers": "Answers waiting",
+      "reports": "Open reports"
+    },
+    "empty": {
+      "assigned": "No case is assigned to you. Cases you take appear here.",
+      "urgent": "No urgent case waits without an assignee.",
+      "appeals": "No appeal waits for a decision.",
+      "answers": "No player waits for an answer.",
+      "reports": "No report is open."
+    },
+    "noIdentity": "Your account has no staff identity yet.",
+    "readOnly": "Read-only: moderators act on cases and appeals.",
+    "assign": "Assign to me",
+    "close": "Close",
+    "undo": "Undo",
+    "assignedNotice": "Case {reference} is assigned to you.",
+    "undone": "The assignment is undone.",
+    "closeDialog": {
+      "headline": "Close case {reference}?",
+      "text": "The case is closed. You can reopen it on its page.",
+      "confirm": "Close case",
+      "cancel": "Cancel"
+    },
+    "conflict": "The case changed since. Reload to see it.",
+    "types": {
+      "case": "Case",
+      "appeal": "Appeal",
+      "report": "Report",
+      "player": "Player"
+    },
+    "states": {
+      "appeal": "Waiting for a decision",
+      "answer": "Answer waiting",
+      "report": "Open"
+    }
   },
   "filters": {
     "clearAll": "Clear all",

@@ -2,10 +2,12 @@
 import { onBeforeUnmount, watch } from 'vue'
 import MdTransition from '../../motion/MdTransition.vue'
 
-const props = defineProps<{ open: boolean; message: string; actionLabel?: string }>()
+// The default hides the message after six seconds; a caller with a longer window (an undo) passes its own.
+const props = withDefaults(defineProps<{ open: boolean; message: string; actionLabel?: string; autoCloseMs?: number }>(), {
+  autoCloseMs: 6000,
+})
 const emit = defineEmits<{ action: []; close: [] }>()
 
-const AUTO_CLOSE_MS = 6000
 let timer: ReturnType<typeof setTimeout> | undefined
 
 // The snackbar hides itself after a while; the parent clears `open` on the close event.
@@ -13,7 +15,7 @@ watch(
   () => props.open,
   (open) => {
     clearTimeout(timer)
-    if (open) timer = setTimeout(() => emit('close'), AUTO_CLOSE_MS)
+    if (open) timer = setTimeout(() => emit('close'), props.autoCloseMs)
   },
   { immediate: true },
 )

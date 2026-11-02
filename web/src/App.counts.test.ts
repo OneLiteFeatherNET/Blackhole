@@ -29,7 +29,7 @@ async function mountApp(numbers: Numbers, path = '/players') {
       unassignedCases: { count: 0, items: [] },
     }),
   )
-  const cases = vi.fn(async () => ok({ items: [], page: 0, size: 1, totalSize: current.cases, totalPages: current.cases }))
+  const cases = vi.fn(async (_query?: { size?: number; assignee?: string }) => ok({ items: [], page: 0, size: 1, totalSize: current.cases, totalPages: current.cases }))
   const clock = fakeTicker()
   const router = createAppRouter(createMemoryHistory())
   await router.push(path)
@@ -153,7 +153,9 @@ describe('navigation badges', () => {
     await router.push('/')
     await flushPromises()
 
-    expect(cases).toHaveBeenCalledTimes(2)
+    // The badge reads a one-item page of open cases with no assignee filter; the inbox queue's counts also read
+    // one item, but always for one assignee, so only the badge's reads are counted here.
+    expect(cases.mock.calls.filter(([query]) => query?.size === 1 && query.assignee === undefined)).toHaveLength(2)
     expect(link(wrapper, 'Einsprüche').get('[data-testid="nav-badge"]').text()).toBe('9')
 
     wrapper.unmount()

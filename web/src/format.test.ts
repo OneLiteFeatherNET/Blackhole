@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDateTime, formatDuration, shortHash } from './format'
+import { formatAge, formatDateTime, formatDuration, shortHash } from './format'
 
 describe('format', () => {
   it('formats a timestamp in the requested language and zone', () => {
@@ -25,5 +25,19 @@ describe('format', () => {
 
   it('shortens an owner hash to eight characters and an ellipsis', () => {
     expect(shortHash('0123456789abcdef')).toBe('01234567…')
+  })
+
+  it('tells how long ago a timestamp is, relative to the given now', () => {
+    const now = Date.UTC(2030, 0, 3, 12, 0)
+
+    expect(formatAge(now - 2 * 3_600_000, now, 'en')).toBe('2 hours ago')
+    expect(formatAge(now - 3 * 86_400_000, now, 'en')).toBe('3 days ago')
+    expect(formatAge(now - 2 * 3_600_000, now, 'de')).toBe('vor 2 Stunden')
+  })
+
+  it('says now for a timestamp less than a minute old', () => {
+    const now = Date.UTC(2030, 0, 3, 12, 0)
+
+    expect(formatAge(now - 20_000, now, 'en')).toBe('now')
   })
 })
