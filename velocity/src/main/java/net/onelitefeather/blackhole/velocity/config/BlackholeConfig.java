@@ -74,6 +74,12 @@ public class BlackholeConfig {
     private IntelConfig intel;
 
     /**
+     * How long the profile reads of logins and chat may take. Absent in configs written before this setting
+     * existed, which {@link #getProfile()} treats as the defaults.
+     */
+    private ProfileConfig profile;
+
+    /**
      * How the proxy authenticates to the backend. Absent in configs written before this setting
      * existed, which {@link #getAuth()} treats as no credentials.
      */
@@ -163,6 +169,13 @@ public class BlackholeConfig {
      */
     public @NotNull IntelConfig getIntel() {
         return intel == null ? new IntelConfig() : intel;
+    }
+
+    /**
+     * @return the profile read timeouts; the defaults for configs written before they existed
+     */
+    public @NotNull ProfileConfig getProfile() {
+        return profile == null ? new ProfileConfig() : profile;
     }
 
     /**
