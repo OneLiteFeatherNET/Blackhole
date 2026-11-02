@@ -1,13 +1,19 @@
 import { flushPromises } from '@vue/test-utils'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h } from 'vue'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h, nextTick } from 'vue'
 import { fakeApi, mountPortal, ok, fail, type Mounted } from '../test/helpers'
 import BotChallenge from './BotChallenge.vue'
 
 let mounted: Mounted | undefined
+beforeEach(() => {
+  // A browser with workers: the check can run. jsdom has none, so the stub stands in for it.
+  vi.stubGlobal('Worker', class {})
+})
 afterEach(() => {
   mounted?.wrapper.unmount()
   mounted = undefined
+  vi.unstubAllGlobals()
+  vi.useRealTimers()
   vi.restoreAllMocks()
   document.body.innerHTML = ''
 })
@@ -98,12 +104,56 @@ describe('the challenge in front of sign-in and filing', () => {
     expect(element.verify, 'a new solve runs').toHaveBeenCalledOnce()
   })
 
-  it('shows the fallback message and keeps the submit held when the challenge cannot be fetched', async () => {
+  it('names the outage, not the browser, when the challenge cannot be fetched', async () => {
     const events: boolean[] = []
     const wrapper = await mountWith(async () => fail('UNAVAILABLE', 503), events)
 
-    expect(wrapper.text()).toContain('could not run in this browser')
+    expect(wrapper.get('[role="alert"]').text()).toContain('cannot be reached right now')
+    expect(wrapper.text(), 'no browser blame').not.toContain('could not run in this browser')
     expect(events.at(-1), 'not ready without a check').toBe(false)
+  })
+
+  it('offers a retry that fetches the challenge again and shows the widget when it answers', async () => {
+    const challenge = vi.fn<() => Promise<unknown>>().mockResolvedValueOnce(fail('UNAVAILABLE', 503)).mockResolvedValueOnce(ok(ISSUED))
+    const wrapper = await mountWith(challenge)
+
+    const retry = wrapper.findAll('button').find((button) => button.text() === 'Try the check again')!
+    await retry.trigger('click')
+    await flushPromises()
+
+    expect(challenge, 'the challenge is requested again').toHaveBeenCalledTimes(2)
+    expect(wrapper.find('altcha-widget').exists(), 'the widget appears').toBe(true)
+  })
+
+  it('says the browser cannot run the check only when it has no workers', async () => {
+    vi.stubGlobal('Worker', undefined)
+    const wrapper = await mountWith(async () => ok(ISSUED))
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('could not run in this browser')
+    expect(wrapper.find('altcha-widget').exists(), 'no widget to solve with').toBe(false)
+  })
+
+  it('solves again by itself when the solution expires, instead of waiting on a frozen message', async () => {
+    const wrapper = await mountWith(async () => ok(ISSUED))
+    const element = wrapper.get('altcha-widget').element as HTMLElement & { reset: () => void; verify: () => Promise<null> }
+    element.reset = vi.fn()
+    element.verify = vi.fn(async () => null)
+
+    element.dispatchEvent(new CustomEvent('statechange', { detail: { state: 'expired' } }))
+    await flushPromises()
+
+    expect(element.reset, 'the spent solution is dropped').toHaveBeenCalledOnce()
+    expect(element.verify, 'a new solve starts without a click').toHaveBeenCalledOnce()
+  })
+
+  it('counts the seconds a solve has been running, so the wait does not look frozen', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    const wrapper = await mountWith(async () => ok(ISSUED))
+
+    vi.advanceTimersByTime(3000)
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="challenge-elapsed"]').text()).toContain('3 s so far')
   })
 
   it('reads the solved payload from the hidden field of its form', async () => {

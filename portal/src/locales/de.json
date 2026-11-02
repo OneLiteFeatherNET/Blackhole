@@ -33,6 +33,7 @@
     "solved": "Die Prüfung ist abgeschlossen.",
     "failed": "Die Prüfung ist nicht fertig geworden. Bitte versuche es erneut.",
     "retry": "Prüfung erneut starten",
+    "elapsed": "Die Prüfung läuft noch, bisher {seconds} s.",
     "unsupported": "Die Prüfung konnte in diesem Browser nicht laufen. Bitte nutze einen aktuellen Browser mit aktiviertem JavaScript."
   },
   "expired": {
