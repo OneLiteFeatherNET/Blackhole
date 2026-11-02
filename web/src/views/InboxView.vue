@@ -199,7 +199,7 @@ const columns = computed(() => [
           <button
             v-if="session.moderator"
             type="button"
-            class="min-h-12 min-w-12 rounded-md-full px-4 text-label-large text-primary outline-none focus-visible:outline-2 focus-visible:outline-primary md-state"
+            class="min-h-12 min-w-12 rounded-md-full px-4 text-label-large text-primary focus-ring md-state"
             @click="closing = row"
           >
             {{ t('inbox.close') }}
@@ -226,7 +226,7 @@ const columns = computed(() => [
           <button
             v-if="session.moderator"
             type="button"
-            class="min-h-12 min-w-12 rounded-md-full px-4 text-label-large text-primary outline-none focus-visible:outline-2 focus-visible:outline-primary md-state"
+            class="min-h-12 min-w-12 rounded-md-full px-4 text-label-large text-primary focus-ring md-state"
             @click="assignToMe(row)"
           >
             {{ t('inbox.assign') }}
@@ -314,7 +314,7 @@ const columns = computed(() => [
                 v-if="column.key === 'owner'"
                 :to="`/players/${row.owner}`"
                 :title="row.owner"
-                class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+                class="text-primary underline underline-offset-2 focus-ring"
               >
                 {{ shortHash(row.owner) }}
               </RouterLink>
@@ -339,14 +339,14 @@ const columns = computed(() => [
       <template #actions>
         <button
           type="button"
-          class="min-h-12 min-w-12 rounded-md-full px-4 text-label-large text-primary outline-none focus-visible:outline-2 focus-visible:outline-primary md-state"
+          class="min-h-12 min-w-12 rounded-md-full px-4 text-label-large text-primary focus-ring md-state"
           @click="closing = null"
         >
           {{ t('inbox.closeDialog.cancel') }}
         </button>
         <button
           type="button"
-          class="min-h-12 rounded-md-full bg-error px-4 text-label-large text-on-error outline-none focus-visible:outline-2 focus-visible:outline-primary md-state"
+          class="min-h-12 rounded-md-full bg-error px-4 text-label-large text-on-error focus-ring md-state"
           @click="confirmClose"
         >
           {{ t('inbox.closeDialog.confirm') }}

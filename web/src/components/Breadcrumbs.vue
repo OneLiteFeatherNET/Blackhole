@@ -22,7 +22,7 @@ const { t } = useI18n()
         <RouterLink
           v-if="index < items.length - 1 && item.to"
           :to="item.to"
-          class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+          class="text-primary underline underline-offset-2 focus-ring"
         >
           {{ item.label }}
         </RouterLink>

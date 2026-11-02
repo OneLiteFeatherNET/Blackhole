@@ -54,7 +54,7 @@ const { t } = useI18n()
       v-if="props.showAllTo"
       data-testid="show-all"
       :to="props.showAllTo"
-      class="inline-flex min-h-12 items-center self-start text-label-large text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+      class="inline-flex min-h-12 items-center self-start text-label-large text-primary underline underline-offset-2 focus-ring"
     >
       {{ t('inbox.showAll') }}
     </RouterLink>

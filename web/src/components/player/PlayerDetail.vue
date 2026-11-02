@@ -126,7 +126,7 @@ async function warned(done: string): Promise<void> {
       <ExemptionBadge :owner="owner" />
       <header v-if="session.moderator" class="flex flex-wrap justify-end gap-2">
         <MdButton variant="outlined" data-testid="open-warn" @click="warnOpen = true">{{ t('warn.open') }}</MdButton>
-        <MdButton variant="outlined" data-testid="open-kick" @click="kickOpen = true">{{ t('kick.open') }}</MdButton>
+        <MdButton variant="outlined-error" data-testid="open-kick" @click="kickOpen = true">{{ t('kick.open') }}</MdButton>
         <MdButton variant="tonal" data-testid="open-apply" @click="applyOpen = true">
           {{ t('actions.apply.open') }}
         </MdButton>

@@ -31,7 +31,7 @@ onMounted(() => heading.value?.focus())
       v-if="adminOnly"
       to="/"
       data-testid="back-to-dashboard"
-      class="mr-4 text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+      class="mr-4 text-primary underline underline-offset-2 focus-ring"
     >
       {{ t('auth.noAccess.back') }}
     </RouterLink>

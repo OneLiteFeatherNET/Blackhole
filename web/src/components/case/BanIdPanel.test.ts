@@ -272,3 +272,21 @@ describe('BanIdPanel: reissue', () => {
     wrapper.unmount()
   })
 })
+
+describe('BanIdPanel: irreversible actions look destructive', () => {
+  it('gives Mark as leaked the error tone, so it does not look like Reveal', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-testid="ban-id-leak"]').classes()).toEqual(expect.arrayContaining(['text-error', 'border-error']))
+    expect(wrapper.get('[data-testid="ban-id-toggle"]').classes()).not.toContain('text-error')
+  })
+
+  it('gives Reissue the error tone for an admin', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-testid="ban-id-reissue"]').classes()).toEqual(expect.arrayContaining(['text-error', 'border-error']))
+    expect(wrapper.get('[data-testid="ban-id-toggle"]').classes()).not.toContain('text-error')
+  })
+})

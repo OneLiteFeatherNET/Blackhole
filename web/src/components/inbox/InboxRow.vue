@@ -20,7 +20,7 @@ defineProps<{
   <li data-testid="row" class="relative flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
     <RouterLink
       :to="href"
-      class="flex min-h-12 min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 rounded-md-sm outline-none after:absolute after:inset-0 focus-visible:outline-2 focus-visible:outline-primary"
+      class="flex min-h-12 min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 rounded-md-sm after:absolute after:inset-0 focus-ring"
     >
       <svg aria-hidden="true" viewBox="0 0 24 24" class="size-6 shrink-0 fill-on-surface-variant">
         <path :d="icon" />

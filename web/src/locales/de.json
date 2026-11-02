@@ -583,6 +583,7 @@
       "note": "Notiz",
       "noteHint": "Optional; wird mit der Entscheidung gespeichert",
       "confirm": "Entscheidung speichern",
+      "confirmReason": "Wähle eine Entscheidung, um sie zu speichern.",
       "playerMessage": "Nachricht an den Spieler",
       "playerMessageHint": "Optional; der Spieler kann sie im Einspruchsportal lesen. 1 bis 2000 Zeichen, keine UUIDs, IP-Adressen oder Ban-IDs. Die Notiz oben bleibt intern."
     },
