@@ -69,7 +69,8 @@ public final class PlayerChatListener {
             // since this event fires on every message); unknown state is loaded once and cached.
             mute = this.state.activeMute(uuidHash);
         } catch (PunishmentState.Unavailable e) {
-            LOGGER.error("Could not check the mute state of {}, delivering without scoring: {}", player.getUsername(), e.getMessage());
+            LOGGER.error("Could not check the mute state of {}, holding the message back: {}", uuidHash, e.getMessage());
+            denyUnknownState(event, player, uuidHash);
             return;
         }
         if (mute.isPresent()) {
@@ -87,6 +88,20 @@ public final class PlayerChatListener {
             return;
         }
         submitChatSignal(player, uuidHash, event.getMessage());
+    }
+
+    /**
+     * The mute state is unknown and the backend did not answer: the message is held back with a neutral notice,
+     * and the sender is never disconnected for it, since the player may not be muted at all. Signed chat without
+     * SignedVelocity cannot be denied without Velocity disconnecting the sender, so it is delivered unchecked.
+     */
+    private void denyUnknownState(@NotNull PlayerChatEvent event, @NotNull Player player, @NotNull String uuidHash) {
+        if (!this.denial.canDenyQuietly(player.getProtocolVersion())) {
+            LOGGER.warn("Delivered chat of {} unchecked: signed chat cannot be held back without SignedVelocity", uuidHash);
+            return;
+        }
+        this.denial.deny(event, player.getProtocolVersion());
+        player.sendMessage(this.notices.unavailable());
     }
 
     /**

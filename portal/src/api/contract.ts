@@ -209,6 +209,7 @@ export type ErrorCode =
   | 'ORIGIN'
   | 'BAD_REQUEST'
   | 'CHALLENGE_FAILED'
+  | 'RATE_LIMITED'
 
 export interface ErrorBody {
   code: ErrorCode

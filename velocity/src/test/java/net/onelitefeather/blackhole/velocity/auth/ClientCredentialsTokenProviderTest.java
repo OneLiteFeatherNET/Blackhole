@@ -15,10 +15,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ClientCredentialsTokenProviderTest {
@@ -266,5 +268,83 @@ class ClientCredentialsTokenProviderTest {
                 () -> new ClientCredentialsTokenProvider(incomplete, new FakeTransport(), new MutableClock()));
 
         assertTrue(e.getMessage().contains("clientSecret"), "names what is missing: " + e.getMessage());
+    }
+
+    /**
+     * Answers the requests before {@code holdFrom} at once. From {@code holdFrom} on, a request waits until
+     * {@link #release} is counted down, and {@link #held} counts down when the first such request arrives.
+     */
+    private static final class GatedTransport implements TokenTransport {
+        final CountDownLatch held = new CountDownLatch(1);
+        final CountDownLatch release = new CountDownLatch(1);
+        private final String first;
+        private final String later;
+        private final int holdFrom;
+        private final AtomicInteger calls = new AtomicInteger();
+
+        GatedTransport(String first, String later, int holdFrom) {
+            this.first = first;
+            this.later = later;
+            this.holdFrom = holdFrom;
+        }
+
+        @Override
+        public Response post(URI uri, String form) {
+            int call = this.calls.incrementAndGet();
+            if (call >= this.holdFrom) {
+                this.held.countDown();
+                try {
+                    this.release.await(10, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            return new Response(200, "{\"token_type\":\"Bearer\",\"expires_in\":3600,\"access_token\":\""
+                    + (call == 1 ? this.first : this.later) + "\"}");
+        }
+    }
+
+    @Test
+    void aCallerWhoseTokenIsStillValidDoesNotWaitForARefreshThatIsRunning() throws Exception {
+        MutableClock clock = new MutableClock();
+        GatedTransport transport = new GatedTransport("old", "new", 2);
+        ClientCredentialsTokenProvider provider = new ClientCredentialsTokenProvider(auth(), transport, clock);
+        provider.token();
+        clock.advance(Duration.ofSeconds(3600).minus(ClientCredentialsTokenProvider.SKEW));
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Future<String> refreshing = pool.submit(provider::token);
+            assertTrue(transport.held.await(10, TimeUnit.SECONDS), "the refresh is in flight");
+
+            String meanwhile = assertTimeoutPreemptively(Duration.ofSeconds(5), provider::token,
+                    "a caller whose token has not expired must not wait for the refresh");
+
+            assertEquals("old", meanwhile, "the token that is still valid is handed out");
+            transport.release.countDown();
+            assertEquals("new", refreshing.get(10, TimeUnit.SECONDS), "the refresh completes with the new token");
+        } finally {
+            transport.release.countDown();
+            pool.shutdownNow();
+        }
+    }
+
+    @Test
+    void aCallerWithoutAValidTokenGivesUpAtItsWaitBoundWhileARefreshIsStillRunning() throws Exception {
+        GatedTransport transport = new GatedTransport("tok", "tok", 1);
+        ClientCredentialsTokenProvider provider = new ClientCredentialsTokenProvider(auth(), transport, new MutableClock(),
+                Duration.ofMillis(1));
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            pool.submit(provider::token);
+            assertTrue(transport.held.await(10, TimeUnit.SECONDS), "the first request is in flight");
+
+            TokenException e = assertThrows(TokenException.class, provider::token,
+                    "a caller waits only up to its bound for a request another caller started");
+
+            assertTrue(e.getMessage().contains("still in progress"), "says why it gave up: " + e.getMessage());
+        } finally {
+            transport.release.countDown();
+            pool.shutdownNow();
+        }
     }
 }
