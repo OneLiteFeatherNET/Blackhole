@@ -78,6 +78,7 @@ public final class PlayerLoginListener {
         }
         if (ban.isPresent()) {
             this.sessions.reportStart(player, SessionOutcome.DENIED);
+            this.state.forget(uuidHash);
             long evidence = this.evidenceCounts.of(ban.get().punishmentIdentifier()).orElse(0);
             event.setResult(ResultedEvent.ComponentResult.denied(
                     this.screens.screen(ban.get(), PunishmentScreens.localeOf(player), PunishmentScreens.Surface.DISCONNECT, false, evidence)));
@@ -87,6 +88,7 @@ public final class PlayerLoginListener {
                 player.hasPermission(Permissions.STAFF));
         if (access.refused()) {
             this.sessions.reportStart(player, SessionOutcome.DENIED);
+            this.state.forget(uuidHash);
             event.setResult(ResultedEvent.ComponentResult.denied(
                     this.screens.loginDenial(PunishmentScreens.localeOf(player), access.reason(), access.expiresAt())));
             return;

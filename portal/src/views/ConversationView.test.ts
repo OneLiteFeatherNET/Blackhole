@@ -53,6 +53,12 @@ describe('thread', () => {
     expect(log.attributes('aria-label')).toBe('Messages')
   })
 
+  it('can be reached by keyboard, so the messages scroll without a pointer', async () => {
+    const { wrapper } = await openConversation()
+
+    expect(wrapper.get('[role="log"]').attributes('tabindex')).toBe('0')
+  })
+
   it('shows a removed message without its text', async () => {
     const { wrapper } = await openConversation({ conversation: async () => ok(page([entry(1, { removed: true, text: 'should not show' })])) })
 
