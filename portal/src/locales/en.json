@@ -24,6 +24,7 @@
     "submitting": "Checking...",
     "invalid": "This Ban ID could not be used. Check it and try again.",
     "unavailable": "The appeal portal cannot be reached right now. Please try again in a few minutes.",
+    "rateLimited": "Too many attempts, please wait a moment.",
     "privacy": "Keep your Ban ID private. Anyone who has it can read your punishment, and if it is shared publicly you lose the right to appeal.",
     "challengeFailed": "The check was not accepted. Please try again."
   },
@@ -85,6 +86,7 @@
     "submit": "Send appeal",
     "sending": "Sending...",
     "errors": {
+      "RATE_LIMITED": "Too many attempts, please wait a moment.",
       "NOT_ELIGIBLE": "You cannot file an appeal yet. You can file from {date}.",
       "FORFEITED": "The right to appeal this punishment was lost because the Ban ID was shared publicly.",
       "FROZEN": "This appeal is frozen because the Ban ID was shared publicly.",
@@ -140,6 +142,7 @@
       "OTHER": "A decision was made on your appeal."
     },
     "errors": {
+      "RATE_LIMITED": "Too many attempts, please wait a moment.",
       "FROZEN": "This conversation is frozen because the Ban ID was shared publicly.",
       "NO_APPEAL": "File an appeal before writing a message.",
       "CONFLICT": "You cannot write a message right now.",
@@ -196,6 +199,7 @@
       "reconnecting": "Reconnecting. New messages may take a moment to appear."
     },
     "errors": {
+      "RATE_LIMITED": "Too many attempts, please wait a moment.",
       "TOO_MANY": "You can attach at most {max} files to a message.",
       "UNSUPPORTED_TYPE": "This file type is not allowed. Use PNG, JPEG, WebP, PDF or plain text.",
       "TOO_LARGE": "The file is larger than 10 MB.",

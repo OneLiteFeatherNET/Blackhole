@@ -60,6 +60,9 @@ async function submit() {
         <p v-else-if="state.loginError === 'CHALLENGE_FAILED'" class="rounded-md-sm bg-error-container px-4 py-3 text-body-medium text-on-error-container">
           {{ t('login.challengeFailed') }}
         </p>
+        <p v-else-if="state.loginError === 'RATE_LIMITED'" class="rounded-md-sm bg-error-container px-4 py-3 text-body-medium text-on-error-container">
+          {{ t('login.rateLimited') }}
+        </p>
       </div>
 
       <BotChallenge ref="challenge" purpose="sign-in" @ready="challengeReady = $event" />

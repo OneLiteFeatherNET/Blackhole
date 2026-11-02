@@ -146,6 +146,9 @@ export function mapBackendError(status: number, body: unknown): { status: number
     }
     case status === 413:
       return { status: 413, error: { code: 'TOO_LARGE' } }
+    case status === 429:
+      // The limit is the infrastructure's: the answer says only that the player must wait, never anything about a Ban ID.
+      return { status: 429, error: { code: 'RATE_LIMITED' } }
     case status === 422:
       return { status: 422, error: { code: 'PII_REJECTED' } }
     case status >= 400 && status < 500:
@@ -435,6 +438,7 @@ function relayEvents(event: H3Event, upstream: Response, abort: AbortController)
 /** Login: every failure is the same answer; a good answer turns the token into cookies and never reaches the page. */
 async function finishLogin(event: H3Event, upstream: Response) {
   if (upstream.status >= 500) return fail(event, 503, 'UNAVAILABLE')
+  if (upstream.status === 429) return fail(event, 429, 'RATE_LIMITED')
   if (upstream.status === 403) {
     // The challenge refusal is its own answer: it says nothing about the Ban ID, which was never read.
     const refused = (await parseJson(upstream)) as { code?: unknown } | undefined
