@@ -138,7 +138,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.Locale;
 import java.util.ResourceBundle;
@@ -225,11 +224,7 @@ public class BlackholeVelocity {
         NatsConfig natsConfig = this.config.getNats().withEnvironment(System::getenv);
         this.sentry.registerSecret(natsConfig.getCredsFile());
         // The sync service is created first (it is the cache trust) and told about the bus once the reactions below exist.
-        ExecutorService eventThread = Executors.newSingleThreadExecutor(task -> {
-            Thread thread = new Thread(task, "blackhole-nats-events");
-            thread.setDaemon(true);
-            return thread;
-        });
+        ExecutorService eventThread = NatsSyncService.boundedExecutor();
         this.eventThread = eventThread;
         AtomicReference<NatsSyncService> sync = new AtomicReference<>();
         // Profile reads get clients of their own, so each is cut off at its timeout; a login waits longer than a chat message or connect.
