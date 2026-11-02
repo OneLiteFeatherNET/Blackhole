@@ -292,6 +292,10 @@ blackhole:
     feedback:
       ttl: ${BLACKHOLE_REPORT_FEEDBACK_TTL:P14D}
       sweep-interval: ${BLACKHOLE_REPORT_FEEDBACK_SWEEP_INTERVAL:PT1H}
+  # Inbox. changed-window is the rolling window of the changedByOthers section: a case or appeal whose newest change came from
+  # another verified staff member within it is listed. ISO-8601 duration, measured from the read; 24 hours by default.
+  inbox:
+    changed-window: ${INBOX_CHANGED_WINDOW:PT24H}
   # Staff audit log. retention is how long an entry is kept (one year by default, a team decision still open);
   # AuditRetentionSweeper deletes older entries every sweep-interval, in batches.
   audit:

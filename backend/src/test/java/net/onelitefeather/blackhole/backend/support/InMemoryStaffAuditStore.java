@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.support;
 
+import java.util.Optional;
 import io.micronaut.core.annotation.Nullable;
 import net.onelitefeather.blackhole.backend.audit.StaffAuditEntry;
 import net.onelitefeather.blackhole.backend.audit.StaffAuditStore;
@@ -65,4 +66,9 @@ public final class InMemoryStaffAuditStore implements StaffAuditStore {
         return this.rows.stream().map(Row::entry).toList();
     }
 
+
+    @Override
+    public synchronized Optional<StaffAuditEntry> findById(UUID auditId) {
+        return this.rows.stream().map(Row::entry).filter(entry -> entry.auditId().equals(auditId)).findFirst();
+    }
 }

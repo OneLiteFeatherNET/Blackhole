@@ -281,7 +281,15 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             // the firewall pull feeds: anonymous at the role layer, the token and the source allow-list are checked by FeedService
             Map.entry("GET /firewall/feed/{token}/{feed}", ANONYMOUS),
             // the case's live signal: viewers and above (the proxy and the Discord bot are denied)
-            Map.entry("GET /case/{reference}/events", V)
+            Map.entry("GET /case/{reference}/events", V),
+            // the read-by-id routes of the staff panel: the role of the list of each entity, never wider (add-staff-panel-read-endpoints)
+            Map.entry("GET /appeal/{identifier}", V),
+            Map.entry("GET /exemption/reviews/{id}", A),
+            Map.entry("GET /area-bans/{id}", VP),
+            Map.entry("GET /intel/allow-list/{owner}", V),
+            Map.entry("GET /admin/audit/{auditId}", A),
+            Map.entry("GET /admin/staff-actor/{oid}", A),
+            Map.entry("GET /appeal-conditions/versions/{version}", V)
     );
 
     /** Routes without @Secured, protected by the intercept-url-map or public (see application.yml). */

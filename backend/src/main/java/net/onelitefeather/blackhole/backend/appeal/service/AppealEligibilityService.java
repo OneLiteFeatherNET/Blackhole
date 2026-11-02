@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.appeal.service;
 
+import java.util.UUID;
 import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
 import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
 import net.onelitefeather.blackhole.backend.appeal.AppealStatus;
@@ -172,6 +173,11 @@ public class AppealEligibilityService {
      * Plain, read-only pass-through so {@code AppealController} never has to inject
      * {@link AppealRepository} itself just to list appeals.
      */
+    /** One appeal by its identifier, or empty when there is none. */
+    public Optional<AppealEntity> find(UUID identifier) {
+        return this.appealRepository.findById(identifier);
+    }
+
     public Page<AppealEntity> findAll(Pageable pageable) {
         return this.appealRepository.findAll(pageable);
     }

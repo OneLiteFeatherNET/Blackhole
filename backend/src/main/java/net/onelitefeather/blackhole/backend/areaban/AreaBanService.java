@@ -162,6 +162,18 @@ public class AreaBanService {
         return response(lifted, now);
     }
 
+    /** One area ban, lifted and expired ones included. A malformed id is a validation error, an unknown one NOT_FOUND. */
+    public AreaBanDTO find(String id) {
+        Optional<UUID> uuid = uuid(id);
+        if (uuid.isEmpty()) {
+            return error("id must be a UUID", ErrorKind.VALIDATION);
+        }
+        long now = this.clock.millis();
+        return this.store.findById(uuid.get())
+                .<AreaBanDTO>map(ban -> response(ban, now))
+                .orElseGet(() -> error("no such area ban", ErrorKind.NOT_FOUND));
+    }
+
     /**
      * The area bans for the panel: the ones that apply now, or with {@code includeInactive} every ban, lifted and expired
      * ones included, so the history stays readable.

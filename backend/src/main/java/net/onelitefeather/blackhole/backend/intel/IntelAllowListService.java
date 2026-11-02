@@ -94,6 +94,23 @@ public class IntelAllowListService {
     }
 
     /**
+     * One exemption by its owner hash, with the fields of the list entry. A value that is not a SHA-512 hash is refused before
+     * any lookup.
+     *
+     * @return the entry, or an error: 400 for a malformed owner, 404 when the player has no exemption
+     */
+    public AllowListDTO find(String owner) {
+        if (owner == null || !OWNER.matcher(owner).matches()) {
+            return error("owner must be a sha-512 hash", ErrorKind.VALIDATION);
+        }
+        long now = this.clock.millis();
+        return this.store.findAllowEntry(owner)
+                .<AllowListDTO>map(entry -> new AllowListDTO.Entry(entry.ownerHash(), entry.reason(), entry.actorOid().toString(),
+                        entry.expiresAt(), entry.createdAt(), entry.expiresAt() != null && now >= entry.expiresAt()))
+                .orElseGet(() -> error("this player has no exemption", ErrorKind.NOT_FOUND));
+    }
+
+    /**
      * Deletes one exemption. The policy cache forgets it at once and the removal is audited.
      *
      * @return the removed owner, or an error for a malformed owner, an owner with no exemption, or a moderator
