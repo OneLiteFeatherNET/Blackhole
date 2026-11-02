@@ -7,7 +7,6 @@ import {
   getQuery,
   getRequestIP,
   getRequestWebStream,
-  readRawBody,
   send,
   setCookie,
   setResponseHeader,
@@ -166,14 +165,37 @@ async function parseJson(response: Response): Promise<unknown> {
 
 type BodyResult = { ok: true; json?: string } | { ok: false; status: number; code: ErrorCode }
 
+/**
+ * The request body as text, read chunk by chunk. A body past `limit` bytes (a chunked one has no
+ * declared length) is cancelled as soon as it crosses the limit, so it is never buffered in full.
+ */
+async function readCappedText(event: H3Event, limit: number): Promise<string | 'too-large' | undefined> {
+  const source = getRequestWebStream(event)
+  if (!source) return undefined
+  const reader = source.getReader()
+  const decoder = new TextDecoder()
+  let seen = 0
+  let text = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    seen += value.byteLength
+    if (seen > limit) {
+      await reader.cancel().catch(() => undefined)
+      return 'too-large'
+    }
+    text += decoder.decode(value, { stream: true })
+  }
+  return text + decoder.decode()
+}
+
 async function readBody(event: H3Event, route: RouteSpec): Promise<BodyResult> {
   if (!route.body) return { ok: true }
   const declared = Number(getHeader(event, 'content-length'))
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return { ok: false, status: 413, code: 'TOO_LARGE' }
-  const raw = await readRawBody(event, 'utf8')
-  if (raw === undefined || Buffer.byteLength(raw) > MAX_BODY_BYTES) {
-    return raw === undefined ? { ok: false, status: 400, code: 'BAD_REQUEST' } : { ok: false, status: 413, code: 'TOO_LARGE' }
-  }
+  const raw = await readCappedText(event, MAX_BODY_BYTES)
+  if (raw === undefined) return { ok: false, status: 400, code: 'BAD_REQUEST' }
+  if (raw === 'too-large') return { ok: false, status: 413, code: 'TOO_LARGE' }
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
