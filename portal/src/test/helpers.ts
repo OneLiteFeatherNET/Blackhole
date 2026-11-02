@@ -62,6 +62,8 @@ export function fakeApi(methods: Partial<PortalApi> = {}): PortalApi {
   return new Proxy(methods as PortalApi, {
     get(target, name: string) {
       if (name in target) return (target as unknown as Record<string, unknown>)[name]
+      // The check is off unless a test says otherwise: the widget is then absent, as in dev and test.
+      if (name === 'challenge') return async () => ok({ enabled: false })
       return () => {
         throw new Error(`unexpected API call: ${name}`)
       }

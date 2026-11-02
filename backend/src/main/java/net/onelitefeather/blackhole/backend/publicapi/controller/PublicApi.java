@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicAppealDTO;
+import net.onelitefeather.blackhole.backend.publicapi.dto.PublicChallengeDTO;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicConversationDTO;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicErrorBody;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicPunishmentDTO;
@@ -31,16 +32,36 @@ import net.onelitefeather.blackhole.backend.security.PlayerSession;
 public interface PublicApi {
 
     @Operation(
+            summary = "The proof-of-work challenge",
+            description = "A signed ALTCHA challenge for the purpose sign-in or appeal, to be solved in the browser and sent back in the altcha "
+                    + "field of the sign-in or the filing. Each solution works once. Anonymous; it needs no store, so it answers while the "
+                    + "replay store is down. Answers {enabled: false} when the check is switched off (dev and test only).",
+            operationId = "publicChallenge",
+            tags = {"Public"}
+    )
+    @ApiResponse(responseCode = "200", description = "The challenge to solve, or {enabled: false}",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicChallengeDTO.Issued.class)))
+    @ApiResponse(responseCode = "400", description = "UNKNOWN_PURPOSE: the purpose is missing or is not sign-in or appeal",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicErrorBody.class)))
+    @Get("/challenge")
+    HttpResponse<?> challenge(@Nullable @QueryValue String purpose);
+
+    @Operation(
             summary = "Log in with the Ban ID",
-            description = "Creates a player session for the Ban ID in the body. A wrong, unknown, malformed or not yet issued Ban ID all "
-                    + "answer 401 INVALID_BAN_ID with the same body. A Ban ID that staff marked leaked logs in with scope LIMITED. The token "
-                    + "is returned once and only its hash is stored.",
+            description = "Creates a player session for the Ban ID in the body. The altcha field must carry a solved challenge for sign-in: a "
+                    + "missing, wrong, expired or reused one answers 403 CHALLENGE_FAILED before the Ban ID is read. A wrong, unknown, malformed "
+                    + "or not yet issued Ban ID all answer 401 INVALID_BAN_ID with the same body. A Ban ID that staff marked leaked logs in "
+                    + "with scope LIMITED. The token is returned once and only its hash is stored.",
             operationId = "publicLogin",
             tags = {"Public"}
     )
     @ApiResponse(responseCode = "200", description = "The session",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicSessionDTO.Created.class)))
     @ApiResponse(responseCode = "401", description = "INVALID_BAN_ID, always the same",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicErrorBody.class)))
+    @ApiResponse(responseCode = "403", description = "CHALLENGE_FAILED: no valid solved challenge for sign-in",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicErrorBody.class)))
+    @ApiResponse(responseCode = "503", description = "UNAVAILABLE: the replay store did not answer; no session is created",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicErrorBody.class)))
     @Post("/session")
     HttpResponse<?> login(@Nullable @Body PublicSessionDTO.LoginRequest request);
@@ -95,9 +116,13 @@ public interface PublicApi {
     @ApiResponse(responseCode = "400", description = "The statement is empty, too long or has control characters",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicErrorBody.class)))
     @ApiResponse(responseCode = "401", description = "The session is missing or expired")
+    @ApiResponse(responseCode = "403", description = "CHALLENGE_FAILED: no valid solved challenge for appeal; nothing is recorded",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicErrorBody.class)))
     @ApiResponse(responseCode = "409", description = "FORFEITED, FROZEN, NOT_ELIGIBLE or CONDITIONS_CHANGED",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicErrorBody.class)))
     @ApiResponse(responseCode = "422", description = "The statement looks like a UUID, an IP address or a Ban ID",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicErrorBody.class)))
+    @ApiResponse(responseCode = "503", description = "UNAVAILABLE: the replay store did not answer; no appeal is filed",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PublicErrorBody.class)))
     @Post("/appeal")
     HttpResponse<?> fileAppeal(@Parameter(hidden = true) PlayerSession session, @Nullable @Body PublicAppealDTO.FileRequest request);

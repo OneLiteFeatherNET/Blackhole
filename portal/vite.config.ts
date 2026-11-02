@@ -7,7 +7,8 @@ const bff = process.env.BLACKHOLE_PORTAL_DEV_BFF ?? 'http://localhost:3000'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [vue(), tailwindcss()],
+  // The ALTCHA widget is a custom element registered by src/challenge/widget.ts, not a Vue component.
+  plugins: [vue({ template: { compilerOptions: { isCustomElement: (tag) => tag === 'altcha-widget' } } }), tailwindcss()],
   server: { proxy: { '/api': { target: bff, changeOrigin: false } } },
   build: { target: 'es2022', copyPublicDir: false },
   test: {

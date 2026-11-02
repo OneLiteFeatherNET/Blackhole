@@ -17,6 +17,7 @@ import {
 import {
   CONFLICT_CODES,
   CSRF_COOKIE,
+  MAX_ALTCHA_LENGTH,
   CSRF_HEADER,
   FILE_REJECTION_CODES,
   IDEMPOTENCY_HEADER,
@@ -135,7 +136,8 @@ export function mapBackendError(status: number, body: unknown): { status: number
     case status === 401:
       return { status: 401, error: { code: 'SESSION_EXPIRED' } }
     case status === 403:
-      return { status: 403, error: { code: 'FORBIDDEN' } }
+      // The backend's proof-of-work refusal keeps its own code; every other 403 stays FORBIDDEN.
+      return { status: 403, error: { code: record.code === 'CHALLENGE_FAILED' ? 'CHALLENGE_FAILED' : 'FORBIDDEN' } }
     case status === 404:
       return { status: 404, error: { code: 'NOT_FOUND' } }
     case status === 409: {
@@ -196,6 +198,7 @@ async function readBody(event: H3Event, route: RouteSpec): Promise<BodyResult> {
     const value = source[field]
     if (value === undefined || value === null) continue
     if (typeof value !== 'string') return { ok: false, status: 400, code: 'BAD_REQUEST' }
+    if (field === 'altcha' && value.length > MAX_ALTCHA_LENGTH) return { ok: false, status: 400, code: 'BAD_REQUEST' }
     forwarded[field] = value
   }
   for (const field of route.uuidLists ?? []) {
@@ -410,6 +413,11 @@ function relayEvents(event: H3Event, upstream: Response, abort: AbortController)
 /** Login: every failure is the same answer; a good answer turns the token into cookies and never reaches the page. */
 async function finishLogin(event: H3Event, upstream: Response) {
   if (upstream.status >= 500) return fail(event, 503, 'UNAVAILABLE')
+  if (upstream.status === 403) {
+    // The challenge refusal is its own answer: it says nothing about the Ban ID, which was never read.
+    const refused = (await parseJson(upstream)) as { code?: unknown } | undefined
+    if (refused?.code === 'CHALLENGE_FAILED') return fail(event, 403, 'CHALLENGE_FAILED')
+  }
   if (!upstream.ok) return fail(event, 401, 'INVALID_BAN_ID')
   const login = (await parseJson(upstream)) as Partial<BackendLogin> | undefined
   const valid =

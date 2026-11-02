@@ -24,7 +24,16 @@
     "submitting": "Wird geprüft ...",
     "invalid": "Diese Ban-ID kann nicht verwendet werden. Prüfe sie und versuche es noch einmal.",
     "unavailable": "Das Einspruchsportal ist gerade nicht erreichbar. Bitte versuche es in einigen Minuten erneut.",
-    "privacy": "Halte deine Ban-ID geheim. Wer sie kennt, kann deine Strafe einsehen, und wenn sie öffentlich geteilt wird, verfällt dein Recht auf Einspruch."
+    "privacy": "Halte deine Ban-ID geheim. Wer sie kennt, kann deine Strafe einsehen, und wenn sie öffentlich geteilt wird, verfällt dein Recht auf Einspruch.",
+    "challengeFailed": "Die Prüfung wurde nicht angenommen. Bitte versuche es erneut."
+  },
+  "challenge": {
+    "checking": "Prüfung wird vorbereitet...",
+    "solving": "Wir prüfen kurz, dass dies keine automatisierte Anfrage ist. Das dauert einen Moment.",
+    "solved": "Die Prüfung ist abgeschlossen.",
+    "failed": "Die Prüfung ist nicht fertig geworden. Bitte versuche es erneut.",
+    "retry": "Prüfung erneut starten",
+    "unsupported": "Die Prüfung konnte in diesem Browser nicht laufen. Bitte nutze einen aktuellen Browser mit aktiviertem JavaScript."
   },
   "expired": {
     "title": "Deine Sitzung ist beendet",
@@ -82,7 +91,8 @@
       "FORBIDDEN": "Mit dieser Ban-ID kann kein Einspruch eingelegt werden.",
       "UNAVAILABLE": "Dein Einspruch konnte nicht gesendet werden. Bitte versuche es erneut.",
       "NOT_ELIGIBLE_NOW": "Für diese Strafe kannst du gerade keinen Einspruch einlegen.",
-      "CONDITIONS_CHANGED": "Die Rahmenbedingungen haben sich geändert, während du geschrieben hast. Bitte lies sie erneut und bestätige sie, um deinen Einspruch zu senden."
+      "CONDITIONS_CHANGED": "Die Rahmenbedingungen haben sich geändert, während du geschrieben hast. Bitte lies sie erneut und bestätige sie, um deinen Einspruch zu senden.",
+      "CHALLENGE_FAILED": "Die Prüfung wurde nicht angenommen. Bitte versuche es erneut."
     },
     "conditions": {
       "title": "Rahmenbedingungen",

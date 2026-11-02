@@ -38,11 +38,14 @@ export function fail<T = never>(message: string, status = 400, kind: 'VALIDATION
 export const ALL_ROLES = ['ADMIN', 'MODERATOR', 'VIEWER']
 
 /** A Pinia whose session store already holds a signed-in user with the given roles (all roles by default). */
-export function piniaWithRoles(roles: string[] = ALL_ROLES, displayName: string | null = 'Dev Admin'): Pinia {
+export function piniaWithRoles(roles: string[] = ALL_ROLES, displayName: string | null = 'Dev Admin', oid: string | null = SIGNED_IN_OID): Pinia {
   const pinia = createPinia()
-  useSessionStore(pinia).me = { oid: '00000000-0000-4000-8000-0000000000a1', displayName, roles }
+  if (oid !== null) useSessionStore(pinia).me = { oid, displayName, roles }
   return pinia
 }
+
+/** The object id of the signed-in user of `piniaWithRoles`. */
+export const SIGNED_IN_OID = '00000000-0000-4000-8000-0000000000a1'
 
 export interface Mounted {
   wrapper: VueWrapper
@@ -53,7 +56,7 @@ export interface Mounted {
  * Mounts a view or component with Pinia, English texts, an in-memory router at `path` and the
  * given API. Always unmount the wrapper at the end of the test.
  */
-export async function mountWithApp(component: Component, options: { api?: BlackholeApi; path?: string; props?: Record<string, unknown>; slots?: Slots; roles?: string[]; auth?: AuthService } = {}): Promise<Mounted> {
+export async function mountWithApp(component: Component, options: { api?: BlackholeApi; path?: string; props?: Record<string, unknown>; slots?: Slots; roles?: string[]; auth?: AuthService; oid?: string | null } = {}): Promise<Mounted> {
   i18n.global.locale.value = 'en'
   const router = createAppRouter(createMemoryHistory())
   await router.push(options.path ?? '/')
@@ -62,7 +65,7 @@ export async function mountWithApp(component: Component, options: { api?: Blackh
     props: options.props,
     slots: options.slots,
     global: {
-      plugins: [piniaWithRoles(options.roles), i18n, router],
+      plugins: [piniaWithRoles(options.roles, 'Dev Admin', options.oid === undefined ? SIGNED_IN_OID : options.oid), i18n, router],
       provide: { [API_KEY as symbol]: options.api ?? mockApi(), [AUTH_KEY as symbol]: options.auth ?? fakeAuthService().service },
     },
     attachTo: document.body,

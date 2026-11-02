@@ -24,7 +24,16 @@
     "submitting": "Checking...",
     "invalid": "This Ban ID could not be used. Check it and try again.",
     "unavailable": "The appeal portal cannot be reached right now. Please try again in a few minutes.",
-    "privacy": "Keep your Ban ID private. Anyone who has it can read your punishment, and if it is shared publicly you lose the right to appeal."
+    "privacy": "Keep your Ban ID private. Anyone who has it can read your punishment, and if it is shared publicly you lose the right to appeal.",
+    "challengeFailed": "The check was not accepted. Please try again."
+  },
+  "challenge": {
+    "checking": "Preparing the check...",
+    "solving": "Checking that this is not an automated request. This takes a moment.",
+    "solved": "The check is complete.",
+    "failed": "The check did not finish. Please try again.",
+    "retry": "Try the check again",
+    "unsupported": "The check could not run in this browser. Please use a current browser with JavaScript enabled."
   },
   "expired": {
     "title": "Your session has ended",
@@ -82,7 +91,8 @@
       "FORBIDDEN": "This Ban ID cannot be used to file an appeal.",
       "UNAVAILABLE": "Your appeal could not be sent. Please try again.",
       "NOT_ELIGIBLE_NOW": "You cannot file an appeal for this punishment right now.",
-      "CONDITIONS_CHANGED": "The appeal conditions changed while you were writing. Please read them again and confirm them to send your appeal."
+      "CONDITIONS_CHANGED": "The appeal conditions changed while you were writing. Please read them again and confirm them to send your appeal.",
+      "CHALLENGE_FAILED": "The check was not accepted. Please try again."
     },
     "conditions": {
       "title": "Appeal conditions",

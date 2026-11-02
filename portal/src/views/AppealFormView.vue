@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { MAX_FILES, MAX_TEXT_LENGTH, type AppealConditions, type ErrorCode } from '../api/contract'
 import { stageDraft, useAttachments } from '../chat/attachments'
 import { ACCEPT, releasePreview } from '../chat/files'
+import BotChallenge from '../components/BotChallenge.vue'
 import ConditionsText from '../components/ConditionsText.vue'
 import FileChips from '../components/FileChips.vue'
 import { formatDate } from '../format'
@@ -22,6 +23,8 @@ const failure = ref<{ code: ErrorCode; availableFrom?: string } | null>(null)
 const conditions = ref<AppealConditions | null>(null)
 const conditionsFailed = ref(false)
 const confirmed = ref(false)
+const challenge = ref<InstanceType<typeof BotChallenge> | null>(null)
+const challengeReady = ref(false)
 
 async function loadConditions() {
   const result = await session.api.appealConditions()
@@ -35,7 +38,7 @@ onMounted(loadConditions)
 const length = computed(() => drafts.statement.trim().length)
 const tooLong = computed(() => length.value > MAX_TEXT_LENGTH)
 const blank = computed(() => length.value === 0)
-const canSend = computed(() => !blank.value && !tooLong.value && !sending.value && confirmed.value && conditions.value !== null)
+const canSend = computed(() => !blank.value && !tooLong.value && !sending.value && confirmed.value && conditions.value !== null && challengeReady.value)
 
 const failureText = computed(() => {
   const current = failure.value
@@ -80,7 +83,12 @@ async function submit() {
   sending.value = true
   failure.value = null
   try {
-    const result = await session.api.fileAppeal(drafts.statement.trim(), shown.version)
+    const altcha = challenge.value?.read()
+    // Without a solution (the check is off) the call keeps its two arguments.
+    const result =
+      altcha === null || altcha === undefined
+        ? await session.api.fileAppeal(drafts.statement.trim(), shown.version)
+        : await session.api.fileAppeal(drafts.statement.trim(), shown.version, altcha)
     if (!session.alive(result)) return
     if (result.ok) {
       drafts.statement = ''
@@ -100,6 +108,8 @@ async function submit() {
     if (['FORFEITED', 'FROZEN', 'NOT_ELIGIBLE', 'CONFLICT'].includes(result.error.code)) await session.refreshPunishment()
   } finally {
     sending.value = false
+    // A solution is spent by any filing attempt: the next one needs a new solve.
+    challenge.value?.renew()
   }
 }
 </script>
@@ -163,6 +173,8 @@ async function submit() {
       <div role="alert" aria-live="assertive">
         <p v-if="failure" class="rounded-md-sm bg-error-container px-4 py-3 text-body-medium text-on-error-container">{{ failureText }}</p>
       </div>
+
+      <BotChallenge ref="challenge" purpose="appeal" @ready="challengeReady = $event" />
 
       <div class="flex flex-wrap gap-3">
         <button

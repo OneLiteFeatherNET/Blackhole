@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import App from './App.vue'
+import './challenge/widget'
 import { createPortalApi } from './api/portal'
 import { createPortalI18n } from './i18n'
 import { createCsrfHolder, createPortalSession, SESSION_KEY } from './session'
