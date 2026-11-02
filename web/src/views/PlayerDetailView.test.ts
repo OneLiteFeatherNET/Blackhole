@@ -408,3 +408,14 @@ describe('PlayerDetailView: evidence', () => {
     wrapper.unmount()
   })
 })
+
+describe('PlayerDetailView: Kick is destructive', () => {
+  it('gives Kick the error tone, so it does not weigh the same as Warn', async () => {
+    const { wrapper } = await open()
+
+    expect(wrapper.get('[data-testid="open-kick"]').classes()).toEqual(expect.arrayContaining(['text-error', 'border-error']))
+    expect(wrapper.get('[data-testid="open-warn"]').classes()).not.toContain('text-error')
+
+    wrapper.unmount()
+  })
+})
