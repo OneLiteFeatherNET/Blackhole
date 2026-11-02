@@ -1,6 +1,6 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fail, facts, mountPortal, ok, signedInApi } from '../test/helpers'
+import { APPEAL_OPEN, fail, facts, mountPortal, ok, signedInApi } from '../test/helpers'
 
 let mounted: Awaited<ReturnType<typeof mountPortal>> | undefined
 afterEach(() => {
@@ -20,6 +20,15 @@ describe('punishment page', () => {
     expect(text).toContain('Survival')
     expect(text).toContain('2 items on file')
     expect(mounted.wrapper.findAll('dl time').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('takes the focus to the heading of the view it opens', async () => {
+    mounted = await mountPortal(signedInApi({ appeal: async () => ok(APPEAL_OPEN) }, facts({ appealState: 'AVAILABLE' })))
+    await mounted.wrapper.findAll('button').find((b) => b.text() === 'File an appeal')!.trigger('click')
+    await flushPromises()
+
+    expect(document.activeElement?.tagName).toBe('H1')
+    expect(document.activeElement?.textContent?.trim()).toBe('File an appeal')
   })
 
   it('shows permanent instead of an expiry', async () => {
@@ -85,6 +94,30 @@ describe('punishment page', () => {
   })
 })
 
+describe('a punishment that cannot be loaded', () => {
+  it('shows an error and no endless loading message when the request fails', async () => {
+    mounted = await mountPortal(signedInApi({ punishment: async () => fail('UNAVAILABLE', 503) }))
+    await flushPromises()
+
+    expect(mounted.wrapper.get('[role="alert"]').text()).toContain('could not be loaded')
+    expect(mounted.wrapper.text(), 'no loading message left behind').not.toContain('Loading')
+    expect(mounted.wrapper.findAll('button').map((button) => button.text())).toContain('Try again')
+  })
+
+  it('loads the punishment when the player asks again', async () => {
+    const punishment = vi.fn().mockResolvedValueOnce(fail('UNAVAILABLE', 503)).mockResolvedValue(ok(facts()))
+    mounted = await mountPortal(signedInApi({ punishment }))
+    await flushPromises()
+
+    await mounted.wrapper.findAll('button').find((button) => button.text() === 'Try again')!.trigger('click')
+    await flushPromises()
+
+    expect(punishment, 'the request is sent again').toHaveBeenCalledTimes(2)
+    expect(mounted.wrapper.get('dl').text()).toContain('Hacked client')
+    expect(mounted.wrapper.find('[role="alert"]').exists()).toBe(false)
+  })
+})
+
 describe('logout', () => {
   it('signs out, forgets the punishment and shows the login', async () => {
     const logout = vi.fn(async () => ok(null))
@@ -96,6 +129,40 @@ describe('logout', () => {
     expect(logout).toHaveBeenCalledOnce()
     expect(mounted.wrapper.find('input#ban-id').exists()).toBe(true)
     expect(document.body.textContent).not.toContain('Hacked client')
+  })
+
+  it('stays signed in and says so when the sign-out fails', async () => {
+    mounted = await mountPortal(signedInApi({ logout: async () => fail<never>('UNAVAILABLE', 503) }))
+
+    await mounted.wrapper.findAll('button').find((b) => b.text() === 'Sign out')!.trigger('click')
+    await flushPromises()
+
+    expect(mounted.wrapper.get('[role="alert"]').text()).toContain('Could not sign out')
+    expect(mounted.wrapper.text(), 'the punishment is still on screen').toContain('Hacked client')
+    expect(mounted.wrapper.find('input#ban-id').exists(), 'no login form').toBe(false)
+  })
+
+  it('signs out after a retry that succeeds', async () => {
+    const logout = vi.fn().mockResolvedValueOnce(fail<never>('UNAVAILABLE', 503)).mockResolvedValue(ok(null))
+    mounted = await mountPortal(signedInApi({ logout }))
+
+    await mounted.wrapper.findAll('button').find((b) => b.text() === 'Sign out')!.trigger('click')
+    await flushPromises()
+    await mounted.wrapper.findAll('button').find((b) => b.text() === 'Sign out')!.trigger('click')
+    await flushPromises()
+
+    expect(logout).toHaveBeenCalledTimes(2)
+    expect(mounted.wrapper.find('input#ban-id').exists()).toBe(true)
+    expect(mounted.wrapper.text(), 'the earlier failure is gone').not.toContain('Could not sign out')
+  })
+
+  it('signs out when the backend already ended the session', async () => {
+    mounted = await mountPortal(signedInApi({ logout: async () => fail<never>('SESSION_EXPIRED', 401) }))
+
+    await mounted.wrapper.findAll('button').find((b) => b.text() === 'Sign out')!.trigger('click')
+    await flushPromises()
+
+    expect(mounted.wrapper.find('input#ban-id').exists()).toBe(true)
   })
 
   it('discards unsent drafts', async () => {

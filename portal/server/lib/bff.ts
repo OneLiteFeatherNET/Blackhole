@@ -7,7 +7,6 @@ import {
   getQuery,
   getRequestIP,
   getRequestWebStream,
-  readRawBody,
   send,
   setCookie,
   setResponseHeader,
@@ -147,6 +146,9 @@ export function mapBackendError(status: number, body: unknown): { status: number
     }
     case status === 413:
       return { status: 413, error: { code: 'TOO_LARGE' } }
+    case status === 429:
+      // The limit is the infrastructure's: the answer says only that the player must wait, never anything about a Ban ID.
+      return { status: 429, error: { code: 'RATE_LIMITED' } }
     case status === 422:
       return { status: 422, error: { code: 'PII_REJECTED' } }
     case status >= 400 && status < 500:
@@ -166,14 +168,37 @@ async function parseJson(response: Response): Promise<unknown> {
 
 type BodyResult = { ok: true; json?: string } | { ok: false; status: number; code: ErrorCode }
 
+/**
+ * The request body as text, read chunk by chunk. A body past `limit` bytes (a chunked one has no
+ * declared length) is cancelled as soon as it crosses the limit, so it is never buffered in full.
+ */
+async function readCappedText(event: H3Event, limit: number): Promise<string | 'too-large' | undefined> {
+  const source = getRequestWebStream(event)
+  if (!source) return undefined
+  const reader = source.getReader()
+  const decoder = new TextDecoder()
+  let seen = 0
+  let text = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    seen += value.byteLength
+    if (seen > limit) {
+      await reader.cancel().catch(() => undefined)
+      return 'too-large'
+    }
+    text += decoder.decode(value, { stream: true })
+  }
+  return text + decoder.decode()
+}
+
 async function readBody(event: H3Event, route: RouteSpec): Promise<BodyResult> {
   if (!route.body) return { ok: true }
   const declared = Number(getHeader(event, 'content-length'))
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return { ok: false, status: 413, code: 'TOO_LARGE' }
-  const raw = await readRawBody(event, 'utf8')
-  if (raw === undefined || Buffer.byteLength(raw) > MAX_BODY_BYTES) {
-    return raw === undefined ? { ok: false, status: 400, code: 'BAD_REQUEST' } : { ok: false, status: 413, code: 'TOO_LARGE' }
-  }
+  const raw = await readCappedText(event, MAX_BODY_BYTES)
+  if (raw === undefined) return { ok: false, status: 400, code: 'BAD_REQUEST' }
+  if (raw === 'too-large') return { ok: false, status: 413, code: 'TOO_LARGE' }
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
@@ -233,6 +258,8 @@ export function createBffHandler({ config, fetchImpl }: Declared) {
 
     const changesState = route.method !== 'GET'
     if (changesState && getHeader(event, 'origin') !== config.portalOrigin) return fail(event, 403, 'ORIGIN')
+    // The browser marks a request that another site started; the Origin check refuses it too, this says so first.
+    if (changesState && getHeader(event, 'sec-fetch-site') === 'cross-site') return fail(event, 403, 'ORIGIN')
 
     const token = getCookie(event, SESSION_COOKIE)
     if (route.session && !token) {
@@ -259,7 +286,7 @@ export function createBffHandler({ config, fetchImpl }: Declared) {
     const headers = new Headers({ accept: backendAccept(route) })
     if (body.json !== undefined) headers.set('content-type', 'application/json')
     if (route.session && token) headers.set('authorization', `Bearer ${token}`)
-    const client = getRequestIP(event, { xForwardedFor: true })
+    const client = getRequestIP(event)
     if (client) headers.set('x-forwarded-for', client)
     const idempotency = getHeader(event, IDEMPOTENCY_HEADER)
     if (idempotency && IDEMPOTENCY_SHAPE.test(idempotency) && changesState) headers.set(IDEMPOTENCY_HEADER, idempotency)
@@ -347,7 +374,7 @@ async function relayUpload(event: H3Event, { config, fetchImpl, token }: Declare
   if (!source) return fail(event, 400, 'BAD_REQUEST')
 
   const headers = new Headers({ accept: 'application/json', authorization: `Bearer ${token}`, 'content-type': type, 'content-length': String(declared) })
-  const client = getRequestIP(event, { xForwardedFor: true })
+  const client = getRequestIP(event)
   if (client) headers.set('x-forwarded-for', client)
   let upstream: Response
   try {
@@ -413,6 +440,7 @@ function relayEvents(event: H3Event, upstream: Response, abort: AbortController)
 /** Login: every failure is the same answer; a good answer turns the token into cookies and never reaches the page. */
 async function finishLogin(event: H3Event, upstream: Response) {
   if (upstream.status >= 500) return fail(event, 503, 'UNAVAILABLE')
+  if (upstream.status === 429) return fail(event, 429, 'RATE_LIMITED')
   if (upstream.status === 403) {
     // The challenge refusal is its own answer: it says nothing about the Ban ID, which was never read.
     const refused = (await parseJson(upstream)) as { code?: unknown } | undefined

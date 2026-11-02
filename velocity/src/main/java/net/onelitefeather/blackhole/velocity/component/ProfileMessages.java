@@ -5,7 +5,6 @@ import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.onelitefeather.blackhole.client.model.PunishEntryDTO;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.velocity.component.tag.DurationTag;
@@ -16,6 +15,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -119,7 +119,7 @@ public final class ProfileMessages {
         boolean automatic = entry.getMetaData() != null && Boolean.TRUE.equals(entry.getMetaData().get("automatic"));
         Component translated = DefaultReasons.translated(automatic, permanent, rawReason);
         Component reason = translated != null ? translated
-                : rawReason == null ? Component.text(NONE) : MINI.deserialize(rawReason, expiryTag(expiresAt, clock));
+                : rawReason == null ? Component.text(NONE) : Reasons.text(rawReason, expiryText(expiresAt, clock));
         Component shortId = PunishmentScreens.shortId(entry.getIdentifier()) == null
                 ? Component.text(NONE) : Fmt.shortId(entry.getIdentifier(), mode);
         Component end = permanent ? Component.translatable("duration.permanent")
@@ -139,7 +139,8 @@ public final class ProfileMessages {
                 Component.text(templateKey), end);
     }
 
-    private static @NotNull TagResolver expiryTag(@Nullable Long expiresAt, Clock clock) {
-        return expiresAt == null ? TagResolver.empty() : DurationTag.resolver(expiresAt, clock.millis());
+    private static @NotNull Component expiryText(@Nullable Long expiresAt, Clock clock) {
+        return expiresAt == null ? Component.translatable("duration.permanent")
+                : DurationTag.format(Duration.ofMillis(expiresAt - clock.millis()));
     }
 }

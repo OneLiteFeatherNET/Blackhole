@@ -143,6 +143,24 @@ class PlayerLoginListenerTest {
     }
 
     @Test
+    void aDeniedLoginLeavesNoMirrorEntryBehind() {
+        PlayerLoginListener listener = listener(stateWithProfile(permanentBanOfAlice()), RUN_AT_ONCE);
+
+        listener.onLogin(new LoginEvent(SessionPlayer.alice()));
+
+        assertFalse(mirror.isLoaded(ALICE), "a denied login never disconnects, so its mirror entry would stay forever");
+    }
+
+    @Test
+    void aGuardRefusedLoginLeavesNoMirrorEntryBehind() {
+        PlayerLoginListener listener = listener(stateWithProfile(Optional.empty()), RUN_AT_ONCE, vpnAnswering(IntelPolicy.DENY));
+
+        listener.onLogin(new LoginEvent(SessionPlayer.alice()));
+
+        assertFalse(mirror.isLoaded(ALICE), "a refused login never disconnects, so its mirror entry would stay forever");
+    }
+
+    @Test
     void anAllowedLoginReportsTheStartWithTheProtocolVersionAndUpdatesTheProfileWithIt() {
         PlayerLoginListener listener = listener(stateWithProfile(Optional.empty()), RUN_AT_ONCE);
         LoginEvent event = new LoginEvent(SessionPlayer.alice());
