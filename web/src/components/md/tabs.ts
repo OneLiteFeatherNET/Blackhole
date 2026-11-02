@@ -18,3 +18,26 @@ export function tabIndexAfterKey(key: string, current: number, count: number): n
       return null
   }
 }
+
+/** A sub-pixel difference between a strip's scroll position and its size is rounding, not an edge. */
+const EDGE_TOLERANCE_PX = 1
+
+/** Whether tabs are hidden beyond the strip's left (`start`) or right (`end`) edge. */
+export interface TabEdges {
+  start: boolean
+  end: boolean
+}
+
+export function tabEdges(scrollLeft: number, scrollWidth: number, clientWidth: number): TabEdges {
+  return {
+    start: scrollLeft > EDGE_TOLERANCE_PX,
+    end: scrollLeft + clientWidth < scrollWidth - EDGE_TOLERANCE_PX,
+  }
+}
+
+/** The scroll position that shows a tab (its start and end, in strip coordinates) fully inside the visible part. */
+export function revealScrollLeft(tab: { start: number; end: number }, view: { left: number; width: number }): number {
+  if (tab.start < view.left) return tab.start
+  if (tab.end > view.left + view.width) return tab.end - view.width
+  return view.left
+}

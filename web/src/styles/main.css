@@ -383,6 +383,28 @@
   }
 }
 
+/* A strip that scrolls sideways (tabs on a narrow screen) keeps its scrolling but shows no scrollbar. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* A tab strip fades out at the edge where tabs are hidden: that edge is the hint that it scrolls. */
+[role="tablist"][data-fade="start"] {
+  mask-image: linear-gradient(to right, transparent, black 2rem);
+}
+
+[role="tablist"][data-fade="end"] {
+  mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent);
+}
+
+[role="tablist"][data-fade="both"] {
+  mask-image: linear-gradient(to right, transparent, black 2rem, black calc(100% - 2rem), transparent);
+}
+
 /*
  * The focus ring of every interactive element that is not an MD3 state layer: 2px primary, offset 2px, for keyboard
  * focus only (:focus-visible), so a mouse click draws no ring.

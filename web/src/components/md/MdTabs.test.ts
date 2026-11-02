@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import MdTabs from './MdTabs.vue'
 import { panelDomId, tabDomId, tabIndexAfterKey } from './tabs'
 
@@ -105,6 +105,73 @@ describe('MdTabs: selecting', () => {
     await tabsOf(wrapper)[0]!.trigger('keydown', { key: 'a' })
 
     expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+
+    wrapper.unmount()
+  })
+})
+
+/** jsdom has no layout: the strip and its three 120 px tabs are given sizes by hand. */
+function layout(wrapper: ReturnType<typeof setup>, strip: { scrollWidth: number; clientWidth: number; scrollLeft?: number }) {
+  const list = wrapper.get('[role="tablist"]').element as HTMLElement
+  const box = (left: number, width: number, height: number) => ({ left, right: left + width, width, top: 0, bottom: height, height, x: left, y: 0, toJSON() {} }) as DOMRect
+  Object.defineProperty(list, 'scrollWidth', { configurable: true, value: strip.scrollWidth })
+  Object.defineProperty(list, 'clientWidth', { configurable: true, value: strip.clientWidth })
+  Object.defineProperty(list, 'scrollLeft', { configurable: true, writable: true, value: strip.scrollLeft ?? 0 })
+  list.getBoundingClientRect = () => box(0, strip.clientWidth, 48)
+  wrapper.findAll('[role="tab"]').forEach((tab, index) => {
+    ;(tab.element as HTMLElement).getBoundingClientRect = () => box(index * 150, 120, 48)
+  })
+  return list
+}
+
+describe('MdTabs: overflow', () => {
+  it('hides the scrollbar of the strip while it still scrolls', () => {
+    const wrapper = setup()
+
+    const list = wrapper.get('[role="tablist"]')
+    expect(list.classes(), 'the no-scrollbar utility is applied').toContain('no-scrollbar')
+    expect(list.classes()).toContain('overflow-x-auto')
+
+    wrapper.unmount()
+  })
+
+  it('draws the active indicator inside its own tab, so the strip has no vertical overflow', () => {
+    const wrapper = setup()
+
+    for (const tab of tabsOf(wrapper)) expect(tab.classes(), tab.text()).not.toContain('-mb-px')
+
+    wrapper.unmount()
+  })
+
+  it('shows no edge fade when every tab fits', async () => {
+    const wrapper = setup()
+    layout(wrapper, { scrollWidth: 300, clientWidth: 300 })
+    await wrapper.get('[role="tablist"]').trigger('scroll')
+
+    expect(wrapper.get('[role="tablist"]').attributes('data-fade')).toBe('none')
+
+    wrapper.unmount()
+  })
+
+  it('shows an edge fade on the side where tabs are hidden', async () => {
+    const wrapper = setup()
+    layout(wrapper, { scrollWidth: 900, clientWidth: 300, scrollLeft: 0 })
+    await wrapper.get('[role="tablist"]').trigger('scroll')
+
+    expect(wrapper.get('[role="tablist"]').attributes('data-fade')).toBe('end')
+
+    wrapper.unmount()
+  })
+
+  it('scrolls the selected tab into view when it is off the strip', async () => {
+    const wrapper = setup('overview')
+    const list = layout(wrapper, { scrollWidth: 450, clientWidth: 300, scrollLeft: 0 })
+    const scrollTo = vi.fn()
+    list.scrollTo = scrollTo
+
+    await wrapper.setProps({ modelValue: 'audit' })
+
+    expect(scrollTo).toHaveBeenCalledWith({ left: 120, behavior: 'smooth' })
 
     wrapper.unmount()
   })
