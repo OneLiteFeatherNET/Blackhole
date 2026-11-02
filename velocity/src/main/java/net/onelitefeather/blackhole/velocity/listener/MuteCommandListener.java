@@ -50,16 +50,20 @@ public final class MuteCommandListener {
         try {
             mute = this.state.activeMute(owner);
         } catch (PunishmentState.Unavailable e) {
-            // Same rule as chat: an unknown mute state never blocks the player.
-            LOGGER.error("Could not check the mute state of {}, running the command: {}", player.getUsername(), e.getMessage());
+            // Same rule as chat: an unknown mute state holds the command back, never disconnects the sender.
+            LOGGER.error("Could not check the mute state of {}, holding the command back: {}", owner, e.getMessage());
+            if (!this.gate.canDenyQuietly(signedState(event))) {
+                LOGGER.warn("Ran command of {} unchecked: a signed command cannot be held back without SignedVelocity", owner);
+                return;
+            }
+            event.setResult(CommandExecuteEvent.CommandResult.denied());
+            player.sendMessage(this.notices.unavailable());
             return;
         }
         if (mute.isEmpty()) {
             return;
         }
-        CommandExecuteEvent.InvocationInfo info = event.getInvocationInfo();
-        // Without invocation info the command is treated as unsigned: denied directly, never disconnecting.
-        CommandExecuteEvent.SignedState signed = info == null ? CommandExecuteEvent.SignedState.UNSUPPORTED : info.signedState();
+        CommandExecuteEvent.SignedState signed = signedState(event);
         MuteCommandGate.Verdict verdict = this.gate.verdict(event.getCommand(), signed, true);
         if (verdict == MuteCommandGate.Verdict.ALLOW) {
             return;
@@ -73,5 +77,11 @@ public final class MuteCommandListener {
             return;
         }
         player.sendMessage(this.notices.notice(owner, mute.get(), locale, evidence));
+    }
+
+    /** Without invocation info the command is treated as unsigned: denied directly, never disconnecting. */
+    private static CommandExecuteEvent.SignedState signedState(CommandExecuteEvent event) {
+        CommandExecuteEvent.InvocationInfo info = event.getInvocationInfo();
+        return info == null ? CommandExecuteEvent.SignedState.UNSUPPORTED : info.signedState();
     }
 }
