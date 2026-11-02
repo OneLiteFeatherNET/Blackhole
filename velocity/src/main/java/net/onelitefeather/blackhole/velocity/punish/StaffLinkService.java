@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.velocity.punish;
 
+import net.onelitefeather.blackhole.velocity.utils.LogIds;
 import com.google.inject.Inject;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.StaffLinkLookupResponse;
@@ -66,7 +67,7 @@ public final class StaffLinkService {
             if (e.getCode() == 400) {
                 return new LinkOutcome.InvalidCode();
             }
-            LOGGER.error("Linking {} failed with status {}", player, e.getCode());
+            LOGGER.error("Linking {} failed with status {}", LogIds.of(player), e.getCode());
             return new LinkOutcome.Failed(e.getCode());
         }
     }
@@ -78,7 +79,7 @@ public final class StaffLinkService {
                     ? new WhoamiOutcome.Linked(response.getDisplayName())
                     : new WhoamiOutcome.NotLinked();
         } catch (ApiException e) {
-            LOGGER.error("Looking up the staff link of {} failed with status {}", player, e.getCode());
+            LOGGER.error("Looking up the staff link of {} failed with status {}", LogIds.of(player), e.getCode());
             return new WhoamiOutcome.Failed(e.getCode());
         }
     }

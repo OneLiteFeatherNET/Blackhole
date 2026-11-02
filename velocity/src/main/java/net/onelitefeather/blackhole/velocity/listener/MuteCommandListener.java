@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.velocity.listener;
 
+import net.onelitefeather.blackhole.velocity.utils.LogIds;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.command.CommandExecuteEvent;
 import com.velocitypowered.api.proxy.Player;
@@ -51,7 +52,7 @@ public final class MuteCommandListener {
             mute = this.state.activeMute(owner);
         } catch (PunishmentState.Unavailable e) {
             // Same rule as chat: an unknown mute state holds the command back, never disconnects the sender.
-            LOGGER.error("Could not check the mute state of {}, holding the command back: {}", owner, e.getMessage());
+            LOGGER.error("Could not check the mute state of {}, holding the command back: {}", LogIds.of(owner), e.getMessage());
             if (!this.gate.canDenyQuietly(signedState(event))) {
                 LOGGER.warn("Ran command of {} unchecked: a signed command cannot be held back without SignedVelocity", owner);
                 return;
@@ -72,7 +73,7 @@ public final class MuteCommandListener {
         long evidence = this.evidenceCounts.of(mute.get().punishmentIdentifier()).orElse(0);
         Locale locale = PunishmentScreens.localeOf(player);
         if (verdict == MuteCommandGate.Verdict.DISCONNECT) {
-            LOGGER.info("Disconnected muted player {} for a signed command: SignedVelocity is not installed on this proxy", player.getUsername());
+            LOGGER.info("Disconnected muted player {} for a signed command: SignedVelocity is not installed on this proxy", LogIds.of(player.getUniqueId()));
             player.disconnect(this.notices.disconnectScreen(mute.get(), locale, evidence));
             return;
         }

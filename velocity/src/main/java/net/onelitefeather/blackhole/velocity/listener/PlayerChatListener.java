@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.velocity.listener;
 
+import net.onelitefeather.blackhole.velocity.utils.LogIds;
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.PlayerChatEvent;
@@ -69,7 +70,7 @@ public final class PlayerChatListener {
             // since this event fires on every message); unknown state is loaded once and cached.
             mute = this.state.activeMute(uuidHash);
         } catch (PunishmentState.Unavailable e) {
-            LOGGER.error("Could not check the mute state of {}, holding the message back: {}", uuidHash, e.getMessage());
+            LOGGER.error("Could not check the mute state of {}, holding the message back: {}", LogIds.of(uuidHash), e.getMessage());
             denyUnknownState(event, player, uuidHash);
             return;
         }
@@ -80,7 +81,7 @@ public final class PlayerChatListener {
             if (outcome == MuteChatDenial.Outcome.DISCONNECT) {
                 // Named once per attempt, never with the message text: the proxy has no other way to stop it.
                 LOGGER.info("Disconnected muted player {} for a signed chat message: SignedVelocity is not installed on this proxy",
-                        player.getUsername());
+                        LogIds.of(player.getUniqueId()));
                 player.disconnect(this.notices.disconnectScreen(mute.get(), locale, evidence));
                 return;
             }
@@ -97,7 +98,7 @@ public final class PlayerChatListener {
      */
     private void denyUnknownState(@NotNull PlayerChatEvent event, @NotNull Player player, @NotNull String uuidHash) {
         if (!this.denial.canDenyQuietly(player.getProtocolVersion())) {
-            LOGGER.warn("Delivered chat of {} unchecked: signed chat cannot be held back without SignedVelocity", uuidHash);
+            LOGGER.warn("Delivered chat of {} unchecked: signed chat cannot be held back without SignedVelocity", LogIds.of(uuidHash));
             return;
         }
         this.denial.deny(event, player.getProtocolVersion());
@@ -112,7 +113,7 @@ public final class PlayerChatListener {
         try {
             this.eloApi.submitChatSignal(new EloChatSignalRequest().owner(uuidHash).message(message));
         } catch (ApiException e) {
-            LOGGER.error("Failed to submit chat signal for ELO scoring for player {}: {}", player.getUsername(), e.getMessage());
+            LOGGER.error("Failed to submit chat signal for ELO scoring for player {}: {}", LogIds.of(player.getUniqueId()), e.getMessage());
         }
     }
 }

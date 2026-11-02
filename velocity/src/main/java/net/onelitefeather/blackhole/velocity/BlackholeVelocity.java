@@ -177,6 +177,7 @@ public class BlackholeVelocity {
     private BlackholeConfig config;
     private BusClient busClient;
     private ExecutorService eventThread;
+    private ExecutorService sessionExecutor;
     private volatile boolean authReady;
     private final EnforcementHealth health = new EnforcementHealth();
     private CommandRuleListener commandRuleListener;
@@ -226,8 +227,9 @@ public class BlackholeVelocity {
         // Its own client: the session reports get the report timeout as their read timeout, the other calls keep theirs.
         ApiClient reportClient = BlackholeApiClients.create(this.config.getBaseUrl(), tokens)
                 .setReadTimeout(this.config.getIntel().getReportTimeout());
+        this.sessionExecutor = SessionReporter.boundedExecutor();
         SessionReporter sessions = new SessionReporter(new HttpSessionBackend(new IntelApi(reportClient)),
-                SessionReporter.boundedExecutor(), UUID::randomUUID);
+                this.sessionExecutor, UUID::randomUUID);
 
         SectionRegistry sections = new SectionRegistry(new BackendSectionSource(this.client));
         PunishmentMirror mirror = new PunishmentMirror(clock, this.config.getMirror().getMaxOwners(),
@@ -476,6 +478,9 @@ public class BlackholeVelocity {
         }
         if (this.eventThread != null) {
             this.eventThread.shutdownNow();
+        }
+        if (this.sessionExecutor != null) {
+            this.sessionExecutor.shutdownNow();
         }
         this.sentry.close();
     }
