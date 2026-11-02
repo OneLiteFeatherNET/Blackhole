@@ -384,6 +384,36 @@ describe('login', () => {
   })
 })
 
+describe('Sec-Fetch-Site', () => {
+  it('refuses a state-changing request the browser marks cross-site, before the backend is called', async () => {
+    const { send, calls } = bff()
+
+    const response = await send(...post('/api/session', { banId: BAN_ID }, { 'sec-fetch-site': 'cross-site' }))
+
+    expect(response.status).toBe(403)
+    expect(calls).toEqual([])
+  })
+
+  it.each([['same-origin'], ['none'], [undefined]])('lets a state-changing request marked %s through', async (fetchSite) => {
+    const { send, calls } = bff([{ body: LOGIN_OK }])
+
+    const response = await send(...post('/api/session', { banId: BAN_ID }, fetchSite === undefined ? {} : { 'sec-fetch-site': fetchSite }))
+
+    expect(response.status).toBe(200)
+    expect(calls).toHaveLength(1)
+  })
+})
+
+describe('client address', () => {
+  it('does not forward a client-set X-Forwarded-For to the backend', async () => {
+    const { send, calls } = bff([{ body: {} }])
+
+    await send('/api/punishment', { headers: { cookie: session, 'x-forwarded-for': '203.0.113.9' } })
+
+    expect(calls[0]?.headers.get('x-forwarded-for')).not.toBe('203.0.113.9')
+  })
+})
+
 describe('CSRF and Origin', () => {
   it.each([
     ['POST /api/session', '/api/session', 'POST', { banId: BAN_ID }],

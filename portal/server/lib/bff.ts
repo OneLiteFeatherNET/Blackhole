@@ -258,6 +258,8 @@ export function createBffHandler({ config, fetchImpl }: Declared) {
 
     const changesState = route.method !== 'GET'
     if (changesState && getHeader(event, 'origin') !== config.portalOrigin) return fail(event, 403, 'ORIGIN')
+    // The browser marks a request that another site started; the Origin check refuses it too, this says so first.
+    if (changesState && getHeader(event, 'sec-fetch-site') === 'cross-site') return fail(event, 403, 'ORIGIN')
 
     const token = getCookie(event, SESSION_COOKIE)
     if (route.session && !token) {
@@ -284,7 +286,7 @@ export function createBffHandler({ config, fetchImpl }: Declared) {
     const headers = new Headers({ accept: backendAccept(route) })
     if (body.json !== undefined) headers.set('content-type', 'application/json')
     if (route.session && token) headers.set('authorization', `Bearer ${token}`)
-    const client = getRequestIP(event, { xForwardedFor: true })
+    const client = getRequestIP(event)
     if (client) headers.set('x-forwarded-for', client)
     const idempotency = getHeader(event, IDEMPOTENCY_HEADER)
     if (idempotency && IDEMPOTENCY_SHAPE.test(idempotency) && changesState) headers.set(IDEMPOTENCY_HEADER, idempotency)
@@ -372,7 +374,7 @@ async function relayUpload(event: H3Event, { config, fetchImpl, token }: Declare
   if (!source) return fail(event, 400, 'BAD_REQUEST')
 
   const headers = new Headers({ accept: 'application/json', authorization: `Bearer ${token}`, 'content-type': type, 'content-length': String(declared) })
-  const client = getRequestIP(event, { xForwardedFor: true })
+  const client = getRequestIP(event)
   if (client) headers.set('x-forwarded-for', client)
   let upstream: Response
   try {
