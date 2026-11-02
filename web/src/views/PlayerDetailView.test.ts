@@ -167,11 +167,23 @@ describe('PlayerDetailView', () => {
   it('shows the player name when this session looked it up, and the short hash otherwise', async () => {
     const withoutName = await open()
     expect(withoutName.wrapper.get('h1').text()).toBe(`${OWNER.slice(0, 8)}…`)
+    expect(withoutName.wrapper.find('[data-testid="page-description"]').exists(), 'no second line without a name').toBe(false)
     withoutName.wrapper.unmount()
 
     const { wrapper } = await mountWithApp(PlayerDetailView, { path: `/players/${OWNER}`, props: { owner: OWNER }, api: api() })
     useLookupStore().remember(OWNER, 'Steve')
     await flushPromises()
+    expect(wrapper.get('h1').text()).toBe('Steve')
+
+    wrapper.unmount()
+  })
+
+  it('keeps the short hash as secondary text under the name', async () => {
+    const { wrapper } = await mountWithApp(PlayerDetailView, { path: `/players/${OWNER}`, props: { owner: OWNER }, api: api() })
+    useLookupStore().remember(OWNER, 'Steve')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="page-description"]').text()).toBe(`${OWNER.slice(0, 8)}…`)
     expect(wrapper.get('h1').text()).toBe('Steve')
 
     wrapper.unmount()
