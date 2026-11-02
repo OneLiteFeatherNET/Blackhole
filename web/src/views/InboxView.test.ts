@@ -405,3 +405,51 @@ describe('InboxView', () => {
     })
   })
 })
+
+describe('InboxView requests', () => {
+  // The number of case reads does not depend on how many cases there are: counts come from totalSize and
+  // each list reads at most one page, so a busy inbox costs the same as a quiet one.
+  const CASE_READS_ON_LOAD = 12
+
+  it('makes the same fixed number of case reads on load, with few cases', async () => {
+    const read = vi.fn(fakeCaseList(MY_OPEN_CASES).read)
+    const { wrapper } = await mounting({ cases: read })
+
+    expect(read).toHaveBeenCalledTimes(CASE_READS_ON_LOAD)
+
+    wrapper.unmount()
+  })
+
+  it('makes the same fixed number of case reads on load, with many cases', async () => {
+    const many = Array.from({ length: 450 }, (_, index) =>
+      caseListItem({
+        shortId: `BIG${index}`,
+        punishmentIdentifier: `p-big-${index}`,
+        priority: index % 2 === 0 ? 'URGENT' : 'HIGH',
+        status: index % 3 === 0 ? 'OPEN' : index % 3 === 1 ? 'IN_REVIEW' : 'WAITING',
+        assigneeOid: index % 5 === 0 ? ME : null,
+        lastActivityAt: index,
+      }),
+    )
+    const read = vi.fn(fakeCaseList(many).read)
+    const { wrapper } = await mounting({ cases: read })
+
+    expect(read).toHaveBeenCalledTimes(CASE_READS_ON_LOAD)
+    expect(wrapper.get('[data-queue="assigned"] [data-testid="section-count"]').text()).toBe('90')
+
+    wrapper.unmount()
+  })
+
+  it('shows a lower-bound count with a plus when the urgent read was full, and keeps Show all', async () => {
+    const full = Array.from({ length: 101 }, (_, index) =>
+      caseListItem({ shortId: `PL${index}`, punishmentIdentifier: `p-pl-${index}`, priority: 'URGENT', lastActivityAt: index }),
+    )
+    const { wrapper } = await mounting({ cases: fakeCaseList([...MY_OPEN_CASES, ...full]).read })
+
+    expect(wrapper.get('[data-queue="urgent"] [data-testid="section-count"]').text()).toBe('100+')
+    expect(wrapper.get('[data-queue="urgent"] [data-testid="show-all"]').attributes('href')).toBe('/cases?priority=URGENT')
+    expect(wrapper.get('[data-queue="assigned"] [data-testid="section-count"]').text()).toBe('2')
+
+    wrapper.unmount()
+  })
+})

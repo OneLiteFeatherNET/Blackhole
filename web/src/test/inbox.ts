@@ -22,10 +22,11 @@ export function caseListItem(overrides: Partial<CaseListItem> = {}): CaseListIte
 }
 
 /**
- * A `GET /case` that filters by the query like the server does (status, assignee, priority) and pages with
- * the given page size. Every query it receives is recorded, so a test can check what was asked.
+ * A `GET /case` that filters by the query like the server does (status, assignee, priority) and answers
+ * the page and size asked for (the default size is `defaultSize`). Every query it receives is recorded, so
+ * a test can check what was asked and how many requests were made.
  */
-export function fakeCaseList(items: CaseListItem[], pageSize = 100) {
+export function fakeCaseList(items: CaseListItem[], defaultSize = 100) {
   const queries: CaseListQuery[] = []
   const read = async (query: CaseListQuery = {}): Promise<ApiResult<CaseListPage>> => {
     queries.push(query)
@@ -36,11 +37,12 @@ export function fakeCaseList(items: CaseListItem[], pageSize = 100) {
         (query.priority === undefined || item.priority === query.priority),
     )
     const page = query.page ?? 0
-    const totalPages = Math.ceil(matching.length / pageSize)
-    const slice = matching.slice(page * pageSize, (page + 1) * pageSize)
+    const size = query.size ?? defaultSize
+    const totalPages = Math.ceil(matching.length / size)
+    const slice = matching.slice(page * size, (page + 1) * size)
     return {
       ok: true,
-      data: { items: slice, page, size: pageSize, totalSize: matching.length, totalPages },
+      data: { items: slice, page, size, totalSize: matching.length, totalPages },
     }
   }
   return { read, queries }
