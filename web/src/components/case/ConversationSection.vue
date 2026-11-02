@@ -108,7 +108,7 @@ async function reload(): Promise<void> {
 
 // The thread scrolls on its own. Whether a change keeps the reader at the end is decided before the DOM
 // changes (pre-flush), and the scroll happens after it. A hidden thread has no size, so opening its tab
-// scrolls to the end on the next tick.
+// scrolls to the end once the tab's panel has been shown (post-flush, after the v-show update).
 const scroller = useTemplateRef<HTMLElement>('scroller')
 
 function scrollToEnd(): void {
@@ -129,8 +129,9 @@ watch(
 watch(
   () => props.active,
   (active) => {
-    if (active) void nextTick(scrollToEnd)
+    if (active) scrollToEnd()
   },
+  { flush: 'post' },
 )
 
 // The count of messages, once the thread has been loaded: CaseView shows what arrived while another tab was open.
@@ -319,7 +320,7 @@ async function redacted(message: string): Promise<void> {
       <ol
         v-else
         ref="scroller"
-        class="flex h-[60dvh] min-h-80 flex-col gap-3 overflow-y-auto overscroll-contain"
+        class="flex h-[clamp(20rem,calc(100dvh-28rem),60dvh)] flex-col gap-3 overflow-y-auto overscroll-contain"
         role="log"
         aria-live="polite"
         :aria-label="t('case.conversation.thread', { count: thread.length })"
