@@ -13,6 +13,9 @@ const HERE = import.meta.dirname
 const SOURCE = join(HERE, '../../design/tokens/seed.json')
 const OUT = join(HERE, '../src/styles/md3-tokens.generated.css')
 const { seed: SEED } = JSON.parse(readFileSync(SOURCE, 'utf8'))
+const BRAND = JSON.parse(readFileSync(join(HERE, '../../design/tokens/brand.json'), 'utf8'))
+// The OLF gradient is not an MD3 role: one scheme-independent custom property, for brand accents only.
+const BRAND_GRADIENT = `linear-gradient(${BRAND.gradient.angle}, ${BRAND.gradient.stops.join(', ')})`
 
 // MD3 color role (kebab-case CSS name) -> MaterialDynamicColors property.
 const ROLES = {
@@ -80,6 +83,7 @@ export async function renderMd3Css() {
 /* Light scheme is the default. */
 :root {
   color-scheme: light;
+  --brand-gradient: ${BRAND_GRADIENT};
 ${decl(light)}
 }
 
