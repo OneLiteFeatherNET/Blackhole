@@ -236,7 +236,8 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
         Map<String, Object> body = Map.of("cases", List.of(Map.of("punishmentIdentifier", "unknown-punishment", "expectedVersion", 0)),
                 "clearAssignee", false, "status", "CLOSED", "onBehalfOf", UUID.randomUUID().toString());
 
-        assertEquals(400, post("/case/bulk", body, this.jwt.moderator()).status(), "a bulk edit has no delegation field");
+        ApiIntegrationTest.Reply reply = post("/case/bulk", body, this.jwt.moderator());
+        assertEquals(400, reply.status(), "a bulk edit has no delegation field: " + reply.body());
     }
 
     @Test

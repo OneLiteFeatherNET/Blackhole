@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.casetimeline.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
@@ -306,6 +307,7 @@ public sealed interface CaseDTO {
     @Schema(name = "CaseBulkRequest")
     @Serdeable
     @ReflectiveAccess
+    @JsonIgnoreProperties(ignoreUnknown = false)
     record BulkRequest(
             @NonNull List<BulkCase> cases,
             @Nullable CaseStatus status,
