@@ -4,6 +4,11 @@ import { describe, expect, it, vi } from 'vitest'
 import { applySecurityHeaders, healthzHandler, sendErrorResponse } from './handlers'
 import { isIndexDocument, securityHeaders } from './headers'
 
+/** The whole directive named, such as `worker-src 'self'`; empty when the policy has none. */
+function directive(csp: string, name: string): string {
+  return csp.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${name} `)) ?? ''
+}
+
 describe('securityHeaders', () => {
   it('forbids content type sniffing', () => {
     expect(securityHeaders()['X-Content-Type-Options']).toBe('nosniff')
@@ -12,6 +17,22 @@ describe('securityHeaders', () => {
   it('forbids framing, in the header and in the policy', () => {
     expect(securityHeaders()['X-Frame-Options']).toBe('DENY')
     expect(securityHeaders()['Content-Security-Policy']).toContain("frame-ancestors 'none'")
+  })
+
+  it('lets the challenge widget run its workers from the own origin only', () => {
+    const worker = directive(securityHeaders()['Content-Security-Policy']!, 'worker-src')
+
+    expect(worker).toBe("worker-src 'self'")
+  })
+
+  it('adds no blob, data or eval source to the worker policy or to the script policy', () => {
+    const csp = securityHeaders()['Content-Security-Policy']!
+    for (const name of ['worker-src', 'script-src']) {
+      const value = directive(csp, name)
+      expect(value, `${name} has no blob:`).not.toContain('blob:')
+      expect(value, `${name} has no data:`).not.toContain('data:')
+      expect(value, `${name} has no unsafe-eval`).not.toContain('unsafe-eval')
+    }
   })
 
   it('sends no referrer', () => {

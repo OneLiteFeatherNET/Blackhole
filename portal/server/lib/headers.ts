@@ -10,6 +10,8 @@ export function securityHeaders(): Record<string, string> {
     'Content-Security-Policy': [
       "default-src 'self'",
       "script-src 'self'",
+      // The ALTCHA widget runs its proof-of-work in Web Workers served from this origin only (altcha/external).
+      "worker-src 'self'",
       "style-src 'self'",
       "img-src 'self' blob:",
       "font-src 'self'",

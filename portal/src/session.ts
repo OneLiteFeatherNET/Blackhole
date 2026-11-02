@@ -27,7 +27,7 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
     expiresAt: null as string | null,
     punishment: null as PunishmentFacts | null,
     /** Set after a failed login; the same value for every cause of failure. */
-    loginError: null as 'INVALID_BAN_ID' | 'UNAVAILABLE' | null,
+    loginError: null as 'INVALID_BAN_ID' | 'UNAVAILABLE' | 'CHALLENGE_FAILED' | null,
     busy: false,
     /** Unsent text. Survives the expiry page so a long statement is not lost; gone on logout or when the tab closes. */
     drafts: { statement: '', message: '', files: [] as DraftFile[] },
@@ -74,7 +74,7 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
     }
   }
 
-  async function login(typed: string) {
+  async function login(typed: string, altcha?: string) {
     const banId = normaliseBanId(typed)
     if (banId === null) {
       // Same message as a wrong ID, and nothing is sent for input that cannot be one.
@@ -83,10 +83,13 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
     }
     state.busy = true
     try {
-      const result = await api.login(banId)
+      // The solution is sent only when the widget produced one; with the check off the field is absent.
+      const result = altcha === undefined ? await api.login(banId) : await api.login(banId, altcha)
       if (result.ok) {
         enter(result.data)
         await refreshPunishment()
+      } else if (result.error.code === 'CHALLENGE_FAILED') {
+        state.loginError = 'CHALLENGE_FAILED'
       } else {
         state.loginError = result.error.code === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'INVALID_BAN_ID'
       }
