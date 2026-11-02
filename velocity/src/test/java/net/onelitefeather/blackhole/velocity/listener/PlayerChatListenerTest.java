@@ -23,6 +23,7 @@ import net.onelitefeather.blackhole.velocity.evidence.MutableClock;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -174,5 +175,66 @@ class PlayerChatListenerTest {
         assertTrue(event.getResult().isAllowed(), "an unmuted message is delivered");
         assertEquals(List.of(MESSAGE), scored, "and submitted for ELO scoring");
         assertTrue(alice.disconnects.isEmpty(), "nothing else happens to an unmuted player");
+    }
+
+    private PlayerChatListener listenerWithBackend(PunishmentState.ProfileReader reader, boolean relayPresent) {
+        PunishmentState backed = new PunishmentState(TestData.standardRegistry(), mirror, reader, clock, () -> true, Duration.ofMinutes(1));
+        return new PlayerChatListener(elo, backed, punishmentIdentifier -> OptionalLong.empty(), new MuteChatDenial(relayPresent), notices);
+    }
+
+    private static PunishmentState.ProfileReader backendDown() {
+        return owner -> {
+            throw new IOException("backend down");
+        };
+    }
+
+    @Test
+    void anUnknownMuteStateWithTheBackendDownDeniesTheMessage() {
+        RecordingPlayer alice = new RecordingPlayer(ProtocolVersion.MINECRAFT_1_19);
+        PlayerChatEvent event = new PlayerChatEvent(alice.player, MESSAGE);
+
+        listenerWithBackend(backendDown(), false).onChat(event);
+
+        assertFalse(event.getResult().isAllowed(), "a message whose mute state is unknown must not be delivered");
+    }
+
+    @Test
+    void anUnknownMuteStateWithTheBackendDownTellsThePlayerChatIsUnavailable() {
+        RecordingPlayer alice = new RecordingPlayer(ProtocolVersion.MINECRAFT_1_19);
+
+        listenerWithBackend(backendDown(), false).onChat(new PlayerChatEvent(alice.player, MESSAGE));
+
+        assertEquals(List.of(notices.unavailable()), alice.messages, "the player gets the neutral unavailable notice, not the mute screen");
+    }
+
+    @Test
+    void anUnknownMuteStateWithTheBackendDownDoesNotDisconnectTheSender() {
+        RecordingPlayer alice = new RecordingPlayer(ProtocolVersion.MINECRAFT_1_19);
+
+        listenerWithBackend(backendDown(), false).onChat(new PlayerChatEvent(alice.player, MESSAGE));
+
+        assertTrue(alice.disconnects.isEmpty(), "an unknown state is never a reason to disconnect the player");
+    }
+
+    @Test
+    void aSignedMessageWithAnUnknownMuteStateIsDeliveredWithoutSignedVelocityRatherThanDisconnecting() {
+        RecordingPlayer alice = new RecordingPlayer(ProtocolVersion.MINECRAFT_1_21);
+        PlayerChatEvent event = new PlayerChatEvent(alice.player, MESSAGE);
+
+        listenerWithBackend(backendDown(), false).onChat(event);
+
+        assertTrue(event.getResult().isAllowed(), "denying signed chat would make Velocity disconnect the sender");
+        assertTrue(alice.disconnects.isEmpty(), "the sender is not disconnected on an unknown state");
+    }
+
+    @Test
+    void anUnknownMuteStateWithTheBackendSayingNotMutedDeliversTheMessage() {
+        RecordingPlayer alice = new RecordingPlayer(ProtocolVersion.MINECRAFT_1_19);
+        PlayerChatEvent event = new PlayerChatEvent(alice.player, MESSAGE);
+
+        listenerWithBackend(owner -> Optional.empty(), false).onChat(event);
+
+        assertTrue(event.getResult().isAllowed(), "the backend answered that the player is not muted, so the message is delivered");
+        assertTrue(alice.messages.isEmpty(), "no notice is sent to an unmuted player");
     }
 }
