@@ -9,6 +9,7 @@ import net.onelitefeather.blackhole.backend.casetimeline.CaseReader;
 import net.onelitefeather.blackhole.backend.publicapi.PlayerScope;
 import net.onelitefeather.blackhole.backend.publicapi.PlayerSessionProperties;
 import net.onelitefeather.blackhole.backend.publicapi.PlayerSessionStore;
+import net.onelitefeather.blackhole.backend.publicapi.challenge.ChallengeGate;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicErrorKind;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicSessionDTO;
 import net.onelitefeather.blackhole.backend.security.PlayerSession;
@@ -43,6 +44,9 @@ public class PlayerSessionService {
         return INVALID_BAN_ID;
     }
 
+    /** The purpose a solution must carry to open a session. */
+    static final String SIGN_IN_PURPOSE = "sign-in";
+
     private static final int TOKEN_BYTES = 32;
     private static final int CSRF_BYTES = 24;
 
@@ -52,19 +56,21 @@ public class PlayerSessionService {
     private final PlayerSessionProperties properties;
     private final Clock clock;
     private final MeterRegistry meters;
+    private final ChallengeGate challenge;
     private final SecureRandom random;
 
     @Inject
     public PlayerSessionService(
-            BanIdService banIds, CaseReader cases, PlayerSessionStore store, PlayerSessionProperties properties, Clock clock, MeterRegistry meters
+            BanIdService banIds, CaseReader cases, PlayerSessionStore store, PlayerSessionProperties properties, Clock clock, MeterRegistry meters,
+            ChallengeGate challenge
     ) {
-        this(banIds, cases, store, properties, clock, meters, new SecureRandom());
+        this(banIds, cases, store, properties, clock, meters, challenge, new SecureRandom());
     }
 
     /** For a test that seeds the random source. */
     public PlayerSessionService(
             BanIdService banIds, CaseReader cases, PlayerSessionStore store, PlayerSessionProperties properties, Clock clock, MeterRegistry meters,
-            SecureRandom random
+            ChallengeGate challenge, SecureRandom random
     ) {
         this.banIds = banIds;
         this.cases = cases;
@@ -72,16 +78,24 @@ public class PlayerSessionService {
         this.properties = properties;
         this.clock = clock;
         this.meters = meters;
+        this.challenge = challenge;
         this.random = random;
     }
 
     /**
-     * Opens a session for a typed Ban ID.
+     * Opens a session for a typed Ban ID. The challenge is checked first: a request without a good solution never
+     * reads the Ban ID and never counts as a login attempt.
      *
-     * @return the {@link PublicSessionDTO.Created} (scope {@code LIMITED} for a leaked Ban ID), or the one
-     *         {@link PublicSessionDTO.Error} that every other input gets
+     * @param altcha the solved challenge for sign-in, or null when none was sent
+     * @return the {@link PublicSessionDTO.Created} (scope {@code LIMITED} for a leaked Ban ID), a
+     *         {@code CHALLENGE_FAILED} or {@code UNAVAILABLE} error, or the one {@link PublicSessionDTO.Error} that
+     *         every other input gets
      */
-    public PublicSessionDTO login(@Nullable String typedBanId) {
+    public PublicSessionDTO login(@Nullable String typedBanId, @Nullable String altcha) {
+        ChallengeGate.Verdict verdict = this.challenge.check(altcha, SIGN_IN_PURPOSE);
+        if (verdict != ChallengeGate.Verdict.PASSED) {
+            return new PublicSessionDTO.Error(ChallengeGate.code(verdict), null, ChallengeGate.kind(verdict));
+        }
         Optional<String> punishment = this.banIds.findIdentifier(typedBanId);
         if (punishment.isEmpty()) {
             count("failure");

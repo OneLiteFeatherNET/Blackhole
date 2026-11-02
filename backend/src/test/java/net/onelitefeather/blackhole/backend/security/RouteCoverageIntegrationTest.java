@@ -253,6 +253,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /auth/me", AUTHENTICATED),
             // the player portal: the login is anonymous, everything else needs a player session
             Map.entry("POST /public/session", ANONYMOUS),
+            Map.entry("GET /public/challenge", ANONYMOUS),
             Map.entry("GET /public/session", PLAYER),
             Map.entry("DELETE /public/session", PLAYER),
             Map.entry("GET /public/punishment", PLAYER),
@@ -306,7 +307,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
-    void onlyTheLoginIsAnonymousUnderThePublicPrefixAndEveryOtherRouteNeedsAPlayerSessionAndNoStaffRole() {
+    void onlyTheLoginAndTheChallengeAreAnonymousUnderThePublicPrefixAndEveryOtherRouteNeedsAPlayerSession() {
         Map<String, Set<String>> publicRoutes = new TreeMap<>();
         this.context.getBean(Router.class).uriRoutes().filter(route -> !"HEAD".equals(route.getHttpMethodName()))
                 .filter(route -> route.getUriMatchTemplate().toString().startsWith("/public"))
@@ -316,7 +317,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
 
         assertTrue(!publicRoutes.isEmpty(), "the portal has routes");
         publicRoutes.forEach((route, roles) -> {
-            if (route.equals("POST /public/session")) {
+            if (route.equals("POST /public/session") || route.equals("GET /public/challenge")) {
                 assertEquals(ANONYMOUS, roles, route);
             } else {
                 assertEquals(PLAYER, roles, route + " needs a player session and no staff role");

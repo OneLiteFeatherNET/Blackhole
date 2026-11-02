@@ -10,6 +10,7 @@ import net.onelitefeather.blackhole.backend.banid.service.BanIdService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.publicapi.PlayerScope;
 import net.onelitefeather.blackhole.backend.publicapi.PublicAppealReader;
+import net.onelitefeather.blackhole.backend.publicapi.challenge.ChallengeGate;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicAppealDTO;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicErrorKind;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicPunishmentDTO;
@@ -39,6 +40,9 @@ public class PublicAppealService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PublicAppealService.class);
 
+    /** The purpose a solution must carry to file an appeal. */
+    static final String APPEAL_PURPOSE = "appeal";
+
     private final PunishmentRepository punishments;
     private final PublicAppealReader appeals;
     private final AppealEligibilityService eligibility;
@@ -47,11 +51,14 @@ public class PublicAppealService {
     private final AppealConditionsStore conditions;
     private final Clock clock;
     private final int maxLength;
+    private final ChallengeGate challenge;
 
     public PublicAppealService(
             PunishmentRepository punishments, PublicAppealReader appeals, AppealEligibilityService eligibility, DomainEventPublisher events,
-            BanIdService banIds, Clock clock, @Value("${blackhole.public.message.max-length:2000}") int maxLength, AppealConditionsStore conditions
+            BanIdService banIds, Clock clock, @Value("${blackhole.public.message.max-length:2000}") int maxLength, AppealConditionsStore conditions,
+            ChallengeGate challenge
     ) {
+        this.challenge = challenge;
         this.conditions = conditions;
         this.punishments = punishments;
         this.appeals = appeals;
@@ -89,12 +96,19 @@ public class PublicAppealService {
     }
 
     /**
-     * Files the appeal.
+     * Files the appeal. The challenge is checked first, before the statement (whose check reads the Ban ID) and before
+     * any eligibility check: a refused challenge records no attempt and changes no appeal.
      *
-     * @return the {@link PublicAppealDTO.Status}, or an error: 400 / 422 for the statement, 409 with
-     *         {@code FORFEITED}, {@code FROZEN} or {@code NOT_ELIGIBLE} (with {@code availableFrom} when the player only has to wait)
+     * @return the {@link PublicAppealDTO.Status}, or an error: 403 {@code CHALLENGE_FAILED}, 503 {@code UNAVAILABLE},
+     *         400 / 422 for the statement, 409 with {@code FORFEITED}, {@code FROZEN} or {@code NOT_ELIGIBLE} (with
+     *         {@code availableFrom} when the player only has to wait)
      */
     public PublicAppealDTO file(PlayerSession session, PublicAppealDTO.FileRequest request) {
+        String altcha = request == null ? null : request.altcha();
+        ChallengeGate.Verdict verdict = this.challenge.check(altcha, APPEAL_PURPOSE);
+        if (verdict != ChallengeGate.Verdict.PASSED) {
+            return new PublicAppealDTO.Error(ChallengeGate.code(verdict), null, ChallengeGate.kind(verdict));
+        }
         PublicText.Checked statement = PublicText.check(request == null ? null : request.statement(), this.maxLength, this.banIds);
         if (!statement.ok()) {
             return error(statement.code(), statement.failure());
