@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useApi } from '../api/inject'
 import type { IpBan } from '../api/types'
 import DataTable, { type DataColumn } from '../components/DataTable.vue'
@@ -11,37 +12,44 @@ import ResourceState from '../components/ResourceState.vue'
 import RowMenu from '../components/RowMenu.vue'
 import StatusPill from '../components/StatusPill.vue'
 import IpBanCreateDialog from '../components/ipban/IpBanCreateDialog.vue'
-import IpBanLiftDialog from '../components/ipban/IpBanLiftDialog.vue'
 import { banState, type BanState } from '../components/ipban/ipBanRules'
 import MdButton from '../components/md/MdButton.vue'
 import MdSnackbar from '../components/md/MdSnackbar.vue'
 import { useResource } from '../composables/useResource'
 import { formatDateTime, shortHash } from '../format'
+import { useRoutedDialog } from '../router/routedDialog'
+import { useQueryParam } from '../router/queryParam'
 import { useSessionStore } from '../stores/session'
 
 const { t, locale } = useI18n()
 const api = useApi()
 const session = useSessionStore()
+const route = useRoute()
+const router = useRouter()
 
-// Active is the default: the bans that hold right now. "Lifted" is every ban that no longer holds (lifted or expired).
-const values = ref<Record<string, string>>({ state: '' })
-const showLifted = computed(() => values.value.state === 'lifted')
+// Active is the default: the bans that hold right now. `?status=lifted` is every ban that no longer holds.
+const status = useQueryParam('status', ['active', 'lifted'] as const, 'active')
+const values = computed<Record<string, string>>({
+  get: () => ({ status: status.value }),
+  set: (next) => (status.value = next.status === 'lifted' ? 'lifted' : 'active'),
+})
+const showLifted = computed(() => status.value === 'lifted')
 
 const filters = computed<FilterDef[]>(() => [
   {
     kind: 'toggle-group',
-    id: 'state',
+    id: 'status',
     label: t('ipBans.filter.label'),
     options: [
-      { value: '', label: t('ipBans.filter.active'), testid: 'filter-active' },
+      { value: 'active', label: t('ipBans.filter.active'), testid: 'filter-active' },
       { value: 'lifted', label: t('ipBans.filter.lifted'), testid: 'filter-lifted' },
     ],
   },
 ])
 
 const bans = useResource(() => api.ipBans())
-const creating = ref(false)
-const lifting = ref<IpBan | null>(null)
+// The create form is the child route `new`; the list stays rendered behind it.
+const create = useRoutedDialog({ parent: 'ip-bans', child: 'ip-ban-new' })
 const message = ref('')
 
 const columns = computed<DataColumn<IpBanRow>[]>(() => [
@@ -65,9 +73,13 @@ const visible = computed<IpBanRow[]>(() =>
     .filter((row) => (showLifted.value ? row.state !== 'active' : row.state === 'active')),
 )
 
+/** The lift is the child route `lift` of the ban's own page: the row only opens that page's dialog. */
+function openLift(row: IpBanRow): void {
+  void router.push({ name: 'ip-ban-lift', params: { id: row.id } })
+}
+
 async function done(text: string): Promise<void> {
-  creating.value = false
-  lifting.value = null
+  await create.close()
   message.value = text
   await bans.reload()
 }
@@ -76,7 +88,9 @@ async function done(text: string): Promise<void> {
 <template>
   <PageShell :title="t('ipBans.title')" :description="t('ipBans.intro')">
     <template #actions>
-      <MdButton v-if="session.moderator" data-testid="new-ip-ban" @click="creating = true">{{ t('ipBans.new') }}</MdButton>
+      <MdButton v-if="session.moderator" as="link" data-testid="new-ip-ban" :to="{ name: 'ip-ban-new', query: route.query }">
+        {{ t('ipBans.new') }}
+      </MdButton>
     </template>
 
     <p v-if="!session.moderator" data-testid="read-only" class="text-body-medium text-on-surface-variant">{{ t('ipBans.readOnly') }}</p>
@@ -91,7 +105,13 @@ async function done(text: string): Promise<void> {
       <template v-if="bans.data.value">
         <DataTable v-if="visible.length > 0" :caption="t('ipBans.title')" :columns="columns" :rows="visible">
           <template #cell="{ row, column }">
-            <span v-if="column.key === 'range'" class="break-all text-label-large">{{ row.range }}</span>
+            <RouterLink
+              v-if="column.key === 'range'"
+              :to="{ name: 'ip-ban', params: { id: row.id } }"
+              class="break-all text-label-large text-primary underline underline-offset-2 focus-ring"
+            >
+              {{ row.range }}
+            </RouterLink>
             <p v-else-if="column.key === 'reason'" class="max-w-xs break-words">{{ row.reason }}</p>
             <StatusPill
               v-else-if="column.key === 'state'"
@@ -107,7 +127,7 @@ async function done(text: string): Promise<void> {
                 v-if="session.moderator && row.state === 'active'"
                 :label="t('ipBans.columns.actions')"
                 :items="[{ key: 'lift', label: t('ipBans.lift.open') }]"
-                @select="lifting = row"
+                @select="openLift(row)"
               />
             </div>
             <template v-else />
@@ -122,8 +142,7 @@ async function done(text: string): Promise<void> {
       </template>
     </ResourceState>
 
-    <IpBanCreateDialog :open="creating" @close="creating = false" @done="done" />
-    <IpBanLiftDialog :open="lifting !== null" :ban="lifting" @close="lifting = null" @done="done" />
+    <IpBanCreateDialog :open="create.open.value" @close="create.close" @done="done" />
 
     <MdSnackbar :open="message !== ''" :message="message" @close="message = ''" />
   </PageShell>

@@ -50,7 +50,9 @@ export function installAuthGuard(router: Router, { auth, session, api }: AuthGua
     if (!session.hasAccess) return to.name === 'no-access' ? true : { name: 'no-access' }
     // Admin-only pages are not offered to other roles; a direct visit lands on the no-access page, which says why.
     if (to.meta.admin && !session.administrator) return { name: 'no-access', query: { reason: 'admin' } }
-    if (to.name === 'no-access') return to.query.reason === 'admin' ? true : '/'
+    // A dialog that changes a list (`meta.moderator`) is refused to a viewer before its page requests any data.
+    if (to.meta.moderator && !session.moderator) return { name: 'no-access', query: { reason: 'moderator' } }
+    if (to.name === 'no-access') return to.query.reason === 'admin' || to.query.reason === 'moderator' ? true : '/'
     // The stored workspace only decides the first landing on the bare root; an explicit route (and the Inbox link) wins.
     if (from.matched.length === 0 && to.path === '/' && session.administrator && readStoredWorkspace() === 'administration') {
       return workspaceByKey('administration').home

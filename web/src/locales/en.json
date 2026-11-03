@@ -1,4 +1,7 @@
 {
+  "lists": {
+    "missing": "This entry does not exist any more."
+  },
   "nav": {
     "label": "Main navigation",
     "skip": "Skip to content",
@@ -1879,6 +1882,9 @@
       "DENY": "Deny"
     },
     "policy": {
+      "change": "Change the policy",
+      "backToList": "Back to the VPN and hosting policy",
+      "editTitle": "Change the policy of {classification}",
       "title": "VPN and hosting policy",
       "intro": "What happens to a login from a VPN, hosting or proxy address. Only an administrator can change it.",
       "policyLabel": "New policy",
@@ -1904,6 +1910,29 @@
       "lastOk": "Last successful refresh: {when}"
     },
     "allowList": {
+      "columns": {
+        "player": "Player",
+        "reason": "Reason",
+        "expires": "Expires",
+        "added": "Added",
+        "actor": "Added by"
+      },
+      "new": "New exemption",
+      "empty": "No exemptions on this page.",
+      "pages": "Pages",
+      "previous": "Previous page",
+      "next": "Next page",
+      "entry": {
+        "title": "Exemption",
+        "back": "Back to the exemptions",
+        "active": "Active"
+      },
+      "remove": {
+        "open": "Remove exemption",
+        "title": "Remove the exemption?",
+        "body": "The player is checked against the VPN and hosting policy again at the next login.",
+        "confirm": "Remove"
+      },
       "title": "Allow-list",
       "intro": "Exempt a player from the VPN and hosting policy for a while. The reason is kept with the exemption.",
       "readonly": "Only moderators can add exemptions.",
@@ -2100,6 +2129,9 @@
     "saved": "Manual level set to {level}.",
     "readOnly": "Only moderators and admins can change the level.",
     "settings": {
+      "open": "Open the join guard settings",
+      "edit": "Edit the settings",
+      "backToGuard": "Back to the join guard",
       "title": "Unattended settings",
       "intro": "Applied on every replica within about 30 seconds. Every save is recorded.",
       "level": "Unattended level",
@@ -2140,6 +2172,12 @@
     }
   },
   "areaBans": {
+    "detail": {
+      "title": "Area ban",
+      "backToList": "Back to the area bans",
+      "created": "Created",
+      "lifted": "Lifted at"
+    },
     "title": "Area bans",
     "intro": "Autonomous systems (ASN) and countries whose connections are refused when they join.",
     "kind": {
@@ -2196,6 +2234,12 @@
   }
 },
   "ipBans": {
+    "detail": {
+      "title": "IP ban",
+      "backToList": "Back to the IP bans",
+      "lifted": "Lifted at",
+      "liftReason": "Reason for lifting"
+    },
     "title": "IP bans",
     "intro": "Holds one address or range at the firewall and on every proxy. The list shows the clear address, so it is for staff only.",
     "new": "New IP ban",
