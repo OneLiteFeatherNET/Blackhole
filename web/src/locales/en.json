@@ -977,6 +977,67 @@
       "state": "State"
     }
   },
+  "entity": {
+    "type": {
+      "case": "Case",
+      "report": "Report",
+      "player": "Player",
+      "appeal": "Appeal"
+    },
+    "owner": "Player",
+    "assignee": "Assignee",
+    "unassigned": "Unassigned",
+    "state": {
+      "case": {
+        "OPEN": "Open",
+        "IN_REVIEW": "In review",
+        "WAITING": "Waiting",
+        "CLOSED": "Closed"
+      },
+      "appeal": {
+        "SUBMITTED": "Submitted",
+        "ELIGIBLE_PENDING_REVIEW": "Pending review",
+        "IN_REVIEW": "In review",
+        "GRANTED_FULL_LIFT": "Granted: lifted",
+        "GRANTED_DURATION_REDUCTION": "Granted: shorter",
+        "DENIED": "Denied",
+        "INELIGIBLE": "Not eligible"
+      },
+      "report": {
+        "OPEN": "Open",
+        "UNDER_REVIEW": "Under review",
+        "ACTIONED": "Actioned",
+        "DISMISSED": "Dismissed"
+      },
+      "player": {
+        "ACTIVE": "Punished",
+        "NONE": "Not punished"
+      }
+    },
+    "notice": {
+      "viewerCase": "A viewer cannot change a case.",
+      "viewerReport": "A viewer cannot resolve a report.",
+      "viewerPlayer": "A viewer cannot change a player.",
+      "reportResolved": "This report is already resolved."
+    },
+    "caseDialog": {
+      "closeTitle": "Close the case?",
+      "reopenTitle": "Reopen the case?",
+      "closeBody": "The case is closed. You can undo this for ten seconds.",
+      "reopenBody": "The case returns to {status}.",
+      "reopenLoading": "Looking up the status the case had before it was closed.",
+      "reopenFallback": "No earlier status was found. The case reopens as Open.",
+      "confirmClose": "Close case",
+      "confirmReopen": "Reopen case",
+      "viewer": "A viewer cannot change a case.",
+      "conflict": "The case changed since it was read. Reload to see it."
+    },
+    "undo": {
+      "action": "Undo",
+      "undone": "Close undone.",
+      "changed": "The case changed since. Reload to see it."
+    }
+  },
   "case": {
     "title": "Case",
     "tabs": {
