@@ -29,6 +29,21 @@ public interface StaffActorApi {
     HttpResponse<StaffActorDTO> list();
 
     @Operation(
+            summary = "One staff actor",
+            description = "The known staff principal with this object id, with the fields of the list item.",
+            operationId = "getStaffActor",
+            tags = {"Auth"}
+    )
+    @ApiResponse(responseCode = "200", description = "The staff actor",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = StaffActorDTO.Item.class)))
+    @ApiResponse(responseCode = "400", description = "The object id is not a UUID",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = StaffActorDTO.Error.class)))
+    @ApiResponse(responseCode = "404", description = "NOT_FOUND: unknown staff actor",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = StaffActorDTO.Error.class)))
+    @Get("/{oid}")
+    HttpResponse<StaffActorDTO> get(@PathVariable UUID oid);
+
+    @Operation(
             summary = "Anonymize a staff actor",
             description = "Clears the stored display name of a staff principal (leaving staff, erasure request). The "
                     + "object id and every record that references it stay. The action is audited with the admin's own object id.",

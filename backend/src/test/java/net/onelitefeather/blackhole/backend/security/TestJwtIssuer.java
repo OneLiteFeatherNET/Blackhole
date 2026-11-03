@@ -42,6 +42,7 @@ public final class TestJwtIssuer {
     public static final String PROXY_ROLE = "Blackhole.Proxy";
     public static final String METRICS_ROLE = "Blackhole.Metrics";
     public static final String DISCORD_ROLE = "Blackhole.Discord";
+    public static final String INTEGRATION_ROLE = "Blackhole.Integration";
 
     /**
      * Fake client ids (the {@code azp} of app-only tokens) the test environment allow-lists for each
@@ -50,6 +51,8 @@ public final class TestJwtIssuer {
     public static final String PROXY_CLIENT = "00000000-0000-4000-8000-0000000000c1";
     public static final String METRICS_CLIENT = "00000000-0000-4000-8000-0000000000c2";
     public static final String DISCORD_CLIENT = "00000000-0000-4000-8000-0000000000c3";
+    /** The client id of a test integration; it has a registration only in the tests that create one. */
+    public static final String INTEGRATION_CLIENT = "00000000-0000-4000-8000-0000000000c4";
     /** A client id on no allow-list. */
     public static final String UNLISTED_CLIENT = "00000000-0000-4000-8000-0000000000ee";
 
@@ -115,6 +118,11 @@ public final class TestJwtIssuer {
 
     public String metrics() {
         return appOnly().azp(METRICS_CLIENT).roles(METRICS_ROLE).sign();
+    }
+
+    /** An app-only token with the integration role, from the given client id (the registration key). */
+    public String integration(String clientId) {
+        return appOnly().azp(clientId).roles(INTEGRATION_ROLE).sign();
     }
 
     private Token base() {

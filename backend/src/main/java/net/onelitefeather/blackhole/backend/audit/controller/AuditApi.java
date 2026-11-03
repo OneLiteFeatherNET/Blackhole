@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.audit.controller;
 
+import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Get;
@@ -37,4 +38,19 @@ public interface AuditApi {
             @Nullable @QueryValue UUID actorOid,
             @Nullable @QueryValue String targetRef
     );
+
+    @Operation(
+            summary = "One staff audit entry",
+            description = "One entry of the audit log by its audit id, with the fields of the list item. Read only.",
+            operationId = "getStaffAuditEntry",
+            tags = {"Audit"}
+    )
+    @ApiResponse(responseCode = "200", description = "The audit entry",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuditDTO.Item.class)))
+    @ApiResponse(responseCode = "400", description = "The audit id is not a UUID",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuditDTO.Error.class)))
+    @ApiResponse(responseCode = "404", description = "NOT_FOUND: there is no such entry",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuditDTO.Error.class)))
+    @Get("/{auditId}")
+    HttpResponse<AuditDTO> get(@PathVariable UUID auditId);
 }

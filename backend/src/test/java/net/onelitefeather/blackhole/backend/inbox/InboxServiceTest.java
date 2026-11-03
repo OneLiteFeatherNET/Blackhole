@@ -4,6 +4,8 @@ import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
+import java.time.Duration;
+import java.util.UUID;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -49,6 +51,11 @@ class InboxServiceTest {
         public long count(InboxSection section) {
             return this.counts.getOrDefault(section, 0L);
         }
+
+        @Override
+        public List<LatestChange> latestChangesSince(long since) {
+            return List.of();
+        }
     }
 
     private static InboxDTO.Item item(String id, long since) {
@@ -67,7 +74,7 @@ class InboxServiceTest {
                 .with(InboxSection.NEW_REPORTS, 0, List.of())
                 .with(InboxSection.UNASSIGNED_CASES, 12, List.of());
 
-        InboxDTO.Response inbox = response(new InboxService(source, CLOCK).summary());
+        InboxDTO.Response inbox = response(new InboxService(source, CLOCK, Duration.ofHours(24)).summary(UUID.randomUUID()));
 
         assertEquals(3, inbox.needsAnswer().count());
         assertEquals(7, inbox.openAppeals().count());
@@ -83,7 +90,7 @@ class InboxServiceTest {
         }
         FakeSource source = new FakeSource().with(InboxSection.NEW_REPORTS, 12, twelve);
 
-        InboxDTO.Response inbox = response(new InboxService(source, CLOCK).summary());
+        InboxDTO.Response inbox = response(new InboxService(source, CLOCK, Duration.ofHours(24)).summary(UUID.randomUUID()));
 
         assertEquals(10, inbox.newReports().items().size(), "the first ten items only");
         assertEquals(12, inbox.newReports().count(), "the count is still the full count");
@@ -94,7 +101,7 @@ class InboxServiceTest {
         FakeSource source = new FakeSource().with(InboxSection.OPEN_APPEALS, 3, List.of(
                 item("newest", 300), item("oldest", 100), item("middle", 200)));
 
-        InboxDTO.Response inbox = response(new InboxService(source, CLOCK).summary());
+        InboxDTO.Response inbox = response(new InboxService(source, CLOCK, Duration.ofHours(24)).summary(UUID.randomUUID()));
 
         assertEquals(List.of("oldest", "middle", "newest"),
                 inbox.openAppeals().items().stream().map(InboxDTO.Item::id).toList());
@@ -102,14 +109,14 @@ class InboxServiceTest {
 
     @Test
     void theResponseIsStampedWithTheInjectedClock() {
-        InboxDTO.Response inbox = response(new InboxService(new FakeSource(), CLOCK).summary());
+        InboxDTO.Response inbox = response(new InboxService(new FakeSource(), CLOCK, Duration.ofHours(24)).summary(UUID.randomUUID()));
 
         assertEquals(CLOCK.millis(), inbox.generatedAt(), "the time comes from the injected clock, not the system");
     }
 
     @Test
     void aSourceThatCannotBeReadAnswersTheUnavailableErrorInsteadOfThrowing() {
-        InboxDTO result = new InboxService(new FakeSource().failing(), CLOCK).summary();
+        InboxDTO result = new InboxService(new FakeSource().failing(), CLOCK, Duration.ofHours(24)).summary(UUID.randomUUID());
 
         InboxDTO.Error error = assertInstanceOf(InboxDTO.Error.class, result, "an expected failure is an error variant");
         assertEquals(ErrorKind.UNAVAILABLE, error.kind());

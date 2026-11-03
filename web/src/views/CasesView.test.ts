@@ -190,4 +190,20 @@ describe('CasesView: filters in the URL', () => {
 
     wrapper.unmount()
   })
+
+  it('empties the tag field when the query goes back to the unfiltered list', async () => {
+    const { mount } = setup([[item()], [item()], [item()]])
+    const { wrapper, router } = await mount()
+    await router.push('/cases?tag=spam')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="tag-filter"] input').element).toHaveProperty('value', 'spam')
+
+    await router.push('/cases')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="tag-filter"] input').element).toHaveProperty('value', '')
+    expect(wrapper.find('[data-testid="applied-filters"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
 })

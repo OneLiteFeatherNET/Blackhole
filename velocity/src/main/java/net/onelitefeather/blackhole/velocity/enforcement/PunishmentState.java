@@ -33,6 +33,11 @@ public final class PunishmentState {
     /** Reads the backend profile; empty if the owner has none. */
     public interface ProfileReader {
         Optional<PunishProfileDTO> read(String owner) throws Exception;
+
+        /** The read a login is decided on, which may have its own (longer) timeout; defaults to {@link #read(String)}. */
+        default Optional<PunishProfileDTO> readAtLogin(String owner) throws Exception {
+            return read(owner);
+        }
     }
 
     /** The backend could not tell what is active for the player. */
@@ -65,7 +70,7 @@ public final class PunishmentState {
      * @throws Unavailable if the backend did not answer
      */
     public Optional<PunishmentSyncMessage> onLogin(String owner) {
-        load(owner);
+        load(owner, true);
         return Enforcement.loginBan(this.mirror.active(owner), this.sections, this.clock.millis());
     }
 
@@ -93,19 +98,31 @@ public final class PunishmentState {
         return Enforcement.serverBan(this.mirror.active(owner), this.sections, serverName, facts, this.clock.millis());
     }
 
+    /**
+     * Forgets the player's mirrored state. Used for a login that is denied: the player never connects, so
+     * no disconnect would ever drop the entry.
+     */
+    public void forget(String owner) {
+        this.mirror.forget(owner);
+    }
+
     private void ensureLoaded(String owner) {
         if (!this.trust.trusted() || !this.mirror.isFresh(owner, this.maxAge)) {
-            load(owner);
+            load(owner, false);
         }
     }
 
-    private void load(String owner) {
+    /**
+     * @param login whether the read decides a login, and so gets the login reader
+     */
+    private void load(String owner, boolean login) {
         if (this.sections.all().isEmpty()) {
             // Started while the backend was unreachable: try again now rather than enforcing nothing.
             this.sections.reload();
         }
         try {
-            List<PunishmentSyncMessage> active = this.profiles.read(owner)
+            Optional<PunishProfileDTO> read = login ? this.profiles.readAtLogin(owner) : this.profiles.read(owner);
+            List<PunishmentSyncMessage> active = read
                     .map(profile -> ProfileAdapter.activeMessages(owner, profile, this.sections))
                     .orElseGet(List::of);
             this.mirror.load(owner, active);

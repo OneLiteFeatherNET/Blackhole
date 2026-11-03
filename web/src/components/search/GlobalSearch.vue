@@ -2,9 +2,9 @@
 // Global search of the top bar: a player name opens the player, `#A1B2C3D4` (the id players quote) or a
 // full punishment id opens the case, `report:` and a report id opens the report. A short id that matches several punishments lists them to pick from.
 // ARIA combobox with a listbox; "/" focuses the field from anywhere outside a text field.
-import { computed, onBeforeUnmount, onMounted, ref, useId } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '../../api/inject'
 import type { Punishment } from '../../api/types'
 import { formatDateTime } from '../../format'
@@ -14,6 +14,8 @@ import MdTransition from '../../motion/MdTransition.vue'
 
 interface Choice {
   id: string
+  /** The type of the hit, named in the list: "Player", "Case" or "Report". */
+  type: string
   label: string
   detail?: string
   run: () => Promise<void> | void
@@ -22,6 +24,7 @@ interface Choice {
 const { t, locale } = useI18n()
 const api = useApi()
 const router = useRouter()
+const route = useRoute()
 const lookup = useLookupStore()
 const uid = useId()
 const listId = `${uid}-list`
@@ -55,16 +58,21 @@ const choices = computed<Choice[]>(() => {
   if (matches.value) {
     return matches.value.items.map((punishment) => ({
       id: punishment.identifier,
+      type: t('search.types.case'),
       label: t('search.case', { id: punishment.shortId }),
       detail: [punishment.section, punishment.createdAt ? formatDateTime(punishment.createdAt, locale.value) : ''].filter(Boolean).join(' · '),
       run: () => openCase(punishment.identifier),
     }))
   }
   const found = intent.value
-  if (found.kind === 'player') return [{ id: 'player', label: t('search.player', { name: found.name }), run: () => openPlayer(found.name) }]
-  if (found.kind === 'shortId') return [{ id: 'case', label: t('search.case', { id: found.shortId }), run: () => lookUpShortId(found.shortId) }]
-  if (found.kind === 'report') return [{ id: 'report', label: t('search.report', { id: found.identifier.slice(0, 8) }), run: () => openReport(found.identifier) }]
-  if (found.kind === 'reference') return [{ id: 'case', label: t('search.case', { id: found.reference.slice(0, 8) }), run: () => openCase(found.reference) }]
+  if (found.kind === 'player')
+    return [{ id: 'player', type: t('search.types.player'), label: t('search.player', { name: found.name }), run: () => openPlayer(found.name) }]
+  if (found.kind === 'shortId')
+    return [{ id: 'case', type: t('search.types.case'), label: t('search.case', { id: found.shortId }), run: () => lookUpShortId(found.shortId) }]
+  if (found.kind === 'report')
+    return [{ id: 'report', type: t('search.types.report'), label: t('search.report', { id: found.identifier.slice(0, 8) }), run: () => openReport(found.identifier) }]
+  if (found.kind === 'reference')
+    return [{ id: 'case', type: t('search.types.case'), label: t('search.case', { id: found.reference.slice(0, 8) }), run: () => openCase(found.reference) }]
   return []
 })
 
@@ -78,8 +86,8 @@ const message = computed(() => {
   return t('search.hint')
 })
 
-/** Clears the field after something was opened. */
-function finish(): void {
+/** Empties the field and closes the list, without moving the focus. */
+function reset(): void {
   ticket++
   text.value = ''
   failure.value = ''
@@ -87,8 +95,20 @@ function finish(): void {
   busy.value = false
   open.value = false
   active.value = 0
+}
+
+/** Clears the field after something was opened, and leaves the field. */
+function finish(): void {
+  reset()
   input.value?.blur()
 }
+
+// The list and the text belong to the page they were typed on: a route change closes and empties them, so they
+// do not cover the headers of the next page or carry over to it.
+watch(
+  () => route.fullPath,
+  () => reset(),
+)
 
 function onInput(): void {
   ticket++
@@ -157,10 +177,15 @@ function onKeydown(event: KeyboardEvent): void {
     event.preventDefault()
     submit()
   } else if (event.key === 'Escape') {
-    // First Escape closes the list, a second one empties the field.
+    // First Escape closes the list and keeps the focus in the field, a second one empties the field.
     event.preventDefault()
-    if (open.value) open.value = false
-    else finish()
+    if (open.value) {
+      // Focusing the field opens the list (see @focus), so the list is closed after the focus has moved.
+      input.value?.focus()
+      open.value = false
+    } else {
+      finish()
+    }
   }
 }
 
@@ -223,6 +248,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onGlobalKeydown))
             @mousemove="active = index"
             @click="choose(index)"
           >
+            <span data-testid="search-type" class="text-label-medium text-on-surface-variant">{{ choice.type }}</span>
             {{ choice.label }}
             <span v-if="choice.detail" class="text-body-small">{{ choice.detail }}</span>
           </li>

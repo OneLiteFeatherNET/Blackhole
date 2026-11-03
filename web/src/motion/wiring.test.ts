@@ -4,7 +4,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import MdDataTable from '../components/md/MdDataTable.vue'
 import MdDialog from '../components/md/MdDialog.vue'
-import MdNavigationDrawer from '../components/md/MdNavigationDrawer.vue'
+import NavigationRail from '../components/nav/NavigationRail.vue'
 import MdSelect from '../components/md/MdSelect.vue'
 import MdSnackbar from '../components/md/MdSnackbar.vue'
 import ResourceState from '../components/ResourceState.vue'
@@ -40,10 +40,10 @@ async function mountDrawer() {
   await router.push('/')
   await router.isReady()
   return track(
-    mount(MdNavigationDrawer, {
+    mount(NavigationRail, {
       props: {
         label: 'Navigation',
-        mode: 'modal',
+        variant: 'modal',
         open: true,
         groups: [{ key: 'main', items: [{ to: '/', label: 'Overview', icon: 'M0 0', badge: { text: '3', label: '3 open' } }] }],
       },
@@ -57,7 +57,7 @@ async function mountDrawer() {
 const cases: { name: string; pattern: string; build: () => Promise<{ get: (selector: string) => { attributes: (name: string) => string | undefined } }> }[] = [
   { name: 'dialog', pattern: 'md-scale', build: async () => track(mount(MdDialog, { props: { open: true, headline: 'Revoke' }, attachTo: document.body })) },
   { name: 'snackbar', pattern: 'md-snackbar', build: async () => track(mount(MdSnackbar, { props: { open: true, message: 'Saved' } })) },
-  { name: 'modal navigation drawer', pattern: 'md-modal', build: mountDrawer },
+  { name: 'modal navigation rail', pattern: 'md-modal', build: mountDrawer },
   {
     name: 'account menu',
     pattern: 'md-menu',

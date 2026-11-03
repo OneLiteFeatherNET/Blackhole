@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory } from 'vue-router'
 import App from './App.vue'
 import { API_KEY } from './api/inject'
@@ -11,6 +11,7 @@ import { LOCALE_STORAGE_KEY } from './stores/ui'
 import { fakeAuthService } from './test/auth'
 import { mockApi, ok, piniaWithRoles } from './test/mount'
 import { fakeTicker } from './test/ticker'
+import { fakeMatchMedia } from './test/media'
 
 interface Numbers {
   cases: number
@@ -29,7 +30,7 @@ async function mountApp(numbers: Numbers, path = '/players') {
       unassignedCases: { count: 0, items: [] },
     }),
   )
-  const cases = vi.fn(async () => ok({ items: [], page: 0, size: 1, totalSize: current.cases, totalPages: current.cases }))
+  const cases = vi.fn(async (_query?: { size?: number; assignee?: string }) => ok({ items: [], page: 0, size: 1, totalSize: current.cases, totalPages: current.cases }))
   const clock = fakeTicker()
   const router = createAppRouter(createMemoryHistory())
   await router.push(path)
@@ -66,6 +67,10 @@ describe('navigation badges', () => {
   beforeEach(() => {
     localStorage.clear()
     localStorage.setItem(LOCALE_STORAGE_KEY, 'de')
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('shows the open cases, appeals awaiting review and unresolved reports', async () => {
@@ -118,12 +123,22 @@ describe('navigation badges', () => {
     wrapper.unmount()
   })
 
-  it('shows the badge on the icon in the collapsed rail too', async () => {
-    localStorage.setItem('blackhole.navCollapsed', 'true')
+  it('shows the badge on the icon in the collapsed rail on medium windows too', async () => {
+    vi.stubGlobal('matchMedia', fakeMatchMedia({ value: 700 }).matchMedia)
 
     const { wrapper } = await mountApp({ cases: 4, appeals: 0, reports: 0 })
 
     expect(link(wrapper, 'Fälle').get('[data-testid="nav-badge"]').text()).toBe('4')
+
+    wrapper.unmount()
+  })
+
+  it('shows the badge of the open cases in the bottom bar on compact windows', async () => {
+    vi.stubGlobal('matchMedia', fakeMatchMedia({ value: 500 }).matchMedia)
+
+    const { wrapper } = await mountApp({ cases: 4, appeals: 0, reports: 0 })
+
+    expect(wrapper.get('[data-testid="nav-bar"]').findAll('a').find((a) => a.text().includes('Fälle'))!.get('[data-testid="nav-badge"]').text()).toBe('4')
 
     wrapper.unmount()
   })
@@ -153,7 +168,9 @@ describe('navigation badges', () => {
     await router.push('/')
     await flushPromises()
 
-    expect(cases).toHaveBeenCalledTimes(2)
+    // The badge reads a one-item page of open cases with no assignee filter; the inbox queue's counts also read
+    // one item, but always for one assignee, so only the badge's reads are counted here.
+    expect(cases.mock.calls.filter(([query]) => query?.size === 1 && query.assignee === undefined)).toHaveLength(2)
     expect(link(wrapper, 'Einsprüche').get('[data-testid="nav-badge"]').text()).toBe('9')
 
     wrapper.unmount()

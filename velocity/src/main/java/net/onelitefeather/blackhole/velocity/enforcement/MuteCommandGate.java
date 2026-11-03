@@ -49,6 +49,14 @@ public final class MuteCommandGate {
     }
 
     /**
+     * @param state how the command was invoked
+     * @return whether the command can be denied without disconnecting the sender: unsigned, or SignedVelocity present
+     */
+    public boolean canDenyQuietly(@NotNull SignedState state) {
+        return state != SignedState.SIGNED_WITH_ARGS || this.relayPresent;
+    }
+
+    /**
      * @param line   the command line as typed
      * @param state  how the command was invoked
      * @param muted  whether the sender has an active mute

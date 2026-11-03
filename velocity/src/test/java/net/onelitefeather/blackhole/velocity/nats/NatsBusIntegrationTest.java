@@ -19,7 +19,12 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -58,7 +63,16 @@ class NatsBusIntegrationTest {
             """;
 
     private final List<AutoCloseable> toClose = new ArrayList<>();
-    private final BlockingQueue<String> events = new LinkedBlockingQueue<>();
+    /** Every event in arrival order; {@link #awaitEvent} reads it from its own cursor. */
+    private final List<String> events = new CopyOnWriteArrayList<>();
+    /** How many times each event text has arrived. */
+    private final Map<String, Integer> arrivals = new ConcurrentHashMap<>();
+    /** How many times each event text has been awaited by the test; only the test thread touches it. */
+    private final Map<String, Integer> awaited = new HashMap<>();
+    /** One latch per arrival, keyed by text and arrival number; whichever side asks first creates it. */
+    private final Map<String, CountDownLatch> latches = new ConcurrentHashMap<>();
+    /** The index of the next event {@link #awaitEvent} has not read yet. Only the test thread touches it. */
+    private int consumed;
     private final BlockingQueue<String> serverErrors = new LinkedBlockingQueue<>();
     private GenericContainer<?> server;
     private int tcpPort;
@@ -66,17 +80,17 @@ class NatsBusIntegrationTest {
     private final BusClient.Listener listener = new BusClient.Listener() {
         @Override
         public void connected() {
-            events.add("connected");
+            arrive("connected");
         }
 
         @Override
         public void disconnected() {
-            events.add("disconnected");
+            arrive("disconnected");
         }
 
         @Override
         public void message(@NotNull String subject, byte @NotNull [] body) {
-            events.add(subject + " " + new String(body, StandardCharsets.UTF_8));
+            arrive(subject + " " + new String(body, StandardCharsets.UTF_8));
         }
     };
 
@@ -130,25 +144,38 @@ class NatsBusIntegrationTest {
         }
     }
 
+    private void arrive(String event) {
+        this.events.add(event);
+        int ordinal = this.arrivals.merge(event, 1, Integer::sum) - 1;
+        latch(event, ordinal).countDown();
+    }
+
+    private CountDownLatch latch(String event, int ordinal) {
+        return this.latches.computeIfAbsent(event + "#" + ordinal, key -> new CountDownLatch(1));
+    }
+
     /**
-     * Waits, bounded by {@link #WAIT_SECONDS} in total, until the {@code expected} event is queued. Connection-state
-     * events ({@code connected}, {@code disconnected}) that arrive first are skipped, because the connection may
-     * report its state more than once. Any other event that is not {@code expected} fails the test at once.
+     * Waits, bounded by {@link #WAIT_SECONDS}, until the {@code expected} event has arrived, then reads the events up to
+     * it. Connection-state events ({@code connected}, {@code disconnected}) that arrived before it are skipped, because
+     * the connection may report its state more than once. Any other event that arrived before it fails the test.
+     * A skipped event counts as awaited, so the next wait for the same text waits for its next arrival instead of
+     * returning at once on the arrival that was skipped here.
      */
     private void awaitEvent(String expected) throws InterruptedException {
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(WAIT_SECONDS);
+        int ordinal = this.awaited.merge(expected, 1, Integer::sum) - 1;
+        assertTrue(latch(expected, ordinal).await(WAIT_SECONDS, TimeUnit.SECONDS),
+                "no '" + expected + "' event within " + WAIT_SECONDS + " s");
         while (true) {
-            long remaining = deadline - System.nanoTime();
-            String event = remaining > 0 ? this.events.poll(remaining, TimeUnit.NANOSECONDS) : null;
-            assertNotNull(event, "no '" + expected + "' event within " + WAIT_SECONDS + " s");
+            assertTrue(this.consumed < this.events.size(), "'" + expected + "' arrived but is not in the event list");
+            String event = this.events.get(this.consumed++);
             if (event.equals(expected)) {
                 return;
             }
             assertTrue(event.equals("connected") || event.equals("disconnected"),
                     "expected '" + expected + "' but got '" + event + "'");
+            this.awaited.merge(event, 1, Integer::sum);
         }
     }
-
     /** A raw connection of the proxy's user whose server errors are collected. */
     private Connection rawProxyConnection(String url) throws Exception {
         Connection connection = Nats.connect(new Options.Builder().server(url).errorListener(new ErrorListener() {

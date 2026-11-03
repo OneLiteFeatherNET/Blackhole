@@ -12,7 +12,7 @@ function pillIn(root: Element, label: string): Element | undefined {
 
 function expectCaseToneAndChips(row: Element) {
   expect(pillIn(row, en.case.status.OPEN)?.className).toContain('bg-primary-container')
-  expect(pillIn(row, en.case.priority.HIGH)?.className).toContain('bg-tertiary-container')
+  expect(pillIn(row, en.case.priority.HIGH)?.className).toContain('bg-warning-container')
   expect(pillIn(row, en.case.state.ACTIVE)?.className).toContain('bg-error-container')
   expect([...row.querySelectorAll('li')].map((chip) => chip.textContent?.trim())).toEqual(['spam', 'chat'])
   expect(row.querySelector('li')?.className).toContain('border-outline')

@@ -1,5 +1,11 @@
 package net.onelitefeather.blackhole.backend.inbox;
 
+import java.util.UUID;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseEventPayload;
+import java.util.Objects;
+import java.time.Duration;
+import net.onelitefeather.blackhole.backend.casetimeline.ActorTrust;
+import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 
@@ -19,25 +25,63 @@ public class InboxService {
     private static final Comparator<InboxDTO.Item> OLDEST_FIRST =
             Comparator.comparingLong(InboxDTO.Item::since).thenComparing(InboxDTO.Item::id);
 
+    private static final String APPEAL_FILED = CaseEventPayload.APPEAL_FILED;
+    private static final String APPEAL_DECIDED = CaseEventPayload.APPEAL_DECIDED;
+
     private final InboxSource source;
     private final Clock clock;
+    private final Duration changedWindow;
 
-    public InboxService(InboxSource source, Clock clock) {
+    public InboxService(InboxSource source, Clock clock, @Value("${blackhole.inbox.changed-window:PT24H}") Duration changedWindow) {
         this.source = source;
         this.clock = clock;
+        this.changedWindow = changedWindow;
     }
 
-    public InboxDTO summary() {
+    /** The inbox as the caller reads it; {@code caller} is left out of the changed section. */
+    public InboxDTO summary(UUID caller) {
         try {
+            long now = this.clock.millis();
             return new InboxDTO.Response(
-                    this.clock.millis(),
+                    now,
                     section(InboxSection.NEEDS_ANSWER),
                     section(InboxSection.OPEN_APPEALS),
                     section(InboxSection.NEW_REPORTS),
-                    section(InboxSection.UNASSIGNED_CASES));
+                    section(InboxSection.UNASSIGNED_CASES),
+                    changedByOthers(caller, now));
         } catch (InboxUnavailableException e) {
             return new InboxDTO.Error(ErrorKind.UNAVAILABLE, "the inbox could not be read, try again shortly");
         }
+    }
+
+    /**
+     * The cases and appeals whose newest event falls in the window and was made by a verified staff member other than the caller.
+     * Newest first; the count is the full number, the items are at most {@link #ITEMS_PER_SECTION}.
+     */
+    private InboxDTO.ChangedSection changedByOthers(UUID caller, long now) {
+        long since = now - this.changedWindow.toMillis();
+        List<InboxDTO.ChangedItem> rows = this.source.latestChangesSince(since).stream()
+                .filter(change -> change.occurredAt() >= since)
+                .filter(change -> change.actorTrust() == ActorTrust.VERIFIED && change.actorOid() != null)
+                .filter(change -> !change.actorOid().equals(caller))
+                .sorted(Comparator.comparingLong(LatestChange::occurredAt).reversed()
+                        .thenComparing(LatestChange::punishmentIdentifier))
+                .map(InboxService::changed)
+                .toList();
+        return new InboxDTO.ChangedSection(rows.size(), rows.stream().limit(ITEMS_PER_SECTION).toList());
+    }
+
+    private static InboxDTO.ChangedItem changed(LatestChange change) {
+        boolean appeal = change.appealId() != null
+                && (APPEAL_FILED.equals(change.type()) || APPEAL_DECIDED.equals(change.type()));
+        String shortId = Objects.requireNonNullElse(change.shortId(), change.punishmentIdentifier());
+        return new InboxDTO.ChangedItem(
+                appeal ? InboxChangeKind.APPEAL : InboxChangeKind.CASE,
+                appeal ? change.appealId() : shortId,
+                change.shortId(),
+                InboxChange.of(change.type()),
+                change.actorName(),
+                change.occurredAt());
     }
 
     private InboxDTO.Section section(InboxSection section) {

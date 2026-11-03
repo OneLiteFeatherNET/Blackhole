@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Vulcan detection, version 1",
+  "description": "A flag as the Vulcan bridge reports it. Only check is required; every other field may be absent or null.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["check"],
+  "properties": {
+    "check": {
+      "title": "Check",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "checkType": {
+      "title": "Check type",
+      "type": ["string", "null"],
+      "maxLength": 32
+    },
+    "violationLevel": {
+      "title": "Violation level",
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 10000
+    },
+    "ping": {
+      "title": "Ping (ms)",
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 60000
+    },
+    "tps": {
+      "title": "TPS",
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 20.5
+    },
+    "experimental": {
+      "title": "Experimental check",
+      "type": ["boolean", "null"]
+    },
+    "detail": {
+      "title": "Detail",
+      "type": ["string", "null"],
+      "maxLength": 300
+    }
+  }
+}

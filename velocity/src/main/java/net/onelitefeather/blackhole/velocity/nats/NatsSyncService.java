@@ -14,7 +14,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -65,6 +69,23 @@ public final class NatsSyncService implements BusClient.Listener, PunishmentStat
     ) {
     }
 
+    /** How many events may wait for their handler; past this the proxy stops trusting the cache rather than queue on. */
+    static final int EVENT_BACKLOG = 1024;
+
+    /**
+     * The single thread that handles the events, with a bounded backlog: when it is full the event is refused and the
+     * cache is distrusted (see {@link #message}).
+     *
+     * @return a new executor; the caller shuts it down
+     */
+    public static ExecutorService boundedExecutor() {
+        return new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(EVENT_BACKLOG), task -> {
+            Thread thread = new Thread(task, "blackhole-nats-events");
+            thread.setDaemon(true);
+            return thread;
+        }, new ThreadPoolExecutor.AbortPolicy());
+    }
+
     private final PunishmentMirror mirror;
     private final Reactions reactions;
     private final Executor executor;
@@ -96,20 +117,29 @@ public final class NatsSyncService implements BusClient.Listener, PunishmentStat
 
     @Override
     public void disconnected() {
-        boolean was = this.connected;
-        this.connected = false;
-        this.mirror.clear();
-        if (was) {
-            LOGGER.warn("Lost the event bus, checking punishments against the backend until it is back");
-        }
+        distrust("Lost the event bus, checking punishments against the backend until it is back");
     }
 
+    /**
+     * An event that cannot be queued is lost, so the cache can no longer be kept current: it is emptied and
+     * distrusted like a disconnect.
+     */
     @Override
     public void message(@NotNull String subject, byte @NotNull [] body) {
         try {
             this.executor.execute(() -> handle(subject, body));
         } catch (RuntimeException e) {
-            LOGGER.error("An event could not be scheduled: {}", e.getMessage());
+            distrust("Event backlog full or closed, checking punishments against the backend until the bus resubscribes: "
+                    + e.getMessage());
+        }
+    }
+
+    private void distrust(String warning) {
+        boolean was = this.connected;
+        this.connected = false;
+        this.mirror.clear();
+        if (was) {
+            LOGGER.warn(warning);
         }
     }
 

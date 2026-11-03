@@ -24,6 +24,11 @@ public final class Roles {
     public static final String DISCORD = "DISCORD";
     /** Prometheus scraping. Implied by nothing. */
     public static final String METRICS = "METRICS";
+    /**
+     * A third-party detection integration (app-only token, role Blackhole.Integration). It may submit detections and
+     * nothing else; which integration it is comes from its registration, not from the token. Implied by nothing.
+     */
+    public static final String INTEGRATION = "INTEGRATION";
 
     private Roles() {
     }

@@ -181,6 +181,18 @@ class ProfileMessagesTest {
     }
 
     @Test
+    void aProfileReasonWithAClickTagIsShownAsWrittenAndClicksNothing() {
+        String reason = "<click:run_command:'/op me'>Spam</click>";
+        PunishProfileDTO profile = profile().active(Map.of("network", entry(false, false)
+                .template(new PunishTemplateResponse().key("spam_1").reason(reason))));
+
+        var rendered = Rendered.english(info(profile, Mode.RICH));
+
+        assertTrue(rendered.text().contains(reason), rendered.text());
+        assertTrue(rendered.clickValues().stream().noneMatch("/op me"::equals), "the reason must not add a command: " + rendered.clickValues());
+    }
+
+    @Test
     void theShortIdOfAnEntryCopiesItself() {
         PunishProfileDTO profile = profile().active(Map.of("network", entry(false, false)));
 

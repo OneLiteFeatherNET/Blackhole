@@ -3,7 +3,10 @@
 // the text always says what the status is. Each tone is one MD3 role pair; the case tones are mapped in
 // components/case/caseTones.ts.
 withDefaults(
-  defineProps<{ label: string; tone?: 'neutral' | 'outline' | 'error' | 'primary' | 'secondary' | 'tertiary' }>(),
+  defineProps<{
+    label: string
+    tone?: 'neutral' | 'outline' | 'error' | 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning'
+  }>(),
   { tone: 'neutral' },
 )
 
@@ -14,6 +17,8 @@ const toneClasses = {
   primary: 'bg-primary-container text-on-primary-container',
   secondary: 'bg-secondary-container text-on-secondary-container',
   tertiary: 'bg-tertiary-container text-on-tertiary-container',
+  success: 'bg-success-container text-on-success-container',
+  warning: 'bg-warning-container text-on-warning-container',
 } as const
 </script>
 

@@ -60,6 +60,14 @@ public class StaffActorService {
                 .toList());
     }
 
+    /** One known principal by its object id; an unknown id is the NOT_FOUND error. */
+    public StaffActorDTO find(UUID oid) {
+        return this.actors.findById(oid)
+                .<StaffActorDTO>map(actor -> new StaffActorDTO.Item(
+                        actor.getOid(), actor.getKind(), actor.getDisplayName(), actor.getFirstSeenAt(), actor.getLastSeenAt()))
+                .orElseGet(() -> new StaffActorDTO.Error("there is no staff actor " + oid, ErrorKind.NOT_FOUND));
+    }
+
     /**
      * Clears the display name of {@code oid}. Repeating it is harmless.
      *

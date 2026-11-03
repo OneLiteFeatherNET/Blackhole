@@ -30,6 +30,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
     private static final Set<String> MP = Set.of("MODERATOR", "PROXY");
     private static final Set<String> A = Set.of("ADMIN");
     private static final Set<String> D = Set.of("DISCORD");
+    private static final Set<String> INTEGRATION = Set.of("INTEGRATION");
     /** A moderator, an admin, or the Discord bot naming the staff member it acts for (the delegation routes). */
     private static final Set<String> MAD = Set.of("MODERATOR", "ADMIN", "DISCORD");
     private static final Set<String> MD = Set.of("MODERATOR", "DISCORD");
@@ -179,6 +180,12 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /ipban/{id}", V),
             Map.entry("POST /ipban/{id}/lift", M),
             // admin configuration
+            Map.entry("GET /integration/registrations", A),
+            Map.entry("POST /integration/registrations", A),
+            Map.entry("GET /integration/registrations/{id}", A),
+            Map.entry("PATCH /integration/registrations/{id}", A),
+            // detection intake: only the integration principal, never a staff role or the proxy
+            Map.entry("POST /integration/detections", INTEGRATION),
             Map.entry("POST /section", A),
             Map.entry("POST /section/update", A),
             Map.entry("POST /section/{key}/disable", A),
@@ -253,6 +260,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /auth/me", AUTHENTICATED),
             // the player portal: the login is anonymous, everything else needs a player session
             Map.entry("POST /public/session", ANONYMOUS),
+            Map.entry("GET /public/challenge", ANONYMOUS),
             Map.entry("GET /public/session", PLAYER),
             Map.entry("DELETE /public/session", PLAYER),
             Map.entry("GET /public/punishment", PLAYER),
@@ -280,7 +288,15 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             // the firewall pull feeds: anonymous at the role layer, the token and the source allow-list are checked by FeedService
             Map.entry("GET /firewall/feed/{token}/{feed}", ANONYMOUS),
             // the case's live signal: viewers and above (the proxy and the Discord bot are denied)
-            Map.entry("GET /case/{reference}/events", V)
+            Map.entry("GET /case/{reference}/events", V),
+            // the read-by-id routes of the staff panel: the role of the list of each entity, never wider (add-staff-panel-read-endpoints)
+            Map.entry("GET /appeal/{identifier}", V),
+            Map.entry("GET /exemption/reviews/{id}", A),
+            Map.entry("GET /area-bans/{id}", VP),
+            Map.entry("GET /intel/allow-list/{owner}", V),
+            Map.entry("GET /admin/audit/{auditId}", A),
+            Map.entry("GET /admin/staff-actor/{oid}", A),
+            Map.entry("GET /appeal-conditions/versions/{version}", V)
     );
 
     /** Routes without @Secured, protected by the intercept-url-map or public (see application.yml). */
@@ -306,7 +322,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
-    void onlyTheLoginIsAnonymousUnderThePublicPrefixAndEveryOtherRouteNeedsAPlayerSessionAndNoStaffRole() {
+    void onlyTheLoginAndTheChallengeAreAnonymousUnderThePublicPrefixAndEveryOtherRouteNeedsAPlayerSession() {
         Map<String, Set<String>> publicRoutes = new TreeMap<>();
         this.context.getBean(Router.class).uriRoutes().filter(route -> !"HEAD".equals(route.getHttpMethodName()))
                 .filter(route -> route.getUriMatchTemplate().toString().startsWith("/public"))
@@ -316,7 +332,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
 
         assertTrue(!publicRoutes.isEmpty(), "the portal has routes");
         publicRoutes.forEach((route, roles) -> {
-            if (route.equals("POST /public/session")) {
+            if (route.equals("POST /public/session") || route.equals("GET /public/challenge")) {
                 assertEquals(ANONYMOUS, roles, route);
             } else {
                 assertEquals(PLAYER, roles, route + " needs a player session and no staff role");

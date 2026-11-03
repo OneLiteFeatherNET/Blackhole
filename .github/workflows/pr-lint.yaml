@@ -8,6 +8,11 @@ on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
 
+# A newer push or title edit supersedes a still-running lint of the previous one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pr-lint:
     uses: OneLiteFeatherNET/workflows/.github/workflows/pr-lint.yml@v2.9.1

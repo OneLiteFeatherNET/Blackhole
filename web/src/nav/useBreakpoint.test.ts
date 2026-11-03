@@ -31,8 +31,11 @@ describe('useBreakpoint', () => {
   })
 
   it.each([
-    [500, 'compact'],
-    [800, 'medium'],
+    [320, 'compact'],
+    [599, 'compact'],
+    [600, 'medium'],
+    [839, 'medium'],
+    [840, 'expanded'],
     [1400, 'expanded'],
   ])('reports %ipx as %s', (px, expected) => {
     vi.stubGlobal('matchMedia', fakeMatchMedia({ value: px }).matchMedia)

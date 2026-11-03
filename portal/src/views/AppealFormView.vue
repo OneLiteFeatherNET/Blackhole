@@ -4,12 +4,14 @@ import { useI18n } from 'vue-i18n'
 import { MAX_FILES, MAX_TEXT_LENGTH, type AppealConditions, type ErrorCode } from '../api/contract'
 import { stageDraft, useAttachments } from '../chat/attachments'
 import { ACCEPT, releasePreview } from '../chat/files'
+import BotChallenge from '../components/BotChallenge.vue'
 import ConditionsText from '../components/ConditionsText.vue'
 import FileChips from '../components/FileChips.vue'
 import { formatDate } from '../format'
 import { SESSION_KEY } from '../session'
 
-const emit = defineEmits<{ back: []; filed: [] }>()
+/** `filed` carries the notice for the conversation: empty when every picked file went with the filing. */
+const emit = defineEmits<{ back: []; filed: [notice: string] }>()
 
 const { t, te, locale } = useI18n()
 const session = inject(SESSION_KEY)!
@@ -22,6 +24,8 @@ const failure = ref<{ code: ErrorCode; availableFrom?: string } | null>(null)
 const conditions = ref<AppealConditions | null>(null)
 const conditionsFailed = ref(false)
 const confirmed = ref(false)
+const challenge = ref<InstanceType<typeof BotChallenge> | null>(null)
+const challengeReady = ref(false)
 
 async function loadConditions() {
   const result = await session.api.appealConditions()
@@ -35,7 +39,7 @@ onMounted(loadConditions)
 const length = computed(() => drafts.statement.trim().length)
 const tooLong = computed(() => length.value > MAX_TEXT_LENGTH)
 const blank = computed(() => length.value === 0)
-const canSend = computed(() => !blank.value && !tooLong.value && !sending.value && confirmed.value && conditions.value !== null)
+const canSend = computed(() => !blank.value && !tooLong.value && !sending.value && confirmed.value && conditions.value !== null && challengeReady.value)
 
 const failureText = computed(() => {
   const current = failure.value
@@ -53,25 +57,49 @@ function onPick(event: Event) {
   target.value = ''
 }
 
+/** How many picked files did not go with the filing, and the first reason in words. Null when the session ended. */
+interface SendOutcome {
+  notSent: number
+  reason?: string
+}
+
 /**
  * After the filing: the picked files are uploaded and sent as one message, so the player does not
  * need a second send. A file that fails stays in the composer as a failed chip; the filing stands.
- * Staged files stay in the composer too when the message is refused. False when the session ended.
+ * Staged files stay in the composer too when the message is refused, and the outcome says so.
  */
-async function sendPicked(): Promise<boolean> {
+async function sendPicked(): Promise<SendOutcome | null> {
+  const reasons: string[] = []
   for (const file of drafts.files.filter((candidate) => candidate.state === 'picked')) {
     file.state = 'uploading'
-    if (!(await stageDraft(session, file.key, file.source!))) return false
+    if (!(await stageDraft(session, file.key, file.source!))) return null
+    if (file.code) reasons.push(fileReason(file.code))
   }
+  let notSent = reasons.length
   const staged = drafts.files.filter((file) => file.state === 'staged')
-  if (staged.length === 0) return true
-  const result = await session.api.postMessage(undefined, crypto.randomUUID(), staged.map((file) => file.attachmentId!))
-  if (!session.alive(result)) return false
-  if (result.ok) {
-    for (const file of staged) releasePreview(file)
-    drafts.files = drafts.files.filter((file) => file.state !== 'staged')
+  if (staged.length > 0) {
+    const result = await session.api.postMessage(undefined, crypto.randomUUID(), staged.map((file) => file.attachmentId!))
+    if (!session.alive(result)) return null
+    if (result.ok) {
+      for (const file of staged) releasePreview(file)
+      drafts.files = drafts.files.filter((file) => file.state !== 'staged')
+    } else {
+      notSent += staged.length
+      reasons.push(messageReason(result.error.code))
+    }
   }
-  return true
+  return { notSent, reason: reasons[0] }
+}
+
+/** Why one file was refused on upload, in the composer's words. */
+function fileReason(code: ErrorCode): string {
+  return te(`chat.errors.${code}`) ? t(`chat.errors.${code}`) : t('chat.errors.INVALID_FILE')
+}
+
+/** Why the message carrying the files was refused, in the conversation's words. */
+function messageReason(code: ErrorCode): string {
+  if (te(`conversation.errors.${code}`)) return t(`conversation.errors.${code}`)
+  return te(`chat.errors.${code}`) ? t(`chat.errors.${code}`) : t('conversation.errors.UNAVAILABLE')
 }
 
 async function submit() {
@@ -80,13 +108,19 @@ async function submit() {
   sending.value = true
   failure.value = null
   try {
-    const result = await session.api.fileAppeal(drafts.statement.trim(), shown.version)
+    const altcha = challenge.value?.read()
+    // Without a solution (the check is off) the call keeps its two arguments.
+    const result =
+      altcha === null || altcha === undefined
+        ? await session.api.fileAppeal(drafts.statement.trim(), shown.version)
+        : await session.api.fileAppeal(drafts.statement.trim(), shown.version, altcha)
     if (!session.alive(result)) return
     if (result.ok) {
       drafts.statement = ''
       await session.refreshPunishment()
-      if (!(await sendPicked())) return
-      emit('filed')
+      const outcome = await sendPicked()
+      if (outcome === null) return
+      emit('filed', outcome.notSent > 0 && outcome.reason ? t('appealForm.filedNotSent', { count: outcome.notSent, reason: outcome.reason }) : '')
       return
     }
     failure.value = result.error
@@ -100,13 +134,15 @@ async function submit() {
     if (['FORFEITED', 'FROZEN', 'NOT_ELIGIBLE', 'CONFLICT'].includes(result.error.code)) await session.refreshPunishment()
   } finally {
     sending.value = false
+    // A solution is spent by any filing attempt: the next one needs a new solve.
+    challenge.value?.renew()
   }
 }
 </script>
 
 <template>
   <section aria-labelledby="appeal-form-title" class="rounded-md-lg bg-surface-container p-6">
-    <h1 id="appeal-form-title" class="text-headline-small text-on-surface">{{ t('appealForm.title') }}</h1>
+    <h1 id="appeal-form-title" tabindex="-1" class="text-headline-small text-on-surface">{{ t('appealForm.title') }}</h1>
     <p class="mt-2 text-body-large text-on-surface-variant">{{ t('appealForm.notice') }}</p>
 
     <div class="mt-6 rounded-md-lg bg-surface-container-high p-6" data-testid="conditions">
@@ -163,6 +199,8 @@ async function submit() {
       <div role="alert" aria-live="assertive">
         <p v-if="failure" class="rounded-md-sm bg-error-container px-4 py-3 text-body-medium text-on-error-container">{{ failureText }}</p>
       </div>
+
+      <BotChallenge ref="challenge" purpose="appeal" @ready="challengeReady = $event" />
 
       <div class="flex flex-wrap gap-3">
         <button

@@ -16,19 +16,26 @@
     "clientRules": "Client-Regeln",
     "administration": "Verwaltung",
     "groups": {
+      "today": "Heute",
       "work": "Arbeit",
       "players": "Spieler",
       "configuration": "Konfiguration",
       "administration": "Verwaltung",
       "review": "Prüfung",
       "system": "System",
-      "guard": "Schutz"
+      "protection": "Schutz"
+    },
+    "more": "Mehr",
+    "shortcuts": {
+      "open": "Tastenkürzel",
+      "title": "Tastenkürzel",
+      "intro": "Außerhalb von Textfeldern drückst du g und dann einen Buchstaben, um eine Seite zu öffnen. Mit ? wird diese Liste angezeigt.",
+      "help": "Diese Liste anzeigen",
+      "then": "dann",
+      "close": "Schließen"
     },
     "brand": "Blackhole",
-    "open": "Navigation öffnen",
     "close": "Navigation schließen",
-    "collapse": "Navigation einklappen",
-    "expand": "Navigation ausklappen",
     "breadcrumbs": "Navigationspfad",
     "badge": {
       "inbox": "{n} Vorgang braucht Aufmerksamkeit | {n} Vorgänge brauchen Aufmerksamkeit",
@@ -583,6 +590,7 @@
       "note": "Notiz",
       "noteHint": "Optional; wird mit der Entscheidung gespeichert",
       "confirm": "Entscheidung speichern",
+      "confirmReason": "Wähle eine Entscheidung, um sie zu speichern.",
       "playerMessage": "Nachricht an den Spieler",
       "playerMessageHint": "Optional; der Spieler kann sie im Einspruchsportal lesen. 1 bis 2000 Zeichen, keine UUIDs, IP-Adressen oder Ban-IDs. Die Notiz oben bleibt intern."
     },
@@ -1523,7 +1531,12 @@
     "hint": "Gib einen Spielernamen (3 bis 16 Zeichen), eine Fall-ID wie #A1B2C3D4 oder report: und eine Meldungs-ID ein.",
     "caseNotFound": "Zur Fall-ID {id} wurde nichts gefunden.",
     "ambiguous": "Die ID {id} passt zu {n} Fällen. Wähle einen aus.",
-    "report": "Meldung {id} öffnen"
+    "report": "Meldung {id} öffnen",
+    "types": {
+      "player": "Spieler",
+      "case": "Fall",
+      "report": "Meldung"
+    }
   },
   "appealConditions": {
     "title": "Einspruchsbedingungen",
@@ -1733,12 +1746,46 @@
   },
   "inbox": {
     "title": "Posteingang",
-    "needsAnswer": "Wartet auf Antwort",
-    "openAppeals": "Offene Einsprüche",
-    "newReports": "Neue Meldungen",
-    "unassignedCases": "Nicht zugewiesene Fälle",
     "showAll": "Alle anzeigen",
-    "empty": "Nichts wartet gerade"
+    "sections": {
+      "assigned": "Mir zugewiesen",
+      "urgent": "Nicht zugewiesen und dringend",
+      "appeals": "Einsprüche, die auf eine Entscheidung warten",
+      "answers": "Antworten ausstehend",
+      "reports": "Offene Meldungen"
+    },
+    "empty": {
+      "assigned": "Dir ist kein Fall zugewiesen. Fälle, die du übernimmst, erscheinen hier.",
+      "urgent": "Kein dringender Fall wartet ohne Zuständigkeit.",
+      "appeals": "Kein Einspruch wartet auf eine Entscheidung.",
+      "answers": "Kein Spieler wartet auf eine Antwort.",
+      "reports": "Keine Meldung ist offen."
+    },
+    "noIdentity": "Dein Konto hat noch keine Mitarbeiter-Identität.",
+    "readOnly": "Nur lesen: Moderatorinnen und Moderatoren bearbeiten Fälle und Einsprüche.",
+    "assign": "Mir zuweisen",
+    "close": "Schließen",
+    "undo": "Rückgängig",
+    "assignedNotice": "Fall {reference} ist dir zugewiesen.",
+    "undone": "Die Zuweisung ist rückgängig gemacht.",
+    "closeDialog": {
+      "headline": "Fall {reference} schließen?",
+      "text": "Der Fall wird geschlossen. Du kannst ihn auf seiner Seite wieder öffnen.",
+      "confirm": "Fall schließen",
+      "cancel": "Abbrechen"
+    },
+    "conflict": "Der Fall hat sich inzwischen geändert. Lade die Seite neu, um ihn zu sehen.",
+    "types": {
+      "case": "Fall",
+      "appeal": "Einspruch",
+      "report": "Meldung",
+      "player": "Spieler"
+    },
+    "states": {
+      "appeal": "Wartet auf Entscheidung",
+      "answer": "Antwort ausstehend",
+      "report": "Offen"
+    }
   },
   "filters": {
     "clearAll": "Alle löschen",
@@ -2238,5 +2285,18 @@
     "close": "Schließen",
     "notFound": "Dieser Eintrag existiert nicht oder wurde entfernt.",
     "backToPage": "Zurück zur Seite"
+  },
+  "integration": {
+    "title": "Erkennung einer Integration",
+    "reportedBy": "Gemeldet von {source}",
+    "signalNotVerdict": "Ein Hinweis, kein Urteil: das Team entscheidet.",
+    "kind": "Art",
+    "server": "Server",
+    "detectionTime": "Zeitpunkt",
+    "reportedSeverity": "Gemeldete Schwere",
+    "payload": "Gemeldete Werte",
+    "field": "Feld",
+    "value": "Wert",
+    "notReported": "nicht gemeldet"
   }
 }

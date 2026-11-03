@@ -1,6 +1,7 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NameHistoryName, NameHistoryPage } from '../../api/types'
+import { useLookupStore } from '../../stores/lookup'
 import { fail, mockApi, mountWithApp, ok } from '../../test/mount'
 import NameHistory from './NameHistory.vue'
 
@@ -31,6 +32,19 @@ describe('NameHistory', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+  })
+
+  it('remembers the newest name as the last known name of the player', async () => {
+    const names = [name({ name: 'Alex' }), name({ name: 'Steve' })]
+    await open({ listPlayerNames: vi.fn(async () => ok(page(names))) })
+
+    expect(useLookupStore().nameOf(OWNER)).toBe('Alex')
+  })
+
+  it('remembers no name when the player has none yet', async () => {
+    await open({ listPlayerNames: vi.fn(async () => ok(page([]))) })
+
+    expect(useLookupStore().nameOf(OWNER)).toBeNull()
   })
 
   it('lists the names in the order the backend answers, newest first, with first and last seen', async () => {

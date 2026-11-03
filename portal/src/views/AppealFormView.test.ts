@@ -118,6 +118,16 @@ describe('appeal form', () => {
     expect(mounted!.session.state.drafts.statement).toBe('a long statement')
   })
 
+  it('asks the player to wait when filing is rate limited', async () => {
+    const wrapper = await openForm({ fileAppeal: async () => fail<never>('RATE_LIMITED', 429) })
+
+    await wrapper.get('textarea').setValue('my statement')
+    await send(wrapper)
+    await flushPromises()
+
+    expect(wrapper.get('[role="alert"]').text()).toBe('Too many attempts, please wait a moment.')
+  })
+
   it('goes back to the punishment page', async () => {
     const wrapper = await openForm()
 
@@ -220,6 +230,7 @@ describe('appeal form', () => {
       expect(chips).toHaveLength(1)
       expect(chips[0]!.text()).toContain('appeal.pdf')
       expect(chips[0]!.text()).toContain('The file could not be accepted.')
+      expect(wrapper.text(), 'the filing reports the file that did not go').toContain('Appeal filed. 1 file was not sent: The file could not be accepted.')
     })
 
     it('keeps the uploaded files in the composer, ready to send, when their message is refused', async () => {
@@ -237,6 +248,38 @@ describe('appeal form', () => {
       const chip = wrapper.get('[data-testid="chips"] li')
       expect(chip.text()).toContain('shot.png')
       expect(chip.text()).toContain('Ready to send')
+      expect(wrapper.text(), 'the composer says the appeal is filed and the file was not sent').toContain(
+        'Appeal filed. 1 file was not sent: Your message could not be sent. Please try again.',
+      )
+    })
+
+    it('names the limit when the message is refused for quota, and keeps the files staged', async () => {
+      const uploadAttachment = vi.fn(async () => ok({ attachmentId: 'a1b2c3d4-0000-4000-8000-000000000006', name: 'shot.png', contentType: 'image/png', size: 3 }))
+      const postMessage = vi.fn(async () => fail<never>('QUOTA', 422))
+      const wrapper = await openForm({ fileAppeal: async () => ok(APPEAL_OPEN), uploadAttachment, postMessage, ...openAfterFiling() })
+      await pick(wrapper, [png()])
+      await flushPromises()
+
+      await wrapper.get('textarea').setValue('my statement')
+      await send(wrapper)
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Appeal filed. 1 file was not sent: You have reached the limit of files for this appeal.')
+      expect(wrapper.get('[data-testid="chips"] li').text()).toContain('Ready to send')
+    })
+
+    it('reports nothing about files when every file went with the message', async () => {
+      const uploadAttachment = vi.fn(async () => ok({ attachmentId: 'a1b2c3d4-0000-4000-8000-000000000007', name: 'shot.png', contentType: 'image/png', size: 3 }))
+      const postMessage = vi.fn(async () => ok(POSTED))
+      const wrapper = await openForm({ fileAppeal: async () => ok(APPEAL_OPEN), uploadAttachment, postMessage, ...openAfterFiling() })
+      await pick(wrapper, [png()])
+      await flushPromises()
+
+      await wrapper.get('textarea').setValue('my statement')
+      await send(wrapper)
+      await flushPromises()
+
+      expect(wrapper.text()).not.toContain('was not sent')
     })
   })
 

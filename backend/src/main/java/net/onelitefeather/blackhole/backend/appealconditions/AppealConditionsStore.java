@@ -25,6 +25,9 @@ public interface AppealConditionsStore {
     /** Every version, newest first. */
     List<Version> list();
 
+    /** The version with this number, or empty when there is none. */
+    Optional<Version> find(int version);
+
     /**
      * Appends {@code highest + 1}.
      *

@@ -1,26 +1,44 @@
 import { flushPromises } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
-import type { DashboardSummary, InboxSummary } from '../api/types'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { BlackholeApi } from '../api/blackhole'
+import type { DashboardSummary, InboxItem, InboxSummary } from '../api/types'
+import { caseResponse } from '../test/cases'
 import { fail, mockApi, mountWithApp, ok } from '../test/mount'
+import { SIGNED_IN_OID } from '../test/mount'
+import { caseListItem, fakeCaseList } from '../test/inbox'
 import InboxView from './InboxView.vue'
 
+const ME = SIGNED_IN_OID
+const OTHER = '00000000-0000-4000-8000-0000000000b2'
 const OWNER = 'ab'.repeat(64)
-const OTHER = 'cd'.repeat(64)
+const NOW = Date.UTC(2030, 0, 3, 12, 0)
+const HOUR = 3_600_000
+const DAY = 86_400_000
 
-function item(id: string, since: number, reference = 'ABCD0001', owner = OWNER) {
-  return { id, reference, owner, since }
+beforeEach(() => {
+  // Only the clock and the timers are faked: the page reads the time for ages and the undo window waits on a timer.
+  vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+  vi.setSystemTime(NOW)
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+function appealItem(id: string, since: number, reference = 'APP00001'): InboxItem {
+  return { id, reference, owner: OWNER, since }
 }
 
 function inbox(overrides: Partial<InboxSummary> = {}): InboxSummary {
   return {
-    generatedAt: Date.UTC(2030, 0, 3, 12, 0),
-    needsAnswer: { count: 1, items: [item('appeal-1', Date.UTC(2030, 0, 1, 9, 0))] },
+    generatedAt: NOW,
+    needsAnswer: { count: 1, items: [appealItem('answer-1', NOW - 2 * HOUR, 'ANS00001')] },
     openAppeals: {
       count: 4,
-      items: [item('appeal-1', Date.UTC(2030, 0, 1, 9, 0)), item('appeal-2', Date.UTC(2030, 0, 2, 9, 0), 'ABCD0002')],
+      items: [appealItem('appeal-1', NOW - 5 * HOUR, 'APP00001'), appealItem('appeal-2', NOW - DAY, 'APP00002')],
     },
-    newReports: { count: 0, items: [] },
-    unassignedCases: { count: 12, items: [item('p-9', Date.UTC(2030, 0, 2, 9, 0), 'ABCD0009', OTHER)] },
+    newReports: { count: 1, items: [{ id: 'report-1', owner: OWNER, since: NOW - 3 * HOUR }] },
+    unassignedCases: { count: 0, items: [] },
     ...overrides,
   }
 }
@@ -35,65 +53,161 @@ function dashboard(): DashboardSummary {
   }
 }
 
-function mounting(overrides: { inbox?: () => Promise<unknown>; dashboard?: () => Promise<unknown> } = {}) {
+const MY_OPEN_CASES = [
+  caseListItem({ shortId: 'MINE0001', punishmentIdentifier: 'p-mine-1', assigneeOid: ME, status: 'OPEN', lastActivityAt: NOW - 4 * HOUR }),
+  caseListItem({ shortId: 'MINE0002', punishmentIdentifier: 'p-mine-2', assigneeOid: ME, status: 'IN_REVIEW', lastActivityAt: NOW - 9 * HOUR }),
+]
+
+function mounting(
+  options: {
+    cases?: ReturnType<typeof fakeCaseList>['read']
+    updateCase?: BlackholeApi['updateCase']
+    inbox?: () => Promise<unknown>
+    roles?: string[]
+    oid?: string | null
+  } = {},
+) {
   return mountWithApp(InboxView, {
+    roles: options.roles,
+    oid: options.oid,
     api: mockApi({
-      inbox: overrides.inbox ?? (async () => ok(inbox())),
-      dashboard: overrides.dashboard ?? (async () => ok(dashboard())),
+      inbox: options.inbox ?? (async () => ok(inbox())),
+      dashboard: async () => ok(dashboard()),
+      cases: options.cases ?? fakeCaseList(MY_OPEN_CASES).read,
+      updateCase: options.updateCase,
       joinGuard: async () => ok({ manualLevel: 'OFF', automaticLevel: 'OFF', effectiveLevel: 'OFF', updatedAt: 0 }),
       areaBans: async () => ok([]),
     }),
   })
 }
 
+function rowHrefs(wrapper: Awaited<ReturnType<typeof mounting>>['wrapper'], queue: string): string[] {
+  return wrapper.get(`[data-queue="${queue}"]`).findAll('[data-testid="row"] a').map((link) => link.attributes('href') ?? '')
+}
+
 describe('InboxView', () => {
-  it('shows the four sections with their counts', async () => {
+  it('shows the five queue sections in the order of the work queue', async () => {
     const { wrapper } = await mounting()
 
-    expect(wrapper.get('[data-testid="section-needsAnswer"]').text()).toContain('Needs an answer')
-    expect(wrapper.get('[data-testid="section-needsAnswer"]').text()).toContain('1')
-    expect(wrapper.get('[data-testid="section-openAppeals"]').text()).toContain('Open appeals')
-    expect(wrapper.get('[data-testid="section-openAppeals"]').text()).toContain('4')
-    expect(wrapper.get('[data-testid="section-newReports"]').text()).toContain('New reports')
-    expect(wrapper.get('[data-testid="section-unassignedCases"]').text()).toContain('Unassigned cases')
-    expect(wrapper.get('[data-testid="section-unassignedCases"]').text()).toContain('12')
+    expect(wrapper.findAll('[data-queue]').map((section) => section.attributes('data-queue'))).toEqual([
+      'assigned',
+      'urgent',
+      'appeals',
+      'answers',
+      'reports',
+    ])
 
     wrapper.unmount()
   })
 
-  it('lists the items of a section in the order the API gives them, each linked to its case', async () => {
-    const { wrapper } = await mounting()
+  it('counts the open cases the caller holds and leaves the closed ones out', async () => {
+    const cases = fakeCaseList([
+      ...MY_OPEN_CASES,
+      caseListItem({ shortId: 'MINE0003', assigneeOid: ME, status: 'CLOSED' }),
+      caseListItem({ shortId: 'THEIRS', assigneeOid: OTHER, status: 'OPEN' }),
+    ])
+    const { wrapper } = await mounting({ cases: cases.read })
 
-    const links = wrapper.get('[data-testid="section-openAppeals"]').findAll('a[href^="/cases/"]')
-    expect(links.map((link) => link.attributes('href'))).toEqual(['/cases/ABCD0001', '/cases/ABCD0002'])
-
-    wrapper.unmount()
-  })
-
-  it('links each section to its full list', async () => {
-    const { wrapper } = await mounting()
-
-    const showAll = (key: string) => wrapper.get(`[data-testid="section-${key}"]`).get('[data-testid="show-all"]').attributes('href')
-    expect(showAll('needsAnswer')).toBe('/appeals')
-    expect(showAll('openAppeals')).toBe('/appeals')
-    expect(showAll('newReports')).toBe('/reports')
-    expect(showAll('unassignedCases')).toBe('/cases')
+    expect(wrapper.get('[data-queue="assigned"] [data-testid="section-count"]').text()).toBe('2')
 
     wrapper.unmount()
   })
 
-  it('says that a section is empty instead of hiding it', async () => {
-    const { wrapper } = await mounting()
+  it('shows at most ten rows of a section, and its full count', async () => {
+    const many = Array.from({ length: 12 }, (_, index) =>
+      caseListItem({ shortId: `MANY${index}`, punishmentIdentifier: `p-many-${index}`, assigneeOid: ME, lastActivityAt: NOW - index * HOUR }),
+    )
+    const { wrapper } = await mounting({ cases: fakeCaseList(many).read })
 
-    expect(wrapper.get('[data-testid="section-newReports"]').text()).toContain('Nothing waiting')
+    expect(wrapper.get('[data-queue="assigned"] [data-testid="section-count"]').text()).toBe('12')
+    expect(wrapper.get('[data-queue="assigned"]').findAll('[data-testid="row"]')).toHaveLength(10)
 
     wrapper.unmount()
   })
 
-  it('keeps the active punishments and the escalations below the sections', async () => {
+  it('lists the assigned cases oldest activity first', async () => {
     const { wrapper } = await mounting()
 
-    expect(wrapper.get('[data-testid="section-network"]').text()).toContain('12')
+    expect(rowHrefs(wrapper, 'assigned')).toEqual(['/cases/p-mine-2', '/cases/p-mine-1'])
+
+    wrapper.unmount()
+  })
+
+  it('lists unassigned cases that are URGENT or HIGH and leaves the others out', async () => {
+    const cases = fakeCaseList([
+      caseListItem({ shortId: 'URG1', punishmentIdentifier: 'p-urg', priority: 'URGENT' }),
+      caseListItem({ shortId: 'HIG1', punishmentIdentifier: 'p-high', priority: 'HIGH' }),
+      caseListItem({ shortId: 'NRM1', punishmentIdentifier: 'p-normal', priority: 'NORMAL' }),
+      caseListItem({ shortId: 'URGA', punishmentIdentifier: 'p-urg-assigned', priority: 'URGENT', assigneeOid: OTHER }),
+    ])
+    const { wrapper } = await mounting({ cases: cases.read })
+
+    expect(rowHrefs(wrapper, 'urgent')).toEqual(['/cases/p-urg', '/cases/p-high'])
+    expect(wrapper.get('[data-queue="urgent"] [data-testid="section-count"]').text()).toBe('2')
+
+    wrapper.unmount()
+  })
+
+  it('keeps the appeal, answer and report sections on the inbox read, with their counts and rows', async () => {
+    const { wrapper } = await mounting()
+
+    expect(wrapper.get('[data-queue="appeals"] [data-testid="section-count"]').text()).toBe('4')
+    expect(rowHrefs(wrapper, 'appeals')).toEqual(['/cases/APP00001', '/cases/APP00002'])
+    expect(wrapper.get('[data-queue="answers"] [data-testid="section-count"]').text()).toBe('1')
+    expect(rowHrefs(wrapper, 'reports')).toEqual(['/reports/report-1'])
+
+    wrapper.unmount()
+  })
+
+  it('shows the age of each row relative to the time the page read the data', async () => {
+    const { wrapper } = await mounting()
+
+    expect(wrapper.get('[data-queue="assigned"]').text()).toContain('4 hours ago')
+    expect(wrapper.get('[data-queue="reports"]').text()).toContain('3 hours ago')
+
+    wrapper.unmount()
+  })
+
+  it('links each section to its filtered full list', async () => {
+    const { wrapper } = await mounting()
+    const showAll = (queue: string) => wrapper.get(`[data-queue="${queue}"] [data-testid="show-all"]`).attributes('href')
+
+    expect(showAll('assigned')).toBe('/cases?mine=1')
+    expect(showAll('urgent')).toBe('/cases?priority=URGENT')
+    expect(showAll('appeals')).toBe('/appeals')
+    expect(showAll('answers')).toBe('/appeals')
+    expect(showAll('reports')).toBe('/reports')
+
+    wrapper.unmount()
+  })
+
+  it('says what an empty assigned section is for', async () => {
+    const { wrapper } = await mounting({ cases: fakeCaseList([]).read })
+
+    expect(wrapper.get('[data-queue="assigned"]').text()).toContain('No case is assigned to you. Cases you take appear here.')
+
+    wrapper.unmount()
+  })
+
+  it('says the account has no staff identity and reads no assigned cases instead of an empty list', async () => {
+    const cases = fakeCaseList(MY_OPEN_CASES)
+    const { wrapper } = await mounting({ cases: cases.read, oid: null })
+
+    expect(wrapper.get('[data-queue="assigned"]').text()).toContain('Your account has no staff identity yet.')
+    expect(wrapper.find('[data-queue="assigned"] [data-testid="section-count"]').exists()).toBe(false)
+    expect(cases.queries.some((query) => query.assignee !== undefined)).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('fails one section alone: the other sections keep their rows', async () => {
+    const failing: ReturnType<typeof fakeCaseList>['read'] = async () => fail('backend down', 503, 'UNKNOWN')
+    const { wrapper } = await mounting({ cases: failing })
+
+    expect(wrapper.get('[data-queue="assigned"] [role="alert"]').text()).toContain('backend down')
+    expect(wrapper.find('[data-queue="urgent"] [role="alert"]').exists()).toBe(true)
+    expect(rowHrefs(wrapper, 'appeals')).toEqual(['/cases/APP00001', '/cases/APP00002'])
+    expect(wrapper.find('[data-queue="reports"] [role="alert"]').exists()).toBe(false)
 
     wrapper.unmount()
   })
@@ -108,7 +222,7 @@ describe('InboxView', () => {
     wrapper.unmount()
   })
 
-  it('shows the error of a failed read with a retry that reads the inbox again', async () => {
+  it('shows the error of a failed inbox read with a retry that reads the inbox again', async () => {
     const inboxRead = vi
       .fn()
       .mockResolvedValueOnce(fail('backend down', 503, 'UNKNOWN'))
@@ -120,8 +234,221 @@ describe('InboxView', () => {
     await flushPromises()
 
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="section-openAppeals"]').text()).toContain('4')
+    expect(wrapper.get('[data-queue="appeals"] [data-testid="section-count"]').text()).toBe('4')
     expect(inboxRead).toHaveBeenCalledTimes(2)
+
+    wrapper.unmount()
+  })
+
+  it('keeps the active punishments below the queue', async () => {
+    const { wrapper } = await mounting()
+
+    expect(wrapper.get('[data-testid="section-network"]').text()).toContain('12')
+
+    wrapper.unmount()
+  })
+
+  describe('roles', () => {
+    it('shows a viewer no action, only the read-only note', async () => {
+      const { wrapper } = await mounting({ roles: ['VIEWER'] })
+
+      expect(wrapper.findAll('button').filter((button) => ['Assign to me', 'Close'].includes(button.text()))).toHaveLength(0)
+      expect(wrapper.text()).toContain('Read-only: moderators act on cases and appeals.')
+
+      wrapper.unmount()
+    })
+
+    it('gives a moderator Close on the cases the caller holds and Assign to me on the unassigned ones', async () => {
+      const cases = fakeCaseList([
+        ...MY_OPEN_CASES,
+        caseListItem({ shortId: 'FREE1', punishmentIdentifier: 'p-free', priority: 'URGENT' }),
+      ])
+      const { wrapper } = await mounting({ roles: ['MODERATOR'], cases: cases.read })
+
+      expect(wrapper.get('[data-queue="assigned"]').findAll('button').map((button) => button.text())).toEqual(['Close', 'Close'])
+      expect(wrapper.get('[data-queue="urgent"]').findAll('button').map((button) => button.text())).toEqual(['Assign to me'])
+      expect(wrapper.text()).not.toContain('Read-only')
+
+      wrapper.unmount()
+    })
+
+    it('gives an administrator the same actions as a moderator', async () => {
+      const cases = fakeCaseList([caseListItem({ shortId: 'FREE2', punishmentIdentifier: 'p-free-2', priority: 'HIGH' })])
+      const { wrapper } = await mounting({ roles: ['ADMIN'], cases: cases.read })
+
+      expect(wrapper.get('[data-queue="urgent"]').findAll('button').map((button) => button.text())).toEqual(['Assign to me'])
+
+      wrapper.unmount()
+    })
+  })
+
+  describe('actions', () => {
+    it('does not change anything when the page opens', async () => {
+      const updateCase = vi.fn()
+      const cases = fakeCaseList([caseListItem({ shortId: 'FREE3', punishmentIdentifier: 'p-free-3', priority: 'URGENT' }), ...MY_OPEN_CASES])
+      const { wrapper } = await mounting({ roles: ['MODERATOR'], cases: cases.read, updateCase })
+
+      expect(updateCase).not.toHaveBeenCalled()
+
+      wrapper.unmount()
+    })
+
+    it('assigns the case to the caller with the version the row was read at', async () => {
+      const updateCase = vi.fn(async () => ok(caseResponse({ punishmentIdentifier: 'p-free-4', version: 4, assigneeOid: ME })))
+      const cases = fakeCaseList([caseListItem({ shortId: 'FREE4', punishmentIdentifier: 'p-free-4', priority: 'URGENT', version: 3 })])
+      const { wrapper } = await mounting({ roles: ['MODERATOR'], cases: cases.read, updateCase })
+
+      await wrapper.get('[data-queue="urgent"] button').trigger('click')
+      await flushPromises()
+
+      expect(updateCase).toHaveBeenCalledWith('p-free-4', { expectedVersion: 3, assigneeOid: ME })
+
+      wrapper.unmount()
+    })
+
+    it('offers an undo for ten seconds after an assignment, and the undo sends the version of that assignment', async () => {
+      const updateCase = vi.fn(async (_reference: string, change: { assigneeOid?: string | null }) =>
+        ok(caseResponse({ punishmentIdentifier: 'p-free-5', version: change.assigneeOid === null ? 6 : 4 })),
+      )
+      const cases = fakeCaseList([caseListItem({ shortId: 'FREE5', punishmentIdentifier: 'p-free-5', priority: 'URGENT', version: 3 })])
+      const { wrapper } = await mounting({ roles: ['MODERATOR'], cases: cases.read, updateCase })
+
+      await wrapper.get('[data-queue="urgent"] button').trigger('click')
+      await flushPromises()
+      const undo = wrapper.findAll('button').find((button) => button.text() === 'Undo')
+      expect(undo, 'an undo button after the assignment').toBeDefined()
+
+      await undo!.trigger('click')
+      await flushPromises()
+
+      expect(updateCase).toHaveBeenLastCalledWith('p-free-5', { expectedVersion: 4, assigneeOid: null })
+
+      wrapper.unmount()
+    })
+
+    it('stops offering the undo after ten seconds', async () => {
+      const updateCase = vi.fn(async () => ok(caseResponse({ punishmentIdentifier: 'p-free-6', version: 4 })))
+      const cases = fakeCaseList([caseListItem({ shortId: 'FREE6', punishmentIdentifier: 'p-free-6', priority: 'URGENT', version: 3 })])
+      const { wrapper } = await mounting({ roles: ['MODERATOR'], cases: cases.read, updateCase })
+
+      await wrapper.get('[data-queue="urgent"] button').trigger('click')
+      await flushPromises()
+      vi.advanceTimersByTime(9_999)
+      expect(wrapper.findAll('button').some((button) => button.text() === 'Undo')).toBe(true)
+
+      vi.advanceTimersByTime(1)
+      await flushPromises()
+      expect(wrapper.findAll('button').some((button) => button.text() === 'Undo')).toBe(false)
+
+      wrapper.unmount()
+    })
+
+    it('asks before closing a case and sends the close only when confirmed', async () => {
+      const updateCase = vi.fn(async () => ok(caseResponse({ punishmentIdentifier: 'p-mine-2', status: 'CLOSED', version: 4 })))
+      const { wrapper } = await mounting({ roles: ['MODERATOR'], updateCase })
+
+      // The first row is the oldest activity: MINE0002.
+      await wrapper.get('[data-queue="assigned"] button').trigger('click')
+      await flushPromises()
+      expect(wrapper.get('[role="dialog"]').text()).toContain('MINE0002')
+      expect(updateCase).not.toHaveBeenCalled()
+
+      const confirm = wrapper.get('[role="dialog"]').findAll('button').find((button) => button.text() === 'Close case')
+      await confirm!.trigger('click')
+      await flushPromises()
+
+      expect(updateCase).toHaveBeenCalledWith('p-mine-2', { expectedVersion: 3, status: 'CLOSED' })
+
+      wrapper.unmount()
+    })
+
+    it('does not close when the confirmation is cancelled', async () => {
+      const updateCase = vi.fn()
+      const { wrapper } = await mounting({ roles: ['MODERATOR'], updateCase })
+
+      await wrapper.get('[data-queue="assigned"] button').trigger('click')
+      await flushPromises()
+      const cancel = wrapper.get('[role="dialog"]').findAll('button').find((button) => button.text() === 'Cancel')
+      await cancel!.trigger('click')
+      await flushPromises()
+
+      expect(updateCase).not.toHaveBeenCalled()
+
+      wrapper.unmount()
+    })
+
+    it('tells the moderator when the case changed, and does not overwrite it', async () => {
+      const updateCase = vi.fn(async () => fail('version is stale', 409, 'CONFLICT'))
+      const { wrapper } = await mounting({ roles: ['MODERATOR'], updateCase })
+
+      await wrapper.get('[data-queue="assigned"] button').trigger('click')
+      await flushPromises()
+      const confirm = wrapper.get('[role="dialog"]').findAll('button').find((button) => button.text() === 'Close case')
+      await confirm!.trigger('click')
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('The case changed since. Reload to see it.')
+
+      wrapper.unmount()
+    })
+  })
+
+  describe('links', () => {
+    it('keeps the actions out of the links, so every row is one link and every action a button', async () => {
+      const cases = fakeCaseList([caseListItem({ shortId: 'FREE7', punishmentIdentifier: 'p-free-7', priority: 'URGENT' })])
+      const { wrapper } = await mounting({ roles: ['MODERATOR'], cases: cases.read })
+
+      expect(wrapper.findAll('a button')).toHaveLength(0)
+      expect(wrapper.get('[data-queue="urgent"] [data-testid="row"] a').attributes('href')).toBe('/cases/p-free-7')
+
+      wrapper.unmount()
+    })
+  })
+})
+
+describe('InboxView requests', () => {
+  // The number of case reads does not depend on how many cases there are: counts come from totalSize and
+  // each list reads at most one page, so a busy inbox costs the same as a quiet one.
+  const CASE_READS_ON_LOAD = 12
+
+  it('makes the same fixed number of case reads on load, with few cases', async () => {
+    const read = vi.fn(fakeCaseList(MY_OPEN_CASES).read)
+    const { wrapper } = await mounting({ cases: read })
+
+    expect(read).toHaveBeenCalledTimes(CASE_READS_ON_LOAD)
+
+    wrapper.unmount()
+  })
+
+  it('makes the same fixed number of case reads on load, with many cases', async () => {
+    const many = Array.from({ length: 450 }, (_, index) =>
+      caseListItem({
+        shortId: `BIG${index}`,
+        punishmentIdentifier: `p-big-${index}`,
+        priority: index % 2 === 0 ? 'URGENT' : 'HIGH',
+        status: index % 3 === 0 ? 'OPEN' : index % 3 === 1 ? 'IN_REVIEW' : 'WAITING',
+        assigneeOid: index % 5 === 0 ? ME : null,
+        lastActivityAt: index,
+      }),
+    )
+    const read = vi.fn(fakeCaseList(many).read)
+    const { wrapper } = await mounting({ cases: read })
+
+    expect(read).toHaveBeenCalledTimes(CASE_READS_ON_LOAD)
+    expect(wrapper.get('[data-queue="assigned"] [data-testid="section-count"]').text()).toBe('90')
+
+    wrapper.unmount()
+  })
+
+  it('shows a lower-bound count with a plus when the urgent read was full, and keeps Show all', async () => {
+    const full = Array.from({ length: 101 }, (_, index) =>
+      caseListItem({ shortId: `PL${index}`, punishmentIdentifier: `p-pl-${index}`, priority: 'URGENT', lastActivityAt: index }),
+    )
+    const { wrapper } = await mounting({ cases: fakeCaseList([...MY_OPEN_CASES, ...full]).read })
+
+    expect(wrapper.get('[data-queue="urgent"] [data-testid="section-count"]').text()).toBe('100+')
+    expect(wrapper.get('[data-queue="urgent"] [data-testid="show-all"]').attributes('href')).toBe('/cases?priority=URGENT')
+    expect(wrapper.get('[data-queue="assigned"] [data-testid="section-count"]').text()).toBe('2')
 
     wrapper.unmount()
   })

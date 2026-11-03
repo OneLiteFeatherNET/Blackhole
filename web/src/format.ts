@@ -17,6 +17,22 @@ export function formatDuration(iso: string, locale: string): string {
   return parsed.ok ? describeDuration(parsed.seconds, locale) : iso
 }
 
+const AGE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+  ['day', 86_400_000],
+  ['hour', 3_600_000],
+  ['minute', 60_000],
+]
+
+/** How long ago an epoch-millis timestamp is, relative to `now`: "2 hours ago", "now" under a minute. */
+export function formatAge(epochMillis: number, now: number, locale: string): string {
+  const diff = epochMillis - now
+  const format = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+  for (const [unit, size] of AGE_UNITS) {
+    if (Math.abs(diff) >= size) return format.format(Math.round(diff / size), unit)
+  }
+  return format.format(0, 'second')
+}
+
 /** First characters of an owner hash: enough to tell rows apart, not the whole identifier. */
 export function shortHash(hash: string): string {
   return `${hash.slice(0, 8)}…`

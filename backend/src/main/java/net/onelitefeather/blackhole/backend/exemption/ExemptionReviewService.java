@@ -102,6 +102,13 @@ public class ExemptionReviewService {
         return new ExemptionDTO.ReviewResponse(toDto(review));
     }
 
+    /** One review item in any state; an unknown id is the NOT_FOUND error. */
+    public ExemptionDTO find(UUID id) {
+        return this.reviews.findById(id)
+                .<ExemptionDTO>map(review -> new ExemptionDTO.ReviewResponse(toDto(review)))
+                .orElseGet(() -> new ExemptionDTO.Error("there is no exemption review " + id, ErrorKind.NOT_FOUND));
+    }
+
     /** Places the punishment the review stands for, through the same placement as an automatic punishment, with the override recorded. */
     @Nullable
     private ExemptionDTO.Error applyHeld(ExemptionReviewEntity review, String reason, Actor admin) {

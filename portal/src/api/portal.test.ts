@@ -76,6 +76,12 @@ describe('portal api client', () => {
     expect(await api.punishment()).toEqual({ ok: false, error: { status: 502, code: 'UNAVAILABLE' } })
   })
 
+  it('maps a rate limit to its own code, even when the answer is not JSON', async () => {
+    const { api } = client(() => new Response('<html>Too Many Requests</html>', { status: 429 }))
+
+    expect(await api.punishment()).toEqual({ ok: false, error: { status: 429, code: 'RATE_LIMITED' } })
+  })
+
   it('maps a network failure to unavailable', async () => {
     const { api } = client(() => Promise.reject(new TypeError('network')))
 

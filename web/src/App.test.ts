@@ -6,7 +6,7 @@ import App from './App.vue'
 import { i18n } from './i18n'
 import { createAppRouter } from './router'
 import { useSessionStore } from './stores/session'
-import { LOCALE_STORAGE_KEY, NAV_COLLAPSED_STORAGE_KEY, THEME_STORAGE_KEY } from './stores/ui'
+import { LOCALE_STORAGE_KEY, THEME_STORAGE_KEY } from './stores/ui'
 import { fakeMatchMedia } from './test/media'
 import { API_KEY } from './api/inject'
 import { AUTH_KEY } from './auth/inject'
@@ -203,11 +203,23 @@ describe('App shell', () => {
     wrapper.unmount()
   })
 
-  it('shows the moderation rail on the inbox for an admin', async () => {
+  it('shows the moderation rail on the inbox for an admin, grouped as Today, Work, Players and Protection', async () => {
     const wrapper = await mountApp('/')
 
-    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text()), 'headings').toEqual(['Arbeit', 'Spieler', 'Schutz'])
-    expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual(['Posteingang', 'Fälle', 'Einsprüche', 'Meldungen', 'Spielersuche', 'Aktive Strafen', 'Ausnahmeliste', 'VPN-Richtlinie', 'Beitrittsschutz', 'Gebietssperren', 'IP-Sperren'])
+    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text()), 'headings').toEqual(['Heute', 'Arbeit', 'Spieler', 'Schutz'])
+    expect(wrapper.findAll('nav a').map((a) => a.text()), 'order').toEqual([
+      'Posteingang',
+      'Fälle',
+      'Einsprüche',
+      'Meldungen',
+      'Spielersuche',
+      'Aktive Strafen',
+      'Beitrittsschutz',
+      'Gebietssperren',
+      'IP-Sperren',
+      'Ausnahmeliste',
+      'VPN-Richtlinie',
+    ])
 
     wrapper.unmount()
   })
@@ -238,7 +250,7 @@ describe('App shell', () => {
   it('shows no administration rail to a moderator on the inbox', async () => {
     const wrapper = await mountApp('/', { roles: ['MODERATOR'] })
 
-    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text())).toEqual(['Arbeit', 'Spieler', 'Schutz'])
+    expect(wrapper.findAll('nav [role="group"]').map((group) => group.find('p').text())).toEqual(['Heute', 'Arbeit', 'Spieler', 'Schutz'])
 
     wrapper.unmount()
   })
@@ -262,87 +274,103 @@ describe('App shell', () => {
     wrapper.unmount()
   })
 
-  it('folds the drawer into a rail and remembers the choice', async () => {
+  it('shows the expanded rail with its headings on wide windows, with no drawer and no fold button', async () => {
     const wrapper = await mountApp('/')
-    const toggle = wrapper.get('[data-testid="nav-toggle"]')
-    expect(toggle.attributes('aria-label')).toBe('Navigation einklappen')
-    expect(wrapper.findAll('nav [role="group"]'), 'headings while expanded').toHaveLength(3)
 
-    await toggle.trigger('click')
+    expect(wrapper.get('nav').classes(), 'rail width').toContain('w-72')
+    expect(wrapper.findAll('nav [role="group"]'), 'headings').toHaveLength(4)
+    expect(wrapper.find('[data-testid="nav-toggle"]').exists(), 'no fold button').toBe(false)
+    expect(wrapper.find('[data-testid="nav-bar"]').exists(), 'no bottom bar').toBe(false)
 
-    expect(localStorage.getItem(NAV_COLLAPSED_STORAGE_KEY)).toBe('true')
-    expect(toggle.attributes('aria-label')).toBe('Navigation ausklappen')
-    expect(toggle.attributes('aria-expanded')).toBe('false')
+    wrapper.unmount()
+  })
+
+  it('shows a collapsed rail with the five primary destinations and More on medium windows', async () => {
+    vi.stubGlobal('matchMedia', fakeMatchMedia({ value: 700 }).matchMedia)
+
+    const wrapper = await mountApp('/')
+
     expect(wrapper.get('nav').classes(), 'rail width').toContain('w-20')
+    expect(wrapper.findAll('nav a').map((a) => a.text())).toEqual(['Posteingang', 'Fälle', 'Einsprüche', 'Meldungen', 'Spielersuche'])
+    expect(wrapper.get('[data-testid="nav-more"]').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('[data-testid="nav-bar"]').exists(), 'no bottom bar').toBe(false)
 
     wrapper.unmount()
   })
 
-  it('starts as a rail when the viewer collapsed the navigation before', async () => {
-    localStorage.setItem(NAV_COLLAPSED_STORAGE_KEY, 'true')
-
+  it('opens the modal rail with every group from More on medium windows and closes it on navigation', async () => {
+    vi.stubGlobal('matchMedia', fakeMatchMedia({ value: 700 }).matchMedia)
     const wrapper = await mountApp('/')
 
-    expect(wrapper.get('nav').classes()).toContain('w-20')
-
-    wrapper.unmount()
-  })
-
-  it('works when localStorage throws', async () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new DOMException('blocked', 'SecurityError')
-    })
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new DOMException('blocked', 'SecurityError')
-    })
-    const wrapper = await mountApp('/')
-
-    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
-
-    expect(wrapper.get('nav').classes(), 'collapsed for this page').toContain('w-20')
-
-    wrapper.unmount()
-    vi.restoreAllMocks()
-  })
-
-  it('shows a rail without toggle on medium windows', async () => {
-    vi.stubGlobal('matchMedia', fakeMatchMedia({ value: 900 }).matchMedia)
-
-    const wrapper = await mountApp('/')
-
-    expect(wrapper.get('nav').classes()).toContain('w-20')
-    expect(wrapper.find('[data-testid="nav-toggle"]').exists(), 'toggle').toBe(false)
-
-    wrapper.unmount()
-  })
-
-  it('opens a modal drawer from the menu button on compact windows and closes it on navigation', async () => {
-    vi.stubGlobal('matchMedia', fakeMatchMedia({ value: 500 }).matchMedia)
-    const wrapper = await mountApp('/')
-    expect(wrapper.find('nav').exists(), 'closed at first').toBe(false)
-
-    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
-    expect(wrapper.get('[data-testid="nav-toggle"]').attributes('aria-expanded')).toBe('true')
+    await wrapper.get('[data-testid="nav-more"]').trigger('click')
+    expect(wrapper.get('[data-testid="nav-more"]').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.findAll('nav [role="group"]'), 'every group').toHaveLength(4)
     await wrapper.findAll('nav a').find((a) => a.text() === 'Spielersuche')!.trigger('click')
     await flushPromises()
 
-    expect(wrapper.find('nav').exists(), 'closed after navigating').toBe(false)
+    expect(wrapper.findAll('nav a').map((a) => a.text()), 'back to the rail').toEqual(['Posteingang', 'Fälle', 'Einsprüche', 'Meldungen', 'Spielersuche'])
     expect(wrapper.get('h1').text()).toBe('Spielersuche')
 
     wrapper.unmount()
   })
 
-  it('closes the modal drawer with Escape and with the scrim', async () => {
+  it('shows a bottom bar with Inbox, Cases, Appeals, Reports and More on compact windows, and no side rail', async () => {
     vi.stubGlobal('matchMedia', fakeMatchMedia({ value: 500 }).matchMedia)
+
     const wrapper = await mountApp('/')
 
-    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
-    await wrapper.get('nav').trigger('keydown', { key: 'Escape' })
-    expect(wrapper.find('nav').exists(), 'after Escape').toBe(false)
+    const bar = wrapper.get('[data-testid="nav-bar"]')
+    expect(bar.findAll('a').map((a) => a.text())).toEqual(['Posteingang', 'Fälle', 'Einsprüche', 'Meldungen'])
+    expect(bar.get('[data-testid="nav-more"]').text()).toBe('Mehr')
+    expect(wrapper.findAll('nav [role="group"]'), 'no side rail').toHaveLength(0)
+    expect(wrapper.get('main').classes(), 'clears the bar').toContain('pb-24')
 
-    await wrapper.get('[data-testid="nav-toggle"]').trigger('click')
+    wrapper.unmount()
+  })
+
+  it('opens every destination from More on compact windows and closes it with Escape and with the scrim', async () => {
+    vi.stubGlobal('matchMedia', fakeMatchMedia({ value: 500 }).matchMedia)
+    const wrapper = await mountApp('/')
+    expect(wrapper.find('nav [role="group"]').exists(), 'closed at first').toBe(false)
+
+    await wrapper.get('[data-testid="nav-more"]').trigger('click')
+    expect(wrapper.findAll('nav [role="group"]'), 'every group').toHaveLength(4)
+    await wrapper.get('nav[aria-modal="true"]').trigger('keydown', { key: 'Escape' })
+    expect(wrapper.find('nav [role="group"]').exists(), 'after Escape').toBe(false)
+
+    await wrapper.get('[data-testid="nav-more"]').trigger('click')
     await wrapper.get('[data-testid="nav-scrim"]').trigger('click')
-    expect(wrapper.find('nav').exists(), 'after the scrim').toBe(false)
+    expect(wrapper.find('nav [role="group"]').exists(), 'after the scrim').toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('opens the shortcut list from the top bar, and lists the chords', async () => {
+    const wrapper = await mountApp('/')
+    expect(wrapper.find('[role="dialog"]').exists(), 'closed at first').toBe(false)
+
+    await wrapper.get('[data-testid="shortcuts-help"]').trigger('click')
+
+    const keys = wrapper.get('[role="dialog"]').findAll('dt').map((term) => term.findAll('kbd').map((key) => key.text()).join(' '))
+    expect(keys).toEqual(['g i', 'g c', 'g a', 'g r', 'g p', '?'])
+
+    wrapper.unmount()
+  })
+
+  it('moves to the cases with the chord g c, and ignores the same keys typed into the search', async () => {
+    const wrapper = await mountApp('/')
+
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', bubbles: true }))
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', bubbles: true }))
+    await flushPromises()
+    expect(wrapper.get('h1').text(), 'chord').toBe('Fälle')
+
+    const search = wrapper.get('[data-testid="global-search"]').element as HTMLInputElement
+    search.focus()
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', bubbles: true }))
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', bubbles: true }))
+    await flushPromises()
+    expect(wrapper.get('h1').text(), 'typed in the field').toBe('Fälle')
 
     wrapper.unmount()
   })
