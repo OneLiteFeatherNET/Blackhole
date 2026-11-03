@@ -73,7 +73,7 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     // JSON Schema 2020-12 validation of integration detection payloads (openspec add-integration-evidence, decision 5).
     // Apache-2.0, uploaded to Maven Central on 2026-10-02; Jackson 2 like the rest of the backend.
-    implementation("com.networknt:json-schema-validator:2.0.8")
+    implementation("com.networknt:json-schema-validator:3.0.0")
     implementation(libs.awssdk.s3) {
         exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
     }
