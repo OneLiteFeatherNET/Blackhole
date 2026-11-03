@@ -167,6 +167,19 @@ export const routes: RouteRecordRaw[] = [
   { path: '/admin/cloudnet', name: 'admin-cloudnet', component: AdminView, meta: { titleKey: 'nav.cloudnet', admin: true, pageShell: true, adminTab: 'cloudnet', workspace: 'administration' } },
   { path: '/admin/kick', name: 'admin-kick', component: AdminView, meta: { titleKey: 'nav.kick', admin: true, pageShell: true, adminTab: 'kick', workspace: 'administration' } },
   { path: '/admin/audit', name: 'admin-audit', component: AdminView, meta: { titleKey: 'nav.audit', admin: true, pageShell: true, adminTab: 'audit', workspace: 'administration' } },
+  // Entries and dialogs of the system pages (`restructure-staff-panel`, decisions 3 and 7). Each is a route of its page:
+  // the page stays rendered, a dialog renders over it, and a state change is a child route that sends nothing on mount.
+  // `nav` keeps the rail item of the page current on these addresses (as the detail pages of the workspace do).
+  { path: '/admin/rollback/new', name: 'admin-rollback-new', component: AdminView, meta: { titleKey: 'nav.rollback', nav: '/admin/rollback', admin: true, pageShell: true, adminTab: 'rollback', workspace: 'administration' } },
+  { path: '/admin/rollback/:id', name: 'admin-rollback-job', component: AdminView, meta: { titleKey: 'nav.rollback', nav: '/admin/rollback', admin: true, pageShell: true, adminTab: 'rollback', workspace: 'administration' } },
+  { path: '/admin/rollback/:id/execute', name: 'admin-rollback-execute', component: AdminView, meta: { titleKey: 'nav.rollback', nav: '/admin/rollback', admin: true, pageShell: true, adminTab: 'rollback', workspace: 'administration' } },
+  { path: '/admin/rollback/:id/cancel', name: 'admin-rollback-cancel', component: AdminView, meta: { titleKey: 'nav.rollback', nav: '/admin/rollback', admin: true, pageShell: true, adminTab: 'rollback', workspace: 'administration' } },
+  { path: '/admin/kick/new', name: 'admin-kick-new', component: AdminView, meta: { titleKey: 'nav.kick', nav: '/admin/kick', admin: true, pageShell: true, adminTab: 'kick', workspace: 'administration' } },
+  { path: '/admin/kick/:id', name: 'admin-kick-detail', component: AdminView, meta: { titleKey: 'nav.kick', nav: '/admin/kick', admin: true, pageShell: true, adminTab: 'kick', workspace: 'administration' } },
+  { path: '/admin/imports/vanilla/new', name: 'admin-imports-vanilla-new', component: AdminView, meta: { titleKey: 'nav.imports', nav: '/admin/imports', admin: true, pageShell: true, adminTab: 'imports', workspace: 'administration' } },
+  { path: '/admin/audit/:auditId', name: 'admin-audit-entry', component: AdminView, meta: { titleKey: 'nav.audit', nav: '/admin/audit', admin: true, pageShell: true, adminTab: 'audit', workspace: 'administration' } },
+  // `kind` is the catalogue's own name for the list (tasks, groups, services, proxies); `key` is the entry's name in it.
+  { path: '/admin/cloudnet/:kind/:key', name: 'admin-cloudnet-entry', component: AdminView, meta: { titleKey: 'nav.cloudnet', nav: '/admin/cloudnet', admin: true, pageShell: true, adminTab: 'cloudnet', workspace: 'administration' } },
 
   // Former URLs of the single rail.
   { path: '/templates', redirect: keepQuery('/admin/templates') },

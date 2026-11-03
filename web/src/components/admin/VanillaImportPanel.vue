@@ -17,6 +17,9 @@ type ReasonGroup = VanillaImportResult['reasonGroups'][number]
 // with an explanation instead of failing later with a bare 413.
 const MAX_BYTES = 1024 * 1024
 
+// `embedded`: the form sits in the routed dialog of `/admin/imports/vanilla/new`, which has its own heading.
+const props = withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
+
 const { t } = useI18n()
 const api = useApi()
 
@@ -107,9 +110,11 @@ async function run(dryRun: boolean): Promise<void> {
 </script>
 
 <template>
-  <section aria-labelledby="vanilla-import-title" class="flex flex-col gap-4" data-testid="vanilla-import">
-    <h2 id="vanilla-import-title" class="text-title-medium">{{ t('vanillaImport.title') }}</h2>
-    <p class="text-body-large text-on-surface-variant">{{ t('vanillaImport.intro') }}</p>
+  <section :aria-labelledby="props.embedded ? undefined : 'vanilla-import-title'" class="flex flex-col gap-4" data-testid="vanilla-import">
+    <template v-if="!props.embedded">
+      <h2 id="vanilla-import-title" class="text-title-medium">{{ t('vanillaImport.title') }}</h2>
+      <p class="text-body-large text-on-surface-variant">{{ t('vanillaImport.intro') }}</p>
+    </template>
 
     <p v-if="templates.error.value" role="alert" data-testid="templates-problem" class="rounded-md-md bg-error-container p-3 text-on-error-container">{{ templates.error.value.message }}</p>
     <div class="flex flex-col gap-1" data-testid="template-picker">

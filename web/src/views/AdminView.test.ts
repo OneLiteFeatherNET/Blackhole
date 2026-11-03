@@ -30,13 +30,49 @@ describe('AdminView system pages', () => {
     wrapper.unmount()
   })
 
-  it('shows the import panels on the imports page only', async () => {
+  it('shows the imports page at /admin/imports with the vanilla import as its first tab', async () => {
     const { wrapper } = await mountWithApp(AdminView, { api: mockApi(adminApi()), roles: ['ADMIN'], path: '/admin/imports' })
 
     expect(wrapper.get('h1').text()).toBe('Imports')
-    expect(wrapper.find('[data-testid="vanilla-import"]').exists(), 'import panel').toBe(true)
-    expect(wrapper.find('[data-testid="imported-punishments"]').exists(), 'imported punishments panel').toBe(true)
+    expect(wrapper.find('[data-testid="admin-imports"]').exists(), 'imports page').toBe(true)
+    expect(wrapper.find('[data-testid="imported-punishments"]').exists(), 'no groups on the first tab').toBe(false)
     expect(wrapper.find('[data-testid="staff-actors"]').exists(), 'no staff panel').toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('shows the imported punishments on their own tab', async () => {
+    const { wrapper } = await mountWithApp(AdminView, { api: mockApi(adminApi()), roles: ['ADMIN'], path: '/admin/imports?tab=punishments' })
+
+    expect(wrapper.find('[data-testid="imported-punishments"]').exists(), 'imported punishments panel').toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('shows one CloudNet entry at its own address and not the catalogue', async () => {
+    const { wrapper } = await mountWithApp(AdminView, { api: mockApi(adminApi()), roles: ['ADMIN'], path: '/admin/cloudnet/tasks/BedWars' })
+
+    expect(wrapper.get('h1').text()).toBe('CloudNet')
+    expect(wrapper.find('[data-testid="cloudnet-entry"]').exists(), 'entry').toBe(true)
+    expect(wrapper.find('[data-testid="cloudnet-catalogue"]').exists(), 'no catalogue').toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('shows the mass-kick dialog over the kick page at /admin/kick/new', async () => {
+    const { wrapper } = await mountWithApp(AdminView, { api: mockApi(adminApi()), roles: ['ADMIN'], path: '/admin/kick/new' })
+
+    expect(wrapper.get('h1').text()).toBe('Mass kick')
+    expect(wrapper.find('[data-testid="mass-kick"]').exists(), 'mass kick form').toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('shows the rollback preview dialog over the rollback page at /admin/rollback/new', async () => {
+    const { wrapper } = await mountWithApp(AdminView, { api: mockApi(adminApi()), roles: ['ADMIN'], path: '/admin/rollback/new' })
+
+    expect(wrapper.get('h1').text()).toBe('Staff rollback')
+    expect(wrapper.find('[data-testid="rollback-new-form"]').exists(), 'preview form').toBe(true)
 
     wrapper.unmount()
   })
