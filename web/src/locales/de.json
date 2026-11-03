@@ -32,6 +32,10 @@
       "intro": "Außerhalb von Textfeldern drückst du g und dann einen Buchstaben, um eine Seite zu öffnen. Mit ? wird diese Liste angezeigt.",
       "help": "Diese Liste anzeigen",
       "then": "dann",
+      "nextRow": "Nächste Zeile in einer Liste",
+      "previousRow": "Vorherige Zeile in einer Liste",
+      "openRow": "Ausgewählte Zeile öffnen",
+      "closeRow": "Geöffneten Eintrag schließen",
       "close": "Schließen"
     },
     "brand": "Blackhole",
@@ -472,6 +476,7 @@
     "empty": "Keine offenen Meldungen.",
     "showAll": "Alle Meldungen anzeigen",
     "noneYet": "Noch keine Meldungen.",
+    "selectHint": "Wähle eine Meldung aus, um sie hier zu sehen.",
     "resolved": "Meldung bearbeitet.",
     "columns": {
       "when": "Eingegangen",
@@ -920,6 +925,8 @@
   },
   "vanillaImport": {
     "title": "Vanilla-Bans importieren",
+    "tabsLabel": "Importart",
+    "newLink": "Neuer Vanilla-Import",
     "intro": "Übernimmt die Sperren eines Vanilla-Servers in Blackhole. Jede importierte Sperre wird mit einer Strafvorlage verknüpft, sodass Spieler den Grund der Vorlage in ihrer Sprache sehen. Importierte Sperren werden wie jede andere Strafe durchgesetzt und kosten kein ELO. Nutze zuerst die Vorschau: Sie ändert nichts.",
     "playersFile": "banned-players.json (Datei)",
     "paste": "oder den Inhalt von banned-players.json einfügen",
@@ -1006,6 +1013,19 @@
     "none": "keine",
     "running": "Läuft",
     "stopped": "Gestoppt",
+    "tabsLabel": "Ansicht",
+    "tabs": {
+      "catalogue": "Tasks, Gruppen und Dienste",
+      "proxies": "Meldende Proxys"
+    },
+    "kinds": {
+      "tasks": "Task",
+      "groups": "Gruppe",
+      "services": "Dienst",
+      "proxies": "Proxy",
+      "unknown": "CloudNet-Eintrag"
+    },
+    "entryMissing": "Kein CloudNet-Eintrag mit diesem Namen. Die Proxys melden ihn womöglich nicht mehr.",
     "columns": {
       "task": "Task",
       "groups": "Gruppen",
@@ -1288,6 +1308,7 @@
         "player": "Spieler"
       },
       "noneYet": "Noch keine Fälle.",
+      "selectHint": "Wähle einen Fall aus, um ihn hier zu sehen.",
       "view": "Ansicht",
       "viewCases": "Alle Fälle",
       "viewPlayer": "Nach Spieler",
@@ -1636,6 +1657,9 @@
     }
   },
   "appealConditions": {
+    "newVersion": "Neue Version",
+    "openVersion": "Version {version} öffnen",
+    "versionTitle": "Einspruchsbedingungen, Version {version}",
     "title": "Einspruchsbedingungen",
     "intro": "Spieler lesen diese Bedingungen und bestätigen sie, bevor sie einen Einspruch einreichen. Jedes Speichern erzeugt eine neue Version; frühere Versionen bleiben erhalten.",
     "current": "Aktuelle Version {version}",
@@ -1654,6 +1678,11 @@
     "noneYet": "Noch keine protokollierten Aktionen.",
     "noMatches": "Kein Eintrag passt zu diesen Filtern.",
     "loadMore": "Weitere laden",
+    "nextPage": "Nächste Seite",
+    "firstPage": "Erste Seite",
+    "entryLoading": "Der Eintrag wird geladen …",
+    "entryMissing": "Kein Audit-Eintrag mit dieser ID.",
+    "entryFailed": "Der Eintrag konnte nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
     "details": "Details",
     "filters": {
       "action": "Aktion",
@@ -1701,6 +1730,11 @@
     }
   },
   "clientRules": {
+    "tab": {
+      "details": "Details",
+      "hits": "Treffer"
+    },
+    "tabs": "Ansichten der Regel",
     "title": "Client-Regeln",
     "intro": "Regeln über Client-Brand, Mods, Plugin-Kanäle, Protokollversion und Befehle. Der Proxy wendet sie an; jede Regel kann das Team benachrichtigen, die Verbindung oder den Befehl abweisen oder eine Strafvorlage anwenden.",
     "honesty": "Brand, Mods und Kanäle wählt der Client selbst und kann sie fälschen: Ein Treffer ist ein Hinweis, kein Beweis, und kein Treffer beweist nichts. Regeln darauf sind Abschreckung und ein Hinweis für das Team. Beginne jede Regel mit Hinweis, lies die Trefferzahlen und stelle sie erst dann auf Abweisen oder Strafe. Nur Protokollversion und Befehle beobachtet der Proxy selbst.",
@@ -1973,7 +2007,18 @@
       "confirmLabel": "Zur Bestätigung den Namen des Ziels eintippen",
       "confirmHint": "\"{target}\" genau eintippen.",
       "submit": "Alle kicken",
-      "result": "Status: {status}. Von {count} Proxys zugestellt."
+      "result": "Status: {status}. Von {count} Proxys zugestellt.",
+      "newLink": "Neuer Massen-Kick",
+      "openKick": "Diesen Kick öffnen"
+    },
+    "detail": {
+      "title": "Kick",
+      "loading": "Der Kick wird geladen …",
+      "notFound": "Kein Kick mit dieser ID.",
+      "target": "Ziel",
+      "by": "Teammitglied",
+      "when": "Gesendet am",
+      "delivered": "Proxys, die ihn zugestellt haben"
     }
   },
   "intel": {
@@ -2094,6 +2139,7 @@
     },
     "options": {
       "marks": "{count} Kicks als zurückgerollt markieren",
+      "marksAll": "Die Kicks im Zeitraum als zurückgerollt markieren",
       "marksHint": "Nur ein Vermerk im Verlauf. Kicks werden nie aufgehoben, am ELO ändert sich nichts.",
       "suspend": "Minecraft-Verknüpfung dieses Teammitglieds entfernen",
       "suspendHint": "Geschieht vor der ersten Aufhebung. Die Person kann sich später erneut verknüpfen."
@@ -2130,7 +2176,23 @@
       "selectorInvalid": "Das kann nicht zurückgerollt werden. Wählen Sie ein Teammitglied oder einen nicht verknüpften Spielaccount.",
       "tooLarge": "Zu viele Strafen passen. Engen Sie den Zeitraum ein und prüfen Sie erneut."
     },
-    "noStaff": "Noch keine Teammitglieder bekannt."
+    "noStaff": "Noch keine Teammitglieder bekannt.",
+    "new": {
+      "title": "Neuer Rollback"
+    },
+    "jobs": {
+      "title": "Rollback-Auftrag",
+      "newLink": "Neuer Rollback",
+      "open": "Rollback öffnen",
+      "previewReady": "Die Vorschau ist fertig. Noch hat sich nichts geändert.",
+      "pending": "{count} Strafen sind für diesen Rollback festgehalten. Erst mit dem Start wird etwas zurückgenommen.",
+      "execute": "Rollback starten …",
+      "executeTitle": "Diesen Rollback starten?",
+      "cancelTitle": "Diesen Rollback abbrechen?",
+      "cancelBody": "Ein Rollback, der nicht gestartet wurde, ändert nichts. Ein laufender Rollback hält vor dem nächsten Eintrag an; bereits zurückgenommene Einträge bleiben zurückgenommen.",
+      "alreadyEnded": "Dieser Rollback ist schon beendet und kann nicht mehr abgebrochen werden.",
+      "notFound": "Kein Rollback mit dieser ID."
+    }
   },
   "exemption": {
     "badge": {
@@ -2395,7 +2457,12 @@
     "copied": "Link in die Zwischenablage kopiert.",
     "failed": "Der Link konnte nicht kopiert werden. Kopiere ihn aus der Adresszeile."
   },
+  "configDetail": {
+    "notFound": "Dieser Eintrag existiert nicht oder wurde entfernt.",
+    "backToList": "Zurück zur Liste"
+  },
   "routedDialog": {
+    "notFoundTitle": "Nicht gefunden",
     "close": "Schließen",
     "notFound": "Dieser Eintrag existiert nicht oder wurde entfernt.",
     "backToPage": "Zurück zur Seite",

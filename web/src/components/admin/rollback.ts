@@ -50,6 +50,8 @@ export interface RollbackPollOptions {
   onProgress: (progress: RollbackProgress) => void
   /** A failed read ends the poll; the screen offers to start it again. */
   onError: (error: ApiError) => void
+  /** Ends the poll after a read whose state is this one. Default: the job will change no more ({@link isFinished}). */
+  stopWhen?: (state: string) => boolean
 }
 
 /**
@@ -69,7 +71,7 @@ export function pollRollback(options: RollbackPollOptions): () => void {
       return
     }
     options.onProgress(result.data)
-    if (isFinished(result.data.state)) {
+    if (options.stopWhen ? options.stopWhen(result.data.state) : isFinished(result.data.state)) {
       stopped = true
       return
     }

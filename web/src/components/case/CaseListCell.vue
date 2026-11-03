@@ -3,7 +3,7 @@
 // way. The column decides what is shown; the row is one case of the list. Pill tones come from caseTones.ts, the same
 // map the case bar uses.
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { formatDateTime } from '../../format'
 import type { CaseListItem } from '../../api/types'
 import type { DataColumn } from '../DataTable.vue'
@@ -13,12 +13,14 @@ import { CASE_STATUS_TONE, PRIORITY_TONE, punishmentStateTone } from './caseTone
 defineProps<{ row: CaseListItem; column: DataColumn<CaseListItem> }>()
 
 const { t, locale } = useI18n()
+// The case opens with the list query kept, so Back returns to the same filtered list.
+const route = useRoute()
 </script>
 
 <template>
   <RouterLink
     v-if="column.key === 'shortId'"
-    :to="{ name: 'case', params: { reference: row.punishmentIdentifier } }"
+    :to="{ name: 'case', params: { reference: row.punishmentIdentifier }, query: route.query }"
     class="text-primary underline underline-offset-2 focus-ring"
   >
     {{ row.shortId }}
