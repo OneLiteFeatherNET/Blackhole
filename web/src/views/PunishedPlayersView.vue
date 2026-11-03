@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { type LocationQuery, RouterLink, useRoute, useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
+import { LIST_QUERY } from '../router/listQuery'
+import { useListState } from '../router/useListState'
 import { useApi } from '../api/inject'
 import type { ActivePunishment, ActivePunishmentQuery, EnforcementKind } from '../api/types'
 import DataTable, { type DataColumn } from '../components/DataTable.vue'
@@ -45,40 +47,17 @@ const { t, locale } = useI18n()
 const api = useApi()
 const session = useSessionStore()
 const lookup = useLookupStore()
-const route = useRoute()
-const router = useRouter()
 
-// The route query holds the same values, so a reload or Back returns to the same filtered list. Anything the query
-// cannot hold is ignored.
-function fromQuery(query: LocationQuery): Record<string, string> {
-  const pick = <T extends string>(value: unknown, allowed: readonly T[]): string =>
-    typeof value === 'string' && (allowed as readonly string[]).includes(value) ? value : ''
-  return {
-    q: typeof query.q === 'string' ? query.q.slice(0, 64) : '',
-    kind: pick(query.kind, KINDS),
-    section: typeof query.section === 'string' ? query.section : '',
-    term: pick(query.term, TERMS),
-    source: pick(query.source, SOURCES),
-    mine: query.mine === '1' ? 'mine' : '',
-    sort: pick(query.sort, SORT_VALUES),
-  }
+// The list's state is its address (`LIST_QUERY.punished`): the search, the server filters, the sort and the page. A
+// reload or Back returns to the same list, and nothing is kept in storage. The search runs on the loaded page, so it
+// does not start again at the first page.
+const LIST = LIST_QUERY.punished!
+const values = useListState(LIST, ['q'])
+const page = computed(() => Number(values.value.page || 0))
+
+function goToPage(index: number): void {
+  values.value = { ...values.value, page: index > 0 ? String(index) : '' }
 }
-
-function toQuery(filters: Record<string, string>): LocationQuery {
-  const query: LocationQuery = { ...route.query }
-  for (const key of FILTER_KEYS) delete query[key]
-  for (const key of FILTER_KEYS) {
-    if (key === 'mine') {
-      if (filters.mine) query.mine = '1'
-    } else if (filters[key]) {
-      query[key] = filters[key]
-    }
-  }
-  return query
-}
-
-const values = ref<Record<string, string>>(fromQuery(route.query))
-const page = ref(0)
 
 const serverFiltered = computed(() => API_FILTERS.some((key) => values.value[key] !== ''))
 
@@ -101,23 +80,11 @@ function query(): ActivePunishmentQuery {
 const punished = useResource(() => api.activePunishments(query()))
 const sections = useResource(() => api.sections())
 
-// A change of a server filter starts again at the first page. A search or the query alone does not send a request.
-watch(values, (next, previous) => {
-  if (API_FILTERS.some((key) => next[key] !== previous?.[key])) {
-    if (page.value === 0) void punished.reload()
-    else page.value = 0
-  }
-  void router.replace({ query: toQuery(next) })
-})
-watch(page, () => void punished.reload())
-
-// Back and forward change the query; the filters follow it.
+// A change of a server filter or of the page reads the list again, once for both. A search sends nothing: it runs on
+// the loaded page.
 watch(
-  () => route.query,
-  (query) => {
-    const next = fromQuery(query)
-    if (FILTER_KEYS.some((key) => next[key] !== values.value[key])) values.value = next
-  },
+  () => JSON.stringify([API_FILTERS.map((key) => values.value[key]), page.value]),
+  () => void punished.reload(),
 )
 
 function clearFilters(): void {
@@ -160,7 +127,7 @@ const filters = computed<FilterDef[]>(() => [
     label: t('punished.source.label'),
     options: SOURCES.map((value) => ({ value, label: t(`punished.source.${value}`), testid: `source-${value}` })),
   },
-  { kind: 'toggle-group', id: 'mine', label: t('punished.mine'), options: [{ value: 'mine', label: t('punished.mine'), testid: 'filter-mine' }] },
+  { kind: 'toggle-group', id: 'mine', label: t('punished.mine'), options: [{ value: '1', label: t('punished.mine'), testid: 'filter-mine' }] },
 ])
 
 /**
@@ -297,9 +264,9 @@ function remaining(expiresAt: number): string {
         </EmptyState>
 
         <nav v-if="punished.data.value.totalPages > 1" class="flex items-center gap-2" :aria-label="t('punished.paging')">
-          <MdButton variant="text" :disabled="page === 0" data-testid="prev" @click="page--">{{ t('evidence.paging.previous') }}</MdButton>
+          <MdButton variant="text" :disabled="page === 0" data-testid="prev" @click="goToPage(page - 1)">{{ t('evidence.paging.previous') }}</MdButton>
           <span class="text-body-medium" aria-live="polite">{{ t('evidence.paging.position', { page: page + 1, total: punished.data.value.totalPages }) }}</span>
-          <MdButton variant="text" :disabled="page + 1 >= punished.data.value.totalPages" data-testid="next" @click="page++">{{ t('evidence.paging.next') }}</MdButton>
+          <MdButton variant="text" :disabled="page + 1 >= punished.data.value.totalPages" data-testid="next" @click="goToPage(page + 1)">{{ t('evidence.paging.next') }}</MdButton>
         </nav>
       </template>
     </ResourceState>

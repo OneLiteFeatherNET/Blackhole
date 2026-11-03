@@ -29,7 +29,8 @@ const choices = ref<NameHistoryOwner[]>([])
 
 async function openPlayer(owner: string, currentName: string): Promise<void> {
   lookup.remember(owner, currentName)
-  await router.push(`/players/${owner}`)
+  // The owner address replaces the lookup, so Back does not return to a page that shows the typed name.
+  await router.replace(`/players/${owner}`)
 }
 
 async function submit(): Promise<void> {

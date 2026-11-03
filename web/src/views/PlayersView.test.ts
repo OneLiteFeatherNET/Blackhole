@@ -37,6 +37,20 @@ describe('PlayersView', () => {
     wrapper.unmount()
   })
 
+  it('replaces the lookup address with the owner address, so Back does not return to the typed name', async () => {
+    const resolvePlayer = vi.fn(async () => ok(STEVE))
+    const { wrapper, router } = await mountWithApp(PlayersView, { path: '/players', api: mockApi({ resolvePlayer }) })
+    const replace = vi.spyOn(router, 'replace')
+    const push = vi.spyOn(router, 'push')
+
+    await search(wrapper, 'Steve')
+
+    expect(replace).toHaveBeenCalledWith(`/players/${OWNER}`)
+    expect(push, 'a new history entry').not.toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
+
   it('shows a not-found message and stays on the page for an unknown player', async () => {
     const resolvePlayer = vi.fn(async () => fail('No resolver found a player named Nobody', 404, 'NOT_FOUND'))
     const findNameOwners = vi.fn(async () => ok([]))

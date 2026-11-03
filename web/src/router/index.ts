@@ -2,6 +2,7 @@ import {
   createRouter,
   createWebHistory,
   type RouteLocationGeneric,
+  type RouteLocationNormalized,
   type RouteLocationRaw,
   type RouteRecordRaw,
   type RouterHistory,
@@ -37,6 +38,7 @@ import SectionsView from '../views/SectionsView.vue'
 import TemplatesView from '../views/TemplatesView.vue'
 import LeaveView from '../views/LeaveView.vue'
 import { exemptionRouteTable } from './exemptionRouteTable'
+import { LEGACY_LIST_QUERY, LIST_QUERY, cleanListQuery, renameLegacyQuery, type ListParams } from './listQuery'
 
 /*
  * Two workspaces (`meta.workspace`): Moderation keeps its URLs; Administration lives under /admin (ADMIN only, `meta.admin`).
@@ -178,6 +180,11 @@ export const routes: RouteRecordRaw[] = [
   { path: '/sections', redirect: keepQuery('/admin/sections') },
   { path: '/client-rules', redirect: keepQuery('/admin/client-rules') },
   { path: '/appeal-conditions', redirect: keepQuery('/admin/appeal-terms') },
+  // The case timeline is the notes and audit tab of the case; its events are addressed by `#event-<id>`.
+  {
+    path: '/cases/:reference/timeline',
+    redirect: (to) => ({ name: 'case', params: { reference: String(to.params.reference) }, query: { ...to.query, tab: 'notes-audit' }, hash: to.hash }),
+  },
 
   { path: '/no-access', name: 'no-access', component: NoAccessView, meta: { titleKey: 'auth.noAccess.title' } },
   { path: '/auth/callback', name: 'auth-callback', component: AuthCallbackView, meta: { public: true, titleKey: 'auth.signingIn' } },
@@ -188,8 +195,26 @@ export const routes: RouteRecordRaw[] = [
   { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView, meta: { titleKey: 'notFound.heading' } },
 ]
 
+/**
+ * The list state of an address (`listQuery.ts`): an old parameter name moves to its new one, and an unknown value is
+ * removed by a replacement, so the page never shows an error for a link that was edited or came from an older version.
+ * Parameters that are not the list's own are left as they are.
+ */
+export function listQueryRedirect(to: RouteLocationNormalized): RouteLocationRaw | undefined {
+  const name = typeof to.name === 'string' ? to.name : undefined
+  if (!name) return undefined
+  const renamed = renameLegacyQuery(to.query, LEGACY_LIST_QUERY[name] ?? [])
+  const current = renamed ?? to.query
+  const params: ListParams | undefined = LIST_QUERY[name]
+  const cleaned = params ? cleanListQuery(current, params) : undefined
+  if (renamed === undefined && cleaned === undefined) return undefined
+  return { path: to.path, query: cleaned ?? renamed, hash: to.hash }
+}
+
 export function createAppRouter(history: RouterHistory = createWebHistory()) {
-  return createRouter({ history, routes })
+  const router = createRouter({ history, routes })
+  router.beforeEach((to) => listQueryRedirect(to))
+  return router
 }
 
 export default createAppRouter()
