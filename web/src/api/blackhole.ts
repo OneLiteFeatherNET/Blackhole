@@ -38,6 +38,7 @@ import type {
   CaseProtocolText,
   TranscriptFile,
   ApplyPreview,
+  AuditEntry,
   AuditPage,
   AuditQuery,
   Appeal,
@@ -196,6 +197,8 @@ export interface BlackholeApi {
   reportsAgainst(reportedHash: string): Promise<ApiResult<Report[]>>
   /** All appeals, newest first. */
   appeals(): Promise<ApiResult<Appeal[]>>
+  /** One appeal; NOT_FOUND if there is none. Holds no Ban ID and no raw player UUID. */
+  appeal(identifier: string): Promise<ApiResult<Appeal>>
   reviewAppeal(identifier: string, decision: AppealDecision): Promise<ApiResult<Appeal>>
   /** What applying the template would do right now; changes nothing. */
   previewApply(owner: string, templateKey: string): Promise<ApiResult<ApplyPreview>>
@@ -255,6 +258,14 @@ export interface BlackholeApi {
   appealConditions(): Promise<ApiResult<AppealConditions>>
   /** Every version of the appeal conditions, newest first. */
   appealConditionVersions(): Promise<ApiResult<AppealConditions[]>>
+  /** One version of the appeal conditions by its number (any team role). */
+  appealConditionVersion(version: number): Promise<ApiResult<AppealConditions>>
+  /** One template by its identifier, for its own address. */
+  template(identifier: string): Promise<ApiResult<Template>>
+  /** One section by its key, for its own address. */
+  section(key: string): Promise<ApiResult<Section>>
+  /** One client rule by its key, for its own address. */
+  clientRule(key: string): Promise<ApiResult<ClientRule>>
   /** Saves the text as a new version (ADMIN); a version is never overwritten. */
   saveAppealConditions(text: string): Promise<ApiResult<AppealConditions>>
   /** Whether the caller has a linked Minecraft account. */
@@ -281,6 +292,8 @@ export interface BlackholeApi {
   anonymizeStaffActor(oid: string): Promise<ApiResult<void>>
   /** The staff audit log, newest first, one cursor page (ADMIN only). Read only. */
   auditLog(query?: AuditQuery): Promise<ApiResult<AuditPage>>
+  /** One audit entry by its audit id, the fields of the list item (ADMIN only). Read only; NOT_FOUND when there is none. */
+  auditEntry(auditId: string): Promise<ApiResult<AuditEntry>>
   /**
    * Imports a vanilla `banned-players.json` (and optionally `banned-ips.json`), or with `dryRun`
    * only reports what would happen (ADMIN only). Invalid entries are reported, not fatal.
@@ -597,6 +610,10 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       return map(events, (all) => [...all].sort((a, b) => b.createdAt - a.createdAt))
     },
 
+    async template(identifier) {
+      return map(await toResult(http.GET('/template/{identifier}', { params: { path: { identifier } } })), (template) => ({ ...template, steps: template.steps ?? [] }))
+    },
+
     async templates() {
       const templates = await collectPages<Template>((page) =>
         toResult(http.GET('/template', { params: { query: { pageable: NO_PAGEABLE } }, querySerializer: pageQuery(page) })),
@@ -611,6 +628,10 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     deleteTemplate: (identifier) =>
       toResult(http.DELETE('/template/delete/{identifier}', { params: { path: { identifier } } })),
+
+    async section(key) {
+      return map(await toResult(http.GET('/section/{key}', { params: { path: { key } } })), (section) => ({ ...section, servers: section.servers ?? [] }))
+    },
 
     async sections() {
       const result = await toResult(http.GET('/section'))
@@ -670,6 +691,10 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     liftAreaBan: (identifier, reason) =>
       toResult(http.POST('/area-bans/{id}/lift', { params: { path: { id: identifier } }, body: { reason: reason.trim() } })),
+
+    async clientRule(key) {
+      return map(await toResult(http.GET('/client-rule/{key}', { params: { path: { key } } })), withLists)
+    },
 
     async clientRules() {
       const result = await toResult(http.GET('/client-rule'))
@@ -773,6 +798,8 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       )
       return map(appeals, (all) => [...all].sort((a, b) => b.createdAt - a.createdAt))
     },
+
+    appeal: (identifier) => toResult(http.GET('/appeal/{identifier}', { params: { path: { identifier } } })),
 
     reviewAppeal: (identifier, decision) =>
       toResult(
@@ -939,6 +966,8 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     appealConditions: () => toResult(http.GET('/appeal-conditions')),
     appealConditionVersions: async () => map(await toResult(http.GET('/appeal-conditions/versions')), (all) => all ?? []),
+    appealConditionVersion: (version) =>
+      toResult(http.GET('/appeal-conditions/versions/{version}', { params: { path: { version } } })),
     saveAppealConditions: (text) => toResult(http.POST('/appeal-conditions', { body: { text } })),
 
     issueStaffLinkCode: () => toResult(http.POST('/staff-link/code')),
@@ -996,6 +1025,8 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       map(await toResult(http.POST('/admin/staff-actor/{oid}/anonymize', { params: { path: { oid } } })), () => undefined),
 
     auditLog: (query = {}) => toResult(http.GET('/admin/audit', { params: { query } })),
+
+    auditEntry: (auditId) => toResult(http.GET('/admin/audit/{auditId}', { params: { path: { auditId } } })),
 
     activePunishments: (query = {}) =>
       toResult(http.GET('/punishment/active', { querySerializer: caseListQuery(query) })),

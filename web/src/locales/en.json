@@ -573,6 +573,42 @@
       "dismissConfirm": "Dismiss report"
     }
   },
+  "appeal": {
+    "title": "Appeal",
+    "type": "Appeal",
+    "notFound": "There is no such appeal.",
+    "back": "Back to the appeals",
+    "alreadyDecided": "This appeal is already decided.",
+    "tabs": {
+      "label": "Appeal sections",
+      "conversation": "Conversation",
+      "decision": "Decision",
+      "case": "Case"
+    },
+    "summary": {
+      "submitted": "Submitted",
+      "statement": "Statement",
+      "evidence": "Evidence items",
+      "appellant": "Player"
+    },
+    "conversation": {
+      "none": "No message has been written yet.",
+      "playerLast": "The player wrote last. Answer in the case conversation.",
+      "staffLast": "Staff wrote last.",
+      "failed": "The conversation could not be loaded.",
+      "open": "Open the conversation in the case"
+    },
+    "decision": {
+      "waiting": "Waiting for a decision.",
+      "readOnly": "Read-only: moderators act on cases and appeals.",
+      "noNote": "No note was recorded with the decision.",
+      "updated": "Last changed {when}"
+    },
+    "case": {
+      "open": "Open case {id}",
+      "hint": "The punishment this appeal contests."
+    }
+  },
   "appeals": {
     "title": "Appeals",
     "filter": "Which appeals to show",
@@ -914,6 +950,8 @@
   },
   "vanillaImport": {
     "title": "Import vanilla bans",
+    "tabsLabel": "Import type",
+    "newLink": "New vanilla import",
     "intro": "Brings the bans of a vanilla server into Blackhole. Every imported ban is linked to a punishment template, so players see the template's reason in their language. Imported bans are enforced like any other punishment and cost no ELO. Use the preview first: it changes nothing.",
     "playersFile": "banned-players.json (file)",
     "paste": "or paste the contents of banned-players.json",
@@ -1000,6 +1038,19 @@
     "none": "none",
     "running": "Running",
     "stopped": "Stopped",
+    "tabsLabel": "View",
+    "tabs": {
+      "catalogue": "Tasks, groups and services",
+      "proxies": "Reporting proxies"
+    },
+    "kinds": {
+      "tasks": "Task",
+      "groups": "Group",
+      "services": "Service",
+      "proxies": "Proxy",
+      "unknown": "CloudNet entry"
+    },
+    "entryMissing": "No CloudNet entry with this name. The proxies may have stopped reporting it.",
     "columns": {
       "task": "Task",
       "groups": "Groups",
@@ -1654,6 +1705,9 @@
     }
   },
   "appealConditions": {
+    "newVersion": "New version",
+    "openVersion": "Open version {version}",
+    "versionTitle": "Appeal terms, version {version}",
     "title": "Appeal terms",
     "intro": "Players read these conditions and confirm them before they file an appeal. Every save creates a new version; earlier versions are kept.",
     "current": "Current version {version}",
@@ -1672,6 +1726,11 @@
     "noneYet": "No audited actions yet.",
     "noMatches": "No entry matches these filters.",
     "loadMore": "Load more",
+    "nextPage": "Next page",
+    "firstPage": "First page",
+    "entryLoading": "Loading the entry…",
+    "entryMissing": "No audit entry with this id.",
+    "entryFailed": "The entry could not be loaded. Reload the page to try again.",
     "details": "Details",
     "filters": {
       "action": "Action",
@@ -1719,6 +1778,11 @@
     }
   },
   "clientRules": {
+    "tab": {
+      "details": "Details",
+      "hits": "Hits"
+    },
+    "tabs": "Views of the rule",
     "title": "Client rules",
     "intro": "Rules over the client brand, mods, plugin channels, protocol version and commands. The proxy applies them; each rule can notify the team, deny the connection or the command, or apply a punishment template.",
     "honesty": "Brand, mods and channels are chosen by the client and can be faked: a hit is a signal, not proof, and a miss proves nothing. Rules on them are a deterrent and a hint for the team. Start every rule with Notify, read the hit counts, and only then switch it to Deny or Punishment. Only the protocol version and commands are observed by the proxy itself.",
@@ -1974,7 +2038,18 @@
       "confirmLabel": "Type the target name to confirm",
       "confirmHint": "Type \"{target}\" exactly.",
       "submit": "Kick everybody",
-      "result": "Status: {status}. Delivered by {count} proxies."
+      "result": "Status: {status}. Delivered by {count} proxies.",
+      "newLink": "New mass kick",
+      "openKick": "Open this kick"
+    },
+    "detail": {
+      "title": "Kick",
+      "loading": "Loading the kick…",
+      "notFound": "No kick with this id.",
+      "target": "Target",
+      "by": "Staff member",
+      "when": "Sent at",
+      "delivered": "Proxies that delivered it"
     }
   },
   "intel": {
@@ -2095,6 +2170,7 @@
     },
     "options": {
       "marks": "Mark the {count} kicks as rolled back",
+      "marksAll": "Mark the kicks in the window as rolled back",
       "marksHint": "Only a note in the history. Kicks are never revoked and no ELO changes.",
       "suspend": "Remove the Minecraft link of this staff member",
       "suspendHint": "Done before the first punishment is revoked. The person can link again later."
@@ -2131,7 +2207,23 @@
       "selectorInvalid": "This cannot be rolled back. Choose a staff member or an unlinked in-game account.",
       "tooLarge": "Too many punishments match. Narrow the window and preview again."
     },
-    "noStaff": "No staff members are known yet."
+    "noStaff": "No staff members are known yet.",
+    "new": {
+      "title": "New rollback"
+    },
+    "jobs": {
+      "title": "Rollback job",
+      "newLink": "New rollback",
+      "open": "Open the rollback",
+      "previewReady": "The preview is ready. Nothing has changed yet.",
+      "pending": "{count} punishments are frozen for this rollback. Nothing is revoked until you start it.",
+      "execute": "Start the rollback…",
+      "executeTitle": "Start this rollback?",
+      "cancelTitle": "Cancel this rollback?",
+      "cancelBody": "A rollback that has not started changes nothing. A running rollback stops before its next item; items already revoked stay revoked.",
+      "alreadyEnded": "This rollback has already ended, so it cannot be cancelled.",
+      "notFound": "No rollback with this id."
+    }
   },
   "exemption": {
     "badge": {
@@ -2396,7 +2488,12 @@
     "copied": "Link copied to the clipboard.",
     "failed": "The link could not be copied. Copy it from the address bar."
   },
+  "configDetail": {
+    "notFound": "This item does not exist or was removed.",
+    "backToList": "Back to the list"
+  },
   "routedDialog": {
+    "notFoundTitle": "Not found",
     "close": "Close",
     "notFound": "This item does not exist or was removed.",
     "backToPage": "Back to the page",

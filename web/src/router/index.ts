@@ -21,7 +21,18 @@ import IpBansView from '../views/IpBansView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 import NoAccessView from '../views/NoAccessView.vue'
 import AppealConditionsView from '../views/AppealConditionsView.vue'
+import AppealTermsVersionView from '../views/AppealTermsVersionView.vue'
+import AppealTermsEditRoute from '../components/appealterms/AppealTermsEditRoute.vue'
+import ClientRuleDetailView from '../views/ClientRuleDetailView.vue'
+import ClientRuleEditRoute from '../components/clientrules/ClientRuleEditRoute.vue'
+import SectionDetailView from '../views/SectionDetailView.vue'
+import SectionEditRoute from '../components/sections/SectionEditRoute.vue'
+import SectionDisableRoute from '../components/sections/SectionDisableRoute.vue'
+import TemplateDetailView from '../views/TemplateDetailView.vue'
+import TemplateEditRoute from '../components/templates/TemplateEditRoute.vue'
 import AppealsView from '../views/AppealsView.vue'
+import AppealView from '../views/AppealView.vue'
+import AppealDecideRoute from '../components/appeals/AppealDecideRoute.vue'
 import AreaBansView from '../views/AreaBansView.vue'
 import JoinGuardView from '../views/JoinGuardView.vue'
 import ReportDetailView from '../views/ReportDetailView.vue'
@@ -54,6 +65,15 @@ export const routes: RouteRecordRaw[] = [
   { path: '/reports', name: 'reports', component: ReportsView, meta: { titleKey: 'nav.reports', pageShell: true, workspace: 'moderation' } },
   { path: '/reports/:id', name: 'report', component: ReportDetailView, props: true, meta: { titleKey: 'reports.detail.title', nav: '/reports', pageShell: true, workspace: 'moderation' } },
   { path: '/appeals', name: 'appeals', component: AppealsView, meta: { titleKey: 'nav.appeals', pageShell: true, workspace: 'moderation' } },
+  // The decision is a child route: the page stays rendered behind its dialog, and the address opens nothing by itself.
+  {
+    path: '/appeals/:id',
+    name: 'appeal',
+    component: AppealView,
+    props: true,
+    meta: { titleKey: 'appeal.title', nav: '/appeals', pageShell: true, workspace: 'moderation' },
+    children: [{ path: 'decide', name: 'appeal-decide', component: AppealDecideRoute }],
+  },
   { path: '/cases', name: 'cases', component: CasesView, meta: { titleKey: 'nav.cases', pageShell: true, workspace: 'moderation' } },
   {
     path: '/cases/:reference',
@@ -71,11 +91,71 @@ export const routes: RouteRecordRaw[] = [
   { path: '/area-bans', name: 'area-bans', component: AreaBansView, meta: { titleKey: 'areaBans.title', pageShell: true, workspace: 'moderation' } },
 
   // The Administration workspace. `/admin` is its home; the configuration pages are their own routes.
+  // A list holds its create dialog as a child route, an item holds its detail page and its edit and action dialogs.
+  // The page renders its child dialog from the active route (the dialog components are not a RouterView).
   { path: '/admin', redirect: '/admin/templates' },
-  { path: '/admin/templates', name: 'admin-templates', component: TemplatesView, meta: { titleKey: 'nav.templates', admin: true, pageShell: true, workspace: 'administration' } },
-  { path: '/admin/sections', name: 'admin-sections', component: SectionsView, meta: { titleKey: 'nav.sections', admin: true, pageShell: true, workspace: 'administration' } },
-  { path: '/admin/client-rules', name: 'admin-client-rules', component: ClientRulesView, meta: { titleKey: 'nav.clientRules', admin: true, pageShell: true, workspace: 'administration' } },
-  { path: '/admin/appeal-terms', name: 'admin-appeal-terms', component: AppealConditionsView, meta: { titleKey: 'nav.appealTerms', admin: true, pageShell: true, workspace: 'administration' } },
+  {
+    path: '/admin/templates',
+    name: 'admin-templates',
+    component: TemplatesView,
+    meta: { titleKey: 'nav.templates', admin: true, pageShell: true, workspace: 'administration' },
+    children: [{ path: 'new', name: 'admin-template-new', component: TemplateEditRoute }],
+  },
+  {
+    path: '/admin/templates/:id',
+    name: 'admin-template',
+    component: TemplateDetailView,
+    props: true,
+    meta: { titleKey: 'nav.templates', nav: '/admin/templates', admin: true, pageShell: true, workspace: 'administration' },
+    children: [{ path: 'edit', name: 'admin-template-edit', component: TemplateEditRoute }],
+  },
+  {
+    path: '/admin/sections',
+    name: 'admin-sections',
+    component: SectionsView,
+    meta: { titleKey: 'nav.sections', admin: true, pageShell: true, workspace: 'administration' },
+    children: [{ path: 'new', name: 'admin-section-new', component: SectionEditRoute }],
+  },
+  {
+    path: '/admin/sections/:key',
+    name: 'admin-section',
+    component: SectionDetailView,
+    props: (route) => ({ sectionKey: String(route.params.key) }),
+    meta: { titleKey: 'nav.sections', nav: '/admin/sections', admin: true, pageShell: true, workspace: 'administration' },
+    children: [
+      { path: 'edit', name: 'admin-section-edit', component: SectionEditRoute },
+      { path: 'disable', name: 'admin-section-disable', component: SectionDisableRoute },
+    ],
+  },
+  {
+    path: '/admin/client-rules',
+    name: 'admin-client-rules',
+    component: ClientRulesView,
+    meta: { titleKey: 'nav.clientRules', admin: true, pageShell: true, workspace: 'administration' },
+    children: [{ path: 'new', name: 'admin-client-rule-new', component: ClientRuleEditRoute }],
+  },
+  {
+    path: '/admin/client-rules/:key',
+    name: 'admin-client-rule',
+    component: ClientRuleDetailView,
+    props: (route) => ({ ruleKey: String(route.params.key) }),
+    meta: { titleKey: 'nav.clientRules', nav: '/admin/client-rules', admin: true, pageShell: true, workspace: 'administration' },
+    children: [{ path: 'edit', name: 'admin-client-rule-edit', component: ClientRuleEditRoute }],
+  },
+  {
+    path: '/admin/appeal-terms',
+    name: 'admin-appeal-terms',
+    component: AppealConditionsView,
+    meta: { titleKey: 'nav.appealTerms', admin: true, pageShell: true, workspace: 'administration' },
+    children: [{ path: 'new', name: 'admin-appeal-terms-new', component: AppealTermsEditRoute }],
+  },
+  {
+    path: '/admin/appeal-terms/versions/:version(\\d+)',
+    name: 'admin-appeal-terms-version',
+    component: AppealTermsVersionView,
+    props: (route) => ({ version: Number(route.params.version) }),
+    meta: { titleKey: 'nav.appealTerms', nav: '/admin/appeal-terms', admin: true, pageShell: true, workspace: 'administration' },
+  },
   { path: '/admin/exemption-reviews', name: 'admin-exemption-reviews', component: ExemptionReviewsView, meta: { titleKey: 'nav.exemptionReviews', admin: true, pageShell: true, workspace: 'administration' } },
   // The system pages: one component with one tab route each (`meta.adminTab`), each a rail item of its own.
   { path: '/admin/staff', name: 'admin-staff', component: AdminView, meta: { titleKey: 'nav.staffAccounts', admin: true, pageShell: true, adminTab: 'staff', workspace: 'administration' } },
@@ -84,6 +164,19 @@ export const routes: RouteRecordRaw[] = [
   { path: '/admin/cloudnet', name: 'admin-cloudnet', component: AdminView, meta: { titleKey: 'nav.cloudnet', admin: true, pageShell: true, adminTab: 'cloudnet', workspace: 'administration' } },
   { path: '/admin/kick', name: 'admin-kick', component: AdminView, meta: { titleKey: 'nav.kick', admin: true, pageShell: true, adminTab: 'kick', workspace: 'administration' } },
   { path: '/admin/audit', name: 'admin-audit', component: AdminView, meta: { titleKey: 'nav.audit', admin: true, pageShell: true, adminTab: 'audit', workspace: 'administration' } },
+  // Entries and dialogs of the system pages (`restructure-staff-panel`, decisions 3 and 7). Each is a route of its page:
+  // the page stays rendered, a dialog renders over it, and a state change is a child route that sends nothing on mount.
+  // `nav` keeps the rail item of the page current on these addresses (as the detail pages of the workspace do).
+  { path: '/admin/rollback/new', name: 'admin-rollback-new', component: AdminView, meta: { titleKey: 'nav.rollback', nav: '/admin/rollback', admin: true, pageShell: true, adminTab: 'rollback', workspace: 'administration' } },
+  { path: '/admin/rollback/:id', name: 'admin-rollback-job', component: AdminView, meta: { titleKey: 'nav.rollback', nav: '/admin/rollback', admin: true, pageShell: true, adminTab: 'rollback', workspace: 'administration' } },
+  { path: '/admin/rollback/:id/execute', name: 'admin-rollback-execute', component: AdminView, meta: { titleKey: 'nav.rollback', nav: '/admin/rollback', admin: true, pageShell: true, adminTab: 'rollback', workspace: 'administration' } },
+  { path: '/admin/rollback/:id/cancel', name: 'admin-rollback-cancel', component: AdminView, meta: { titleKey: 'nav.rollback', nav: '/admin/rollback', admin: true, pageShell: true, adminTab: 'rollback', workspace: 'administration' } },
+  { path: '/admin/kick/new', name: 'admin-kick-new', component: AdminView, meta: { titleKey: 'nav.kick', nav: '/admin/kick', admin: true, pageShell: true, adminTab: 'kick', workspace: 'administration' } },
+  { path: '/admin/kick/:id', name: 'admin-kick-detail', component: AdminView, meta: { titleKey: 'nav.kick', nav: '/admin/kick', admin: true, pageShell: true, adminTab: 'kick', workspace: 'administration' } },
+  { path: '/admin/imports/vanilla/new', name: 'admin-imports-vanilla-new', component: AdminView, meta: { titleKey: 'nav.imports', nav: '/admin/imports', admin: true, pageShell: true, adminTab: 'imports', workspace: 'administration' } },
+  { path: '/admin/audit/:auditId', name: 'admin-audit-entry', component: AdminView, meta: { titleKey: 'nav.audit', nav: '/admin/audit', admin: true, pageShell: true, adminTab: 'audit', workspace: 'administration' } },
+  // `kind` is the catalogue's own name for the list (tasks, groups, services, proxies); `key` is the entry's name in it.
+  { path: '/admin/cloudnet/:kind/:key', name: 'admin-cloudnet-entry', component: AdminView, meta: { titleKey: 'nav.cloudnet', nav: '/admin/cloudnet', admin: true, pageShell: true, adminTab: 'cloudnet', workspace: 'administration' } },
 
   // Former URLs of the single rail.
   { path: '/templates', redirect: keepQuery('/admin/templates') },

@@ -17,6 +17,7 @@ export const RETURN_ROUTE_NAMES: ReadonlySet<string> = new Set([
   'reports',
   'report',
   'appeals',
+  'appeal',
   'cases',
   'case',
   'guard',

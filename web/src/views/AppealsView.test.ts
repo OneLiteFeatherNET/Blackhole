@@ -428,6 +428,16 @@ describe('AppealsView: unanswered player messages', () => {
     wrapper.unmount()
   })
 
+  it('links the received date of every row to the appeal page', async () => {
+    const { mount } = setup()
+    const { wrapper, router } = await mount()
+
+    const link = wrapper.get('[data-testid="appeal-a-1"]')
+    expect(link.attributes('href')).toBe(router.resolve({ name: 'appeal', params: { id: 'a-1' } }).href)
+
+    wrapper.unmount()
+  })
+
   it('links every row to the case conversation', async () => {
     const { mount } = setup()
     const { wrapper, router } = await mount()

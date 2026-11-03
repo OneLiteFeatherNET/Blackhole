@@ -1,33 +1,43 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+// The section list. Creating opens its dialog at `/admin/sections/new`; each row links to its own address, and its
+// edit and disable actions are routes of that address (`/admin/sections/:key/edit`, `/disable`).
+import { computed, provide, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '../api/inject'
 import type { Section } from '../api/types'
 import DataTable, { type DataColumn } from '../components/DataTable.vue'
 import PageShell from '../components/PageShell.vue'
+import { CONFIG_PAGE } from '../components/config/configPage'
 import MdButton from '../components/md/MdButton.vue'
-import MdDialog from '../components/md/MdDialog.vue'
 import MdSnackbar from '../components/md/MdSnackbar.vue'
 import ResourceState from '../components/ResourceState.vue'
 import RowMenu, { type RowMenuItem } from '../components/RowMenu.vue'
-import SectionEditor from '../components/sections/SectionEditor.vue'
+import SectionEditRoute from '../components/sections/SectionEditRoute.vue'
 import StatusPill from '../components/StatusPill.vue'
+import TextLink from '../components/TextLink.vue'
 import { useResource } from '../composables/useResource'
 import { formatDuration } from '../format'
 import { useSessionStore } from '../stores/session'
 
 const { t, locale } = useI18n()
 const api = useApi()
+const route = useRoute()
+const router = useRouter()
 const session = useSessionStore()
 
 const sections = useResource(() => api.sections())
-
-const editorOpen = ref(false)
-const editing = ref<Section | null>(null)
-const disabling = ref<Section | null>(null)
-const disableError = ref('')
-const disablingNow = ref(false)
 const message = ref('')
+
+provide(CONFIG_PAGE, {
+  reload: () => sections.reload(),
+  async changed(done: string) {
+    message.value = done
+    await sections.reload()
+  },
+})
+
+const creating = computed(() => route.name === 'admin-section-new')
 
 const columns = computed<DataColumn<Section>[]>(() => [
   { key: 'key', label: t('sections.columns.section'), priority: 1 },
@@ -38,48 +48,18 @@ const columns = computed<DataColumn<Section>[]>(() => [
   { key: 'enabled', label: t('sections.columns.actions'), priority: 1 },
 ])
 
-// Edit is the row's one primary action; disabling is destructive and lives in the row menu.
+// Disabling is destructive and lives in the row menu; the menu only opens the route of the disable confirmation.
 const rowMenu = computed<RowMenuItem[]>(() => [{ key: 'disable', label: t('sections.disable.open'), destructive: true }])
 
-function openEditor(section: Section | null): void {
-  editing.value = section
-  editorOpen.value = true
-}
-
-async function saved(done: string): Promise<void> {
-  editorOpen.value = false
-  message.value = done
-  await sections.reload()
-}
-
-function askDisable(section: Section): void {
-  disabling.value = section
-  disableError.value = ''
-}
-
 function onRowMenu(section: Section, key: string): void {
-  if (key === 'disable') askDisable(section)
-}
-
-async function confirmDisable(): Promise<void> {
-  if (!disabling.value || disablingNow.value) return
-  disablingNow.value = true
-  const result = await api.disableSection(disabling.value.key)
-  disablingNow.value = false
-  if (!result.ok) {
-    disableError.value = result.error.message
-    return
-  }
-  disabling.value = null
-  message.value = t('sections.disabled')
-  await sections.reload()
+  if (key === 'disable') void router.push({ name: 'admin-section-disable', params: { key: section.key } })
 }
 </script>
 
 <template>
   <PageShell :title="t('sections.title')" :description="t('sections.intro')">
     <template #actions>
-      <MdButton v-if="session.administrator" data-testid="new-section" @click="openEditor(null)">{{ t('sections.new') }}</MdButton>
+      <MdButton v-if="session.administrator" data-testid="new-section" @click="router.push({ name: 'admin-section-new' })">{{ t('sections.new') }}</MdButton>
     </template>
 
     <ResourceState
@@ -91,7 +71,7 @@ async function confirmDisable(): Promise<void> {
       <DataTable v-if="sections.data.value" :caption="t('sections.title')" :columns="columns" :rows="sections.data.value">
         <template #cell="{ row, column }">
           <template v-if="column.key === 'key'">
-            <p class="text-label-large">{{ row.key }}</p>
+            <TextLink :to="{ name: 'admin-section', params: { key: row.key } }">{{ row.key }}</TextLink>
             <p class="text-body-small text-on-surface-variant">{{ row.displayName }}</p>
             <StatusPill v-if="!row.enabled" :label="t('sections.disabledPill')" />
           </template>
@@ -117,7 +97,9 @@ async function confirmDisable(): Promise<void> {
             · {{ t('sections.permanent') }} {{ row.permanentThreshold }}
           </template>
           <div v-else-if="column.key === 'enabled' && session.administrator" class="flex items-center justify-end gap-1">
-            <MdButton variant="tonal" :data-testid="`edit-${row.key}`" @click="openEditor(row)">{{ t('sections.edit') }}</MdButton>
+            <MdButton variant="tonal" :data-testid="`edit-${row.key}`" @click="router.push({ name: 'admin-section-edit', params: { key: row.key } })">
+              {{ t('sections.edit') }}
+            </MdButton>
             <RowMenu v-if="row.enabled" :label="row.key" :items="rowMenu" @select="(key) => onRowMenu(row, key)" />
           </div>
           <template v-else>{{ row[column.key] }}</template>
@@ -125,18 +107,7 @@ async function confirmDisable(): Promise<void> {
       </DataTable>
     </ResourceState>
 
-    <SectionEditor :open="editorOpen" :section="editing" @close="editorOpen = false" @saved="saved" />
-
-    <MdDialog :open="disabling !== null" :headline="t('sections.disable.title', { key: disabling?.key ?? '' })" @close="disabling = null">
-      <p>{{ t('sections.disable.body') }}</p>
-      <p v-if="disableError" data-testid="error" role="alert" class="mt-3 rounded-md-md bg-error-container p-3 text-on-error-container">
-        {{ disableError }}
-      </p>
-      <template #actions>
-        <MdButton variant="text" data-testid="cancel" @click="disabling = null">{{ t('actions.cancel') }}</MdButton>
-        <MdButton variant="error" data-testid="confirm" :disabled="disablingNow" @click="confirmDisable">{{ t('sections.disable.confirm') }}</MdButton>
-      </template>
-    </MdDialog>
+    <SectionEditRoute v-if="creating" />
     <MdSnackbar :open="message !== ''" :message="message" @close="message = ''" />
   </PageShell>
 </template>
