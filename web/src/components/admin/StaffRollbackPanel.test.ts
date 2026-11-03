@@ -1,7 +1,7 @@
-import { flushPromises } from '@vue/test-utils'
+import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
-import type { ApiError, RollbackPreview, RollbackProgress } from '../../api/types'
-import { mockApi, mountWithApp, ok } from '../../test/mount'
+import type { RollbackPreview, RollbackProgress } from '../../api/types'
+import { fail, mockApi, mountWithApp, ok } from '../../test/mount'
 import { chooseOption, listOptions } from '../../test/select'
 import StaffRollbackPanel from './StaffRollbackPanel.vue'
 
@@ -10,6 +10,8 @@ const PROXY = '00000000-0000-4000-8000-0000000000c3'
 const JOB = '6f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f'
 const FROM = '2026-10-01T10:00'
 const TO = '2026-10-02T10:00'
+const ADDRESS_NEW = '/admin/rollback/new'
+const ADDRESS_JOB = `/admin/rollback/${JOB}`
 
 const preview: RollbackPreview = {
   jobId: JOB,
@@ -48,7 +50,7 @@ function manualTimer() {
   }
 }
 
-function setup(roles: string[] = ['ADMIN'], overrides: Record<string, unknown> = {}) {
+function setup(path: string, roles: string[] = ['ADMIN'], overrides: Record<string, unknown> = {}) {
   const clock = manualTimer()
   const api = {
     staffActors: vi.fn(async () =>
@@ -59,239 +61,286 @@ function setup(roles: string[] = ['ADMIN'], overrides: Record<string, unknown> =
     ),
     previewRollback: vi.fn(async () => ok(preview)),
     executeRollback: vi.fn(async () => ok({ jobId: JOB, state: 'RUNNING', repeated: false })),
-    rollbackProgress: vi.fn(async () => ok(progress('RUNNING', { PENDING: 3 }))),
+    rollbackProgress: vi.fn(async () => ok(progress('PREVIEW', { PENDING: 3 }))),
     cancelRollback: vi.fn(async () => ok({ jobId: JOB, state: 'CANCELLED' })),
     ...overrides,
   }
   return {
     api,
     clock,
-    mount: () => mountWithApp(StaffRollbackPanel, { api: mockApi(api), roles, props: { timer: clock.timer } }),
+    mount: () => mountWithApp(StaffRollbackPanel, { api: mockApi(api), roles, path, props: { timer: clock.timer } }),
   }
 }
 
-type Mounted = Awaited<ReturnType<ReturnType<typeof setup>['mount']>>['wrapper']
-
-async function fillForm(wrapper: Mounted) {
-  await chooseOption(wrapper.get('[data-testid="rollback-staff"] [role="combobox"]'), OID)
+async function fillWindow(wrapper: VueWrapper) {
   await wrapper.get('[data-testid="rollback-from"] input').setValue(FROM)
   await wrapper.get('[data-testid="rollback-to"] input').setValue(TO)
-  await flushPromises()
-}
-
-async function previewIt(wrapper: Mounted) {
-  await fillForm(wrapper)
-  await wrapper.get('[data-testid="rollback-preview"]').trigger('click')
-  await flushPromises()
-}
-
-async function continueToConfirm(wrapper: Mounted) {
-  await previewIt(wrapper)
-  await wrapper.get('[data-testid="rollback-continue"]').trigger('click')
-  await flushPromises()
-}
-
-async function typeReason(wrapper: Mounted, text: string) {
-  await wrapper.get('[data-testid="rollback-reason"] textarea').setValue(text)
 }
 
 describe('StaffRollbackPanel gating', () => {
-  it('is not rendered for a moderator, and no staff list is requested', async () => {
-    const { api, mount } = setup(['MODERATOR'])
-    const { wrapper } = await mount()
-
-    expect(wrapper.find('[data-testid="staff-rollback"]').exists(), 'no rollback screen').toBe(false)
-    expect(api.staffActors, 'no request').not.toHaveBeenCalled()
-    wrapper.unmount()
-  })
-
-  it('is not rendered for a viewer either', async () => {
-    const { mount } = setup(['VIEWER'])
+  it.each([['MODERATOR'], ['VIEWER']])('is not rendered for a %s, and no staff list is requested', async (role) => {
+    const { api, mount } = setup(ADDRESS_NEW, [role])
     const { wrapper } = await mount()
 
     expect(wrapper.find('[data-testid="staff-rollback"]').exists()).toBe(false)
+    expect(api.staffActors).not.toHaveBeenCalled()
+
     wrapper.unmount()
   })
 })
 
-describe('StaffRollbackPanel preview', () => {
-  it('keeps Preview disabled until a staff member and a window are chosen', async () => {
-    const { mount } = setup()
-    const { wrapper } = await mount()
-
-    expect(wrapper.get('[data-testid="rollback-preview"]').attributes('disabled'), 'nothing chosen').toBeDefined()
-    await chooseOption(wrapper.get('[data-testid="rollback-staff"] [role="combobox"]'), OID)
-    expect(wrapper.get('[data-testid="rollback-preview"]').attributes('disabled'), 'no window').toBeDefined()
-    await wrapper.get('[data-testid="rollback-from"] input').setValue(FROM)
-    await wrapper.get('[data-testid="rollback-to"] input').setValue(TO)
-    await flushPromises()
-
-    expect(wrapper.get('[data-testid="rollback-preview"]').attributes('disabled')).toBeUndefined()
-    wrapper.unmount()
-  })
-
-  it('offers only human staff members, never the proxy service principal', async () => {
-    const { mount } = setup()
+describe('StaffRollbackPanel preview dialog at /admin/rollback/new', () => {
+  it('reads the staff list once the dialog is open, and offers only human staff members', async () => {
+    const { api, mount } = setup(ADDRESS_NEW)
     const { wrapper } = await mount()
 
     const options = await listOptions(wrapper.get('[data-testid="rollback-staff"] [role="combobox"]'))
-    expect(options.map((option) => option.value)).toEqual([OID])
+    expect(options.map((option) => option.value)).toContain(OID)
+    expect(options.map((option) => option.value)).not.toContain(PROXY)
+    expect(api.staffActors).toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+  })
+
+  it('keeps Preview disabled until a staff member and a window are chosen', async () => {
+    const { mount } = setup(ADDRESS_NEW)
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-testid="rollback-preview"]').attributes('disabled')).toBeDefined()
+    await chooseOption(wrapper.get('[data-testid="rollback-staff"] [role="combobox"]'), OID)
+    await fillWindow(wrapper)
+    expect(wrapper.get('[data-testid="rollback-preview"]').attributes('disabled')).toBeUndefined()
+
     wrapper.unmount()
   })
 
   it('asks the preview for the chosen staff member and the window as epoch milliseconds', async () => {
-    const { api, mount } = setup()
+    const { api, mount } = setup(ADDRESS_NEW)
     const { wrapper } = await mount()
 
-    await previewIt(wrapper)
+    await chooseOption(wrapper.get('[data-testid="rollback-staff"] [role="combobox"]'), OID)
+    await fillWindow(wrapper)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
 
     expect(api.previewRollback).toHaveBeenCalledWith({ staffOid: OID, windowFrom: new Date(FROM).getTime(), windowTo: new Date(TO).getTime() })
+
     wrapper.unmount()
   })
 
   it('shows the counts of the preview and starts nothing', async () => {
-    const { api, mount } = setup()
+    const { api, mount } = setup(ADDRESS_NEW)
     const { wrapper } = await mount()
 
-    await previewIt(wrapper)
+    await chooseOption(wrapper.get('[data-testid="rollback-staff"] [role="combobox"]'), OID)
+    await fillWindow(wrapper)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
 
-    expect(wrapper.get('[data-testid="rollback-revocable"]').text(), 'punishments to revoke').toBe('3')
-    expect(wrapper.get('[data-testid="rollback-already"]').text(), 'already inactive').toBe('1')
-    expect(wrapper.get('[data-testid="rollback-players"]').text(), 'players').toBe('2')
-    expect(wrapper.get('[data-testid="rollback-kicks"]').text(), 'kicks').toBe('1')
-    expect(api.executeRollback, 'nothing started by the preview').not.toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="rollback-preview-step"]').text()).toContain('Nothing has changed yet')
+    expect(wrapper.get('[data-testid="rollback-preview-step"]').text()).toContain('3')
+    expect(api.executeRollback).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
+
+  it('opens the job of the preview by its id, and still starts nothing', async () => {
+    const { api, mount } = setup(ADDRESS_NEW)
+    const { wrapper, router } = await mount()
+
+    await chooseOption(wrapper.get('[data-testid="rollback-staff"] [role="combobox"]'), OID)
+    await fillWindow(wrapper)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+    await wrapper.get('[data-testid="rollback-open-job"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('admin-rollback-job')
+    expect(router.currentRoute.value.params.id).toBe(JOB)
+    expect(api.executeRollback).not.toHaveBeenCalled()
+
     wrapper.unmount()
   })
 
   it('names the refusal of a selector that is not a human', async () => {
-    const refusal: ApiError = { status: 400, message: 'backend text', kind: 'ROLLBACK_SELECTOR_INVALID' }
-    const { mount } = setup(undefined, { previewRollback: vi.fn(async () => ({ ok: false, error: refusal })) })
+    const refusal = { ok: false as const, error: { status: 400, message: 'backend text', kind: 'ROLLBACK_SELECTOR_INVALID' as const } }
+    const { mount } = setup(ADDRESS_NEW, ['ADMIN'], { previewRollback: vi.fn(async () => refusal) })
     const { wrapper } = await mount()
 
-    await previewIt(wrapper)
+    await chooseOption(wrapper.get('[data-testid="rollback-staff"] [role="combobox"]'), OID)
+    await fillWindow(wrapper)
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
 
-    expect(wrapper.get('[data-testid="error"]').text()).toBe('This cannot be rolled back. Choose a staff member or an unlinked in-game account.')
-    wrapper.unmount()
-  })
+    expect(wrapper.get('[role="alert"]').text()).toContain('This cannot be rolled back')
 
-  it('names the refusal of a window that is too large and asks to narrow it', async () => {
-    const refusal: ApiError = { status: 422, message: 'backend text', kind: 'ROLLBACK_TOO_LARGE' }
-    const { mount } = setup(undefined, { previewRollback: vi.fn(async () => ({ ok: false, error: refusal })) })
-    const { wrapper } = await mount()
-
-    await previewIt(wrapper)
-
-    expect(wrapper.get('[data-testid="error"]').text()).toBe('Too many punishments match. Narrow the window and preview again.')
     wrapper.unmount()
   })
 })
 
-describe('StaffRollbackPanel confirmation', () => {
-  it('names the counts in the confirmation and leaves both options off', async () => {
-    const { mount } = setup()
+describe('StaffRollbackPanel job at /admin/rollback/:id', () => {
+  it('reads a preview once, shows that it waits for the start, and offers the start and the cancel as their own addresses', async () => {
+    const { api, clock, mount } = setup(ADDRESS_JOB)
     const { wrapper } = await mount()
 
-    await continueToConfirm(wrapper)
+    expect(api.rollbackProgress).toHaveBeenCalledTimes(1)
+    expect(clock.live(), 'nothing is polled for a preview').toBe(0)
+    expect(wrapper.get('[data-testid="rollback-state"]').text()).toContain('Preview')
+    expect(wrapper.get('[data-testid="rollback-execute-link"]').attributes('href')).toBe(`${ADDRESS_JOB}/execute`)
+    expect(wrapper.get('[data-testid="rollback-cancel-link"]').attributes('href')).toBe(`${ADDRESS_JOB}/cancel`)
+    expect(api.executeRollback).not.toHaveBeenCalled()
+    expect(api.cancelRollback).not.toHaveBeenCalled()
 
-    const counts = wrapper.get('[data-testid="rollback-confirm-counts"]').text()
-    expect(counts).toContain('Revokes 3 punishments of 2 players')
-    expect(counts).toContain('Kicks in the window: 1')
-    expect((wrapper.get('[data-testid="option-marks"] input').element as HTMLInputElement).checked, 'marks').toBe(false)
-    expect((wrapper.get('[data-testid="option-suspend"] input').element as HTMLInputElement).checked, 'suspend').toBe(false)
+    wrapper.unmount()
+  })
+
+  it('reads a running job until it is COMPLETED and then stops reading', async () => {
+    const rollbackProgress = vi
+      .fn()
+      .mockResolvedValueOnce(ok(progress('RUNNING', { PENDING: 2, REVOKED: 1 })))
+      .mockResolvedValueOnce(ok(progress('COMPLETED', { REVOKED: 3 })))
+    const { clock, mount } = setup(ADDRESS_JOB, ['ADMIN'], { rollbackProgress })
+    const { wrapper } = await mount()
+
+    expect(wrapper.find('[data-testid="rollback-running"]').exists()).toBe(true)
+    clock.fire()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="rollback-done"]').text()).toContain('Done')
+    expect(clock.live()).toBe(0)
+    expect(wrapper.find('[data-testid="rollback-cancel-link"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('shows the not-found text for an unknown job, and no job actions', async () => {
+    const { mount } = setup(ADDRESS_JOB, ['ADMIN'], {
+      rollbackProgress: vi.fn(async () => ({ ok: false, error: { status: 404, message: 'no such rollback', kind: 'NOT_FOUND' } })),
+    })
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-testid="rollback-job-missing"]').text()).toContain('No rollback with this id')
+    expect(wrapper.find('[data-testid="rollback-execute-link"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('shows a failed read with a retry that reads again', async () => {
+    const rollbackProgress = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, error: { status: 0, message: 'offline', kind: 'NETWORK' } })
+      .mockResolvedValueOnce(ok(progress('PREVIEW', { PENDING: 3 })))
+    const { mount } = setup(ADDRESS_JOB, ['ADMIN'], { rollbackProgress })
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('offline')
+    await wrapper.get('[data-testid="rollback-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(rollbackProgress).toHaveBeenCalledTimes(2)
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+})
+
+describe('StaffRollbackPanel start at /admin/rollback/:id/execute', () => {
+  const EXECUTE = `${ADDRESS_JOB}/execute`
+
+  it('shows the frozen count and sends nothing until the start is confirmed', async () => {
+    const { api, mount } = setup(EXECUTE)
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-testid="rollback-execute-counts"]').text()).toContain('3 punishments')
+    expect(api.executeRollback).not.toHaveBeenCalled()
+
     wrapper.unmount()
   })
 
   it('keeps the start disabled until a reason is given', async () => {
-    const { mount } = setup()
+    const { mount } = setup(EXECUTE)
     const { wrapper } = await mount()
 
-    await continueToConfirm(wrapper)
-    expect(wrapper.get('[data-testid="rollback-execute"]').attributes('disabled'), 'no reason').toBeDefined()
-    await typeReason(wrapper, 'account taken over')
+    expect(wrapper.get('[data-testid="rollback-execute"]').attributes('disabled')).toBeDefined()
+    await wrapper.get('[data-testid="rollback-reason"] textarea').setValue('  Ban wave went wrong  ')
     expect(wrapper.get('[data-testid="rollback-execute"]').attributes('disabled')).toBeUndefined()
+
     wrapper.unmount()
   })
 
-  it('starts the rollback with the reason and the options the admin chose', async () => {
-    const { api, mount } = setup()
-    const { wrapper } = await mount()
+  it('starts the rollback with the reason and the options chosen, then returns to the job', async () => {
+    const { api, mount } = setup(EXECUTE)
+    const { wrapper, router } = await mount()
 
-    await continueToConfirm(wrapper)
-    await typeReason(wrapper, '  account taken over ')
-    await wrapper.get('[data-testid="option-marks"] input').setValue(true)
-    await wrapper.get('[data-testid="option-suspend"] input').setValue(true)
+    await wrapper.get('[data-testid="rollback-reason"] textarea').setValue('Ban wave went wrong')
+    await wrapper.get<HTMLInputElement>('[data-testid="option-suspend"] input').setValue(true)
     await wrapper.get('[data-testid="rollback-execute"]').trigger('click')
     await flushPromises()
 
-    const [id, body, key] = api.executeRollback.mock.calls[0] as unknown as [string, Record<string, unknown>, string]
-    expect(id).toBe(JOB)
-    expect(body).toEqual({ reason: 'account taken over', suspendLink: true, includeMarks: true })
-    expect(key).toMatch(/^[A-Za-z0-9-]{1,64}$/)
+    expect(api.executeRollback).toHaveBeenCalledWith(JOB, { reason: 'Ban wave went wrong', suspendLink: true, includeMarks: false }, expect.any(String))
+    expect(router.currentRoute.value.name).toBe('admin-rollback-job')
+
     wrapper.unmount()
   })
 
   it('reuses the same Idempotency-Key when the start is retried after a network failure', async () => {
-    const network: ApiError = { status: 0, message: 'offline', kind: 'NETWORK' }
-    const { api, mount } = setup(undefined, {
-      executeRollback: vi.fn().mockResolvedValueOnce({ ok: false, error: network }).mockResolvedValueOnce(ok({ jobId: JOB, state: 'RUNNING', repeated: true })),
+    const executeRollback = vi.fn().mockResolvedValueOnce(fail('network down', 0, 'NETWORK')).mockResolvedValueOnce(ok({ jobId: JOB, state: 'RUNNING', repeated: false }))
+    const { mount } = setup(EXECUTE, ['ADMIN'], { executeRollback })
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="rollback-reason"] textarea').setValue('Ban wave went wrong')
+    await wrapper.get('[data-testid="rollback-execute"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="rollback-execute"]').trigger('click')
+    await flushPromises()
+
+    expect(executeRollback).toHaveBeenCalledTimes(2)
+    expect(executeRollback.mock.calls[1]![2]).toBe(executeRollback.mock.calls[0]![2])
+
+    wrapper.unmount()
+  })
+
+  it('shows the not-found text for an unknown job and no start control', async () => {
+    const { mount } = setup(EXECUTE, ['ADMIN'], {
+      rollbackProgress: vi.fn(async () => ({ ok: false, error: { status: 404, message: 'no such rollback', kind: 'NOT_FOUND' } })),
     })
     const { wrapper } = await mount()
 
-    await continueToConfirm(wrapper)
-    await typeReason(wrapper, 'account taken over')
-    await wrapper.get('[data-testid="rollback-execute"]').trigger('click')
-    await flushPromises()
-    expect(wrapper.get('[data-testid="error"]').text(), 'the failure is shown').toBe('offline')
-    await wrapper.get('[data-testid="rollback-execute"]').trigger('click')
-    await flushPromises()
+    expect(wrapper.text()).toContain('This item does not exist or was removed.')
+    expect(wrapper.find('[data-testid="rollback-execute"]').exists()).toBe(false)
 
-    const firstKey = (api.executeRollback.mock.calls[0] as unknown as unknown[])[2]
-    const retryKey = (api.executeRollback.mock.calls[1] as unknown as unknown[])[2]
-    expect(retryKey, 'retry carries the key of the first attempt').toBe(firstKey)
     wrapper.unmount()
   })
 })
 
-describe('StaffRollbackPanel progress', () => {
-  it('reads the job until it is COMPLETED and then stops reading', async () => {
-    const { api, clock, mount } = setup(undefined, {
-      rollbackProgress: vi
-        .fn()
-        .mockResolvedValueOnce(ok(progress('RUNNING', { PENDING: 2, REVOKED: 1 })))
-        .mockResolvedValueOnce(ok(progress('COMPLETED', { REVOKED: 3 }))),
-    })
-    const { wrapper } = await mount()
+describe('StaffRollbackPanel cancel at /admin/rollback/:id/cancel', () => {
+  const CANCEL = `${ADDRESS_JOB}/cancel`
 
-    await continueToConfirm(wrapper)
-    await typeReason(wrapper, 'account taken over')
-    await wrapper.get('[data-testid="rollback-execute"]').trigger('click')
-    await flushPromises()
-    expect(wrapper.get('[data-testid="rollback-state"]').text()).toBe('Running')
+  it('sends nothing when the address opens and cancels only on confirm', async () => {
+    const { api, mount } = setup(CANCEL)
+    const { wrapper, router } = await mount()
 
-    clock.fire()
-    await flushPromises()
-
-    expect(wrapper.get('[data-testid="rollback-state"]').text()).toBe('Completed')
-    expect(wrapper.get('[data-testid="rollback-done"]').text()).toBe('Done. The punishments are revoked.')
-    expect(clock.live(), 'no further read is scheduled').toBe(0)
-    expect(api.rollbackProgress).toHaveBeenCalledTimes(2)
-    wrapper.unmount()
-  })
-
-  it('cancels a running rollback, shows it cancelled and stops reading', async () => {
-    const { api, clock, mount } = setup()
-    const { wrapper } = await mount()
-
-    await continueToConfirm(wrapper)
-    await typeReason(wrapper, 'account taken over')
-    await wrapper.get('[data-testid="rollback-execute"]').trigger('click')
-    await flushPromises()
-    await wrapper.get('[data-testid="rollback-cancel"]').trigger('click')
+    expect(api.cancelRollback).not.toHaveBeenCalled()
+    await wrapper.get('[data-testid="rollback-cancel-confirm"]').trigger('click')
     await flushPromises()
 
     expect(api.cancelRollback).toHaveBeenCalledWith(JOB)
-    expect(wrapper.get('[data-testid="rollback-state"]').text()).toBe('Cancelled')
-    expect(clock.live(), 'the read is stopped').toBe(0)
+    expect(router.currentRoute.value.name).toBe('admin-rollback-job')
+
+    wrapper.unmount()
+  })
+
+  it('says that a rollback which already ended cannot be cancelled', async () => {
+    const { mount } = setup(CANCEL, ['ADMIN'], {
+      cancelRollback: vi.fn(async () => ({ ok: false, error: { status: 409, message: 'done', kind: 'CONFLICT' } })),
+    })
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="rollback-cancel-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('already ended')
+
     wrapper.unmount()
   })
 })

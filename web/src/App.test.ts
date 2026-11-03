@@ -352,7 +352,7 @@ describe('App shell', () => {
     await wrapper.get('[data-testid="shortcuts-help"]').trigger('click')
 
     const keys = wrapper.get('[role="dialog"]').findAll('dt').map((term) => term.findAll('kbd').map((key) => key.text()).join(' '))
-    expect(keys).toEqual(['g i', 'g c', 'g a', 'g r', 'g p', '?'])
+    expect(keys).toEqual(['g i', 'g c', 'g a', 'g r', 'g p', 'j', 'k', 'Enter', 'Esc', '?'])
 
     wrapper.unmount()
   })

@@ -118,12 +118,12 @@ describe('role-aware controls', () => {
       expect(offered).toEqual(expected)
     })
 
-    it('reads the hits in the row menu for every team role and offers delete there only to admins', async () => {
+    it('reads the hits in the row menu for every team role; delete is on the rule edit route', async () => {
       const api = mockApi({ clientRules: vi.fn(async () => ok([clientRule()])) })
 
       const items = await firstRowMenu(ClientRulesView, api, roles, '/client-rules')
 
-      expect(items).toEqual(roles === ADMIN ? ['Show hits', 'Delete'] : ['Show hits'])
+      expect(items).toEqual(['Show hits'])
     })
   })
 
@@ -141,12 +141,12 @@ describe('role-aware controls', () => {
       expect(offered).toEqual(expected)
     })
 
-    it('offers delete only in the row menu, and only to admins', async () => {
+    it('has no row menu, so delete is never one click from the list, for any role', async () => {
       const api = mockApi({ templates: vi.fn(async () => ok([template])), sections: vi.fn(async () => ok([section])) })
 
       const items = await firstRowMenu(TemplatesView, api, roles, '/templates')
 
-      expect(items).toEqual(roles === ADMIN ? ['Delete'] : [])
+      expect(items).toEqual([])
     })
   })
 

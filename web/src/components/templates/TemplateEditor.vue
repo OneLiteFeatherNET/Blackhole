@@ -351,6 +351,7 @@ const ICON = {
       </section>
     </form>
     <template #actions>
+      <slot name="extra-actions" />
       <MdButton variant="text" data-testid="cancel" @click="emit('close')">{{ t('actions.cancel') }}</MdButton>
       <MdButton data-testid="save" :disabled="saving" @click="save">{{ t('templates.editor.save') }}</MdButton>
     </template>
