@@ -26,7 +26,7 @@ function message(seq: number, id: string, text: string | null, who: 'PLAYER' | '
 
 const THREAD = [message(1, PLAYER_MSG, 'Please look again', 'PLAYER'), message(2, MINE, 'We will', 'ME'), message(3, THEIRS, 'Colleague reply', 'OTHER')]
 
-function setup(options: { roles?: string[]; events?: CaseTimelineItem[]; kase?: Parameters<typeof caseResponse>[0]; extra?: Record<string, unknown> } = {}) {
+function setup(options: { roles?: string[]; events?: CaseTimelineItem[]; kase?: Parameters<typeof caseResponse>[0]; extra?: Record<string, unknown>; path?: string } = {}) {
   const api = {
     caseConversation: vi.fn(async () => ok(options.events ?? THREAD)),
     postCaseMessage: vi.fn(async () => ok({ messageId: 'new', seq: 9, repeated: false })),
@@ -39,7 +39,7 @@ function setup(options: { roles?: string[]; events?: CaseTimelineItem[]; kase?: 
   }
   return {
     api,
-    mount: () => mountWithApp(ConversationSection, { api: mockApi(api), roles: options.roles, props: { kase: caseResponse(options.kase) } }),
+    mount: () => mountWithApp(ConversationSection, { api: mockApi(api), roles: options.roles, path: options.path, props: { kase: caseResponse(options.kase) } }),
   }
 }
 
@@ -268,23 +268,6 @@ describe('ConversationSection: own messages', () => {
     wrapper.unmount()
   })
 
-  it('edits a message in place and reloads the thread', async () => {
-    const { api, mount } = setup({ roles: ['MODERATOR', 'VIEWER'] })
-    const { wrapper } = await mount()
-
-    await wrapper.get(`[data-testid="message-${MINE}"] [data-testid="message-edit"]`).trigger('click')
-    const field = wrapper.get(`[data-testid="message-${MINE}"] [data-testid="message-text"]`)
-    expect((field.element as HTMLTextAreaElement).value).toBe('We will')
-    await field.setValue('We will, today')
-    await wrapper.get(`[data-testid="message-${MINE}"] [data-testid="message-composer"]`).trigger('submit')
-    await flushPromises()
-
-    expect(api.editCaseMessage).toHaveBeenCalledWith('p-0001', MINE, 'We will, today')
-    expect(api.caseConversation).toHaveBeenCalledTimes(2)
-    expect(wrapper.find(`[data-testid="message-${MINE}"] [data-testid="message-composer"]`).exists(), 'the editor closed').toBe(false)
-
-    wrapper.unmount()
-  })
 
   it('asks before it deletes, then deletes', async () => {
     const { api, mount } = setup({ roles: ['MODERATOR', 'VIEWER'] })
@@ -345,35 +328,37 @@ describe('ConversationSection: own messages', () => {
   })
 })
 
-describe('ConversationSection: redaction as admin', () => {
-  it('removes the text of one message after confirming with a reason', async () => {
-    const { api, mount } = setup({ roles: ['ADMIN', 'MODERATOR', 'VIEWER'] })
-    const { wrapper } = await mount()
+describe('ConversationSection: changes that are routes', () => {
+  it('opens the edit route of its own message and sends nothing by itself', async () => {
+    const { api, mount } = setup({ roles: ['MODERATOR', 'VIEWER'], path: '/cases/p-0001?tab=conversation' })
+    const { wrapper, router } = await mount()
 
-    await wrapper.get(`[data-testid="message-${THEIRS}"] [data-testid="message-redact"]`).trigger('click')
-    await flushPromises()
-    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'PERSONAL_DATA')
-    await wrapper.get('[data-testid="redact-message-confirm"]').trigger('click')
+    await wrapper.get(`[data-testid="message-${MINE}"] [data-testid="message-edit"]`).trigger('click')
     await flushPromises()
 
-    expect(api.redactCaseMessage).toHaveBeenCalledWith('p-0001', THEIRS, 'PERSONAL_DATA')
-    expect(wrapper.emitted('changed')?.[0]).toEqual(['Message text removed.'])
+    expect(router.currentRoute.value.name).toBe('case-message-edit')
+    expect(router.currentRoute.value.params).toEqual({ reference: 'p-0001', messageId: MINE })
+    expect(api.editCaseMessage).not.toHaveBeenCalled()
 
     wrapper.unmount()
   })
 
-  it('does not call the server until a reason is chosen', async () => {
-    const { api, mount } = setup({ roles: ['ADMIN', 'MODERATOR', 'VIEWER'] })
-    const { wrapper } = await mount()
+  it('opens the redact route of a message for an admin and removes nothing by itself', async () => {
+    const { api, mount } = setup({ roles: ['ADMIN', 'MODERATOR', 'VIEWER'], path: '/cases/p-0001?tab=conversation' })
+    const { wrapper, router } = await mount()
 
     await wrapper.get(`[data-testid="message-${THEIRS}"] [data-testid="message-redact"]`).trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="redact-message-confirm"]').attributes('disabled')).toBeDefined()
+    expect(router.currentRoute.value.name).toBe('case-message-redact')
     expect(api.redactCaseMessage).not.toHaveBeenCalled()
 
     wrapper.unmount()
   })
+})
+
+describe('ConversationSection: redaction as admin', () => {
+
 
   it('erases the player’s side with a reason', async () => {
     const { api, mount } = setup({ roles: ['ADMIN', 'MODERATOR', 'VIEWER'] })

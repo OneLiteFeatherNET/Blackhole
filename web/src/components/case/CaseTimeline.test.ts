@@ -363,98 +363,7 @@ describe('CaseTimeline: notes', () => {
     wrapper.unmount()
   })
 
-  it('saves an edit, tells the page and reloads the timeline', async () => {
-    const editCaseNote = vi.fn(async () => ok({ noteId: NOTE, seq: 3 }))
-    const { api, mount } = setup([[added()], [edited(), added()]], { roles: ['MODERATOR', 'VIEWER'], extra: { editCaseNote } })
-    const { wrapper } = await mount()
 
-    await wrapper.get('[data-testid="note-edit"]').trigger('click')
-    await wrapper.get('[data-testid="note-text"]').setValue('second text')
-    await wrapper.get('[data-testid="note-editor"]').trigger('submit')
-    await flushPromises()
-
-    expect(editCaseNote).toHaveBeenCalledWith('p-0001', NOTE, 'second text')
-    expect(wrapper.emitted('changed')).toEqual([['Note saved.']])
-    expect(api.caseTimeline).toHaveBeenCalledTimes(2)
-    expect(wrapper.get('[data-testid="note-body"]').text()).toBe('second text')
-
-    wrapper.unmount()
-  })
-
-  it('keeps the editor open with the server message when an edit is rejected', async () => {
-    const editCaseNote = vi.fn(async () => fail('a note must not contain a UUID or an IP address', 400))
-    const { mount } = setup([[added()]], { roles: ['MODERATOR', 'VIEWER'], extra: { editCaseNote } })
-    const { wrapper } = await mount()
-
-    await wrapper.get('[data-testid="note-edit"]').trigger('click')
-    await wrapper.get('[data-testid="note-editor"]').trigger('submit')
-    await flushPromises()
-
-    expect(wrapper.get('[data-testid="note-error"]').text()).toBe('a note must not contain a UUID or an IP address')
-    expect(wrapper.find('[data-testid="note-editor"]').exists()).toBe(true)
-
-    wrapper.unmount()
-  })
-})
-
-describe('CaseTimeline: redaction', () => {
-  const note = () => timelineItem({ seq: 1, type: 'note.added', payload: { noteId: NOTE, text: 'secret' }, subjectId: NOTE })
-
-  it('asks for a reason from the backend list before it removes anything', async () => {
-    const redactCaseNote = vi.fn(async () => ok({ noteId: NOTE, redactedVersions: 1 }))
-    const { mount } = setup([[note()], [timelineItem({ seq: 1, type: 'note.added', payload: {}, redactedAt: 1, subjectId: NOTE })]], { extra: { redactCaseNote } })
-    const { wrapper } = await mount()
-
-    await wrapper.get('[data-testid="note-redact"]').trigger('click')
-    await flushPromises()
-
-    expect(redactCaseNote).not.toHaveBeenCalled()
-    expect(wrapper.get('[data-testid="redact-confirm"]').attributes('disabled')).toBeDefined()
-
-    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'ERASURE_REQUEST')
-    await wrapper.get('[data-testid="redact-confirm"]').trigger('click')
-    await flushPromises()
-
-    expect(redactCaseNote).toHaveBeenCalledWith('p-0001', NOTE, 'ERASURE_REQUEST')
-    expect(wrapper.emitted('changed')).toEqual([['Note text removed.']])
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="note-removed"]').exists()).toBe(true)
-
-    wrapper.unmount()
-  })
-
-  it('shows the error and keeps the dialog open when the backend refuses', async () => {
-    const redactCaseNote = vi.fn(async () => fail('not allowed', 403))
-    const { mount } = setup([[note()]], { extra: { redactCaseNote } })
-    const { wrapper } = await mount()
-
-    await wrapper.get('[data-testid="note-redact"]').trigger('click')
-    await flushPromises()
-    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'OTHER')
-    await wrapper.get('[data-testid="redact-confirm"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.get('[data-testid="redact-error"]').text()).toBe('not allowed')
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
-
-    wrapper.unmount()
-  })
-
-  it('does not remove anything when the dialog is cancelled', async () => {
-    const redactCaseNote = vi.fn()
-    const { mount } = setup([[note()]], { extra: { redactCaseNote } })
-    const { wrapper } = await mount()
-
-    await wrapper.get('[data-testid="note-redact"]').trigger('click')
-    await flushPromises()
-    await wrapper.get('[data-testid="redact-cancel"]').trigger('click')
-    await flushPromises()
-
-    expect(redactCaseNote).not.toHaveBeenCalled()
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
-
-    wrapper.unmount()
-  })
 })
 
 describe('CaseTimeline: inline evidence', () => {
@@ -508,6 +417,37 @@ describe('CaseTimeline: Discord leak entry', () => {
 
     expect(wrapper.get('[data-testid="event-detail"]').text()).toContain('found by the Discord bot')
     expect(wrapper.text()).not.toContain('participant-0042')
+
+    wrapper.unmount()
+  })
+})
+
+describe('CaseTimeline: note actions are routes', () => {
+  const note = () => timelineItem({ seq: 1, type: 'note.added', payload: { noteId: NOTE, text: 'first text' }, subjectId: NOTE, actor: { oid: ME, name: 'Me', trust: 'VERIFIED' } })
+
+  it('opens the edit route of the note and sends nothing by itself', async () => {
+    const api = { caseTimeline: vi.fn(async () => ok(timelinePage([note()]))) }
+    const { router, wrapper } = await mountWithApp(CaseTimeline, { api: mockApi(api), props: { reference: 'p-0001' }, path: '/cases/p-0001?tab=notes-audit', roles: ['MODERATOR', 'VIEWER'] })
+
+    await wrapper.get('[data-testid="note-edit"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('case-note-edit')
+    expect(router.currentRoute.value.params).toEqual({ reference: 'p-0001', noteId: NOTE })
+    expect(router.currentRoute.value.query).toEqual({ tab: 'notes-audit' })
+
+    wrapper.unmount()
+  })
+
+  it('opens the redact route of the note for an admin and reads the timeline once', async () => {
+    const api = { caseTimeline: vi.fn(async () => ok(timelinePage([note()]))) }
+    const { router, wrapper } = await mountWithApp(CaseTimeline, { api: mockApi(api), props: { reference: 'p-0001' }, path: '/cases/p-0001?tab=notes-audit', roles: ['ADMIN', 'MODERATOR', 'VIEWER'] })
+
+    await wrapper.get('[data-testid="note-redact"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('case-note-redact')
+    expect(api.caseTimeline).toHaveBeenCalledTimes(1)
 
     wrapper.unmount()
   })

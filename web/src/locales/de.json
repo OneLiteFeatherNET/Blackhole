@@ -645,6 +645,9 @@
   },
   "evidence": {
     "title": "Beweise",
+    "page": {
+      "case": "Zum Fall"
+    },
     "open": "Beweise",
     "dialogTitle": "Beweise zur Strafe",
     "close": "Schließen",
@@ -1229,6 +1232,8 @@
       "title": "Notizen",
       "newLabel": "Neue Notiz",
       "editLabel": "Notiz bearbeiten",
+      "newTitle": "Notiz hinzufügen",
+      "editTitle": "Notiz bearbeiten",
       "add": "Notiz hinzufügen",
       "save": "Notiz speichern",
       "saved": "Notiz gespeichert.",
@@ -1375,6 +1380,7 @@
       "removed": "Entfernt (Datenschutz)",
       "newLabel": "Dem Spieler antworten",
       "editLabel": "Nachricht bearbeiten",
+      "editTitle": "Nachricht bearbeiten",
       "send": "Antwort senden",
       "save": "Nachricht speichern",
       "hint": "Strg+Eingabe sendet. Der Spieler kann das lesen. Keine UUIDs, IP-Adressen oder Ban-IDs.",

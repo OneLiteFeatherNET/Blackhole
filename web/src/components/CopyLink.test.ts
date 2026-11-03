@@ -62,4 +62,19 @@ describe('CopyLink', () => {
     expect(wrapper.get('[data-testid="copy-link-status"]').text()).toBe('')
     wrapper.unmount()
   })
+
+  it('copies the address of the item it is given, not the address of the page', async () => {
+    const clipboard = fakeClipboard()
+    const mounted = await mountWithApp(CopyLink, {
+      path: '/cases/A1B2C3D4?tab=conversation',
+      props: { to: { name: 'case', params: { reference: 'A1B2C3D4' }, query: { tab: 'conversation' }, hash: '#event-7f3c2a10' } },
+      provide: { [CLIPBOARD_KEY as symbol]: clipboard.writer },
+    })
+
+    await mounted.wrapper.get('[data-testid="copy-link"]').trigger('click')
+    await flushPromises()
+
+    expect(clipboard.writes).toEqual([`${window.location.origin}/cases/A1B2C3D4?tab=conversation#event-7f3c2a10`])
+    mounted.wrapper.unmount()
+  })
 })

@@ -7,17 +7,21 @@
 // net: every 30 s while the stream is open, every 15 s without it.
 import { computed, nextTick, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '../../api/inject'
 import type { ApiError, ApiResult, CaseTimelineItem, CaseWithSeen, NoteRedactionReason } from '../../api/types'
 import type { CaseEvents, CaseEventsState } from '../../api/caseEvents'
 import { formatDateTime } from '../../format'
+import { useItemHighlight } from '../../composables/useItemHighlight'
 import { useSessionStore } from '../../stores/session'
+import CopyLink from '../CopyLink.vue'
 import MdButton from '../md/MdButton.vue'
 import ResourceState from '../ResourceState.vue'
 import StatusPill from '../StatusPill.vue'
 import CaseLockControl from './CaseLockControl.vue'
 import ChatMarkdown, { type ChatNode } from './chat/ChatMarkdown'
 import { bannerFor, buildMarkers, buildThread, dayKey, dayLabel, startsDay, type ChatFile, type ShareMarker, type ThreadMessage } from './conversation'
+import { anchorDomId, anchorHash, anchorIdOf } from './itemAnchor'
 import MessageComposer from './MessageComposer.vue'
 import ParticipantErasure, { type ErasableParticipant } from './ParticipantErasure.vue'
 import ReasonDialog from './ReasonDialog.vue'
@@ -37,6 +41,8 @@ const emit = defineEmits<{ changed: [message: string]; messages: [count: number]
 const { t, locale } = useI18n()
 const api = useApi()
 const session = useSessionStore()
+const route = useRoute()
+const router = useRouter()
 
 const events = ref<CaseTimelineItem[]>([])
 const loaded = ref(false)
@@ -46,11 +52,12 @@ const announcement = ref('')
 const seenSeq = ref(props.kase.playerSeenSeq ?? 0)
 const liveState = ref<CaseEventsState>('connecting')
 
-const editing = ref<string | null>(null)
 const confirmingDelete = ref<string | null>(null)
 const deleteError = ref('')
-const redacting = ref<string | null>(null)
 const erasing = ref(false)
+
+/** The message the address names (`#event-<id>`) is scrolled to and highlighted once the thread has it. */
+const highlight = useItemHighlight({ anchor: () => anchorIdOf(route.hash), ready: () => events.value })
 
 const reference = computed(() => props.kase.punishmentIdentifier)
 const thread = computed(() => buildThread(events.value))
@@ -116,12 +123,13 @@ function scrollToEnd(): void {
   if (element) element.scrollTop = element.scrollHeight
 }
 
+// An address that names a message keeps the thread where the message is: no follow to the end while it is named.
 watch(
   thread,
   () => {
     const element = scroller.value
     const follow = element === null || element.scrollHeight - element.scrollTop - element.clientHeight <= FOLLOW_PX
-    if (follow) void nextTick(scrollToEnd)
+    if (follow && anchorIdOf(route.hash) === null && highlight.highlighted.value === null) void nextTick(scrollToEnd)
   },
   { flush: 'pre' },
 )
@@ -129,7 +137,7 @@ watch(
 watch(
   () => props.active,
   (active) => {
-    if (active) scrollToEnd()
+    if (active && anchorIdOf(route.hash) === null) scrollToEnd()
   },
   { flush: 'post' },
 )
@@ -261,13 +269,17 @@ function send(text: string, key: string, attachmentIds: string[]): Promise<ApiRe
   })
 }
 
-async function saveEdit(message: ThreadMessage, text: string): Promise<ApiResult<unknown>> {
-  const result = await api.editCaseMessage(reference.value, message.id, text)
-  if (result.ok) {
-    editing.value = null
-    await changed(t('case.conversation.edited'))
-  }
-  return result
+/** The address of a message: the conversation tab of the case with the message's fragment. */
+const messageLink = (message: ThreadMessage) => ({
+  name: 'case',
+  params: { reference: String(route.params.reference) },
+  query: { tab: 'conversation' },
+  hash: anchorHash(message.id),
+})
+
+/** Edit and redact are routes of the message (`restructure-staff-panel`, decision 7): opening them sends nothing. */
+function openMessageRoute(name: 'case-message-edit' | 'case-message-redact', message: ThreadMessage): void {
+  void router.push({ name, params: { reference: String(route.params.reference), messageId: message.id }, query: route.query })
 }
 
 async function remove(message: ThreadMessage): Promise<void> {
@@ -282,7 +294,6 @@ async function remove(message: ThreadMessage): Promise<void> {
 }
 
 async function redacted(message: string): Promise<void> {
-  redacting.value = null
   erasing.value = false
   await changed(message)
 }
@@ -337,10 +348,14 @@ async function redacted(message: string): Promise<void> {
           >{{ markerText(marker) }}</li>
 
           <li
+            :id="anchorDomId(block.message.id)"
+            tabindex="-1"
             class="flex max-w-[88%] flex-col gap-2 rounded-md-md border p-4"
             :class="[
               block.message.author === 'PLAYER' ? 'self-start border-outline-variant bg-surface-container-low' : 'self-end border-outline-variant bg-surface',
+              highlight.highlighted.value === block.message.id ? 'outline outline-2 outline-primary' : '',
             ]"
+            :data-highlighted="highlight.highlighted.value === block.message.id ? 'true' : undefined"
             :data-testid="`message-${block.message.id}`"
             :data-author="block.message.author"
             :data-side="sideOf(block.message)"
@@ -365,15 +380,6 @@ async function redacted(message: string): Promise<void> {
             </p>
 
             <p v-if="block.message.redacted" class="text-body-medium italic text-on-surface-variant" data-testid="message-removed">{{ t('case.conversation.removed') }}</p>
-            <MessageComposer
-              v-else-if="editing === block.message.id"
-              :label="t('case.conversation.editLabel')"
-              :submit-label="t('case.conversation.save')"
-              :initial="block.message.text ?? ''"
-              :save="(text: string) => saveEdit(block.message, text)"
-              cancellable
-              @cancel="editing = null"
-            />
             <div
               v-else-if="block.message.blocks"
               :class="block.message.deleted ? 'text-on-surface-variant line-through' : ''"
@@ -402,23 +408,24 @@ async function redacted(message: string): Promise<void> {
               </li>
             </ul>
 
-            <div v-if="editing !== block.message.id && (canChange(block.message) || canRedact(block.message))" class="mt-1 flex flex-wrap gap-1">
+            <div v-if="canChange(block.message) || canRedact(block.message)" class="mt-1 flex flex-wrap gap-1">
               <template v-if="confirmingDelete === block.message.id">
                 <span class="self-center text-body-medium">{{ t('case.conversation.deleteQuestion') }}</span>
                 <MdButton variant="text" data-testid="message-delete-confirm" @click="remove(block.message)">{{ t('case.conversation.delete') }}</MdButton>
                 <MdButton variant="text" data-testid="message-delete-cancel" @click="confirmingDelete = null">{{ t('actions.cancel') }}</MdButton>
               </template>
               <template v-else>
-                <MdButton v-if="canChange(block.message)" variant="text" data-testid="message-edit" @click="editing = block.message.id">{{ t('case.conversation.edit') }}</MdButton>
+                <MdButton v-if="canChange(block.message)" variant="text" data-testid="message-edit" @click="openMessageRoute('case-message-edit', block.message)">{{ t('case.conversation.edit') }}</MdButton>
                 <MdButton
                   v-if="canChange(block.message)"
                   variant="text"
                   data-testid="message-delete"
                   @click="((confirmingDelete = block.message.id), (deleteError = ''))"
                 >{{ t('case.conversation.delete') }}</MdButton>
-                <MdButton v-if="canRedact(block.message)" variant="text" data-testid="message-redact" @click="redacting = block.message.id">{{ t('case.conversation.redact') }}</MdButton>
+                <MdButton v-if="canRedact(block.message)" variant="text" data-testid="message-redact" @click="openMessageRoute('case-message-redact', block.message)">{{ t('case.conversation.redact') }}</MdButton>
               </template>
             </div>
+            <CopyLink :to="messageLink(block.message)" />
             <p v-if="deleteError && confirmingDelete === block.message.id" role="alert" class="rounded-md-md bg-error-container p-3 text-on-error-container" data-testid="delete-error">{{ deleteError }}</p>
           </li>
 
@@ -456,18 +463,6 @@ async function redacted(message: string): Promise<void> {
       </div>
     </details>
 
-    <ReasonDialog
-      :open="redacting !== null"
-      name="redact-message"
-      :headline="t('case.conversation.redactTitle')"
-      :body="t('case.conversation.redactBody')"
-      :confirm-label="t('case.conversation.redactConfirm')"
-      :reasons="REDACTION_REASONS"
-      reason-prefix="case.redact.reason"
-      :run="(reason: string) => api.redactCaseMessage(reference, redacting ?? '', reason as NoteRedactionReason)"
-      @close="redacting = null"
-      @done="redacted(t('case.conversation.redactDone'))"
-    />
     <ReasonDialog
       :open="erasing"
       name="erase-player"

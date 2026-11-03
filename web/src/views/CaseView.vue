@@ -3,23 +3,23 @@ import { computed, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import { useApi } from '../api/inject'
-import type { ApiResult, Case, CaseStatus } from '../api/types'
+import type { Case, CaseStatus } from '../api/types'
 import Breadcrumbs from '../components/Breadcrumbs.vue'
 import PageShell from '../components/PageShell.vue'
 import SkeletonBlock from '../components/SkeletonBlock.vue'
 import BanIdPanel from '../components/case/BanIdPanel.vue'
-import { CASE_CONTEXT_KEY, type CaseStatusApplied } from '../components/case/caseContext'
+import { CASE_CONTEXT_KEY, CASE_ITEMS_KEY, type CaseStatusApplied } from '../components/case/caseContext'
 import CaseHeader from '../components/case/CaseHeader.vue'
 import CaseTimeline from '../components/case/CaseTimeline.vue'
 import ConversationSection from '../components/case/ConversationSection.vue'
 import { punishmentStateTone } from '../components/case/caseTones'
 import ProtocolSection from '../components/case/ProtocolSection.vue'
-import NoteEditor from '../components/case/NoteEditor.vue'
 import RelatedCases from '../components/case/RelatedCases.vue'
 import TranscriptExport from '../components/case/TranscriptExport.vue'
 import EntityHeader from '../components/entity/EntityHeader.vue'
 import type { EntityAction, EntityAssignee, EntityStateView } from '../components/entity/entityHeader'
 import { caseStatePill } from '../components/entity/entityState'
+import MdButton from '../components/md/MdButton.vue'
 import MdSnackbar from '../components/md/MdSnackbar.vue'
 import MdTabs from '../components/md/MdTabs.vue'
 import { panelDomId, tabDomId } from '../components/md/tabs'
@@ -35,6 +35,8 @@ const UNDO_WINDOW_MS = 10_000
 
 const TAB_IDS = ['overview', 'conversation', 'audit'] as const
 type CaseTab = (typeof TAB_IDS)[number]
+/** The address of the audit tab is `notes-audit` (decision 7); a link to a note or an event names it so. */
+const TAB_ALIASES: Partial<Record<string, CaseTab>> = { 'notes-audit': 'audit' }
 /** The ids the tabs and their panels share: the tab strip's tab and panel ids are derived from these. */
 const TAB_PREFIX = 'case'
 
@@ -64,7 +66,12 @@ const snackbarKey = ref(0)
 watch([message, undo], () => (snackbarKey.value += 1))
 
 // The tab lives in the URL, so a link and a reload keep it. An unknown or missing value is the overview.
-const activeTab = computed<CaseTab>(() => TAB_IDS.find((tab) => tab === route.query.tab) ?? 'overview')
+// A protocol address is on the audit tab, where the protocols are listed.
+const activeTab = computed<CaseTab>(() => {
+  if (route.name === 'case-protocol') return 'audit'
+  const value = typeof route.query.tab === 'string' ? route.query.tab : ''
+  return TAB_ALIASES[value] ?? TAB_IDS.find((tab) => tab === value) ?? 'overview'
+})
 
 /** Messages that arrived while another tab was open. The first load of the thread is not new. */
 const unseen = ref(0)
@@ -113,6 +120,16 @@ function statusApplied({ kase, previous, action }: CaseStatusApplied): void {
 }
 
 provide(CASE_CONTEXT_KEY, { kase: detail.data, applied: statusApplied })
+// The note and message dialogs (child routes) announce their change here; the page then reloads what it shows.
+provide(CASE_ITEMS_KEY, { changed: (text) => acted(text) })
+
+/** The protocol the address names; its page opens it. */
+const protocolFocus = computed(() => (route.name === 'case-protocol' ? String(route.params.evidenceId) : null))
+
+/** Opens the dialog that adds a note; the note is sent only by its form. */
+function openNewNote(): void {
+  void router.push({ name: 'case-note-new', params: { reference: props.reference }, query: route.query })
+}
 
 /** Undo sends the status back with the version the close left, so a change made since is refused, not overwritten. */
 async function undoClose(): Promise<void> {
@@ -182,14 +199,6 @@ async function acted(text: string): Promise<void> {
   await reload()
 }
 
-async function addNote(text: string): Promise<ApiResult<unknown>> {
-  const result = await api.addCaseNote(detail.data.value?.punishmentIdentifier ?? props.reference, text)
-  if (result.ok) {
-    message.value = t('case.notes.saved')
-    await timeline.value?.reload()
-  }
-  return result
-}
 </script>
 
 <template>
@@ -245,17 +254,19 @@ async function addNote(text: string): Promise<ApiResult<unknown>> {
         <div v-show="activeTab === 'audit'" :id="panelDomId(TAB_PREFIX, 'audit')" role="tabpanel" :aria-labelledby="tabDomId(TAB_PREFIX, 'audit')" class="flex flex-col gap-6">
           <section :aria-label="t('case.notes.title')" class="flex flex-col gap-3">
             <h2 class="text-title-medium">{{ t('case.notes.title') }}</h2>
-            <NoteEditor v-if="session.moderator" :label="t('case.notes.newLabel')" :submit-label="t('case.notes.add')" :save="addNote" />
+            <div v-if="session.moderator">
+              <MdButton variant="tonal" data-testid="open-note-new" @click="openNewNote">{{ t('case.notes.add') }}</MdButton>
+            </div>
             <p v-else class="text-body-medium text-on-surface-variant" data-testid="notes-read-only">{{ t('case.notes.readOnly') }}</p>
           </section>
 
-          <CaseTimeline
-            ref="timeline"
-            :reference="detail.data.value.punishmentIdentifier"
-            @changed="message = $event"
-          />
+          <CaseTimeline ref="timeline" :reference="detail.data.value.punishmentIdentifier" :seek="activeTab === 'audit'" />
 
-          <ProtocolSection :reference="detail.data.value.punishmentIdentifier" :short-id="detail.data.value.shortId" />
+          <ProtocolSection
+            :reference="detail.data.value.punishmentIdentifier"
+            :short-id="detail.data.value.shortId"
+            :focus="protocolFocus"
+          />
 
           <TranscriptExport
             v-if="session.administrator"
