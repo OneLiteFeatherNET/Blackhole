@@ -16,9 +16,6 @@ import CaseStatusDialog from '../components/case/CaseStatusDialog.vue'
 import InboxView from '../views/InboxView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 import NoAccessView from '../views/NoAccessView.vue'
-import PlayerDetailView from '../views/PlayerDetailView.vue'
-import PlayersView from '../views/PlayersView.vue'
-import PunishedPlayersView from '../views/PunishedPlayersView.vue'
 import AppealConditionsView from '../views/AppealConditionsView.vue'
 import AppealTermsVersionView from '../views/AppealTermsVersionView.vue'
 import AppealTermsEditRoute from '../components/appealterms/AppealTermsEditRoute.vue'
@@ -38,6 +35,7 @@ import SectionsView from '../views/SectionsView.vue'
 import TemplatesView from '../views/TemplatesView.vue'
 import LeaveView from '../views/LeaveView.vue'
 import { exemptionRouteTable } from './exemptionRouteTable'
+import { playerRoutes } from './playerRouteTable'
 import { LEGACY_LIST_QUERY, LIST_QUERY, cleanListQuery, renameLegacyQuery, type ListParams } from './listQuery'
 
 /*
@@ -54,9 +52,8 @@ export const routes: RouteRecordRaw[] = [
   // The inbox is the front page of the Moderation workspace. `pageShell` means the page renders its own single heading (PageShell).
   { path: '/', name: 'inbox', component: InboxView, meta: { titleKey: 'inbox.title', pageShell: true, workspace: 'moderation' } },
   // `nav` names the navigation destination a page belongs to, so the detail pages keep their group marked.
-  { path: '/punished', name: 'punished', component: PunishedPlayersView, meta: { titleKey: 'nav.activePunishments', pageShell: true, workspace: 'moderation' } },
-  { path: '/players', name: 'players', component: PlayersView, meta: { titleKey: 'nav.playerLookup', pageShell: true, workspace: 'moderation' } },
-  { path: '/players/:owner', name: 'player', component: PlayerDetailView, props: true, meta: { titleKey: 'nav.playerLookup', nav: '/players', pageShell: true, workspace: 'moderation' } },
+  // The player lookup, the player page with its action routes, and the active punishments with their own addresses.
+  ...playerRoutes,
   // The VPN and hosting pages, the IP and area bans, the join guard and their detail pages: `moderationRouteTable.ts`.
   ...moderationRoutes,
   { path: '/reports', name: 'reports', component: ReportsView, meta: { titleKey: 'nav.reports', pageShell: true, workspace: 'moderation' } },

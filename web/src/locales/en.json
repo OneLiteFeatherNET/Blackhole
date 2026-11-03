@@ -89,6 +89,8 @@
       "body": "You are signed in, but your account has no role for Blackhole. Ask an administrator to add you to the right group, then sign in again.",
       "adminHeading": "Administrators only",
       "adminBody": "This page is only available to administrators. Your role does not include it.",
+      "moderatorHeading": "Moderators only",
+      "moderatorBody": "Only moderators change players and punishments. Your role lets you read them.",
       "back": "Back to the dashboard"
     },
     "error": {
@@ -170,6 +172,34 @@
     "lastSeen": "Last seen {date}"
   },
   "player": {
+    "tabs": {
+      "label": "Player sections",
+      "overview": "Overview",
+      "punishments": "Punishments",
+      "reports": "Reports",
+      "cases": "Cases",
+      "evasion": "Evasion",
+      "elo": "ELO",
+      "names": "Names",
+      "intel": "Intel",
+      "warnings": "Warnings",
+      "evidence": "Evidence"
+    },
+    "reports": {
+      "empty": "No report has been filed against this player.",
+      "open": "Open report"
+    },
+    "cases": {
+      "empty": "No case exists for this player."
+    },
+    "warnings": {
+      "empty": "This player has not been warned."
+    },
+    "evidence": {
+      "hint": "Evidence belongs to a punishment. Open a punishment to see its evidence.",
+      "count": "{count} evidence items",
+      "empty": "This player has no punishment."
+    },
     "backToSearch": "Back to search",
     "invalidOwner": "This is not a valid player identifier.",
     "scores": "Scores per section",
@@ -1575,7 +1605,31 @@
       "warning": "The player will see these files once you send the message."
     }
   },
+  "punishedDetail": {
+    "notFound": "This item does not exist or was removed.",
+    "ambiguous": "More than one punishment has this short ID.",
+    "noOwner": "Open the player to revoke this punishment.",
+    "historyNeedsOwner": "Open the player to see its history."
+  },
   "punished": {
+    "detail": {
+      "title": "Punishment",
+      "heading": "Punishment {id}",
+      "open": "Details",
+      "tabs": {
+        "label": "Punishment sections",
+        "details": "Details",
+        "evidence": "Evidence",
+        "history": "History"
+      },
+      "section": "Section",
+      "reason": "Reason",
+      "term": "Duration",
+      "since": "Since",
+      "state": "State",
+      "inForce": "In force",
+      "lifted": "Lifted or ended"
+    },
     "title": "Active punishments",
     "kind": {
       "label": "Kind",

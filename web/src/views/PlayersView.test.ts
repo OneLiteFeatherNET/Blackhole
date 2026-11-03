@@ -37,16 +37,17 @@ describe('PlayersView', () => {
     wrapper.unmount()
   })
 
-  it('replaces the lookup address with the owner address, so Back does not return to the typed name', async () => {
+  it('replaces the lookup address with the owner address, so the name is in no history entry', async () => {
     const resolvePlayer = vi.fn(async () => ok(STEVE))
     const { wrapper, router } = await mountWithApp(PlayersView, { path: '/players', api: mockApi({ resolvePlayer }) })
-    const replace = vi.spyOn(router, 'replace')
     const push = vi.spyOn(router, 'push')
+    const replace = vi.spyOn(router, 'replace')
 
     await search(wrapper, 'Steve')
 
     expect(replace).toHaveBeenCalledWith(`/players/${OWNER}`)
-    expect(push, 'a new history entry').not.toHaveBeenCalled()
+    expect(push, 'no entry with the name is pushed').not.toHaveBeenCalled()
+    expect(router.currentRoute.value.fullPath).toBe(`/players/${OWNER}`)
 
     wrapper.unmount()
   })

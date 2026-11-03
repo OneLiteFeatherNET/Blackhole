@@ -131,7 +131,8 @@ async function openPlayer(name: string): Promise<void> {
     return
   }
   lookup.remember(result.data.owner, result.data.name)
-  void router.push({ name: 'player', params: { owner: result.data.owner } })
+  // The typed name is replaced by the owner's address, so it is in no history entry.
+  void router.replace({ name: 'player', params: { owner: result.data.owner } })
   finish()
 }
 
