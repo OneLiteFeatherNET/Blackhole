@@ -82,6 +82,8 @@
       "body": "Du bist angemeldet, aber dein Konto hat keine Rolle für Blackhole. Bitte einen Administrator, dich zur passenden Gruppe hinzuzufügen, und melde dich danach neu an.",
       "adminHeading": "Nur für Administratoren",
       "adminBody": "Diese Seite ist nur für Administratoren verfügbar. Deine Rolle schließt sie nicht ein.",
+      "moderatorHeading": "Nur für Moderatoren",
+      "moderatorBody": "Nur Moderatoren ändern Spieler und Strafen. Deine Rolle erlaubt dir das Lesen.",
       "back": "Zurück zum Dashboard"
     },
     "error": {
@@ -163,6 +165,34 @@
     "lastSeen": "Zuletzt gesehen {date}"
   },
   "player": {
+    "tabs": {
+      "label": "Bereiche des Spielers",
+      "overview": "Übersicht",
+      "punishments": "Strafen",
+      "reports": "Meldungen",
+      "cases": "Fälle",
+      "evasion": "Umgehung",
+      "elo": "ELO",
+      "names": "Namen",
+      "intel": "Intel",
+      "warnings": "Verwarnungen",
+      "evidence": "Beweise"
+    },
+    "reports": {
+      "empty": "Gegen diesen Spieler liegt keine Meldung vor.",
+      "open": "Meldung öffnen"
+    },
+    "cases": {
+      "empty": "Für diesen Spieler gibt es keinen Fall."
+    },
+    "warnings": {
+      "empty": "Dieser Spieler wurde nicht verwarnt."
+    },
+    "evidence": {
+      "hint": "Beweise gehören zu einer Strafe. Öffne eine Strafe, um ihre Beweise zu sehen.",
+      "count": "{count} Beweise",
+      "empty": "Dieser Spieler hat keine Strafe."
+    },
     "backToSearch": "Zurück zur Suche",
     "invalidOwner": "Das ist keine gültige Spieler-Kennung.",
     "scores": "Punktestand pro Bereich",
@@ -1515,7 +1545,31 @@
       "warning": "Der Spieler sieht diese Dateien, sobald Sie die Nachricht senden."
     }
   },
+  "punishedDetail": {
+    "notFound": "Dieser Eintrag existiert nicht oder wurde entfernt.",
+    "ambiguous": "Mehr als eine Strafe hat diese Kurz-ID.",
+    "noOwner": "Öffne den Spieler, um diese Strafe aufzuheben.",
+    "historyNeedsOwner": "Öffne den Spieler, um seinen Verlauf zu sehen."
+  },
   "punished": {
+    "detail": {
+      "title": "Strafe",
+      "heading": "Strafe {id}",
+      "open": "Details",
+      "tabs": {
+        "label": "Bereiche der Strafe",
+        "details": "Details",
+        "evidence": "Beweise",
+        "history": "Verlauf"
+      },
+      "section": "Bereich",
+      "reason": "Grund",
+      "term": "Dauer",
+      "since": "Seit",
+      "state": "Status",
+      "inForce": "Aktiv",
+      "lifted": "Aufgehoben oder beendet"
+    },
     "title": "Aktive Strafen",
     "kind": {
       "label": "Art",

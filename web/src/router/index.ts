@@ -20,9 +20,6 @@ import IntelPolicyView from '../views/IntelPolicyView.vue'
 import IpBansView from '../views/IpBansView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 import NoAccessView from '../views/NoAccessView.vue'
-import PlayerDetailView from '../views/PlayerDetailView.vue'
-import PlayersView from '../views/PlayersView.vue'
-import PunishedPlayersView from '../views/PunishedPlayersView.vue'
 import AppealConditionsView from '../views/AppealConditionsView.vue'
 import AppealsView from '../views/AppealsView.vue'
 import AreaBansView from '../views/AreaBansView.vue'
@@ -32,6 +29,7 @@ import ReportsView from '../views/ReportsView.vue'
 import SectionsView from '../views/SectionsView.vue'
 import TemplatesView from '../views/TemplatesView.vue'
 import LeaveView from '../views/LeaveView.vue'
+import { playerRoutes } from './playerRouteTable'
 
 /*
  * Two workspaces (`meta.workspace`): Moderation keeps its URLs; Administration lives under /admin (ADMIN only, `meta.admin`).
@@ -47,10 +45,9 @@ export const routes: RouteRecordRaw[] = [
   // The inbox is the front page of the Moderation workspace. `pageShell` means the page renders its own single heading (PageShell).
   { path: '/', name: 'inbox', component: InboxView, meta: { titleKey: 'inbox.title', pageShell: true, workspace: 'moderation' } },
   // `nav` names the navigation destination a page belongs to, so the detail pages keep their group marked.
-  { path: '/punished', name: 'punished', component: PunishedPlayersView, meta: { titleKey: 'nav.activePunishments', pageShell: true, workspace: 'moderation' } },
+  // The player lookup, the player page with its action routes, and the active punishments with their own addresses.
+  ...playerRoutes,
   { path: '/ip-bans', name: 'ip-bans', component: IpBansView, meta: { titleKey: 'nav.ipBans', pageShell: true, workspace: 'moderation' } },
-  { path: '/players', name: 'players', component: PlayersView, meta: { titleKey: 'nav.playerLookup', pageShell: true, workspace: 'moderation' } },
-  { path: '/players/:owner', name: 'player', component: PlayerDetailView, props: true, meta: { titleKey: 'nav.playerLookup', nav: '/players', pageShell: true, workspace: 'moderation' } },
   // The VPN and hosting pages: the policy is read by every staff role, the exemptions are added by moderators.
   { path: '/intel/policy', name: 'intel-policy', component: IntelPolicyView, meta: { titleKey: 'nav.vpnPolicy', pageShell: true, workspace: 'moderation' } },
   { path: '/intel/allow-list', name: 'intel-allow-list', component: IntelAllowListView, meta: { titleKey: 'nav.allowList', pageShell: true, workspace: 'moderation' } },
