@@ -2278,7 +2278,20 @@
       "tooLong": "Höchstens 500 Zeichen."
     },
     "applied": "Prüfung verhängt.",
-    "dismissed": "Prüfung verworfen."
+    "dismissed": "Prüfung verworfen.",
+    "state": {
+      "OPEN": "Offen",
+      "APPLIED": "Verhängt",
+      "DISMISSED": "Verworfen"
+    },
+    "detail": {
+      "title": "Schutzprüfung",
+      "state": "Status",
+      "justification": "Begründung",
+      "open": "Öffnen",
+      "back": "Zurück zu den Prüfungen",
+      "notFound": "Es gibt keine solche Prüfung."
+    }
   },
   "guard": {
     "title": "Beitrittsschutz",

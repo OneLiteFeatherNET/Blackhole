@@ -11,7 +11,6 @@ import AuthCallbackView from '../views/AuthCallbackView.vue'
 import AuthErrorView from '../views/AuthErrorView.vue'
 import CasesView from '../views/CasesView.vue'
 import ClientRulesView from '../views/ClientRulesView.vue'
-import ExemptionReviewsView from '../views/ExemptionReviewsView.vue'
 import CaseStatusDialog from '../components/case/CaseStatusDialog.vue'
 import InboxView from '../views/InboxView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
@@ -37,6 +36,7 @@ import ReportsView from '../views/ReportsView.vue'
 import SectionsView from '../views/SectionsView.vue'
 import TemplatesView from '../views/TemplatesView.vue'
 import LeaveView from '../views/LeaveView.vue'
+import { exemptionRouteTable } from './exemptionRouteTable'
 
 /*
  * Two workspaces (`meta.workspace`): Moderation keeps its URLs; Administration lives under /admin (ADMIN only, `meta.admin`).
@@ -151,7 +151,7 @@ export const routes: RouteRecordRaw[] = [
     props: (route) => ({ version: Number(route.params.version) }),
     meta: { titleKey: 'nav.appealTerms', nav: '/admin/appeal-terms', admin: true, pageShell: true, workspace: 'administration' },
   },
-  { path: '/admin/exemption-reviews', name: 'admin-exemption-reviews', component: ExemptionReviewsView, meta: { titleKey: 'nav.exemptionReviews', admin: true, pageShell: true, workspace: 'administration' } },
+  ...exemptionRouteTable,
   // The system pages: one component with one tab route each (`meta.adminTab`), each a rail item of its own.
   { path: '/admin/staff', name: 'admin-staff', component: AdminView, meta: { titleKey: 'nav.staffAccounts', admin: true, pageShell: true, adminTab: 'staff', workspace: 'administration' } },
   { path: '/admin/rollback', name: 'admin-rollback', component: AdminView, meta: { titleKey: 'nav.rollback', admin: true, pageShell: true, adminTab: 'rollback', workspace: 'administration' } },

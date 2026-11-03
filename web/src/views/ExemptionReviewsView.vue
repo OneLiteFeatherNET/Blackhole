@@ -1,28 +1,28 @@
 <script setup lang="ts">
-// The administrator's queue of automatic punishments that were held back for protected players. Each review is decided
-// once, with a justification; a decided review leaves the open list.
-import { computed, ref } from 'vue'
+// The administrator's queue of automatic punishments that were held back for protected players. Each review has its
+// own address; a decision is the review's `decide` route, so it is one click away and sends nothing until confirmed there.
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { useApi } from '../api/inject'
 import type { ExemptionReview } from '../api/types'
 import ExemptionBadge from '../components/exemption/ExemptionBadge.vue'
-import ExemptionDecisionDialog, { type ExemptionDecision } from '../components/exemption/ExemptionDecisionDialog.vue'
 import DataTable, { type DataColumn } from '../components/DataTable.vue'
 import EmptyState from '../components/EmptyState.vue'
 import PageShell from '../components/PageShell.vue'
 import ResourceState from '../components/ResourceState.vue'
 import TextLink from '../components/TextLink.vue'
 import MdButton from '../components/md/MdButton.vue'
-import MdSnackbar from '../components/md/MdSnackbar.vue'
 import { useResource } from '../composables/useResource'
 import { formatDateTime, shortHash } from '../format'
+import type { ExemptionDecision } from '../components/exemption/ExemptionDecisionDialog.vue'
 
 const { t, locale } = useI18n()
 const api = useApi()
+const router = useRouter()
 
+// The API lists the open reviews only, so `?status=open` (the address of this page) is the one list there is.
 const reviews = useResource(() => api.exemptionReviews())
-const deciding = ref<{ review: ExemptionReview; action: ExemptionDecision } | null>(null)
-const message = ref('')
 
 const open = computed<ExemptionReview[]>(() => reviews.data.value ?? [])
 
@@ -35,11 +35,9 @@ const columns = computed<DataColumn<ExemptionReview>[]>(() => [
   { key: 'id', label: t('exemptionReviews.columns.decision'), priority: 1, align: 'end' },
 ])
 
-/** The list is read again after a decision, so the list shows what the backend holds. */
-async function decided(text: string): Promise<void> {
-  deciding.value = null
-  message.value = text
-  await reviews.reload()
+/** Opens the decision as the review's child route; the dialog there sends nothing until it is confirmed. */
+async function decide(review: ExemptionReview, action: ExemptionDecision): Promise<void> {
+  await router.push({ name: 'admin-exemption-review-decide', params: { id: review.id }, query: { action } })
 }
 </script>
 
@@ -65,10 +63,11 @@ async function decided(text: string): Promise<void> {
             </div>
             <template v-else-if="column.key === 'crossedAt'">{{ formatDateTime(row.crossedAt, locale) }}</template>
             <div v-else-if="column.key === 'id'" class="flex flex-wrap items-center justify-end gap-2">
-              <MdButton variant="text" :data-testid="`dismiss-${row.id}`" @click="deciding = { review: row, action: 'dismiss' }">
+              <TextLink :to="{ name: 'admin-exemption-review', params: { id: row.id } }">{{ t('exemptionReviews.detail.open') }}</TextLink>
+              <MdButton variant="text" :data-testid="`dismiss-${row.id}`" @click="decide(row, 'dismiss')">
                 {{ t('exemptionReviews.dismiss.open') }}
               </MdButton>
-              <MdButton variant="tonal" :data-testid="`apply-${row.id}`" @click="deciding = { review: row, action: 'apply' }">
+              <MdButton variant="tonal" :data-testid="`apply-${row.id}`" @click="decide(row, 'apply')">
                 {{ t('exemptionReviews.apply.open') }}
               </MdButton>
             </div>
@@ -80,13 +79,4 @@ async function decided(text: string): Promise<void> {
       </template>
     </ResourceState>
   </PageShell>
-
-  <ExemptionDecisionDialog
-    :open="deciding !== null"
-    :review="deciding?.review ?? null"
-    :action="deciding?.action ?? null"
-    @close="deciding = null"
-    @done="decided"
-  />
-  <MdSnackbar :open="message !== ''" :message="message" @close="message = ''" />
 </template>
