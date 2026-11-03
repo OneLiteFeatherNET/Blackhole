@@ -48,6 +48,19 @@ public class JdbcIntegrationStore implements IntegrationStore {
     }
 
     @Override
+    public Optional<Stored> findByClientId(String entraClientId) {
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(COLUMNS + " WHERE entra_client_id = ? AND enabled")) {
+            statement.setString(1, entraClientId);
+            try (ResultSet rows = statement.executeQuery()) {
+                return rows.next() ? Optional.of(read(rows)) : Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("integration registry could not be read", e);
+        }
+    }
+
+    @Override
     public List<Stored> list() {
         try (Connection connection = this.dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(COLUMNS + " ORDER BY source_system");

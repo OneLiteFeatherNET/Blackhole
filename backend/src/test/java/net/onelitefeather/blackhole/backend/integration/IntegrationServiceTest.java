@@ -130,7 +130,7 @@ class IntegrationServiceTest {
     }
 
     /** Keeps rows in memory, with the same uniqueness rules as the table. */
-    private static final class FakeStore implements IntegrationStore {
+    static final class FakeStore implements IntegrationStore {
 
         private final Map<Long, Stored> rows = new ConcurrentHashMap<>();
         private long nextId = 1;
@@ -138,6 +138,13 @@ class IntegrationServiceTest {
         @Override
         public Optional<Stored> find(long id) {
             return Optional.ofNullable(rows.get(id));
+        }
+
+        @Override
+        public Optional<Stored> findByClientId(String entraClientId) {
+            return rows.values().stream()
+                    .filter(row -> row.spec().enabled() && row.spec().entraClientId().equals(entraClientId))
+                    .findFirst();
         }
 
         @Override
