@@ -56,6 +56,7 @@ import type {
   ExemptionReview,
   ExemptionStatus,
   DashboardSummary,
+  InboxChangedSection,
   InboxSummary,
   KickAccepted,
   KickMassRequest,
@@ -133,6 +134,8 @@ export interface BlackholeApi {
   dashboard(): Promise<ApiResult<DashboardSummary>>
   /** The four sections of the inbox: counts and the oldest items of each. */
   inbox(): Promise<ApiResult<InboxSummary>>
+  /** The cases and appeals the other staff changed in the last 24 hours, read on its own so it fails alone. */
+  changedByOthers(): Promise<ApiResult<InboxChangedSection>>
   /** Resolves a player name; the result carries the hashed `owner` all other calls use. */
   resolvePlayer(name: string): Promise<ApiResult<ResolvedPlayer & { owner: string }>>
   /** A player without any punishment has no profile; that is an empty profile, not an error. */
@@ -573,6 +576,13 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     dashboard: () => toResult(http.GET('/dashboard/summary')),
 
     inbox: () => toResult(http.GET('/inbox')),
+
+    async changedByOthers() {
+      const result = await toResult(http.GET('/inbox'))
+      if (!result.ok) return result
+      // A backend without the section answers none: an empty section, not an error.
+      return { ok: true, data: result.data.changedByOthers ?? { count: 0, items: [] } }
+    },
 
     async resolvePlayer(name) {
       const result = await toResult(http.GET('/player/resolve/{name}', { params: { path: { name } } }))
