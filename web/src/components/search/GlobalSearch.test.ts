@@ -40,13 +40,17 @@ describe('GlobalSearch', () => {
     wrapper.unmount()
   })
 
-  it('resolves a player name and opens the player page', async () => {
+  it('resolves a player name and replaces the address with the player page, not the name', async () => {
     const resolvePlayer = vi.fn(async () => ok(PLAYER))
     const { wrapper, router, input } = await setup({ resolvePlayer })
+    const push = vi.spyOn(router, 'push')
+    const replace = vi.spyOn(router, 'replace')
 
     await submit(input, ' Steve ')
 
     expect(resolvePlayer).toHaveBeenCalledWith('Steve')
+    expect(replace).toHaveBeenCalledWith({ name: 'player', params: { owner: OWNER } })
+    expect(push, 'the name never gets its own history entry').not.toHaveBeenCalled()
     expect(router.currentRoute.value.fullPath).toBe(`/players/${OWNER}`)
     expect(input.element.value, 'field cleared').toBe('')
     wrapper.unmount()
