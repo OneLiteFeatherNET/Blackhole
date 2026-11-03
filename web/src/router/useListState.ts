@@ -30,6 +30,7 @@ export function useListState(params: ListParams, keepPage: readonly string[] = [
     get: () => values.value,
     set: (changes: ListValues) => {
       const next: ListValues = { ...values.value, ...changes }
+      if (sameValues(next, values.value)) return
       const filterChanged = Object.keys(params).some((key) => key !== 'page' && !keepPage.includes(key) && next[key] !== values.value[key])
       if ('page' in params && filterChanged && next.page === values.value.page) next.page = ''
       values.value = next

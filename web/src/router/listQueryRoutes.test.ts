@@ -9,7 +9,7 @@ import { installAuthGuard } from './authGuard'
 import { createAppRouter } from './index'
 
 const OID = '00000000-0000-4000-8000-0000000000a1'
-const OWNER = 'ab'.repeat(32)
+const OWNER = 'ab'.repeat(64)
 
 function setup(options: { auth?: FakeAuthOptions; roles?: string[] } = {}) {
   setActivePinia(createPinia())
@@ -70,6 +70,22 @@ describe('invalid list values are replaced, not errors', () => {
 
     expect(router.currentRoute.value.fullPath).toBe('/appeals?x=1')
     expect(router.currentRoute.value.name).toBe('appeals')
+  })
+
+  it('removes a player name that an old punished link still carries, and keeps the other keys', async () => {
+    const { router } = setup()
+
+    await router.push('/punished?q=Steve&kind=BAN')
+
+    expect(router.currentRoute.value.fullPath).toBe('/punished?kind=BAN')
+  })
+
+  it('removes a 64-hex value given as the report player, which is not a SHA-512 owner', async () => {
+    const { router } = setup()
+
+    await router.push(`/reports?player=${'ab'.repeat(32)}`)
+
+    expect(router.currentRoute.value.fullPath).toBe('/reports')
   })
 
   it('removes a name given as the report player and keeps the valid owner', async () => {

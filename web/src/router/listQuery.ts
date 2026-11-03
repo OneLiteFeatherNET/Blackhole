@@ -23,8 +23,8 @@ export function text(pattern: RegExp): ListParam {
 
 /** A page as a query value: `''` is the first page, `1` the second. */
 export const PAGE = /^[1-9]\d{0,5}$/
-/** A player's owner: the SHA-256 hex of the account, never the name or the raw UUID. */
-export const OWNER = /^[0-9a-f]{64}$/
+/** A player's owner: the SHA-512 hex of the account (128 characters), never the name or the raw UUID. As in the backend. */
+export const OWNER = /^[0-9a-fA-F]{128}$/
 /** A search text: printable, up to 64 characters. */
 export const SEARCH = /^[^\u0000-\u001f\u007f]{1,64}$/
 
@@ -136,7 +136,6 @@ export const LIST_QUERY: Readonly<Record<string, ListParams>> = {
   reports: REPORTS,
   report: REPORTS,
   punished: {
-    q: text(SEARCH),
     kind: choice(['BAN', 'MUTE', 'SERVER']),
     section: text(/^[a-z0-9][a-z0-9_-]{0,63}$/i),
     term: choice(['permanent', 'temporary', 'soon']),
@@ -159,6 +158,14 @@ export const LIST_QUERY: Readonly<Record<string, ListParams>> = {
     target: text(/^[A-Za-z0-9_-]{1,64}$/),
     cursor: text(/^[A-Za-z0-9+/=_.:~-]{1,512}$/),
   },
+}
+
+/**
+ * Parameters that are no longer part of a list's address, by route name; a link that still has one loses it. The
+ * punished list's search `q` matches player names, and a name must never be in an address (GDPR, design decision 8).
+ */
+export const RETIRED_LIST_QUERY: Readonly<Record<string, readonly string[]>> = {
+  punished: ['q'],
 }
 
 /** Old list parameter names, by route name. */

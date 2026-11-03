@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { LIST_QUERY, OWNER, PAGE, choice, cleanListQuery, pickParams, readListQuery, renameLegacyQuery, text, writeListQuery } from './listQuery'
 
 const PARAMS = { status: choice(['open', 'all']), page: text(PAGE) }
-const OWNER_HASH = 'ab'.repeat(32)
+const OWNER_HASH = 'ab'.repeat(64)
 
 describe('readListQuery', () => {
   it('reads the default, the empty value, for a missing choice and a missing text', () => {
@@ -104,9 +104,18 @@ describe('the parameters of each list page', () => {
     expect(cleanListQuery(invalid, params)).toEqual({})
   })
 
-  it('takes the owner hash for a report filter and refuses a name', () => {
+  it('keeps a 128-hex owner hash (SHA-512, as the backend) for a report filter', () => {
     expect(readListQuery({ player: OWNER_HASH }, LIST_QUERY.reports!).player).toBe(OWNER_HASH)
+    expect(readListQuery({ player: OWNER_HASH.toUpperCase() }, LIST_QUERY.reports!).player).toBe(OWNER_HASH.toUpperCase())
+  })
+
+  it('drops a 64-hex value (a SHA-256 length) and a name for a report filter', () => {
+    expect(readListQuery({ player: 'ab'.repeat(32) }, LIST_QUERY.reports!).player).toBe('')
     expect(readListQuery({ player: 'Steve' }, LIST_QUERY.reports!).player).toBe('')
-    expect(OWNER.test('Steve')).toBe(false)
+    expect(OWNER.test('ab'.repeat(32))).toBe(false)
+  })
+
+  it('has no search in the address of the punished list, so a typed name never reaches it', () => {
+    expect(LIST_QUERY.punished).not.toHaveProperty('q')
   })
 })

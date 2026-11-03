@@ -36,7 +36,7 @@ import TemplatesView from '../views/TemplatesView.vue'
 import LeaveView from '../views/LeaveView.vue'
 import { exemptionRouteTable } from './exemptionRouteTable'
 import { playerRoutes } from './playerRouteTable'
-import { LEGACY_LIST_QUERY, LIST_QUERY, cleanListQuery, renameLegacyQuery, type ListParams } from './listQuery'
+import { LEGACY_LIST_QUERY, LIST_QUERY, RETIRED_LIST_QUERY, cleanListQuery, renameLegacyQuery, type ListParams } from './listQuery'
 
 /*
  * Two workspaces (`meta.workspace`): Moderation keeps its URLs; Administration lives under /admin (ADMIN only, `meta.admin`).
@@ -200,12 +200,17 @@ export const routes: RouteRecordRaw[] = [
 export function listQueryRedirect(to: RouteLocationNormalized): RouteLocationRaw | undefined {
   const name = typeof to.name === 'string' ? to.name : undefined
   if (!name) return undefined
-  const renamed = renameLegacyQuery(to.query, LEGACY_LIST_QUERY[name] ?? [])
-  const current = renamed ?? to.query
+  const retired = RETIRED_LIST_QUERY[name] ?? []
+  const dropped = retired.some((key) => to.query[key] !== undefined)
+    ? Object.fromEntries(Object.entries(to.query).filter(([key]) => !retired.includes(key)))
+    : undefined
+  const base = dropped ?? to.query
+  const renamed = renameLegacyQuery(base, LEGACY_LIST_QUERY[name] ?? [])
+  const current = renamed ?? base
   const params: ListParams | undefined = LIST_QUERY[name]
   const cleaned = params ? cleanListQuery(current, params) : undefined
-  if (renamed === undefined && cleaned === undefined) return undefined
-  return { path: to.path, query: cleaned ?? renamed, hash: to.hash }
+  if (dropped === undefined && renamed === undefined && cleaned === undefined) return undefined
+  return { path: to.path, query: cleaned ?? renamed ?? dropped, hash: to.hash }
 }
 
 export function createAppRouter(history: RouterHistory = createWebHistory()) {

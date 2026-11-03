@@ -48,11 +48,21 @@ const api = useApi()
 const session = useSessionStore()
 const lookup = useLookupStore()
 
-// The list's state is its address (`LIST_QUERY.punished`): the search, the server filters, the sort and the page. A
-// reload or Back returns to the same list, and nothing is kept in storage. The search runs on the loaded page, so it
-// does not start again at the first page.
+// The list's state is its address (`LIST_QUERY.punished`): the server filters, the sort and the page. A reload or Back
+// returns to the same list, and nothing is kept in storage. The search is not in the address (see below).
 const LIST = LIST_QUERY.punished!
-const values = useListState(LIST, ['q'])
+const state = useListState(LIST)
+// The search is held by the page only. It filters the loaded page and never reaches the address: a typed name is
+// personal data (GDPR, design decision 8).
+const search = ref('')
+const values = computed<Record<string, string>>({
+  get: () => ({ ...state.value, q: search.value }),
+  set: (next) => {
+    const { q, ...rest } = next
+    search.value = q ?? search.value
+    state.value = { ...state.value, ...rest }
+  },
+})
 const page = computed(() => Number(values.value.page || 0))
 
 function goToPage(index: number): void {
