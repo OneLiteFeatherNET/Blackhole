@@ -56,7 +56,7 @@ export interface Mounted {
  * Mounts a view or component with Pinia, English texts, an in-memory router at `path` and the
  * given API. Always unmount the wrapper at the end of the test.
  */
-export async function mountWithApp(component: Component, options: { api?: BlackholeApi; path?: string; props?: Record<string, unknown>; slots?: Slots; roles?: string[]; auth?: AuthService; oid?: string | null } = {}): Promise<Mounted> {
+export async function mountWithApp(component: Component, options: { api?: BlackholeApi; path?: string; props?: Record<string, unknown>; slots?: Slots; roles?: string[]; auth?: AuthService; oid?: string | null; provide?: Record<string | symbol, unknown> } = {}): Promise<Mounted> {
   i18n.global.locale.value = 'en'
   const router = createAppRouter(createMemoryHistory())
   await router.push(options.path ?? '/')
@@ -66,7 +66,7 @@ export async function mountWithApp(component: Component, options: { api?: Blackh
     slots: options.slots,
     global: {
       plugins: [piniaWithRoles(options.roles, 'Dev Admin', options.oid === undefined ? SIGNED_IN_OID : options.oid), i18n, router],
-      provide: { [API_KEY as symbol]: options.api ?? mockApi(), [AUTH_KEY as symbol]: options.auth ?? fakeAuthService().service },
+      provide: { [API_KEY as symbol]: options.api ?? mockApi(), [AUTH_KEY as symbol]: options.auth ?? fakeAuthService().service, ...options.provide },
     },
     attachTo: document.body,
   })

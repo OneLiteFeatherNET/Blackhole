@@ -2276,6 +2276,17 @@
       "done": "Die IP-Sperre wurde aufgehoben."
     }
   },
+  "copyLink": {
+    "button": "Link kopieren",
+    "copied": "Link in die Zwischenablage kopiert.",
+    "failed": "Der Link konnte nicht kopiert werden. Kopiere ihn aus der Adresszeile."
+  },
+  "routedDialog": {
+    "close": "Schließen",
+    "notFound": "Dieser Eintrag existiert nicht oder wurde entfernt.",
+    "backToPage": "Zurück zur Seite",
+    "actionFailed": "Die Änderung wurde nicht gespeichert. Lade die Seite neu, um die aktuelle Version zu sehen."
+  },
   "integration": {
     "title": "Erkennung einer Integration",
     "reportedBy": "Gemeldet von {source}",
