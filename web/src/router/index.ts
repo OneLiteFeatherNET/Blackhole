@@ -24,6 +24,8 @@ import PlayersView from '../views/PlayersView.vue'
 import PunishedPlayersView from '../views/PunishedPlayersView.vue'
 import AppealConditionsView from '../views/AppealConditionsView.vue'
 import AppealsView from '../views/AppealsView.vue'
+import AppealView from '../views/AppealView.vue'
+import AppealDecideRoute from '../components/appeals/AppealDecideRoute.vue'
 import AreaBansView from '../views/AreaBansView.vue'
 import JoinGuardView from '../views/JoinGuardView.vue'
 import ReportDetailView from '../views/ReportDetailView.vue'
@@ -57,6 +59,15 @@ export const routes: RouteRecordRaw[] = [
   { path: '/reports', name: 'reports', component: ReportsView, meta: { titleKey: 'nav.reports', pageShell: true, workspace: 'moderation' } },
   { path: '/reports/:id', name: 'report', component: ReportDetailView, props: true, meta: { titleKey: 'reports.detail.title', nav: '/reports', pageShell: true, workspace: 'moderation' } },
   { path: '/appeals', name: 'appeals', component: AppealsView, meta: { titleKey: 'nav.appeals', pageShell: true, workspace: 'moderation' } },
+  // The decision is a child route: the page stays rendered behind its dialog, and the address opens nothing by itself.
+  {
+    path: '/appeals/:id',
+    name: 'appeal',
+    component: AppealView,
+    props: true,
+    meta: { titleKey: 'appeal.title', nav: '/appeals', pageShell: true, workspace: 'moderation' },
+    children: [{ path: 'decide', name: 'appeal-decide', component: AppealDecideRoute }],
+  },
   { path: '/cases', name: 'cases', component: CasesView, meta: { titleKey: 'nav.cases', pageShell: true, workspace: 'moderation' } },
   {
     path: '/cases/:reference',

@@ -196,6 +196,8 @@ export interface BlackholeApi {
   reportsAgainst(reportedHash: string): Promise<ApiResult<Report[]>>
   /** All appeals, newest first. */
   appeals(): Promise<ApiResult<Appeal[]>>
+  /** One appeal; NOT_FOUND if there is none. Holds no Ban ID and no raw player UUID. */
+  appeal(identifier: string): Promise<ApiResult<Appeal>>
   reviewAppeal(identifier: string, decision: AppealDecision): Promise<ApiResult<Appeal>>
   /** What applying the template would do right now; changes nothing. */
   previewApply(owner: string, templateKey: string): Promise<ApiResult<ApplyPreview>>
@@ -775,6 +777,8 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       )
       return map(appeals, (all) => [...all].sort((a, b) => b.createdAt - a.createdAt))
     },
+
+    appeal: (identifier) => toResult(http.GET('/appeal/{identifier}', { params: { path: { identifier } } })),
 
     reviewAppeal: (identifier, decision) =>
       toResult(
