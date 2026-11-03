@@ -16,30 +16,22 @@ const review: ExemptionReview = {
   state: 'OPEN',
 }
 
-function setup(reviews: ExemptionReview[][]) {
-  // Each read answers the next list; the decision reads the list again afterwards.
-  const queue = [...reviews]
+function setup(reviews: ExemptionReview[] = [review]) {
   const api = {
     exemption: vi.fn(async () => ok({ exempt: true, sources: ['PERMISSION'], sections: ['*'], rank: 'MODERATOR' })),
-    exemptionReviews: vi.fn(async () => ok(queue.shift() ?? [])),
+    exemptionReviews: vi.fn(async () => ok(reviews)),
     applyExemptionReview: vi.fn(async () => ok({ ...review, state: 'APPLIED', justification: 'Checked' })),
     dismissExemptionReview: vi.fn(async () => ok({ ...review, state: 'DISMISSED', justification: 'Checked' })),
   }
-  return { api, mount: () => mountWithApp(ExemptionReviewsView, { api: mockApi(api), path: '/admin/exemption-reviews', roles: ['ADMIN', 'MODERATOR', 'VIEWER'] }) }
-}
-
-async function decide(wrapper: Awaited<ReturnType<ReturnType<typeof setup>['mount']>>['wrapper'], action: 'apply' | 'dismiss', justification: string) {
-  await wrapper.get(`[data-testid="${action}-review-1"]`).trigger('click')
-  await flushPromises()
-  await wrapper.get('[data-testid="justification"] textarea').setValue(justification)
-  await wrapper.get('[data-testid="confirm"]').trigger('click')
-  await flushPromises()
+  const mount = (path = '/admin/exemption-reviews') =>
+    mountWithApp(ExemptionReviewsView, { api: mockApi(api), path, roles: ['ADMIN', 'MODERATOR', 'VIEWER'] })
+  return { api, mount }
 }
 
 describe('ExemptionReviewsView', () => {
   it('lists the open reviews with their section, track and score', async () => {
-    const { mount } = setup([[review]])
-    const { wrapper } = await mount()
+    const { mount } = setup()
+    const { wrapper } = await mount('/admin/exemption-reviews?status=open')
 
     const row = wrapper.get('tbody tr')
     expect(row.text()).toContain('network')
@@ -49,39 +41,36 @@ describe('ExemptionReviewsView', () => {
   })
 
   it('says so when no review is open', async () => {
-    const { mount } = setup([[]])
+    const { mount } = setup([])
     const { wrapper } = await mount()
 
     expect(wrapper.text()).toContain('No open exemption reviews.')
     wrapper.unmount()
   })
 
-  it('applies a review with a justification and removes it from the open list', async () => {
-    const { api, mount } = setup([[review], []])
+  it('links each review to its own page by its id', async () => {
+    const { mount } = setup()
     const { wrapper } = await mount()
 
-    await decide(wrapper, 'apply', 'Owner verified the report')
-
-    expect(api.applyExemptionReview).toHaveBeenCalledWith('review-1', 'Owner verified the report')
-    expect(wrapper.find('[data-testid="apply-review-1"]').exists(), 'the review left the list').toBe(false)
-    expect(wrapper.text()).toContain('Review applied.')
+    expect(wrapper.find(`a[href="/admin/exemption-reviews/${review.id}"]`).exists()).toBe(true)
     wrapper.unmount()
   })
 
-  it('dismisses a review with a justification and removes it from the open list', async () => {
-    const { api, mount } = setup([[review], []])
-    const { wrapper } = await mount()
+  it('opens the decision of a review by its address and sends nothing', async () => {
+    const { api, mount } = setup()
+    const { wrapper, router } = await mount()
 
-    await decide(wrapper, 'dismiss', 'Score change was a false positive')
+    await wrapper.get('[data-testid="apply-review-1"]').trigger('click')
+    await flushPromises()
 
-    expect(api.dismissExemptionReview).toHaveBeenCalledWith('review-1', 'Score change was a false positive')
-    expect(api.applyExemptionReview, 'no punishment is applied').not.toHaveBeenCalled()
-    expect(wrapper.find('[data-testid="dismiss-review-1"]').exists(), 'the review left the list').toBe(false)
+    expect(router.currentRoute.value.name).toBe('admin-exemption-review-decide')
+    expect(router.currentRoute.value.params.id).toBe(review.id)
+    expect(api.applyExemptionReview, 'the click only navigates').not.toHaveBeenCalled()
     wrapper.unmount()
   })
 
   it('links each owner to the player page without showing the hash in full', async () => {
-    const { mount } = setup([[review]])
+    const { mount } = setup()
     const { wrapper } = await mount()
 
     expect(wrapper.find(`a[href="/players/${OWNER}"]`).exists(), 'link to the player').toBe(true)

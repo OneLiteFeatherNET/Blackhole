@@ -205,6 +205,8 @@ export interface BlackholeApi {
   exemption(owner: string): Promise<ApiResult<ExemptionStatus>>
   /** The automatic punishments held back for protected players, oldest first (ADMIN only). */
   exemptionReviews(): Promise<ApiResult<ExemptionReview[]>>
+  /** One review in any state, for its own page (ADMIN only). An unknown id is NOT_FOUND. */
+  exemptionReview(identifier: string): Promise<ApiResult<ExemptionReview>>
   /** Places the held-back punishment with the justification recorded on it (ADMIN only). */
   applyExemptionReview(identifier: string, justification: string): Promise<ApiResult<ExemptionReview>>
   /** Closes the review without a punishment; the score change stays (ADMIN only). */
@@ -805,6 +807,11 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     async exemptionReviews() {
       return map(await toResult(http.GET('/exemption/reviews')), (body) => body.items ?? [])
+    },
+
+    async exemptionReview(identifier) {
+      const result = await toResult(http.GET('/exemption/reviews/{id}', { params: { path: { id: identifier } } }))
+      return map(result, (body) => body.review)
     },
 
     async applyExemptionReview(identifier, justification) {

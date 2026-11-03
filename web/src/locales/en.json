@@ -2073,7 +2073,20 @@
       "tooLong": "At most 500 characters."
     },
     "applied": "Review applied.",
-    "dismissed": "Review dismissed."
+    "dismissed": "Review dismissed.",
+    "state": {
+      "OPEN": "Open",
+      "APPLIED": "Applied",
+      "DISMISSED": "Dismissed"
+    },
+    "detail": {
+      "title": "Exemption review",
+      "state": "Status",
+      "justification": "Justification",
+      "open": "Open",
+      "back": "Back to the reviews",
+      "notFound": "There is no such review."
+    }
   },
   "guard": {
     "title": "Join guard",
