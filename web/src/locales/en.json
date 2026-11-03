@@ -32,6 +32,10 @@
       "intro": "Outside text fields, press g and then a letter to open a page. Press ? to show this list.",
       "help": "Show this list",
       "then": "then",
+      "nextRow": "Next row in a list",
+      "previousRow": "Previous row in a list",
+      "openRow": "Open the selected row",
+      "closeRow": "Close the open item",
       "close": "Close"
     },
     "brand": "Blackhole",
@@ -472,6 +476,7 @@
     "empty": "No open reports.",
     "showAll": "Show all reports",
     "noneYet": "No reports yet.",
+    "selectHint": "Select a report to see it here.",
     "resolved": "Report resolved.",
     "columns": {
       "when": "Received",
@@ -1252,6 +1257,7 @@
         "player": "Player"
       },
       "noneYet": "No cases yet.",
+      "selectHint": "Select a case to see it here.",
       "view": "View",
       "viewCases": "All cases",
       "viewPlayer": "By player",

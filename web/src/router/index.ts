@@ -12,7 +12,6 @@ import AuthErrorView from '../views/AuthErrorView.vue'
 import CasesView from '../views/CasesView.vue'
 import ClientRulesView from '../views/ClientRulesView.vue'
 import ExemptionReviewsView from '../views/ExemptionReviewsView.vue'
-import CaseView from '../views/CaseView.vue'
 import CaseStatusDialog from '../components/case/CaseStatusDialog.vue'
 import InboxView from '../views/InboxView.vue'
 import IntelAllowListView from '../views/IntelAllowListView.vue'
@@ -27,7 +26,6 @@ import AppealConditionsView from '../views/AppealConditionsView.vue'
 import AppealsView from '../views/AppealsView.vue'
 import AreaBansView from '../views/AreaBansView.vue'
 import JoinGuardView from '../views/JoinGuardView.vue'
-import ReportDetailView from '../views/ReportDetailView.vue'
 import ReportsView from '../views/ReportsView.vue'
 import SectionsView from '../views/SectionsView.vue'
 import TemplatesView from '../views/TemplatesView.vue'
@@ -55,13 +53,15 @@ export const routes: RouteRecordRaw[] = [
   { path: '/intel/policy', name: 'intel-policy', component: IntelPolicyView, meta: { titleKey: 'nav.vpnPolicy', pageShell: true, workspace: 'moderation' } },
   { path: '/intel/allow-list', name: 'intel-allow-list', component: IntelAllowListView, meta: { titleKey: 'nav.allowList', pageShell: true, workspace: 'moderation' } },
   { path: '/reports', name: 'reports', component: ReportsView, meta: { titleKey: 'nav.reports', pageShell: true, workspace: 'moderation' } },
-  { path: '/reports/:id', name: 'report', component: ReportDetailView, props: true, meta: { titleKey: 'reports.detail.title', nav: '/reports', pageShell: true, workspace: 'moderation' } },
+  // The detail of a list-detail page is the same component as its list (ReportsView): the open report is the id in the path.
+  { path: '/reports/:id', name: 'report', component: ReportsView, props: true, meta: { titleKey: 'reports.detail.title', nav: '/reports', pageShell: true, workspace: 'moderation' } },
   { path: '/appeals', name: 'appeals', component: AppealsView, meta: { titleKey: 'nav.appeals', pageShell: true, workspace: 'moderation' } },
   { path: '/cases', name: 'cases', component: CasesView, meta: { titleKey: 'nav.cases', pageShell: true, workspace: 'moderation' } },
+  // The open case is the reference in the path; the list (CasesView) stays mounted and renders the case beside it.
   {
     path: '/cases/:reference',
     name: 'case',
-    component: CaseView,
+    component: CasesView,
     props: true,
     meta: { titleKey: 'case.title', nav: '/cases', pageShell: true, workspace: 'moderation' },
     // Close and reopen are confirmation dialogs over the case (decision 8, rule 4): opening them sends nothing.
