@@ -38,6 +38,7 @@ import type {
   CaseProtocolText,
   TranscriptFile,
   ApplyPreview,
+  AuditEntry,
   AuditPage,
   AuditQuery,
   Appeal,
@@ -281,6 +282,8 @@ export interface BlackholeApi {
   anonymizeStaffActor(oid: string): Promise<ApiResult<void>>
   /** The staff audit log, newest first, one cursor page (ADMIN only). Read only. */
   auditLog(query?: AuditQuery): Promise<ApiResult<AuditPage>>
+  /** One audit entry by its audit id, the fields of the list item (ADMIN only). Read only; NOT_FOUND when there is none. */
+  auditEntry(auditId: string): Promise<ApiResult<AuditEntry>>
   /**
    * Imports a vanilla `banned-players.json` (and optionally `banned-ips.json`), or with `dryRun`
    * only reports what would happen (ADMIN only). Invalid entries are reported, not fatal.
@@ -996,6 +999,8 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       map(await toResult(http.POST('/admin/staff-actor/{oid}/anonymize', { params: { path: { oid } } })), () => undefined),
 
     auditLog: (query = {}) => toResult(http.GET('/admin/audit', { params: { query } })),
+
+    auditEntry: (auditId) => toResult(http.GET('/admin/audit/{auditId}', { params: { path: { auditId } } })),
 
     activePunishments: (query = {}) =>
       toResult(http.GET('/punishment/active', { querySerializer: caseListQuery(query) })),

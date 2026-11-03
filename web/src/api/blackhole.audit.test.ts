@@ -42,3 +42,26 @@ describe('audit log calls', () => {
     expect(new URL(calls[0]!.url).searchParams.has('cursor')).toBe(false)
   })
 })
+
+describe('one audit entry', () => {
+  const AUDIT_ID = '11111111-1111-4111-8111-111111111111'
+
+  it('reads one entry from GET /admin/audit/{auditId} by its id', async () => {
+    const entry = { auditId: AUDIT_ID, occurredAt: 1, actorOid: OID, surface: 'PANEL', action: 'kick.mass', targetKind: 'SECTION', recordedByOid: OID }
+    const { api, calls } = apiWith([{ body: entry }])
+
+    const result = await api.auditEntry(AUDIT_ID)
+
+    expect(result).toEqual({ ok: true, data: entry })
+    expect(new URL(calls[0]!.url).pathname).toBe(`/api/admin/audit/${AUDIT_ID}`)
+  })
+
+  it('answers NOT_FOUND for an id that is not an entry', async () => {
+    const { api } = apiWith([{ status: 404, body: { errorMessage: 'no such entry', kind: 'NOT_FOUND' } }])
+
+    const result = await api.auditEntry(AUDIT_ID)
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.kind).toBe('NOT_FOUND')
+  })
+})
