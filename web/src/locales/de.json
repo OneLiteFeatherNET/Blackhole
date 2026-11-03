@@ -32,6 +32,10 @@
       "intro": "Außerhalb von Textfeldern drückst du g und dann einen Buchstaben, um eine Seite zu öffnen. Mit ? wird diese Liste angezeigt.",
       "help": "Diese Liste anzeigen",
       "then": "dann",
+      "nextRow": "Nächste Zeile in einer Liste",
+      "previousRow": "Vorherige Zeile in einer Liste",
+      "openRow": "Ausgewählte Zeile öffnen",
+      "closeRow": "Geöffneten Eintrag schließen",
       "close": "Schließen"
     },
     "brand": "Blackhole",
@@ -472,6 +476,7 @@
     "empty": "Keine offenen Meldungen.",
     "showAll": "Alle Meldungen anzeigen",
     "noneYet": "Noch keine Meldungen.",
+    "selectHint": "Wähle eine Meldung aus, um sie hier zu sehen.",
     "resolved": "Meldung bearbeitet.",
     "columns": {
       "when": "Eingegangen",
@@ -1303,6 +1308,7 @@
         "player": "Spieler"
       },
       "noneYet": "Noch keine Fälle.",
+      "selectHint": "Wähle einen Fall aus, um ihn hier zu sehen.",
       "view": "Ansicht",
       "viewCases": "Alle Fälle",
       "viewPlayer": "Nach Spieler",
