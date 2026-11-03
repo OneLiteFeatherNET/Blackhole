@@ -32,7 +32,7 @@ import AppealsView from '../views/AppealsView.vue'
 import AppealView from '../views/AppealView.vue'
 import AppealDecideRoute from '../components/appeals/AppealDecideRoute.vue'
 import { moderationRoutes } from './moderationRouteTable'
-import ReportsView from '../views/ReportsView.vue'
+import { reportRoutes } from './reportRouteTable'
 import SectionsView from '../views/SectionsView.vue'
 import TemplatesView from '../views/TemplatesView.vue'
 import LeaveView from '../views/LeaveView.vue'
@@ -57,9 +57,8 @@ export const routes: RouteRecordRaw[] = [
   { path: '/players/:owner', name: 'player', component: PlayerDetailView, props: true, meta: { titleKey: 'nav.playerLookup', nav: '/players', pageShell: true, workspace: 'moderation' } },
   // The VPN and hosting pages, the IP and area bans, the join guard and their detail pages: `moderationRouteTable.ts`.
   ...moderationRoutes,
-  { path: '/reports', name: 'reports', component: ReportsView, meta: { titleKey: 'nav.reports', pageShell: true, workspace: 'moderation' } },
-  // The detail of a list-detail page is the same component as its list (ReportsView): the open report is the id in the path.
-  { path: '/reports/:id', name: 'report', component: ReportsView, props: true, meta: { titleKey: 'reports.detail.title', nav: '/reports', pageShell: true, workspace: 'moderation' } },
+  // The report list, the report and its resolve and dismiss routes: `reportRouteTable.ts`.
+  ...reportRoutes,
   { path: '/appeals', name: 'appeals', component: AppealsView, meta: { titleKey: 'nav.appeals', pageShell: true, workspace: 'moderation' } },
   // The decision is a child route: the page stays rendered behind its dialog, and the address opens nothing by itself.
   {

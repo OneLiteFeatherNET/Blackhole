@@ -15,6 +15,8 @@ export const RETURN_ROUTE_NAMES: ReadonlySet<string> = new Set([
   'intel-allow-list',
   'reports',
   'report',
+  'report-resolve',
+  'report-dismiss',
   'appeals',
   'appeal',
   'cases',

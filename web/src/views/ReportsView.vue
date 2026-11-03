@@ -19,6 +19,7 @@ import { useResource } from '../composables/useResource'
 import { formatDateTime, shortHash } from '../format'
 import { createListKeys, detailIsShown, listIsShown, rowDomId } from '../nav/listDetail'
 import { useBreakpoint } from '../nav/useBreakpoint'
+import { choiceOf } from '../router/queryChoice'
 import { useSessionStore } from '../stores/session'
 import ReportDetailView from './ReportDetailView.vue'
 
@@ -37,39 +38,65 @@ const listShown = computed(() => listIsShown(size.value, props.id !== undefined)
 const detailShown = computed(() => detailIsShown(size.value, props.id !== undefined))
 const detailPane = ref<HTMLElement | null>(null)
 
-// The one filter is open or all. Open is the default, so the route query only carries `show=all`.
-function fromQuery(query: LocationQuery): Record<string, string> {
-  return { show: query.show === 'all' ? 'all' : '' }
+// The status filter is open, resolved or all. Open is the default, so the address does not carry it. The address of
+// the earlier version (`show=all`) still means all until the filter is changed.
+const STATUSES = ['open', 'resolved', 'all'] as const
+type Status = (typeof STATUSES)[number]
+
+function statusOf(query: LocationQuery): Status {
+  return choiceOf(query, 'status', STATUSES, query.show === 'all' ? 'all' : 'open')
 }
 
-function toQuery(filters: Record<string, string>): LocationQuery {
+/** The toolbar value: '' is open, so an applied default does not show as a chip. */
+const valueOf = (status: Status) => (status === 'open' ? '' : status)
+const statusOfValue = (value: string | undefined): Status => (value === 'resolved' || value === 'all' ? value : 'open')
+
+function toQuery(status: Status): LocationQuery {
   const query: LocationQuery = { ...route.query }
   delete query.show
-  if (filters.show) query.show = filters.show
+  if (status === 'open') delete query.status
+  else query.status = status
   return query
 }
 
-const values = ref<Record<string, string>>(fromQuery(route.query))
-const showAll = computed(() => values.value.show === 'all')
+// The player filter is an owner hash (128 hex characters), never a name. Any other value is not a filter.
+const OWNER_HASH = /^[a-f0-9]{128}$/i
+const player = computed(() => {
+  const raw = route.query.player
+  return typeof raw === 'string' && OWNER_HASH.test(raw) ? raw : ''
+})
+
+const values = ref<Record<string, string>>({ status: valueOf(statusOf(route.query)) })
+const status = computed(() => statusOfValue(values.value.status))
+const showAll = computed(() => status.value === 'all')
 
 const filters = computed<FilterDef[]>(() => [
   {
     kind: 'toggle-group',
-    id: 'show',
+    id: 'status',
     label: t('reports.filter'),
     options: [
       { value: '', label: t('reports.filterOpen'), testid: 'filter-open' },
+      { value: 'resolved', label: t('reports.filterResolved'), testid: 'filter-resolved' },
       { value: 'all', label: t('reports.filterAll'), testid: 'filter-all' },
     ],
   },
 ])
 
-const reports = useResource(() => api.reports())
+// The owner's reports come from the player's own list (`reportsAgainst`); everything else from the full list.
+const reports = useResource(() => (player.value ? api.reportsAgainst(player.value) : api.reports()))
+watch(player, () => void reports.reload())
 const resolving = ref<Report | null>(null)
 const message = ref('')
 
-const visible = computed(() => (reports.data.value ?? []).filter((entry) => showAll.value || OPEN.includes(entry.status ?? 'OPEN')))
 const isOpen = (entry: Report) => OPEN.includes(entry.status ?? 'OPEN')
+const visible = computed(() =>
+  (reports.data.value ?? []).filter((entry) => status.value === 'all' || isOpen(entry) === (status.value === 'open')),
+)
+const emptyTitle = computed(() => {
+  if (showAll.value) return t('reports.noneYet')
+  return status.value === 'resolved' ? t('reports.emptyResolved') : t('reports.empty')
+})
 
 const columns = computed<DataColumn<Report>[]>(() => [
   { key: 'createdAt', label: t('reports.columns.when'), priority: 2 },
@@ -144,17 +171,24 @@ function rowProps(row: Report, index: number): Record<string, unknown> {
 }
 
 // The filter writes the route query; the route query (Back, a reload) writes the filter.
-watch(values, (next) => void router.replace({ query: toQuery(next) }))
+watch(values, (next) => void router.replace({ query: toQuery(statusOfValue(next.status)) }))
 watch(
   () => route.query,
   (query) => {
-    const next = fromQuery(query)
-    if (next.show !== values.value.show) values.value = next
+    const next = valueOf(statusOf(query))
+    if (next !== values.value.status) values.value = { status: next }
   },
 )
 
 function showEverything(): void {
-  values.value = { show: 'all' }
+  values.value = { status: 'all' }
+}
+
+/** Removes the player filter from the address; the list is then loaded again for every player (by the watch on `player`). */
+function clearPlayer(): void {
+  const query: LocationQuery = { ...route.query }
+  delete query.player
+  void router.replace({ query })
 }
 
 async function done(text: string): Promise<void> {
@@ -176,6 +210,11 @@ async function done(text: string): Promise<void> {
     <template #toolbar>
       <FilterToolbar v-model="values" :filters="filters" />
     </template>
+
+    <p v-if="player" data-testid="player-filter" class="mb-4 flex flex-wrap items-center gap-2 text-body-large">
+      {{ t('reports.playerFilter', { player: shortHash(player) }) }}
+      <MdButton variant="text" data-testid="clear-player" @click="clearPlayer">{{ t('reports.clearPlayer') }}</MdButton>
+    </p>
 
     <DataTable
       v-if="reports.loading.value && reports.data.value === null"
@@ -227,7 +266,7 @@ async function done(text: string): Promise<void> {
           v-else
           data-testid="reports-empty"
           :variant="showAll ? 'no-items' : 'no-matches'"
-          :title="showAll ? t('reports.noneYet') : t('reports.empty')"
+          :title="emptyTitle"
         >
           <MdButton v-if="!showAll" variant="text" data-testid="empty-show-all" @click="showEverything">
             {{ t('reports.showAll') }}
