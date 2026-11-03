@@ -182,6 +182,7 @@ public class BlackholeVelocity {
     private final EnforcementHealth health = new EnforcementHealth();
     private CommandRuleListener commandRuleListener;
     private MuteCommandListener muteCommands;
+    private PlayerChatListener chatListener;
 
     @Inject
     public BlackholeVelocity(Injector injector, Logger logger, ProxyServer server, @DataDirectory Path dataDirectory) {
@@ -382,7 +383,8 @@ public class BlackholeVelocity {
         server.getScheduler().buildTask(this, () -> guardHeartbeat.beat(server.getAllPlayers()))
                 .delay(guardInterval).repeat(guardInterval).schedule();
         server.getEventManager().register(this, childInjector.getInstance(PlayerLoginListener.class));
-        server.getEventManager().register(this, childInjector.getInstance(PlayerChatListener.class));
+        this.chatListener = childInjector.getInstance(PlayerChatListener.class);
+        server.getEventManager().register(this, this.chatListener);
         server.getEventManager().register(this, this.muteCommands);
         server.getEventManager().register(this, childInjector.getInstance(ReportFeedbackListener.class));
         server.getEventManager().register(this, childInjector.getInstance(WarningListener.class));
@@ -478,6 +480,9 @@ public class BlackholeVelocity {
         }
         if (this.eventThread != null) {
             this.eventThread.shutdownNow();
+        }
+        if (this.chatListener != null) {
+            this.chatListener.close();
         }
         if (this.sessionExecutor != null) {
             this.sessionExecutor.shutdownNow();
