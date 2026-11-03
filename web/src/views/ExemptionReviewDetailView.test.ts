@@ -73,6 +73,22 @@ describe('ExemptionReviewDetailView', () => {
     wrapper.unmount()
   })
 
+  it('opens the dismissal from the overflow menu by a routed click and sends nothing', async () => {
+    const { api, mount } = setup()
+    const { wrapper, router } = await mount(DETAIL)
+
+    await wrapper.get('button[aria-haspopup="menu"]').trigger('click')
+    const dismiss = wrapper.findAll('[role="menuitem"]').find((item) => item.text() === 'Dismiss')
+    expect(dismiss, 'the dismissal is in the overflow menu').toBeDefined()
+    await dismiss!.trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('admin-exemption-review-decide')
+    expect(router.currentRoute.value.query.action).toBe('dismiss')
+    expect(api.dismissExemptionReview, 'opening the dialog is not a decision').not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
   it('shows the decision dialog at the decision address, with the justification field', async () => {
     const { mount } = setup()
     const { wrapper } = await mount(DECIDE)
