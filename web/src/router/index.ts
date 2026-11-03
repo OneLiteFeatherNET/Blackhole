@@ -13,6 +13,7 @@ import CasesView from '../views/CasesView.vue'
 import ClientRulesView from '../views/ClientRulesView.vue'
 import ExemptionReviewsView from '../views/ExemptionReviewsView.vue'
 import CaseView from '../views/CaseView.vue'
+import CaseStatusDialog from '../components/case/CaseStatusDialog.vue'
 import InboxView from '../views/InboxView.vue'
 import IntelAllowListView from '../views/IntelAllowListView.vue'
 import IntelPolicyView from '../views/IntelPolicyView.vue'
@@ -57,7 +58,18 @@ export const routes: RouteRecordRaw[] = [
   { path: '/reports/:id', name: 'report', component: ReportDetailView, props: true, meta: { titleKey: 'reports.detail.title', nav: '/reports', pageShell: true, workspace: 'moderation' } },
   { path: '/appeals', name: 'appeals', component: AppealsView, meta: { titleKey: 'nav.appeals', pageShell: true, workspace: 'moderation' } },
   { path: '/cases', name: 'cases', component: CasesView, meta: { titleKey: 'nav.cases', pageShell: true, workspace: 'moderation' } },
-  { path: '/cases/:reference', name: 'case', component: CaseView, props: true, meta: { titleKey: 'case.title', nav: '/cases', pageShell: true, workspace: 'moderation' } },
+  {
+    path: '/cases/:reference',
+    name: 'case',
+    component: CaseView,
+    props: true,
+    meta: { titleKey: 'case.title', nav: '/cases', pageShell: true, workspace: 'moderation' },
+    // Close and reopen are confirmation dialogs over the case (decision 8, rule 4): opening them sends nothing.
+    children: [
+      { path: 'close', name: 'case-close', component: CaseStatusDialog, props: (route) => ({ reference: String(route.params.reference), action: 'close' }) },
+      { path: 'reopen', name: 'case-reopen', component: CaseStatusDialog, props: (route) => ({ reference: String(route.params.reference), action: 'reopen' }) },
+    ],
+  },
   { path: '/guard', name: 'guard', component: JoinGuardView, meta: { titleKey: 'guard.title', pageShell: true, workspace: 'moderation' } },
   { path: '/area-bans', name: 'area-bans', component: AreaBansView, meta: { titleKey: 'areaBans.title', pageShell: true, workspace: 'moderation' } },
 
