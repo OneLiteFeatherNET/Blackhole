@@ -47,12 +47,22 @@ function setup(groups: CaseGroupItem[] = [group()], totalPages = 1, pageItems: C
     caseGroups,
     cases,
     selection,
-    mount: (props: Record<string, unknown> = {}) =>
-      mountWithApp(CasePlayerGroups, {
+    // The page is held by the parent (the address), so this mount answers each page change by setting the prop.
+    mount: async (props: Record<string, unknown> = {}) => {
+      let mounted: Awaited<ReturnType<typeof mountWithApp>> | undefined
+      mounted = await mountWithApp(CasePlayerGroups, {
         api: mockApi({ caseGroups, cases }),
         path: '/cases',
-        props: { columns: COLUMNS, selection, ...props },
-      }),
+        props: {
+          columns: COLUMNS,
+          selection,
+          page: 0,
+          'onUpdate:page': (next: number) => void mounted?.wrapper.setProps({ page: next }),
+          ...props,
+        },
+      })
+      return mounted
+    },
   }
 }
 
@@ -288,7 +298,8 @@ describe('CasePlayerGroups', () => {
     expect(caseGroups).toHaveBeenLastCalledWith(expect.objectContaining({ page: 3 }))
     const before = caseGroups.mock.calls.length
 
-    await wrapper.setProps({ status: 'CLOSED' })
+    // The parent resets the page in the same address change as the filter.
+    await wrapper.setProps({ status: 'CLOSED', page: 0 })
     await flushPromises()
 
     expect(caseGroups.mock.calls.length - before).toBe(1)

@@ -48,7 +48,7 @@ async function setup(options: { path?: string; width?: number } = {}) {
     templates: vi.fn(async () => ok([])),
     sections: vi.fn(async () => ok([])),
   }
-  const { wrapper, router } = await mountWithApp(Shell, { api: mockApi(api), path: options.path ?? '/reports?show=all' })
+  const { wrapper, router } = await mountWithApp(Shell, { api: mockApi(api), path: options.path ?? '/reports?status=all' })
   mounted.push(wrapper)
   return { api, wrapper, router: router as Router }
 }
@@ -65,12 +65,12 @@ describe('ReportsView: the URL names the open report', () => {
     await wrapper.get(`[data-testid="details-${SECOND}"]`).trigger('click')
     await flushPromises()
 
-    expect(router.currentRoute.value.fullPath).toBe(`/reports/${SECOND}?show=all`)
+    expect(router.currentRoute.value.fullPath).toBe(`/reports/${SECOND}?status=all`)
     expect(wrapper.get(`#report-row-${SECOND}`).attributes('aria-current')).toBe('true')
   })
 
   it('does not request the list again when another report is opened', async () => {
-    const { api, wrapper } = await setup({ path: `/reports/${FIRST}?show=all` })
+    const { api, wrapper } = await setup({ path: `/reports/${FIRST}?status=all` })
     expect(api.reports).toHaveBeenCalledTimes(1)
 
     await wrapper.get(`[data-testid="details-${SECOND}"]`).trigger('click')
@@ -106,10 +106,10 @@ describe('ReportsView: widths and keys', () => {
   })
 
   it('closes the report with Escape and returns to the list address', async () => {
-    const { router } = await setup({ path: `/reports/${FIRST}?show=all`, width: 1000 })
+    const { router } = await setup({ path: `/reports/${FIRST}?status=all`, width: 1000 })
 
     await press('Escape')
 
-    expect(router.currentRoute.value.fullPath).toBe('/reports?show=all')
+    expect(router.currentRoute.value.fullPath).toBe('/reports?status=all')
   })
 })

@@ -60,7 +60,7 @@ describe('AppealsView: page template', () => {
     const { mount } = setup()
     const { wrapper } = await mount()
 
-    const group = wrapper.get('[data-testid="filter-toolbar"] [data-testid="show"]')
+    const group = wrapper.get('[data-testid="filter-toolbar"] [data-testid="status"]')
     expect(group.attributes('aria-label')).toBe('Which appeals to show')
     expect(group.find('[data-testid="filter-pending"]').attributes('aria-pressed')).toBe('true')
 
@@ -69,7 +69,7 @@ describe('AppealsView: page template', () => {
 
   it('starts with every appeal when the route query asks for all', async () => {
     const { api } = setup()
-    const { wrapper } = await mountWithApp(AppealsView, { api: mockApi(api), path: '/appeals?show=all' })
+    const { wrapper } = await mountWithApp(AppealsView, { api: mockApi(api), path: '/appeals?status=all' })
 
     expect(wrapper.findAll('tbody tr')).toHaveLength(2)
     expect(wrapper.get('[data-testid="filter-all"]').attributes('aria-pressed')).toBe('true')
@@ -83,7 +83,7 @@ describe('AppealsView: page template', () => {
 
     await wrapper.get('[data-testid="filter-all"]').trigger('click')
     await flushPromises()
-    expect(router.currentRoute.value.query).toEqual({ show: 'all' })
+    expect(router.currentRoute.value.query).toEqual({ status: 'all' })
 
     await wrapper.get('[data-testid="filter-pending"]').trigger('click')
     await flushPromises()
