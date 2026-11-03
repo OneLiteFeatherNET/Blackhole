@@ -1,12 +1,19 @@
-import { flushPromises } from '@vue/test-utils'
+import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
+import { defineComponent, h } from 'vue'
+import { RouterView } from 'vue-router'
 import { caseResponse, NOTE, timelineItem, timelinePage } from '../test/cases'
 import { fail, mockApi, mountWithApp, ok } from '../test/mount'
 import { chooseOption } from '../test/select'
 import CaseView from './CaseView.vue'
 
-function setup(options: { roles?: string[]; kase?: Parameters<typeof caseResponse>[0]; path?: string; extra?: Record<string, unknown> } = {}) {
+/** The app shell: the router view that renders the case and, behind it, its close or reopen route. */
+const Shell = defineComponent({ setup: () => () => h(RouterView) })
+
+function setup(options: { roles?: string[]; kase?: Parameters<typeof caseResponse>[0]; path?: string; extra?: Record<string, unknown>; shell?: boolean } = {}) {
   const api = {
+    // The shell renders the cases list around the case (the list and the case share one route).
+    cases: vi.fn(async () => ok({ items: [], page: 0, size: 25, totalSize: 0, totalPages: 0 })),
     caseDetail: vi.fn(async () => ok(caseResponse(options.kase))),
     caseTimeline: vi.fn(async () => ok(timelinePage([timelineItem()]))),
     caseConversation: vi.fn(async () => ok([])),
@@ -19,7 +26,10 @@ function setup(options: { roles?: string[]; kase?: Parameters<typeof caseRespons
   }
   return {
     api,
-    mount: () => mountWithApp(CaseView, { api: mockApi(api), path: options.path ?? '/cases/p-0001', props: { reference: 'p-0001' }, roles: options.roles }),
+    mount: () =>
+      options.shell
+        ? mountWithApp(Shell, { api: mockApi(api), path: options.path ?? '/cases/p-0001', roles: options.roles })
+        : mountWithApp(CaseView, { api: mockApi(api), path: options.path ?? '/cases/p-0001', props: { reference: 'p-0001' }, roles: options.roles }),
   }
 }
 
@@ -281,15 +291,15 @@ describe('CaseView: tabs', () => {
     wrapper.unmount()
   })
 
-  it('keeps the case bar above the tabs, so it shows on every tab', async () => {
+  it('keeps the entity header above the tabs, so it shows on every tab', async () => {
     const { mount } = setup({ roles: ['MODERATOR', 'VIEWER'] })
     const { wrapper } = await mount()
 
     await wrapper.get('[data-testid="tab-conversation"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="case-bar"]').isVisible()).toBe(true)
-    expect(wrapper.get('[data-testid="case-bar"]').element.closest('[role="tabpanel"]'), 'not inside a panel').toBeNull()
+    expect(wrapper.get('[data-testid="entity-header"]').isVisible()).toBe(true)
+    expect(wrapper.get('[data-testid="entity-header"]').element.closest('[role="tabpanel"]'), 'not inside a panel').toBeNull()
 
     wrapper.unmount()
   })
@@ -356,26 +366,144 @@ describe('CaseView: tabs', () => {
   })
 })
 
-describe('CaseView: case bar', () => {
-  it('closes the case from the case bar with the version that was read', async () => {
-    const { api, mount } = setup({ roles: ['MODERATOR', 'VIEWER'], extra: { updateCase: vi.fn(async () => ok(caseResponse({ version: 4, status: 'CLOSED' }))) } })
+/** The text the snackbar announces; the copy-link and timeline live regions are separate. */
+const snackText = (wrapper: VueWrapper): string => wrapper.findAll('[role="status"]').map((region) => region.text()).join('|')
+
+/** The Undo action of the snackbar, if it is offered. */
+const undoButton = (wrapper: VueWrapper) =>
+  wrapper.findAll('button').find((button) => button.text() === 'Undo')
+
+describe('CaseView: closing and reopening from the header', () => {
+  it('opens the close confirmation from the header and sends nothing before it is confirmed', async () => {
+    const { api, mount } = setup({ roles: ['MODERATOR', 'VIEWER'], shell: true })
+    const { wrapper, router } = await mount()
+
+    await wrapper.get('[data-testid="close-case"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('case-close')
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+    expect(api.updateCase).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
+
+  it('closes with the version that was read, then shows the case closed with an undo', async () => {
+    const { api, mount } = setup({ roles: ['MODERATOR', 'VIEWER'], shell: true, kase: { status: 'IN_REVIEW' }, extra: { updateCase: vi.fn(async () => ok(caseResponse({ version: 4, status: 'CLOSED' }))) } })
     const { wrapper } = await mount()
 
     await wrapper.get('[data-testid="close-case"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="case-status-confirm"]').trigger('click')
     await flushPromises()
 
     expect(api.updateCase).toHaveBeenCalledWith('p-0001', { expectedVersion: 3, status: 'CLOSED' })
     expect(wrapper.get('[data-testid="case-status"]').text()).toBe('Closed')
     expect(wrapper.get('[data-testid="reopen-case"]').text()).toBe('Reopen')
+    expect(snackText(wrapper)).toContain('Case closed.')
+    expect(snackText(wrapper)).toContain('Undo')
 
     wrapper.unmount()
   })
 
-  it('gives a viewer no close action', async () => {
+  it('undoes a close within the window with the version the close left, and restores the previous status', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const updateCase = vi
+      .fn()
+      .mockResolvedValueOnce(ok(caseResponse({ version: 4, status: 'CLOSED' })))
+      .mockResolvedValueOnce(ok(caseResponse({ version: 5, status: 'IN_REVIEW' })))
+    const { mount } = setup({ roles: ['MODERATOR', 'VIEWER'], shell: true, kase: { status: 'IN_REVIEW' }, extra: { updateCase } })
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="close-case"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="case-status-confirm"]').trigger('click')
+    await flushPromises()
+    vi.advanceTimersByTime(9_999)
+    await undoButton(wrapper)!.trigger('click')
+    await flushPromises()
+
+    expect(updateCase).toHaveBeenLastCalledWith('p-0001', { expectedVersion: 4, status: 'IN_REVIEW' })
+    expect(wrapper.get('[data-testid="case-status"]').text()).toBe('In review')
+    expect(snackText(wrapper)).toContain('Close undone.')
+
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it('hides the undo ten seconds after the close and keeps the closed case', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const { mount } = setup({ roles: ['MODERATOR', 'VIEWER'], shell: true, extra: { updateCase: vi.fn(async () => ok(caseResponse({ version: 4, status: 'CLOSED' }))) } })
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="close-case"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="case-status-confirm"]').trigger('click')
+    await flushPromises()
+    vi.advanceTimersByTime(10_000)
+    await flushPromises()
+
+    expect(undoButton(wrapper) !== undefined).toBe(false)
+    expect(wrapper.get('[data-testid="case-status"]').text()).toBe('Closed')
+
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it('says the case changed and overwrites nothing when the undo is refused', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const updateCase = vi
+      .fn()
+      .mockResolvedValueOnce(ok(caseResponse({ version: 4, status: 'CLOSED' })))
+      .mockResolvedValueOnce(fail('stale', 409, 'CONFLICT'))
+    const { mount } = setup({ roles: ['MODERATOR', 'VIEWER'], shell: true, extra: { updateCase } })
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="close-case"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="case-status-confirm"]').trigger('click')
+    await flushPromises()
+    await undoButton(wrapper)!.trigger('click')
+    await flushPromises()
+
+    expect(snackText(wrapper)).toContain('The case changed since. Reload to see it.')
+    expect(wrapper.get('[data-testid="case-status"]').text()).toBe('Closed')
+
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it('reopens to the status the case had before, with no undo', async () => {
+    const closed = timelineItem({ type: 'case.status_changed', payload: { from: 'WAITING', to: 'CLOSED' } })
+    const updateCase = vi.fn(async () => ok(caseResponse({ version: 4, status: 'WAITING' })))
+    const { mount } = setup({
+      roles: ['MODERATOR', 'VIEWER'],
+      shell: true,
+      path: '/cases/p-0001',
+      kase: { status: 'CLOSED' },
+      extra: { updateCase, caseTimeline: vi.fn(async () => ok(timelinePage([closed]))) },
+    })
+    const { wrapper, router } = await mount()
+    await router.push('/cases/p-0001/reopen')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="case-status-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(updateCase).toHaveBeenCalledWith('p-0001', { expectedVersion: 3, status: 'WAITING' })
+    expect(router.currentRoute.value.name).toBe('case')
+    expect(undoButton(wrapper) !== undefined).toBe(false)
+    expect(snackText(wrapper)).toContain('Case reopened.')
+
+    wrapper.unmount()
+  })
+
+  it('gives a viewer no close action and says why', async () => {
     const { mount } = setup({ roles: ['VIEWER'] })
     const { wrapper } = await mount()
 
     expect(wrapper.find('[data-testid="close-case"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="entity-notice"]').text()).toBe('A viewer cannot change a case.')
 
     wrapper.unmount()
   })

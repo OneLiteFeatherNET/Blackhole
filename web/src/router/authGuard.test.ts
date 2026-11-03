@@ -216,4 +216,21 @@ describe('router guard', () => {
 
     expect(router.currentRoute.value.name, 'the navigation was cancelled').toBeUndefined()
   })
+
+  it('sends a visitor without a session away from a case confirmation and keeps that address', async () => {
+    const { router, auth } = setup({ auth: { token: null } })
+
+    await router.push('/cases/A1B2C3D4/close')
+
+    expect(auth.calls.signIn).toEqual(['/cases/A1B2C3D4/close'])
+    expect(router.currentRoute.value.name, 'the navigation was cancelled').toBeUndefined()
+  })
+
+  it('opens a case confirmation for a moderator without changing anything yet', async () => {
+    const { router } = setup({ roles: ['MODERATOR', 'VIEWER'] })
+
+    await router.push('/cases/A1B2C3D4/reopen')
+
+    expect(router.currentRoute.value.name).toBe('case-reopen')
+  })
 })

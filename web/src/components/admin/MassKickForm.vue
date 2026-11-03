@@ -4,6 +4,7 @@
 // ADMIN only: the form renders nothing for any other role, and the backend enforces the role anyway.
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
 import { useApi } from '../../api/inject'
 import type { CloudNetCatalogue, KickResult, KickScope, Section } from '../../api/types'
 import { useSessionStore } from '../../stores/session'
@@ -17,7 +18,8 @@ import { kickReasonProblem } from '../kick/kickReason'
 import { pollKick, realKickTimer, type KickTimer } from '../kick/KickStatusPoller'
 import { newIdempotencyKey, targetsFor } from '../kick/kickTargets'
 
-const props = withDefaults(defineProps<{ timer?: KickTimer }>(), { timer: () => realKickTimer })
+// `embedded`: the form sits in the routed dialog of `/admin/kick/new`, which has its own heading.
+const props = withDefaults(defineProps<{ timer?: KickTimer; embedded?: boolean }>(), { timer: () => realKickTimer, embedded: false })
 
 const SCOPES: Exclude<KickScope, 'NETWORK'>[] = ['SERVER', 'SECTION']
 
@@ -96,9 +98,11 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <section v-if="session.administrator" aria-labelledby="mass-kick-title" class="flex max-w-xl flex-col gap-3" data-testid="mass-kick">
-    <h2 id="mass-kick-title" class="text-title-medium">{{ t('kick.mass.title') }}</h2>
-    <p class="text-body-large text-on-surface-variant">{{ t('kick.mass.intro') }}</p>
+  <section v-if="session.administrator" :aria-labelledby="props.embedded ? undefined : 'mass-kick-title'" class="flex max-w-xl flex-col gap-3" data-testid="mass-kick">
+    <template v-if="!props.embedded">
+      <h2 id="mass-kick-title" class="text-title-medium">{{ t('kick.mass.title') }}</h2>
+      <p class="text-body-large text-on-surface-variant">{{ t('kick.mass.intro') }}</p>
+    </template>
 
     <form class="flex flex-col gap-4" novalidate @submit.prevent="submit">
       <div role="group" :aria-label="t('kick.scope.label')" class="flex flex-wrap gap-2">
@@ -128,6 +132,7 @@ async function submit(): Promise<void> {
       <div v-if="outcome" class="flex flex-wrap items-center gap-2" data-testid="mass-outcome">
         <KickStatusChip :status="outcome.status" />
         <span data-testid="mass-delivered">{{ t('kick.mass.result', { status: t(`kick.status.${outcome.status}`), count: outcome.deliveredCount }) }}</span>
+        <RouterLink :to="{ name: 'admin-kick-detail', params: { id: outcome.id } }" class="text-primary underline underline-offset-2 focus-ring" data-testid="mass-kick-link">{{ t('kick.mass.openKick') }}</RouterLink>
       </div>
       <p v-if="timedOut" role="status" data-testid="mass-timeout">{{ t('kick.timedOut') }}</p>
       <p v-if="error" role="alert" data-testid="error" class="rounded-md-md bg-error-container p-3 text-on-error-container">{{ error }}</p>

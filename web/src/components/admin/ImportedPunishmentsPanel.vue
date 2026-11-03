@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink, useRoute } from 'vue-router'
 import { useApi } from '../../api/inject'
 import type { ImportedPunishmentGroup } from '../../api/types'
 import { useResource } from '../../composables/useResource'
@@ -10,12 +11,21 @@ import MdDialog from '../md/MdDialog.vue'
 import MdSelect from '../md/MdSelect.vue'
 import MdSnackbar from '../md/MdSnackbar.vue'
 import ResourceState from '../ResourceState.vue'
+import { groupKey } from './groupKey'
 import { useImportTemplateOptions } from './importTemplates'
+
+// `group`: the group of the address (`?group=`, a hash of its reason); that row is marked as the one the address shows.
+const props = withDefaults(defineProps<{ group?: string }>(), { group: '' })
 
 const { t } = useI18n()
 const api = useApi()
+const route = useRoute()
 
 const groups = useResource(() => api.importedPunishmentGroups())
+
+function isOpen(reason: string): boolean {
+  return props.group !== '' && groupKey(reason) === props.group
+}
 const templates = useImportTemplateOptions()
 
 /** The template picked for each group, by its reason. */
@@ -78,7 +88,15 @@ async function confirm(): Promise<void> {
         <p class="text-body-medium" data-testid="imported-total">{{ t('importedPunishments.total', { count: groups.data.value.total }) }}</p>
         <MdDataTable :label="t('importedPunishments.title')" :columns="columns" :rows="rows">
           <template #cell="{ row, column }">
-            <span v-if="column.key === 'reason'" class="break-words">{{ row.reason }}</span>
+            <RouterLink
+              v-if="column.key === 'reason'"
+              :to="{ query: { ...route.query, group: groupKey(row.reason) } }"
+              :aria-current="isOpen(row.reason) ? 'true' : undefined"
+              :data-testid="`group-${groupKey(row.reason)}`"
+              class="break-words text-primary underline underline-offset-2 focus-ring"
+            >
+              {{ row.reason }}
+            </RouterLink>
             <template v-else-if="column.key === 'count'">{{ row.count }}</template>
             <div v-else-if="column.key === 'template'" class="min-w-56 py-2" :data-testid="`pick-${row.reason}`">
               <MdSelect v-model="picked[row.reason]" :label="t('importedPunishments.template')" :options="templates.options.value" />

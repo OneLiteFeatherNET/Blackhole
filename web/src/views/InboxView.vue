@@ -117,9 +117,9 @@ function caseRow(row: CaseListItem, extra: 'priority' | 'none') {
   }
 }
 
-/** An appeal or an answer leads to its case, where the decision is taken today; an item without one to the list. */
+/** An appeal or an answer leads to its own page, where the conversation and the decision are. */
 function appealHref(item: InboxItem): string {
-  return item.reference ? `/cases/${item.reference}` : '/appeals'
+  return `/appeals/${item.id}`
 }
 
 function inboxRow(item: InboxItem, typeLabel: string, icon: string, href: string, state: { label: string; tone: 'primary' | 'secondary' | 'tertiary' }) {
