@@ -6,6 +6,10 @@ import type { ApiError, EloEvent, EloProfile, EloSectionScore, Punishment, Punis
 import { useResource } from '../../composables/useResource'
 import { useLookupStore } from '../../stores/lookup'
 import { useSessionStore } from '../../stores/session'
+import type { Crumb } from '../Breadcrumbs.vue'
+import EntityHeader from '../entity/EntityHeader.vue'
+import type { EntityAction, EntityStateView } from '../entity/entityHeader'
+import { playerStatePill } from '../entity/entityState'
 import ExemptionBadge from '../exemption/ExemptionBadge.vue'
 import KickDialog from '../kick/KickDialog.vue'
 import MdButton from '../md/MdButton.vue'
@@ -25,7 +29,8 @@ import RevokeDialog from './RevokeDialog.vue'
 import SectionScores from './SectionScores.vue'
 import WarnDialog from '../warning/WarnDialog.vue'
 
-const props = defineProps<{ owner: string }>()
+// The page's header (EntityHeader) is part of this component: its state and its actions come from the profile.
+const props = defineProps<{ owner: string; title: string; description?: string; crumbs: Crumb[] }>()
 
 const { t } = useI18n()
 const api = useApi()
@@ -96,6 +101,27 @@ const revokeTarget = ref<{ section: string; punishment: Punishment } | null>(nul
 const adjustTarget = ref<EloSectionScore | null>(null)
 const message = ref('')
 
+// The header: the primary action is the punishment, warn and kick are in the overflow. A viewer gets the reason only.
+const states = computed<EntityStateView[]>(() => {
+  const pill = playerStatePill(Object.keys(player.data.value?.profile.active ?? {}).length)
+  return [{ label: t(pill.key), tone: pill.tone, testid: 'player-state' }]
+})
+const primary = computed<EntityAction | null>(() => (session.moderator ? { key: 'apply', label: t('actions.apply.open'), testid: 'open-apply' } : null))
+const overflow = computed<EntityAction[]>(() =>
+  session.moderator
+    ? [
+        { key: 'warn', label: t('warn.open') },
+        { key: 'kick', label: t('kick.open'), destructive: true },
+      ]
+    : [],
+)
+
+function chosen(key: string): void {
+  if (key === 'apply') applyOpen.value = true
+  if (key === 'warn') warnOpen.value = true
+  if (key === 'kick') kickOpen.value = true
+}
+
 const pardonScoreOf = (key: string) => player.data.value?.elo.sections.find((entry) => entry.section === key)?.pardonScore ?? 0
 const hasActivePermanent = (key: string) => player.data.value?.profile.active[key]?.permanent === true
 
@@ -123,14 +149,18 @@ async function warned(done: string): Promise<void> {
     @retry="player.reload"
   >
     <div v-if="player.data.value" class="flex flex-col gap-8">
+      <EntityHeader
+        :type-label="t('entity.type.player')"
+        :heading="title"
+        :subtitle="description"
+        :states="states"
+        :primary="primary"
+        :overflow="overflow"
+        :notice="session.moderator ? undefined : t('entity.notice.viewerPlayer')"
+        :crumbs="crumbs"
+        @action="chosen"
+      />
       <ExemptionBadge :owner="owner" />
-      <header v-if="session.moderator" class="flex flex-wrap justify-end gap-2">
-        <MdButton variant="outlined" data-testid="open-warn" @click="warnOpen = true">{{ t('warn.open') }}</MdButton>
-        <MdButton variant="outlined-error" data-testid="open-kick" @click="kickOpen = true">{{ t('kick.open') }}</MdButton>
-        <MdButton variant="tonal" data-testid="open-apply" @click="applyOpen = true">
-          {{ t('actions.apply.open') }}
-        </MdButton>
-      </header>
 
       <section aria-labelledby="scores-heading">
         <h2 id="scores-heading" class="mb-3 text-title-medium">{{ t('player.scores') }}</h2>
