@@ -33,14 +33,15 @@ const trail = (items: { label: string; to?: string }[]) => withWorkspace(items, 
 </script>
 
 <template>
-  <PageShell :title="title" :description="description">
+  <!-- The page heading is the player's header (PlayerDetail renders it): the detail only mounts, and so only calls the API, for a well-formed owner hash. -->
+  <div v-if="validOwner" class="mx-auto flex w-full max-w-6xl flex-col gap-6">
+    <PlayerDetail :key="owner" :owner="owner" :title="title" :description="description" :crumbs="trail(crumbs)" />
+  </div>
+  <PageShell v-else :title="title">
     <template #breadcrumbs>
       <Breadcrumbs :items="trail(crumbs)" />
     </template>
-
-    <!-- The detail only mounts (and so only calls the API) for a well-formed owner hash. -->
-    <PlayerDetail v-if="validOwner" :key="owner" :owner="owner" />
-    <div v-else role="alert" class="flex flex-col items-start gap-3 rounded-md-md bg-error-container p-4 text-on-error-container">
+    <div role="alert" class="flex flex-col items-start gap-3 rounded-md-md bg-error-container p-4 text-on-error-container">
       <p>{{ t('player.invalidOwner') }}</p>
       <TextLink to="/players">{{ t('player.backToSearch') }}</TextLink>
     </div>

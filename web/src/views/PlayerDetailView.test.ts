@@ -1,4 +1,4 @@
-import { flushPromises } from '@vue/test-utils'
+import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { chooseOption } from '../test/select'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EloEvent, EloProfile, Punishment, PunishmentProfile } from '../api/types'
@@ -63,6 +63,12 @@ function api(overrides: Record<string, unknown> = {}) {
 
 async function open(owner = OWNER, overrides: Record<string, unknown> = {}) {
   return mountWithApp(PlayerDetailView, { path: `/players/${owner}`, props: { owner }, api: api(overrides) })
+}
+
+
+/** The text the snackbar announces; the copy-link live region of the header is separate. */
+function snackbarText(wrapper: VueWrapper): string {
+  return wrapper.findAll('[role="status"]').map((region) => region.text()).join('|')
 }
 
 describe('PlayerDetailView', () => {
@@ -255,7 +261,7 @@ describe('PlayerDetailView', () => {
       expect(applyTemplate).toHaveBeenCalledWith(OWNER, 'hacking', null)
       expect(profileCall, 'profile loaded again after the action').toHaveBeenCalledTimes(2)
       expect(wrapper.find('[role="dialog"]').exists(), 'dialog closed').toBe(false)
-      expect(wrapper.get('[role="status"]').text()).toContain('Applied step 2 of 3; the score is now 750.')
+      expect(snackbarText(wrapper)).toContain('Applied step 2 of 3; the score is now 750.')
 
       wrapper.unmount()
     })
@@ -295,7 +301,7 @@ describe('PlayerDetailView', () => {
       await flushPromises()
 
       expect(revoke).toHaveBeenCalledWith(OWNER, 'network')
-      expect(wrapper.get('[role="status"]').text()).toContain('Revoked.')
+      expect(snackbarText(wrapper)).toContain('Revoked.')
 
       wrapper.unmount()
     })
@@ -313,7 +319,7 @@ describe('PlayerDetailView', () => {
       await flushPromises()
 
       expect(adjustElo).toHaveBeenCalledWith(OWNER, { section: 'chat', delta: -50, note: 'spam wave' })
-      expect(wrapper.get('[role="status"]').text()).toContain('Score adjusted to 850.')
+      expect(snackbarText(wrapper)).toContain('Score adjusted to 850.')
 
       wrapper.unmount()
     })
@@ -409,12 +415,45 @@ describe('PlayerDetailView: evidence', () => {
   })
 })
 
+describe('PlayerDetailView: header', () => {
+  it('shows the player state in words: punished while a punishment is in force', async () => {
+    const { wrapper } = await open()
+
+    expect(wrapper.get('[data-testid="player-state"]').text()).toBe('Punished')
+    wrapper.unmount()
+  })
+
+  it('shows a player without an active punishment as not punished', async () => {
+    const { wrapper } = await open(OWNER, { profile: vi.fn(async () => ok({ ...profile, active: {} })) })
+
+    expect(wrapper.get('[data-testid="player-state"]').text()).toBe('Not punished')
+    wrapper.unmount()
+  })
+
+  it('gives a viewer no apply action and says why', async () => {
+    const { wrapper } = await mountWithApp(PlayerDetailView, { path: `/players/${OWNER}`, props: { owner: OWNER }, api: api(), roles: ['VIEWER'] })
+
+    expect(wrapper.find('[data-testid="open-apply"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="entity-notice"]').text()).toBe('A viewer cannot change a player.')
+    wrapper.unmount()
+  })
+
+  it('names the player in the header and keeps the owner hash under the name', async () => {
+    const { wrapper } = await open(OWNER, { listPlayerNames: vi.fn(async () => ok({ owner: OWNER, playerUuid: null, names: [{ name: 'Steve', firstSeen: 0, lastSeen: 0 }], page: 0, size: 50, hasMore: false })) })
+
+    expect(wrapper.get('[data-testid="entity-header"] h1').text()).toBe('Steve')
+    wrapper.unmount()
+  })
+})
+
 describe('PlayerDetailView: Kick is destructive', () => {
   it('gives Kick the error tone, so it does not weigh the same as Warn', async () => {
     const { wrapper } = await open()
 
-    expect(wrapper.get('[data-testid="open-kick"]').classes()).toEqual(expect.arrayContaining(['text-error', 'border-error']))
-    expect(wrapper.get('[data-testid="open-warn"]').classes()).not.toContain('text-error')
+    await wrapper.get('[data-testid="entity-header"] button[aria-haspopup="menu"]').trigger('click')
+    const item = (label: string) => wrapper.findAll('[role="menuitem"]').find((candidate) => candidate.text() === label)!
+    expect(item('Kick').classes()).toContain('text-error')
+    expect(item('Warn').classes()).not.toContain('text-error')
 
     wrapper.unmount()
   })

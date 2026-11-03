@@ -977,6 +977,67 @@
       "state": "Zustand"
     }
   },
+  "entity": {
+    "type": {
+      "case": "Fall",
+      "report": "Meldung",
+      "player": "Spieler",
+      "appeal": "Einspruch"
+    },
+    "owner": "Spieler",
+    "assignee": "Zuständig",
+    "unassigned": "Niemand zugewiesen",
+    "state": {
+      "case": {
+        "OPEN": "Offen",
+        "IN_REVIEW": "In Prüfung",
+        "WAITING": "Wartet",
+        "CLOSED": "Geschlossen"
+      },
+      "appeal": {
+        "SUBMITTED": "Eingereicht",
+        "ELIGIBLE_PENDING_REVIEW": "Prüfung ausstehend",
+        "IN_REVIEW": "In Prüfung",
+        "GRANTED_FULL_LIFT": "Stattgegeben: aufgehoben",
+        "GRANTED_DURATION_REDUCTION": "Stattgegeben: verkürzt",
+        "DENIED": "Abgelehnt",
+        "INELIGIBLE": "Nicht zulässig"
+      },
+      "report": {
+        "OPEN": "Offen",
+        "UNDER_REVIEW": "In Prüfung",
+        "ACTIONED": "Bearbeitet",
+        "DISMISSED": "Abgelehnt"
+      },
+      "player": {
+        "ACTIVE": "Bestraft",
+        "NONE": "Nicht bestraft"
+      }
+    },
+    "notice": {
+      "viewerCase": "Ein Betrachter kann einen Fall nicht ändern.",
+      "viewerReport": "Ein Betrachter kann eine Meldung nicht bearbeiten.",
+      "viewerPlayer": "Ein Betrachter kann einen Spieler nicht ändern.",
+      "reportResolved": "Diese Meldung ist bereits bearbeitet."
+    },
+    "caseDialog": {
+      "closeTitle": "Fall schließen?",
+      "reopenTitle": "Fall wieder öffnen?",
+      "closeBody": "Der Fall ist geschlossen. Du kannst das zehn Sekunden lang rückgängig machen.",
+      "reopenBody": "Der Fall wird wieder auf {status} gesetzt.",
+      "reopenLoading": "Der Status vor dem Schließen wird gesucht.",
+      "reopenFallback": "Es wurde kein früherer Status gefunden. Der Fall wird als Offen wieder geöffnet.",
+      "confirmClose": "Fall schließen",
+      "confirmReopen": "Fall wieder öffnen",
+      "viewer": "Ein Betrachter kann einen Fall nicht ändern.",
+      "conflict": "Der Fall wurde inzwischen geändert. Lade neu, um ihn zu sehen."
+    },
+    "undo": {
+      "action": "Rückgängig",
+      "undone": "Schließen rückgängig gemacht.",
+      "changed": "Der Fall wurde inzwischen geändert. Lade neu, um ihn zu sehen."
+    }
+  },
   "case": {
     "title": "Fall",
     "tabs": {
