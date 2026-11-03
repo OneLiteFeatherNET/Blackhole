@@ -2228,5 +2228,15 @@
       "submit": "Lift ban",
       "done": "The IP ban was lifted."
     }
+  },
+  "copyLink": {
+    "button": "Copy link",
+    "copied": "Link copied to the clipboard.",
+    "failed": "The link could not be copied. Copy it from the address bar."
+  },
+  "routedDialog": {
+    "close": "Close",
+    "notFound": "This item does not exist or was removed.",
+    "backToPage": "Back to the page"
   }
 }

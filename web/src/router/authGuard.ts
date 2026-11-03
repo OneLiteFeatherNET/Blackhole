@@ -4,6 +4,7 @@ import type { AuthService } from '../auth/authService'
 import { readStoredWorkspace, storeWorkspace, workspaceByKey } from '../nav/workspaces'
 import type { WorkspaceKey } from '../nav/navigation'
 import type { useSessionStore } from '../stores/session'
+import { allowedReturnTo } from './returnTo'
 
 export interface AuthGuardDeps {
   auth: AuthService
@@ -20,11 +21,14 @@ export interface AuthGuardDeps {
 export function installAuthGuard(router: Router, { auth, session, api }: AuthGuardDeps): void {
   router.beforeEach(async (to, from) => {
     if (to.name === 'auth-callback') {
+      let returnTo: string
       try {
-        return await auth.completeSignIn(new URL(to.fullPath, window.location.origin).href)
+        returnTo = await auth.completeSignIn(new URL(to.fullPath, window.location.origin).href)
       } catch {
         return { name: 'auth-error', query: { reason: 'callback' } }
       }
+      // The return path comes back in the OIDC state: only an allow-listed in-app route is followed.
+      return allowedReturnTo(router, returnTo)
     }
     if (to.meta.public) return true
 

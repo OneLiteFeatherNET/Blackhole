@@ -75,6 +75,17 @@ describe('router guard', () => {
     expect(router.currentRoute.value.fullPath).toBe('/reports')
   })
 
+  it.each(['https://evil.example/reports', '//evil.example', '/auth/error?reason=x', '/no-access', '/does-not-exist'])(
+    'ignores the return path %s after sign-in and opens the start page',
+    async (returnTo) => {
+      const { router } = setup({ auth: { returnTo } })
+
+      await router.push('/auth/callback?code=c&state=s')
+
+      expect(router.currentRoute.value.fullPath).toBe('/')
+    },
+  )
+
   it('shows the error page when the callback is rejected', async () => {
     const { router } = setup({ auth: { completeFails: true } })
 

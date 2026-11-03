@@ -127,6 +127,33 @@ describe('safeReturnTo', () => {
       expect(safeReturnTo(value)).toBe('/')
     },
   )
+
+  it.each([
+    ['an absolute https target', 'https://evil.example/cases'],
+    ['an absolute http target', 'http://evil.example/'],
+    ['a javascript URL', 'javascript:alert(1)'],
+    ['a protocol-relative target', '//evil.example'],
+    ['a backslash after the slash', '/\\evil.example'],
+    ['a double backslash', '\\\\evil.example'],
+    ['an encoded double slash', '/%2F%2Fevil.example'],
+    ['an encoded backslash', '/%5Cevil.example'],
+    ['a tab that the URL parser would strip', '/\t/evil.example'],
+    ['a line feed', '/cases\n/x'],
+    ['a carriage return', '/cases\r/x'],
+    ['a NUL byte', '/cases\u0000'],
+    ['a DEL character', '/cases\u007f'],
+    ['an invalid percent encoding', '/cases/%E0%A4%A'],
+  ])('ignores %s', (_label, value) => {
+    expect(safeReturnTo(value)).toBe('/')
+  })
+
+  it('ignores an over-long target', () => {
+    expect(safeReturnTo(`/cases?q=${'a'.repeat(3000)}`)).toBe('/')
+  })
+
+  it('keeps the query and the fragment of an in-app target', () => {
+    expect(safeReturnTo('/cases/A1B2C3D4?tab=notes-audit#event-7f3c2a10')).toBe('/cases/A1B2C3D4?tab=notes-audit#event-7f3c2a10')
+  })
 })
 
 describe('renew', () => {
