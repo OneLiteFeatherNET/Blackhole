@@ -45,7 +45,7 @@ const sections = [
 ] as unknown as Section[]
 const active = { network: { identifier: 'p-1', section: 'network', permanent: false, createdAt: 1_700_000_000_000 } as unknown as Punishment }
 
-function setup(options: { roles?: string[]; report?: Report; extra?: Record<string, unknown> } = {}) {
+function setup(options: { roles?: string[]; report?: Report; path?: string; extra?: Record<string, unknown> } = {}) {
   const api = {
     report: vi.fn(async () => ok(options.report ?? report())),
     reportsAgainst: vi.fn(async () => ok([report(), report({ identifier: 'other-1', category: 'GRIEFING', status: 'DISMISSED' })])),
@@ -60,7 +60,7 @@ function setup(options: { roles?: string[]; report?: Report; extra?: Record<stri
     resolveReport: vi.fn(async () => ok(report({ status: 'ACTIONED' }))),
     ...options.extra,
   }
-  return { api, mount: () => mountWithApp(ReportDetailView, { api: mockApi(api), path: `/reports/${ID}`, props: { id: ID }, roles: options.roles }) }
+  return { api, mount: () => mountWithApp(ReportDetailView, { api: mockApi(api), path: options.path ?? `/reports/${ID}`, props: { id: ID }, roles: options.roles }) }
 }
 
 /** Dismiss is in the overflow menu of the header (the other action is the primary one). */
@@ -288,6 +288,126 @@ describe('ReportDetailView: actions', () => {
     expect(api.resolveReport).toHaveBeenCalledWith(ID, { status: 'ACTIONED', templateId: 'tpl-1' })
     expect(api.applyTemplate, 'the resolve route applies the template, a second apply would punish twice').not.toHaveBeenCalled()
     expect(document.body.textContent).toContain('Report actioned: punishment applied in network.')
+    wrapper.unmount()
+  })
+})
+
+describe('ReportDetailView: the action routes', () => {
+  it('opens the resolve dialog from its address, loads the templates and sends nothing', async () => {
+    const { api, mount } = setup({ path: `/reports/${ID}/resolve` })
+    const { wrapper } = await mount()
+
+    expect(api.templates).toHaveBeenCalled()
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+    expect(api.resolveReport, 'navigation changes nothing (decision 8, rule 4)').not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('sends the actioned resolution with the template chosen on the resolve route, then returns to the report', async () => {
+    const { api, mount } = setup({ path: `/reports/${ID}/resolve` })
+    const { wrapper, router } = await mount()
+
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'hacking')
+    await flushPromises()
+    await wrapper.get('[role="dialog"] [data-testid="confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(api.resolveReport).toHaveBeenCalledTimes(1)
+    expect(api.resolveReport).toHaveBeenCalledWith(ID, { status: 'ACTIONED', templateId: 'tpl-1' })
+    expect(router.currentRoute.value.fullPath).toBe(`/reports/${ID}`)
+    wrapper.unmount()
+  })
+
+  it('opens the resolve route from the primary action of the report page without sending anything', async () => {
+    const { api, mount } = setup()
+    const { wrapper, router } = await mount()
+
+    await wrapper.get('[data-testid="apply-template"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('report-resolve')
+    expect(api.resolveReport).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('opens the dismiss dialog from its address and sends nothing until it is confirmed', async () => {
+    const { api, mount } = setup({ path: `/reports/${ID}/dismiss` })
+    const { wrapper } = await mount()
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+    expect(api.resolveReport).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('sends the dismissal with its note when confirmed on the dismiss route, then returns to the report', async () => {
+    const { api, mount } = setup({ path: `/reports/${ID}/dismiss` })
+    const { wrapper, router } = await mount()
+
+    await wrapper.get('[role="dialog"] input').setValue('no proof in the chat')
+    await wrapper.get('[role="dialog"] [data-testid="confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(api.resolveReport).toHaveBeenCalledWith(ID, { status: 'DISMISSED', note: 'no proof in the chat' })
+    expect(router.currentRoute.value.fullPath).toBe(`/reports/${ID}`)
+    wrapper.unmount()
+  })
+
+  it('closes the dismiss dialog with Back without sending anything', async () => {
+    const { api, mount } = setup()
+    const { wrapper, router } = await mount()
+    await router.push(`/reports/${ID}/dismiss`)
+    await flushPromises()
+    expect(wrapper.get('[role="dialog"]').isVisible()).toBe(true)
+
+    router.back()
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe(`/reports/${ID}`)
+    expect(wrapper.find('[role="dialog"]').exists() && wrapper.get('[role="dialog"]').isVisible()).toBe(false)
+    expect(api.resolveReport).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('closes the resolve dialog with Back without sending anything', async () => {
+    const { api, mount } = setup()
+    const { wrapper, router } = await mount()
+    await router.push(`/reports/${ID}/resolve`)
+    await flushPromises()
+    expect(wrapper.get('[role="dialog"]').isVisible()).toBe(true)
+
+    router.back()
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe(`/reports/${ID}`)
+    expect(api.resolveReport).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('opens no action dialog for a viewer, whatever the address says', async () => {
+    const { api, mount } = setup({ roles: ['VIEWER'], path: `/reports/${ID}/resolve` })
+    const { wrapper } = await mount()
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(api.templates).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('opens no action dialog for a resolved report, whatever the address says', async () => {
+    const { api, mount } = setup({ report: report({ status: 'DISMISSED' }), path: `/reports/${ID}/dismiss` })
+    const { wrapper } = await mount()
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(api.resolveReport).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('opens no empty dialog for a report that does not exist', async () => {
+    const reportMissing = vi.fn(async () => fail('there is no report with this identifier', 404, 'NOT_FOUND'))
+    const { api, mount } = setup({ extra: { report: reportMissing }, path: `/reports/${ID}/dismiss` })
+    const { wrapper } = await mount()
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(api.resolveReport).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 })

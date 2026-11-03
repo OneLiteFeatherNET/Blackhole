@@ -66,7 +66,7 @@ describe('ReportsView: page template', () => {
     const { mount } = setup()
     const { wrapper } = await mount()
 
-    const group = wrapper.get('[data-testid="filter-toolbar"] [data-testid="show"]')
+    const group = wrapper.get('[data-testid="filter-toolbar"] [data-testid="status"]')
     expect(group.attributes('aria-label')).toBe('Which reports to show')
     expect(group.find('[data-testid="filter-open"]').attributes('aria-pressed')).toBe('true')
 
@@ -297,6 +297,92 @@ describe('ReportsView: resolving', () => {
 
     expect(wrapper.get('[data-testid="error"]').text()).toContain('already permanently punished')
     expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+
+    wrapper.unmount()
+  })
+})
+
+describe('ReportsView: list query (`status`, `player`)', () => {
+  it('shows the resolved reports only for ?status=resolved', async () => {
+    const { api } = setup()
+    const { wrapper } = await mountWithApp(ReportsView, { api: mockApi(api), path: '/reports?status=resolved' })
+
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1)
+    expect(wrapper.get('tbody tr').text()).toContain('Old news')
+
+    wrapper.unmount()
+  })
+
+  it('shows every report for ?status=all', async () => {
+    const { api } = setup()
+    const { wrapper } = await mountWithApp(ReportsView, { api: mockApi(api), path: '/reports?status=all' })
+
+    expect(wrapper.findAll('tbody tr')).toHaveLength(2)
+
+    wrapper.unmount()
+  })
+
+  it('falls back to the open reports for an unknown status', async () => {
+    const { api } = setup()
+    const { wrapper } = await mountWithApp(ReportsView, { api: mockApi(api), path: '/reports?status=everything' })
+
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="filter-open"]').attributes('aria-pressed')).toBe('true')
+
+    wrapper.unmount()
+  })
+
+  it('writes the chosen status to the address and leaves the open list without it', async () => {
+    const { api } = setup()
+    const { wrapper, router } = await mountWithApp(ReportsView, { api: mockApi(api), path: '/reports' })
+
+    await wrapper.get('[data-testid="filter-resolved"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.status).toBe('resolved')
+
+    await wrapper.get('[data-testid="filter-open"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query.status).toBeUndefined()
+
+    wrapper.unmount()
+  })
+
+  it('lists the reports against one player for ?player=<owner hash>, and asks the API for that player only', async () => {
+    const reportsAgainst = vi.fn(async () => ok([report({ identifier: 'r-7' })]))
+    const { api } = setup({ reportsAgainst })
+    const { wrapper } = await mountWithApp(ReportsView, { api: mockApi(api), path: `/reports?player=${REPORTED}` })
+
+    expect(reportsAgainst).toHaveBeenCalledWith(REPORTED)
+    expect(api.reports).not.toHaveBeenCalled()
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="player-filter"]').text()).toContain(REPORTED.slice(0, 8))
+
+    wrapper.unmount()
+  })
+
+  it('ignores a player value that is not an owner hash and never sends it to the API', async () => {
+    const reportsAgainst = vi.fn(async () => ok([]))
+    const { api } = setup({ reportsAgainst })
+    const { wrapper } = await mountWithApp(ReportsView, { api: mockApi(api), path: '/reports?player=Steve' })
+
+    expect(reportsAgainst).not.toHaveBeenCalled()
+    expect(api.reports).toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="player-filter"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('removes the player filter from the address when it is cleared', async () => {
+    const reportsAgainst = vi.fn(async () => ok([report()]))
+    const { api } = setup({ reportsAgainst })
+    const { wrapper, router } = await mountWithApp(ReportsView, { api: mockApi(api), path: `/reports?player=${REPORTED}` })
+
+    await wrapper.get('[data-testid="clear-player"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query.player).toBeUndefined()
+    expect(api.reports).toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="player-filter"]').exists()).toBe(false)
 
     wrapper.unmount()
   })
