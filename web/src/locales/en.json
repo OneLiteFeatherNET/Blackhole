@@ -1636,6 +1636,9 @@
     }
   },
   "appealConditions": {
+    "newVersion": "New version",
+    "openVersion": "Open version {version}",
+    "versionTitle": "Appeal terms, version {version}",
     "title": "Appeal terms",
     "intro": "Players read these conditions and confirm them before they file an appeal. Every save creates a new version; earlier versions are kept.",
     "current": "Current version {version}",
@@ -1701,6 +1704,11 @@
     }
   },
   "clientRules": {
+    "tab": {
+      "details": "Details",
+      "hits": "Hits"
+    },
+    "tabs": "Views of the rule",
     "title": "Client rules",
     "intro": "Rules over the client brand, mods, plugin channels, protocol version and commands. The proxy applies them; each rule can notify the team, deny the connection or the command, or apply a punishment template.",
     "honesty": "Brand, mods and channels are chosen by the client and can be faked: a hit is a signal, not proof, and a miss proves nothing. Rules on them are a deterrent and a hint for the team. Start every rule with Notify, read the hit counts, and only then switch it to Deny or Punishment. Only the protocol version and commands are observed by the proxy itself.",
@@ -2378,7 +2386,12 @@
     "copied": "Link copied to the clipboard.",
     "failed": "The link could not be copied. Copy it from the address bar."
   },
+  "configDetail": {
+    "notFound": "This item does not exist or was removed.",
+    "backToList": "Back to the list"
+  },
   "routedDialog": {
+    "notFoundTitle": "Not found",
     "close": "Close",
     "notFound": "This item does not exist or was removed.",
     "backToPage": "Back to the page",

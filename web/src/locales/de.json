@@ -1636,6 +1636,9 @@
     }
   },
   "appealConditions": {
+    "newVersion": "Neue Version",
+    "openVersion": "Version {version} öffnen",
+    "versionTitle": "Einspruchsbedingungen, Version {version}",
     "title": "Einspruchsbedingungen",
     "intro": "Spieler lesen diese Bedingungen und bestätigen sie, bevor sie einen Einspruch einreichen. Jedes Speichern erzeugt eine neue Version; frühere Versionen bleiben erhalten.",
     "current": "Aktuelle Version {version}",
@@ -1701,6 +1704,11 @@
     }
   },
   "clientRules": {
+    "tab": {
+      "details": "Details",
+      "hits": "Treffer"
+    },
+    "tabs": "Ansichten der Regel",
     "title": "Client-Regeln",
     "intro": "Regeln über Client-Brand, Mods, Plugin-Kanäle, Protokollversion und Befehle. Der Proxy wendet sie an; jede Regel kann das Team benachrichtigen, die Verbindung oder den Befehl abweisen oder eine Strafvorlage anwenden.",
     "honesty": "Brand, Mods und Kanäle wählt der Client selbst und kann sie fälschen: Ein Treffer ist ein Hinweis, kein Beweis, und kein Treffer beweist nichts. Regeln darauf sind Abschreckung und ein Hinweis für das Team. Beginne jede Regel mit Hinweis, lies die Trefferzahlen und stelle sie erst dann auf Abweisen oder Strafe. Nur Protokollversion und Befehle beobachtet der Proxy selbst.",
@@ -2378,7 +2386,12 @@
     "copied": "Link in die Zwischenablage kopiert.",
     "failed": "Der Link konnte nicht kopiert werden. Kopiere ihn aus der Adresszeile."
   },
+  "configDetail": {
+    "notFound": "Dieser Eintrag existiert nicht oder wurde entfernt.",
+    "backToList": "Zurück zur Liste"
+  },
   "routedDialog": {
+    "notFoundTitle": "Nicht gefunden",
     "close": "Schließen",
     "notFound": "Dieser Eintrag existiert nicht oder wurde entfernt.",
     "backToPage": "Zurück zur Seite",

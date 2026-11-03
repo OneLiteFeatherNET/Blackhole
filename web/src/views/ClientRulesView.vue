@@ -1,40 +1,42 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+// The client rule list. Creating opens its dialog at `/admin/client-rules/new`; each rule links to its own address.
+// Its hits are a tab of that address (`?tab=hits`), its edit and delete actions are routes of it.
+import { computed, provide, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '../api/inject'
-import type { ClientRule, ClientRuleHit } from '../api/types'
+import type { ClientRule } from '../api/types'
 import DataTable, { type DataColumn } from '../components/DataTable.vue'
 import PageShell from '../components/PageShell.vue'
-import ClientRuleEditor from '../components/clientrules/ClientRuleEditor.vue'
-import ClientRuleHitTable from '../components/clientrules/ClientRuleHitTable.vue'
+import ClientRuleEditRoute from '../components/clientrules/ClientRuleEditRoute.vue'
+import { CONFIG_PAGE } from '../components/config/configPage'
 import MdButton from '../components/md/MdButton.vue'
-import MdDialog from '../components/md/MdDialog.vue'
-import MdProgress from '../components/md/MdProgress.vue'
 import MdSnackbar from '../components/md/MdSnackbar.vue'
 import ResourceState from '../components/ResourceState.vue'
 import RowMenu, { type RowMenuItem } from '../components/RowMenu.vue'
 import StatusPill from '../components/StatusPill.vue'
+import TextLink from '../components/TextLink.vue'
 import { useResource } from '../composables/useResource'
 import { useSessionStore } from '../stores/session'
 
 const { t } = useI18n()
 const api = useApi()
+const route = useRoute()
+const router = useRouter()
 const session = useSessionStore()
 
 const rules = useResource(() => api.clientRules())
-
-const editorOpen = ref(false)
-const editing = ref<ClientRule | null>(null)
-const deleting = ref<ClientRule | null>(null)
-const deleteError = ref('')
-const deletingNow = ref(false)
 const message = ref('')
 
-// The hits of one rule are a section of this page, below the table, so they stay next to the rule list.
-const hitsOf = ref<ClientRule | null>(null)
-const hits = ref<ClientRuleHit[] | null>(null)
-const hitsLoading = ref(false)
-const hitsError = ref('')
+provide(CONFIG_PAGE, {
+  reload: () => rules.reload(),
+  async changed(done: string) {
+    message.value = done
+    await rules.reload()
+  },
+})
+
+const creating = computed(() => route.name === 'admin-client-rule-new')
 
 const columns = computed<DataColumn<ClientRule>[]>(() => [
   { key: 'key', label: t('clientRules.columns.rule'), priority: 1 },
@@ -45,70 +47,23 @@ const columns = computed<DataColumn<ClientRule>[]>(() => [
   { key: 'enabled', label: t('clientRules.columns.actions'), priority: 1 },
 ])
 
-// Showing hits is the row's one primary action for every reader; delete is destructive and only offered to admins.
-const rowMenu = computed<RowMenuItem[]>(() => [
-  { key: 'hits', label: t('clientRules.showHits') },
-  ...(session.administrator ? [{ key: 'delete', label: t('clientRules.delete.open'), destructive: true }] : []),
-])
+// Showing hits opens the hits tab of the rule's address for every reader.
+const rowMenu = computed<RowMenuItem[]>(() => [{ key: 'hits', label: t('clientRules.showHits') }])
 
 function matchText(rule: ClientRule): string {
   if (rule.kind === 'PROTOCOL') return `${rule.protocolMin ?? '?'} - ${rule.protocolMax ?? '?'}`
   return rule.patterns.join(', ')
 }
 
-function openEditor(rule: ClientRule | null): void {
-  editing.value = rule
-  editorOpen.value = true
-}
-
-async function saved(done: string): Promise<void> {
-  editorOpen.value = false
-  message.value = done
-  await rules.reload()
-}
-
-function askDelete(rule: ClientRule): void {
-  deleting.value = rule
-  deleteError.value = ''
-}
-
-async function confirmDelete(): Promise<void> {
-  if (!deleting.value || deletingNow.value) return
-  deletingNow.value = true
-  const result = await api.deleteClientRule(deleting.value.key)
-  deletingNow.value = false
-  if (!result.ok) {
-    deleteError.value = result.error.message
-    return
-  }
-  deleting.value = null
-  message.value = t('clientRules.deleted')
-  await rules.reload()
-}
-
-async function showHits(rule: ClientRule): Promise<void> {
-  hitsOf.value = rule
-  hits.value = null
-  hitsError.value = ''
-  hitsLoading.value = true
-  const requested = rule.key
-  const result = await api.clientRuleHits(requested)
-  if (hitsOf.value?.key !== requested) return // a newer selection superseded this answer
-  hitsLoading.value = false
-  if (result.ok) hits.value = result.data
-  else hitsError.value = result.error.message
-}
-
 function onRowMenu(rule: ClientRule, key: string): void {
-  if (key === 'hits') void showHits(rule)
-  else if (key === 'delete') askDelete(rule)
+  if (key === 'hits') void router.push({ name: 'admin-client-rule', params: { key: rule.key }, query: { tab: 'hits' } })
 }
 </script>
 
 <template>
   <PageShell :title="t('clientRules.title')" :description="t('clientRules.intro')">
     <template #actions>
-      <MdButton v-if="session.administrator" data-testid="new-client-rule" @click="openEditor(null)">{{ t('clientRules.new') }}</MdButton>
+      <MdButton v-if="session.administrator" data-testid="new-client-rule" @click="router.push({ name: 'admin-client-rule-new' })">{{ t('clientRules.new') }}</MdButton>
     </template>
 
     <p role="note" data-testid="honesty" class="rounded-md-md bg-tertiary-container p-3 text-body-medium text-on-tertiary-container">
@@ -126,7 +81,7 @@ function onRowMenu(rule: ClientRule, key: string): void {
         <DataTable v-if="rules.data.value.length > 0" :caption="t('clientRules.title')" :columns="columns" :rows="rules.data.value">
           <template #cell="{ row, column }">
             <template v-if="column.key === 'key'">
-              <p class="text-label-large">{{ row.key }}</p>
+              <TextLink :to="{ name: 'admin-client-rule', params: { key: row.key } }">{{ row.key }}</TextLink>
               <p class="text-body-small text-on-surface-variant">{{ row.displayName }}</p>
               <StatusPill v-if="!row.enabled" :label="t('clientRules.disabledPill')" />
             </template>
@@ -153,7 +108,14 @@ function onRowMenu(rule: ClientRule, key: string): void {
             </template>
             <template v-else-if="column.key === 'hitCount'">{{ t('clientRules.hitCount', { n: row.hitCount ?? 0 }) }}</template>
             <div v-else-if="column.key === 'enabled'" class="flex items-center justify-end gap-1">
-              <MdButton v-if="session.administrator" variant="tonal" :data-testid="`edit-${row.key}`" @click="openEditor(row)">{{ t('clientRules.edit') }}</MdButton>
+              <MdButton
+                v-if="session.administrator"
+                variant="tonal"
+                :data-testid="`edit-${row.key}`"
+                @click="router.push({ name: 'admin-client-rule-edit', params: { key: row.key } })"
+              >
+                {{ t('clientRules.edit') }}
+              </MdButton>
               <RowMenu :label="row.key" :items="rowMenu" @select="(key) => onRowMenu(row, key)" />
             </div>
             <template v-else />
@@ -163,33 +125,7 @@ function onRowMenu(rule: ClientRule, key: string): void {
       </template>
     </ResourceState>
 
-    <section v-if="hitsOf" :aria-label="t('clientRules.hits.title', { key: hitsOf.key })" class="flex flex-col gap-3" data-testid="hits-section">
-      <div class="flex flex-wrap items-center gap-3">
-        <h2 class="min-w-0 flex-1 text-title-medium">{{ t('clientRules.hits.title', { key: hitsOf.key }) }}</h2>
-        <MdButton variant="text" data-testid="close-hits" @click="hitsOf = null">{{ t('clientRules.hits.close') }}</MdButton>
-      </div>
-      <p class="text-body-medium text-on-surface-variant">{{ t('clientRules.hits.hint') }}</p>
-      <div aria-live="polite" class="flex flex-col gap-3">
-        <MdProgress v-if="hitsLoading" :label="t('state.loading')" />
-        <p v-else-if="hitsError" data-testid="hits-error" role="alert" class="rounded-md-md bg-error-container p-3 text-on-error-container">{{ hitsError }}</p>
-        <p v-else-if="hits && hits.length === 0" data-testid="hits-empty" class="text-body-large text-on-surface-variant">{{ t('clientRules.hits.empty') }}</p>
-        <ClientRuleHitTable v-else-if="hits" :hits="hits" by="player" :label="t('clientRules.hits.title', { key: hitsOf.key })" />
-      </div>
-    </section>
-
-    <ClientRuleEditor :open="editorOpen" :rule="editing" @close="editorOpen = false" @saved="saved" />
-
-    <MdDialog :open="deleting !== null" :headline="t('clientRules.delete.title', { key: deleting?.key ?? '' })" @close="deleting = null">
-      <p>{{ t('clientRules.delete.body') }}</p>
-      <p v-if="deleteError" data-testid="error" role="alert" class="mt-3 rounded-md-md bg-error-container p-3 text-on-error-container">
-        {{ deleteError }}
-      </p>
-      <template #actions>
-        <MdButton variant="text" data-testid="cancel" @click="deleting = null">{{ t('actions.cancel') }}</MdButton>
-        <MdButton variant="error" data-testid="confirm" :disabled="deletingNow" @click="confirmDelete">{{ t('clientRules.delete.confirm') }}</MdButton>
-      </template>
-    </MdDialog>
-
+    <ClientRuleEditRoute v-if="creating" />
     <MdSnackbar :open="message !== ''" :message="message" @close="message = ''" />
   </PageShell>
 </template>

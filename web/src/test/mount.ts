@@ -1,7 +1,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, type Pinia } from 'pinia'
-import type { Component, Slots } from 'vue'
-import { createMemoryHistory, type Router } from 'vue-router'
+import { defineComponent, h, type Component, type Slots } from 'vue'
+import { createMemoryHistory, RouterView, type Router } from 'vue-router'
 import type { BlackholeApi } from '../api/blackhole'
 import { API_KEY } from '../api/inject'
 import type { AuthService } from '../auth/authService'
@@ -72,6 +72,14 @@ export async function mountWithApp(component: Component, options: { api?: Blackh
   })
   await flushPromises()
   return { wrapper, router }
+}
+
+/**
+ * Mounts the whole panel at `path`: the app's own router view renders the page for that address, so a test can
+ * follow an action that navigates to another page (a detail page, a dialog route) as the app does.
+ */
+export async function mountRouted(options: Omit<Parameters<typeof mountWithApp>[1], 'props' | 'slots'> = {}): Promise<Mounted> {
+  return mountWithApp(defineComponent(() => () => h(RouterView)), options)
 }
 
 /** Opens the overflow of a table row and chooses the item with the given label (the row pattern's menu). */
