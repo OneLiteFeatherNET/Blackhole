@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { useApi } from '../api/inject'
-import type { ApiError, ApiResult, CaseListItem, InboxItem } from '../api/types'
+import type { ApiError, ApiResult, CaseListItem, InboxChangedItem, InboxItem } from '../api/types'
 import { CASE_STATUS_TONE, PRIORITY_TONE } from '../components/case/caseTones'
 import GuardTile from '../components/guard/GuardTile.vue'
 import InboxRow from '../components/inbox/InboxRow.vue'
@@ -16,6 +16,7 @@ import PageShell from '../components/PageShell.vue'
 import ResourceState from '../components/ResourceState.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { useResource } from '../composables/useResource'
+import { changedItemHref, changeTextKey } from '../inbox/changedByOthers'
 import { assignedCases, unassignedUrgentCases, type CaseQueue } from '../inbox/caseQueues'
 import { formatAge, formatDateTime, shortHash } from '../format'
 import { APPEALS_ICON, CASES_ICON, REPORTS_ICON } from '../icons'
@@ -48,6 +49,11 @@ const urgent = useResource(() => {
 const inbox = useResource(() => {
   now.value = Date.now()
   return api.inbox()
+})
+// Its own read, so a failure of the changed section alone leaves the other sections on screen.
+const changed = useResource(() => {
+  now.value = Date.now()
+  return api.changedByOthers()
 })
 const summary = useResource(() => api.dashboard())
 
@@ -149,6 +155,22 @@ const reportRows = computed(() =>
     inboxRow(item, t('inbox.types.report'), REPORTS_ICON, `/reports/${item.id}`, { label: t('inbox.states.report'), tone: 'primary' }),
   ),
 )
+
+/** A change by another staff member: what changed, who made it (a former staff member once anonymized), and when. */
+function changedRow(item: InboxChangedItem) {
+  const appeal = item.kind === 'APPEAL'
+  return {
+    href: changedItemHref(item),
+    typeLabel: t(appeal ? 'inbox.types.appeal' : 'inbox.types.case'),
+    icon: appeal ? APPEALS_ICON : CASES_ICON,
+    id: appeal ? (item.reference ?? shortHash(item.id)) : item.id,
+    player: item.byName ? t('inbox.changed.by', { name: item.byName }) : t('inbox.changed.former'),
+    pills: [{ label: t(changeTextKey(item.change)), tone: 'secondary' as const }],
+    age: formatAge(item.at, now.value, locale.value),
+  }
+}
+
+const changedRows = computed(() => (changed.data.value?.items ?? []).slice(0, ROWS).map(changedRow))
 
 const peak = computed(() => Math.max(1, ...(summary.data.value?.activePunishmentsBySection ?? []).map((s) => s.active)))
 
@@ -271,6 +293,19 @@ const columns = computed(() => [
         @retry="inbox.reload"
       >
         <InboxRow v-for="row in reportRows" :key="row.href" v-bind="row" />
+      </InboxSection>
+
+      <InboxSection
+        queue="changed"
+        :title="t('inbox.sections.changed')"
+        :count="changed.data.value?.count ?? null"
+        :show-all-to="null"
+        :loading="changed.loading.value"
+        :error="changed.error.value"
+        :empty-text="t('inbox.empty.changed')"
+        @retry="changed.reload"
+      >
+        <InboxRow v-for="(row, index) in changedRows" :key="`${row.href}-${index}`" v-bind="row" />
       </InboxSection>
     </div>
 

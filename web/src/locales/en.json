@@ -1849,14 +1849,16 @@
       "urgent": "Unassigned and urgent",
       "appeals": "Appeals waiting for a decision",
       "answers": "Answers waiting",
-      "reports": "Open reports"
+      "reports": "Open reports",
+      "changed": "Changed by others"
     },
     "empty": {
       "assigned": "No case is assigned to you. Cases you take appear here.",
       "urgent": "No urgent case waits without an assignee.",
       "appeals": "No appeal waits for a decision.",
       "answers": "No player waits for an answer.",
-      "reports": "No report is open."
+      "reports": "No report is open.",
+      "changed": "No case or appeal changed by another staff member in the last 24 hours. Changes by others appear here."
     },
     "noIdentity": "Your account has no staff identity yet.",
     "readOnly": "Read-only: moderators act on cases and appeals.",
@@ -1882,6 +1884,21 @@
       "appeal": "Waiting for a decision",
       "answer": "Answer waiting",
       "report": "Open"
+    },
+    "changed": {
+      "by": "by {name}",
+      "former": "by a former staff member",
+      "changes": {
+        "status": "Status changed",
+        "assignee": "Assignee changed",
+        "priority": "Priority changed",
+        "tags": "Tags changed",
+        "note": "Note added or edited",
+        "message": "Message changed",
+        "appealFiled": "Appeal filed",
+        "appealDecided": "Appeal decided",
+        "other": "Changed"
+      }
     }
   },
   "filters": {

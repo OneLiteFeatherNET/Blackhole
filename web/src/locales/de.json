@@ -1849,14 +1849,16 @@
       "urgent": "Nicht zugewiesen und dringend",
       "appeals": "Einsprüche, die auf eine Entscheidung warten",
       "answers": "Antworten ausstehend",
-      "reports": "Offene Meldungen"
+      "reports": "Offene Meldungen",
+      "changed": "Von anderen geändert"
     },
     "empty": {
       "assigned": "Dir ist kein Fall zugewiesen. Fälle, die du übernimmst, erscheinen hier.",
       "urgent": "Kein dringender Fall wartet ohne Zuständigkeit.",
       "appeals": "Kein Einspruch wartet auf eine Entscheidung.",
       "answers": "Kein Spieler wartet auf eine Antwort.",
-      "reports": "Keine Meldung ist offen."
+      "reports": "Keine Meldung ist offen.",
+      "changed": "In den letzten 24 Stunden hat kein anderes Teammitglied einen Fall oder Einspruch geändert. Änderungen anderer erscheinen hier."
     },
     "noIdentity": "Dein Konto hat noch keine Mitarbeiter-Identität.",
     "readOnly": "Nur lesen: Moderatorinnen und Moderatoren bearbeiten Fälle und Einsprüche.",
@@ -1882,6 +1884,21 @@
       "appeal": "Wartet auf Entscheidung",
       "answer": "Antwort ausstehend",
       "report": "Offen"
+    },
+    "changed": {
+      "by": "von {name}",
+      "former": "von einem ehemaligen Teammitglied",
+      "changes": {
+        "status": "Status geändert",
+        "assignee": "Zuständigkeit geändert",
+        "priority": "Priorität geändert",
+        "tags": "Schlagworte geändert",
+        "note": "Notiz hinzugefügt oder geändert",
+        "message": "Nachricht geändert",
+        "appealFiled": "Einspruch eingereicht",
+        "appealDecided": "Einspruch entschieden",
+        "other": "Geändert"
+      }
     }
   },
   "filters": {

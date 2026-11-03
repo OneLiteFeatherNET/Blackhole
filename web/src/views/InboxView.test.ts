@@ -1,7 +1,7 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BlackholeApi } from '../api/blackhole'
-import type { DashboardSummary, InboxItem, InboxSummary } from '../api/types'
+import type { DashboardSummary, InboxChangedItem, InboxChangedSection, InboxItem, InboxSummary } from '../api/types'
 import { caseResponse } from '../test/cases'
 import { fail, mockApi, mountWithApp, ok } from '../test/mount'
 import { SIGNED_IN_OID } from '../test/mount'
@@ -43,6 +43,14 @@ function inbox(overrides: Partial<InboxSummary> = {}): InboxSummary {
   }
 }
 
+function changedItem(overrides: Partial<InboxChangedItem> = {}): InboxChangedItem {
+  return { kind: 'CASE', id: 'AB12CD34', change: 'STATUS', byName: 'Anna', at: NOW - 2 * HOUR, ...overrides }
+}
+
+function changedSection(items: InboxChangedItem[] = [], count = items.length): InboxChangedSection {
+  return { count, items }
+}
+
 function dashboard(): DashboardSummary {
   return {
     activePunishmentsBySection: [{ section: 'network', active: 12 }],
@@ -63,6 +71,7 @@ function mounting(
     cases?: ReturnType<typeof fakeCaseList>['read']
     updateCase?: BlackholeApi['updateCase']
     inbox?: () => Promise<unknown>
+    changedByOthers?: () => Promise<unknown>
     roles?: string[]
     oid?: string | null
   } = {},
@@ -72,6 +81,7 @@ function mounting(
     oid: options.oid,
     api: mockApi({
       inbox: options.inbox ?? (async () => ok(inbox())),
+      changedByOthers: options.changedByOthers ?? (async () => ok(changedSection())),
       dashboard: async () => ok(dashboard()),
       cases: options.cases ?? fakeCaseList(MY_OPEN_CASES).read,
       updateCase: options.updateCase,
@@ -86,7 +96,7 @@ function rowHrefs(wrapper: Awaited<ReturnType<typeof mounting>>['wrapper'], queu
 }
 
 describe('InboxView', () => {
-  it('shows the five queue sections in the order of the work queue', async () => {
+  it('shows the six queue sections in the order of the work queue', async () => {
     const { wrapper } = await mounting()
 
     expect(wrapper.findAll('[data-queue]').map((section) => section.attributes('data-queue'))).toEqual([
@@ -95,6 +105,7 @@ describe('InboxView', () => {
       'appeals',
       'answers',
       'reports',
+      'changed',
     ])
 
     wrapper.unmount()
@@ -449,6 +460,131 @@ describe('InboxView requests', () => {
     expect(wrapper.get('[data-queue="urgent"] [data-testid="section-count"]').text()).toBe('100+')
     expect(wrapper.get('[data-queue="urgent"] [data-testid="show-all"]').attributes('href')).toBe('/cases?priority=URGENT')
     expect(wrapper.get('[data-queue="assigned"] [data-testid="section-count"]').text()).toBe('2')
+
+    wrapper.unmount()
+  })
+})
+
+describe('InboxView: changed by others', () => {
+  const section = (queue = 'changed') => `[data-queue="${queue}"]`
+
+  it('shows each change in words, with who made it and how long ago', async () => {
+    const { wrapper } = await mounting({
+      changedByOthers: async () =>
+        ok(changedSection([changedItem({ change: 'STATUS', byName: 'Anna', at: NOW - 2 * HOUR })])),
+    })
+
+    const text = wrapper.get(section()).text()
+    expect(text).toContain('Status changed')
+    expect(text).toContain('by Anna')
+    expect(text).toContain('2 hours ago')
+
+    wrapper.unmount()
+  })
+
+  it('names a change of an anonymized staff member as a former staff member', async () => {
+    const { wrapper } = await mounting({
+      // The backend sends null once the name is anonymized; the generated type only says the name may be missing.
+      changedByOthers: async () => ok(changedSection([{ ...changedItem(), byName: null } as unknown as InboxChangedItem])),
+    })
+
+    expect(wrapper.get(section()).text()).toContain('by a former staff member')
+
+    wrapper.unmount()
+  })
+
+  it('links a changed case to its page and a changed appeal to the appeal page', async () => {
+    const { wrapper } = await mounting({
+      changedByOthers: async () =>
+        ok(
+          changedSection([
+            changedItem({ kind: 'CASE', id: 'AB12CD34' }),
+            changedItem({ kind: 'APPEAL', id: 'APP00009', reference: 'AB12CD34', change: 'APPEAL_DECIDED' }),
+          ]),
+        ),
+    })
+
+    expect(rowHrefs(wrapper, 'changed')).toEqual(['/cases/AB12CD34', '/appeals/APP00009'])
+
+    wrapper.unmount()
+  })
+
+  it('says what the change was for an appeal and for a change the panel does not know', async () => {
+    const { wrapper } = await mounting({
+      changedByOthers: async () =>
+        ok(
+          changedSection([
+            changedItem({ kind: 'APPEAL', id: 'APP00009', change: 'APPEAL_FILED' }),
+            // A change a newer backend may send, which the generated enum does not list yet.
+            changedItem({ id: 'ZZ99YY88', change: 'SOMETHING_NEW' as InboxChangedItem['change'] }),
+          ]),
+        ),
+    })
+
+    const text = wrapper.get(section()).text()
+    expect(text).toContain('Appeal filed')
+    expect(text).toContain('Changed')
+
+    wrapper.unmount()
+  })
+
+  it('shows the full count of changes, and at most ten rows', async () => {
+    const many = Array.from({ length: 12 }, (_, index) => changedItem({ id: `CH${index}`, at: NOW - index * HOUR }))
+    const { wrapper } = await mounting({
+      changedByOthers: async () => ok(changedSection(many.slice(0, 10), 12)),
+    })
+
+    expect(wrapper.get(`${section()} [data-testid="section-count"]`).text()).toBe('12')
+    expect(wrapper.get(section()).findAll('[data-testid="row"]')).toHaveLength(10)
+
+    wrapper.unmount()
+  })
+
+  it('says what the section is for when nobody else changed anything', async () => {
+    const { wrapper } = await mounting({ changedByOthers: async () => ok(changedSection()) })
+
+    expect(wrapper.get(section()).text()).toContain('No case or appeal changed by another staff member in the last 24 hours.')
+
+    wrapper.unmount()
+  })
+
+  it('fails its own section alone: the other sections keep their rows', async () => {
+    const { wrapper } = await mounting({
+      changedByOthers: async () => fail('backend down', 503, 'UNKNOWN'),
+    })
+
+    expect(wrapper.get(`${section()} [role="alert"]`).text()).toContain('backend down')
+    expect(wrapper.find(`${section('appeals')} [role="alert"]`).exists()).toBe(false)
+    expect(rowHrefs(wrapper, 'appeals')).toEqual(['/appeals/appeal-1', '/appeals/appeal-2'])
+
+    wrapper.unmount()
+  })
+
+  it('retries only its own section', async () => {
+    const read = vi
+      .fn()
+      .mockResolvedValueOnce(fail('backend down', 503, 'UNKNOWN'))
+      .mockResolvedValueOnce(ok(changedSection([changedItem()])))
+    const { wrapper } = await mounting({ changedByOthers: read })
+
+    await wrapper.get(`${section()} [data-testid="retry"]`).trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find(`${section()} [role="alert"]`).exists()).toBe(false)
+    expect(rowHrefs(wrapper, 'changed')).toEqual(['/cases/AB12CD34'])
+    expect(read).toHaveBeenCalledTimes(2)
+
+    wrapper.unmount()
+  })
+
+  it('offers no action in the section, for a moderator or a viewer', async () => {
+    const { wrapper } = await mounting({
+      roles: ['VIEWER'],
+      changedByOthers: async () => ok(changedSection([changedItem()])),
+    })
+
+    expect(wrapper.get(section()).findAll('button')).toHaveLength(0)
+    expect(rowHrefs(wrapper, 'changed')).toEqual(['/cases/AB12CD34'])
 
     wrapper.unmount()
   })
