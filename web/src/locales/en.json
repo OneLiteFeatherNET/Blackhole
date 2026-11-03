@@ -2284,7 +2284,8 @@
   "routedDialog": {
     "close": "Close",
     "notFound": "This item does not exist or was removed.",
-    "backToPage": "Back to the page"
+    "backToPage": "Back to the page",
+    "actionFailed": "The change was not saved. Reload the page to see the current version."
   },
   "integration": {
     "title": "Integration detection",

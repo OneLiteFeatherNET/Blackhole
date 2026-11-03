@@ -1,4 +1,4 @@
-import { computed, type ComputedRef } from 'vue'
+import { computed, ref, type ComputedRef, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 export interface RoutedDialogOptions {
@@ -38,4 +38,48 @@ export function useRoutedDialog(options: RoutedDialogOptions): RoutedDialogState
   }
 
   return { open, close }
+}
+
+export interface RoutedActionOptions extends RoutedDialogOptions {
+  /** The version of the item as it was read, or null while the read has not completed. */
+  version: Ref<number | null>
+  /** Sends the change. Only `confirm` calls it: opening the child route never does. */
+  send: (expectedVersion: number) => Promise<void>
+}
+
+export interface RoutedActionState extends RoutedDialogState {
+  /** True while the confirmed change is in flight. */
+  pending: Ref<boolean>
+  /** True when the last confirmed change was refused; the dialog then stays open. */
+  failed: Ref<boolean>
+  /** Sends the change with the version that was read, then closes the dialog. */
+  confirm: () => Promise<void>
+}
+
+/**
+ * A state change behind a child route (decision 8, rule 4): the route only shows the confirmation. The request is
+ * sent by `confirm`, once, with the version read with the item (`expectedVersion`), and never on navigation.
+ */
+export function useRoutedAction(options: RoutedActionOptions): RoutedActionState {
+  const dialog = useRoutedDialog(options)
+  const pending = ref(false)
+  const failed = ref(false)
+
+  async function confirm(): Promise<void> {
+    const version = options.version.value
+    if (!dialog.open.value || pending.value || version === null) return
+    pending.value = true
+    failed.value = false
+    try {
+      await options.send(version)
+    } catch {
+      failed.value = true
+      return
+    } finally {
+      pending.value = false
+    }
+    await dialog.close()
+  }
+
+  return { ...dialog, pending, failed, confirm }
 }

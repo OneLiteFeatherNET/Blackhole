@@ -8,7 +8,7 @@ import MdDialog from './md/MdDialog.vue'
 // A create, edit or action dialog whose open state is its child route (`restructure-staff-panel`, decision 3).
 // The page stays rendered behind it. `notFound` is decided by the page: a missing item shows the not-found text
 // and no form, never an empty dialog.
-const props = defineProps<{ parent: string; child: string; headline: string; notFound?: boolean }>()
+const props = defineProps<{ parent: string; child: string; headline: string; notFound?: boolean; failed?: boolean }>()
 
 const { t } = useI18n()
 const route = useRoute()
@@ -28,6 +28,9 @@ const dialog = useRoutedDialog({ parent: props.parent, child: props.child })
       </RouterLink>
     </template>
     <slot v-else />
+    <p v-if="props.failed" role="alert" data-testid="routed-dialog-failed" class="mt-4 text-error">
+      {{ t('routedDialog.actionFailed') }}
+    </p>
     <template #actions>
       <MdButton variant="text" data-testid="routed-dialog-close" @click="dialog.close">{{ t('routedDialog.close') }}</MdButton>
       <slot v-if="!props.notFound" name="actions" />
