@@ -24,6 +24,8 @@ import PlayersView from '../views/PlayersView.vue'
 import PunishedPlayersView from '../views/PunishedPlayersView.vue'
 import AppealConditionsView from '../views/AppealConditionsView.vue'
 import AppealsView from '../views/AppealsView.vue'
+import AppealView from '../views/AppealView.vue'
+import AppealDecideRoute from '../components/appeals/AppealDecideRoute.vue'
 import AreaBansView from '../views/AreaBansView.vue'
 import JoinGuardView from '../views/JoinGuardView.vue'
 import ReportsView from '../views/ReportsView.vue'
@@ -56,6 +58,15 @@ export const routes: RouteRecordRaw[] = [
   // The detail of a list-detail page is the same component as its list (ReportsView): the open report is the id in the path.
   { path: '/reports/:id', name: 'report', component: ReportsView, props: true, meta: { titleKey: 'reports.detail.title', nav: '/reports', pageShell: true, workspace: 'moderation' } },
   { path: '/appeals', name: 'appeals', component: AppealsView, meta: { titleKey: 'nav.appeals', pageShell: true, workspace: 'moderation' } },
+  // The decision is a child route: the page stays rendered behind its dialog, and the address opens nothing by itself.
+  {
+    path: '/appeals/:id',
+    name: 'appeal',
+    component: AppealView,
+    props: true,
+    meta: { titleKey: 'appeal.title', nav: '/appeals', pageShell: true, workspace: 'moderation' },
+    children: [{ path: 'decide', name: 'appeal-decide', component: AppealDecideRoute }],
+  },
   { path: '/cases', name: 'cases', component: CasesView, meta: { titleKey: 'nav.cases', pageShell: true, workspace: 'moderation' } },
   // The open case is the reference in the path; the list (CasesView) stays mounted and renders the case beside it.
   {

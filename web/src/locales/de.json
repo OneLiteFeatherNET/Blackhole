@@ -548,6 +548,42 @@
       "dismissConfirm": "Meldung abweisen"
     }
   },
+  "appeal": {
+    "title": "Einspruch",
+    "type": "Einspruch",
+    "notFound": "Dieser Einspruch existiert nicht.",
+    "back": "Zurück zu den Einsprüchen",
+    "alreadyDecided": "Dieser Einspruch ist bereits entschieden.",
+    "tabs": {
+      "label": "Abschnitte des Einspruchs",
+      "conversation": "Unterhaltung",
+      "decision": "Entscheidung",
+      "case": "Strafe"
+    },
+    "summary": {
+      "submitted": "Eingegangen",
+      "statement": "Begründung",
+      "evidence": "Beweise",
+      "appellant": "Spieler"
+    },
+    "conversation": {
+      "none": "Es wurde noch keine Nachricht geschrieben.",
+      "playerLast": "Der Spieler hat zuletzt geschrieben. Antworte im Fall.",
+      "staffLast": "Das Team hat zuletzt geschrieben.",
+      "failed": "Die Unterhaltung konnte nicht geladen werden.",
+      "open": "Unterhaltung im Fall öffnen"
+    },
+    "decision": {
+      "waiting": "Wartet auf eine Entscheidung.",
+      "readOnly": "Nur lesen: Moderation handelt an Fällen und Einsprüchen.",
+      "noNote": "Zur Entscheidung wurde keine Notiz festgehalten.",
+      "updated": "Zuletzt geändert {when}"
+    },
+    "case": {
+      "open": "Fall {id} öffnen",
+      "hint": "Die Strafe, gegen die sich dieser Einspruch richtet."
+    }
+  },
   "appeals": {
     "title": "Einsprüche",
     "filter": "Welche Einsprüche angezeigt werden",

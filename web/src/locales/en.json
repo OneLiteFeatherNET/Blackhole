@@ -548,6 +548,42 @@
       "dismissConfirm": "Dismiss report"
     }
   },
+  "appeal": {
+    "title": "Appeal",
+    "type": "Appeal",
+    "notFound": "There is no such appeal.",
+    "back": "Back to the appeals",
+    "alreadyDecided": "This appeal is already decided.",
+    "tabs": {
+      "label": "Appeal sections",
+      "conversation": "Conversation",
+      "decision": "Decision",
+      "case": "Case"
+    },
+    "summary": {
+      "submitted": "Submitted",
+      "statement": "Statement",
+      "evidence": "Evidence items",
+      "appellant": "Player"
+    },
+    "conversation": {
+      "none": "No message has been written yet.",
+      "playerLast": "The player wrote last. Answer in the case conversation.",
+      "staffLast": "Staff wrote last.",
+      "failed": "The conversation could not be loaded.",
+      "open": "Open the conversation in the case"
+    },
+    "decision": {
+      "waiting": "Waiting for a decision.",
+      "readOnly": "Read-only: moderators act on cases and appeals.",
+      "noNote": "No note was recorded with the decision.",
+      "updated": "Last changed {when}"
+    },
+    "case": {
+      "open": "Open case {id}",
+      "hint": "The punishment this appeal contests."
+    }
+  },
   "appeals": {
     "title": "Appeals",
     "filter": "Which appeals to show",
