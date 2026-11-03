@@ -17,7 +17,12 @@ import { fakeAuthService } from './auth'
  * its name, so a screen can never silently talk to something the test did not expect.
  */
 export function mockApi(methods: Partial<Record<keyof BlackholeApi, unknown>> = {}): BlackholeApi {
-  return new Proxy(methods as unknown as BlackholeApi, {
+  // The front page reads the changed-by-others section on every mount, so it gets the empty answer the real client
+  // gives for a backend without the section. A test that cares about the section passes its own read.
+  const defaults: Partial<Record<keyof BlackholeApi, unknown>> = {
+    changedByOthers: async () => ok({ count: 0, items: [] }),
+  }
+  return new Proxy({ ...defaults, ...methods } as unknown as BlackholeApi, {
     get(target, name: string) {
       if (name in target) return (target as unknown as Record<string, unknown>)[name]
       return () => {
