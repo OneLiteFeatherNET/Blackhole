@@ -1,4 +1,7 @@
 {
+  "lists": {
+    "missing": "Dieser Eintrag existiert nicht mehr."
+  },
   "nav": {
     "label": "Hauptnavigation",
     "skip": "Zum Inhalt springen",
@@ -2038,6 +2041,9 @@
       "DENY": "Ablehnen"
     },
     "policy": {
+      "change": "Richtlinie ändern",
+      "backToList": "Zurück zur VPN- und Hosting-Richtlinie",
+      "editTitle": "Richtlinie von {classification} ändern",
       "title": "VPN- und Hosting-Richtlinie",
       "intro": "Was mit einer Anmeldung von einer VPN-, Hosting- oder Proxy-Adresse geschieht. Nur ein Administrator kann das ändern.",
       "policyLabel": "Neue Richtlinie",
@@ -2063,6 +2069,29 @@
       "lastOk": "Letzte erfolgreiche Aktualisierung: {when}"
     },
     "allowList": {
+      "columns": {
+        "player": "Spieler",
+        "reason": "Grund",
+        "expires": "Läuft ab",
+        "added": "Hinzugefügt",
+        "actor": "Hinzugefügt von"
+      },
+      "new": "Neue Ausnahme",
+      "empty": "Keine Ausnahmen auf dieser Seite.",
+      "pages": "Seiten",
+      "previous": "Vorherige Seite",
+      "next": "Nächste Seite",
+      "entry": {
+        "title": "Ausnahme",
+        "back": "Zurück zu den Ausnahmen",
+        "active": "Aktiv"
+      },
+      "remove": {
+        "open": "Ausnahme entfernen",
+        "title": "Ausnahme entfernen?",
+        "body": "Der Spieler wird beim nächsten Login wieder gegen die VPN- und Hosting-Richtlinie geprüft.",
+        "confirm": "Entfernen"
+      },
       "title": "Ausnahmeliste",
       "intro": "Befreit einen Spieler für eine Zeit von der VPN- und Hosting-Richtlinie. Der Grund wird mit der Ausnahme gespeichert.",
       "readonly": "Nur Moderatoren können Ausnahmen anlegen.",
@@ -2276,6 +2305,9 @@
     "saved": "Manuelle Stufe auf {level} gesetzt.",
     "readOnly": "Nur Moderation und Administration können die Stufe ändern.",
     "settings": {
+      "open": "Einstellungen des Beitrittsschutzes öffnen",
+      "edit": "Einstellungen bearbeiten",
+      "backToGuard": "Zurück zum Beitrittsschutz",
       "title": "Einstellungen ohne Aufsicht",
       "intro": "Wirkt auf jedem Replikat innerhalb von etwa 30 Sekunden. Jede Speicherung wird festgehalten.",
       "level": "Stufe ohne Aufsicht",
@@ -2316,6 +2348,12 @@
     }
   },
   "areaBans": {
+    "detail": {
+      "title": "Gebietssperre",
+      "backToList": "Zurück zu den Gebietssperren",
+      "created": "Angelegt",
+      "lifted": "Aufgehoben am"
+    },
     "title": "Gebietssperren",
     "intro": "Autonome Systeme (ASN) und Länder, deren Verbindungen beim Beitritt abgewiesen werden.",
     "kind": {
@@ -2372,6 +2410,12 @@
   }
 },
   "ipBans": {
+    "detail": {
+      "title": "IP-Sperre",
+      "backToList": "Zurück zu den IP-Sperren",
+      "lifted": "Aufgehoben am",
+      "liftReason": "Grund der Aufhebung"
+    },
     "title": "IP-Sperren",
     "intro": "Hält eine Adresse oder einen Bereich an der Firewall und auf jedem Proxy. Die Liste zeigt die Klartext-Adresse und ist nur für das Team.",
     "new": "Neue IP-Sperre",

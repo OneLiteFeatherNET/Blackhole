@@ -1,7 +1,7 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { IpBan } from '../api/types'
-import { chooseRowMenuItem, fail, mockApi, mountWithApp, ok } from '../test/mount'
+import { chooseRowMenuItem, mockApi, mountWithApp, ok } from '../test/mount'
 import IpBansView from './IpBansView.vue'
 
 const NOW = Date.UTC(2026, 9, 29, 12, 0, 0)
@@ -99,69 +99,48 @@ describe('IpBansView: role gating', () => {
   })
 })
 
-describe('IpBansView: lift', () => {
-  it('keeps the lift disabled until a reason is typed', async () => {
+describe('IpBansView: addresses and state in the query', () => {
+  it('links each row to its own page by the id, never by the range', async () => {
     const { mount } = setup({}, ['MODERATOR'])
     const { wrapper } = await mount()
-    await chooseRowMenuItem(wrapper, 0, 'Lift ban')
-    await flushPromises()
 
-    expect(wrapper.get('[data-testid="confirm"]').attributes('disabled')).toBeDefined()
-    expect(wrapper.text()).toContain('A reason is required.')
+    const link = rowOf(wrapper, '203.0.113.7').get('a')
+    expect(link.attributes('href')).toBe('/ip-bans/b-active')
 
     wrapper.unmount()
   })
 
-  it('lifts with the trimmed reason and reloads the list', async () => {
-    const liftIpBan = vi.fn(async () => ok({ ...active, liftedAt: NOW, liftReason: 'Verified' }))
-    const ipBans = vi.fn(async () => ok([active]))
-    const { mount } = setup({ liftIpBan, ipBans }, ['MODERATOR'])
-    const { wrapper } = await mount()
-    await chooseRowMenuItem(wrapper, 0, 'Lift ban')
+  it('keeps the lifted filter in the address', async () => {
+    const { mount } = setup({}, ['VIEWER'])
+    const { wrapper, router } = await mount()
+
+    await wrapper.get('[data-testid="filter-lifted"]').trigger('click')
     await flushPromises()
 
-    await wrapper.get('[data-testid="lift-reason"] input').setValue('  Verified  ')
-    await flushPromises()
-    await wrapper.get('[data-testid="confirm"]').trigger('click')
-    await flushPromises()
-
-    expect(liftIpBan).toHaveBeenCalledWith('b-active', '  Verified  ')
-    expect(ipBans).toHaveBeenCalledTimes(2)
-
+    expect(router.currentRoute.value.query.status).toBe('lifted')
+    expect(router.currentRoute.value.fullPath).not.toContain('203.0.113.7')
     wrapper.unmount()
   })
 
-  it('explains a ban that is no longer active instead of the server text', async () => {
-    const liftIpBan = vi.fn(async () => ({ ok: false as const, error: { status: 409, message: 'server text', kind: 'CONFLICT' as const } }))
-    const { mount } = setup({ liftIpBan }, ['MODERATOR'])
-    const { wrapper } = await mount()
-    await chooseRowMenuItem(wrapper, 0, 'Lift ban')
-    await flushPromises()
-    await wrapper.get('[data-testid="lift-reason"] input').setValue('Verified')
+  it('opens the create form as its own route', async () => {
+    const { mount } = setup({}, ['MODERATOR'])
+    const { wrapper, router } = await mount()
+
+    await wrapper.get('[data-testid="new-ip-ban"]').trigger('click')
     await flushPromises()
 
-    await wrapper.get('[data-testid="confirm"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.get('[data-testid="error"]').text()).toBe('This ban is no longer active.')
-
+    expect(router.currentRoute.value.name).toBe('ip-ban-new')
     wrapper.unmount()
   })
 
-  it('shows the server text for a lift refused without a known status', async () => {
-    const liftIpBan = vi.fn(async () => fail('no such ban', 404, 'NOT_FOUND'))
-    const { mount } = setup({ liftIpBan }, ['MODERATOR'])
-    const { wrapper } = await mount()
+  it('opens the lift of a ban on the ban page, not on the list', async () => {
+    const { mount } = setup({}, ['MODERATOR'])
+    const { wrapper, router } = await mount()
+
     await chooseRowMenuItem(wrapper, 0, 'Lift ban')
     await flushPromises()
-    await wrapper.get('[data-testid="lift-reason"] input').setValue('Verified')
-    await flushPromises()
 
-    await wrapper.get('[data-testid="confirm"]').trigger('click')
-    await flushPromises()
-
-    expect(wrapper.get('[data-testid="error"]').text()).toBe('no such ban')
-
+    expect(router.currentRoute.value.fullPath).toBe('/ip-bans/b-active/lift')
     wrapper.unmount()
   })
 })

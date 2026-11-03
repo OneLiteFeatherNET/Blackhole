@@ -37,6 +37,10 @@ export type IntelPolicy = Schemas['IntelPolicy']
 export type IntelPolicyEntry = Schemas['PolicyResponse']
 /** An allow-list exemption; `expiresAt` is null for a permanent one. */
 export type AllowListEntry = Schemas['AllowListResponse']
+/** One page of exemptions; `hasMore` says whether a next page exists. */
+export type AllowListPage = Schemas['AllowListPage']
+/** One exemption as the list and the read-by-owner return it; `expired` is set once its end has passed. */
+export type AllowListItem = Schemas['AllowListEntry']
 /** One VPN or hosting login of a player; `allowListed` is whether the owner was exempt at that login. */
 export type IntelHit = Schemas['HitResponse']
 export type EloAdjustResult = Schemas['EloAdjustResponse']

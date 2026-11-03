@@ -14,9 +14,6 @@ import ClientRulesView from '../views/ClientRulesView.vue'
 import ExemptionReviewsView from '../views/ExemptionReviewsView.vue'
 import CaseStatusDialog from '../components/case/CaseStatusDialog.vue'
 import InboxView from '../views/InboxView.vue'
-import IntelAllowListView from '../views/IntelAllowListView.vue'
-import IntelPolicyView from '../views/IntelPolicyView.vue'
-import IpBansView from '../views/IpBansView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 import NoAccessView from '../views/NoAccessView.vue'
 import PlayerDetailView from '../views/PlayerDetailView.vue'
@@ -35,8 +32,7 @@ import TemplateEditRoute from '../components/templates/TemplateEditRoute.vue'
 import AppealsView from '../views/AppealsView.vue'
 import AppealView from '../views/AppealView.vue'
 import AppealDecideRoute from '../components/appeals/AppealDecideRoute.vue'
-import AreaBansView from '../views/AreaBansView.vue'
-import JoinGuardView from '../views/JoinGuardView.vue'
+import { moderationRoutes } from './moderationRouteTable'
 import ReportsView from '../views/ReportsView.vue'
 import SectionsView from '../views/SectionsView.vue'
 import TemplatesView from '../views/TemplatesView.vue'
@@ -57,12 +53,10 @@ export const routes: RouteRecordRaw[] = [
   { path: '/', name: 'inbox', component: InboxView, meta: { titleKey: 'inbox.title', pageShell: true, workspace: 'moderation' } },
   // `nav` names the navigation destination a page belongs to, so the detail pages keep their group marked.
   { path: '/punished', name: 'punished', component: PunishedPlayersView, meta: { titleKey: 'nav.activePunishments', pageShell: true, workspace: 'moderation' } },
-  { path: '/ip-bans', name: 'ip-bans', component: IpBansView, meta: { titleKey: 'nav.ipBans', pageShell: true, workspace: 'moderation' } },
   { path: '/players', name: 'players', component: PlayersView, meta: { titleKey: 'nav.playerLookup', pageShell: true, workspace: 'moderation' } },
   { path: '/players/:owner', name: 'player', component: PlayerDetailView, props: true, meta: { titleKey: 'nav.playerLookup', nav: '/players', pageShell: true, workspace: 'moderation' } },
-  // The VPN and hosting pages: the policy is read by every staff role, the exemptions are added by moderators.
-  { path: '/intel/policy', name: 'intel-policy', component: IntelPolicyView, meta: { titleKey: 'nav.vpnPolicy', pageShell: true, workspace: 'moderation' } },
-  { path: '/intel/allow-list', name: 'intel-allow-list', component: IntelAllowListView, meta: { titleKey: 'nav.allowList', pageShell: true, workspace: 'moderation' } },
+  // The VPN and hosting pages, the IP and area bans, the join guard and their detail pages: `moderationRouteTable.ts`.
+  ...moderationRoutes,
   { path: '/reports', name: 'reports', component: ReportsView, meta: { titleKey: 'nav.reports', pageShell: true, workspace: 'moderation' } },
   // The detail of a list-detail page is the same component as its list (ReportsView): the open report is the id in the path.
   { path: '/reports/:id', name: 'report', component: ReportsView, props: true, meta: { titleKey: 'reports.detail.title', nav: '/reports', pageShell: true, workspace: 'moderation' } },
@@ -90,8 +84,6 @@ export const routes: RouteRecordRaw[] = [
       { path: 'reopen', name: 'case-reopen', component: CaseStatusDialog, props: (route) => ({ reference: String(route.params.reference), action: 'reopen' }) },
     ],
   },
-  { path: '/guard', name: 'guard', component: JoinGuardView, meta: { titleKey: 'guard.title', pageShell: true, workspace: 'moderation' } },
-  { path: '/area-bans', name: 'area-bans', component: AreaBansView, meta: { titleKey: 'areaBans.title', pageShell: true, workspace: 'moderation' } },
 
   // The Administration workspace. `/admin` is its home; the configuration pages are their own routes.
   // A list holds its create dialog as a child route, an item holds its detail page and its edit and action dialogs.
