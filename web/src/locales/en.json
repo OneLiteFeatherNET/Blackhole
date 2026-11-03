@@ -645,6 +645,9 @@
   },
   "evidence": {
     "title": "Evidence",
+    "page": {
+      "case": "Open the case"
+    },
     "open": "Evidence",
     "dialogTitle": "Evidence of the punishment",
     "close": "Close",
@@ -1229,6 +1232,8 @@
       "title": "Notes",
       "newLabel": "New note",
       "editLabel": "Edit note",
+      "newTitle": "Add a note",
+      "editTitle": "Edit note",
       "add": "Add note",
       "save": "Save note",
       "saved": "Note saved.",
@@ -1375,6 +1380,7 @@
       "removed": "Removed (data protection)",
       "newLabel": "Reply to the player",
       "editLabel": "Edit message",
+      "editTitle": "Edit message",
       "send": "Send reply",
       "save": "Save message",
       "hint": "Ctrl+Enter sends. The player can read this. No UUIDs, IP addresses or Ban IDs.",

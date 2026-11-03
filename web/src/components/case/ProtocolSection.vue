@@ -6,17 +6,23 @@
 // browser storage.
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { useApi } from '../../api/inject'
 import type { ApiError, CaseProtocolVersion, TranscriptFile, TranscriptFormat } from '../../api/types'
+import { useItemHighlight } from '../../composables/useItemHighlight'
 import { formatDateTime } from '../../format'
+import CopyLink from '../CopyLink.vue'
 import MdButton from '../md/MdButton.vue'
 import ResourceState from '../ResourceState.vue'
 import StatusPill from '../StatusPill.vue'
+import { anchorDomId } from './itemAnchor'
 
-const props = defineProps<{ reference: string; shortId: string }>()
+/** `focus` is the protocol the address names (`/cases/:ref/protocols/:evidenceId`): it is opened and highlighted. */
+const props = defineProps<{ reference: string; shortId: string; focus?: string | null }>()
 
 const { t, locale } = useI18n()
 const api = useApi()
+const route = useRoute()
 
 const versions = ref<CaseProtocolVersion[]>([])
 const decidedAppeals = ref<string[]>([])
@@ -57,7 +63,28 @@ async function reload(): Promise<void> {
   // The notice is a hint: when the decisions cannot be read, the list still shows what is stored.
   decidedAppeals.value = decided.ok ? decided.data : []
   if (openId.value !== null && !protocols.data.some((version) => version.evidenceId === openId.value)) closeText()
+  await openFocused()
 }
+
+/** The protocol the address names is opened once, so the reader sees its text where the address points. */
+let openedFocus: string | null = null
+async function openFocused(): Promise<void> {
+  const id = props.focus ?? null
+  if (id === null || id === openedFocus) return
+  const version = versions.value.find((candidate) => candidate.evidenceId === id)
+  if (!version) return
+  openedFocus = id
+  if (openId.value !== id) await toggle(version)
+}
+
+/** The row the address names is scrolled to and highlighted. */
+const highlight = useItemHighlight({ anchor: () => props.focus ?? null, ready: () => versions.value })
+
+/** The address of one protocol version. */
+const protocolLink = (version: CaseProtocolVersion) => ({
+  name: 'case-protocol',
+  params: { reference: String(route.params.reference), evidenceId: version.evidenceId },
+})
 
 function closeText(): void {
   openId.value = null
@@ -114,9 +141,11 @@ watch(
   () => props.reference,
   () => {
     closeText()
+    openedFocus = null
     void reload()
   },
 )
+watch(() => props.focus, () => void openFocused())
 
 defineExpose({ reload })
 </script>
@@ -144,7 +173,11 @@ defineExpose({ reload })
         <li
           v-for="version in versions"
           :key="version.evidenceId"
+          :id="anchorDomId(version.evidenceId)"
+          tabindex="-1"
           class="flex flex-col gap-2 rounded-md-md bg-surface-container p-4"
+          :class="highlight.highlighted.value === version.evidenceId ? 'outline outline-2 outline-primary' : ''"
+          :data-highlighted="highlight.highlighted.value === version.evidenceId ? 'true' : undefined"
           data-testid="protocol-version"
         >
           <div class="flex flex-wrap items-center gap-3">
@@ -158,6 +191,7 @@ defineExpose({ reload })
             <span class="text-body-medium text-on-surface-variant">{{ t('case.protocol.storedAt', { when: formatDateTime(version.createdAt, locale) }) }}</span>
           </div>
           <p v-if="!version.current" class="text-body-small text-on-surface-variant">{{ t('case.protocol.supersededHint') }}</p>
+          <CopyLink :to="protocolLink(version)" />
           <div class="flex flex-wrap gap-2">
             <MdButton
               variant="outlined"

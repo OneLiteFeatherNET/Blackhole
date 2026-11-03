@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { inject, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import MdButton from './md/MdButton.vue'
 import { browserClipboard, CLIPBOARD_KEY } from './copyLink'
 
-// Copies the absolute address of the current view, with its query and fragment. Nothing else is copied: no
-// Ban ID, name or IP is part of a canonical address (`restructure-staff-panel`, staff-entity-header).
+// Copies the absolute address of the current view, with its query and fragment, or of the item given in `to` (an
+// item of the page, such as a note or a message). Nothing else is copied: no Ban ID, name or IP is part of an address.
+const props = defineProps<{ to?: RouteLocationRaw }>()
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
@@ -14,7 +15,8 @@ const clipboard = inject(CLIPBOARD_KEY, browserClipboard())
 const outcome = ref<'idle' | 'copied' | 'failed'>('idle')
 
 function absoluteLink(): string {
-  return new URL(router.resolve(route.fullPath).href, window.location.origin).href
+  const target = props.to ?? route.fullPath
+  return new URL(router.resolve(target).href, window.location.origin).href
 }
 
 async function copy(): Promise<void> {

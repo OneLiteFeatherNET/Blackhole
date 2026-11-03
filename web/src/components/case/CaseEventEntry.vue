@@ -4,13 +4,15 @@
 // notes the latest text with its earlier versions. Unknown types are shown generically.
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { ApiResult, CaseTimelineItem } from '../../api/types'
+import { useRoute, useRouter } from 'vue-router'
+import type { CaseTimelineItem } from '../../api/types'
 import { formatDateTime } from '../../format'
+import CopyLink from '../CopyLink.vue'
 import MdButton from '../md/MdButton.vue'
 import StatusPill from '../StatusPill.vue'
-import { eventInfo, field, iconPath, isNoteVersion, isRedacted, list, num, text } from './caseEvents'
+import { anchorDomId, anchorHash } from './itemAnchor'
+import { eventInfo, field, iconPath, isNoteVersion, isRedacted, list, noteIdOf, num, text } from './caseEvents'
 import EvidenceInline from './EvidenceInline.vue'
-import NoteEditor from './NoteEditor.vue'
 
 const props = defineProps<{
   event: CaseTimelineItem
@@ -18,12 +20,24 @@ const props = defineProps<{
   versions: CaseTimelineItem[]
   canEdit: boolean
   canRedact: boolean
-  editing: boolean
-  saveEdit: (text: string) => Promise<ApiResult<unknown>>
+  /** The id of the item in the address: a note's id for its latest version, the event's seq otherwise. */
+  anchor: string
+  /** True while this entry is the item the address names. */
+  highlighted: boolean
 }>()
-const emit = defineEmits<{ edit: []; cancelEdit: []; edited: []; redact: [] }>()
 
 const { t, te, locale } = useI18n()
+const router = useRouter()
+const route = useRoute()
+
+/** Edit and redact are routes of the note (`restructure-staff-panel`, decision 7): opening them sends nothing. */
+function openNoteRoute(name: 'case-note-edit' | 'case-note-redact'): void {
+  const noteId = noteIdOf(props.event)
+  if (noteId) void router.push({ name, params: { reference: String(route.params.reference), noteId }, query: route.query })
+}
+
+/** The address of this entry: the case timeline with the entry's fragment. */
+const itemLink = computed(() => ({ name: 'case', params: { reference: String(route.params.reference) }, query: { tab: 'notes-audit' }, hash: anchorHash(props.anchor) }))
 
 const info = computed(() => eventInfo(props.event.type))
 const isNote = computed(() => isNoteVersion(props.event))
@@ -187,7 +201,15 @@ const detail = computed(() => {
 </script>
 
 <template>
-  <li class="flex gap-3 rounded-md-md border border-outline-variant bg-surface p-4" :data-testid="`event-${event.seq}`" :data-type="event.type">
+  <li
+    :id="anchorDomId(anchor)"
+    tabindex="-1"
+    class="flex gap-3 rounded-md-md border border-outline-variant bg-surface p-4"
+    :class="highlighted ? 'outline outline-2 outline-primary' : ''"
+    :data-highlighted="highlighted ? 'true' : undefined"
+    :data-testid="`event-${event.seq}`"
+    :data-type="event.type"
+  >
     <svg viewBox="0 0 24 24" class="mt-0.5 h-6 w-6 shrink-0 text-on-surface-variant" aria-hidden="true" data-testid="event-icon" :data-icon="info.icon">
       <path :d="iconPath(info.icon)" fill="currentColor" />
     </svg>
@@ -207,18 +229,8 @@ const detail = computed(() => {
       <template v-if="isNote">
         <p v-if="redacted" class="text-body-medium italic text-on-surface-variant" data-testid="note-removed">{{ t('case.notes.removed') }}</p>
         <template v-else-if="latest">
-          <NoteEditor
-            v-if="editing"
-            :label="t('case.notes.editLabel')"
-            :submit-label="t('case.notes.save')"
-            :initial="noteText ?? ''"
-            :save="saveEdit"
-            cancellable
-            @saved="emit('edited')"
-            @cancel="emit('cancelEdit')"
-          />
-          <p v-else class="mt-1 whitespace-pre-wrap break-words text-body-large" data-testid="note-body">{{ noteText }}</p>
-          <details v-if="earlier.length > 0 && !editing" class="mt-2 text-body-medium" data-testid="note-history">
+          <p class="mt-1 whitespace-pre-wrap break-words text-body-large" data-testid="note-body">{{ noteText }}</p>
+          <details v-if="earlier.length > 0" class="mt-2 text-body-medium" data-testid="note-history">
             <summary class="cursor-pointer text-primary">{{ t('case.notes.history', { count: earlier.length }) }}</summary>
             <ol class="mt-1 flex flex-col gap-1">
               <li v-for="version in earlier" :key="version.seq" class="rounded-md-xs bg-surface-container-low p-2">
@@ -227,9 +239,9 @@ const detail = computed(() => {
               </li>
             </ol>
           </details>
-          <div v-if="!editing && (canEdit || canRedact)" class="mt-1 flex gap-1">
-            <MdButton v-if="canEdit" variant="text" data-testid="note-edit" @click="emit('edit')">{{ t('case.notes.edit') }}</MdButton>
-            <MdButton v-if="canRedact" variant="text" data-testid="note-redact" @click="emit('redact')">{{ t('case.notes.redact') }}</MdButton>
+          <div v-if="canEdit || canRedact" class="mt-1 flex gap-1">
+            <MdButton v-if="canEdit" variant="text" data-testid="note-edit" @click="openNoteRoute('case-note-edit')">{{ t('case.notes.edit') }}</MdButton>
+            <MdButton v-if="canRedact" variant="text" data-testid="note-redact" @click="openNoteRoute('case-note-redact')">{{ t('case.notes.redact') }}</MdButton>
           </div>
         </template>
         <p v-else class="text-body-medium text-on-surface-variant" data-testid="note-superseded">{{ t('case.notes.superseded') }}</p>
@@ -246,6 +258,7 @@ const detail = computed(() => {
         <span aria-hidden="true">·</span>
         <time :datetime="iso">{{ when }}</time>
       </p>
+      <CopyLink :to="itemLink" class="mt-2" />
     </div>
   </li>
 </template>

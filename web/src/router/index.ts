@@ -37,6 +37,7 @@ import SectionsView from '../views/SectionsView.vue'
 import TemplatesView from '../views/TemplatesView.vue'
 import LeaveView from '../views/LeaveView.vue'
 import { exemptionRouteTable } from './exemptionRouteTable'
+import { caseItemRoutes, evidenceItemRoutes } from './caseItemRoutes'
 
 /*
  * Two workspaces (`meta.workspace`): Moderation keeps its URLs; Administration lives under /admin (ADMIN only, `meta.admin`).
@@ -82,8 +83,12 @@ export const routes: RouteRecordRaw[] = [
     children: [
       { path: 'close', name: 'case-close', component: CaseStatusDialog, props: (route) => ({ reference: String(route.params.reference), action: 'close' }) },
       { path: 'reopen', name: 'case-reopen', component: CaseStatusDialog, props: (route) => ({ reference: String(route.params.reference), action: 'reopen' }) },
+      // Notes, messages and protocols of the case (`restructure-staff-panel`, decision 7): `caseItemRoutes.ts`.
+      ...caseItemRoutes,
     ],
   },
+  // The evidence item page and its delete confirmation: `caseItemRoutes.ts`.
+  ...evidenceItemRoutes,
 
   // The Administration workspace. `/admin` is its home; the configuration pages are their own routes.
   // A list holds its create dialog as a child route, an item holds its detail page and its edit and action dialogs.

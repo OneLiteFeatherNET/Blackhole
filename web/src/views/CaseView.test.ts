@@ -110,7 +110,7 @@ describe('CaseView: roles', () => {
     const { mount } = setup({ roles: ['VIEWER'] })
     const { wrapper } = await mount()
 
-    expect(wrapper.find('[data-testid="note-editor"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="open-note-new"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="notes-read-only"]').text()).toContain('moderator role')
     expect(wrapper.get('[data-testid="status"] [role="combobox"]').attributes('disabled')).toBeDefined()
 
@@ -121,7 +121,7 @@ describe('CaseView: roles', () => {
     const { mount } = setup({ roles: ['MODERATOR', 'VIEWER'] })
     const { wrapper } = await mount()
 
-    expect(wrapper.find('[data-testid="note-editor"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="open-note-new"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="status"] [role="combobox"]').attributes('disabled')).toBeUndefined()
 
     wrapper.unmount()
@@ -162,63 +162,6 @@ describe('CaseView: changing the case', () => {
     expect(api.caseTimeline).toHaveBeenCalledTimes(2)
     expect(wrapper.find('[data-testid="conflict"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="status"] [role="combobox"]').text()).toContain('Closed')
-
-    wrapper.unmount()
-  })
-})
-
-describe('CaseView: notes', () => {
-  it('adds a note, clears the editor, reloads the timeline and announces the save', async () => {
-    const { api, mount } = setup({ roles: ['MODERATOR', 'VIEWER'] })
-    const { wrapper } = await mount()
-
-    await wrapper.get('[data-testid="note-text"]').setValue('looked at the logs')
-    await wrapper.get('[data-testid="note-editor"]').trigger('submit')
-    await flushPromises()
-
-    expect(api.addCaseNote).toHaveBeenCalledWith('p-0001', 'looked at the logs')
-    expect((wrapper.get('[data-testid="note-text"]').element as HTMLTextAreaElement).value).toBe('')
-    expect(api.caseTimeline).toHaveBeenCalledTimes(2)
-    expect(wrapper.findAll('[role="status"][aria-live="polite"]').map((live) => live.text())).toContain('Note saved.')
-
-    wrapper.unmount()
-  })
-
-  it('restores the text with the server message when the note is rejected', async () => {
-    const addCaseNote = vi.fn(async () => fail('a note must not contain a UUID or an IP address; name a player by the short id', 400))
-    const { api, mount } = setup({ roles: ['MODERATOR', 'VIEWER'], extra: { addCaseNote } })
-    const { wrapper } = await mount()
-
-    await wrapper.get('[data-testid="note-text"]').setValue('player 8.8.8.8')
-    await wrapper.get('[data-testid="note-editor"]').trigger('submit')
-    await flushPromises()
-
-    expect(wrapper.get('[data-testid="note-error"]').text()).toContain('UUID or an IP address')
-    expect((wrapper.get('[data-testid="note-text"]').element as HTMLTextAreaElement).value).toBe('player 8.8.8.8')
-    expect(api.caseTimeline, 'the timeline is not reloaded for a failed note').toHaveBeenCalledTimes(1)
-
-    wrapper.unmount()
-  })
-})
-
-describe('CaseView: redaction as admin', () => {
-  it('removes a note after confirming with a reason and shows it as removed', async () => {
-    const note = timelineItem({ seq: 1, type: 'note.added', payload: { noteId: NOTE, text: 'phone 555' }, subjectId: NOTE })
-    const removed = timelineItem({ seq: 1, type: 'note.added', payload: {}, redactedAt: 1, subjectId: NOTE })
-    const caseTimeline = vi.fn().mockResolvedValueOnce(ok(timelinePage([note]))).mockResolvedValueOnce(ok(timelinePage([removed])))
-    const redactCaseNote = vi.fn(async () => ok({ noteId: NOTE, redactedVersions: 1 }))
-    const { mount } = setup({ extra: { caseTimeline, redactCaseNote } })
-    const { wrapper } = await mount()
-
-    await wrapper.get('[data-testid="note-redact"]').trigger('click')
-    await flushPromises()
-    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'PERSONAL_DATA')
-    await wrapper.get('[data-testid="redact-confirm"]').trigger('click')
-    await flushPromises()
-
-    expect(redactCaseNote).toHaveBeenCalledWith('p-0001', NOTE, 'PERSONAL_DATA')
-    expect(wrapper.get('[data-testid="note-removed"]').text()).toBe('Removed (data protection)')
-    expect(wrapper.text()).not.toContain('phone 555')
 
     wrapper.unmount()
   })

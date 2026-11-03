@@ -16,3 +16,10 @@ export interface CaseContext {
 }
 
 export const CASE_CONTEXT_KEY: InjectionKey<CaseContext> = Symbol('case context')
+
+/** What the case page shares with its item routes (note and message dialogs): a change is announced and the page reloads. */
+export interface CaseItemsContext {
+  changed: (message: string) => Promise<void>
+}
+
+export const CASE_ITEMS_KEY: InjectionKey<CaseItemsContext> = Symbol('case items')

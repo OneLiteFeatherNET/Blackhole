@@ -3,8 +3,10 @@
 // infinite scroll, so keyboard focus is never taken from the user while events load).
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { useApi } from '../../api/inject'
 import type { ActorTrust, ApiError, CaseTimelineItem } from '../../api/types'
+import { useItemHighlight } from '../../composables/useItemHighlight'
 import { useSessionStore } from '../../stores/session'
 import MdButton from '../md/MdButton.vue'
 import MdSelect from '../md/MdSelect.vue'
@@ -12,17 +14,24 @@ import MdTextField from '../md/MdTextField.vue'
 import ResourceState from '../ResourceState.vue'
 import CaseEventEntry from './CaseEventEntry.vue'
 import { isNoteVersion, isRedacted, noteIdOf, TYPE_GROUPS } from './caseEvents'
-import RedactNoteDialog from './RedactNoteDialog.vue'
+import { anchorIdOf } from './itemAnchor'
 
 const PAGE_SIZE = 50
 const ALL = 'all'
 
-const props = defineProps<{ reference: string }>()
-const emit = defineEmits<{ changed: [message: string] }>()
+const props = withDefaults(
+  defineProps<{
+    reference: string
+    /** True while the timeline is the shown tab: an address that names an item of it may page on to find that item. */
+    seek?: boolean
+  }>(),
+  { seek: false },
+)
 
 const { t } = useI18n()
 const api = useApi()
 const session = useSessionStore()
+const route = useRoute()
 
 const items = ref<CaseTimelineItem[]>([])
 const nextCursor = ref<string | null>(null)
@@ -36,8 +45,6 @@ const trust = ref(ALL)
 const from = ref('')
 const to = ref('')
 
-const editing = ref<string | null>(null)
-const redacting = ref<string | null>(null)
 const list = ref<HTMLElement | null>(null)
 
 const groupOptions = computed(() => [
@@ -69,6 +76,15 @@ function isLatest(event: CaseTimelineItem): boolean {
   const versions = versionsOf(event)
   return versions.length > 0 && versions[versions.length - 1]!.seq === event.seq
 }
+
+/** The id of an entry in the address: a note's id on its latest version, the event's seq otherwise (`#event-<id>`). */
+function anchorOf(event: CaseTimelineItem): string {
+  const noteId = isNoteVersion(event) && isLatest(event) ? noteIdOf(event) : null
+  return noteId ?? String(event.seq)
+}
+
+/** The item the address names (`#event-<id>`) is scrolled to and highlighted once it is on the list. */
+const highlight = useItemHighlight({ anchor: () => anchorIdOf(route.hash), ready: () => items.value })
 
 /** The author is whoever added the note; a page that did not load that event falls back to the oldest version it has. */
 function canEdit(event: CaseTimelineItem): boolean {
@@ -125,17 +141,19 @@ async function loadMore(): Promise<void> {
   if (nextCursor.value === null) list.value?.focus()
 }
 
-async function edited(): Promise<void> {
-  editing.value = null
-  emit('changed', t('case.notes.saved'))
-  await reload()
-}
-
-async function redacted(message: string): Promise<void> {
-  redacting.value = null
-  emit('changed', message)
-  await reload()
-}
+// An address that names an entry further down pages on until the entry is loaded or the timeline ends. It only runs
+// while this timeline is the shown tab, and it does not move the focus that the highlight sets.
+const namesEntry = (): string | null => anchorIdOf(route.hash)
+watch(
+  items,
+  async () => {
+    const id = namesEntry()
+    if (!props.seek || id === null || nextCursor.value === null || loadingMore.value || loading.value) return
+    if (items.value.some((event) => anchorOf(event) === id)) return
+    await load(true)
+  },
+  { flush: 'post' },
+)
 
 watch([group, trust, from, to], () => void reload())
 watch(() => props.reference, () => void reload())
@@ -168,19 +186,13 @@ defineExpose({ reload })
           :versions="versionsOf(event)"
           :can-edit="canEdit(event)"
           :can-redact="canRedact(event)"
-          :editing="editing !== null && editing === noteIdOf(event) && isLatest(event)"
-          :save-edit="(text: string) => api.editCaseNote(reference, noteIdOf(event) ?? '', text)"
-          @edit="editing = noteIdOf(event)"
-          @cancel-edit="editing = null"
-          @edited="edited"
-          @redact="redacting = noteIdOf(event)"
+          :anchor="anchorOf(event)"
+          :highlighted="highlight.highlighted.value === anchorOf(event)"
         />
       </ol>
       <div v-if="nextCursor" class="mt-4">
         <MdButton variant="outlined" :disabled="loadingMore" data-testid="load-more" @click="loadMore">{{ t('case.timeline.loadMore') }}</MdButton>
       </div>
     </ResourceState>
-
-    <RedactNoteDialog :open="redacting !== null" :reference="reference" :note-id="redacting" @close="redacting = null" @done="redacted" />
   </section>
 </template>
