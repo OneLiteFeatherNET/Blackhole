@@ -152,7 +152,7 @@ describe('InboxView', () => {
     const { wrapper } = await mounting()
 
     expect(wrapper.get('[data-queue="appeals"] [data-testid="section-count"]').text()).toBe('4')
-    expect(rowHrefs(wrapper, 'appeals')).toEqual(['/cases/APP00001', '/cases/APP00002'])
+    expect(rowHrefs(wrapper, 'appeals')).toEqual(['/appeals/appeal-1', '/appeals/appeal-2'])
     expect(wrapper.get('[data-queue="answers"] [data-testid="section-count"]').text()).toBe('1')
     expect(rowHrefs(wrapper, 'reports')).toEqual(['/reports/report-1'])
 
@@ -206,7 +206,7 @@ describe('InboxView', () => {
 
     expect(wrapper.get('[data-queue="assigned"] [role="alert"]').text()).toContain('backend down')
     expect(wrapper.find('[data-queue="urgent"] [role="alert"]').exists()).toBe(true)
-    expect(rowHrefs(wrapper, 'appeals')).toEqual(['/cases/APP00001', '/cases/APP00002'])
+    expect(rowHrefs(wrapper, 'appeals')).toEqual(['/appeals/appeal-1', '/appeals/appeal-2'])
     expect(wrapper.find('[data-queue="reports"] [role="alert"]').exists()).toBe(false)
 
     wrapper.unmount()

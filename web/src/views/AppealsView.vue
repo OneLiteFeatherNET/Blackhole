@@ -136,7 +136,9 @@ async function done(text: string): Promise<void> {
 
         <DataTable v-if="visible.length > 0" :caption="t('appeals.title')" :columns="columns" :rows="visible">
           <template #cell="{ row, column }">
-            <template v-if="column.key === 'createdAt'">{{ formatDateTime(row.createdAt, locale) }}</template>
+            <TextLink v-if="column.key === 'createdAt'" :to="`/appeals/${row.identifier}`" :data-testid="`appeal-${row.identifier}`">
+              {{ formatDateTime(row.createdAt, locale) }}
+            </TextLink>
             <TextLink v-else-if="column.key === 'appellantHash'" :to="`/players/${row.appellantHash}`" :title="row.appellantHash">
               {{ shortHash(row.appellantHash) }}
             </TextLink>
