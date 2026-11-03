@@ -64,4 +64,13 @@ describe('PageShell', () => {
 
     wrapper.unmount()
   })
+
+  it('replaces the default heading block with the header slot, which then holds the only heading', () => {
+    const wrapper = mounting({ title: 'Case #AB12CD' }, { header: '<header data-testid="s-header"><h1>Case #AB12CD</h1></header>', default: '<p>content</p>' })
+
+    expect(wrapper.find('[data-testid="s-header"]').exists()).toBe(true)
+    expect(wrapper.findAll('h1').map((heading) => heading.text())).toEqual(['Case #AB12CD'])
+
+    wrapper.unmount()
+  })
 })
