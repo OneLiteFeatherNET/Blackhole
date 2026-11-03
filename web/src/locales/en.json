@@ -1,4 +1,7 @@
 {
+  "lists": {
+    "missing": "This entry does not exist any more."
+  },
   "nav": {
     "label": "Main navigation",
     "skip": "Skip to content",
@@ -32,6 +35,10 @@
       "intro": "Outside text fields, press g and then a letter to open a page. Press ? to show this list.",
       "help": "Show this list",
       "then": "then",
+      "nextRow": "Next row in a list",
+      "previousRow": "Previous row in a list",
+      "openRow": "Open the selected row",
+      "closeRow": "Close the open item",
       "close": "Close"
     },
     "brand": "Blackhole",
@@ -502,6 +509,7 @@
     "empty": "No open reports.",
     "showAll": "Show all reports",
     "noneYet": "No reports yet.",
+    "selectHint": "Select a report to see it here.",
     "resolved": "Report resolved.",
     "columns": {
       "when": "Received",
@@ -1333,6 +1341,7 @@
         "player": "Player"
       },
       "noneYet": "No cases yet.",
+      "selectHint": "Select a case to see it here.",
       "view": "View",
       "viewCases": "All cases",
       "viewPlayer": "By player",
@@ -1931,14 +1940,16 @@
       "urgent": "Unassigned and urgent",
       "appeals": "Appeals waiting for a decision",
       "answers": "Answers waiting",
-      "reports": "Open reports"
+      "reports": "Open reports",
+      "changed": "Changed by others"
     },
     "empty": {
       "assigned": "No case is assigned to you. Cases you take appear here.",
       "urgent": "No urgent case waits without an assignee.",
       "appeals": "No appeal waits for a decision.",
       "answers": "No player waits for an answer.",
-      "reports": "No report is open."
+      "reports": "No report is open.",
+      "changed": "No case or appeal changed by another staff member in the last 24 hours. Changes by others appear here."
     },
     "noIdentity": "Your account has no staff identity yet.",
     "readOnly": "Read-only: moderators act on cases and appeals.",
@@ -1964,6 +1975,21 @@
       "appeal": "Waiting for a decision",
       "answer": "Answer waiting",
       "report": "Open"
+    },
+    "changed": {
+      "by": "by {name}",
+      "former": "by a former staff member",
+      "changes": {
+        "status": "Status changed",
+        "assignee": "Assignee changed",
+        "priority": "Priority changed",
+        "tags": "Tags changed",
+        "note": "Note added or edited",
+        "message": "Message changed",
+        "appealFiled": "Appeal filed",
+        "appealDecided": "Appeal decided",
+        "other": "Changed"
+      }
     }
   },
   "filters": {
@@ -2069,6 +2095,9 @@
       "DENY": "Deny"
     },
     "policy": {
+      "change": "Change the policy",
+      "backToList": "Back to the VPN and hosting policy",
+      "editTitle": "Change the policy of {classification}",
       "title": "VPN and hosting policy",
       "intro": "What happens to a login from a VPN, hosting or proxy address. Only an administrator can change it.",
       "policyLabel": "New policy",
@@ -2094,6 +2123,29 @@
       "lastOk": "Last successful refresh: {when}"
     },
     "allowList": {
+      "columns": {
+        "player": "Player",
+        "reason": "Reason",
+        "expires": "Expires",
+        "added": "Added",
+        "actor": "Added by"
+      },
+      "new": "New exemption",
+      "empty": "No exemptions on this page.",
+      "pages": "Pages",
+      "previous": "Previous page",
+      "next": "Next page",
+      "entry": {
+        "title": "Exemption",
+        "back": "Back to the exemptions",
+        "active": "Active"
+      },
+      "remove": {
+        "open": "Remove exemption",
+        "title": "Remove the exemption?",
+        "body": "The player is checked against the VPN and hosting policy again at the next login.",
+        "confirm": "Remove"
+      },
       "title": "Allow-list",
       "intro": "Exempt a player from the VPN and hosting policy for a while. The reason is kept with the exemption.",
       "readonly": "Only moderators can add exemptions.",
@@ -2280,7 +2332,20 @@
       "tooLong": "At most 500 characters."
     },
     "applied": "Review applied.",
-    "dismissed": "Review dismissed."
+    "dismissed": "Review dismissed.",
+    "state": {
+      "OPEN": "Open",
+      "APPLIED": "Applied",
+      "DISMISSED": "Dismissed"
+    },
+    "detail": {
+      "title": "Exemption review",
+      "state": "Status",
+      "justification": "Justification",
+      "open": "Open",
+      "back": "Back to the reviews",
+      "notFound": "There is no such review."
+    }
   },
   "guard": {
     "title": "Join guard",
@@ -2307,6 +2372,9 @@
     "saved": "Manual level set to {level}.",
     "readOnly": "Only moderators and admins can change the level.",
     "settings": {
+      "open": "Open the join guard settings",
+      "edit": "Edit the settings",
+      "backToGuard": "Back to the join guard",
       "title": "Unattended settings",
       "intro": "Applied on every replica within about 30 seconds. Every save is recorded.",
       "level": "Unattended level",
@@ -2347,6 +2415,12 @@
     }
   },
   "areaBans": {
+    "detail": {
+      "title": "Area ban",
+      "backToList": "Back to the area bans",
+      "created": "Created",
+      "lifted": "Lifted at"
+    },
     "title": "Area bans",
     "intro": "Autonomous systems (ASN) and countries whose connections are refused when they join.",
     "kind": {
@@ -2403,6 +2477,12 @@
   }
 },
   "ipBans": {
+    "detail": {
+      "title": "IP ban",
+      "backToList": "Back to the IP bans",
+      "lifted": "Lifted at",
+      "liftReason": "Reason for lifting"
+    },
     "title": "IP bans",
     "intro": "Holds one address or range at the firewall and on every proxy. The list shows the clear address, so it is for staff only.",
     "new": "New IP ban",

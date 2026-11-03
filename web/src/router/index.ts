@@ -11,13 +11,8 @@ import AuthCallbackView from '../views/AuthCallbackView.vue'
 import AuthErrorView from '../views/AuthErrorView.vue'
 import CasesView from '../views/CasesView.vue'
 import ClientRulesView from '../views/ClientRulesView.vue'
-import ExemptionReviewsView from '../views/ExemptionReviewsView.vue'
-import CaseView from '../views/CaseView.vue'
 import CaseStatusDialog from '../components/case/CaseStatusDialog.vue'
 import InboxView from '../views/InboxView.vue'
-import IntelAllowListView from '../views/IntelAllowListView.vue'
-import IntelPolicyView from '../views/IntelPolicyView.vue'
-import IpBansView from '../views/IpBansView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 import NoAccessView from '../views/NoAccessView.vue'
 import AppealConditionsView from '../views/AppealConditionsView.vue'
@@ -33,13 +28,12 @@ import TemplateEditRoute from '../components/templates/TemplateEditRoute.vue'
 import AppealsView from '../views/AppealsView.vue'
 import AppealView from '../views/AppealView.vue'
 import AppealDecideRoute from '../components/appeals/AppealDecideRoute.vue'
-import AreaBansView from '../views/AreaBansView.vue'
-import JoinGuardView from '../views/JoinGuardView.vue'
-import ReportDetailView from '../views/ReportDetailView.vue'
+import { moderationRoutes } from './moderationRouteTable'
 import ReportsView from '../views/ReportsView.vue'
 import SectionsView from '../views/SectionsView.vue'
 import TemplatesView from '../views/TemplatesView.vue'
 import LeaveView from '../views/LeaveView.vue'
+import { exemptionRouteTable } from './exemptionRouteTable'
 import { playerRoutes } from './playerRouteTable'
 
 /*
@@ -58,12 +52,11 @@ export const routes: RouteRecordRaw[] = [
   // `nav` names the navigation destination a page belongs to, so the detail pages keep their group marked.
   // The player lookup, the player page with its action routes, and the active punishments with their own addresses.
   ...playerRoutes,
-  { path: '/ip-bans', name: 'ip-bans', component: IpBansView, meta: { titleKey: 'nav.ipBans', pageShell: true, workspace: 'moderation' } },
-  // The VPN and hosting pages: the policy is read by every staff role, the exemptions are added by moderators.
-  { path: '/intel/policy', name: 'intel-policy', component: IntelPolicyView, meta: { titleKey: 'nav.vpnPolicy', pageShell: true, workspace: 'moderation' } },
-  { path: '/intel/allow-list', name: 'intel-allow-list', component: IntelAllowListView, meta: { titleKey: 'nav.allowList', pageShell: true, workspace: 'moderation' } },
+  // The VPN and hosting pages, the IP and area bans, the join guard and their detail pages: `moderationRouteTable.ts`.
+  ...moderationRoutes,
   { path: '/reports', name: 'reports', component: ReportsView, meta: { titleKey: 'nav.reports', pageShell: true, workspace: 'moderation' } },
-  { path: '/reports/:id', name: 'report', component: ReportDetailView, props: true, meta: { titleKey: 'reports.detail.title', nav: '/reports', pageShell: true, workspace: 'moderation' } },
+  // The detail of a list-detail page is the same component as its list (ReportsView): the open report is the id in the path.
+  { path: '/reports/:id', name: 'report', component: ReportsView, props: true, meta: { titleKey: 'reports.detail.title', nav: '/reports', pageShell: true, workspace: 'moderation' } },
   { path: '/appeals', name: 'appeals', component: AppealsView, meta: { titleKey: 'nav.appeals', pageShell: true, workspace: 'moderation' } },
   // The decision is a child route: the page stays rendered behind its dialog, and the address opens nothing by itself.
   {
@@ -75,10 +68,11 @@ export const routes: RouteRecordRaw[] = [
     children: [{ path: 'decide', name: 'appeal-decide', component: AppealDecideRoute }],
   },
   { path: '/cases', name: 'cases', component: CasesView, meta: { titleKey: 'nav.cases', pageShell: true, workspace: 'moderation' } },
+  // The open case is the reference in the path; the list (CasesView) stays mounted and renders the case beside it.
   {
     path: '/cases/:reference',
     name: 'case',
-    component: CaseView,
+    component: CasesView,
     props: true,
     meta: { titleKey: 'case.title', nav: '/cases', pageShell: true, workspace: 'moderation' },
     // Close and reopen are confirmation dialogs over the case (decision 8, rule 4): opening them sends nothing.
@@ -87,8 +81,6 @@ export const routes: RouteRecordRaw[] = [
       { path: 'reopen', name: 'case-reopen', component: CaseStatusDialog, props: (route) => ({ reference: String(route.params.reference), action: 'reopen' }) },
     ],
   },
-  { path: '/guard', name: 'guard', component: JoinGuardView, meta: { titleKey: 'guard.title', pageShell: true, workspace: 'moderation' } },
-  { path: '/area-bans', name: 'area-bans', component: AreaBansView, meta: { titleKey: 'areaBans.title', pageShell: true, workspace: 'moderation' } },
 
   // The Administration workspace. `/admin` is its home; the configuration pages are their own routes.
   // A list holds its create dialog as a child route, an item holds its detail page and its edit and action dialogs.
@@ -156,7 +148,7 @@ export const routes: RouteRecordRaw[] = [
     props: (route) => ({ version: Number(route.params.version) }),
     meta: { titleKey: 'nav.appealTerms', nav: '/admin/appeal-terms', admin: true, pageShell: true, workspace: 'administration' },
   },
-  { path: '/admin/exemption-reviews', name: 'admin-exemption-reviews', component: ExemptionReviewsView, meta: { titleKey: 'nav.exemptionReviews', admin: true, pageShell: true, workspace: 'administration' } },
+  ...exemptionRouteTable,
   // The system pages: one component with one tab route each (`meta.adminTab`), each a rail item of its own.
   { path: '/admin/staff', name: 'admin-staff', component: AdminView, meta: { titleKey: 'nav.staffAccounts', admin: true, pageShell: true, adminTab: 'staff', workspace: 'administration' } },
   { path: '/admin/rollback', name: 'admin-rollback', component: AdminView, meta: { titleKey: 'nav.rollback', admin: true, pageShell: true, adminTab: 'rollback', workspace: 'administration' } },

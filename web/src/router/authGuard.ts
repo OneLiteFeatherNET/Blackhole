@@ -52,6 +52,7 @@ export function installAuthGuard(router: Router, { auth, session, api }: AuthGua
     // Admin-only pages are not offered to other roles; a direct visit lands on the no-access page, which says why.
     if (to.meta.admin && !session.administrator) return { name: 'no-access', query: { reason: 'admin' } }
     // The actions on players and punishments are confirmations for moderators; a viewer gets no request for them.
+    // A dialog that changes a list (`meta.moderator`) is refused to a viewer before its page requests any data.
     if (to.meta.moderator && !session.moderator) return { name: 'no-access', query: { reason: 'moderator' } }
     if (to.name === 'no-access') return to.query.reason === 'admin' || to.query.reason === 'moderator' ? true : '/'
     // The stored workspace only decides the first landing on the bare root; an explicit route (and the Inbox link) wins.

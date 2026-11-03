@@ -56,6 +56,7 @@ import type {
   ExemptionReview,
   ExemptionStatus,
   DashboardSummary,
+  InboxChangedSection,
   InboxSummary,
   KickAccepted,
   KickMassRequest,
@@ -64,6 +65,8 @@ import type {
   EloAdjustResult,
   EvasionSightings,
   AllowListEntry,
+  AllowListItem,
+  AllowListPage,
   IntelClass,
   IntelHit,
   IntelPolicy,
@@ -133,6 +136,8 @@ export interface BlackholeApi {
   dashboard(): Promise<ApiResult<DashboardSummary>>
   /** The four sections of the inbox: counts and the oldest items of each. */
   inbox(): Promise<ApiResult<InboxSummary>>
+  /** The cases and appeals the other staff changed in the last 24 hours, read on its own so it fails alone. */
+  changedByOthers(): Promise<ApiResult<InboxChangedSection>>
   /** Resolves a player name; the result carries the hashed `owner` all other calls use. */
   resolvePlayer(name: string): Promise<ApiResult<ResolvedPlayer & { owner: string }>>
   /** A player without any punishment has no profile; that is an empty profile, not an error. */
@@ -165,6 +170,8 @@ export interface BlackholeApi {
   setJoinGuardSettings(request: GuardSettingsRequest): Promise<ApiResult<GuardSettings>>
   /** The area bans in force; with `includeInactive` the lifted and expired ones too, newest first. */
   areaBans(includeInactive?: boolean): Promise<ApiResult<AreaBan[]>>
+  /** One area ban by its id, lifted and expired ones included; NOT_FOUND if there is none. */
+  areaBan(id: string): Promise<ApiResult<AreaBan>>
   /** A moderator may ban one ASN for up to seven days; ADMIN only for a country or a permanent ban. */
   createAreaBan(draft: AreaBanDraft): Promise<ApiResult<AreaBan>>
   /** A reason is required; the ban stays in the history. */
@@ -184,6 +191,8 @@ export interface BlackholeApi {
   clientRuleCatalogue(): Promise<ApiResult<ClientRuleCatalogue>>
   /** The newest IP bans, active or not; staff roles may read them. */
   ipBans(): Promise<ApiResult<IpBan[]>>
+  /** One IP ban by its id; NOT_FOUND if there is none. */
+  ipBan(id: string): Promise<ApiResult<IpBan>>
   /** Holds one address or CIDR range at the firewall and the proxies. A moderator's ban must expire within the server's cap; a refusal carries its rule code. */
   createIpBan(draft: IpBanDraft): Promise<ApiResult<IpBan>>
   /** Lifts one active ban; the reason is mandatory. */
@@ -208,6 +217,8 @@ export interface BlackholeApi {
   exemption(owner: string): Promise<ApiResult<ExemptionStatus>>
   /** The automatic punishments held back for protected players, oldest first (ADMIN only). */
   exemptionReviews(): Promise<ApiResult<ExemptionReview[]>>
+  /** One review in any state, for its own page (ADMIN only). An unknown id is NOT_FOUND. */
+  exemptionReview(identifier: string): Promise<ApiResult<ExemptionReview>>
   /** Places the held-back punishment with the justification recorded on it (ADMIN only). */
   applyExemptionReview(identifier: string, justification: string): Promise<ApiResult<ExemptionReview>>
   /** Closes the review without a punishment; the score change stays (ADMIN only). */
@@ -227,6 +238,12 @@ export interface BlackholeApi {
   setIntelPolicy(classification: IntelClass, policy: IntelPolicy): Promise<ApiResult<IntelPolicyEntry>>
   /** Exempts a player for 1 to 90 days, or permanently when `durationDays` is null (ADMIN only). The reason is required. */
   addIntelAllowListEntry(request: { owner: string; reason: string; durationDays: number | null }): Promise<ApiResult<AllowListEntry>>
+  /** One page of the exemptions, newest first (staff roles may read them). */
+  intelAllowList(page: number, size: number): Promise<ApiResult<AllowListPage>>
+  /** One exemption by the owner hash; NOT_FOUND if there is none. */
+  intelAllowListEntry(owner: string): Promise<ApiResult<AllowListItem>>
+  /** Removes the exemption of one owner (MODERATOR or ADMIN). */
+  removeIntelAllowListEntry(owner: string): Promise<ApiResult<void>>
   /** The newest VPN and hosting logins of a player, at most 50 (staff only; the backend keeps the clear address). */
   intelHits(owner: string): Promise<ApiResult<IntelHit[]>>
   /** One page of a player's stored sessions, newest first (staff only; the page shows the raw address). */
@@ -574,6 +591,13 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     inbox: () => toResult(http.GET('/inbox')),
 
+    async changedByOthers() {
+      const result = await toResult(http.GET('/inbox'))
+      if (!result.ok) return result
+      // A backend without the section answers none: an empty section, not an error.
+      return { ok: true, data: result.data.changedByOthers ?? { count: 0, items: [] } }
+    },
+
     async resolvePlayer(name) {
       const result = await toResult(http.GET('/player/resolve/{name}', { params: { path: { name } } }))
       if (!result.ok) return result
@@ -689,6 +713,8 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
         }),
       ),
 
+    areaBan: (id) => toResult(http.GET('/area-bans/{id}', { params: { path: { id } } })),
+
     liftAreaBan: (identifier, reason) =>
       toResult(http.POST('/area-bans/{id}/lift', { params: { path: { id: identifier } }, body: { reason: reason.trim() } })),
 
@@ -741,6 +767,8 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       const result = await toResult(http.GET('/ipban'))
       return map(result, (list) => list.bans ?? [])
     },
+
+    ipBan: (id) => toResult(http.GET('/ipban/{id}', { params: { path: { id } } })),
 
     // A permanent ban leaves `expiresAt` out of the body; the panel is always the source. The rule codes are kept for the form's messages.
     createIpBan: (draft) =>
@@ -834,6 +862,11 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       return map(await toResult(http.GET('/exemption/reviews')), (body) => body.items ?? [])
     },
 
+    async exemptionReview(identifier) {
+      const result = await toResult(http.GET('/exemption/reviews/{id}', { params: { path: { id: identifier } } }))
+      return map(result, (body) => body.review)
+    },
+
     async applyExemptionReview(identifier, justification) {
       const result = await toResult(
         http.POST('/exemption/reviews/{id}/apply', { params: { path: { id: identifier } }, body: { justification } }),
@@ -891,6 +924,14 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     setIntelPolicy: (classification, policy) => toResult(http.POST('/intel/policy', { body: { classification, policy } })),
 
     addIntelAllowListEntry: (request) => toResult(http.POST('/intel/allow-list', { body: request })),
+
+    intelAllowList: (page, size) => toResult(http.GET('/intel/allow-list', { params: { query: { page, size } } })),
+
+    intelAllowListEntry: (owner) => toResult(http.GET('/intel/allow-list/{owner}', { params: { path: { owner } } })),
+
+    async removeIntelAllowListEntry(owner) {
+      return map(await toResult(http.DELETE('/intel/allow-list/{owner}', { params: { path: { owner } } })), () => undefined)
+    },
 
     async intelHits(owner) {
       return map(await toResult(http.GET('/intel/players/{owner}/hits', { params: { path: { owner } } })), (page) => page.hits)

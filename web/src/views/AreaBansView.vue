@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink, useRoute } from 'vue-router'
 import { useApi } from '../api/inject'
 import type { AreaBan } from '../api/types'
 import DataTable, { type DataColumn } from '../components/DataTable.vue'
 import PageShell from '../components/PageShell.vue'
 import AreaBanCreateDialog from '../components/areabans/AreaBanCreateDialog.vue'
-import AreaBanLiftDialog from '../components/areabans/AreaBanLiftDialog.vue'
 import MdButton from '../components/md/MdButton.vue'
 import MdCheckbox from '../components/md/MdCheckbox.vue'
 import MdSnackbar from '../components/md/MdSnackbar.vue'
@@ -14,19 +14,27 @@ import ResourceState from '../components/ResourceState.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { useResource } from '../composables/useResource'
 import { formatDateTime } from '../format'
+import { useRoutedDialog } from '../router/routedDialog'
+import { useQueryParam } from '../router/queryParam'
 import { useSessionStore } from '../stores/session'
 
 // Area bans of ASNs and countries. Everyone with access reads them; moderators and admins create and lift them.
+// `?status=lifted` adds the lifted and expired bans to the list.
 const { t, locale } = useI18n()
 const api = useApi()
 const session = useSessionStore()
+const route = useRoute()
 
-const includeInactive = ref(false)
+const status = useQueryParam('status', ['active', 'lifted'] as const, 'active')
+const includeInactive = computed({
+  get: () => status.value === 'lifted',
+  set: (next: boolean) => (status.value = next ? 'lifted' : 'active'),
+})
 const bans = useResource(() => api.areaBans(includeInactive.value))
 watch(includeInactive, () => void bans.reload())
 
-const creating = ref(false)
-const lifting = ref<AreaBan | null>(null)
+// The create form is the child route `new`; the list stays rendered behind it.
+const create = useRoutedDialog({ parent: 'area-bans', child: 'area-ban-new' })
 const message = ref('')
 
 type Status = 'active' | 'expired' | 'lifted'
@@ -59,20 +67,17 @@ async function done(text: string): Promise<void> {
 }
 
 async function created(): Promise<void> {
-  creating.value = false
+  await create.close()
   await done(t('areaBans.created'))
-}
-
-async function lifted(): Promise<void> {
-  lifting.value = null
-  await done(t('areaBans.lifted'))
 }
 </script>
 
 <template>
   <PageShell :title="t('areaBans.title')" :description="t('areaBans.intro')">
     <template #actions>
-      <MdButton v-if="session.moderator" data-testid="new-area-ban" @click="creating = true">{{ t('areaBans.create.open') }}</MdButton>
+      <MdButton v-if="session.moderator" as="link" data-testid="new-area-ban" :to="{ name: 'area-ban-new', query: route.query }">
+        {{ t('areaBans.create.open') }}
+      </MdButton>
     </template>
 
     <MdCheckbox
@@ -88,7 +93,12 @@ async function lifted(): Promise<void> {
           <template #cell="{ row, column }">
             <template v-if="column.key === 'value'">
               <p class="text-label-large">{{ t(`areaBans.kind.${row.kind}`) }}</p>
-              <p class="break-all text-body-medium">{{ row.value }}</p>
+              <RouterLink
+                :to="{ name: 'area-ban', params: { id: row.id } }"
+                class="break-all text-body-medium text-primary underline underline-offset-2 focus-ring"
+              >
+                {{ row.value }}
+              </RouterLink>
             </template>
             <template v-else-if="column.key === 'expiresAt'">{{ expiryText(row) }}</template>
             <template v-else-if="column.key === 'status'">
@@ -102,9 +112,10 @@ async function lifted(): Promise<void> {
             </template>
             <MdButton
               v-else-if="column.key === 'actions' && session.moderator && row.status === 'active'"
+              as="link"
               variant="text"
               :data-testid="`lift-${row.id}`"
-              @click="lifting = row"
+              :to="{ name: 'area-ban-lift', params: { id: row.id } }"
             >
               {{ t('areaBans.lift.open') }}
             </MdButton>
@@ -115,16 +126,7 @@ async function lifted(): Promise<void> {
       </template>
     </ResourceState>
 
-    <AreaBanCreateDialog
-      :open="creating"
-      @close="creating = false"
-      @created="created"
-    />
-    <AreaBanLiftDialog
-      :ban="lifting"
-      @close="lifting = null"
-      @lifted="lifted"
-    />
+    <AreaBanCreateDialog :open="create.open.value" @close="create.close" @created="created" />
 
     <MdSnackbar :open="message !== ''" :message="message" @close="message = ''" />
   </PageShell>

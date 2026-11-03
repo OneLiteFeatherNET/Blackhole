@@ -1,4 +1,7 @@
 {
+  "lists": {
+    "missing": "Dieser Eintrag existiert nicht mehr."
+  },
   "nav": {
     "label": "Hauptnavigation",
     "skip": "Zum Inhalt springen",
@@ -32,6 +35,10 @@
       "intro": "Außerhalb von Textfeldern drückst du g und dann einen Buchstaben, um eine Seite zu öffnen. Mit ? wird diese Liste angezeigt.",
       "help": "Diese Liste anzeigen",
       "then": "dann",
+      "nextRow": "Nächste Zeile in einer Liste",
+      "previousRow": "Vorherige Zeile in einer Liste",
+      "openRow": "Ausgewählte Zeile öffnen",
+      "closeRow": "Geöffneten Eintrag schließen",
       "close": "Schließen"
     },
     "brand": "Blackhole",
@@ -502,6 +509,7 @@
     "empty": "Keine offenen Meldungen.",
     "showAll": "Alle Meldungen anzeigen",
     "noneYet": "Noch keine Meldungen.",
+    "selectHint": "Wähle eine Meldung aus, um sie hier zu sehen.",
     "resolved": "Meldung bearbeitet.",
     "columns": {
       "when": "Eingegangen",
@@ -1333,6 +1341,7 @@
         "player": "Spieler"
       },
       "noneYet": "Noch keine Fälle.",
+      "selectHint": "Wähle einen Fall aus, um ihn hier zu sehen.",
       "view": "Ansicht",
       "viewCases": "Alle Fälle",
       "viewPlayer": "Nach Spieler",
@@ -1931,14 +1940,16 @@
       "urgent": "Nicht zugewiesen und dringend",
       "appeals": "Einsprüche, die auf eine Entscheidung warten",
       "answers": "Antworten ausstehend",
-      "reports": "Offene Meldungen"
+      "reports": "Offene Meldungen",
+      "changed": "Von anderen geändert"
     },
     "empty": {
       "assigned": "Dir ist kein Fall zugewiesen. Fälle, die du übernimmst, erscheinen hier.",
       "urgent": "Kein dringender Fall wartet ohne Zuständigkeit.",
       "appeals": "Kein Einspruch wartet auf eine Entscheidung.",
       "answers": "Kein Spieler wartet auf eine Antwort.",
-      "reports": "Keine Meldung ist offen."
+      "reports": "Keine Meldung ist offen.",
+      "changed": "In den letzten 24 Stunden hat kein anderes Teammitglied einen Fall oder Einspruch geändert. Änderungen anderer erscheinen hier."
     },
     "noIdentity": "Dein Konto hat noch keine Mitarbeiter-Identität.",
     "readOnly": "Nur lesen: Moderatorinnen und Moderatoren bearbeiten Fälle und Einsprüche.",
@@ -1964,6 +1975,21 @@
       "appeal": "Wartet auf Entscheidung",
       "answer": "Antwort ausstehend",
       "report": "Offen"
+    },
+    "changed": {
+      "by": "von {name}",
+      "former": "von einem ehemaligen Teammitglied",
+      "changes": {
+        "status": "Status geändert",
+        "assignee": "Zuständigkeit geändert",
+        "priority": "Priorität geändert",
+        "tags": "Schlagworte geändert",
+        "note": "Notiz hinzugefügt oder geändert",
+        "message": "Nachricht geändert",
+        "appealFiled": "Einspruch eingereicht",
+        "appealDecided": "Einspruch entschieden",
+        "other": "Geändert"
+      }
     }
   },
   "filters": {
@@ -2069,6 +2095,9 @@
       "DENY": "Ablehnen"
     },
     "policy": {
+      "change": "Richtlinie ändern",
+      "backToList": "Zurück zur VPN- und Hosting-Richtlinie",
+      "editTitle": "Richtlinie von {classification} ändern",
       "title": "VPN- und Hosting-Richtlinie",
       "intro": "Was mit einer Anmeldung von einer VPN-, Hosting- oder Proxy-Adresse geschieht. Nur ein Administrator kann das ändern.",
       "policyLabel": "Neue Richtlinie",
@@ -2094,6 +2123,29 @@
       "lastOk": "Letzte erfolgreiche Aktualisierung: {when}"
     },
     "allowList": {
+      "columns": {
+        "player": "Spieler",
+        "reason": "Grund",
+        "expires": "Läuft ab",
+        "added": "Hinzugefügt",
+        "actor": "Hinzugefügt von"
+      },
+      "new": "Neue Ausnahme",
+      "empty": "Keine Ausnahmen auf dieser Seite.",
+      "pages": "Seiten",
+      "previous": "Vorherige Seite",
+      "next": "Nächste Seite",
+      "entry": {
+        "title": "Ausnahme",
+        "back": "Zurück zu den Ausnahmen",
+        "active": "Aktiv"
+      },
+      "remove": {
+        "open": "Ausnahme entfernen",
+        "title": "Ausnahme entfernen?",
+        "body": "Der Spieler wird beim nächsten Login wieder gegen die VPN- und Hosting-Richtlinie geprüft.",
+        "confirm": "Entfernen"
+      },
       "title": "Ausnahmeliste",
       "intro": "Befreit einen Spieler für eine Zeit von der VPN- und Hosting-Richtlinie. Der Grund wird mit der Ausnahme gespeichert.",
       "readonly": "Nur Moderatoren können Ausnahmen anlegen.",
@@ -2280,7 +2332,20 @@
       "tooLong": "Höchstens 500 Zeichen."
     },
     "applied": "Prüfung verhängt.",
-    "dismissed": "Prüfung verworfen."
+    "dismissed": "Prüfung verworfen.",
+    "state": {
+      "OPEN": "Offen",
+      "APPLIED": "Verhängt",
+      "DISMISSED": "Verworfen"
+    },
+    "detail": {
+      "title": "Schutzprüfung",
+      "state": "Status",
+      "justification": "Begründung",
+      "open": "Öffnen",
+      "back": "Zurück zu den Prüfungen",
+      "notFound": "Es gibt keine solche Prüfung."
+    }
   },
   "guard": {
     "title": "Beitrittsschutz",
@@ -2307,6 +2372,9 @@
     "saved": "Manuelle Stufe auf {level} gesetzt.",
     "readOnly": "Nur Moderation und Administration können die Stufe ändern.",
     "settings": {
+      "open": "Einstellungen des Beitrittsschutzes öffnen",
+      "edit": "Einstellungen bearbeiten",
+      "backToGuard": "Zurück zum Beitrittsschutz",
       "title": "Einstellungen ohne Aufsicht",
       "intro": "Wirkt auf jedem Replikat innerhalb von etwa 30 Sekunden. Jede Speicherung wird festgehalten.",
       "level": "Stufe ohne Aufsicht",
@@ -2347,6 +2415,12 @@
     }
   },
   "areaBans": {
+    "detail": {
+      "title": "Gebietssperre",
+      "backToList": "Zurück zu den Gebietssperren",
+      "created": "Angelegt",
+      "lifted": "Aufgehoben am"
+    },
     "title": "Gebietssperren",
     "intro": "Autonome Systeme (ASN) und Länder, deren Verbindungen beim Beitritt abgewiesen werden.",
     "kind": {
@@ -2403,6 +2477,12 @@
   }
 },
   "ipBans": {
+    "detail": {
+      "title": "IP-Sperre",
+      "backToList": "Zurück zu den IP-Sperren",
+      "lifted": "Aufgehoben am",
+      "liftReason": "Grund der Aufhebung"
+    },
     "title": "IP-Sperren",
     "intro": "Hält eine Adresse oder einen Bereich an der Firewall und auf jedem Proxy. Die Liste zeigt die Klartext-Adresse und ist nur für das Team.",
     "new": "Neue IP-Sperre",

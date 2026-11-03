@@ -15,6 +15,8 @@ export type EvidenceStatus = Schemas['EvidenceStatus']
 export type DashboardSummary = Schemas['DashboardSummaryResponse']
 export type InboxSummary = Schemas['InboxResponse']
 export type InboxItem = Schemas['InboxItem']
+export type InboxChangedItem = Schemas['InboxChangedItem']
+export type InboxChangedSection = Schemas['InboxChangedSection']
 export type ResolvedPlayer = Schemas['PlayerResolveResponse']
 export type Punishment = Schemas['PunishEntryDTO']
 export type EloSectionScore = Schemas['EloSectionScore']
@@ -35,6 +37,10 @@ export type IntelPolicy = Schemas['IntelPolicy']
 export type IntelPolicyEntry = Schemas['PolicyResponse']
 /** An allow-list exemption; `expiresAt` is null for a permanent one. */
 export type AllowListEntry = Schemas['AllowListResponse']
+/** One page of exemptions; `hasMore` says whether a next page exists. */
+export type AllowListPage = Schemas['AllowListPage']
+/** One exemption as the list and the read-by-owner return it; `expired` is set once its end has passed. */
+export type AllowListItem = Schemas['AllowListEntry']
 /** One VPN or hosting login of a player; `allowListed` is whether the owner was exempt at that login. */
 export type IntelHit = Schemas['HitResponse']
 export type EloAdjustResult = Schemas['EloAdjustResponse']

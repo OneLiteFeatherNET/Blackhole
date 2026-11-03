@@ -12,6 +12,8 @@ const Shell = defineComponent({ setup: () => () => h(RouterView) })
 
 function setup(options: { roles?: string[]; kase?: Parameters<typeof caseResponse>[0]; path?: string; extra?: Record<string, unknown>; shell?: boolean } = {}) {
   const api = {
+    // The shell renders the cases list around the case (the list and the case share one route).
+    cases: vi.fn(async () => ok({ items: [], page: 0, size: 25, totalSize: 0, totalPages: 0 })),
     caseDetail: vi.fn(async () => ok(caseResponse(options.kase))),
     caseTimeline: vi.fn(async () => ok(timelinePage([timelineItem()]))),
     caseConversation: vi.fn(async () => ok([])),
