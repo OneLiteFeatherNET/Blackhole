@@ -11,7 +11,7 @@
 #     -e BLACKHOLE_UI_OIDC_CLIENT_ID=<spa application (client) id> \
 #     -e BLACKHOLE_UI_API_SCOPE=api://<api-client-id>/access_as_user blackhole-web
 
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 # package.json points openapi-typescript at ../client/specs/<pinned spec>.
 COPY client/specs ./client/specs
@@ -23,7 +23,7 @@ COPY web ./web
 # vite build writes dist/, nitro build bundles the server and its assets into .output/.
 RUN cd web && npm run build
 
-FROM node:24-alpine
+FROM node:26-alpine
 WORKDIR /app
 ENV NODE_ENV=production \
     NITRO_HOST=0.0.0.0 \
