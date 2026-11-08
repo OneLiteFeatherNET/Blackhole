@@ -50,7 +50,7 @@ dependencyResolutionManagement {
             version("cloud.commands", "2.1.0")
             version("shadow", "9.6.1")
             version("jetbrains.annotations", "26.1.0")
-            version("jackson", "2.22.4")
+            version("jackson", "2.23.0")
             version("jakarta-annotation", "3.0.0")
             version("openapi.generator", "7.27.0")
             version("logstash-logback-encoder", "9.0")
