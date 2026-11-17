@@ -137,6 +137,7 @@ tasks {
 // the process cannot rewrite its own code. The JVM only needs /tmp to be writable; the chart mounts an
 // emptyDir there because it also runs the container with a read-only root file system.
 tasks.named<io.micronaut.gradle.docker.MicronautDockerfile>("optimizedDockerfile") {
+    getBaseImage().set("eclipse-temurin:25.0.5.1_1-jre")
     instruction("RUN groupadd --system --gid 10001 blackhole && useradd --system --uid 10001 --gid blackhole --no-create-home blackhole")
     instruction("USER 10001:10001")
 }
