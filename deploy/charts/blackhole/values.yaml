@@ -591,7 +591,7 @@ clamav:
   image:
     registry: docker.io
     repository: clamav/clamav
-    tag: "1.5.4"
+    tag: "1.5.5"
     pullPolicy: IfNotPresent
   # true: start /init-unprivileged as uid 100 with a mounted clamd.conf, which is what lets the pod pass the
   # `restricted` Pod Security level. false: the image's default root entrypoint (needs `baseline`).
