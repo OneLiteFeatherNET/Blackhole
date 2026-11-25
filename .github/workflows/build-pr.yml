@@ -33,7 +33,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
       - name: Setup Gradle
         # Caches the Gradle user home (dependencies, wrapper). Each pull request writes its own
         # cache entry, which only later runs of that pull request can restore. The default
@@ -56,7 +56,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
       - name: Smoke-check the admin web UI image
         run: node web/scripts/smoke.mjs blackhole-web:pr
 
@@ -72,7 +72,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
       - name: Smoke-check the appeal portal image
         run: node portal/scripts/smoke.mjs blackhole-portal:pr
 
