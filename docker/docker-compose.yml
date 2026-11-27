@@ -22,7 +22,7 @@ services:
   # development runs without authentication. 4222 is the client port, 8222 the monitoring port
   # (http://localhost:8222/jsz reports the JetStream state).
   nats:
-    image: nats:2.15.2-alpine
+    image: nats:2.15.3-alpine
     container_name: 'nats_blackhole'
     command: ["-js", "-sd", "/data", "-m", "8222"]
     networks:
@@ -92,7 +92,7 @@ services:
   # and needs internet access; the container reports healthy only after that. The size limits are
   # raised above the 100 MiB video cap of the backend, otherwise clamd rejects large videos.
   clamav:
-    image: clamav/clamav:1.5.4
+    image: clamav/clamav:1.5.5
     container_name: 'clamav_blackhole'
     environment:
       CLAMD_CONF_StreamMaxLength: 110M
