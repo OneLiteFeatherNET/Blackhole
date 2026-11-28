@@ -58,7 +58,7 @@ assert_eq "the refresh writes to the same path the backend reads" "/data/geoip" 
 assert_eq "the refresh has no secret in its environment" "0" \
   "$(y "${refreshed}" "[${container} | .env[]? | select(.valueFrom != null)] | length")"
 assert_eq "the refresh has no envFrom" "null" "$(y "${refreshed}" "${container} | .envFrom")"
-assert_eq "the refresh image is pinned by tag" "docker.io/curlimages/curl:8.11.1" "$(y "${refreshed}" "${container} | .image")"
+assert_eq "the refresh image is pinned by tag" "docker.io/curlimages/curl:8.23.0" "$(y "${refreshed}" "${container} | .image")"
 assert_eq "the refresh downloads from the DB-IP free base" "https://download.db-ip.com/free" \
   "$(y "${refreshed}" "${container} | .env[] | select(.name == \"GEOIP_BASE_URL\") | .value")"
 assert_eq "the refresh does not retry forever" "2" "$(y "${refreshed}" "${job} | .spec.jobTemplate.spec.backoffLimit")"
