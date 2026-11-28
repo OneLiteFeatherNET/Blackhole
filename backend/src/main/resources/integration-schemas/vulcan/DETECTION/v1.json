@@ -14,26 +14,31 @@
     },
     "checkType": {
       "title": "Check type",
-      "type": ["string", "null"],
-      "maxLength": 32
+      "anyOf": [
+        { "type": "string", "maxLength": 32 },
+        { "type": "null" }
+      ]
     },
     "violationLevel": {
       "title": "Violation level",
-      "type": ["number", "null"],
-      "minimum": 0,
-      "maximum": 10000
+      "anyOf": [
+        { "type": "number", "minimum": 0, "maximum": 10000 },
+        { "type": "null" }
+      ]
     },
     "ping": {
       "title": "Ping (ms)",
-      "type": ["integer", "null"],
-      "minimum": 0,
-      "maximum": 60000
+      "anyOf": [
+        { "type": "integer", "minimum": 0, "maximum": 60000 },
+        { "type": "null" }
+      ]
     },
     "tps": {
       "title": "TPS",
-      "type": ["number", "null"],
-      "minimum": 0,
-      "maximum": 20.5
+      "anyOf": [
+        { "type": "number", "minimum": 0, "maximum": 20.5 },
+        { "type": "null" }
+      ]
     },
     "experimental": {
       "title": "Experimental check",
@@ -41,8 +46,10 @@
     },
     "detail": {
       "title": "Detail",
-      "type": ["string", "null"],
-      "maxLength": 300
+      "anyOf": [
+        { "type": "string", "maxLength": 300 },
+        { "type": "null" }
+      ]
     }
   }
 }
