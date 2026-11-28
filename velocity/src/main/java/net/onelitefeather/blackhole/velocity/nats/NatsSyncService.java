@@ -7,13 +7,18 @@ import net.onelitefeather.blackhole.velocity.enforcement.MassKickMessage;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncMessage;
+import net.onelitefeather.blackhole.velocity.enforcement.WarningMessage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -54,13 +59,31 @@ public final class NatsSyncService implements BusClient.Listener, PunishmentStat
      * @param reportFeedback a reporter (their owner hash) has feedback waiting
      * @param kick          one player is to be taken off the network, a server or a section; never touches the cache
      * @param kickMass      everybody is to be taken off a server or section; never touches the cache
+     * @param warned        a player was warned: show it if they are connected here; never touches the cache
      */
     public record Reactions(
             @NotNull Consumer<PunishmentSyncMessage> punishment, @NotNull Consumer<String> evictOwner,
             @NotNull Runnable sectionChange, @NotNull Consumer<ReportCreated> reportCreated,
             @NotNull Consumer<String> reportFeedback, @NotNull Consumer<KickMessage> kick,
-            @NotNull Consumer<MassKickMessage> kickMass
+            @NotNull Consumer<MassKickMessage> kickMass, @NotNull Consumer<WarningMessage> warned
     ) {
+    }
+
+    /** How many events may wait for their handler; past this the proxy stops trusting the cache rather than queue on. */
+    static final int EVENT_BACKLOG = 1024;
+
+    /**
+     * The single thread that handles the events, with a bounded backlog: when it is full the event is refused and the
+     * cache is distrusted (see {@link #message}).
+     *
+     * @return a new executor; the caller shuts it down
+     */
+    public static ExecutorService boundedExecutor() {
+        return new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(EVENT_BACKLOG), task -> {
+            Thread thread = new Thread(task, "blackhole-nats-events");
+            thread.setDaemon(true);
+            return thread;
+        }, new ThreadPoolExecutor.AbortPolicy());
     }
 
     private final PunishmentMirror mirror;
@@ -94,20 +117,29 @@ public final class NatsSyncService implements BusClient.Listener, PunishmentStat
 
     @Override
     public void disconnected() {
-        boolean was = this.connected;
-        this.connected = false;
-        this.mirror.clear();
-        if (was) {
-            LOGGER.warn("Lost the event bus, checking punishments against the backend until it is back");
-        }
+        distrust("Lost the event bus, checking punishments against the backend until it is back");
     }
 
+    /**
+     * An event that cannot be queued is lost, so the cache can no longer be kept current: it is emptied and
+     * distrusted like a disconnect.
+     */
     @Override
     public void message(@NotNull String subject, byte @NotNull [] body) {
         try {
             this.executor.execute(() -> handle(subject, body));
         } catch (RuntimeException e) {
-            LOGGER.error("An event could not be scheduled: {}", e.getMessage());
+            distrust("Event backlog full or closed, checking punishments against the backend until the bus resubscribes: "
+                    + e.getMessage());
+        }
+    }
+
+    private void distrust(String warning) {
+        boolean was = this.connected;
+        this.connected = false;
+        this.mirror.clear();
+        if (was) {
+            LOGGER.warn(warning);
         }
     }
 
@@ -125,6 +157,9 @@ public final class NatsSyncService implements BusClient.Listener, PunishmentStat
                 // above, and the wildcard's other suffixes stay unknown.
                 case Subjects.PUNISHMENT_KICK -> kick(payload);
                 case Subjects.KICK_MASS -> kickMass(payload);
+                // A warning is a message to one player, not a punishment: it is named here so it never reaches the
+                // cache path above, and the cache is never touched for it.
+                case Subjects.PUNISHMENT_WARNED -> warned(payload);
                 case Subjects.APPEAL_RESOLVED -> {
                     // A full lift ends the ban, a reduction is followed by punishment.updated; either way the
                     // owner's state changed, so the cache forgets it and the next check reads the backend.
@@ -185,6 +220,16 @@ public final class NatsSyncService implements BusClient.Listener, PunishmentStat
             return;
         }
         this.reactions.kickMass().accept(new MassKickMessage(actionId, scope, target));
+    }
+
+    private void warned(JsonNode payload) {
+        String warningId = text(payload, "warningId");
+        String owner = text(payload, "owner");
+        if (warningId == null || owner == null) {
+            LOGGER.warn("Ignoring a warning event without warning id or owner");
+            return;
+        }
+        this.reactions.warned().accept(new WarningMessage(warningId, owner));
     }
 
     private void reportCreated(JsonNode payload) {

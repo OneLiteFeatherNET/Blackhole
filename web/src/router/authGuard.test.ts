@@ -75,6 +75,17 @@ describe('router guard', () => {
     expect(router.currentRoute.value.fullPath).toBe('/reports')
   })
 
+  it.each(['https://evil.example/reports', '//evil.example', '/auth/error?reason=x', '/no-access', '/does-not-exist'])(
+    'ignores the return path %s after sign-in and opens the start page',
+    async (returnTo) => {
+      const { router } = setup({ auth: { returnTo } })
+
+      await router.push('/auth/callback?code=c&state=s')
+
+      expect(router.currentRoute.value.fullPath).toBe('/')
+    },
+  )
+
   it('shows the error page when the callback is rejected', async () => {
     const { router } = setup({ auth: { completeFails: true } })
 
@@ -165,6 +176,7 @@ describe('router guard', () => {
 
   it.each([
     ['/admin/staff', 'admin-staff'],
+    ['/admin/rollback', 'admin-rollback'],
     ['/admin/imports', 'admin-imports'],
     ['/admin/cloudnet', 'admin-cloudnet'],
     ['/admin/kick', 'admin-kick'],
@@ -203,5 +215,70 @@ describe('router guard', () => {
     await router.push('/players')
 
     expect(router.currentRoute.value.name, 'the navigation was cancelled').toBeUndefined()
+  })
+
+  it('sends a visitor without a session away from a case confirmation and keeps that address', async () => {
+    const { router, auth } = setup({ auth: { token: null } })
+
+    await router.push('/cases/A1B2C3D4/close')
+
+    expect(auth.calls.signIn).toEqual(['/cases/A1B2C3D4/close'])
+    expect(router.currentRoute.value.name, 'the navigation was cancelled').toBeUndefined()
+  })
+
+  it('opens a case confirmation for a moderator without changing anything yet', async () => {
+    const { router } = setup({ roles: ['MODERATOR', 'VIEWER'] })
+
+    await router.push('/cases/A1B2C3D4/reopen')
+
+    expect(router.currentRoute.value.name).toBe('case-reopen')
+  })
+
+  describe('player and punishment routes', () => {
+    const OWNER = 'ab'.repeat(64)
+    const actions = [
+      [`/players/${OWNER}/punish`, 'player-punish'],
+      [`/players/${OWNER}/warn`, 'player-warn'],
+      [`/players/${OWNER}/elo/adjust?section=network`, 'player-adjust'],
+      [`/players/${OWNER}/kick`, 'player-kick'],
+      [`/punished/A1B2C3D4/revoke?owner=${OWNER}`, 'punished-revoke'],
+    ] as const
+
+    it.each(actions)('keeps a viewer away from %s and requests no staff data', async (path) => {
+      const { router, me } = setup({ roles: ['VIEWER'] })
+
+      await router.push(path)
+
+      expect(router.currentRoute.value.name, 'route').toBe('no-access')
+      expect(router.currentRoute.value.query.reason, 'reason').toBe('moderator')
+      expect(me).toHaveBeenCalledTimes(1)
+    })
+
+    it.each(actions)('opens %s for a moderator', async (path, name) => {
+      const { router } = setup({ roles: ['MODERATOR'] })
+
+      await router.push(path)
+
+      expect(router.currentRoute.value.name).toBe(name)
+    })
+
+    it('sends a visitor without a session away from a punishment action and keeps that address', async () => {
+      const { router, auth } = setup({ auth: { token: null } })
+
+      await router.push(actions[0][0])
+
+      expect(auth.calls.signIn).toEqual([actions[0][0]])
+      expect(router.currentRoute.value.name, 'the navigation was cancelled').toBeUndefined()
+    })
+
+    it('lets a viewer read a player and a punished entry', async () => {
+      const { router } = setup({ roles: ['VIEWER'] })
+
+      await router.push(`/players/${OWNER}?tab=names`)
+      expect(router.currentRoute.value.name).toBe('player')
+
+      await router.push(`/punished/A1B2C3D4?owner=${OWNER}`)
+      expect(router.currentRoute.value.name).toBe('punished-detail')
+    })
   })
 })

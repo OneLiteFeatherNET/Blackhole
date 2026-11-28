@@ -4,10 +4,13 @@ import io.micronaut.security.annotation.Secured;
 import net.onelitefeather.blackhole.backend.security.Roles;
 import io.micronaut.core.version.annotation.Version;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.validation.Validated;
 import jakarta.inject.Inject;
+import net.onelitefeather.blackhole.backend.audit.AuditHeaders;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
+import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.section.SectionService;
 import net.onelitefeather.blackhole.backend.section.dto.SectionDTO;
 
@@ -30,14 +33,14 @@ public class SectionController implements SectionApi {
 
     @Override
     @Secured(Roles.ADMIN)
-    public HttpResponse<SectionDTO> create(SectionDTO.CreateRequest request) {
-        return toResponse(this.sectionService.create(request));
+    public HttpResponse<SectionDTO> create(SectionDTO.CreateRequest request, Actor actor) {
+        return AuditHeaders.audited(toResponse(this.sectionService.create(request, actor)), actor);
     }
 
     @Override
     @Secured(Roles.ADMIN)
-    public HttpResponse<SectionDTO> update(SectionDTO.UpdateRequest request) {
-        return toResponse(this.sectionService.update(request));
+    public HttpResponse<SectionDTO> update(SectionDTO.UpdateRequest request, Actor actor) {
+        return AuditHeaders.audited(toResponse(this.sectionService.update(request, actor)), actor);
     }
 
     @Override
@@ -54,11 +57,11 @@ public class SectionController implements SectionApi {
 
     @Override
     @Secured(Roles.ADMIN)
-    public HttpResponse<SectionDTO> disable(String key) {
-        return toResponse(this.sectionService.disable(key));
+    public HttpResponse<SectionDTO> disable(String key, Actor actor) {
+        return AuditHeaders.audited(toResponse(this.sectionService.disable(key, actor)), actor);
     }
 
-    private static HttpResponse<SectionDTO> toResponse(SectionDTO result) {
+    private static MutableHttpResponse<SectionDTO> toResponse(SectionDTO result) {
         if (result instanceof SectionDTO.Error error) {
             return HttpResponse.<SectionDTO>status(error.kind().status()).body(error);
         }

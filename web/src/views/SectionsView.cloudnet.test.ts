@@ -3,8 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { CloudNetCatalogue, Section } from '../api/types'
 import { formatDateTime } from '../format'
 import { chooseOption, listOptions } from '../test/select'
-import { fail, mockApi, mountWithApp, ok } from '../test/mount'
-import SectionsView from './SectionsView.vue'
+import { fail, mockApi, mountRouted, ok } from '../test/mount'
 
 const REPORTED_AT = '2026-10-23T12:00:00Z'
 
@@ -45,6 +44,7 @@ function section(overrides: Partial<Section> = {}): Section {
 function setup(options: { sections?: Section[]; catalogue?: unknown; roles?: string[]; createSection?: unknown } = {}) {
   const api = {
     sections: vi.fn(async () => ok(options.sections ?? [section()])),
+    section: vi.fn(async () => ok(options.sections?.[0] ?? section())),
     cloudnetCatalogue: vi.fn(async () => options.catalogue ?? ok(catalogue)),
     createSection: options.createSection ?? vi.fn(async () => ok(section())),
     updateSection: vi.fn(async () => ok(section())),
@@ -52,7 +52,7 @@ function setup(options: { sections?: Section[]; catalogue?: unknown; roles?: str
     staffLinks: vi.fn(async () => ok([])),
     discordLinks: vi.fn(async () => ok([])),
   }
-  return { api, mount: () => mountWithApp(SectionsView, { api: mockApi(api), path: '/sections', roles: options.roles }) }
+  return { api, mount: () => mountRouted({ api: mockApi(api), path: '/sections', roles: options.roles }) }
 }
 
 type Wrapper = Awaited<ReturnType<ReturnType<typeof setup>['mount']>>['wrapper']
@@ -67,6 +67,7 @@ const field = (wrapper: Wrapper, label: string) => {
 
 async function openNewServerSection(wrapper: Wrapper): Promise<void> {
   await wrapper.get('[data-testid="new-section"]').trigger('click')
+  await flushPromises()
   await field(wrapper, 'Key').setValue('games')
   await field(wrapper, 'Name').setValue('Games')
   await field(wrapper, 'Permanent reason').setValue('Banned from the games')
@@ -99,6 +100,7 @@ describe('SectionsView: target kind selector', () => {
     const { mount } = setup()
     const { wrapper } = await mount()
     await wrapper.get('[data-testid="new-section"]').trigger('click')
+    await flushPromises()
 
     expect(dialog(wrapper).findAll('[role="combobox"]')).toHaveLength(1)
 
@@ -112,6 +114,7 @@ describe('SectionsView: target kind selector', () => {
     await field(wrapper, 'Server patterns').setValue('games-*, pvp-?')
 
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.createSection).toHaveBeenCalledWith(expect.objectContaining({ targetKind: 'PATTERN', servers: ['games-*', 'pvp-?'] }))
@@ -155,6 +158,7 @@ describe('SectionsView: picker with a catalogue', () => {
     await picker.get('input[type="checkbox"]').setValue(true)
     await wrapper.get('[data-testid="save"]').trigger('click')
     await flushPromises()
+    await flushPromises()
 
     expect(api.createSection).toHaveBeenCalledWith(expect.objectContaining({ enforcement: 'SERVER', targetKind: 'CLOUDNET_TASK', servers: ['BedWars'] }))
 
@@ -174,6 +178,7 @@ describe('SectionsView: picker with a catalogue', () => {
 
     await picker.findAll('input[type="checkbox"]')[1]!.setValue(true)
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.createSection).toHaveBeenCalledWith(expect.objectContaining({ targetKind: 'CLOUDNET_GROUP', servers: ['Lobbies'] }))
@@ -195,6 +200,7 @@ describe('SectionsView: picker with a catalogue', () => {
 
     await picker.findAll('input[type="checkbox"]')[1]!.setValue(true)
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.createSection).toHaveBeenCalledWith(expect.objectContaining({ targetKind: 'CLOUDNET_SERVICE', servers: ['BedWars-2'] }))
@@ -253,6 +259,7 @@ describe('SectionsView: picker with a catalogue', () => {
     await chooseKind(wrapper, 'CLOUDNET_GROUP')
     await wrapper.get('[data-testid="save"]').trigger('click')
     await flushPromises()
+    await flushPromises()
 
     expect(api.createSection).toHaveBeenCalledWith(expect.objectContaining({ targetKind: 'CLOUDNET_GROUP', servers: [] }))
 
@@ -269,12 +276,14 @@ describe('SectionsView: names that are not in the catalogue', () => {
 
     await field(wrapper, 'Add a name').setValue('Future')
     await wrapper.get('[data-testid="add-name"]').trigger('click')
+    await flushPromises()
 
     const chosen = wrapper.get('[data-testid="chosen"]')
     expect(chosen.text()).toContain('Future')
     expect(chosen.text(), 'marked in words').toContain('Not in catalogue')
 
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.createSection).toHaveBeenCalledWith(expect.objectContaining({ targetKind: 'CLOUDNET_TASK', servers: ['Future'] }))
@@ -290,6 +299,7 @@ describe('SectionsView: names that are not in the catalogue', () => {
 
     await field(wrapper, 'Add a name').setValue('bedwars')
     await wrapper.get('[data-testid="add-name"]').trigger('click')
+    await flushPromises()
 
     expect(wrapper.get('[data-testid="chosen"]').text()).not.toContain('Not in catalogue')
 
@@ -303,12 +313,14 @@ describe('SectionsView: names that are not in the catalogue', () => {
 
     await wrapper.get('[data-testid="edit-games"]').trigger('click')
     await flushPromises()
+    await flushPromises()
 
     const items = wrapper.get('[data-testid="chosen"]').findAll('li')
     expect(items[0]!.text()).not.toContain('Not in catalogue')
     expect(items[1]!.text()).toContain('Not in catalogue')
 
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
     expect(api.updateSection).toHaveBeenCalledWith(expect.objectContaining({ targetKind: 'CLOUDNET_TASK', servers: ['BedWars', 'Gone'] }))
 
@@ -341,6 +353,7 @@ describe('SectionsView: names that are not in the catalogue', () => {
     await field(wrapper, 'Add a name').setValue('Pending')
     await wrapper.get('[data-testid="save"]').trigger('click')
     await flushPromises()
+    await flushPromises()
 
     expect(api.createSection).toHaveBeenCalledWith(expect.objectContaining({ servers: ['Pending'] }))
 
@@ -353,9 +366,12 @@ describe('SectionsView: names that are not in the catalogue', () => {
     const { wrapper } = await mount()
     await wrapper.get('[data-testid="edit-games"]').trigger('click')
     await flushPromises()
+    await flushPromises()
 
     await wrapper.get('[data-testid="chosen"] button[aria-label="Remove Games"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.updateSection).toHaveBeenCalledWith(expect.objectContaining({ servers: ['Lobbies'] }))
@@ -379,8 +395,10 @@ describe('SectionsView: free-text fallback', () => {
 
     await field(wrapper, 'Add a name').setValue('Lobbies')
     await wrapper.get('[data-testid="add-name"]').trigger('click')
+    await flushPromises()
     expect(wrapper.get('[data-testid="chosen"]').text(), 'nothing can be called missing without a catalogue').not.toContain('Not in catalogue')
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.createSection).toHaveBeenCalledWith(expect.objectContaining({ targetKind: 'CLOUDNET_GROUP', servers: ['Lobbies'] }))
@@ -400,7 +418,9 @@ describe('SectionsView: free-text fallback', () => {
 
     await field(wrapper, 'Add a name').setValue('BedWars')
     await wrapper.get('[data-testid="add-name"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.createSection).toHaveBeenCalledWith(expect.objectContaining({ targetKind: 'CLOUDNET_TASK', servers: ['BedWars'] }))
@@ -429,8 +449,10 @@ describe('SectionsView: free-text fallback', () => {
     await chooseKind(mounted.wrapper, 'CLOUDNET_TASK')
     await field(mounted.wrapper, 'Add a name').setValue('Bed*')
     await mounted.wrapper.get('[data-testid="add-name"]').trigger('click')
+    await flushPromises()
 
     await mounted.wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(mounted.wrapper.get('[data-testid="cloudnet-picker"] [role="alert"]').text()).toContain('no wildcards')
@@ -515,6 +537,7 @@ describe('SectionsView: roles', () => {
     const { wrapper } = await mount()
 
     await wrapper.get('[data-testid="edit-games"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.cloudnetCatalogue).toHaveBeenCalledTimes(1)

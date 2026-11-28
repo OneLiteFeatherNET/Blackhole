@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref, watch } from 'vue'
+import { computed, inject, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import logo from './assets/logo.png'
 import { SUPPORTED_LOCALES, type Locale } from './i18n'
@@ -16,6 +16,32 @@ const state = session.state
 
 type View = 'case' | 'appeal' | 'conversation'
 const view = ref<View>('case')
+/** The notice of the appeal filing, shown in the composer of the conversation it opens. */
+const filedNotice = ref('')
+
+function onFiled(notice: string) {
+  filedNotice.value = notice
+  view.value = 'conversation'
+}
+
+function openConversation() {
+  filedNotice.value = ''
+  view.value = 'conversation'
+}
+
+/**
+ * A new view takes the focus to its heading, so a screen reader says where the player is now. The first load does not
+ * move the focus; a view without a heading yet (the punishment while it loads) takes it on the page itself.
+ */
+watch(
+  () => [view.value, state.phase] as const,
+  async (_now, before) => {
+    if (before[1] === 'loading') return
+    await nextTick()
+    const target = document.querySelector<HTMLElement>('main h1') ?? document.getElementById('main')
+    target?.focus()
+  },
+)
 
 // Leaving the session (logout or expiry) always lands on the case page after the next sign-in.
 watch(
@@ -80,13 +106,16 @@ function pick(code: Locale) {
   </header>
 
   <main id="main" tabindex="-1" class="mx-auto max-w-3xl px-4 py-8 sm:px-8">
+    <p v-if="state.logoutFailed" role="alert" class="mb-6 rounded-md-sm bg-error-container px-4 py-3 text-body-medium text-on-error-container">
+      {{ t('app.logoutFailed') }}
+    </p>
     <p v-if="state.phase === 'loading'" role="status" class="text-body-large text-on-surface-variant">{{ t('app.loading') }}</p>
     <LoginView v-else-if="state.phase === 'login'" />
     <ExpiredView v-else-if="state.phase === 'expired'" />
     <template v-else>
-      <CaseView v-if="view === 'case'" @appeal="view = 'appeal'" @conversation="view = 'conversation'" />
-      <AppealFormView v-else-if="view === 'appeal'" @back="view = 'case'" @filed="view = 'conversation'" />
-      <ConversationView v-else @back="view = 'case'" />
+      <CaseView v-if="view === 'case'" @appeal="view = 'appeal'" @conversation="openConversation" />
+      <AppealFormView v-else-if="view === 'appeal'" @back="view = 'case'" @filed="onFiled" />
+      <ConversationView v-else :filed-notice="filedNotice" @back="view = 'case'" />
     </template>
   </main>
 

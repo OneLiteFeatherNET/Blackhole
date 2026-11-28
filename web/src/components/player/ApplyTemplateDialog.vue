@@ -2,8 +2,10 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../../api/inject'
-import type { ApplyPreview, EnforcementKind, Report, ReportCategory, Section, Template } from '../../api/types'
+import type { ApplyPreview, ApplyResult, EnforcementKind, Report, ReportCategory, Section, Template } from '../../api/types'
 import { formatDuration } from '../../format'
+import { useSessionStore } from '../../stores/session'
+import ExemptionOverride from '../exemption/ExemptionOverride.vue'
 import MdButton from '../md/MdButton.vue'
 import MdCheckbox from '../md/MdCheckbox.vue'
 import MdDialog from '../md/MdDialog.vue'
@@ -13,11 +15,12 @@ import MdSelect from '../md/MdSelect.vue'
 // With `report` the dialog resolves that report as actioned with the chosen template (one call to the
 // resolve route, which applies the template and links it to the report) instead of applying it alone,
 // and offers the templates whose section fits the report's category first.
-const props = defineProps<{ open: boolean; owner: string; report?: Report }>()
+const props = defineProps<{ open: boolean; owner: string; playerUuid?: string | null; report?: Report }>()
 const emit = defineEmits<{ close: []; done: [message: string] }>()
 
 const { t, locale } = useI18n()
 const api = useApi()
+const session = useSessionStore()
 
 const templates = ref<Template[]>([])
 const selected = ref('')
@@ -25,6 +28,8 @@ const preview = ref<ApplyPreview | null>(null)
 const previewing = ref(false)
 const applying = ref(false)
 const error = ref('')
+/** The backend's message when the player is protected (TARGET_EXEMPT); the override panel is shown instead of an error. */
+const refusal = ref('')
 const sections = ref<Section[]>([])
 const showAll = ref(false)
 
@@ -58,6 +63,7 @@ watch(
     selected.value = ''
     preview.value = null
     error.value = ''
+    refusal.value = ''
     showAll.value = false
     const result = await api.templates()
     if (result.ok) templates.value = result.data
@@ -73,6 +79,7 @@ watch(
 watch(selected, async (key) => {
   preview.value = null
   error.value = ''
+  refusal.value = ''
   if (!key) return
   previewing.value = true
   const result = await api.previewApply(props.owner, key)
@@ -97,13 +104,32 @@ async function confirm(): Promise<void> {
     emit('done', t('reports.detail.actioned', { section: preview.value.section }))
     return
   }
-  const result = await api.applyTemplate(props.owner, selected.value)
+  const result = await api.applyTemplate(props.owner, selected.value, props.playerUuid ?? null)
+  applying.value = false
+  if (!result.ok) {
+    if (result.error.kind === 'TARGET_EXEMPT') refusal.value = result.error.message
+    else error.value = result.error.message
+    return
+  }
+  finished(result.data)
+}
+
+/** The ADMIN's override: the same application, with the justification recorded on the punishment. */
+async function overrideApply(justification: string): Promise<void> {
+  if (!preview.value || applying.value) return
+  applying.value = true
+  error.value = ''
+  const result = await api.applyTemplate(props.owner, selected.value, props.playerUuid ?? null, { justification })
   applying.value = false
   if (!result.ok) {
     error.value = result.error.message
     return
   }
-  const applied = result.data
+  refusal.value = ''
+  finished(result.data)
+}
+
+function finished(applied: ApplyResult): void {
   emit(
     'done',
     applied.escalation
@@ -151,10 +177,17 @@ async function confirm(): Promise<void> {
       <p v-if="error" data-testid="error" role="alert" class="rounded-md-md bg-error-container p-3 text-on-error-container">
         {{ error }}
       </p>
+      <ExemptionOverride
+        v-if="refusal"
+        :admin="session.administrator"
+        :message="refusal"
+        :busy="applying"
+        @override="overrideApply"
+      />
     </div>
     <template #actions>
       <MdButton variant="text" data-testid="cancel" @click="emit('close')">{{ t('actions.cancel') }}</MdButton>
-      <MdButton data-testid="confirm" :disabled="!preview || applying" @click="confirm">
+      <MdButton data-testid="confirm" :disabled="!preview || applying || refusal !== ''" @click="confirm">
         {{ t('actions.apply.confirm') }}
       </MdButton>
     </template>

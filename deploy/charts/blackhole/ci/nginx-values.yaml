@@ -29,6 +29,10 @@ backend:
     enabled: true
     mode: nginx
 
+# security.txt is off in this fixture: no contact, no route.
+securityTxt:
+  contact: ""
+
 web:
   enabled: false
 portal:

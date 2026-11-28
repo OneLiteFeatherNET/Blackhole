@@ -38,7 +38,7 @@ function back(): void {
         :href="target"
         target="_blank"
         rel="noopener noreferrer nofollow ugc"
-        class="inline-flex h-10 items-center rounded-md-full bg-primary px-6 text-label-large text-on-primary outline-none focus-visible:outline-2 focus-visible:outline-primary"
+        class="inline-flex h-10 items-center rounded-md-full bg-primary px-6 text-label-large text-on-primary focus-ring"
         data-testid="leave-continue"
       >{{ t('leave.continue') }}</a>
     </div>

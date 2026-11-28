@@ -28,7 +28,11 @@ public final class Metrics {
         BROKER_HINTS("broker_hints_total"),
         LEAK_CANDIDATES_DROPPED("leak_candidates_dropped_total"),
         LEAK_MESSAGES_REMOVED("leak_messages_removed_total"),
-        LEAK_CHECKS("leak_checks_total");
+        LEAK_CHECKS("leak_checks_total"),
+        AUDIT_POSTED("audit_posted_total"),
+        AUDIT_RETRIED("audit_retried_total"),
+        AUDIT_REJECTED("audit_rejected_total"),
+        AUDIT_DROPPED("audit_dropped_total");
 
         private final String metricName;
 

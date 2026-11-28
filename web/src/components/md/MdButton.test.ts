@@ -60,4 +60,17 @@ describe('MdButton', () => {
     expect(wrapper.classes()).toContain('disabled:opacity-(--md-sys-state-disabled-opacity)')
     expect(wrapper.classes()).not.toContain('disabled:opacity-[0.38]')
   })
+
+  it('carries the shared focus ring, so keyboard focus is visible', () => {
+    const wrapper = mount(MdButton, { slots: { default: 'Speichern' } })
+
+    expect(wrapper.classes()).toContain('focus-ring')
+  })
+
+  it('gives the outlined-error variant the error outline and text, for an irreversible action', () => {
+    const wrapper = mount(MdButton, { props: { variant: 'outlined-error' }, slots: { default: 'Entfernen' } })
+
+    expect(wrapper.classes()).toEqual(expect.arrayContaining(['border-error', 'text-error']))
+    expect(wrapper.classes()).not.toContain('border-outline')
+  })
 })

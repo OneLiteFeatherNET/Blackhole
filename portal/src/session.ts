@@ -26,9 +26,13 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
     scope: 'FULL' as PlayerScope,
     expiresAt: null as string | null,
     punishment: null as PunishmentFacts | null,
+    /** The last request for the punishment failed for another reason than an ended session. */
+    punishmentFailed: false,
     /** Set after a failed login; the same value for every cause of failure. */
-    loginError: null as 'INVALID_BAN_ID' | 'UNAVAILABLE' | null,
+    loginError: null as 'INVALID_BAN_ID' | 'UNAVAILABLE' | 'CHALLENGE_FAILED' | 'RATE_LIMITED' | null,
     busy: false,
+    /** The last sign-out was not confirmed by the backend: the player is still signed in. */
+    logoutFailed: false,
     /** Unsent text. Survives the expiry page so a long statement is not lost; gone on logout or when the tab closes. */
     drafts: { statement: '', message: '', files: [] as DraftFile[] },
   })
@@ -58,9 +62,11 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
   }
 
   async function refreshPunishment() {
+    state.punishmentFailed = false
     const result = await api.punishment()
     if (!alive(result)) return
     if (result.ok) state.punishment = result.data
+    else state.punishmentFailed = true
   }
 
   async function bootstrap() {
@@ -69,12 +75,13 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
       enter(result.data)
       await refreshPunishment()
     } else {
-      state.loginError = result.error.code === 'UNAVAILABLE' ? 'UNAVAILABLE' : null
+      const code = result.error.code
+      state.loginError = code === 'UNAVAILABLE' || code === 'RATE_LIMITED' ? code : null
       state.phase = 'login'
     }
   }
 
-  async function login(typed: string) {
+  async function login(typed: string, altcha?: string) {
     const banId = normaliseBanId(typed)
     if (banId === null) {
       // Same message as a wrong ID, and nothing is sent for input that cannot be one.
@@ -83,10 +90,15 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
     }
     state.busy = true
     try {
-      const result = await api.login(banId)
+      // The solution is sent only when the widget produced one; with the check off the field is absent.
+      const result = altcha === undefined ? await api.login(banId) : await api.login(banId, altcha)
       if (result.ok) {
         enter(result.data)
         await refreshPunishment()
+      } else if (result.error.code === 'CHALLENGE_FAILED') {
+        state.loginError = 'CHALLENGE_FAILED'
+      } else if (result.error.code === 'RATE_LIMITED') {
+        state.loginError = 'RATE_LIMITED'
       } else {
         state.loginError = result.error.code === 'UNAVAILABLE' ? 'UNAVAILABLE' : 'INVALID_BAN_ID'
       }
@@ -96,7 +108,13 @@ export function createPortalSession(api: PortalApi, csrf: CsrfHolder = createCsr
   }
 
   async function logout() {
-    await api.logout()
+    state.logoutFailed = false
+    const result = await api.logout()
+    // The visit ends only when the backend confirms it (or has already ended it). Otherwise the player stays, and is told.
+    if (!result.ok && result.error.code !== 'SESSION_EXPIRED') {
+      state.logoutFailed = true
+      return
+    }
     csrf.value = null
     state.punishment = null
     state.expiresAt = null

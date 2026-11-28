@@ -7,6 +7,8 @@ import net.onelitefeather.blackhole.discord.backend.Tickets.OutboxItem;
 import net.onelitefeather.blackhole.discord.backend.Tickets.OutboxKind;
 import net.onelitefeather.blackhole.discord.backend.Tickets.AuthorKind;
 import net.onelitefeather.blackhole.discord.command.AppealCommands;
+import net.onelitefeather.blackhole.discord.command.StaffButtonHandler;
+import net.onelitefeather.blackhole.discord.sync.ControlMessageSync;
 import net.onelitefeather.blackhole.discord.config.BotConfig.TicketSettings;
 import net.onelitefeather.blackhole.discord.gateway.DiscordGateway.IncomingMessage;
 import net.onelitefeather.blackhole.discord.metrics.Health;
@@ -113,6 +115,23 @@ public final class Harness {
         this.caseEvents = new CaseEventHandler(this.engine);
         this.guild.listener(this.engine);
         this.engine.start();
+    }
+
+    public static final String PANEL_URL = "https://panel.example";
+
+    /**
+     * Turns the staff ticket controls on, as the flag does in production: a ticket channel that becomes ready gets its control message.
+     * Call before the first ticket is opened.
+     */
+    public ControlMessageSync enableStaffActions() {
+        ControlMessageSync sync = new ControlMessageSync(PANEL_URL, this.backend, this.guild, this.registry, this.metrics, this.clock);
+        this.lifecycle.channelReady(sync::redraw);
+        return sync;
+    }
+
+    /** The button and modal handler over this bot's registry and lifecycle. */
+    public StaffButtonHandler staffButtons(ControlMessageSync sync) {
+        return new StaffButtonHandler(this.backend, this.registry, this.lifecycle, sync);
     }
 
     /** Lets the bot start up as it does when Discord reports ready, and run everything that is due. */

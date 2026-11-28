@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import net.onelitefeather.blackhole.backend.exemption.dto.ExemptionDTO;
 import net.onelitefeather.blackhole.backend.kick.KickScope;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.response.ErrorResponse;
@@ -34,6 +35,10 @@ public sealed interface PunishmentDTO {
      * @param scope                 where a {@code KICK} step takes the player from; {@code NETWORK} when absent.
      *                              Ignored by a step that punishes
      * @param target                the server name or section key for a {@code SERVER} or {@code SECTION} scope
+     * @param warningOnly           {@code true} for {@code /warn}: the step the ladder reached must be a {@code WARN} step,
+     *                              otherwise nothing is applied (HTTP 422 {@code WARN_STEP_REQUIRED})
+     * @param exemptionOverride     an ADMIN's justification to apply to an exempt player (HTTP 409 {@code TARGET_EXEMPT} without it);
+     *                              refused with 403 for other callers and 400 on a proxy-delegated write
      */
     @Schema(name = "PunishmentApplyRequest")
     @Serdeable
@@ -45,17 +50,38 @@ public sealed interface PunishmentDTO {
             @Nullable UUID onBehalfOf,
             @Nullable @Size(max = 64) String evidenceCorrelationId,
             @Nullable KickScope scope,
-            @Nullable String target
+            @Nullable String target,
+            @Nullable Boolean warningOnly,
+            @Nullable @Size(max = 64) String playerUuid,
+            @Nullable ExemptionDTO.Override exemptionOverride
     ) implements PunishmentDTO {
+
+        /** An apply request without an exemption override: the player may be exempt, and the write is refused then. */
+        public ApplyRequest(String owner, String templateKey, UUID templateId, UUID onBehalfOf, String evidenceCorrelationId,
+                            KickScope scope, String target, Boolean warningOnly, String playerUuid) {
+            this(owner, templateKey, templateId, onBehalfOf, evidenceCorrelationId, scope, target, warningOnly, playerUuid, null);
+        }
+
+        /** An apply request without a player UUID (the caller did not know it). */
+        public ApplyRequest(String owner, String templateKey, UUID templateId, UUID onBehalfOf, String evidenceCorrelationId,
+                            KickScope scope, String target, Boolean warningOnly) {
+            this(owner, templateKey, templateId, onBehalfOf, evidenceCorrelationId, scope, target, warningOnly, null);
+        }
 
         /** An apply request that claims no pending evidence. */
         public ApplyRequest(String owner, String templateKey, UUID templateId, UUID onBehalfOf) {
-            this(owner, templateKey, templateId, onBehalfOf, null, null, null);
+            this(owner, templateKey, templateId, onBehalfOf, null, null, null, null);
         }
 
         /** An apply request that names no kick scope: a kick step kicks from the network. */
         public ApplyRequest(String owner, String templateKey, UUID templateId, UUID onBehalfOf, String evidenceCorrelationId) {
-            this(owner, templateKey, templateId, onBehalfOf, evidenceCorrelationId, null, null);
+            this(owner, templateKey, templateId, onBehalfOf, evidenceCorrelationId, null, null, null);
+        }
+
+        /** An apply request that takes whatever step the ladder reached. */
+        public ApplyRequest(String owner, String templateKey, UUID templateId, UUID onBehalfOf, String evidenceCorrelationId,
+                            KickScope scope, String target) {
+            this(owner, templateKey, templateId, onBehalfOf, evidenceCorrelationId, scope, target, null);
         }
     }
 

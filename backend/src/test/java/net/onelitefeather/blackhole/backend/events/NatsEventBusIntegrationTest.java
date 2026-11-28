@@ -148,6 +148,44 @@ class NatsEventBusIntegrationTest {
     }
 
     @Test
+    void everyEphemeralSubscriberReceivesEveryEventNotOnlyOne() throws Exception {
+        Instance first = instance();
+        Instance second = instance();
+        assertTrue(first.provisioner.ensureStream(), "stream");
+        BlockingQueue<DomainEvent> onFirst = new LinkedBlockingQueue<>();
+        BlockingQueue<DomainEvent> onSecond = new LinkedBlockingQueue<>();
+        List<String> types = List.of("punishment.updated");
+        this.toClose.add(first.subscriptions.subscribeEphemeral(types, onFirst::add)::close);
+        this.toClose.add(second.subscriptions.subscribeEphemeral(types, onSecond::add)::close);
+
+        // An ephemeral consumer is created on its own thread, and an event published before it exists is not delivered
+        // (deliver new). So publish until both have seen one, then check that a marked event reaches both.
+        boolean firstSeen = false;
+        boolean secondSeen = false;
+        for (int attempt = 0; attempt < 100 && !(firstSeen && secondSeen); attempt++) {
+            first.publish(event("punishment.updated"));
+            firstSeen |= onFirst.poll(100, TimeUnit.MILLISECONDS) != null;
+            secondSeen |= onSecond.poll(100, TimeUnit.MILLISECONDS) != null;
+        }
+        assertTrue(firstSeen && secondSeen, "both ephemeral subscribers started and received events");
+
+        DomainEvent sent = event("punishment.updated");
+        first.publish(sent);
+
+        assertTrue(awaitEvent(onFirst, sent), "the first subscriber received the marked event");
+        assertTrue(awaitEvent(onSecond, sent), "the second subscriber received it too: a broadcast, not a work queue");
+    }
+
+    private static boolean awaitEvent(BlockingQueue<DomainEvent> queue, DomainEvent wanted) throws InterruptedException {
+        for (DomainEvent got = queue.poll(WAIT.toSeconds(), TimeUnit.SECONDS); got != null; got = queue.poll(WAIT.toSeconds(), TimeUnit.SECONDS)) {
+            if (got.equals(wanted)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Test
     void aRepeatedEventIdIsStoredOnce() throws Exception {
         Instance backend = instance();
         backend.prepare();

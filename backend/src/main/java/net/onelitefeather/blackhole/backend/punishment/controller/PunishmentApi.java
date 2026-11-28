@@ -37,6 +37,9 @@ public interface PunishmentApi {
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
     @ApiResponse(responseCode = "409", description = "The template's section is disabled, or the player is already permanently punished in it",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
+    @ApiResponse(responseCode = "422", description = "WARN_STEP_REQUIRED: warningOnly was set but the step the ladder reached is no warning; "
+            + "KICK_TARGET_INVALID: a kick step's scope and target do not fit",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishmentDTO.Error.class)))
     @Post("/apply")
     HttpResponse<PunishmentDTO> apply(@Valid @Body PunishmentDTO.ApplyRequest request, @Parameter(hidden = true) Actor actor);
 

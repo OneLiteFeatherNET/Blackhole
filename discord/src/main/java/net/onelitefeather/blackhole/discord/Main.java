@@ -2,6 +2,11 @@ package net.onelitefeather.blackhole.discord;
 
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.discord.attachment.AttachmentFetcher;
+import net.onelitefeather.blackhole.discord.audit.AuditEmbedRenderer;
+import net.onelitefeather.blackhole.discord.audit.AuditWebhookPoster;
+import net.onelitefeather.blackhole.discord.audit.JdkWebhookTransport;
+import net.onelitefeather.blackhole.discord.audit.Sleeper;
+import net.onelitefeather.blackhole.discord.audit.StaffActionHandler;
 import net.onelitefeather.blackhole.discord.attachment.InboundFiles;
 import net.onelitefeather.blackhole.discord.attachment.JdkAttachmentDownloader;
 import net.onelitefeather.blackhole.discord.auth.ClientCredentialsTokenProvider;
@@ -11,6 +16,7 @@ import net.onelitefeather.blackhole.discord.backend.ApiClients;
 import net.onelitefeather.blackhole.discord.backend.BackendGateway;
 import net.onelitefeather.blackhole.discord.backend.HttpBackendGateway;
 import net.onelitefeather.blackhole.discord.command.AccountCommands;
+import net.onelitefeather.blackhole.discord.command.GuardCommands;
 import net.onelitefeather.blackhole.discord.command.AppealCommands;
 import net.onelitefeather.blackhole.discord.config.BotConfig;
 import net.onelitefeather.blackhole.discord.gateway.HealthServer;
@@ -19,12 +25,16 @@ import net.onelitefeather.blackhole.discord.leak.LeakScanner;
 import net.onelitefeather.blackhole.discord.metrics.Health;
 import net.onelitefeather.blackhole.discord.metrics.Metrics;
 import net.onelitefeather.blackhole.discord.notify.EmbedRenderer;
+import net.onelitefeather.blackhole.discord.notify.GuardMessageRenderer;
+import net.onelitefeather.blackhole.discord.notify.GuardNotificationHandler;
 import net.onelitefeather.blackhole.discord.notify.NotificationDispatcher;
 import net.onelitefeather.blackhole.discord.notify.NotificationHandler;
 import net.onelitefeather.blackhole.discord.notify.NatsConsumer;
 import net.onelitefeather.blackhole.discord.sched.ExecutorScheduler;
 import net.onelitefeather.blackhole.discord.sched.Scheduler;
+import net.onelitefeather.blackhole.discord.command.StaffButtonHandler;
 import net.onelitefeather.blackhole.discord.sync.CaseEventHandler;
+import net.onelitefeather.blackhole.discord.sync.ControlMessageSync;
 import net.onelitefeather.blackhole.discord.sync.CatchUp;
 import net.onelitefeather.blackhole.discord.sync.OutboxRelay;
 import net.onelitefeather.blackhole.discord.sync.SyncEngine;
@@ -52,6 +62,19 @@ public final class Main {
     private Main() {
     }
 
+    /** The staff audit consumer, or null when no webhook is configured: no webhook, no consumer, no posts. */
+    private static NatsConsumer auditConsumer(BotConfig config, Metrics metrics, ScheduledExecutorService scheduler) {
+        if (config.audit().webhookUrl() == null) {
+            LOGGER.info("The staff audit is off: {} is not set", BotConfig.ENV_AUDIT_WEBHOOK_URL);
+            return null;
+        }
+        StaffActionHandler audit = new StaffActionHandler(
+                new AuditWebhookPoster(new JdkWebhookTransport(config.audit().webhookUrl()), Sleeper.threads(), metrics),
+                new AuditEmbedRenderer(config.panelUrl()), metrics);
+        return new NatsConsumer(config.nats(), StaffActionHandler.DURABLE, StaffActionHandler.EVENT_TYPES, audit::onMessage,
+                scheduler, StaffActionHandler.IN_FLIGHT, StaffActionHandler.ACK_WAIT, config.audit().maxDeliver(), audit::onExhausted);
+    }
+
     public static void main(String[] args) throws Exception {
         BotConfig config;
         try {
@@ -66,7 +89,7 @@ public final class Main {
         TokenSource tokens = new ClientCredentialsTokenProvider(config.auth(), new JdkTokenTransport(), Clock.systemUTC());
         ApiClient client = ApiClients.create(config.backendUrl(), tokens);
         BackendGateway backend = new HttpBackendGateway(client);
-        JdaGateway discord = new JdaGateway(config, new AccountCommands(backend));
+        JdaGateway discord = new JdaGateway(config, new AccountCommands(backend), new GuardCommands(backend));
 
         // The ticket bot. One worker thread runs all of it, so the sync code never races with itself.
         Clock clock = Clock.systemUTC();
@@ -92,9 +115,20 @@ public final class Main {
         NotificationHandler handler = new NotificationHandler(backend, discord,
                 new EmbedRenderer(config.panelUrl(), config.staffRoleId()), config.teamChannelId());
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().name("nats-retry").daemon(true).factory());
-        NatsConsumer consumer = new NatsConsumer(config.nats(), new NotificationDispatcher(handler), scheduler);
-        CaseEventHandler caseEvents = new CaseEventHandler(engine);
+        GuardNotificationHandler guardAlerts = new GuardNotificationHandler(discord, new GuardMessageRenderer(config.panelUrl()), config.teamChannelId());
+        NatsConsumer consumer = new NatsConsumer(config.nats(), new NotificationDispatcher(handler, guardAlerts), scheduler);
+        CaseEventHandler caseEvents;
+        if (config.staffActions()) {
+            // The staff control message of each ticket channel, its buttons and the redraw on every case event (DISCORD_STAFF_ACTIONS).
+            ControlMessageSync controls = new ControlMessageSync(config.panelUrl(), backend, discord, registry, metrics, clock);
+            lifecycle.channelReady(controls::redraw);
+            discord.staff(new StaffButtonHandler(backend, registry, lifecycle, controls));
+            caseEvents = new CaseEventHandler(engine, controls::onCaseEvent);
+        } else {
+            caseEvents = new CaseEventHandler(engine);
+        }
         NatsConsumer caseConsumer = new NatsConsumer(config.nats(), NatsConsumer.CASE_DURABLE, CaseEventHandler.ROUTING_KEYS, caseEvents::onMessage, scheduler);
+        NatsConsumer auditConsumer = auditConsumer(config, metrics, scheduler);
 
         HealthServer healthServer = config.healthPort() > 0
                 ? new HealthServer(config.healthPort(), () -> new HealthServer.Status(discord.connected(), health.problems()), metrics::render)
@@ -105,6 +139,9 @@ public final class Main {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             consumer.close();
             caseConsumer.close();
+            if (auditConsumer != null) {
+                auditConsumer.close();
+            }
             scheduler.shutdownNow();
             worker.shutdownNow();
             discord.close();
@@ -122,6 +159,10 @@ public final class Main {
             // Events are only consumed once Discord is connected, so no notification is lost to a missing channel.
             consumer.start();
             caseConsumer.start();
+            if (auditConsumer != null) {
+                LOGGER.info("Posting staff actions to the audit webhook");
+                auditConsumer.start();
+            }
         } catch (IllegalStateException e) {
             LOGGER.error("{}", e.getMessage());
             discord.close();

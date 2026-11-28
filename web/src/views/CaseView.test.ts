@@ -1,12 +1,19 @@
-import { flushPromises } from '@vue/test-utils'
+import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
+import { defineComponent, h } from 'vue'
+import { RouterView } from 'vue-router'
 import { caseResponse, NOTE, timelineItem, timelinePage } from '../test/cases'
 import { fail, mockApi, mountWithApp, ok } from '../test/mount'
 import { chooseOption } from '../test/select'
 import CaseView from './CaseView.vue'
 
-function setup(options: { roles?: string[]; kase?: Parameters<typeof caseResponse>[0]; extra?: Record<string, unknown> } = {}) {
+/** The app shell: the router view that renders the case and, behind it, its close or reopen route. */
+const Shell = defineComponent({ setup: () => () => h(RouterView) })
+
+function setup(options: { roles?: string[]; kase?: Parameters<typeof caseResponse>[0]; path?: string; extra?: Record<string, unknown>; shell?: boolean } = {}) {
   const api = {
+    // The shell renders the cases list around the case (the list and the case share one route).
+    cases: vi.fn(async () => ok({ items: [], page: 0, size: 25, totalSize: 0, totalPages: 0 })),
     caseDetail: vi.fn(async () => ok(caseResponse(options.kase))),
     caseTimeline: vi.fn(async () => ok(timelinePage([timelineItem()]))),
     caseConversation: vi.fn(async () => ok([])),
@@ -19,7 +26,10 @@ function setup(options: { roles?: string[]; kase?: Parameters<typeof caseRespons
   }
   return {
     api,
-    mount: () => mountWithApp(CaseView, { api: mockApi(api), path: '/cases/p-0001', props: { reference: 'p-0001' }, roles: options.roles }),
+    mount: () =>
+      options.shell
+        ? mountWithApp(Shell, { api: mockApi(api), path: options.path ?? '/cases/p-0001', roles: options.roles })
+        : mountWithApp(CaseView, { api: mockApi(api), path: options.path ?? '/cases/p-0001', props: { reference: 'p-0001' }, roles: options.roles }),
   }
 }
 
@@ -209,6 +219,291 @@ describe('CaseView: redaction as admin', () => {
     expect(redactCaseNote).toHaveBeenCalledWith('p-0001', NOTE, 'PERSONAL_DATA')
     expect(wrapper.get('[data-testid="note-removed"]').text()).toBe('Removed (data protection)')
     expect(wrapper.text()).not.toContain('phone 555')
+
+    wrapper.unmount()
+  })
+})
+
+describe('CaseView: tabs', () => {
+  const panel = (wrapper: { get: (selector: string) => { element: Element } }, tab: string) => wrapper.get(`#case-panel-${tab}`).element as HTMLElement
+  const shown = (wrapper: { get: (selector: string) => { element: Element } }, tab: string) => panel(wrapper, tab).style.display !== 'none'
+  const message = (seq: number, id: string) =>
+    timelineItem({ seq, type: 'message.added', subjectId: id, payload: { messageId: id, author: { kind: 'PLAYER' }, channel: 'PORTAL', text: 'hello' }, actor: { trust: 'PLAYER' } })
+
+  it('shows the overview when the link names no tab', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-testid="tab-overview"]').attributes('aria-selected')).toBe('true')
+    expect(shown(wrapper, 'overview')).toBe(true)
+    expect(shown(wrapper, 'conversation')).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('opens the tab the link names', async () => {
+    const { mount } = setup({ path: '/cases/p-0001?tab=conversation' })
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-testid="tab-conversation"]').attributes('aria-selected')).toBe('true')
+    expect(shown(wrapper, 'conversation')).toBe(true)
+    expect(shown(wrapper, 'overview')).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('falls back to the overview for an unknown tab', async () => {
+    const { mount } = setup({ path: '/cases/p-0001?tab=settings' })
+    const { wrapper } = await mount()
+
+    expect(shown(wrapper, 'overview')).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('keeps every panel mounted and hides all but the active one', async () => {
+    const { mount } = setup({ path: '/cases/p-0001?tab=audit' })
+    const { wrapper } = await mount()
+
+    for (const tab of ['overview', 'conversation', 'audit']) expect(panel(wrapper, tab).isConnected, tab).toBe(true)
+    expect(['overview', 'conversation', 'audit'].filter((tab) => shown(wrapper, tab))).toEqual(['audit'])
+    expect(wrapper.get('#case-panel-audit').attributes('role')).toBe('tabpanel')
+    expect(wrapper.get('[data-testid="tab-audit"]').attributes('aria-controls')).toBe('case-panel-audit')
+
+    wrapper.unmount()
+  })
+
+  it('switches the tab in the URL, keeps the other parameters and adds no history entry', async () => {
+    const { api, mount } = setup({ path: '/cases/p-0001?tab=overview&from=list' })
+    const { wrapper, router } = await mount()
+    const replace = vi.spyOn(router, 'replace')
+    const push = vi.spyOn(router, 'push')
+
+    await wrapper.get('[data-testid="tab-audit"]').trigger('click')
+    await flushPromises()
+
+    expect(replace).toHaveBeenCalledWith({ query: { tab: 'audit', from: 'list' } })
+    expect(push).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.query).toEqual({ tab: 'audit', from: 'list' })
+    expect(shown(wrapper, 'audit')).toBe(true)
+    expect(api.caseDetail, 'the case is not loaded again').toHaveBeenCalledTimes(1)
+
+    wrapper.unmount()
+  })
+
+  it('keeps the entity header above the tabs, so it shows on every tab', async () => {
+    const { mount } = setup({ roles: ['MODERATOR', 'VIEWER'] })
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="tab-conversation"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="entity-header"]').isVisible()).toBe(true)
+    expect(wrapper.get('[data-testid="entity-header"]').element.closest('[role="tabpanel"]'), 'not inside a panel').toBeNull()
+
+    wrapper.unmount()
+  })
+
+  it('counts the messages that arrive while another tab is open, and clears the count when the tab opens', async () => {
+    let stream: { onChanged?: () => void } = {}
+    let thread = [] as ReturnType<typeof timelineItem>[]
+    const { mount } = setup({
+      extra: {
+        caseConversation: vi.fn(async () => ok(thread)),
+        openCaseEvents: (_reference: string, handlers: { onChanged?: () => void }) => {
+          stream = handlers
+          return { close() {} }
+        },
+      },
+    })
+    const { wrapper } = await mount()
+
+    thread = [message(1, 'm-1')]
+    stream.onChanged?.()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="tab-badge-conversation"]').text()).toBe('1')
+    expect(wrapper.get('[data-testid="tab-conversation"]').text(), 'the singular for one message').toMatch(/1 new message$/)
+
+    await wrapper.get('[data-testid="tab-conversation"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="tab-badge-conversation"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('uses the plural label for several new messages', async () => {
+    let stream: { onChanged?: () => void } = {}
+    let thread = [] as ReturnType<typeof timelineItem>[]
+    const { mount } = setup({
+      extra: {
+        caseConversation: vi.fn(async () => ok(thread)),
+        openCaseEvents: (_reference: string, handlers: { onChanged?: () => void }) => {
+          stream = handlers
+          return { close() {} }
+        },
+      },
+    })
+    const { wrapper } = await mount()
+
+    thread = [message(1, 'm-1'), message(2, 'm-2')]
+    stream.onChanged?.()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="tab-conversation"]').text()).toMatch(/2 new messages$/)
+
+    wrapper.unmount()
+  })
+
+  it('shows no count for the messages that were there when the page loaded', async () => {
+    const { mount } = setup({ extra: { caseConversation: vi.fn(async () => ok([message(1, 'm-1'), message(2, 'm-2')])) } })
+    const { wrapper } = await mount()
+
+    expect(wrapper.find('[data-testid="tab-badge-conversation"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+})
+
+/** The text the snackbar announces; the copy-link and timeline live regions are separate. */
+const snackText = (wrapper: VueWrapper): string => wrapper.findAll('[role="status"]').map((region) => region.text()).join('|')
+
+/** The Undo action of the snackbar, if it is offered. */
+const undoButton = (wrapper: VueWrapper) =>
+  wrapper.findAll('button').find((button) => button.text() === 'Undo')
+
+describe('CaseView: closing and reopening from the header', () => {
+  it('opens the close confirmation from the header and sends nothing before it is confirmed', async () => {
+    const { api, mount } = setup({ roles: ['MODERATOR', 'VIEWER'], shell: true })
+    const { wrapper, router } = await mount()
+
+    await wrapper.get('[data-testid="close-case"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('case-close')
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+    expect(api.updateCase).not.toHaveBeenCalled()
+
+    wrapper.unmount()
+  })
+
+  it('closes with the version that was read, then shows the case closed with an undo', async () => {
+    const { api, mount } = setup({ roles: ['MODERATOR', 'VIEWER'], shell: true, kase: { status: 'IN_REVIEW' }, extra: { updateCase: vi.fn(async () => ok(caseResponse({ version: 4, status: 'CLOSED' }))) } })
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="close-case"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="case-status-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(api.updateCase).toHaveBeenCalledWith('p-0001', { expectedVersion: 3, status: 'CLOSED' })
+    expect(wrapper.get('[data-testid="case-status"]').text()).toBe('Closed')
+    expect(wrapper.get('[data-testid="reopen-case"]').text()).toBe('Reopen')
+    expect(snackText(wrapper)).toContain('Case closed.')
+    expect(snackText(wrapper)).toContain('Undo')
+
+    wrapper.unmount()
+  })
+
+  it('undoes a close within the window with the version the close left, and restores the previous status', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const updateCase = vi
+      .fn()
+      .mockResolvedValueOnce(ok(caseResponse({ version: 4, status: 'CLOSED' })))
+      .mockResolvedValueOnce(ok(caseResponse({ version: 5, status: 'IN_REVIEW' })))
+    const { mount } = setup({ roles: ['MODERATOR', 'VIEWER'], shell: true, kase: { status: 'IN_REVIEW' }, extra: { updateCase } })
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="close-case"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="case-status-confirm"]').trigger('click')
+    await flushPromises()
+    vi.advanceTimersByTime(9_999)
+    await undoButton(wrapper)!.trigger('click')
+    await flushPromises()
+
+    expect(updateCase).toHaveBeenLastCalledWith('p-0001', { expectedVersion: 4, status: 'IN_REVIEW' })
+    expect(wrapper.get('[data-testid="case-status"]').text()).toBe('In review')
+    expect(snackText(wrapper)).toContain('Close undone.')
+
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it('hides the undo ten seconds after the close and keeps the closed case', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const { mount } = setup({ roles: ['MODERATOR', 'VIEWER'], shell: true, extra: { updateCase: vi.fn(async () => ok(caseResponse({ version: 4, status: 'CLOSED' }))) } })
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="close-case"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="case-status-confirm"]').trigger('click')
+    await flushPromises()
+    vi.advanceTimersByTime(10_000)
+    await flushPromises()
+
+    expect(undoButton(wrapper) !== undefined).toBe(false)
+    expect(wrapper.get('[data-testid="case-status"]').text()).toBe('Closed')
+
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it('says the case changed and overwrites nothing when the undo is refused', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const updateCase = vi
+      .fn()
+      .mockResolvedValueOnce(ok(caseResponse({ version: 4, status: 'CLOSED' })))
+      .mockResolvedValueOnce(fail('stale', 409, 'CONFLICT'))
+    const { mount } = setup({ roles: ['MODERATOR', 'VIEWER'], shell: true, extra: { updateCase } })
+    const { wrapper } = await mount()
+
+    await wrapper.get('[data-testid="close-case"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="case-status-confirm"]').trigger('click')
+    await flushPromises()
+    await undoButton(wrapper)!.trigger('click')
+    await flushPromises()
+
+    expect(snackText(wrapper)).toContain('The case changed since. Reload to see it.')
+    expect(wrapper.get('[data-testid="case-status"]').text()).toBe('Closed')
+
+    wrapper.unmount()
+    vi.useRealTimers()
+  })
+
+  it('reopens to the status the case had before, with no undo', async () => {
+    const closed = timelineItem({ type: 'case.status_changed', payload: { from: 'WAITING', to: 'CLOSED' } })
+    const updateCase = vi.fn(async () => ok(caseResponse({ version: 4, status: 'WAITING' })))
+    const { mount } = setup({
+      roles: ['MODERATOR', 'VIEWER'],
+      shell: true,
+      path: '/cases/p-0001',
+      kase: { status: 'CLOSED' },
+      extra: { updateCase, caseTimeline: vi.fn(async () => ok(timelinePage([closed]))) },
+    })
+    const { wrapper, router } = await mount()
+    await router.push('/cases/p-0001/reopen')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="case-status-confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(updateCase).toHaveBeenCalledWith('p-0001', { expectedVersion: 3, status: 'WAITING' })
+    expect(router.currentRoute.value.name).toBe('case')
+    expect(undoButton(wrapper) !== undefined).toBe(false)
+    expect(snackText(wrapper)).toContain('Case reopened.')
+
+    wrapper.unmount()
+  })
+
+  it('gives a viewer no close action and says why', async () => {
+    const { mount } = setup({ roles: ['VIEWER'] })
+    const { wrapper } = await mount()
+
+    expect(wrapper.find('[data-testid="close-case"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="entity-notice"]').text()).toBe('A viewer cannot change a case.')
 
     wrapper.unmount()
   })

@@ -36,7 +36,7 @@ class ProfileAttributionGuardTest {
 
     private static PunishEntryDTO entry(String id, UUID source, UUID recordedBy) {
         return new PunishEntryDTO(id, "#AAAAAAAA", source, recordedBy, recordedBy != null, null, null, "chat", null, false, false, 1L,
-                null, null, null, null, null, null, null, null, null, new HashMap<>());
+                null, null, null, null, null, null, null, null, null, null, new HashMap<>());
     }
 
     private PunishEntryDTO sanitizedActive(PunishEntryDTO entry) {

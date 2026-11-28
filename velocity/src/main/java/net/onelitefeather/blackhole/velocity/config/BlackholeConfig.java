@@ -68,6 +68,18 @@ public class BlackholeConfig {
     private EvidenceConfig evidence;
 
     /**
+     * How the proxy reports player sessions to the backend. Absent in configs written before this
+     * setting existed, which {@link #getIntel()} treats as the defaults.
+     */
+    private IntelConfig intel;
+
+    /**
+     * How long the profile reads of logins and chat may take. Absent in configs written before this setting
+     * existed, which {@link #getProfile()} treats as the defaults.
+     */
+    private ProfileConfig profile;
+
+    /**
      * How the proxy authenticates to the backend. Absent in configs written before this setting
      * existed, which {@link #getAuth()} treats as no credentials.
      */
@@ -86,6 +98,24 @@ public class BlackholeConfig {
     private ClientRulesConfig clientRules;
 
     /**
+     * The mute settings, including the commands a mute covers. Absent in configs written before this
+     * setting existed, which {@link #getMute()} treats as the defaults.
+     */
+    private MuteConfig mute;
+
+    /**
+     * The startup settings: what the proxy does with players when its initialisation failed. Absent in configs
+     * written before this setting existed, which {@link #getStartup()} treats as the defaults.
+     */
+    private StartupConfig startup;
+
+    /**
+     * The bound of the punishment mirror. Absent in configs written before this setting existed, which
+     * {@link #getMirror()} treats as the defaults.
+     */
+    private MirrorConfig mirror;
+
+    /**
      * Creates a new configuration with default values.
      */
     public BlackholeConfig() {
@@ -100,6 +130,27 @@ public class BlackholeConfig {
         this.cloudnet = new CloudNetConfig();
         this.clientRules = new ClientRulesConfig();
         this.nats = new NatsConfig();
+    }
+
+    /**
+     * @return the mute settings; the default command list for configs written before they existed
+     */
+    public @NotNull MuteConfig getMute() {
+        return mute == null ? new MuteConfig() : mute;
+    }
+
+    /**
+     * @return the startup settings; the defaults for configs written before they existed
+     */
+    public @NotNull StartupConfig getStartup() {
+        return startup == null ? new StartupConfig() : startup;
+    }
+
+    /**
+     * @return the punishment mirror bound; the default bound for configs written before it existed
+     */
+    public @NotNull MirrorConfig getMirror() {
+        return mirror == null ? new MirrorConfig() : mirror;
     }
 
     /**
@@ -137,6 +188,20 @@ public class BlackholeConfig {
      */
     public @NotNull EvidenceConfig getEvidence() {
         return evidence == null ? new EvidenceConfig() : evidence;
+    }
+
+    /**
+     * @return the session reporting settings; the defaults for configs written before they existed
+     */
+    public @NotNull IntelConfig getIntel() {
+        return intel == null ? new IntelConfig() : intel;
+    }
+
+    /**
+     * @return the profile read timeouts; the defaults for configs written before they existed
+     */
+    public @NotNull ProfileConfig getProfile() {
+        return profile == null ? new ProfileConfig() : profile;
     }
 
     /**

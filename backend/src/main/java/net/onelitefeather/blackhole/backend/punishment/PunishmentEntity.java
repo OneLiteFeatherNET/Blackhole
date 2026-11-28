@@ -96,6 +96,10 @@ public class PunishmentEntity {
     @Column(name = "kind", length = 16, nullable = false)
     private PunishmentKind kind = PunishmentKind.PUNISHMENT;
 
+    /** When the player acknowledged a warning (epoch millis, set once); {@code null} for anything else or while pending. */
+    @Column(name = "acknowledged_at")
+    private Long acknowledgedAt;
+
     /** The scope a kick was applied at; {@code null} for a punishment. */
     @Column(name = "kick_scope", length = 16)
     private String kickScope;
@@ -103,6 +107,29 @@ public class PunishmentEntity {
     /** The server or section a scoped kick targeted; {@code null} for a punishment or a network kick. */
     @Column(name = "kick_target")
     private String kickTarget;
+
+    /** The internal player UUID from the apply request. Never returned by the API; cleared on erasure. */
+    @Column(name = "player_uuid")
+    private UUID playerUuid;
+
+    /** The public ban list columns: a snapshot of the template's public reason, set only when the entry is listed. */
+    @Column(name = "public_reason", length = 200)
+    private String publicReason;
+
+    @Column(name = "public_kind", length = 16)
+    private String publicKind;
+
+    @Column(name = "public_hash", length = 22)
+    private String publicHash;
+
+    @Column(name = "public_issued_day")
+    private Long publicIssuedDay;
+
+    @Column(name = "public_expires_at")
+    private Long publicExpiresAt;
+
+    @Column(name = "public_revoked_at")
+    private Long publicRevokedAt;
 
     @ManyToOne
     private PunishmentTemplateEntity template;
@@ -134,6 +161,9 @@ public class PunishmentEntity {
         entity.template = entry.template() == null ? null : PunishmentTemplateEntity.toEntity(entry.template());
         if (entry.kind() == PunishmentKind.KICK) {
             entity.recordKick(entry.kickScope(), entry.kickTarget());
+        } else if (entry.kind() == PunishmentKind.WARN) {
+            entity.kind = PunishmentKind.WARN;
+            entity.acknowledgedAt = entry.acknowledgedAt();
         }
         entity.metaData = entry.metaData();
         return entity;
@@ -198,6 +228,69 @@ public class PunishmentEntity {
         this.template = template;
         this.metaData.putIfAbsent("importedReason", importedReason);
         this.metaData.put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
+    }
+
+    /** Stores the internal player UUID of the apply request (null when the caller did not know it). */
+    public void setPlayerUuid(UUID playerUuid) {
+        this.playerUuid = playerUuid;
+    }
+
+    public UUID getPlayerUuid() {
+        return playerUuid;
+    }
+
+    /**
+     * Lists the punishment on the public ban list: the public reason and kind are copied, the entry hash and the day
+     * are set, and the expiry instant is kept (null for a permanent entry).
+     */
+    public void publish(String reason, String kind, String hash, long issuedDay, Long expiresAt) {
+        this.publicReason = reason;
+        this.publicKind = kind;
+        this.publicHash = hash;
+        this.publicIssuedDay = issuedDay;
+        this.publicExpiresAt = expiresAt;
+    }
+
+    /** Records the revoke instant of a listed entry, so it is shown as REVOKED for the retention window. */
+    public void markPublicRevoked(long revokedAt) {
+        if (this.publicHash != null) {
+            this.publicRevokedAt = revokedAt;
+        }
+    }
+
+    /** Removes the entry from the public list and the internal UUID (erasure). The hash then answers 404. */
+    public void clearPublicListing() {
+        this.playerUuid = null;
+        this.publicReason = null;
+        this.publicKind = null;
+        this.publicHash = null;
+        this.publicIssuedDay = null;
+        this.publicExpiresAt = null;
+        this.publicRevokedAt = null;
+    }
+
+    public String getPublicHash() {
+        return publicHash;
+    }
+
+    public String getPublicReason() {
+        return publicReason;
+    }
+
+    public String getPublicKind() {
+        return publicKind;
+    }
+
+    public Long getPublicIssuedDay() {
+        return publicIssuedDay;
+    }
+
+    public Long getPublicExpiresAt() {
+        return publicExpiresAt;
+    }
+
+    public Long getPublicRevokedAt() {
+        return publicRevokedAt;
     }
 
     public String getIdentifier() {
@@ -288,6 +381,33 @@ public class PunishmentEntity {
         return kickTarget;
     }
 
+    /** Marks this row as a warning: stored like a kick, never active, acknowledged once by the player. */
+    public void recordWarning() {
+        this.kind = PunishmentKind.WARN;
+    }
+
+    public boolean isWarning() {
+        return this.kind == PunishmentKind.WARN;
+    }
+
+    /** When the player acknowledged this warning, or {@code null} while it is pending. */
+    public Long getAcknowledgedAt() {
+        return acknowledgedAt;
+    }
+
+    /**
+     * Records the player's acknowledgement once. A repeat keeps the first time.
+     *
+     * @return whether this call set the time (false when it was already acknowledged)
+     */
+    public boolean acknowledge(long at) {
+        if (this.acknowledgedAt != null) {
+            return false;
+        }
+        this.acknowledgedAt = at;
+        return true;
+    }
+
     /** Marks this row as a kick at {@code scope}; {@code target} is {@code null} for a network kick. */
     public void recordKick(String scope, String target) {
         this.kind = PunishmentKind.KICK;
@@ -295,13 +415,21 @@ public class PunishmentEntity {
         this.kickTarget = target;
     }
 
-    /** Whether this row can be an active punishment, i.e. is not a kick. */
+    /** Whether this row can be an active punishment: only a {@link PunishmentKind#PUNISHMENT} can. Kicks and warnings never are. */
     public boolean canBeActive() {
-        return this.kind != PunishmentKind.KICK;
+        return this.kind == PunishmentKind.PUNISHMENT;
     }
 
     public PunishmentTemplateEntity getTemplate() {
         return template;
+    }
+
+    /**
+     * The section this row's ELO cost was charged to. A warning has no section of its own (it never takes a slot),
+     * so its cost went to the section of its template.
+     */
+    public String getChargedSectionKey() {
+        return isWarning() && this.template != null ? this.template.getSectionKey() : this.sectionKey;
     }
 
     public Map<String, Object> getMetaData() {
@@ -331,6 +459,7 @@ public class PunishmentEntity {
                 this.kind,
                 this.kickScope,
                 this.kickTarget,
+                this.acknowledgedAt,
                 this.metaData
         );
     }

@@ -2,6 +2,8 @@ package net.onelitefeather.blackhole.backend.discord;
 
 import net.onelitefeather.blackhole.backend.PostgresIntegrationTest;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseDatabase;
+import net.onelitefeather.blackhole.backend.casetimeline.ActorTrust;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
 import net.onelitefeather.blackhole.backend.casetimeline.ChatFiles;
 import net.onelitefeather.blackhole.backend.casetimeline.JdbcCaseWriter;
 import net.onelitefeather.blackhole.backend.discord.dto.DiscordTicketDTO;
@@ -112,6 +114,22 @@ class DiscordTicketJdbcIntegrationTest extends PostgresIntegrationTest {
         assertTrue(payload.contains("\"ticketNo\""), payload);
         assertFalse(payload.contains(PLAYER), "no Discord id in an event");
         assertEquals("PLAYER", this.db.text("SELECT visibility FROM case_event WHERE type = 'ticket.opened' AND punishment_identifier = ?", ID));
+    }
+
+    @Test
+    void aStaffLockAndUnlockEachAppendTheirTicketFrozenEventInTheSameStatement() {
+        CaseActor staff = new CaseActor(ActorTrust.VERIFIED, STAFF_OID, STAFF_OID, null);
+        this.tickets.setStaffFrozen(this.ticket.id(), true, 20L, staff);
+        this.tickets.setStaffFrozen(this.ticket.id(), false, 21L, staff);
+
+        assertEquals(2, count("ticket.frozen"), "one event per change");
+        assertEquals("STAFF", this.db.text("SELECT payload ->> 'freezeSource' FROM case_event WHERE type = 'ticket.frozen' AND punishment_identifier = ? "
+                + "ORDER BY seq LIMIT 1", ID), "the lock names its source");
+        assertEquals(1, this.db.count("SELECT count(*) FROM case_event WHERE type = 'ticket.frozen' AND punishment_identifier = ? "
+                + "AND payload ->> 'frozen' = 'false' AND payload ->> 'freezeSource' IS NULL", ID), "the unlock carries no source");
+        assertEquals("STAFF", this.db.text("SELECT visibility FROM case_event WHERE type = 'ticket.frozen' AND punishment_identifier = ? "
+                + "ORDER BY seq LIMIT 1", ID), "staff only");
+        assertFalse(payloadOf("ticket.frozen").contains(STAFF), "no Discord id in the payload");
     }
 
     @Test

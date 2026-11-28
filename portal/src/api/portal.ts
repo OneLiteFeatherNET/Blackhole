@@ -1,6 +1,8 @@
 import type {
   AppealConditions,
   AppealStatus,
+  ChallengeAnswer,
+  ChallengePurpose,
   ConversationPage,
   ErrorBody,
   ErrorCode,
@@ -26,12 +28,14 @@ export interface ApiError {
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError }
 
 export interface PortalApi {
-  login(banId: string): Promise<ApiResult<SessionInfo>>
+  login(banId: string, altcha?: string): Promise<ApiResult<SessionInfo>>
+  /** The challenge for sign-in or appeal, or `enabled: false` when the check is off. */
+  challenge(purpose: ChallengePurpose): Promise<ApiResult<ChallengeAnswer>>
   session(): Promise<ApiResult<SessionInfo>>
   logout(): Promise<ApiResult<null>>
   punishment(): Promise<ApiResult<PunishmentFacts>>
   /** Files the appeal; `conditionsVersion` is the version of the conditions the player confirmed. */
-  fileAppeal(statement: string, conditionsVersion: number): Promise<ApiResult<AppealStatus>>
+  fileAppeal(statement: string, conditionsVersion: number, altcha?: string): Promise<ApiResult<AppealStatus>>
   appealConditions(): Promise<ApiResult<AppealConditions>>
   appeal(): Promise<ApiResult<AppealStatus>>
   conversation(cursor: number | null): Promise<ApiResult<ConversationPage>>
@@ -97,17 +101,20 @@ export function createPortalApi({ fetch: fetchImpl, csrf }: PortalApiOptions): P
     } catch {
       // An answer without a body (a proxy error page) is treated as unavailable below.
     }
-    const code = typeof parsed.code === 'string' ? (parsed.code as ErrorCode) : 'UNAVAILABLE'
+    // A rate limit is recognised by its status alone: an edge answer has no body the portal can read.
+    const code: ErrorCode = response.status === 429 ? 'RATE_LIMITED' : typeof parsed.code === 'string' ? (parsed.code as ErrorCode) : 'UNAVAILABLE'
     const availableFrom = typeof parsed.availableFrom === 'string' ? { availableFrom: parsed.availableFrom } : {}
     return { ok: false, error: { status: response.status, code, ...availableFrom } }
   }
 
   return {
-    login: (banId) => call('POST', '/api/session', { banId }),
+    login: (banId, altcha) => call('POST', '/api/session', altcha === undefined ? { banId } : { banId, altcha }),
+    challenge: (purpose) => call('GET', `/api/challenge?purpose=${purpose}`),
     session: () => call('GET', '/api/session'),
     logout: () => call('DELETE', '/api/session'),
     punishment: () => call('GET', '/api/punishment'),
-    fileAppeal: (statement, conditionsVersion) => call('POST', '/api/appeal', { statement, conditionsVersion }),
+    fileAppeal: (statement, conditionsVersion, altcha) =>
+      call('POST', '/api/appeal', altcha === undefined ? { statement, conditionsVersion } : { statement, conditionsVersion, altcha }),
     appealConditions: () => call('GET', '/api/appeal/conditions'),
     appeal: () => call('GET', '/api/appeal'),
     conversation: (cursor) => call('GET', cursor === null ? '/api/conversation' : `/api/conversation?cursor=${cursor}`),

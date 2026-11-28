@@ -28,6 +28,16 @@ public interface CaseChanges {
     List<Appended> update(String punishmentIdentifier, long expectedVersion, long now, CaseActor actor, CaseMeta before, CaseMeta after);
 
     /**
+     * Changes one case of a bulk edit if it is still at {@code expectedVersion}: the state and one {@code case.bulk_edited} event (dedupe
+     * key {@code bulk:<batchId>:<punishment>}) in one statement. Nothing is written for a stale version.
+     *
+     * @return the appended event, or {@code null} when the version was stale
+     * @throws IllegalArgumentException if {@code before} and {@code after} are equal
+     */
+    Appended bulkEdit(String punishmentIdentifier, long expectedVersion, long now, CaseActor actor, CaseMeta before, CaseMeta after,
+                      String batchId);
+
+    /**
      * Appends {@code note.edited} unless a version of the note was redacted in the meantime.
      *
      * @return the appended event, or {@code null} when the note is redacted

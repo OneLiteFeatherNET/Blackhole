@@ -1,6 +1,9 @@
 package net.onelitefeather.blackhole.backend.kick.service;
 
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseTimeline;
 import net.onelitefeather.blackhole.backend.kick.KickDeadline;
 import net.onelitefeather.blackhole.backend.kick.KickDeliveries;
@@ -9,6 +12,7 @@ import net.onelitefeather.blackhole.backend.kick.KickKind;
 import net.onelitefeather.blackhole.backend.kick.KickScope;
 import net.onelitefeather.blackhole.backend.kick.KickStatus;
 import net.onelitefeather.blackhole.backend.kick.KickStore;
+import net.onelitefeather.blackhole.backend.exemption.ExemptionGuard;
 import net.onelitefeather.blackhole.backend.kick.KickValidator;
 import net.onelitefeather.blackhole.backend.kick.dto.KickDTO;
 import net.onelitefeather.blackhole.backend.profile.ProfileCache;
@@ -71,6 +75,8 @@ public class KickService {
     private final SectionService sections;
     private final CaseTimeline caseTimeline;
     private final StaffLinkService staffLinks;
+    private final StaffAuditRecorder audit;
+    private final ExemptionGuard exemptions;
 
     public KickService(
             PunishmentRepository punishments,
@@ -82,8 +88,12 @@ public class KickService {
             KickEventPublisher events,
             SectionService sections,
             CaseTimeline caseTimeline,
-            StaffLinkService staffLinks
+            StaffLinkService staffLinks,
+            StaffAuditRecorder audit,
+            ExemptionGuard exemptions
     ) {
+        this.exemptions = exemptions;
+        this.audit = audit;
         this.punishments = punishments;
         this.profiles = profiles;
         this.slots = slots;
@@ -121,14 +131,22 @@ public class KickService {
             return repeat(existing.get(), request.owner(), scope, target);
         }
 
+        Attribution attribution = actor.attribution();
+        ExemptionGuard.Outcome exempt = this.exemptions.check(request.owner(), scope == KickScope.SECTION ? target : null,
+                attribution, actor, request.exemptionOverride());
+        if (exempt instanceof ExemptionGuard.Outcome.Refused refused) {
+            return new KickDTO.Error(refused.message(), refused.kind());
+        }
         long now = this.deadline.now();
         long deadlineAt = this.deadline.deadlineAt();
-        Attribution attribution = actor.attribution();
         Map<String, Object> metadata = new HashMap<>();
         metadata.put(Metadata.META_DATA_KEY_CREATION_DATE, now);
         metadata.put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
         metadata.put("reason", request.reason().strip());
         metadata.put(DEADLINE_KEY, deadlineAt);
+        if (exempt instanceof ExemptionGuard.Outcome.Allowed allowed && allowed.overridden()) {
+            metadata.put(ExemptionGuard.OVERRIDE_METADATA_KEY, allowed.record());
+        }
         // A kick has no expiry: it is a moment. It also takes no slot, so it is never active.
         PunishmentEntity kick = new PunishmentEntity(identifier, attribution.source(), request.owner(),
                 scope == KickScope.SECTION ? target : null, false, now, null, metadata);
@@ -149,6 +167,10 @@ public class KickService {
 
         List<String> warnings = warningsFor(request.owner(), scope, target);
         announce(saved, id, scope, target, now);
+        if (exempt instanceof ExemptionGuard.Outcome.Allowed allowed && allowed.overridden()) {
+            this.exemptions.announceOverride(request.owner(), scope == KickScope.SECTION ? target : null, allowed.record());
+        }
+        this.audit.record(attribution, actor, AuditAction.KICK_CREATE, AuditTarget.ofPlayer(request.owner()));
         return new KickDTO.Accepted(id.toString(), KickKind.PLAYER, KickStatus.PENDING, deadlineAt, warnings, false);
     }
 
@@ -172,10 +194,12 @@ public class KickService {
      * never active. Charging the step's ELO cost is the caller's job. The request is checked with
      * {@link #checkTemplateKick} first.
      *
+     * @param override the exemption override record for the metadata; empty unless an admin's override let the kick through
      * @return the stored kick
      */
     public PunishmentEntity kickForTemplate(String owner, KickScope scope, String target, String reason, Attribution attribution,
-                                            PunishmentTemplateEntity template, String group, int stepIndex, int stepCount, int eloCost) {
+                                            PunishmentTemplateEntity template, String group, int stepIndex, int stepCount, int eloCost,
+                                            Map<String, Object> override) {
         KickScope effective = scope == null ? KickScope.NETWORK : scope;
         String effectiveTarget = effective == KickScope.NETWORK ? null : target;
         UUID id = UUID.randomUUID();
@@ -185,6 +209,9 @@ public class KickService {
         metadata.put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
         metadata.put("reason", reason.strip());
         metadata.put(DEADLINE_KEY, this.deadline.deadlineAt());
+        if (!override.isEmpty()) {
+            metadata.put(ExemptionGuard.OVERRIDE_METADATA_KEY, override);
+        }
         PunishmentEntity kick = new PunishmentEntity(IdGenerator.generateId(id), attribution.source(), owner,
                 effective == KickScope.SECTION ? effectiveTarget : null, false, now, template, metadata);
         kick.recordKick(effective.name(), effectiveTarget);
@@ -230,6 +257,7 @@ public class KickService {
             return repeat(this.store.findAction(id).orElse(action), request);
         }
         this.events.massKicked(id, request.scope(), request.target(), now);
+        this.audit.record(actor.attribution(), actor, AuditAction.KICK_MASS, massTarget(request.scope(), request.target()));
         return new KickDTO.Accepted(id.toString(), KickKind.MASS, KickStatus.PENDING, deadlineAt, List.of(), false);
     }
 
@@ -393,6 +421,14 @@ public class KickService {
         } catch (IllegalArgumentException | NullPointerException e) {
             return Optional.empty();
         }
+    }
+
+    private static AuditTarget massTarget(KickScope scope, String target) {
+        return switch (scope) {
+            case NETWORK -> AuditTarget.none();
+            case SECTION -> AuditTarget.ofSection(target);
+            default -> AuditTarget.ofServer(target);
+        };
     }
 
     private static KickDTO.Error notFound() {

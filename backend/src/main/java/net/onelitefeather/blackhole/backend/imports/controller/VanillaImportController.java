@@ -3,11 +3,13 @@ package net.onelitefeather.blackhole.backend.imports.controller;
 import io.micronaut.security.annotation.Secured;
 import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.imports.dto.VanillaImportDTO;
+import net.onelitefeather.blackhole.backend.audit.AuditHeaders;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.imports.service.VanillaImportService;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
+import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Part;
 import io.micronaut.http.annotation.Post;
@@ -54,10 +56,11 @@ public class VanillaImportController {
         try {
             byte[] playersBytes = bannedPlayers.getBytes();
             byte[] ipsBytes = bannedIps != null ? bannedIps.getBytes() : null;
-            return switch (this.importService.importVanillaBans(playersBytes, ipsBytes, templateKey, reasonTemplates, dryRun, actor)) {
-                case VanillaImportDTO.Result result -> HttpResponse.ok(result);
-                case VanillaImportDTO.Error error -> HttpResponse.status(error.kind().status()).body(error);
-            };
+            VanillaImportDTO outcome = this.importService.importVanillaBans(playersBytes, ipsBytes, templateKey, reasonTemplates, dryRun, actor);
+            MutableHttpResponse<VanillaImportDTO> response = outcome instanceof VanillaImportDTO.Error error
+                    ? HttpResponse.<VanillaImportDTO>status(error.kind().status()).body(error)
+                    : HttpResponse.ok(outcome);
+            return AuditHeaders.audited(response, actor);
         } catch (IOException e) {
             return HttpResponse.badRequest("Failed to read uploaded file(s): " + e.getMessage());
         }

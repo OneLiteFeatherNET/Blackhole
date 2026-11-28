@@ -1,4 +1,7 @@
 {
+  "lists": {
+    "missing": "Dieser Eintrag existiert nicht mehr."
+  },
   "nav": {
     "label": "Hauptnavigation",
     "skip": "Zum Inhalt springen",
@@ -8,23 +11,38 @@
     "reports": "Meldungen",
     "playerLookup": "Spielersuche",
     "activePunishments": "Aktive Strafen",
+    "allowList": "Ausnahmeliste",
+    "vpnPolicy": "VPN-Richtlinie",
     "sections": "Bereiche",
     "templates": "Vorlagen",
     "appealTerms": "Einspruchsbedingungen",
     "clientRules": "Client-Regeln",
     "administration": "Verwaltung",
     "groups": {
+      "today": "Heute",
       "work": "Arbeit",
       "players": "Spieler",
       "configuration": "Konfiguration",
       "administration": "Verwaltung",
-      "system": "System"
+      "review": "Prüfung",
+      "system": "System",
+      "protection": "Schutz"
+    },
+    "more": "Mehr",
+    "shortcuts": {
+      "open": "Tastenkürzel",
+      "title": "Tastenkürzel",
+      "intro": "Außerhalb von Textfeldern drückst du g und dann einen Buchstaben, um eine Seite zu öffnen. Mit ? wird diese Liste angezeigt.",
+      "help": "Diese Liste anzeigen",
+      "then": "dann",
+      "nextRow": "Nächste Zeile in einer Liste",
+      "previousRow": "Vorherige Zeile in einer Liste",
+      "openRow": "Ausgewählte Zeile öffnen",
+      "closeRow": "Geöffneten Eintrag schließen",
+      "close": "Schließen"
     },
     "brand": "Blackhole",
-    "open": "Navigation öffnen",
     "close": "Navigation schließen",
-    "collapse": "Navigation einklappen",
-    "expand": "Navigation ausklappen",
     "breadcrumbs": "Navigationspfad",
     "badge": {
       "inbox": "{n} Vorgang braucht Aufmerksamkeit | {n} Vorgänge brauchen Aufmerksamkeit",
@@ -33,9 +51,15 @@
       "reports": "{n} ungelöste Meldung | {n} ungelöste Meldungen"
     },
     "staffAccounts": "Teamkonten",
+    "rollback": "Rollback",
     "imports": "Importe",
     "cloudnet": "CloudNet",
-    "kick": "Massen-Kick"
+    "kick": "Massen-Kick",
+    "audit": "Audit-Protokoll",
+    "exemptionReviews": "Schutzprüfungen",
+    "joinGuard": "Beitrittsschutz",
+    "areaBans": "Gebietssperren",
+    "ipBans": "IP-Sperren"
   },
   "panel": {
     "close": "Schließen",
@@ -65,6 +89,8 @@
       "body": "Du bist angemeldet, aber dein Konto hat keine Rolle für Blackhole. Bitte einen Administrator, dich zur passenden Gruppe hinzuzufügen, und melde dich danach neu an.",
       "adminHeading": "Nur für Administratoren",
       "adminBody": "Diese Seite ist nur für Administratoren verfügbar. Deine Rolle schließt sie nicht ein.",
+      "moderatorHeading": "Nur für Moderatoren",
+      "moderatorBody": "Nur Moderatoren ändern Spieler und Strafen. Deine Rolle erlaubt dir das Lesen.",
       "back": "Zurück zum Dashboard"
     },
     "error": {
@@ -141,9 +167,39 @@
     "nameHint": "3 bis 16 Buchstaben, Ziffern oder Unterstriche",
     "invalidName": "Gib einen gültigen Namen ein: 3 bis 16 Buchstaben, Ziffern oder Unterstriche.",
     "notFound": "Es wurde kein Spieler namens \"{name}\" gefunden.",
-    "search": "Suchen"
+    "search": "Suchen",
+    "choose": "Mehrere Konten haben diesen Namen benutzt. Öffne das gemeinte Konto.",
+    "lastSeen": "Zuletzt gesehen {date}"
   },
   "player": {
+    "tabs": {
+      "label": "Bereiche des Spielers",
+      "overview": "Übersicht",
+      "punishments": "Strafen",
+      "reports": "Meldungen",
+      "cases": "Fälle",
+      "evasion": "Umgehung",
+      "elo": "ELO",
+      "names": "Namen",
+      "intel": "Intel",
+      "warnings": "Verwarnungen",
+      "evidence": "Beweise"
+    },
+    "reports": {
+      "empty": "Gegen diesen Spieler liegt keine Meldung vor.",
+      "open": "Meldung öffnen"
+    },
+    "cases": {
+      "empty": "Für diesen Spieler gibt es keinen Fall."
+    },
+    "warnings": {
+      "empty": "Dieser Spieler wurde nicht verwarnt."
+    },
+    "evidence": {
+      "hint": "Beweise gehören zu einer Strafe. Öffne eine Strafe, um ihre Beweise zu sehen.",
+      "count": "{count} Beweise",
+      "empty": "Dieser Spieler hat keine Strafe."
+    },
     "backToSearch": "Zurück zur Suche",
     "invalidOwner": "Das ist keine gültige Spieler-Kennung.",
     "scores": "Punktestand pro Bereich",
@@ -201,7 +257,39 @@
       "weakNote": "Eine Verknüpfung nur über das Client-Setup ist ein schwacher Hinweis, kein Beweis: Spieler mit demselben Modpack oder Launcher sehen sich ähnlich. Adresse zusammen mit Client-Setup ist das stärkere Signal.",
       "weakOnly": "Alle hier gelisteten Konten teilen mit diesem Spieler nur das Client-Setup. Das ist ein schwacher Hinweis, kein Beweis: Ein Modpack oder Launcher wird von vielen unabhängigen Spielern benutzt."
     },
-    "activeCount": "{count} aktiv"
+    "activeCount": "{count} aktiv",
+  "names": {
+   "title": "Namensverlauf",
+   "empty": "Für diesen Spieler wurde noch kein Name erfasst.",
+   "note": "Namen werden ab dem ersten Login nach Beginn der Sitzungserfassung erfasst; frühere Namen sind nicht bekannt.",
+   "loadMore": "Mehr laden",
+   "columns": {
+    "name": "Name",
+    "firstSeen": "Zuerst gesehen",
+    "lastSeen": "Zuletzt gesehen"
+   }
+  },
+  "sessions": {
+   "title": "Sitzungen",
+   "empty": "Bisher ist keine Sitzung erfasst.",
+   "approximate": "{country} (ungefähr)",
+   "loadMore": "Weitere laden",
+   "attribution": "Geolokalisierung und ASN-Daten: DB-IP, lizenziert unter CC BY 4.0.",
+   "outcome": {
+    "ALLOWED": "Zugelassen",
+    "DENIED": "Abgewiesen"
+   },
+   "columns": {
+    "when": "Zeitpunkt",
+    "outcome": "Ergebnis",
+    "ip": "IP-Adresse",
+    "provider": "Anbieter (ASN)",
+    "country": "Land",
+    "client": "Client",
+    "protocol": "Protokoll",
+    "host": "Virtueller Host"
+   }
+  }
   },
   "actions": {
     "cancel": "Abbrechen",
@@ -296,6 +384,10 @@
       "sectionHint": "Der ELO-Bereich, in dem diese Vorlage Punkte abzieht und bestraft",
       "sectionDisabled": "Deaktiviert",
       "reasonHint": "Wird dem Spieler angezeigt",
+      "publicReason": "Öffentlicher Grund",
+      "publicReasonHint": "Erscheint auf der öffentlichen Sperrliste, wenn diese Vorlage angewendet wird. Nur für Admins. Keine IP-Adressen, UUIDs oder Ban-IDs.",
+      "publicReasonCounter": "{count} / {max} Zeichen",
+      "publicReasonTooLong": "Verwende höchstens {max} Zeichen.",
       "advanced": "Erweitert",
       "advancedHint": "Vergehen in derselben Eskalationsgruppe zählen zusammen: Jedes neue Vergehen innerhalb des Fensters führt eine Stufe weiter. Ohne Gruppe gilt der Schlüssel und das Standardfenster. Die meisten Vorlagen brauchen beides nicht.",
       "step": "Stufe {n}",
@@ -303,7 +395,18 @@
       "summaryTitle": "Das bedeutet",
       "summaryStep": "{n}. Vergehen: {duration}, −{cost} ELO",
       "summaryRepeat": "Weitere Vergehen wiederholen die letzte Stufe.",
-      "summaryStepFree": "{n}. Vergehen: {duration}, keine ELO-Kosten"
+      "summaryStepFree": "{n}. Vergehen: {duration}, keine ELO-Kosten",
+      "kind": "Stufenart (Stufe {n})",
+      "kinds": {
+        "PUNISH": "Strafe",
+        "KICK": "Kick",
+        "WARN": "Verwarnung"
+      },
+      "noDuration": "Ein Kick oder eine Verwarnung hat keine Dauer; es gilt nur die ELO-Kosten.",
+      "warnWindow": "Verwarnungsfenster",
+      "warnWindowHint": "Optional; Verwarnungen, die älter sind, zählen nicht mehr zur nächsten Stufe, z. B. 30d. Leer: Das Eskalationsfenster gilt.",
+      "summaryKick": "{n}. Vergehen: Kick, −{cost} ELO",
+      "summaryWarn": "{n}. Vergehen: Verwarnung, −{cost} ELO"
     }
   },
   "sections": {
@@ -406,6 +509,7 @@
     "empty": "Keine offenen Meldungen.",
     "showAll": "Alle Meldungen anzeigen",
     "noneYet": "Noch keine Meldungen.",
+    "selectHint": "Wähle eine Meldung aus, um sie hier zu sehen.",
     "resolved": "Meldung bearbeitet.",
     "columns": {
       "when": "Eingegangen",
@@ -477,6 +581,42 @@
       "dismissConfirm": "Meldung abweisen"
     }
   },
+  "appeal": {
+    "title": "Einspruch",
+    "type": "Einspruch",
+    "notFound": "Dieser Einspruch existiert nicht.",
+    "back": "Zurück zu den Einsprüchen",
+    "alreadyDecided": "Dieser Einspruch ist bereits entschieden.",
+    "tabs": {
+      "label": "Abschnitte des Einspruchs",
+      "conversation": "Unterhaltung",
+      "decision": "Entscheidung",
+      "case": "Strafe"
+    },
+    "summary": {
+      "submitted": "Eingegangen",
+      "statement": "Begründung",
+      "evidence": "Beweise",
+      "appellant": "Spieler"
+    },
+    "conversation": {
+      "none": "Es wurde noch keine Nachricht geschrieben.",
+      "playerLast": "Der Spieler hat zuletzt geschrieben. Antworte im Fall.",
+      "staffLast": "Das Team hat zuletzt geschrieben.",
+      "failed": "Die Unterhaltung konnte nicht geladen werden.",
+      "open": "Unterhaltung im Fall öffnen"
+    },
+    "decision": {
+      "waiting": "Wartet auf eine Entscheidung.",
+      "readOnly": "Nur lesen: Moderation handelt an Fällen und Einsprüchen.",
+      "noNote": "Zur Entscheidung wurde keine Notiz festgehalten.",
+      "updated": "Zuletzt geändert {when}"
+    },
+    "case": {
+      "open": "Fall {id} öffnen",
+      "hint": "Die Strafe, gegen die sich dieser Einspruch richtet."
+    }
+  },
   "appeals": {
     "title": "Einsprüche",
     "filter": "Welche Einsprüche angezeigt werden",
@@ -524,6 +664,7 @@
       "note": "Notiz",
       "noteHint": "Optional; wird mit der Entscheidung gespeichert",
       "confirm": "Entscheidung speichern",
+      "confirmReason": "Wähle eine Entscheidung, um sie zu speichern.",
       "playerMessage": "Nachricht an den Spieler",
       "playerMessageHint": "Optional; der Spieler kann sie im Einspruchsportal lesen. 1 bis 2000 Zeichen, keine UUIDs, IP-Adressen oder Ban-IDs. Die Notiz oben bleibt intern."
     },
@@ -817,6 +958,8 @@
   },
   "vanillaImport": {
     "title": "Vanilla-Bans importieren",
+    "tabsLabel": "Importart",
+    "newLink": "Neuer Vanilla-Import",
     "intro": "Übernimmt die Sperren eines Vanilla-Servers in Blackhole. Jede importierte Sperre wird mit einer Strafvorlage verknüpft, sodass Spieler den Grund der Vorlage in ihrer Sprache sehen. Importierte Sperren werden wie jede andere Strafe durchgesetzt und kosten kein ELO. Nutze zuerst die Vorschau: Sie ändert nichts.",
     "playersFile": "banned-players.json (Datei)",
     "paste": "oder den Inhalt von banned-players.json einfügen",
@@ -881,6 +1024,10 @@
     "confirm": "Jetzt verknüpfen",
     "done": "{linked} Strafen mit {template} verknüpft, {skipped} unberührt gelassen."
   },
+  "relayBanner": {
+    "absent": "{proxy} läuft ohne SignedVelocity. Signierte Mutes werden dort durchgesetzt, indem der stummgeschaltete Spieler getrennt wird, nicht durch Abbrechen der Nachricht. SignedVelocity auf dem Proxy und auf jedem Backend-Server installieren.",
+    "unknown": "Der SignedVelocity-Status von {proxy} ist unbekannt: Er hat sich seit einiger Zeit nicht gemeldet."
+  },
   "cloudnetCatalogue": {
     "title": "CloudNet-Katalog",
     "intro": "Was die Proxys aus CloudNet melden. Nur lesbar; der Bereichs-Editor nutzt ihn für Vorschläge.",
@@ -899,6 +1046,19 @@
     "none": "keine",
     "running": "Läuft",
     "stopped": "Gestoppt",
+    "tabsLabel": "Ansicht",
+    "tabs": {
+      "catalogue": "Tasks, Gruppen und Dienste",
+      "proxies": "Meldende Proxys"
+    },
+    "kinds": {
+      "tasks": "Task",
+      "groups": "Gruppe",
+      "services": "Dienst",
+      "proxies": "Proxy",
+      "unknown": "CloudNet-Eintrag"
+    },
+    "entryMissing": "Kein CloudNet-Eintrag mit diesem Namen. Die Proxys melden ihn womöglich nicht mehr.",
     "columns": {
       "task": "Task",
       "groups": "Gruppen",
@@ -906,8 +1066,83 @@
       "state": "Zustand"
     }
   },
+  "entity": {
+    "type": {
+      "case": "Fall",
+      "report": "Meldung",
+      "player": "Spieler",
+      "appeal": "Einspruch"
+    },
+    "owner": "Spieler",
+    "assignee": "Zuständig",
+    "unassigned": "Niemand zugewiesen",
+    "state": {
+      "case": {
+        "OPEN": "Offen",
+        "IN_REVIEW": "In Prüfung",
+        "WAITING": "Wartet",
+        "CLOSED": "Geschlossen"
+      },
+      "appeal": {
+        "SUBMITTED": "Eingereicht",
+        "ELIGIBLE_PENDING_REVIEW": "Prüfung ausstehend",
+        "IN_REVIEW": "In Prüfung",
+        "GRANTED_FULL_LIFT": "Stattgegeben: aufgehoben",
+        "GRANTED_DURATION_REDUCTION": "Stattgegeben: verkürzt",
+        "DENIED": "Abgelehnt",
+        "INELIGIBLE": "Nicht zulässig"
+      },
+      "report": {
+        "OPEN": "Offen",
+        "UNDER_REVIEW": "In Prüfung",
+        "ACTIONED": "Bearbeitet",
+        "DISMISSED": "Abgelehnt"
+      },
+      "player": {
+        "ACTIVE": "Bestraft",
+        "NONE": "Nicht bestraft"
+      }
+    },
+    "notice": {
+      "viewerCase": "Ein Betrachter kann einen Fall nicht ändern.",
+      "viewerReport": "Ein Betrachter kann eine Meldung nicht bearbeiten.",
+      "viewerPlayer": "Ein Betrachter kann einen Spieler nicht ändern.",
+      "reportResolved": "Diese Meldung ist bereits bearbeitet."
+    },
+    "caseDialog": {
+      "closeTitle": "Fall schließen?",
+      "reopenTitle": "Fall wieder öffnen?",
+      "closeBody": "Der Fall ist geschlossen. Du kannst das zehn Sekunden lang rückgängig machen.",
+      "reopenBody": "Der Fall wird wieder auf {status} gesetzt.",
+      "reopenLoading": "Der Status vor dem Schließen wird gesucht.",
+      "reopenFallback": "Es wurde kein früherer Status gefunden. Der Fall wird als Offen wieder geöffnet.",
+      "confirmClose": "Fall schließen",
+      "confirmReopen": "Fall wieder öffnen",
+      "viewer": "Ein Betrachter kann einen Fall nicht ändern.",
+      "conflict": "Der Fall wurde inzwischen geändert. Lade neu, um ihn zu sehen."
+    },
+    "undo": {
+      "action": "Rückgängig",
+      "undone": "Schließen rückgängig gemacht.",
+      "changed": "Der Fall wurde inzwischen geändert. Lade neu, um ihn zu sehen."
+    }
+  },
   "case": {
     "title": "Fall",
+    "tabs": {
+      "label": "Bereiche des Falls",
+      "overview": "Übersicht",
+      "conversation": "Konversation",
+      "audit": "Notizen & Audit",
+      "unseen": "{n} neue Nachricht | {n} neue Nachrichten"
+    },
+    "bar": {
+      "title": "Fallstatus",
+      "close": "Schließen",
+      "reopen": "Wieder öffnen",
+      "closed": "Fall geschlossen.",
+      "reopened": "Fall wieder geöffnet."
+    },
     "open": "Fall öffnen",
     "back": "Zurück zu allen Fällen",
     "header": {
@@ -971,6 +1206,8 @@
       "punishmentLifted": "Strafe per Einspruch aufgehoben",
       "punishmentRetemplated": "Mit Vorlage verknüpft",
       "punishmentExpired": "Strafe abgelaufen",
+      "punishmentWarned": "Verwarnung erteilt",
+      "punishmentAcknowledged": "Verwarnung vom Spieler bestätigt",
       "evidenceAttached": "Beweis angehängt",
       "evidenceLifted": "Beweis aufgehoben",
       "evidenceRevoked": "Beweis widerrufen",
@@ -979,6 +1216,7 @@
       "statusChanged": "Status geändert",
       "assigneeChanged": "Bearbeiter geändert",
       "tagsChanged": "Tags geändert",
+      "bulkEdited": "In einer Sammelaktion geändert",
       "priorityChanged": "Priorität geändert",
       "noteAdded": "Notiz hinzugefügt",
       "noteEdited": "Notiz bearbeitet",
@@ -995,7 +1233,8 @@
       "ticketOpened": "Discord-Ticket eröffnet",
       "ticketTranscriptComplete": "Discord-Verlauf als vollständig geprüft",
       "ticketArchived": "Discord-Kanal archiviert",
-      "ticketChannelDeleted": "Discord-Kanal gelöscht"
+      "ticketChannelDeleted": "Discord-Kanal gelöscht",
+      "ticketFrozen": "Discord-Kanal gesperrt oder entsperrt"
     },
     "detail": {
       "step": "Stufe {step} von {count}",
@@ -1098,9 +1337,54 @@
         "assignee": "Bearbeiter",
         "priority": "Priorität",
         "tags": "Tags",
-        "activity": "Letzte Aktivität"
+        "activity": "Letzte Aktivität",
+        "player": "Spieler"
       },
-      "noneYet": "Noch keine Fälle."
+      "noneYet": "Noch keine Fälle.",
+      "selectHint": "Wähle einen Fall aus, um ihn hier zu sehen.",
+      "view": "Ansicht",
+      "viewCases": "Alle Fälle",
+      "viewPlayer": "Nach Spieler",
+      "groupSummary": "{open} offen, {total} insgesamt",
+      "expandGroup": "Fälle von {player} anzeigen",
+      "collapseGroup": "Fälle von {player} ausblenden",
+      "groupCases": "Fälle von {player}",
+      "loadFailed": "Die Fälle konnten nicht geladen werden.",
+      "unknownPlayer": "Spieler {hash}",
+      "select": {
+        "column": "Auswählen",
+        "page": "Alle Fälle dieser Seite auswählen",
+        "case": "Fall {id} auswählen",
+        "player": "Alle Fälle von {player} auswählen",
+        "loaded": "Geladen {loaded} von {total}"
+      }
+    },
+    "bulk": {
+      "title": "{count} Fälle bearbeiten",
+      "change": "{field}: {change}",
+      "hint": "Die Änderung wird für jeden Fall einzeln angewendet. Ein zwischenzeitlich geänderter Fall wird als Konflikt gemeldet; die anderen werden trotzdem geändert.",
+      "keep": "Beibehalten",
+      "addTags": "Tags hinzufügen",
+      "removeTags": "Tags entfernen",
+      "close": "Schließen",
+      "apply": "Auf {count} Fälle anwenden",
+      "running": "Änderung wird angewendet",
+      "summary": "Aktualisiert {updated}, unverändert {unchanged}, Konflikte {conflicts}, nicht gefunden {notFound}, fehlgeschlagen {failed}.",
+      "reload": "Fälle neu laden",
+      "outcome": {
+        "UPDATED": "Aktualisiert",
+        "UNCHANGED": "Unverändert",
+        "CONFLICT": "Konflikt",
+        "NOT_FOUND": "Nicht gefunden",
+        "FAILED": "Fehlgeschlagen"
+      }
+    },
+    "selection": {
+      "region": "Ausgewählte Fälle",
+      "count": "{count} ausgewählt",
+      "limit": "Die Auswahl ist auf {cap} Fälle begrenzt.",
+      "clear": "Auswahl aufheben",
+      "edit": "Auswahl bearbeiten"
     },
     "reason": {
       "label": "Grund",
@@ -1108,6 +1392,8 @@
     },
     "conversation": {
       "title": "Unterhaltung",
+      "chatHint": "Enter sendet, Umschalt+Enter fügt eine Zeile ein. Der Spieler kann das lesen. Keine UUIDs, IP-Adressen oder Ban-IDs.",
+      "adminTools": "Admin-Werkzeuge",
       "thread": "{count} Nachrichten",
       "empty": "Noch keine Nachrichten.",
       "player": "Spieler",
@@ -1167,6 +1453,25 @@
       "withdrawn": "Freigabe eines Beweises zurückgezogen",
       "playerFile": "Vom Spieler geliefert, nicht geprüft",
       "reconnecting": "Live-Updates pausiert, Verbindung wird neu aufgebaut."
+    },
+    "lock": {
+      "title": "Ticket-Sperre",
+      "claimedBy": "Übernommen von",
+      "notClaimed": "Nicht übernommen",
+      "appeal": "Einspruch",
+      "decided": "Entschieden",
+      "notDecided": "Noch nicht entschieden",
+      "state": "Sperre",
+      "unlocked": "Nicht gesperrt",
+      "unknown": "Noch nicht bekannt. Sperren oder Entsperren hier zeigt den Stand.",
+      "lockedStaff": "Vom Team gesperrt",
+      "lockedLeak": "Vom Leak-Check gesperrt",
+      "lock": "Ticket sperren",
+      "unlock": "Ticket entsperren",
+      "leak": "Der Leak-Check hat dieses Ticket gesperrt. Das Team kann nicht entsperren, und solange es gesperrt ist, kann der Spieler nicht schreiben.",
+      "hint": "Ein gesperrtes Ticket nimmt keine Nachrichten des Spielers an. Das Team kann weiter schreiben.",
+      "lockedDone": "Ticket gesperrt.",
+      "unlockedDone": "Ticket entsperrt."
     },
     "tickets": {
       "title": "Discord-Tickets",
@@ -1300,7 +1605,31 @@
       "warning": "Der Spieler sieht diese Dateien, sobald Sie die Nachricht senden."
     }
   },
+  "punishedDetail": {
+    "notFound": "Dieser Eintrag existiert nicht oder wurde entfernt.",
+    "ambiguous": "Mehr als eine Strafe hat diese Kurz-ID.",
+    "noOwner": "Öffne den Spieler, um diese Strafe aufzuheben.",
+    "historyNeedsOwner": "Öffne den Spieler, um seinen Verlauf zu sehen."
+  },
   "punished": {
+    "detail": {
+      "title": "Strafe",
+      "heading": "Strafe {id}",
+      "open": "Details",
+      "tabs": {
+        "label": "Bereiche der Strafe",
+        "details": "Details",
+        "evidence": "Beweise",
+        "history": "Verlauf"
+      },
+      "section": "Bereich",
+      "reason": "Grund",
+      "term": "Dauer",
+      "since": "Seit",
+      "state": "Status",
+      "inForce": "Aktiv",
+      "lifted": "Aufgehoben oder beendet"
+    },
     "title": "Aktive Strafen",
     "kind": {
       "label": "Art",
@@ -1377,9 +1706,17 @@
     "hint": "Gib einen Spielernamen (3 bis 16 Zeichen), eine Fall-ID wie #A1B2C3D4 oder report: und eine Meldungs-ID ein.",
     "caseNotFound": "Zur Fall-ID {id} wurde nichts gefunden.",
     "ambiguous": "Die ID {id} passt zu {n} Fällen. Wähle einen aus.",
-    "report": "Meldung {id} öffnen"
+    "report": "Meldung {id} öffnen",
+    "types": {
+      "player": "Spieler",
+      "case": "Fall",
+      "report": "Meldung"
+    }
   },
   "appealConditions": {
+    "newVersion": "Neue Version",
+    "openVersion": "Version {version} öffnen",
+    "versionTitle": "Einspruchsbedingungen, Version {version}",
     "title": "Einspruchsbedingungen",
     "intro": "Spieler lesen diese Bedingungen und bestätigen sie, bevor sie einen Einspruch einreichen. Jedes Speichern erzeugt eine neue Version; frühere Versionen bleiben erhalten.",
     "current": "Aktuelle Version {version}",
@@ -1392,7 +1729,69 @@
     "history": "Frühere Versionen",
     "versionLine": "Version {version}, {when}"
   },
+  "audit": {
+    "title": "Audit-Protokoll",
+    "intro": "Jede Aktion des Teams, die neueste zuerst. Nur lesen: Ein Eintrag wird hier nie geändert.",
+    "noneYet": "Noch keine protokollierten Aktionen.",
+    "noMatches": "Kein Eintrag passt zu diesen Filtern.",
+    "loadMore": "Weitere laden",
+    "nextPage": "Nächste Seite",
+    "firstPage": "Erste Seite",
+    "entryLoading": "Der Eintrag wird geladen …",
+    "entryMissing": "Kein Audit-Eintrag mit dieser ID.",
+    "entryFailed": "Der Eintrag konnte nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
+    "details": "Details",
+    "filters": {
+      "action": "Aktion",
+      "allActions": "Alle Aktionen",
+      "actor": "Akteur (Staff-OID)",
+      "target": "Ziel (Fall oder Eigentümer)"
+    },
+    "columns": {
+      "when": "Wann",
+      "who": "Wer",
+      "surface": "Oberfläche",
+      "action": "Aktion",
+      "target": "Ziel"
+    },
+    "surfaces": {
+      "PANEL": "Panel",
+      "API": "API",
+      "IN_GAME": "Im Spiel",
+      "DISCORD": "Discord"
+    },
+    "actions": {
+      "kickCreate": "Spieler gekickt",
+      "kickMass": "Massen-Kick",
+      "punishmentRevoke": "Strafe aufgehoben",
+      "staffLinkUnlink": "Team-Verknüpfung gelöst"
+    },
+    "targets": {
+      "CASE": "Fall",
+      "PLAYER": "Spieler",
+      "SECTION": "Bereich",
+      "SERVER": "Server",
+      "NONE": "Keins"
+    },
+    "detail": {
+      "title": "Protokolleintrag",
+      "id": "Audit-ID",
+      "when": "Wann",
+      "actor": "Wer",
+      "recordedBy": "Erfasst von",
+      "surface": "Oberfläche",
+      "action": "Aktion",
+      "target": "Ziel",
+      "openCase": "Fall öffnen",
+      "openPlayer": "Spieler öffnen"
+    }
+  },
   "clientRules": {
+    "tab": {
+      "details": "Details",
+      "hits": "Treffer"
+    },
+    "tabs": "Ansichten der Regel",
     "title": "Client-Regeln",
     "intro": "Regeln über Client-Brand, Mods, Plugin-Kanäle, Protokollversion und Befehle. Der Proxy wendet sie an; jede Regel kann das Team benachrichtigen, die Verbindung oder den Befehl abweisen oder eine Strafvorlage anwenden.",
     "honesty": "Brand, Mods und Kanäle wählt der Client selbst und kann sie fälschen: Ein Treffer ist ein Hinweis, kein Beweis, und kein Treffer beweist nichts. Regeln darauf sind Abschreckung und ein Hinweis für das Team. Beginne jede Regel mit Hinweis, lies die Trefferzahlen und stelle sie erst dann auf Abweisen oder Strafe. Nur Protokollversion und Befehle beobachtet der Proxy selbst.",
@@ -1535,12 +1934,63 @@
   },
   "inbox": {
     "title": "Posteingang",
-    "needsAnswer": "Wartet auf Antwort",
-    "openAppeals": "Offene Einsprüche",
-    "newReports": "Neue Meldungen",
-    "unassignedCases": "Nicht zugewiesene Fälle",
     "showAll": "Alle anzeigen",
-    "empty": "Nichts wartet gerade"
+    "sections": {
+      "assigned": "Mir zugewiesen",
+      "urgent": "Nicht zugewiesen und dringend",
+      "appeals": "Einsprüche, die auf eine Entscheidung warten",
+      "answers": "Antworten ausstehend",
+      "reports": "Offene Meldungen",
+      "changed": "Von anderen geändert"
+    },
+    "empty": {
+      "assigned": "Dir ist kein Fall zugewiesen. Fälle, die du übernimmst, erscheinen hier.",
+      "urgent": "Kein dringender Fall wartet ohne Zuständigkeit.",
+      "appeals": "Kein Einspruch wartet auf eine Entscheidung.",
+      "answers": "Kein Spieler wartet auf eine Antwort.",
+      "reports": "Keine Meldung ist offen.",
+      "changed": "In den letzten 24 Stunden hat kein anderes Teammitglied einen Fall oder Einspruch geändert. Änderungen anderer erscheinen hier."
+    },
+    "noIdentity": "Dein Konto hat noch keine Mitarbeiter-Identität.",
+    "readOnly": "Nur lesen: Moderatorinnen und Moderatoren bearbeiten Fälle und Einsprüche.",
+    "assign": "Mir zuweisen",
+    "close": "Schließen",
+    "undo": "Rückgängig",
+    "assignedNotice": "Fall {reference} ist dir zugewiesen.",
+    "undone": "Die Zuweisung ist rückgängig gemacht.",
+    "closeDialog": {
+      "headline": "Fall {reference} schließen?",
+      "text": "Der Fall wird geschlossen. Du kannst ihn auf seiner Seite wieder öffnen.",
+      "confirm": "Fall schließen",
+      "cancel": "Abbrechen"
+    },
+    "conflict": "Der Fall hat sich inzwischen geändert. Lade die Seite neu, um ihn zu sehen.",
+    "types": {
+      "case": "Fall",
+      "appeal": "Einspruch",
+      "report": "Meldung",
+      "player": "Spieler"
+    },
+    "states": {
+      "appeal": "Wartet auf Entscheidung",
+      "answer": "Antwort ausstehend",
+      "report": "Offen"
+    },
+    "changed": {
+      "by": "von {name}",
+      "former": "von einem ehemaligen Teammitglied",
+      "changes": {
+        "status": "Status geändert",
+        "assignee": "Zuständigkeit geändert",
+        "priority": "Priorität geändert",
+        "tags": "Schlagworte geändert",
+        "note": "Notiz hinzugefügt oder geändert",
+        "message": "Nachricht geändert",
+        "appealFiled": "Einspruch eingereicht",
+        "appealDecided": "Einspruch entschieden",
+        "other": "Geändert"
+      }
+    }
   },
   "filters": {
     "clearAll": "Alle löschen",
@@ -1556,6 +2006,21 @@
     "switch": "Arbeitsbereich",
     "moderationHint": "Fälle, Einsprüche, Meldungen und Spieler",
     "administrationHint": "Vorlagen, Bereiche, Client-Regeln, Teamkonten und Importe"
+  },
+  "warn": {
+    "open": "Verwarnen",
+    "title": "Spieler verwarnen",
+    "intro": "Die Vorlage legt fest, was der Spieler bekommt: eine Verwarnung, einen Kick oder eine Strafe. Eine Verwarnung wird im Spiel gezeigt und einmal bestätigt.",
+    "submit": "Verwarnen",
+    "applied": "Angewendet:",
+    "close": "Schließen",
+    "done": "Vorlage {template} angewendet: {step}.",
+    "badge": "Verwarnung",
+    "pending": "Offen",
+    "acknowledged": "Bestätigt {when}",
+    "chip": {
+      "WARN": "Verwarnung"
+    }
   },
   "kick": {
     "title": "{name} kicken",
@@ -1599,7 +2064,532 @@
       "confirmLabel": "Zur Bestätigung den Namen des Ziels eintippen",
       "confirmHint": "\"{target}\" genau eintippen.",
       "submit": "Alle kicken",
-      "result": "Status: {status}. Von {count} Proxys zugestellt."
+      "result": "Status: {status}. Von {count} Proxys zugestellt.",
+      "newLink": "Neuer Massen-Kick",
+      "openKick": "Diesen Kick öffnen"
+    },
+    "detail": {
+      "title": "Kick",
+      "loading": "Der Kick wird geladen …",
+      "notFound": "Kein Kick mit dieser ID.",
+      "target": "Ziel",
+      "by": "Teammitglied",
+      "when": "Gesendet am",
+      "delivered": "Proxys, die ihn zugestellt haben"
     }
+  },
+  "intel": {
+    "classes": {
+      "VPN": "VPN",
+      "HOSTING": "Hosting",
+      "PROXY": "Proxy"
+    },
+    "classHint": {
+      "VPN": "Bekannte VPN-Netze.",
+      "HOSTING": "Hosting- und Rechenzentrumsnetze.",
+      "PROXY": "Bekannte offene Proxys."
+    },
+    "policies": {
+      "ALLOW": "Erlauben",
+      "FLAG": "Markieren",
+      "DENY": "Ablehnen"
+    },
+    "policy": {
+      "change": "Richtlinie ändern",
+      "backToList": "Zurück zur VPN- und Hosting-Richtlinie",
+      "editTitle": "Richtlinie von {classification} ändern",
+      "title": "VPN- und Hosting-Richtlinie",
+      "intro": "Was mit einer Anmeldung von einer VPN-, Hosting- oder Proxy-Adresse geschieht. Nur ein Administrator kann das ändern.",
+      "policyLabel": "Neue Richtlinie",
+      "save": "Änderung prüfen",
+      "confirmTitle": "Richtlinie ändern?",
+      "confirmBody": "{classification}: von {previous} zu {next} ändern?",
+      "confirm": "Richtlinie ändern",
+      "saved": "Richtlinie für {classification} als {policy} gespeichert."
+    },
+    "sources": {
+      "title": "Listenquellen",
+      "VPN": "VPN-Netze",
+      "HOSTING": "Rechenzentrums- und Hosting-Bereiche"
+    },
+    "source": {
+      "licence": "Lizenz: {licence}",
+      "status": {
+        "FRESH": "Aktuell",
+        "STALE": "Veraltet",
+        "FAILED": "Fehlgeschlagen"
+      },
+      "notReported": "Status nicht gemeldet",
+      "lastOk": "Letzte erfolgreiche Aktualisierung: {when}"
+    },
+    "allowList": {
+      "columns": {
+        "player": "Spieler",
+        "reason": "Grund",
+        "expires": "Läuft ab",
+        "added": "Hinzugefügt",
+        "actor": "Hinzugefügt von"
+      },
+      "new": "Neue Ausnahme",
+      "empty": "Keine Ausnahmen auf dieser Seite.",
+      "pages": "Seiten",
+      "previous": "Vorherige Seite",
+      "next": "Nächste Seite",
+      "entry": {
+        "title": "Ausnahme",
+        "back": "Zurück zu den Ausnahmen",
+        "active": "Aktiv"
+      },
+      "remove": {
+        "open": "Ausnahme entfernen",
+        "title": "Ausnahme entfernen?",
+        "body": "Der Spieler wird beim nächsten Login wieder gegen die VPN- und Hosting-Richtlinie geprüft.",
+        "confirm": "Entfernen"
+      },
+      "title": "Ausnahmeliste",
+      "intro": "Befreit einen Spieler für eine Zeit von der VPN- und Hosting-Richtlinie. Der Grund wird mit der Ausnahme gespeichert.",
+      "readonly": "Nur Moderatoren können Ausnahmen anlegen.",
+      "player": "Spielername",
+      "playerHint": "Der Name wird vor dem Speichern der Ausnahme dem Spieler zugeordnet.",
+      "reason": "Grund",
+      "reasonRequired": "Nenne einen Grund für die Ausnahme. Senden bleibt bis dahin deaktiviert.",
+      "reasonTooLong": "Höchstens 200 Zeichen.",
+      "duration": "Dauer",
+      "days": "{days} Tage",
+      "permanent": "Dauerhaft",
+      "permanentLabel": "Dauerhaft",
+      "expired": "Abgelaufen",
+      "until": "Bis {when}",
+      "submit": "Ausnahme hinzufügen",
+      "added": "In diesem Besuch hinzugefügt"
+    },
+    "hits": {
+      "title": "VPN- und Hosting-Anmeldungen",
+      "hint": "Anmeldungen dieses Spielers von einer VPN-, Hosting- oder Proxy-Adresse. Die Adresse selbst wird nicht angezeigt.",
+      "empty": "Für diesen Spieler wurde keine VPN- oder Hosting-Anmeldung erfasst.",
+      "allowListedYes": "Bei der letzten Anmeldung auf der Ausnahmeliste.",
+      "allowListedNo": "Bei der letzten Anmeldung nicht auf der Ausnahmeliste.",
+      "yes": "Ja",
+      "no": "Nein",
+      "columns": {
+        "time": "Zeit",
+        "class": "Klasse",
+        "source": "Quelle",
+        "verdict": "Entscheidung",
+        "allowListed": "Ausnahme"
+      }
+    }
+  },
+  "rollback": {
+    "title": "Rollback eines Teammitglieds",
+    "intro": "Macht rückgängig, was die Strafen eines Teammitglieds in einem Zeitraum bewirkt haben, so wie eine manuelle Aufhebung. Zuerst die Vorschau: Es ändert sich nichts, bis Sie bestätigen.",
+    "mode": {
+      "label": "Wessen Strafen",
+      "STAFF": "Teammitglied",
+      "UNLINKED": "Nicht verknüpfter Spielaccount"
+    },
+    "staff": {
+      "label": "Teammitglied",
+      "choose": "Teammitglied wählen"
+    },
+    "uuid": {
+      "invalid": "Geben Sie die UUID mit Bindestrichen ein, zum Beispiel 069a79f4-44e9-4726-a5be-fca90e38aaf5.",
+      "label": "Minecraft-UUID",
+      "hint": "Die UUID des nicht verknüpften Spielaccounts, mit Bindestrichen."
+    },
+    "window": {
+      "from": "Von",
+      "to": "Bis",
+      "invalid": "Das Ende muss nach dem Anfang liegen."
+    },
+    "preview": "Vorschau",
+    "loading": "Wird berechnet...",
+    "byKind": "Nach Art",
+    "bySection": "Nach Bereich",
+    "revocable": "Aufzuhebende Strafen",
+    "alreadyInactive": "Bereits inaktiv (unverändert)",
+    "players": "Betroffene Spieler",
+    "kicks": "Kicks im Zeitraum",
+    "expires": "Die Vorschau läuft um {time} ab. Starten Sie sie vorher.",
+    "nothing": "Im Zeitraum passt nichts. Es würde sich nichts ändern.",
+    "back": "Zurück",
+    "continue": "Weiter",
+    "confirm": {
+      "title": "{name} zurückrollen?",
+      "counts": "Hebt {revocable} Strafen von {players} Spielern auf. Kicks im Zeitraum: {kicks}.",
+      "manual": "Jede Strafe wird wie bei einer manuellen Aufhebung aufgehoben, Akteur sind Sie.",
+      "submit": "Rollback starten"
+    },
+    "options": {
+      "marks": "{count} Kicks als zurückgerollt markieren",
+      "marksAll": "Die Kicks im Zeitraum als zurückgerollt markieren",
+      "marksHint": "Nur ein Vermerk im Verlauf. Kicks werden nie aufgehoben, am ELO ändert sich nichts.",
+      "suspend": "Minecraft-Verknüpfung dieses Teammitglieds entfernen",
+      "suspendHint": "Geschieht vor der ersten Aufhebung. Die Person kann sich später erneut verknüpfen."
+    },
+    "reason": {
+      "label": "Begründung",
+      "hint": "Steht im Audit-Log. 1 bis 500 Zeichen.",
+      "tooLong": "Höchstens 500 Zeichen."
+    },
+    "state": {
+      "PREVIEW": "Vorschau",
+      "RUNNING": "Läuft",
+      "COMPLETED": "Abgeschlossen",
+      "CANCELLED": "Abgebrochen"
+    },
+    "items": {
+      "PENDING": "Ausstehend",
+      "REVOKED": "Aufgehoben",
+      "SKIPPED": "Übersprungen",
+      "FAILED": "Fehlgeschlagen"
+    },
+    "progress": {
+      "label": "Fortschritt des Rollbacks",
+      "cancel": "Rollback abbrechen",
+      "retry": "Erneut prüfen",
+      "again": "Neuer Rollback"
+    },
+    "done": {
+      "COMPLETED": "Fertig. Die Strafen sind aufgehoben.",
+      "CANCELLED": "Abgebrochen. Bereits aufgehobene Strafen bleiben aufgehoben."
+    },
+    "started": "Der Rollback läuft.",
+    "error": {
+      "selectorInvalid": "Das kann nicht zurückgerollt werden. Wählen Sie ein Teammitglied oder einen nicht verknüpften Spielaccount.",
+      "tooLarge": "Zu viele Strafen passen. Engen Sie den Zeitraum ein und prüfen Sie erneut."
+    },
+    "noStaff": "Noch keine Teammitglieder bekannt.",
+    "new": {
+      "title": "Neuer Rollback"
+    },
+    "jobs": {
+      "title": "Rollback-Auftrag",
+      "newLink": "Neuer Rollback",
+      "open": "Rollback öffnen",
+      "previewReady": "Die Vorschau ist fertig. Noch hat sich nichts geändert.",
+      "pending": "{count} Strafen sind für diesen Rollback festgehalten. Erst mit dem Start wird etwas zurückgenommen.",
+      "execute": "Rollback starten …",
+      "executeTitle": "Diesen Rollback starten?",
+      "cancelTitle": "Diesen Rollback abbrechen?",
+      "cancelBody": "Ein Rollback, der nicht gestartet wurde, ändert nichts. Ein laufender Rollback hält vor dem nächsten Eintrag an; bereits zurückgenommene Einträge bleiben zurückgenommen.",
+      "alreadyEnded": "Dieser Rollback ist schon beendet und kann nicht mehr abgebrochen werden.",
+      "notFound": "Kein Rollback mit dieser ID."
+    }
+  },
+  "exemption": {
+    "badge": {
+      "linked": "Verknüpftes Teammitglied",
+      "exempt": "Ausgenommen",
+      "protectedAt": "Geschützt im Rang {rank}.",
+      "permissionNote": "Eine Berechtigung, die entfernt wurde, während der Spieler offline war, schützt bis zum nächsten Login weiter."
+    },
+    "rank": {
+      "ADMIN": "Administrator",
+      "MODERATOR": "Moderator"
+    },
+    "refused": {
+      "title": "Geschützter Spieler",
+      "moderator": "Nur ein Administrator kann eine Strafe für einen geschützten Spieler verhängen. Bitte einen Administrator um eine Entscheidung.",
+      "admin": "Als Administrator kannst du sie trotzdem verhängen. Die Begründung wird bei der Strafe gespeichert."
+    },
+    "override": {
+      "label": "Begründung",
+      "hint": "1 bis 500 Zeichen. Keine UUID und keine IP-Adresse angeben.",
+      "empty": "Bitte eine Begründung eingeben.",
+      "tooLong": "Höchstens 500 Zeichen.",
+      "submit": "Mit Ausnahme verhängen"
+    }
+  },
+  "exemptionReviews": {
+    "title": "Schutzprüfungen",
+    "intro": "Automatische Strafen, die zurückgehalten wurden, weil der Spieler geschützt ist. Verhänge eine mit Begründung oder verwirf sie. Jede Prüfung wird nur einmal entschieden.",
+    "empty": "Keine offenen Schutzprüfungen.",
+    "columns": {
+      "player": "Spieler",
+      "section": "Bereich",
+      "track": "Spur",
+      "score": "Wert",
+      "crossed": "Erreicht am",
+      "decision": "Entscheidung"
+    },
+    "apply": {
+      "open": "Verhängen",
+      "title": "Zurückgehaltene Strafe verhängen",
+      "intro": "Verhängt die zurückgehaltene Strafe. Die Begründung wird bei ihr gespeichert.",
+      "confirm": "Verhängen"
+    },
+    "dismiss": {
+      "open": "Verwerfen",
+      "title": "Prüfung verwerfen",
+      "intro": "Schließt die Prüfung ohne Strafe. Die Änderung des Wertes bleibt bestehen.",
+      "confirm": "Verwerfen"
+    },
+    "justification": {
+      "label": "Begründung",
+      "hint": "1 bis 500 Zeichen. Keine UUID und keine IP-Adresse angeben.",
+      "empty": "Bitte eine Begründung eingeben.",
+      "tooLong": "Höchstens 500 Zeichen."
+    },
+    "applied": "Prüfung verhängt.",
+    "dismissed": "Prüfung verworfen.",
+    "state": {
+      "OPEN": "Offen",
+      "APPLIED": "Verhängt",
+      "DISMISSED": "Verworfen"
+    },
+    "detail": {
+      "title": "Schutzprüfung",
+      "state": "Status",
+      "justification": "Begründung",
+      "open": "Öffnen",
+      "back": "Zurück zu den Prüfungen",
+      "notFound": "Es gibt keine solche Prüfung."
+    }
+  },
+  "guard": {
+    "title": "Beitrittsschutz",
+    "intro": "Entscheidet, wer dem Netzwerk gerade beitreten darf. Gilt die strengere Stufe aus der manuellen Stufe und der Stufe der unbeaufsichtigten Auswertung.",
+    "effective": "Aktuelle Stufe",
+    "level": {
+      "OFF": "Aus",
+      "STRICT": "Streng",
+      "LOCKDOWN": "Sperre"
+    },
+    "source": {
+      "manual": "Manuell gesetzt",
+      "unattended": "Von der unbeaufsichtigten Auswertung gesetzt",
+      "cleared": "Keine Stufe aktiv"
+    },
+    "manualLevel": "Manuelle Stufe",
+    "unattendedLevel": "Stufe der Auswertung",
+    "updatedAt": "Letzte Änderung",
+    "set": {
+      "title": "Manuelle Stufe setzen",
+      "hint": "Eine niedrigere Stufe ist nicht eingeschränkt. Jede Änderung wird festgehalten.",
+      "open": "Stufe setzen"
+    },
+    "saved": "Manuelle Stufe auf {level} gesetzt.",
+    "readOnly": "Nur Moderation und Administration können die Stufe ändern.",
+    "settings": {
+      "open": "Einstellungen des Beitrittsschutzes öffnen",
+      "edit": "Einstellungen bearbeiten",
+      "backToGuard": "Zurück zum Beitrittsschutz",
+      "title": "Einstellungen ohne Aufsicht",
+      "intro": "Wirkt auf jedem Replikat innerhalb von etwa 30 Sekunden. Jede Speicherung wird festgehalten.",
+      "level": "Stufe ohne Aufsicht",
+      "threshold": "Abwesenheitsschwelle in Minuten",
+      "thresholdHelp": "Von 5 bis 240 Minuten, nur ganze Minuten.",
+      "nightWindow": "Nachtfenster",
+      "nightEnabled": "Nachtfenster gilt",
+      "nightStart": "Nachtfenster Beginn",
+      "nightEnd": "Nachtfenster Ende",
+      "nightEndHelp": "Diese Uhrzeit gehört nicht zum Nachtfenster.",
+      "zone": "Zeitzone",
+      "window": "{start} bis {end}",
+      "nextWindow": "Nächstes Nachtfenster: {window} in Ihrer Zeitzone. Eingestellte Zeitzone: {zone}.",
+      "noNightWindow": "Kein Nachtfenster gilt: Das Fenster ist deaktiviert.",
+      "disabled": "Deaktiviert",
+      "minutesValue": "{n} Minuten",
+      "save": "Einstellungen speichern",
+      "saved": "Einstellungen ohne Aufsicht gespeichert.",
+      "readOnly": "Nur Administratorinnen und Administratoren können diese Einstellungen ändern.",
+      "problem": {
+        "threshold": "Bitte eine ganze Zahl an Minuten von {min} bis {max} eingeben.",
+        "window": "Beginn und Ende müssen verschiedene Uhrzeiten im Format HH:mm sein.",
+        "zone": "Bitte eine Zeitzone wählen."
+      },
+      "confirm": {
+        "title": "Stufe ohne Aufsicht auf {level} setzen?",
+        "body": "Solange kein Teammitglied online ist, dürfen nur dem Netzwerk bekannte Spielerinnen und Spieler beitreten. {level} nur setzen, wenn unbekannte Spielerinnen und Spieler ferngehalten werden müssen."
+      }
+    },
+    "confirm": {
+      "title": "Beitrittsschutz setzen?",
+      "body": "Die manuelle Stufe wird {level}.",
+      "confirm": "Stufe setzen"
+    },
+    "tile": {
+      "title": "Beitrittsschutz",
+      "bans": "{n} aktive Gebietssperre | {n} aktive Gebietssperren"
+    }
+  },
+  "areaBans": {
+    "detail": {
+      "title": "Gebietssperre",
+      "backToList": "Zurück zu den Gebietssperren",
+      "created": "Angelegt",
+      "lifted": "Aufgehoben am"
+    },
+    "title": "Gebietssperren",
+    "intro": "Autonome Systeme (ASN) und Länder, deren Verbindungen beim Beitritt abgewiesen werden.",
+    "kind": {
+      "ASN": "ASN",
+      "COUNTRY": "Land"
+    },
+    "columns": {
+      "kind": "Art",
+      "value": "Gebiet",
+      "reason": "Grund",
+      "source": "Quelle",
+      "expires": "Ende",
+      "status": "Status",
+      "actions": "Aktionen"
+    },
+    "status": {
+      "active": "Aktiv",
+      "expired": "Abgelaufen",
+      "lifted": "Aufgehoben"
+    },
+    "permanent": "Dauerhaft",
+    "liftedAt": "Aufgehoben am {when}",
+    "showInactive": "Aufgehobene und abgelaufene Sperren zeigen",
+    "showInactiveHint": "Aufgehobene und abgelaufene Sperren bleiben in der Historie.",
+    "empty": "Keine Gebietssperren.",
+    "create": {
+      "open": "Neue Gebietssperre",
+      "title": "Neue Gebietssperre",
+      "intro": "Weist Beitritte aus einem autonomen System oder einem Land ab.",
+      "confirm": "Sperren"
+    },
+    "value": {
+      "asn": "ASN",
+      "asnHint": "Die Nummer, mit oder ohne AS",
+      "country": "Ländercode",
+      "countryHint": "Zwei Buchstaben nach ISO 3166 (z. B. DE)"
+    },
+    "reasonHint": "Bis zu {max} Zeichen. Wird mit der Sperre gespeichert.",
+    "duration": {
+      "label": "Dauer",
+      "days": "{n} Tag | {n} Tage",
+      "permanent": "Dauerhaft"
+    },
+    "moderatorLimit": "Moderation kann höchstens sieben Tage sperren.",
+    "created": "Gebietssperre angelegt.",
+    "lifted": "Gebietssperre aufgehoben.",
+    "lift": {
+      "open": "Aufheben",
+      "title": "Gebietssperre aufheben",
+      "body": "{value} wird nach dem Aufheben nicht mehr abgewiesen. Die Sperre bleibt in der Historie.",
+      "reason": "Grund",
+      "reasonHint": "Pflichtfeld",
+      "confirm": "Sperre aufheben"
+  }
+},
+  "ipBans": {
+    "detail": {
+      "title": "IP-Sperre",
+      "backToList": "Zurück zu den IP-Sperren",
+      "lifted": "Aufgehoben am",
+      "liftReason": "Grund der Aufhebung"
+    },
+    "title": "IP-Sperren",
+    "intro": "Hält eine Adresse oder einen Bereich an der Firewall und auf jedem Proxy. Die Liste zeigt die Klartext-Adresse und ist nur für das Team.",
+    "new": "Neue IP-Sperre",
+    "readOnly": "Du kannst die IP-Sperren lesen. Anlegen und Aufheben braucht die Rolle Moderator.",
+    "filter": {
+      "label": "Anzeigen",
+      "active": "Aktiv",
+      "lifted": "Aufgehoben"
+    },
+    "columns": {
+      "range": "Adresse oder Bereich",
+      "reason": "Grund",
+      "state": "Status",
+      "source": "Quelle",
+      "created": "Gesperrt",
+      "expires": "Läuft ab",
+      "actor": "Akteur",
+      "actions": "Aktionen"
+    },
+    "state": {
+      "active": "Aktiv",
+      "lifted": "Aufgehoben",
+      "expired": "Abgelaufen"
+    },
+    "source": {
+      "PANEL": "Panel",
+      "COMMAND": "Befehl"
+    },
+    "permanent": "Dauerhaft",
+    "noActor": "Kein Akteur",
+    "empty": "Keine aktiven IP-Sperren.",
+    "emptyLifted": "Keine aufgehobenen oder abgelaufenen IP-Sperren.",
+    "create": {
+      "title": "Neue IP-Sperre",
+      "address": "Adresse oder Bereich",
+      "addressHint": "Eine IPv4- oder IPv6-Adresse oder ein CIDR-Bereich, z. B. 203.0.113.0/24.",
+      "reason": "Grund",
+      "reasonHint": "1 bis {max} Zeichen. Das Team liest ihn.",
+      "duration": "Dauer",
+      "moderatorCap": "Moderatoren können höchstens 30 Tage sperren.",
+      "permanent": "Dauerhaft",
+      "permanentHint": "Nur für Administratoren. Die Sperre läuft erst ab, wenn sie aufgehoben wird.",
+      "submit": "Sperren"
+    },
+    "validation": {
+      "address": {
+        "empty": "Gib eine Adresse oder einen Bereich ein.",
+        "invalid": "Gib eine IPv4- oder IPv6-Adresse oder einen CIDR-Bereich wie 203.0.113.0/24 ein.",
+        "tooWide": "Ein so breiter Bereich wird abgelehnt. IPv4-Bereiche brauchen /16 oder enger, IPv6-Bereiche /32 oder enger."
+      },
+      "reason": {
+        "empty": "Gib einen Grund ein.",
+        "tooLong": "Höchstens 200 Zeichen."
+      },
+      "duration": {
+        "tooLong": "Moderatoren können höchstens 30 Tage sperren."
+      }
+    },
+    "errors": {
+      "protected": "Diese Adresse ist geschützt und kann nicht gesperrt werden.",
+      "tooWide": "Dieser Bereich ist zu breit, um ihn hier zu sperren.",
+      "forbiddenDuration": "Moderatoren können höchstens 30 Tage sperren. Für eine längere oder dauerhafte Sperre einen Administrator fragen.",
+      "alreadyBanned": "Eine aktive Sperre umfasst diese Adresse oder diesen Bereich bereits.",
+      "notActive": "Diese Sperre ist nicht mehr aktiv."
+    },
+    "created": {
+      "done": "Die IP-Sperre wurde gespeichert.",
+      "withWarnings": "Die IP-Sperre wurde gespeichert. Hinweis: {warnings}"
+    },
+    "lift": {
+      "open": "Sperre aufheben",
+      "title": "IP-Sperre aufheben?",
+      "body": "Die Adresse wird an der Firewall und auf den Proxies freigegeben. Die Sperre bleibt als aufgehoben in der Liste.",
+      "reason": "Grund für die Aufhebung",
+      "reasonHint": "1 bis {max} Zeichen.",
+      "reasonRequired": "Ein Grund ist erforderlich.",
+      "submit": "Aufheben",
+      "done": "Die IP-Sperre wurde aufgehoben."
+    }
+  },
+  "copyLink": {
+    "button": "Link kopieren",
+    "copied": "Link in die Zwischenablage kopiert.",
+    "failed": "Der Link konnte nicht kopiert werden. Kopiere ihn aus der Adresszeile."
+  },
+  "configDetail": {
+    "notFound": "Dieser Eintrag existiert nicht oder wurde entfernt.",
+    "backToList": "Zurück zur Liste"
+  },
+  "routedDialog": {
+    "notFoundTitle": "Nicht gefunden",
+    "close": "Schließen",
+    "notFound": "Dieser Eintrag existiert nicht oder wurde entfernt.",
+    "backToPage": "Zurück zur Seite",
+    "actionFailed": "Die Änderung wurde nicht gespeichert. Lade die Seite neu, um die aktuelle Version zu sehen."
+  },
+  "integration": {
+    "title": "Erkennung einer Integration",
+    "reportedBy": "Gemeldet von {source}",
+    "signalNotVerdict": "Ein Hinweis, kein Urteil: das Team entscheidet.",
+    "kind": "Art",
+    "server": "Server",
+    "detectionTime": "Zeitpunkt",
+    "reportedSeverity": "Gemeldete Schwere",
+    "payload": "Gemeldete Werte",
+    "field": "Feld",
+    "value": "Wert",
+    "notReported": "nicht gemeldet"
   }
 }

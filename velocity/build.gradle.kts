@@ -14,6 +14,8 @@ dependencies {
     implementation(libs.cloud.velocity)
     // Receives the backend's events (subscribe-only, no publishing); relocated in the shadow jar.
     implementation(libs.nats.jnats)
+    // Reports the plugin's own errors to the self-hosted Sentry; off unless SENTRY_DSN is set. Relocated in the shadow jar.
+    implementation(libs.sentry)
 
     // client's jackson-databind is `implementation`-scoped there, so it isn't exposed
     // transitively - needed here directly to read the event envelopes of NatsSyncService.
@@ -32,12 +34,19 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     // The NATS integration tests run against a real server (Testcontainers has no NATS module: a plain container).
     testImplementation(mn.testcontainers.core)
+    // A logging binding for the tests, so a test can capture what the plugin logs (the runtime proxy provides its own).
+    testImplementation(mn.logback.classic)
 }
 
 tasks {
     shadowJar {
         // Other plugins on the proxy may ship their own NATS client.
         relocate("io.nats", "net.onelitefeather.blackhole.velocity.libs.nats")
+        relocate("io.sentry", "net.onelitefeather.blackhole.velocity.libs.sentry")
+        // The plugin reads its release from this attribute: the @Plugin annotation carries its own, older version.
+        manifest {
+            attributes("Implementation-Version" to project.version)
+        }
     }
     runVelocity {
         // Configure the Velocity version for our task.

@@ -2,6 +2,8 @@ package net.onelitefeather.blackhole.backend.discord.controller;
 
 import io.micronaut.core.version.annotation.Version;
 import io.micronaut.http.HttpResponse;
+import net.onelitefeather.blackhole.backend.audit.AuditHeaders;
+import net.onelitefeather.blackhole.backend.security.Actor;
 import io.micronaut.http.annotation.Controller;
 import io.micronaut.security.annotation.Secured;
 import jakarta.inject.Inject;
@@ -34,7 +36,7 @@ public class AdminDiscordLinkController implements DiscordLinkApi.Admin {
 
     @Override
     @Secured(Roles.ADMIN)
-    public HttpResponse<DiscordLinkDTO> remove(UUID id) {
-        return StaffDiscordLinkController.respond(this.service.adminRemove(id));
+    public HttpResponse<DiscordLinkDTO> remove(UUID id, Actor actor) {
+        return AuditHeaders.audited(StaffDiscordLinkController.respond(this.service.adminRemove(id, actor)), actor);
     }
 }

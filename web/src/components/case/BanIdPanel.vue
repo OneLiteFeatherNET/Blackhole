@@ -94,8 +94,8 @@ const leakReason = (): string => {
     <p class="text-body-small text-on-surface-variant">{{ t('case.banId.hint') }}</p>
 
     <div v-if="session.moderator" class="flex flex-wrap gap-2">
-      <MdButton variant="outlined" :disabled="kase.banIdLeakedAt != null" data-testid="ban-id-leak" @click="leaking = true">{{ t('case.banId.markLeaked') }}</MdButton>
-      <MdButton v-if="session.administrator" variant="outlined" data-testid="ban-id-reissue" @click="reissuing = true">{{ t('case.banId.reissue') }}</MdButton>
+      <MdButton variant="outlined-error" :disabled="kase.banIdLeakedAt != null" data-testid="ban-id-leak" @click="leaking = true">{{ t('case.banId.markLeaked') }}</MdButton>
+      <MdButton v-if="session.administrator" variant="outlined-error" data-testid="ban-id-reissue" @click="reissuing = true">{{ t('case.banId.reissue') }}</MdButton>
     </div>
     <p v-else class="text-body-medium text-on-surface-variant" data-testid="ban-id-read-only">{{ t('case.banId.readOnly') }}</p>
 

@@ -33,6 +33,15 @@ final class ChannelTexts {
         return "This channel is open again.\nDieser Kanal ist wieder geöffnet.";
     }
 
+    static @NotNull String staffLocked() {
+        return "This channel is locked by the moderation team. The player side is closed; the team can still write.\n"
+                + "Dieser Kanal wurde vom Moderationsteam gesperrt. Die Spielerseite ist geschlossen; das Team kann weiter schreiben.";
+    }
+
+    static @NotNull String staffUnlocked() {
+        return "The moderation team unlocked this channel.\nDas Moderationsteam hat die Sperre dieses Kanals aufgehoben.";
+    }
+
     static @NotNull String archived(@NotNull Duration deleteAfter, @NotNull Instant now) {
         if (deleteAfter.isZero()) {
             return "This appeal is decided and archived. The conversation is stored with the case.\n"

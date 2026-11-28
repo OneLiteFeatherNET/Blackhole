@@ -1,6 +1,8 @@
 package net.onelitefeather.blackhole.discord.command;
 
 import net.onelitefeather.blackhole.discord.backend.BackendGateway;
+import net.onelitefeather.blackhole.discord.backend.BackendGateway.GuardOutcome;
+import net.onelitefeather.blackhole.discord.backend.BackendGateway.StaffLink;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -17,6 +19,22 @@ final class FakeBackend extends net.onelitefeather.blackhole.discord.testing.Uns
     NotificationResult reportResult = new NotificationResult.NotFound();
     NotificationResult appealResult = new NotificationResult.NotFound();
     int notificationCalls;
+    StaffLink staffLinkResult = new StaffLink.NotLinked();
+    GuardOutcome guardResult = new GuardOutcome.Unavailable(0);
+    final List<String> staffLookups = new ArrayList<>();
+    final List<String> guardCalls = new ArrayList<>();
+
+    @Override
+    public @NotNull StaffLink staffLink(@NotNull String discordUserId) {
+        this.staffLookups.add(discordUserId);
+        return this.staffLinkResult;
+    }
+
+    @Override
+    public @NotNull GuardOutcome setGuardLevel(@NotNull String level, @NotNull String staffOid) {
+        this.guardCalls.add(level + "/" + staffOid);
+        return this.guardResult;
+    }
 
     @Override
     public @NotNull NotificationResult report(@NotNull String identifier) {

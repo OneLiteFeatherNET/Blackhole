@@ -69,6 +69,22 @@ public class JdbcAppealConditionsStore implements AppealConditionsStore {
         }
     }
 
+    @Override
+    public Optional<Version> find(int version) {
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement("SELECT " + COLUMNS + " FROM appeal_conditions WHERE version = ?")) {
+            statement.setInt(1, version);
+            try (ResultSet rows = statement.executeQuery()) {
+                if (!rows.next()) {
+                    return Optional.empty();
+                }
+                return Optional.of(new Version(rows.getInt(1), rows.getString(2), rows.getLong(3), rows.getObject(4, UUID.class)));
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException("could not read the appeal conditions", e);
+        }
+    }
+
     private List<Version> query(String sql) {
         try (Connection connection = this.dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(sql);

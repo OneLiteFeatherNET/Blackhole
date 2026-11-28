@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { leavePath } from '../chat/links'
 import { createPortalI18n } from '../i18n'
 import ChatLightbox from '../components/ChatLightbox.vue'
@@ -82,26 +82,52 @@ describe('the interstitial', () => {
 })
 
 describe('the lightbox', () => {
+  /** jsdom has no modal dialog: these stand in for the browser's showModal and close, which set `open` and fire `close`. */
+  function installModalDialog() {
+    const showModal = vi.fn(function (this: HTMLDialogElement) {
+      this.open = true
+    })
+    const close = vi.fn(function (this: HTMLDialogElement) {
+      this.open = false
+      this.dispatchEvent(new Event('close'))
+    })
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, writable: true, value: showModal })
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, writable: true, value: close })
+    return { showModal, close }
+  }
+
+  const patched = ['showModal', 'close'] as const
+  const originals = patched.map((name) => [name, Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, name)] as const)
+  afterEach(() => {
+    for (const [name, descriptor] of originals) {
+      if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, name, descriptor)
+      else delete (HTMLDialogElement.prototype as unknown as Record<string, unknown>)[name]
+    }
+  })
+
   function mountBox(src: string | null, name = 'shot.png') {
     return mount(ChatLightbox, { props: { src, name }, global: { plugins: [createPortalI18n()] }, attachTo: document.body })
   }
 
-  it('shows nothing without an image', () => {
+  it('shows no image and stays closed without a picture', () => {
+    installModalDialog()
     const wrapper = mountBox(null)
 
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect((wrapper.get('dialog').element as HTMLDialogElement).open).toBe(false)
   })
 
-  it('is a modal dialog named for images, with its image alt text from the file name', () => {
+  it('opens as a modal dialog, so the page behind it is inert', () => {
+    const { showModal } = installModalDialog()
     const wrapper = mountBox('/api/attachments/x1')
 
-    const dialog = wrapper.get('[role="dialog"]')
-    expect(dialog.attributes('aria-modal')).toBe('true')
-    expect(dialog.attributes('aria-label')).toBe('Image')
+    expect(showModal).toHaveBeenCalledOnce()
+    expect(wrapper.get('dialog').attributes('aria-label')).toBe('Image')
     expect(wrapper.get('img').attributes('alt')).toBe('shot.png')
   })
 
   it('takes the focus to its close button when it opens', async () => {
+    installModalDialog()
     const wrapper = mountBox(null)
     await wrapper.setProps({ src: '/api/attachments/x1' })
     await flushPromises()
@@ -109,12 +135,40 @@ describe('the lightbox', () => {
     expect(document.activeElement?.textContent?.trim()).toBe('Close')
   })
 
-  it('closes on Escape and on its button', async () => {
+  it('gives the focus back to what opened it when it closes', async () => {
+    installModalDialog()
+    const opener = document.createElement('button')
+    document.body.appendChild(opener)
+    opener.focus()
+    const wrapper = mountBox(null)
+    await wrapper.setProps({ src: '/api/attachments/x1' })
+    await flushPromises()
+    expect(document.activeElement, 'focus moved into the dialog').not.toBe(opener)
+
+    await wrapper.setProps({ src: null })
+    await flushPromises()
+
+    expect(document.activeElement).toBe(opener)
+    opener.remove()
+  })
+
+  it('tells the page when the dialog is closed with Escape', () => {
+    installModalDialog()
     const wrapper = mountBox('/api/attachments/x1')
 
-    await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' })
+    // The browser closes a dialog on Escape and fires its close event; the page learns of it from that event.
+    wrapper.get('dialog').element.dispatchEvent(new Event('close'))
+
+    expect(wrapper.emitted('close')).toHaveLength(1)
+  })
+
+  it('closes with its button and tells the page once', async () => {
+    const { close } = installModalDialog()
+    const wrapper = mountBox('/api/attachments/x1')
+
     await wrapper.get('button').trigger('click')
 
-    expect(wrapper.emitted('close')).toHaveLength(2)
+    expect(close).toHaveBeenCalledOnce()
+    expect(wrapper.emitted('close')).toHaveLength(1)
   })
 })

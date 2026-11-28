@@ -21,6 +21,9 @@ class InsecureIssuerStartupIntegrationTest extends PostgresIntegrationTest {
         properties.put("micronaut.server.port", -1);
         // A production context needs a real Ban ID key (the development default is refused there).
         properties.put("blackhole.banid.key", net.onelitefeather.blackhole.backend.support.TestKeys.randomBase64());
+        // Outside dev and test the challenge must be on and keyed, as in a deployment; the base sets it off for dev-like tests.
+        properties.put("blackhole.public.challenge.enabled", true);
+        properties.put("blackhole.public.challenge.key", net.onelitefeather.blackhole.backend.support.TestKeys.randomBase64());
         properties.put("micronaut.security.token.jwt.claims-validators.audience", "00000000-0000-4000-8000-000000000001");
         properties.put("blackhole.security.tenant-id", "00000000-0000-4000-8000-000000000002");
         properties.putAll(extra);

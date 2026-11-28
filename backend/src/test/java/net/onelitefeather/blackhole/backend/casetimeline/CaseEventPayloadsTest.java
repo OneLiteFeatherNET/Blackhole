@@ -61,7 +61,9 @@ class CaseEventPayloadsTest {
                 new CaseEventPayload.TicketTranscriptComplete("ticket-2", "appeal-2", 0, null, 0, 0),
                 new CaseEventPayload.TicketArchived("ticket-1", "appeal-1", 3),
                 new CaseEventPayload.TicketChannelDeleted("ticket-1", "appeal-1", true, null),
-                new CaseEventPayload.TicketChannelDeleted("ticket-3", "appeal-3", false, 5_000L));
+                new CaseEventPayload.TicketChannelDeleted("ticket-3", "appeal-3", false, 5_000L),
+                new CaseEventPayload.TicketFrozen("ticket-1", "appeal-1", true, "STAFF"),
+                new CaseEventPayload.TicketFrozen("ticket-1", "appeal-1", false, null));
     }
 
     @ParameterizedTest

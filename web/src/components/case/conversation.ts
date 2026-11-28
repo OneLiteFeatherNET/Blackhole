@@ -174,3 +174,25 @@ export function bannerFor(leakedAt: number | null | undefined, events: CaseTimel
   const leaks = events.filter((event) => event.type === 'ban_id.leak_marked').sort((a, b) => b.seq - a.seq)
   return leaks[0] && field(leaks[0], 'afterFiling') === true ? 'FROZEN' : 'FORFEITED'
 }
+
+/**
+ * The calendar day of a timestamp as a comparable key in the locale's date format. The time zone is the
+ * viewer's unless one is given (tests pass UTC).
+ */
+export function dayKey(epochMillis: number, locale: string, timeZone?: string): string {
+  return new Intl.DateTimeFormat(locale, { year: 'numeric', month: '2-digit', day: '2-digit', timeZone }).format(epochMillis)
+}
+
+/** The divider text of a day, e.g. "Wednesday, July 1, 2026" in English. */
+export function dayLabel(epochMillis: number, locale: string, timeZone?: string): string {
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'full', timeZone }).format(epochMillis)
+}
+
+/**
+ * Whether a message starts a new calendar day: the first one of the thread does, and so does one whose
+ * day key differs from the previous message's. The key function is passed in (see `dayKey`), so the
+ * grouping does not depend on the locale or the machine's time zone.
+ */
+export function startsDay(previous: number | null, current: number, keyOf: (epochMillis: number) => string): boolean {
+  return previous === null || keyOf(previous) !== keyOf(current)
+}

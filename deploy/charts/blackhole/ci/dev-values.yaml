@@ -32,6 +32,10 @@ backend:
   config:
     BLACKHOLE_DOCS_ENABLED: "true"
 
+# security.txt is off in this fixture: no contact, no route.
+securityTxt:
+  contact: ""
+
 web:
   replicaCount: 1
   oidc:

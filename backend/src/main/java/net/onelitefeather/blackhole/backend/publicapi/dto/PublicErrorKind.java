@@ -13,6 +13,9 @@ public enum PublicErrorKind {
     /** The session's scope does not allow this (403). */
     FORBIDDEN(HttpStatus.FORBIDDEN),
 
+    /** The proof-of-work challenge is missing, wrong, expired, of another purpose or already used (403). */
+    CHALLENGE_FAILED(HttpStatus.FORBIDDEN),
+
     /** The text is empty, too long or malformed (400). */
     VALIDATION(HttpStatus.BAD_REQUEST),
 

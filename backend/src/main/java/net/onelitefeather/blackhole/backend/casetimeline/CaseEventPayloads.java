@@ -60,6 +60,8 @@ public final class CaseEventPayloads {
                 case CaseEventPayload.RETEMPLATED -> new CaseEventPayload.Retemplated(
                         required(text(body, "templateId")), text(body, "fromTemplateId"));
                 case CaseEventPayload.KICKED -> new CaseEventPayload.Kicked(text(body, "scope"), text(body, "target"), integer(body, "eloCost"));
+                case CaseEventPayload.WARNED -> new CaseEventPayload.Warned(text(body, "templateKey"), integer(body, "eloCost"));
+                case CaseEventPayload.ACKNOWLEDGED -> new CaseEventPayload.Acknowledged();
                 case CaseEventPayload.EXPIRED -> new CaseEventPayload.Expired(required(number(body, "expiredAt")));
                 case CaseEventPayload.EVIDENCE_ATTACHED -> new CaseEventPayload.EvidenceAttached(
                         required(text(body, "evidenceId")), text(body, "kind"), text(body, "sourceSystem"));
@@ -76,6 +78,7 @@ public final class CaseEventPayloads {
                 case CaseEventPayload.PRIORITY_CHANGED -> new CaseEventPayload.PriorityChanged(
                         required(text(body, "from")), required(text(body, "to")));
                 case CaseEventPayload.TAGS_CHANGED -> new CaseEventPayload.TagsChanged(texts(body, "added"), texts(body, "removed"));
+                case CaseEventPayload.CASE_BULK_EDITED -> new CaseEventPayload.BulkEdited(required(text(body, "batchId")), bulkChanges(body));
                 case CaseEventPayload.NOTE_ADDED -> new CaseEventPayload.NoteAdded(required(text(body, "noteId")), required(text(body, "text")));
                 case CaseEventPayload.NOTE_EDITED -> new CaseEventPayload.NoteEdited(required(text(body, "noteId")), required(text(body, "text")));
                 case CaseEventPayload.NOTE_REDACTED -> new CaseEventPayload.NoteRedacted(
@@ -115,6 +118,8 @@ public final class CaseEventPayloads {
                         text(body, "lastMessageId"), required(integer(body, "edits")), required(integer(body, "deletes")));
                 case CaseEventPayload.TICKET_ARCHIVED -> new CaseEventPayload.TicketArchived(
                         required(text(body, "ticketId")), required(text(body, "appealId")), required(integer(body, "protocolVersion")));
+                case CaseEventPayload.TICKET_FROZEN -> new CaseEventPayload.TicketFrozen(
+                        required(text(body, "ticketId")), required(text(body, "appealId")), flag(body, "frozen"), text(body, "freezeSource"));
                 case CaseEventPayload.TICKET_CHANNEL_DELETED -> new CaseEventPayload.TicketChannelDeleted(
                         required(text(body, "ticketId")), required(text(body, "appealId")), flag(body, "transcriptComplete"),
                         number(body, "lastRecordedMessageAt"));
@@ -188,5 +193,19 @@ public final class CaseEventPayloads {
 
     private static boolean flag(Map<String, Object> body, String key) {
         return body.get(key) instanceof Boolean value && value;
+    }
+
+    private static List<Map<String, Object>> bulkChanges(Map<String, Object> body) {
+        if (!(body.get("changes") instanceof List<?> list)) {
+            return List.of();
+        }
+        List<Map<String, Object>> changes = new java.util.ArrayList<>();
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> raw) {
+                @SuppressWarnings("unchecked") Map<String, Object> change = (Map<String, Object>) raw;
+                changes.add(change);
+            }
+        }
+        return changes;
     }
 }

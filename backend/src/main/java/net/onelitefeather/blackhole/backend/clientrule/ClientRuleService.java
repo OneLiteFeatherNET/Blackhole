@@ -1,14 +1,17 @@
 package net.onelitefeather.blackhole.backend.clientrule;
 
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.clientrule.dto.ClientRuleDTO;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
+import net.onelitefeather.blackhole.backend.security.Actor;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Owns the client rule registry: validated CRUD, the cached copy proxies read, and the change
@@ -23,14 +26,17 @@ public class ClientRuleService {
     private final ClientRuleCache cache;
     private final ClientRuleChangeNotifier notifier;
     private final Clock clock;
+    private final StaffAuditRecorder audit;
 
     public ClientRuleService(
             ClientRuleStore store,
             ClientRuleReferences references,
             ClientRuleCache cache,
             ClientRuleChangeNotifier notifier,
-            Clock clock
+            Clock clock,
+            StaffAuditRecorder audit
     ) {
+        this.audit = audit;
         this.store = store;
         this.references = references;
         this.cache = cache;
@@ -45,17 +51,20 @@ public class ClientRuleService {
      * @return the stored {@link ClientRuleDTO.Response}, or an {@link ClientRuleDTO.Error}: validation
      * (400) for a bad definition or an unknown section or template, conflict (409) for a taken key
      */
-    public ClientRuleDTO create(ClientRuleDTO.CreateRequest request, UUID author) {
+    public ClientRuleDTO create(ClientRuleDTO.CreateRequest request, Actor author) {
         ClientRuleSpec spec = request.toSpec();
         ClientRuleDTO.Error problem = problemWith(spec);
         if (problem != null) {
             return problem;
         }
-        ClientRuleStore.Write written = this.store.insert(spec, author, this.clock.millis());
+        ClientRuleStore.Write written = this.store.insert(spec, author.oid(), this.clock.millis());
         return switch (written) {
             case TAKEN -> new ClientRuleDTO.Error("a rule with key '" + spec.key() + "' already exists", ErrorKind.CONFLICT);
             case MISSING_TEMPLATE -> missingTemplate(spec.templateKey());
-            default -> changed(spec.key());
+            default -> {
+                recordAudit(author, AuditAction.CLIENT_RULE_CREATE, spec.key());
+                yield changed(spec.key());
+            }
         };
     }
 
@@ -67,7 +76,7 @@ public class ClientRuleService {
      * @return the stored {@link ClientRuleDTO.Response}, or an {@link ClientRuleDTO.Error}: not found
      * (404), validation (400)
      */
-    public ClientRuleDTO update(String key, ClientRuleDTO.UpdateRequest request, UUID author) {
+    public ClientRuleDTO update(String key, ClientRuleDTO.UpdateRequest request, Actor author) {
         if (this.store.find(key).isEmpty()) {
             return notFound(key);
         }
@@ -79,10 +88,13 @@ public class ClientRuleService {
         if (problem != null) {
             return problem;
         }
-        return switch (this.store.update(spec, author, this.clock.millis())) {
+        return switch (this.store.update(spec, author.oid(), this.clock.millis())) {
             case ABSENT -> notFound(key);
             case MISSING_TEMPLATE -> missingTemplate(spec.templateKey());
-            default -> changed(key);
+            default -> {
+                recordAudit(author, AuditAction.CLIENT_RULE_UPDATE, key);
+                yield changed(key);
+            }
         };
     }
 
@@ -91,14 +103,19 @@ public class ClientRuleService {
      *
      * @return the removed rule, or a not found error
      */
-    public ClientRuleDTO delete(String key) {
+    public ClientRuleDTO delete(String key, Actor actor) {
         ClientRuleStore.Stored stored = this.store.find(key).orElse(null);
         if (stored == null || !this.store.delete(key)) {
             return notFound(key);
         }
         this.cache.evict();
         this.notifier.changed(key);
+        recordAudit(actor, AuditAction.CLIENT_RULE_DELETE, key);
         return toResponse(stored);
+    }
+
+    private void recordAudit(Actor actor, AuditAction action, String key) {
+        this.audit.record(actor.attribution(), actor, action, AuditTarget.ofClientRule(key));
     }
 
     /** @return the rule, or a not found error */

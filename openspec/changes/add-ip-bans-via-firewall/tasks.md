@@ -1,27 +1,34 @@
 ## Conventions for every PR
 
-- Branch from the up-to-date `origin/main`. Prerequisites `amend-data-protection-principle` and
-  `add-player-intelligence` must be merged first; stop and report if they are not.
+- Branch from the up-to-date `origin/main`. Prerequisites `amend-data-protection-principle`,
+  `add-player-intelligence`, `add-vpn-proxy-detection` and `add-join-guard` must be merged first; stop
+  and report if they are not.
 - Red, then green, then refactor: each group starts with the failing test named in it.
-- F.I.R.S.T.: no `Thread.sleep`, no system time (inject `java.time.Clock`), no real network (the
-  OPNsense client is tested against an in-process HTTP stub), no shared static state, fresh fixtures
+- F.I.R.S.T.: no `Thread.sleep`, no system time (inject `java.time.Clock`), no real network (the feed
+  is tested with in-process HTTP calls and in-memory fakes), no shared static state, fresh fixtures
   per test, one behaviour per test.
 - Migration number is the next free Flyway version at implementation time. Never edit an applied
   migration. Never use `--force` or `--no-verify`.
-- The OPNsense request body is verified in group 0 before any code depends on it.
+- Group 3 does not wait for group 0. The comments switch is built in; group 0 decides only its default and the operator note.
 
-## 0. Spike: verify the OPNsense alias API (no production code)
+## 0. Spike: verify the OPNsense URL Table behaviour (no production code)
 
-- [ ] 0.1 Against a lab OPNsense (not production, not a running server of the operator), create a
-  Network alias, then verify with `curl` and recorded responses: `POST /api/firewall/alias_util/add/<alias>`
-  with `{"address": "203.0.113.7/32"}` and with `{"address": "203.0.113.7"}`, read-back with
-  `GET /api/firewall/alias_util/list/<alias>`, `POST /api/firewall/alias_util/delete/<alias>`, then
-  `POST /api/firewall/alias/reconfigure`. Record the exact bodies and responses in the PR description.
-- [ ] 0.2 Check whether a Network alias accepts an IPv6 `/128` and a `/48`, and whether a bare address
-  without `/32` is stored as `/32`.
-- [ ] 0.3 Update `design.md` decision 2 and `firewall-alias-sync` scenarios with the verified bodies
-  before group 3 starts. If the spike disagrees with the spec, change the spec in this proposal PR
-  first.
+- [ ] 0.1 On a lab OPNsense (not production), create two URL Table (IPs) aliases, each pointing at a
+  local stub HTTP server that serves a fixed text file. Record the firewall version and, for each
+  check, the exact file served and the alias contents shown by the firewall afterwards:
+  - `#` comment lines: ignored, or does the load fail or skip entries?
+  - basic auth in the URL (`https://user:pass@host/...`): loads or refused?
+  - the table entry limit (pf table-entries) against the expected size of each feed, using the largest
+    ASN networks in the GeoIP database as the estimate for `/networks`;
+  - the refresh at a one-minute cron job "Update and reload firewall aliases": does a change appear
+    within about two minutes?
+  - IPv6 bare addresses in `/ips`, and IPv4 and IPv6 CIDRs in `/networks`: does `URL Table (IPs)` load
+    them, or is another type needed?
+  - an empty body: does the table empty (intended) or keep its content?
+  - HTTP 503 and 404 from the stub: does the table keep its last content?
+  - a manual entry added to the table: overwritten on the next refresh?
+- [ ] 0.2 Record the results in the PR description, with the file served for each check.
+- [ ] 0.3 Record the comments default and the operator note in `design.md` ("Spike results") and in the operator note (task 3.11). No finding gates group 3. A finding about the table on a 503 or an empty body is written into the operator note.
 
 ## 1. Data model and validation (backend)
 
@@ -64,29 +71,54 @@
   env-var default and a comment (per the env-var convention).
 - [ ] 2.7 Tests green: `./gradlew :backend:test --tests "*ipban*"`.
 
-## 3. Firewall adapter and reconciler (backend)
+## 3. Firewall feeds (backend)
 
-- [ ] 3.1 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/firewall/OpnsenseAliasClientTest.java`
-  against an in-process HTTP stub: sends the verified body from task 0.1; sends the key and secret;
-  times out after the configured timeout; does not log the secret; a 401 is reported as an
-  authentication error, not retried.
-- [ ] 3.2 Red: `AliasReconcileDiffTest.java` (pure function): missing entries are added, extra entries
-  deleted, an identical set produces no write and no reconfigure, a read-back mismatch fails the run.
-- [ ] 3.3 Red: `AliasReconcilerBackoffTest.java` with a fixed `Clock`: after N consecutive errors the
-  next attempt waits 30 s, doubling, capped at 15 min; a success resets the backoff.
-- [ ] 3.4 Red: `ProtectedNetworkAdapterGuardTest.java`: the adapter refuses to write a protected network
-  even when the database holds one; `blackhole.ipban.firewall.refused` increments.
-- [ ] 3.5 Implement `backend/src/main/java/net/onelitefeather/blackhole/backend/firewall/`:
-  `OpnsenseAliasClient.java` (Micronaut HTTP client, base URL and credentials from config),
-  `AliasReconciler.java` (desired set from `IpBanStore`, diff, write, reconfigure, read back),
-  `AliasReconcileScheduler.java` (start-up run, interval, debounced `ipban.changed` listener),
-  `FirewallMetrics.java` (Micrometer gauges and counters from `design.md` decision 8).
-- [ ] 3.6 Implement the backoff and the `FirewallHealthIndicator` (`ipban-firewall`): UP within three
-  intervals of a success, DOWN otherwise. Test: `FirewallHealthIndicatorTest.java` with a fixed clock.
-- [ ] 3.7 `application.yml`: `blackhole.ipban.firewall.enabled` (default `false`), `.alias`,
-  `.reconcile-interval` (`PT5M`), `.base-url`, `.api-key`, `.api-secret` from
-  `BLACKHOLE_OPNSENSE_*` with empty defaults and comments.
-- [ ] 3.8 Tests green: `./gradlew :backend:test --tests "*firewall*"`. No test contacts a real host.
+Does not wait for group 0. Group 0 decides only the comments default and the operator note.
+
+- [ ] 3.1 Red: `backend/src/test/java/net/onelitefeather/blackhole/backend/firewall/FeedTokenRegistryTest.java`:
+  a configured client's hash file is read at start-up; a token matches its hash; an unknown token
+  matches nothing; with two hash files for one client (`<name>` and `<name>.next`) both tokens match;
+  a hash file that is missing or malformed is a start-up error outside `dev` and `test`.
+- [ ] 3.2 Red: `FeedTokenGenerationTest.java`: a generated token is at least 32 bytes from a seeded
+  `SecureRandom` and encodes as base64url without padding; the stored value is the SHA-256 hex of the
+  token string.
+- [ ] 3.3 Red: `FeedAccessDenialTest.java`: an unknown token, an unknown path and a source address
+  outside `blackhole.firewall.feed.allowed-sources` each return 404 with an empty body, and the three
+  responses are identical. An IP and a CIDR in the allow-list both pass; a host name is refused at
+  start-up.
+- [ ] 3.4 Red: `FeedRenderTest.java` (pure): the `/ips` body has one bare address per line, IPv4 before
+  IPv6, sorted; the `/networks` body is sorted and holds each network once; a comment line has the form
+  `# id=... kind=... expires=...` and carries no player name, owner hash or reason; `?comments=false`
+  produces no `#` line.
+- [ ] 3.5 Red: `FeedContentTest.java`: a DENY class contributes its ranges to `/networks`, an ALLOW or FLAG
+  class contributes nothing; a configured hosting ASN contributes its networks only while the HOSTING policy is `DENY`, and nothing under `FLAG`; an active ASN area
+  ban contributes its networks; a country area ban contributes nothing; an expired or lifted ban is
+  absent; a row that overlaps a protected network is dropped and `blackhole.ipban.feed.refused`
+  increments.
+- [ ] 3.6 Red: `FeedCacheTest.java` with a fixed `Clock` and a counting repository fake: a second request
+  reads no database row; a change event rebuilds the feed; a failed rebuild keeps the last good feed;
+  before the first successful build the route answers 503 with no body; concurrent first requests
+  trigger one build.
+- [ ] 3.7 Red: `FeedEtagTest.java`: the same content gives the same ETag; a request with a matching
+  `If-None-Match` gets `304` and no body; changed content gives `200` with a new ETag; the comment and
+  comment-free modes have different ETags; `Cache-Control` is `no-cache`.
+- [ ] 3.8 Red: `FeedLoggingTest.java`: with a captured appender and a request with a valid token, neither
+  the access log nor the metric tags contain the token or the raw path; the route template
+  `/firewall/feed/{token}/{feed}` is what appears.
+- [ ] 3.9 Implement `backend/src/main/java/net/onelitefeather/blackhole/backend/firewall/`:
+  `FeedTokenRegistry.java` (reads `blackhole.firewall.feed.clients` and the hash files),
+  `FeedContentSource.java` (ban rows, VPN lists and policies, hosting and area-ban networks, through
+  ports), `FeedRenderer.java` (sorting, comments, protected-network check), `FeedCache.java`
+  (single-flight build, invalidation on events, scheduled rebuild), `FeedController.java` with
+  `FeedApi.java` (excluded from the published OpenAPI document), `FeedMetrics.java`.
+- [ ] 3.10 `application.yml`: `blackhole.firewall.feed.clients` (`BLACKHOLE_FIREWALL_FEED_CLIENTS`,
+  empty), `.secrets-dir` (`BLACKHOLE_FIREWALL_FEED_SECRETS_DIR`), `.allowed-sources`
+  (`BLACKHOLE_FIREWALL_FEED_ALLOWED_SOURCES`, empty means any peer), `.vpn-classes`
+  (`VPN,HOSTING,PROXY`), `.rebuild-interval` (`PT60S`), with env-var defaults and comments.
+- [ ] 3.11 Operator note in `docs/`: the two URL Table (IPs) aliases, the cron job at one minute, the
+  block rule, token rotation with `<name>.next`, the comment query, the direct-ingress rule, and that
+  manual entries are overwritten on refresh.
+- [ ] 3.12 Tests green: `./gradlew :backend:test --tests "*firewall*"`. No test contacts a real host.
 
 ## 4. "Also ban last IP" and the player command support (backend)
 
@@ -122,7 +154,8 @@
 ## 7. OpenAPI client
 
 - [ ] 7.1 Bump `client/specs/blackhole-api-*.yml` to the next free version, add the `/ipban` paths,
-  schemas and the `alsoBanLastIp` field; set `inputSpec` in `client/build.gradle.kts`.
+  schemas and the `alsoBanLastIp` field; do not add the feed routes; set `inputSpec` in
+  `client/build.gradle.kts`.
 - [ ] 7.2 Run `./gradlew :client:openApiGenerate` and `./gradlew :client:compileJava`. Do not edit
   generated sources.
 
@@ -151,14 +184,11 @@
 - [ ] 9.1 Red: `web/tests/unit/ipban/IpBanForm.spec.ts`: an IPv4, an IPv6 and a CIDR validate; a
   protected address is refused in the form with the server's message; the expiry is required for
   MODERATOR above the limit.
-- [ ] 9.2 Red: `web/tests/unit/ipban/AliasStatusTile.spec.ts`: each status (in sync, pending, DOWN) maps
-  to its label and colour token.
-- [ ] 9.3 Red: `web/tests/unit/player/AlsoBanLastIpOption.spec.ts`: the option shows the account count
+- [ ] 9.2 Red: `web/tests/unit/player/AlsoBanLastIpOption.spec.ts`: the option shows the account count
   on that address and the "no address on record" hint.
-- [ ] 9.4 Implement the IP bans page (`web/src/pages/ipbans/`), the "Ban IP" action on the player page,
-  the option in the ban dialog, and the status tile on the dashboard. Admin-only firewall status fields
-  shown to ADMIN and VIEWER; no address appears in any link or log line.
-- [ ] 9.5 Tests green: `npm --prefix web test` and `npm --prefix web run typecheck`.
+- [ ] 9.3 Implement the IP bans page (`web/src/pages/ipbans/`), the "Ban IP" action on the player page
+  and the option in the ban dialog. No address appears in any link or log line.
+- [ ] 9.4 Tests green: `npm --prefix web test` and `npm --prefix web run typecheck`.
 
 ## 10. Code PR
 

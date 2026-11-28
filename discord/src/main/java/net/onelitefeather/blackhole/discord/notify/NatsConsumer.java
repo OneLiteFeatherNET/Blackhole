@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -57,7 +58,13 @@ public final class NatsConsumer implements AutoCloseable {
         void ack();
 
         void nakWithDelay(Duration delay);
+
+        /** How many times the server has delivered this message, the first delivery counting as one. */
+        long deliveries();
     }
+
+    /** No delivery limit: a retry always goes back to the consumer. */
+    static final long UNLIMITED_DELIVERIES = -1;
 
     private final NatsSettings settings;
     private final String durable;
@@ -66,6 +73,10 @@ public final class NatsConsumer implements AutoCloseable {
     private final ScheduledExecutorService scheduler;
     private final Duration retryDelay;
     private final Duration reconnectDelay;
+    private final int inFlight;
+    private final Duration ackWait;
+    private final long maxDeliver;
+    private final Consumer<byte[]> onExhausted;
     private final CompletableFuture<Void> ready = new CompletableFuture<>();
     private final CountDownLatch closed = new CountDownLatch(1);
     private volatile Connection connection;
@@ -88,9 +99,39 @@ public final class NatsConsumer implements AutoCloseable {
         this(settings, durable, eventTypes, handler, scheduler, RETRY_DELAY, RECONNECT_DELAY);
     }
 
+    /**
+     * A durable consumer that works through its messages one at a time, for handlers whose order matters and that may take
+     * longer than the default ack wait (the staff audit posts).
+     *
+     * @param inFlight how many messages are unacknowledged at a time; one keeps the order
+     * @param ackWait  how long a message may stay unacknowledged before it is redelivered
+     */
+    /**
+     * @param inFlight      how many messages are unacknowledged at a time; one keeps the order
+     * @param ackWait       how long a message may stay unacknowledged before it is redelivered
+     * @param maxDeliver    how many deliveries a message gets; when the last one is retried it is acknowledged instead and
+     *                      {@code onExhausted} is told its body (a non-positive value means no limit)
+     * @param onExhausted   told the body of a message given up on after its last delivery
+     */
+    public NatsConsumer(@NotNull NatsSettings settings, @NotNull String durable, @NotNull String[] eventTypes,
+                        @NotNull Function<byte[], NotificationHandler.Outcome> handler, @NotNull ScheduledExecutorService scheduler,
+                        int inFlight, @NotNull Duration ackWait, long maxDeliver, @NotNull Consumer<byte[]> onExhausted) {
+        this(settings, durable, eventTypes, handler, scheduler, RETRY_DELAY, RECONNECT_DELAY, inFlight, ackWait, maxDeliver, onExhausted);
+    }
+
     NatsConsumer(@NotNull NatsSettings settings, @NotNull String durable, @NotNull String[] eventTypes,
                  @NotNull Function<byte[], NotificationHandler.Outcome> handler, @NotNull ScheduledExecutorService scheduler,
                  @NotNull Duration retryDelay, @NotNull Duration reconnectDelay) {
+        this(settings, durable, eventTypes, handler, scheduler, retryDelay, reconnectDelay, IN_FLIGHT, ACK_WAIT,
+                UNLIMITED_DELIVERIES, body -> { });
+    }
+
+    private NatsConsumer(NatsSettings settings, String durable, String[] eventTypes,
+                         Function<byte[], NotificationHandler.Outcome> handler, ScheduledExecutorService scheduler,
+                         Duration retryDelay, Duration reconnectDelay, int inFlight, Duration ackWait,
+                         long maxDeliver, Consumer<byte[]> onExhausted) {
+        this.maxDeliver = maxDeliver;
+        this.onExhausted = onExhausted;
         this.settings = settings;
         this.durable = durable;
         this.eventTypes = eventTypes.clone();
@@ -98,28 +139,47 @@ public final class NatsConsumer implements AutoCloseable {
         this.scheduler = scheduler;
         this.retryDelay = retryDelay;
         this.reconnectDelay = reconnectDelay;
+        this.inFlight = inFlight;
+        this.ackWait = ackWait;
     }
 
     /** The durable consumer: explicit acks, five unacknowledged at a time, new messages on first creation. */
     static ConsumerConfiguration consumerConfiguration(String durable, String[] eventTypes) {
+        return consumerConfiguration(durable, eventTypes, IN_FLIGHT, ACK_WAIT, UNLIMITED_DELIVERIES);
+    }
+
+    static ConsumerConfiguration consumerConfiguration(String durable, String[] eventTypes, int inFlight, Duration ackWait,
+                                                       long maxDeliver) {
         List<String> subjects = Arrays.stream(eventTypes).map(type -> SUBJECT_PREFIX + type).toList();
         return ConsumerConfiguration.builder()
                 .durable(durable)
                 .filterSubjects(subjects)
                 .ackPolicy(AckPolicy.Explicit)
-                .ackWait(ACK_WAIT)
-                .maxAckPending(IN_FLIGHT)
-                .maxDeliver(-1)
+                .ackWait(ackWait)
+                .maxAckPending(inFlight)
+                .maxDeliver(maxDeliver)
                 .deliverPolicy(DeliverPolicy.New)
                 .build();
     }
 
     /** Done and drop are acknowledged; a retry goes back to the consumer after {@code retryDelay}. */
     static void settle(NotificationHandler.Outcome outcome, Settlement message, Duration retryDelay) {
-        if (outcome == NotificationHandler.Outcome.RETRY) {
-            message.nakWithDelay(retryDelay);
-        } else {
+        settle(outcome, message, retryDelay, UNLIMITED_DELIVERIES, new byte[0], body -> { });
+    }
+
+    /**
+     * As {@link #settle(NotificationHandler.Outcome, Settlement, Duration)}, but a retry of the last allowed delivery is
+     * acknowledged instead and the body is handed to {@code onExhausted}, so the message cannot cycle forever.
+     */
+    static void settle(NotificationHandler.Outcome outcome, Settlement message, Duration retryDelay, long maxDeliver,
+                       byte[] body, Consumer<byte[]> onExhausted) {
+        if (outcome != NotificationHandler.Outcome.RETRY) {
             message.ack();
+        } else if (maxDeliver > 0 && message.deliveries() >= maxDeliver) {
+            message.ack();
+            onExhausted.accept(body);
+        } else {
+            message.nakWithDelay(retryDelay);
         }
     }
 
@@ -150,7 +210,8 @@ public final class NatsConsumer implements AutoCloseable {
         Connection opened = Nats.connect(options(this.settings));
         JetStreamSubscription subscription;
         try {
-            opened.jetStreamManagement().addOrUpdateConsumer(STREAM, consumerConfiguration(this.durable, this.eventTypes));
+            opened.jetStreamManagement().addOrUpdateConsumer(STREAM,
+                    consumerConfiguration(this.durable, this.eventTypes, this.inFlight, this.ackWait, this.maxDeliver));
             subscription = opened.jetStream().subscribe(null, PullSubscribeOptions.bind(STREAM, this.durable));
         } catch (Exception e) {
             opened.close();
@@ -186,7 +247,7 @@ public final class NatsConsumer implements AutoCloseable {
     private void pull(JetStreamSubscription subscription) {
         while (this.closed.getCount() != 0) {
             try {
-                for (Message message : subscription.fetch(IN_FLIGHT, FETCH_WAIT)) {
+                for (Message message : subscription.fetch(this.inFlight, FETCH_WAIT)) {
                     NotificationHandler.Outcome outcome;
                     try {
                         outcome = this.handler.apply(message.getData());
@@ -194,7 +255,7 @@ public final class NatsConsumer implements AutoCloseable {
                         LOGGER.error("The handler of {} failed unexpectedly; the event comes back later", this.durable, e);
                         outcome = NotificationHandler.Outcome.RETRY;
                     }
-                    settle(outcome, settlement(message), this.retryDelay);
+                    settle(outcome, settlement(message), this.retryDelay, this.maxDeliver, message.getData(), this.onExhausted);
                 }
             } catch (Exception e) {
                 if (this.closed.getCount() == 0) {
@@ -223,6 +284,11 @@ public final class NatsConsumer implements AutoCloseable {
             @Override
             public void nakWithDelay(Duration delay) {
                 message.nakWithDelay(delay);
+            }
+
+            @Override
+            public long deliveries() {
+                return message.metaData().deliveredCount();
             }
         };
     }

@@ -20,6 +20,7 @@ import net.onelitefeather.blackhole.discord.metrics.Metrics.Counter;
 import net.onelitefeather.blackhole.discord.sync.CatchUp;
 import net.onelitefeather.blackhole.discord.sync.OutboxRelay;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +31,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 
 /**
  * A ticket channel's life: creation (and finishing a creation that crashed half way), freeze and thaw, the close with its
@@ -65,6 +67,12 @@ public final class TicketLifecycle {
     private final Clock clock;
     private final ReentrantLock lock = new ReentrantLock();
     private final Set<Long> deletedByUs = ConcurrentHashMap.newKeySet();
+    private volatile Consumer<Ticket> channelReady = ticket -> { };
+
+    /** Called once a ticket has its channel and the backend knows it: the staff control message is drawn here. */
+    public void channelReady(@NotNull Consumer<Ticket> hook) {
+        this.channelReady = hook;
+    }
 
     public TicketLifecycle(@NotNull TicketSettings settings, long guildId, @NotNull BackendGateway backend, @NotNull DiscordGateway discord,
                            @NotNull OutboxRelay relay, @NotNull CatchUp catchUp, @NotNull StaffAccessReconciler staff,
@@ -129,6 +137,7 @@ public final class TicketLifecycle {
             if (patched instanceof Result.Ok<Ticket> ok) {
                 this.registry.put(ok.value());
                 this.metrics.increment(Counter.TICKETS_OPENED);
+                this.channelReady.accept(ok.value());
                 return Optional.of(channel);
             }
             this.metrics.increment(Counter.BACKEND_UNAVAILABLE);
@@ -177,11 +186,15 @@ public final class TicketLifecycle {
                     this.discord.notice(channel, ChannelTexts.frozen());
                 }
             } else if (!ticket.leaked() && ticket.frozen()) {
-                if (player != null) {
-                    this.discord.setMemberAccess(channel, new MemberAccess(player, PLAYER_ALLOW, PLAYER_DENY));
-                }
+                // The backend keeps a staff lock: a thaw that comes back still frozen opens nothing on the player side.
                 if (this.backend.patchTicket(ticket.id(), Patch.frozen(false)) instanceof Result.Ok<Ticket> ok) {
                     this.registry.put(ok.value());
+                    if (ok.value().frozen()) {
+                        return;
+                    }
+                    if (player != null) {
+                        this.discord.setMemberAccess(channel, new MemberAccess(player, PLAYER_ALLOW, PLAYER_DENY));
+                    }
                     this.discord.notice(channel, ChannelTexts.thawed());
                 }
             }
@@ -193,6 +206,32 @@ public final class TicketLifecycle {
     }
 
     // ---- decision, close, archive ----
+
+    /**
+     * Shows a staff lock or unlock in the channel once the backend holds it: the player side closes or reopens. A leak freeze
+     * still closes the player side on an unlock.
+     */
+    public void applyStaffLock(@NotNull Ticket ticket, boolean locked) {
+        this.lock.lock();
+        try {
+            Long channel = ticket.channel();
+            Long player = ticket.player();
+            if (channel == null) {
+                return;
+            }
+            if (player != null) {
+                boolean closed = locked || ticket.leaked();
+                this.discord.setMemberAccess(channel, closed
+                        ? new MemberAccess(player, PLAYER_LOCKED_ALLOW, PLAYER_LOCKED_DENY)
+                        : new MemberAccess(player, PLAYER_ALLOW, PLAYER_DENY));
+            }
+            this.discord.notice(channel, locked ? ChannelTexts.staffLocked() : ChannelTexts.staffUnlocked());
+        } catch (GatewayException e) {
+            discordFailed("showing a staff lock in a ticket channel", e);
+        } finally {
+            this.lock.unlock();
+        }
+    }
 
     /** Starts the close when the appeal behind an open ticket has been decided. */
     public void closeIfDecided(@NotNull Ticket ticket) {
@@ -218,6 +257,13 @@ public final class TicketLifecycle {
      * outage leaves the ticket {@code CLOSING}; the next poll resumes.
      */
     public void close(@NotNull Ticket ticket) {
+        close(ticket, null);
+    }
+
+    /**
+     * The same close, recorded under the staff member when {@code staffOid} is given (a staff member pressed Close in the channel).
+     */
+    public void close(@NotNull Ticket ticket, @Nullable String staffOid) {
         this.lock.lock();
         try {
             Long channel = ticket.channel();
@@ -244,7 +290,7 @@ public final class TicketLifecycle {
                 if (proof.isEmpty()) {
                     return;
                 }
-                Result<Closed> closed = this.backend.close(ticket.id(), proof.get().count(), proof.get().lastMessageId());
+                Result<Closed> closed = this.backend.close(ticket.id(), proof.get().count(), proof.get().lastMessageId(), staffOid);
                 if (closed instanceof Result.Ok<Closed> ok) {
                     this.registry.put(ok.value().ticket());
                     finishClosed(ok.value().ticket(), ok.value().protocolVersion());

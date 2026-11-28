@@ -125,3 +125,41 @@ describe('DataTable: states', () => {
     wrapper.unmount()
   })
 })
+
+describe('DataTable: leading column', () => {
+  it('puts a column before the data columns, with its header and its cell from the slots', async () => {
+    const { wrapper } = await setup(
+      { leading: true },
+      {
+        'head-leading': () => [h('input', { type: 'checkbox', 'data-testid': 'head-box' })],
+        'cell-leading': ({ row }: { row: Row }) => [h('input', { type: 'checkbox', 'data-testid': `box-${row.name}` })],
+      },
+    )
+
+    expect(wrapper.findAll('thead th')[0]!.find('[data-testid="head-box"]').exists()).toBe(true)
+    expect(wrapper.findAll('tbody tr')[0]!.findAll('td')[0]!.find('[data-testid="box-#AB12CD"]').exists()).toBe(true)
+    expect(wrapper.findAll('thead th')).toHaveLength(COLUMNS.length + 1)
+    expect(wrapper.findAll('tbody tr')[0]!.findAll('td')).toHaveLength(COLUMNS.length + 1)
+
+    wrapper.unmount()
+  })
+
+  it('has no extra column unless asked for one', async () => {
+    const { wrapper } = await setup()
+
+    expect(wrapper.findAll('thead th')).toHaveLength(COLUMNS.length)
+
+    wrapper.unmount()
+  })
+
+  it('puts the attributes that rowProps gives each row on that row', async () => {
+    const { wrapper } = await setup({
+      rowProps: (row: Row, index: number) => ({ id: `row-${index}`, 'aria-current': row.name === '#ZZ99XX' ? 'true' : undefined }),
+    })
+
+    expect(wrapper.get('#row-0').attributes('aria-current')).toBeUndefined()
+    expect(wrapper.get('#row-1').attributes('aria-current')).toBe('true')
+
+    wrapper.unmount()
+  })
+})

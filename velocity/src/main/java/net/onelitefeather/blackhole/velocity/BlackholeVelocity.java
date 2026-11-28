@@ -12,7 +12,15 @@ import com.velocitypowered.api.plugin.Dependency;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
+import net.onelitefeather.blackhole.client.api.IntelApi;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
+import net.onelitefeather.blackhole.velocity.intel.HttpSessionBackend;
+import net.onelitefeather.blackhole.velocity.guard.AreaBanCommand;
+import net.onelitefeather.blackhole.velocity.guard.GuardBackend;
+import net.onelitefeather.blackhole.velocity.guard.GuardCommand;
+import net.onelitefeather.blackhole.velocity.guard.GuardHeartbeatTask;
+import net.onelitefeather.blackhole.velocity.guard.GuardLevelCache;
+import net.onelitefeather.blackhole.velocity.intel.SessionReporter;
 import net.onelitefeather.blackhole.velocity.auth.ClientCredentialsTokenProvider;
 import net.onelitefeather.blackhole.velocity.auth.JdkTokenTransport;
 import net.onelitefeather.blackhole.velocity.auth.TokenSource;
@@ -23,6 +31,10 @@ import net.onelitefeather.blackhole.velocity.command.DiscordCommand;
 import net.onelitefeather.blackhole.velocity.command.LinkCommand;
 import net.onelitefeather.blackhole.velocity.command.KickAllCommand;
 import net.onelitefeather.blackhole.velocity.command.KickCommand;
+import net.onelitefeather.blackhole.velocity.command.WarnCommand;
+import net.onelitefeather.blackhole.velocity.command.WarningAckCommand;
+import net.onelitefeather.blackhole.velocity.enforcement.WarningHandler;
+import net.onelitefeather.blackhole.velocity.listener.WarningListener;
 import net.onelitefeather.blackhole.velocity.command.KickRunner;
 import net.onelitefeather.blackhole.velocity.command.PardonCommand;
 import net.onelitefeather.blackhole.velocity.enforcement.KickHandler;
@@ -35,6 +47,7 @@ import net.onelitefeather.blackhole.velocity.report.ReportFeedbackDelivery;
 import net.onelitefeather.blackhole.velocity.listener.ReportFeedbackListener;
 import net.onelitefeather.blackhole.velocity.report.ReportNotifier;
 import net.onelitefeather.blackhole.velocity.report.ReportService;
+import net.onelitefeather.blackhole.velocity.command.NameHistoryCommand;
 import net.onelitefeather.blackhole.velocity.command.TargetParser;
 import net.onelitefeather.blackhole.velocity.cloudnet.CatalogueReporter;
 import net.onelitefeather.blackhole.velocity.cloudnet.CloudNetView;
@@ -42,7 +55,9 @@ import net.onelitefeather.blackhole.velocity.cloudnet.HttpCatalogueSink;
 import net.onelitefeather.blackhole.velocity.cloudnet.CloudNets;
 import net.onelitefeather.blackhole.velocity.cloudnet.ServerResolver;
 import net.onelitefeather.blackhole.velocity.component.PunishmentScreens;
+import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.velocity.config.BlackholeApiClients;
+import net.onelitefeather.blackhole.velocity.config.ProfileConfig;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.config.ChatCaptureConfig;
 import net.onelitefeather.blackhole.velocity.clientrule.BackendRuleSource;
@@ -77,16 +92,22 @@ import net.onelitefeather.blackhole.velocity.listener.PlayerChatListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerClientBrandListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerDisconnectListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerLoginListener;
+import net.onelitefeather.blackhole.velocity.listener.PostConnectBanListener;
 import net.onelitefeather.blackhole.velocity.listener.ServerConnectListener;
 import net.onelitefeather.blackhole.velocity.module.BlackholeClientModule;
 import net.onelitefeather.blackhole.velocity.enforcement.EnforcementActions;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteChatDenial;
+import net.onelitefeather.blackhole.velocity.enforcement.MuteCommandGate;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteNoticeCooldown;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteNotices;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
+import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
+import net.onelitefeather.blackhole.velocity.enforcement.RelayState;
+import net.onelitefeather.blackhole.velocity.listener.MuteCommandListener;
 import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
+import net.onelitefeather.blackhole.velocity.punish.ProxyCapabilityReporter;
 import net.onelitefeather.blackhole.velocity.component.theme.BlackholeTheme;
 import net.onelitefeather.blackhole.velocity.punish.HttpBackendGateway;
 import net.onelitefeather.blackhole.velocity.punish.PunishService;
@@ -96,6 +117,11 @@ import net.onelitefeather.blackhole.velocity.nats.JnatsBusClient;
 import net.onelitefeather.blackhole.velocity.nats.NatsSyncService;
 import net.onelitefeather.blackhole.velocity.section.BackendSectionSource;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
+import net.onelitefeather.blackhole.velocity.section.SectionWarmup;
+import net.onelitefeather.blackhole.velocity.enforcement.EnforcementHealth;
+import net.onelitefeather.blackhole.velocity.listener.MaintenanceLoginGuard;
+import net.onelitefeather.blackhole.velocity.sentry.SentryConfig;
+import net.onelitefeather.blackhole.velocity.sentry.SentryReporter;
 import net.onelitefeather.blackhole.client.model.ServerTargetKind;
 import net.kyori.adventure.text.minimessage.translation.MiniMessageTranslationStore;
 import net.kyori.adventure.translation.GlobalTranslator;
@@ -114,8 +140,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.Locale;
 import java.util.ResourceBundle;
@@ -126,7 +152,7 @@ import java.util.ResourceBundle;
         version = "1.0.0",
         description = "A plugin to manage bans and mutes",
         authors = {"theEvilReaper", "TheMeinerLP"},
-        // Optional: loading after SignedVelocity lets muted signed chat be blocked instead of only announced.
+        // Optional: loading after SignedVelocity lets a muted player's signed chat be cancelled instead of disconnecting the sender.
         dependencies = @Dependency(id = MuteChatDenial.RELAY_PLUGIN_ID, optional = true)
 )
 public class BlackholeVelocity {
@@ -139,16 +165,24 @@ public class BlackholeVelocity {
     private static final Duration KICK_POLL = Duration.ofMillis(500);
     private static final Duration KICK_GIVE_UP = Duration.ofSeconds(15);
 
+    /** The version of the built jar (its manifest); the @Plugin annotation below carries an older, fixed one. */
+    private static final String PLUGIN_VERSION = BlackholeVelocity.class.getPackage().getImplementationVersion();
+
     private final Injector injector;
     private final ProxyServer server;
     private final Path dataDirectory;
     private final Logger logger;
+    private final SentryReporter sentry;
     private ApiClient client;
     private BlackholeConfig config;
     private BusClient busClient;
     private ExecutorService eventThread;
+    private ExecutorService sessionExecutor;
     private volatile boolean authReady;
+    private final EnforcementHealth health = new EnforcementHealth();
     private CommandRuleListener commandRuleListener;
+    private MuteCommandListener muteCommands;
+    private PlayerChatListener chatListener;
 
     @Inject
     public BlackholeVelocity(Injector injector, Logger logger, ProxyServer server, @DataDirectory Path dataDirectory) {
@@ -156,10 +190,28 @@ public class BlackholeVelocity {
         this.server = server;
         this.logger = logger;
         this.dataDirectory = dataDirectory;
+        // First thing the plugin does, so that a failure of the proxy initialisation is reported as well.
+        this.sentry = SentryReporter.start(SentryConfig.fromEnvironment(System::getenv, PLUGIN_VERSION), logger);
     }
 
     @Subscribe
     public void onProxyInitialisation(ProxyInitializeEvent event) {
+        // Registered before the initialisation: if it fails, players are refused instead of let in unchecked.
+        this.server.getEventManager().register(this, new MaintenanceLoginGuard(this.health,
+                () -> this.config == null || this.config.getStartup().isDenyUnenforcedLogins()));
+        try {
+            initialise();
+            this.health.enforcing();
+        } catch (RuntimeException | Error e) {
+            this.health.failed(e);
+            this.sentry.tag("enforcing", "false");
+            this.sentry.capture(e, "proxy-initialisation");
+            this.logger.error("Blackhole failed to start: punishments, bans and mutes are NOT enforced on this proxy until it "
+                    + "is restarted with a working configuration. Non-staff logins are refused meanwhile: {}", e.toString(), e);
+        }
+    }
+
+    private void initialise() {
         registerTranslations();
         this.config = BlackholeConfig.load(dataDirectory.resolve("config.json"));
         this.logger.info("Loaded configuration with base URL: {}", config.getBaseUrl());
@@ -173,25 +225,47 @@ public class BlackholeVelocity {
         }
         this.logger.info("Initialized Blackhole client");
 
+        // Its own client: the session reports get the report timeout as their read timeout, the other calls keep theirs.
+        ApiClient reportClient = BlackholeApiClients.create(this.config.getBaseUrl(), tokens)
+                .setReadTimeout(this.config.getIntel().getReportTimeout());
+        this.sessionExecutor = SessionReporter.boundedExecutor();
+        SessionReporter sessions = new SessionReporter(new HttpSessionBackend(new IntelApi(reportClient)),
+                this.sessionExecutor, UUID::randomUUID);
+
         SectionRegistry sections = new SectionRegistry(new BackendSectionSource(this.client));
-        PunishmentMirror mirror = new PunishmentMirror(clock);
+        PunishmentMirror mirror = new PunishmentMirror(clock, this.config.getMirror().getMaxOwners(),
+                () -> this.server.getAllPlayers().stream().map(player -> UUIDConverter.convertToSHA(player.getUniqueId())).toList());
         BackendGateway backend = new HttpBackendGateway(this.client, clock);
         NatsConfig natsConfig = this.config.getNats().withEnvironment(System::getenv);
+        this.sentry.registerSecret(natsConfig.getCredsFile());
         // The sync service is created first (it is the cache trust) and told about the bus once the reactions below exist.
-        ExecutorService eventThread = Executors.newSingleThreadExecutor(task -> {
-            Thread thread = new Thread(task, "blackhole-nats-events");
-            thread.setDaemon(true);
-            return thread;
-        });
+        ExecutorService eventThread = NatsSyncService.boundedExecutor();
         this.eventThread = eventThread;
         AtomicReference<NatsSyncService> sync = new AtomicReference<>();
-        PunishmentState state = new PunishmentState(sections, mirror, owner -> backend.profile(owner), clock,
-                () -> sync.get() != null && sync.get().trusted(), natsConfig.getCacheMaxAge());
+        // Profile reads get clients of their own, so each is cut off at its timeout; a login waits longer than a chat message or connect.
+        ProfileConfig profileConfig = this.config.getProfile();
+        BackendGateway chatProfiles = new HttpBackendGateway(
+                BlackholeApiClients.create(this.config.getBaseUrl(), tokens).setReadTimeout(profileConfig.getChatTimeout()), clock);
+        BackendGateway loginProfiles = new HttpBackendGateway(
+                BlackholeApiClients.create(this.config.getBaseUrl(), tokens).setReadTimeout(profileConfig.getLoginTimeout()), clock);
+        PunishmentState state = new PunishmentState(sections, mirror, new PunishmentState.ProfileReader() {
+            @Override
+            public Optional<PunishProfileDTO> read(String owner) throws Exception {
+                return chatProfiles.profile(owner);
+            }
+
+            @Override
+            public Optional<PunishProfileDTO> readAtLogin(String owner) throws Exception {
+                return loginProfiles.profile(owner);
+            }
+        }, clock, () -> sync.get() != null && sync.get().trusted(), natsConfig.getCacheMaxAge());
         ChatCaptureConfig chatCapture = this.config.getEvidence().getChatCapture();
         PunishmentScreens screens = new PunishmentScreens(clock, this.config, sections, GlobalTranslator.renderer(),
                 new CachedBanIds(backend, clock, chatCapture.getTimeout()));
         CloudNetConfig cloudNetConfig = this.config.getCloudnet().withEnvironment(System::getenv);
         CloudNetView cloudNet = CloudNets.detect(cloudNetConfig.getIntegration(), BlackholeVelocity.class.getClassLoader(), this.logger);
+        this.sentry.tag("proxy.id", proxyIdOf(cloudNetConfig, cloudNet));
+        cloudNet.ownName().ifPresent(name -> this.sentry.tag("service.name", name));
         ServerResolver servers = new ServerResolver(cloudNet, sections, this.logger::warn);
         EnforcementActions actions = new EnforcementActions(this.server, sections, state, this.config, clock, screens, servers);
         PunishmentSyncHandler syncHandler = new PunishmentSyncHandler(mirror, actions);
@@ -200,16 +274,17 @@ public class BlackholeVelocity {
         KickRunner kickRunner = new KickRunner(backend, CompletableFuture::runAsync,
                 (delay, task) -> this.server.getScheduler().buildTask(this, task).delay(delay).schedule(),
                 clock, () -> UUID.randomUUID().toString(), KICK_POLL, KICK_GIVE_UP);
+        // A warning is shown in game and confirmed by the player; the backend calls run off the event thread.
+        WarningHandler warnings = new WarningHandler(backend, CompletableFuture::runAsync);
         ChatBuffer chatBuffer = new ChatBuffer(clock, chatCapture);
         ChatEvidence chatEvidence = ChatEvidence.create(new ChatSnapshotBuilder(chatBuffer, chatCapture), backend, chatCapture);
         EvidenceCounts evidenceCounts = new CachedEvidenceCounts(backend, clock, chatCapture.getTimeout());
-        MuteChatDenial chatDenial = new MuteChatDenial(this.server.getPluginManager().isLoaded(MuteChatDenial.RELAY_PLUGIN_ID));
-        if (!chatDenial.relayPresent()) {
-            this.logger.warn("SignedVelocity is not installed: mutes cannot block signed chat and client rules cannot deny signed "
-                    + "commands (Minecraft 1.19.1+). Muted players are told about their mute but their messages are still delivered; a command "
-                    + "with signed arguments that a rule denies is still delivered and the hit is recorded as not enforced. "
-                    + "Install SignedVelocity on the proxy and on every backend server to enforce mutes and command rules.");
-        }
+        // Read once here: the relay's presence decides how mutes and client rules may stop signed messages.
+        RelayState relay = RelayState.check(this.server.getPluginManager().isLoaded(MuteChatDenial.RELAY_PLUGIN_ID),
+                this.server.getPluginManager().getPlugin(MuteChatDenial.RELAY_PLUGIN_ID)
+                        .flatMap(container -> container.getDescription().getVersion()).orElse(null),
+                this.logger::error);
+        MuteChatDenial chatDenial = new MuteChatDenial(relay.present());
         PunishService punishService = new PunishService(backend, sections, chatEvidence);
         ReportService reportService = new ReportService(backend, ReportEvidence.create(new ChatSnapshotBuilder(chatBuffer, chatCapture), backend, chatCapture));
 
@@ -226,7 +301,9 @@ public class BlackholeVelocity {
                 owner -> reportFeedback.poked(owner, this.server.getAllPlayers()),
                 // The handlers read the reason and answer over HTTP, so they must not run on the NATS thread.
                 kick -> CompletableFuture.runAsync(() -> kickHandler.kick(kick)),
-                kick -> CompletableFuture.runAsync(() -> kickHandler.mass(kick))), eventThread);
+                kick -> CompletableFuture.runAsync(() -> kickHandler.mass(kick)),
+                // Only the owner's connected proxy finds them; a warning never touches the punishment cache.
+                warning -> CompletableFuture.runAsync(() -> warnings.warned(warning, this.server.getAllPlayers()))), eventThread);
         sync.set(natsSync);
         ClientRulesConfig clientRulesConfig = this.config.getClientRules().withEnvironment(System::getenv);
         ClientRuleBackend ruleBackend = new HttpClientRuleBackend(this.client);
@@ -238,7 +315,8 @@ public class BlackholeVelocity {
         if (this.busClient.start(natsSync)) {
             this.logger.info("Connecting to the event bus at {} in the background", natsConfig.getUrl());
         }
-        sections.reload();
+        // Off the startup path: the proxy starts at once and the first load is retried until the backend answers.
+        new SectionWarmup(sections, (delay, task) -> this.server.getScheduler().buildTask(this, task).delay(delay).schedule()).start();
         // An event may be lost, so the section list heals itself (tab completion, enforcement kinds).
         server.getScheduler().buildTask(this, sections::reload).delay(SECTION_REFRESH).repeat(SECTION_REFRESH).schedule();
         long cloudNetSections = sections.all().stream().filter(section -> section.targetKind() != ServerTargetKind.PATTERN).count();
@@ -260,10 +338,15 @@ public class BlackholeVelocity {
             this.logger.info("Client rules are switched off on this proxy");
         }
 
+        MuteNotices muteNotices = new MuteNotices(screens, new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN));
+        this.muteCommands = new MuteCommandListener(new MuteCommandGate(this.config.getMute().getCommands(), relay.present()),
+                state, evidenceCounts, muteNotices);
+        new ProxyCapabilityReporter(relay, backend, timer(), proxyIdOf(cloudNetConfig, cloudNet)).start();
+
         Injector childInjector = this.injector.createChildInjector(
                 new BlackholeClientModule(this.client, this.config, sections, mirror, state,
                         syncHandler, actions, backend, punishService, clock, screens, chatBuffer, evidenceCounts, chatDenial,
-                        new MuteNotices(screens, new MuteNoticeCooldown(clock, MUTE_NOTICE_COOLDOWN)), servers, reportService, reportNotifier, reportFeedback, kickRunner).asModule(),
+                        muteNotices, servers, reportService, reportNotifier, reportFeedback, kickRunner, warnings, sessions).asModule(),
                 new CloudInjectionModule<>(
                         CommandSource.class,
                         ExecutionCoordinator.simpleCoordinator(),
@@ -275,22 +358,36 @@ public class BlackholeVelocity {
         );
         // Without this Brigadier rejects incomplete input ("elo") as an unknown command before Cloud can answer with the usage line.
         commandManager.brigadierManager().settings().set(BrigadierSetting.FORCE_EXECUTABLE, true);
-        CommandErrorHandlers.register(commandManager);
+        CommandErrorHandlers.register(commandManager, error -> this.sentry.capture(error, "command"));
         BackendAuthGuard.register(commandManager, () -> this.authReady);
         AnnotationParser<CommandSource> annotationParser = new AnnotationParser<>(commandManager, CommandSource.class);
         annotationParser.parse(childInjector.getInstance(TargetParser.class));
         annotationParser.parse(childInjector.getInstance(PunishCommand.class));
         annotationParser.parse(childInjector.getInstance(PunishInfoCommand.class));
+        annotationParser.parse(childInjector.getInstance(NameHistoryCommand.class));
         annotationParser.parse(childInjector.getInstance(PardonCommand.class));
         annotationParser.parse(childInjector.getInstance(KickCommand.class));
         annotationParser.parse(childInjector.getInstance(KickAllCommand.class));
+        annotationParser.parse(childInjector.getInstance(WarnCommand.class));
+        annotationParser.parse(childInjector.getInstance(WarningAckCommand.class));
         annotationParser.parse(childInjector.getInstance(EloCommand.class));
         annotationParser.parse(childInjector.getInstance(LinkCommand.class));
         annotationParser.parse(childInjector.getInstance(ReportCommand.class));
         annotationParser.parse(childInjector.getInstance(DiscordCommand.class));
+        annotationParser.parse(childInjector.getInstance(GuardCommand.class));
+        annotationParser.parse(childInjector.getInstance(AreaBanCommand.class));
+        // The join guard's staff presence: one beat per interval, sent off the server thread.
+        GuardHeartbeatTask guardHeartbeat = new GuardHeartbeatTask(childInjector.getInstance(GuardBackend.class),
+                childInjector.getInstance(GuardLevelCache.class), proxyIdOf(cloudNetConfig, cloudNet));
+        Duration guardInterval = this.config.getIntel().getGuardHeartbeatInterval();
+        server.getScheduler().buildTask(this, () -> guardHeartbeat.beat(server.getAllPlayers()))
+                .delay(guardInterval).repeat(guardInterval).schedule();
         server.getEventManager().register(this, childInjector.getInstance(PlayerLoginListener.class));
-        server.getEventManager().register(this, childInjector.getInstance(PlayerChatListener.class));
+        this.chatListener = childInjector.getInstance(PlayerChatListener.class);
+        server.getEventManager().register(this, this.chatListener);
+        server.getEventManager().register(this, this.muteCommands);
         server.getEventManager().register(this, childInjector.getInstance(ReportFeedbackListener.class));
+        server.getEventManager().register(this, childInjector.getInstance(WarningListener.class));
         if (chatBuffer.enabled()) {
             this.logger.info("Chat capture is enabled: recent public chat is kept in memory for punishment evidence");
             server.getEventManager().register(this, childInjector.getInstance(ChatCaptureListener.class));
@@ -299,6 +396,7 @@ public class BlackholeVelocity {
         }
         server.getEventManager().register(this, childInjector.getInstance(PlayerClientBrandListener.class));
         server.getEventManager().register(this, childInjector.getInstance(ServerConnectListener.class));
+        server.getEventManager().register(this, childInjector.getInstance(PostConnectBanListener.class));
         server.getEventManager().register(this, childInjector.getInstance(PlayerDisconnectListener.class));
         if (clientRuleListener != null) {
             server.getEventManager().register(this, clientRuleListener);
@@ -383,6 +481,13 @@ public class BlackholeVelocity {
         if (this.eventThread != null) {
             this.eventThread.shutdownNow();
         }
+        if (this.chatListener != null) {
+            this.chatListener.close();
+        }
+        if (this.sessionExecutor != null) {
+            this.sessionExecutor.shutdownNow();
+        }
+        this.sentry.close();
     }
 
     /**
@@ -392,6 +497,7 @@ public class BlackholeVelocity {
      */
     private TokenSource authenticate(Clock clock) {
         AuthConfig auth = this.config.getAuth().withEnvironment(System::getenv);
+        this.sentry.registerSecret(auth.getClientSecret());
         try {
             if (!auth.isComplete()) {
                 this.logger.error("The backend credentials are incomplete, missing: {}. Backend calls and staff commands "

@@ -18,6 +18,9 @@ import java.util.Optional;
 @Singleton
 public class ActorArgumentBinder implements TypedRequestArgumentBinder<Actor> {
 
+    /** The header by which the team panel declares its surface; the audit log reads it. */
+    public static final String SURFACE_HEADER = "X-Blackhole-Surface";
+
     private final ActorResolver resolver;
 
     public ActorArgumentBinder(ActorResolver resolver) {
@@ -35,6 +38,7 @@ public class ActorArgumentBinder implements TypedRequestArgumentBinder<Actor> {
         if (authentication.isEmpty()) {
             return ArgumentBinder.BindingResult.unsatisfied();
         }
-        return () -> Optional.of(this.resolver.resolve(authentication.get()));
+        boolean panel = "panel".equalsIgnoreCase(source.getHeaders().get(SURFACE_HEADER));
+        return () -> Optional.of(this.resolver.resolve(authentication.get()).withPanel(panel));
     }
 }

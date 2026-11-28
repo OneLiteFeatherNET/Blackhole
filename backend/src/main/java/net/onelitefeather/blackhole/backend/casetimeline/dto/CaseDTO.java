@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.casetimeline.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
@@ -33,6 +34,7 @@ public sealed interface CaseDTO {
      * @param assigneeOid     the staff member to assign: a known human {@code staff_actor}
      * @param clearAssignee   removes the assignee (an absent {@code assigneeOid} cannot say that)
      * @param tags            the full new tag list: at most 10 slugs of {@code [a-z0-9-]{1,32}}
+     * @param onBehalfOf      the staff member the Discord bot acts for (a claim from Discord); the panel sends none
      */
     @Schema(name = "CaseUpdateRequest")
     @Serdeable
@@ -43,8 +45,14 @@ public sealed interface CaseDTO {
             @Nullable UUID assigneeOid,
             boolean clearAssignee,
             @Nullable CasePriority priority,
-            @Nullable List<String> tags
+            @Nullable List<String> tags,
+            @Nullable UUID onBehalfOf
     ) implements CaseDTO {
+
+        public UpdateRequest(Long expectedVersion, CaseStatus status, UUID assigneeOid, boolean clearAssignee,
+                             CasePriority priority, List<String> tags) {
+            this(expectedVersion, status, assigneeOid, clearAssignee, priority, tags, null);
+        }
     }
 
     /**
@@ -84,6 +92,19 @@ public sealed interface CaseDTO {
     }
 
     /**
+     * The state of the case's appeal ticket: the newest ticket, live or not. Carries no Ban ID and no Discord id.
+     *
+     * @param state        {@code PENDING_CHANNEL}, {@code OPEN}, {@code CLOSING}, {@code CLOSED}, {@code ARCHIVED} or {@code DELETED}
+     * @param frozen       whether the channel is locked
+     * @param freezeSource {@code STAFF} or {@code LEAK} while locked, {@code null} when not
+     */
+    @Schema(name = "CaseTicket")
+    @Serdeable
+    @ReflectiveAccess
+    record Ticket(@NonNull String state, boolean frozen, @Nullable String freezeSource) {
+    }
+
+    /**
      * A case.
      *
      * @param ownerPrefix     the first characters of the player's hash, never the whole hash
@@ -95,6 +116,7 @@ public sealed interface CaseDTO {
      * @param banIdLeakReason the leak reason code; null when not leaked
      * @param playerSeenSeq   the highest seq the player's conversation read has returned (0 when none); staff show "Seen" under the last
      *                        staff message at or below it. A number only, never a time.
+     * @param ticket          the state of the newest appeal ticket; null when the case never had one
      */
     @Schema(name = "CaseResponse")
     @Serdeable
@@ -116,7 +138,8 @@ public sealed interface CaseDTO {
             @NonNull @JsonInclude(JsonInclude.Include.ALWAYS) List<Related> related,
             @Nullable Long banIdLeakedAt,
             @Nullable String banIdLeakReason,
-            long playerSeenSeq
+            long playerSeenSeq,
+            @Nullable Ticket ticket
     ) implements CaseDTO {
     }
 
@@ -176,7 +199,13 @@ public sealed interface CaseDTO {
     ) implements CaseDTO {
     }
 
-    /** One row of the case list. */
+    /**
+     * One row of the case list.
+     *
+     * @param playerName the newest name of the player from the name history; null when none is known (or it was removed)
+     * @param ownerShort the first characters of the player's hash, the fallback for the name; never the whole hash
+     * @param version    the optimistic version of the case, 0 when it has no row yet
+     */
     @Schema(name = "CaseListItem")
     @Serdeable
     @ReflectiveAccess
@@ -191,8 +220,44 @@ public sealed interface CaseDTO {
             @NonNull CasePriority priority,
             @NonNull @JsonInclude(JsonInclude.Include.ALWAYS) List<String> tags,
             long punishmentCreatedAt,
+            long lastActivityAt,
+            @Nullable String playerName,
+            @NonNull String ownerShort,
+            long version
+    ) {
+    }
+
+    /**
+     * One player in the groups. {@code owner} is the full hash: the expansion of a group sends it back as the
+     * {@code owner} filter of the case list. The raw player UUID is never part of it.
+     *
+     * @param openCount  the matching cases whose status is not CLOSED
+     * @param totalCount the matching cases
+     */
+    @Schema(name = "CaseGroupItem")
+    @Serdeable
+    @ReflectiveAccess
+    record GroupItem(
+            @NonNull String owner,
+            @NonNull String ownerShort,
+            @Nullable String playerName,
+            long openCount,
+            long totalCount,
             long lastActivityAt
     ) {
+    }
+
+    /** One page of the groups by player; paging is over players. */
+    @Schema(name = "CaseGroupPage")
+    @Serdeable
+    @ReflectiveAccess
+    record GroupPage(
+            @NonNull @JsonInclude(JsonInclude.Include.ALWAYS) List<GroupItem> items,
+            int page,
+            int size,
+            long totalSize,
+            int totalPages
+    ) implements CaseDTO {
     }
 
     /** One page of the case list. */
@@ -225,6 +290,87 @@ public sealed interface CaseDTO {
     @Serdeable
     @ReflectiveAccess
     record RedactResponse(@NonNull String noteId, int redactedVersions) implements CaseDTO {
+    }
+
+    /**
+     * A bulk edit: one change applied to up to 100 cases, each guarded by its own version. The change names at least one field.
+     * Adds and removes are tags only: a bulk edit does not replace a case's tags.
+     *
+     * @param cases       the cases, each with its full identifier and the version the caller read; no duplicates
+     * @param status      the new status for every case
+     * @param assigneeOid the staff member to assign to every case
+     * @param clearAssignee removes the assignee from every case
+     * @param priority    the new priority for every case
+     * @param addTags     tags to add to each case
+     * @param removeTags  tags to remove from each case
+     */
+    @Schema(name = "CaseBulkRequest")
+    @Serdeable
+    @ReflectiveAccess
+    @JsonIgnoreProperties(ignoreUnknown = false)
+    record BulkRequest(
+            @NonNull List<BulkCase> cases,
+            @Nullable CaseStatus status,
+            @Nullable UUID assigneeOid,
+            boolean clearAssignee,
+            @Nullable CasePriority priority,
+            @Nullable List<String> addTags,
+            @Nullable List<String> removeTags
+    ) implements CaseDTO {
+    }
+
+    /**
+     * One case of a bulk edit.
+     *
+     * @param punishmentIdentifier the full identifier of the punishment, never a short id
+     * @param expectedVersion      the {@code version} of the case the caller read
+     */
+    @Schema(name = "CaseBulkCase")
+    @Serdeable
+    @ReflectiveAccess
+    record BulkCase(@NonNull String punishmentIdentifier, @NonNull Long expectedVersion) {
+    }
+
+    /**
+     * The outcome of a bulk edit: a counter per outcome and one item per case, in request order.
+     *
+     * @param batchId the id every event and audit of this batch carries
+     */
+    @Schema(name = "CaseBulkResult")
+    @Serdeable
+    @ReflectiveAccess
+    record BulkResult(
+            @NonNull String batchId,
+            int updated,
+            int unchanged,
+            int conflicts,
+            int notFound,
+            int failed,
+            @NonNull @JsonInclude(JsonInclude.Include.ALWAYS) List<BulkItem> items
+    ) implements CaseDTO {
+    }
+
+    /**
+     * What happened to one case.
+     *
+     * @param version        the case's version after this item: the new one when it changed, the current one otherwise
+     * @param currentVersion the version the case has now, set only for a {@code CONFLICT}
+     * @param changed        whether the case was written
+     * @param auditWritten   whether the audit entry of a changed case was written; false when the write failed after the change
+     * @param message        why the case failed or conflicted; null otherwise
+     */
+    @Schema(name = "CaseBulkItem")
+    @Serdeable
+    @ReflectiveAccess
+    record BulkItem(
+            @NonNull String punishmentIdentifier,
+            @NonNull CaseBulkOutcome outcome,
+            boolean changed,
+            long version,
+            @Nullable Long currentVersion,
+            boolean auditWritten,
+            @Nullable String message
+    ) {
     }
 
     @Schema(name = "CaseError")

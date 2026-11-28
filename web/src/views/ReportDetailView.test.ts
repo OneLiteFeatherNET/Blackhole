@@ -1,4 +1,4 @@
-import { flushPromises } from '@vue/test-utils'
+import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import type { Punishment, Report, Section, Template } from '../api/types'
 import { evidenceItem } from '../test/evidence'
@@ -61,6 +61,14 @@ function setup(options: { roles?: string[]; report?: Report; extra?: Record<stri
     ...options.extra,
   }
   return { api, mount: () => mountWithApp(ReportDetailView, { api: mockApi(api), path: `/reports/${ID}`, props: { id: ID }, roles: options.roles }) }
+}
+
+/** Dismiss is in the overflow menu of the header (the other action is the primary one). */
+async function chooseDismiss(wrapper: VueWrapper): Promise<void> {
+  await wrapper.get('[data-testid="entity-header"] button[aria-haspopup="menu"]').trigger('click')
+  const item = wrapper.findAll('[role="menuitem"]').find((candidate) => candidate.text() === 'Dismiss')
+  if (!item) throw new Error('no Dismiss item in the overflow menu')
+  await item.trigger('click')
 }
 
 describe('ReportDetailView: page template', () => {
@@ -214,11 +222,29 @@ describe('ReportDetailView: actions', () => {
     wrapper.unmount()
   })
 
+  it('shows the apply action of a resolved report disabled, with the reason as text', async () => {
+    const { mount } = setup({ report: report({ status: 'DISMISSED' }) })
+    const { wrapper } = await mount()
+
+    const apply = wrapper.get('[data-testid="apply-template"]')
+    expect(apply.attributes('disabled')).toBeDefined()
+    expect(wrapper.get(`[id="${apply.attributes('aria-describedby')}"]`).text()).toBe('This report is already resolved.')
+    wrapper.unmount()
+  })
+
+  it('links the header owner to the reported player by the owner hash', async () => {
+    const { mount } = setup()
+    const { wrapper, router } = await mount()
+
+    expect(wrapper.get('[data-testid="report-owner"]').attributes('href')).toBe(router.resolve(`/players/${REPORTED}`).href)
+    wrapper.unmount()
+  })
+
   it('dismisses with a note through the resolve route and reloads the report', async () => {
     const { api, mount } = setup()
     const { wrapper } = await mount()
 
-    await wrapper.get('[data-testid="dismiss"]').trigger('click')
+    await chooseDismiss(wrapper)
     await flushPromises()
     const confirm = wrapper.get('[role="dialog"] [data-testid="confirm"]')
     expect(confirm.attributes('disabled'), 'a note is required').toBeDefined()
@@ -237,7 +263,7 @@ describe('ReportDetailView: actions', () => {
     const { mount } = setup({ extra: { resolveReport: vi.fn(async () => fail('the report is already resolved (DISMISSED)', 409, 'CONFLICT')) } })
     const { wrapper } = await mount()
 
-    await wrapper.get('[data-testid="dismiss"]').trigger('click')
+    await chooseDismiss(wrapper)
     await flushPromises()
     await wrapper.get('[role="dialog"] input').setValue('note')
     await wrapper.get('[role="dialog"] [data-testid="confirm"]').trigger('click')

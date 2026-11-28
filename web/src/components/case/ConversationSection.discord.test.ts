@@ -248,3 +248,26 @@ describe('ConversationSection: participant erasure', () => {
     wrapper.unmount()
   })
 })
+
+describe('ConversationSection: ticket lock beside the tickets', () => {
+  it('shows the lock control to a moderator next to the ticket states', async () => {
+    const { mount } = setup([opened()], ['MODERATOR'])
+    const { wrapper } = await mount()
+
+    expect(wrapper.find('[data-testid="tickets"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="lock-control"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="lock-ticket"]').exists()).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('shows a viewer the lock state without a lock control', async () => {
+    const { mount } = setup([opened()], ['VIEWER'])
+    const { wrapper } = await mount()
+
+    expect(wrapper.find('[data-testid="lock-control"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="lock-ticket"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+})

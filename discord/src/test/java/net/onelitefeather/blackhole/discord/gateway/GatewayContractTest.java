@@ -19,7 +19,7 @@ class GatewayContractTest {
     void theAccountAndAppealCommandsAreRegisteredWithAGermanDescription() {
         List<CommandData> commands = JdaGateway.commandData();
 
-        assertEquals(List.of("link", "unlink", "whoami", "appeal"), commands.stream().map(CommandData::getName).toList(), "command names");
+        assertEquals(List.of("link", "unlink", "whoami", "guard", "appeal"), commands.stream().map(CommandData::getName).toList(), "command names");
         for (CommandData command : commands) {
             SlashCommandData slash = (SlashCommandData) command;
             assertFalse(slash.getDescriptionLocalizations().toMap().get(DiscordLocale.GERMAN).isBlank(), command.getName() + " has a German description");
@@ -33,6 +33,18 @@ class GatewayContractTest {
         assertEquals(1, link.getOptions().size(), "one option");
         assertEquals("code", link.getOptions().getFirst().getName(), "named code");
         assertTrue(link.getOptions().getFirst().isRequired(), "required");
+    }
+
+    @Test
+    void theGuardCommandTakesOneRequiredLevelWithTheThreeLevelsAsChoices() {
+        SlashCommandData guard = (SlashCommandData) JdaGateway.commandData().get(3);
+
+        assertEquals("guard", guard.getName(), "fourth command");
+        assertEquals(1, guard.getOptions().size(), "one option");
+        assertEquals("level", guard.getOptions().getFirst().getName(), "named level");
+        assertTrue(guard.getOptions().getFirst().isRequired(), "required");
+        assertEquals(List.of("OFF", "STRICT", "LOCKDOWN"), guard.getOptions().getFirst().getChoices().stream()
+                .map(choice -> choice.getAsString()).toList(), "the three levels");
     }
 
     @Test

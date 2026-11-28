@@ -30,10 +30,25 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
     private static final Set<String> MP = Set.of("MODERATOR", "PROXY");
     private static final Set<String> A = Set.of("ADMIN");
     private static final Set<String> D = Set.of("DISCORD");
+    private static final Set<String> INTEGRATION = Set.of("INTEGRATION");
+    /** A moderator, an admin, or the Discord bot naming the staff member it acts for (the delegation routes). */
+    private static final Set<String> MAD = Set.of("MODERATOR", "ADMIN", "DISCORD");
+    private static final Set<String> MD = Set.of("MODERATOR", "DISCORD");
+    /** A moderator, or the proxy or the Discord bot naming the staff member it acts for (the guard and area ban routes). */
+    private static final Set<String> MPD = Set.of("MODERATOR", "PROXY", "DISCORD");
+    /**
+     * The routes on which the Discord bot may act for a linked staff member (StaffDelegation): nowhere else. The guard level
+     * and the area ban routes are also delegation routes, so the proxy and the bot may act for staff there.
+     */
+    private static final Set<String> DELEGATION_ROUTES = Set.of("POST /appeal/{identifier}/review", "PATCH /case/{reference}",
+            "PUT /case/{reference}/ticket/freeze", "POST /discord/tickets/{id}/close", "POST /guard/level", "POST /area-bans",
+            "POST /area-bans/{id}/lift");
     private static final Set<String> AUTHENTICATED = Set.of("isAuthenticated()");
     private static final Set<String> ANONYMOUS = Set.of("isAnonymous()");
     /** A valid player session (PlayerSessionRule.ROLE): neither a staff role nor the proxy. */
     private static final Set<String> PLAYER = Set.of("PLAYER_SESSION");
+    /** The ban-list routes: Micronaut lets them through, and BanListAccessFilter demands a named client's Basic credential. */
+    private static final Set<String> BASIC_CLIENT = Set.of("isAnonymous()");
 
     /** The matrix: route -> roles that may call it (any one of them). */
     private static final Map<String, Set<String>> MATRIX = Map.ofEntries(
@@ -61,12 +76,14 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /evidence/{identifier}", V),
             Map.entry("GET /evidence/{identifier}/content", V),
             Map.entry("GET /cloudnet/catalogue", V),
+            Map.entry("GET /proxy/capabilities", V),
             Map.entry("GET /client-rule", VP),
             Map.entry("GET /client-rule/{key}", VP),
             Map.entry("GET /client-rule/catalogue", V),
             Map.entry("GET /client-rule/hits", V),
             Map.entry("GET /client-rule/{key}/hits", V),
             Map.entry("GET /case", V),
+            Map.entry("GET /case/groups", V),
             Map.entry("GET /case/{reference}", V),
             Map.entry("GET /case/{reference}/timeline", V),
             Map.entry("GET /case/{reference}/protocol", V),
@@ -78,8 +95,25 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /kick/mass", A),
             Map.entry("GET /kick/{id}", VP),
             Map.entry("POST /kick/{id}/deliveries", P),
+            // staff rollback: an admin previews, starts, follows and cancels a rollback of one staff member's punishments
+            Map.entry("POST /admin/rollback/preview", A),
+            Map.entry("POST /admin/rollback/{id}/execute", A),
+            Map.entry("GET /admin/rollback/{id}", A),
+            Map.entry("POST /admin/rollback/{id}/cancel", A),
+            // exemption: staff and the proxy read a player's status; only the proxy reports permissions; admins decide reviews
+            Map.entry("GET /exemption/{owner}", VP),
+            Map.entry("POST /exemption/report", P),
+            Map.entry("GET /exemption/reviews", A),
+            Map.entry("POST /exemption/reviews/{id}/apply", A),
+            Map.entry("POST /exemption/reviews/{id}/dismiss", A),
+            // warnings: the player's proxy reads and confirms them; viewers read one warning
+            Map.entry("GET /warn/{id}", VP),
+            Map.entry("GET /warn/pending", P),
+            Map.entry("POST /warn/{id}/acknowledge", P),
             // moderation
-            Map.entry("PATCH /case/{reference}", M),
+            Map.entry("PATCH /case/{reference}", MD),
+            Map.entry("POST /case/bulk", M),
+            Map.entry("PUT /case/{reference}/ticket/freeze", MAD),
             Map.entry("POST /case/{reference}/notes", M),
             Map.entry("PUT /case/{reference}/notes/{noteId}", M),
             Map.entry("POST /case/{reference}/messages", M),
@@ -98,7 +132,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /punishment/preview", M),
             Map.entry("POST /punishment/revoke", MP),
             Map.entry("POST /report/{identifier}/resolve", M),
-            Map.entry("POST /appeal/{identifier}/review", M),
+            Map.entry("POST /appeal/{identifier}/review", MAD),
             Map.entry("POST /elo/{owner}/adjust", M),
             Map.entry("POST /evidence", MP),
             Map.entry("POST /evidence/file", MP),
@@ -110,8 +144,48 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /elo/chat", MP),
             Map.entry("POST /evasion/record", MP),
             Map.entry("POST /evasion/fingerprint", P),
+            // player sessions: the proxy reports and updates them, staff read them (the proxy may not)
+            Map.entry("POST /intel/sessions", P),
+            Map.entry("PATCH /intel/sessions/{sessionId}", P),
+            Map.entry("GET /intel/players/{owner}/sessions", V),
+            // name history: staff read it, and the proxy reads it for the /blackhole names <user> command
+            Map.entry("GET /intel/players/{owner}/names", VP),
+            Map.entry("GET /intel/names/{name}/owners", VP),
+            // VPN and hosting detection: the proxy asks for a verdict; staff read and set the policy and exemptions
+            Map.entry("POST /intel/login-check", P),
+            Map.entry("GET /intel/policy", V),
+            Map.entry("POST /intel/policy", M),
+            Map.entry("POST /intel/allow-list", M),
+            Map.entry("GET /intel/allow-list", V),
+            Map.entry("DELETE /intel/allow-list/{owner}", M),
+            Map.entry("GET /intel/lists", V),
+            Map.entry("GET /intel/players/{owner}/hits", V),
+            // join guard: staff read and set the level, the proxy reads the state (/guard status) and reports its staff presence;
+            // area bans are staff actions, the proxy reads the list (/areaban lift)
+            Map.entry("GET /guard/state", VP),
+            Map.entry("POST /guard/level", MPD),
+            Map.entry("POST /guard/presence", P),
+            // join guard settings: staff read the stored unattended settings, only an administrator replaces them
+            Map.entry("GET /guard/settings", V),
+            Map.entry("PUT /guard/settings", A),
+            Map.entry("GET /area-bans", VP),
+            Map.entry("POST /area-bans", MPD),
+            Map.entry("POST /area-bans/{id}/lift", MPD),
             Map.entry("POST /profile/{owner}/session", MP),
+            // IP bans: staff create and lift (a moderator within the duration limit, an admin permanently), viewers read,
+            // the proxy reads its active list
+            Map.entry("POST /ipban", M),
+            Map.entry("GET /ipban", V),
+            Map.entry("GET /ipban/active", P),
+            Map.entry("GET /ipban/{id}", V),
+            Map.entry("POST /ipban/{id}/lift", M),
             // admin configuration
+            Map.entry("GET /integration/registrations", A),
+            Map.entry("POST /integration/registrations", A),
+            Map.entry("GET /integration/registrations/{id}", A),
+            Map.entry("PATCH /integration/registrations/{id}", A),
+            // detection intake: only the integration principal, never a staff role or the proxy
+            Map.entry("POST /integration/detections", INTEGRATION),
             Map.entry("POST /section", A),
             Map.entry("POST /section/update", A),
             Map.entry("POST /section/{key}/disable", A),
@@ -126,6 +200,8 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("POST /admin/import/punishments/retemplate", A),
             Map.entry("GET /admin/staff-actor", A),
             Map.entry("POST /admin/staff-actor/{oid}/anonymize", A),
+            // the staff audit log is read by administrators only
+            Map.entry("GET /admin/audit", A),
             // erasure and destructive
             Map.entry("POST /case/{reference}/notes/{noteId}/redact", A),
             Map.entry("POST /case/{reference}/messages/{messageId}/redact", A),
@@ -141,6 +217,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("DELETE /staff-link/me", V),
             Map.entry("PUT /cloudnet/catalogue", P),
             Map.entry("PUT /client-rule/catalogue", P),
+            Map.entry("PUT /proxy/capabilities", P),
             Map.entry("POST /client-rule/hit", P),
             Map.entry("GET /report/feedback/{owner}", P),
             Map.entry("POST /report/feedback/{identifier}/ack", P),
@@ -174,6 +251,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /discord/tickets/{id}/attachments/{attachmentId}", D),
             Map.entry("POST /discord/tickets/{id}/attachments", D),
             Map.entry("GET /discord/staff-links", D),
+            Map.entry("GET /discord/staff-links/{discordUserId}", D),
             Map.entry("POST /discord/leak-check", D),
             Map.entry("POST /case/{reference}/participants/{participantId}/erase", A),
             Map.entry("GET /admin/discord-link", A),
@@ -182,6 +260,7 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /auth/me", AUTHENTICATED),
             // the player portal: the login is anonymous, everything else needs a player session
             Map.entry("POST /public/session", ANONYMOUS),
+            Map.entry("GET /public/challenge", ANONYMOUS),
             Map.entry("GET /public/session", PLAYER),
             Map.entry("DELETE /public/session", PLAYER),
             Map.entry("GET /public/punishment", PLAYER),
@@ -201,8 +280,23 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Map.entry("GET /public/conversation/events", PLAYER),
             // a staff head, by its keyed avatar key: served to the portal's player session only
             Map.entry("GET /public/staff-avatar/{avatarKey}", PLAYER),
+            // the public ban list for partner networks: HTTP Basic with a named client (BanListAccessFilter), no Entra token
+            Map.entry("GET /public/bans", BASIC_CLIENT),
+            Map.entry("GET /public/bans/summary", BASIC_CLIENT),
+            Map.entry("GET /public/bans/{hash}", BASIC_CLIENT),
+            Map.entry("GET /public/bans/{hash}/{rest:.+}", BASIC_CLIENT),
+            // the firewall pull feeds: anonymous at the role layer, the token and the source allow-list are checked by FeedService
+            Map.entry("GET /firewall/feed/{token}/{feed}", ANONYMOUS),
             // the case's live signal: viewers and above (the proxy and the Discord bot are denied)
-            Map.entry("GET /case/{reference}/events", V)
+            Map.entry("GET /case/{reference}/events", V),
+            // the read-by-id routes of the staff panel: the role of the list of each entity, never wider (add-staff-panel-read-endpoints)
+            Map.entry("GET /appeal/{identifier}", V),
+            Map.entry("GET /exemption/reviews/{id}", A),
+            Map.entry("GET /area-bans/{id}", VP),
+            Map.entry("GET /intel/allow-list/{owner}", V),
+            Map.entry("GET /admin/audit/{auditId}", A),
+            Map.entry("GET /admin/staff-actor/{oid}", A),
+            Map.entry("GET /appeal-conditions/versions/{version}", V)
     );
 
     /** Routes without @Secured, protected by the intercept-url-map or public (see application.yml). */
@@ -228,16 +322,17 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
-    void onlyTheLoginIsAnonymousUnderThePublicPrefixAndEveryOtherRouteNeedsAPlayerSessionAndNoStaffRole() {
+    void onlyTheLoginAndTheChallengeAreAnonymousUnderThePublicPrefixAndEveryOtherRouteNeedsAPlayerSession() {
         Map<String, Set<String>> publicRoutes = new TreeMap<>();
         this.context.getBean(Router.class).uriRoutes().filter(route -> !"HEAD".equals(route.getHttpMethodName()))
                 .filter(route -> route.getUriMatchTemplate().toString().startsWith("/public"))
+                .filter(route -> !route.getUriMatchTemplate().toString().startsWith("/public/bans"))
                 .forEach(route -> publicRoutes.put(route.getHttpMethodName() + " " + route.getUriMatchTemplate(),
                         Set.of(route.getAnnotationMetadata().stringValues(Secured.class))));
 
         assertTrue(!publicRoutes.isEmpty(), "the portal has routes");
         publicRoutes.forEach((route, roles) -> {
-            if (route.equals("POST /public/session")) {
+            if (route.equals("POST /public/session") || route.equals("GET /public/challenge")) {
                 assertEquals(ANONYMOUS, roles, route);
             } else {
                 assertEquals(PLAYER, roles, route + " needs a player session and no staff role");
@@ -262,13 +357,13 @@ class RouteCoverageIntegrationTest extends ApiIntegrationTest {
             Set<String> roles = Set.of(route.getAnnotationMetadata().stringValues(Secured.class));
             if (route.getUriMatchTemplate().toString().startsWith("/discord/")) {
                 discordRoutes.put(key, roles);
-            } else if (roles.contains("DISCORD")) {
+            } else if (roles.contains("DISCORD") && !DELEGATION_ROUTES.contains(key)) {
                 botElsewhere.add(key);
             }
         });
 
         assertTrue(discordRoutes.size() >= 16, "the whole /discord/** facade is registered: " + discordRoutes.keySet());
         discordRoutes.forEach((route, roles) -> assertEquals(D, roles, route + " allows the bot and nobody else"));
-        assertEquals(Set.of(), botElsewhere, "the bot is allowed nowhere but /discord/**");
+        assertEquals(Set.of(), botElsewhere, "the bot is allowed nowhere but /discord/** and the delegation routes");
     }
 }

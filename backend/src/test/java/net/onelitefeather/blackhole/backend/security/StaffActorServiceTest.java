@@ -27,9 +27,10 @@ class StaffActorServiceTest {
     private final TestClock clock = new TestClock();
     private final StaffLinkTestBed links = new StaffLinkTestBed(this.events, this.clock);
     private final DiscordLinkTestBed discord = new DiscordLinkTestBed(this.events, this.clock);
+    private final net.onelitefeather.blackhole.backend.support.InMemoryStaffAuditStore audit = new net.onelitefeather.blackhole.backend.support.InMemoryStaffAuditStore();
     private final net.onelitefeather.blackhole.backend.support.RecordingProtocols protocols = new net.onelitefeather.blackhole.backend.support.RecordingProtocols();
     private final StaffActorService service = new StaffActorService(this.store.repository(), this.events, this.links.service, this.discord.service,
-            this.protocols, this.links.profileService, new net.onelitefeather.blackhole.backend.support.InMemoryCaseEventRepository());
+            this.protocols, this.links.profileService, new net.onelitefeather.blackhole.backend.support.InMemoryCaseEventRepository(), this.audit);
 
     @Test
     void anonymizingClearsTheStaffDisplayNameOfThePerson() {

@@ -36,8 +36,40 @@ public interface DiscordGateway extends AutoCloseable {
      */
     record MessageSpec(
             @Nullable String content, @NotNull String title, int color, @NotNull List<Field> fields,
-            @NotNull String footer, @NotNull Instant timestamp, @Nullable String linkLabel, @Nullable String linkUrl
+            @NotNull String footer, @NotNull Instant timestamp, @Nullable String linkLabel, @Nullable String linkUrl,
+            @NotNull List<ControlButton> buttons
     ) {
+
+        /** A message with its optional link button and no other buttons. */
+        public MessageSpec(@Nullable String content, @NotNull String title, int color, @NotNull List<Field> fields,
+                           @NotNull String footer, @NotNull Instant timestamp, @Nullable String linkLabel, @Nullable String linkUrl) {
+            this(content, title, color, fields, footer, timestamp, linkLabel, linkUrl, List.of());
+        }
+    }
+
+    /** How a button looks. */
+    enum ControlStyle {
+        PRIMARY, SECONDARY, SUCCESS, DANGER, LINK
+    }
+
+    /**
+     * A button of a message: either a press that the bot handles by its id, or a link.
+     *
+     * @param id       the custom id of a press (never a secret); empty for a link
+     * @param label    the text on the button
+     * @param style    how it looks
+     * @param disabled whether it is shown but cannot be pressed
+     * @param url      where a link leads, null for a press
+     */
+    record ControlButton(@NotNull String id, @NotNull String label, @NotNull ControlStyle style, boolean disabled, @Nullable String url) {
+
+        public static @NotNull ControlButton press(@NotNull String id, @NotNull String label, @NotNull ControlStyle style, boolean disabled) {
+            return new ControlButton(id, label, style, disabled, null);
+        }
+
+        public static @NotNull ControlButton link(@NotNull String url, @NotNull String label) {
+            return new ControlButton("", label, ControlStyle.LINK, false, url);
+        }
     }
 
     /** The permissions the bot sets or checks on a channel. */

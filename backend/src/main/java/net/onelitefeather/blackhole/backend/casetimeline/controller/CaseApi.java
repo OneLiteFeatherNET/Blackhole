@@ -47,6 +47,31 @@ public interface CaseApi {
             @Nullable @QueryValue String section,
             @Nullable @QueryValue String punishmentState,
             @Nullable @QueryValue Integer page,
+            @Nullable @QueryValue Integer size,
+            @Nullable @QueryValue String owner
+    );
+
+    @Operation(
+            summary = "List players with cases",
+            description = "One group per player that has a case matching the filters, newest activity first. openCount counts the "
+                    + "cases whose status is not CLOSED, totalCount all matching cases. Paging is over players. Expand a group with "
+                    + "GET /case?owner=<owner>. The filters are the same as the case list.",
+            operationId = "listCaseGroups",
+            tags = {"Case"}
+    )
+    @ApiResponse(responseCode = "200", description = "One page of groups",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = CaseDTO.GroupPage.class)))
+    @ApiResponse(responseCode = "400", description = "A filter is invalid",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = CaseDTO.Error.class)))
+    @Get("/groups")
+    HttpResponse<CaseDTO> groups(
+            @Nullable @QueryValue CaseStatus status,
+            @Nullable @QueryValue UUID assignee,
+            @Nullable @QueryValue String tag,
+            @Nullable @QueryValue CasePriority priority,
+            @Nullable @QueryValue String section,
+            @Nullable @QueryValue String punishmentState,
+            @Nullable @QueryValue Integer page,
             @Nullable @QueryValue Integer size
     );
 
@@ -112,6 +137,23 @@ public interface CaseApi {
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = CaseDTO.Error.class)))
     @Patch("/{reference}")
     HttpResponse<CaseDTO> update(@PathVariable String reference, @Body CaseDTO.UpdateRequest request, @Parameter(hidden = true) Actor actor);
+
+    @Operation(
+            summary = "Change several cases",
+            description = "Applies one change (status, assignee, priority, tags to add or remove) to 1 to 100 cases, each with its own "
+                    + "expectedVersion. Each case is changed on its own, with its event and audit entry; a conflict or failure of one case "
+                    + "does not stop the others. The answer has one item per case, in request order. Not one transaction.",
+            operationId = "bulkUpdateCases",
+            tags = {"Case"}
+    )
+    @ApiResponse(responseCode = "200", description = "One outcome per case",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = CaseDTO.BulkResult.class)))
+    @ApiResponse(responseCode = "400", description = "No case, more than 100, a duplicate, no change, or an invalid tag; nothing changed",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = CaseDTO.Error.class)))
+    @ApiResponse(responseCode = "422", description = "The assignee is not a known human staff member; nothing changed",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = CaseDTO.Error.class)))
+    @Post("/bulk")
+    HttpResponse<CaseDTO> bulk(@Body CaseDTO.BulkRequest request, @Parameter(hidden = true) Actor actor);
 
     @Operation(
             summary = "Add a note",

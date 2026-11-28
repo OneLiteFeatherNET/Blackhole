@@ -141,7 +141,8 @@ describe('evidence calls', () => {
     const requests: Request[] = []
     const send = (async (request: Request) => {
       requests.push(request)
-      return new Response(new Blob(['png-bytes'], { type: 'image/png' }), { headers: { 'Content-Type': 'image/png' } })
+      // A string body: jsdom's global Blob is not readable by Node 22's Response (object.stream is not a function).
+      return new Response('png-bytes', { headers: { 'Content-Type': 'image/png' } })
     }) as unknown as typeof fetch
     const api = createBlackholeApi({ baseUrl: 'http://ui.test/api', auth: fakeHttpAuth().auth, fetch: send })
 

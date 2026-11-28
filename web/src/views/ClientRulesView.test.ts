@@ -1,9 +1,8 @@
 import { flushPromises } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
 import { cheatTemplate, catalogue, clientRule, combo, field, hit, serverSection } from '../test/clientRules'
-import { fail, mockApi, mountWithApp, ok } from '../test/mount'
+import { fail, mockApi, mountRouted, ok } from '../test/mount'
 import { chooseOption as choose } from '../test/select'
-import ClientRulesView from './ClientRulesView.vue'
 
 const watching = clientRule({ key: 'meteor', hitCount: 12 })
 const denying = clientRule({ key: 'no-op', displayName: 'No op', kind: 'COMMAND', patterns: ['op'], action: 'DENY', hideCommand: true, scope: 'SERVERS', sectionKeys: ['minigames'] })
@@ -13,6 +12,7 @@ const spoofable = clientRule({ key: 'punish-brand', kind: 'BRAND', patterns: ['c
 function setup(overrides: Record<string, unknown> = {}, roles?: string[]) {
   const api = {
     clientRules: vi.fn(async () => ok([watching, denying, protocol, spoofable])),
+    clientRule: vi.fn(async (key: string) => ok([watching, denying, protocol, spoofable].find((item) => item.key === key) ?? watching)),
     createClientRule: vi.fn(async () => ok(watching)),
     updateClientRule: vi.fn(async () => ok(watching)),
     deleteClientRule: vi.fn(async () => ok(watching)),
@@ -23,7 +23,7 @@ function setup(overrides: Record<string, unknown> = {}, roles?: string[]) {
     cloudnetCatalogue: vi.fn(async () => ok({ available: false, tasks: [], groups: [], services: [], proxies: [] })),
     ...overrides,
   }
-  return { api, mount: () => mountWithApp(ClientRulesView, { api: mockApi(api), path: '/client-rules', roles }) }
+  return { api, mount: () => mountRouted({ api: mockApi(api), path: '/client-rules', roles }) }
 }
 
 /** Picks an option and lets the dialog re-render before the test looks at it. */
@@ -44,6 +44,7 @@ function rowOf(wrapper: Page, key: string) {
 /** Opens the row menu of a rule and returns the labels of its items. */
 async function menuOf(wrapper: Page, key: string): Promise<string[]> {
   await rowOf(wrapper, key).get('button[aria-haspopup="menu"]').trigger('click')
+  await flushPromises()
   return wrapper.findAll('[role="menuitem"]').map((item) => item.text())
 }
 
@@ -53,6 +54,7 @@ async function rowAction(wrapper: Page, key: string, label: string): Promise<voi
   const item = wrapper.findAll('[role="menuitem"]').find((candidate) => candidate.text() === label)
   if (!item) throw new Error(`no menu item ${label}`)
   await item.trigger('click')
+  await flushPromises()
 }
 
 describe('ClientRulesView: list', () => {
@@ -115,6 +117,7 @@ describe('ClientRulesView: list', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain('backend down')
     await wrapper.get('[data-testid="retry"]').trigger('click')
     await flushPromises()
+    await flushPromises()
 
     expect(wrapper.findAll('tbody tr')).toHaveLength(1)
 
@@ -133,18 +136,18 @@ describe('ClientRulesView: roles', () => {
     expect(wrapper.find('[data-testid="new-client-rule"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="edit-meteor"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="read-only"]').text()).toContain('Only administrators')
-    expect(await menuOf(wrapper, 'meteor'), 'every team role reads the hits, no delete').toEqual(['Show hits'])
+    expect(await menuOf(wrapper, 'meteor'), 'every team role reads the hits and nothing else').toEqual(['Show hits'])
 
     wrapper.unmount()
   })
 
-  it('offers create, edit and delete to an administrator', async () => {
+  it('offers create and edit to an administrator, and the row menu holds the hits only', async () => {
     const { mount } = setup()
     const { wrapper } = await mount()
 
     expect(wrapper.find('[data-testid="new-client-rule"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="edit-meteor"]').exists()).toBe(true)
-    expect(await menuOf(wrapper, 'meteor')).toEqual(['Show hits', 'Delete'])
+    expect(await menuOf(wrapper, 'meteor'), 'delete is on the edit route').toEqual(['Show hits'])
     expect(wrapper.find('[data-testid="read-only"]').exists()).toBe(false)
 
     wrapper.unmount()
@@ -152,38 +155,46 @@ describe('ClientRulesView: roles', () => {
 })
 
 describe('ClientRulesView: hits', () => {
-  it('lists the hits of a rule: who, when, what the rule did and where, never a client value', async () => {
+  it('opens the hits as the hits tab of the rule and lists who, when, what the rule did and where', async () => {
     const { api, mount } = setup()
-    const { wrapper } = await mount()
+    const { wrapper, router } = await mount()
 
     await rowAction(wrapper, 'meteor', 'Show hits')
     await flushPromises()
 
+    expect(router.currentRoute.value.fullPath).toBe('/admin/client-rules/meteor?tab=hits')
     expect(api.clientRuleHits).toHaveBeenCalledWith('meteor')
-    const dialog = wrapper.get('[data-testid="hits-section"]')
-    expect(dialog.findAll('tbody tr')).toHaveLength(3)
-    expect(dialog.text()).toContain('Enforced')
-    expect(dialog.text()).toContain('Bypassed (staff)')
-    expect(dialog.text()).toContain('Team notified')
-    expect(dialog.text()).toContain('lobby-1')
-    expect(dialog.text()).not.toContain('ab'.repeat(64))
-    expect(dialog.get('table a').attributes('href')).toBe(`/players/${'ab'.repeat(64)}`)
+    const section = wrapper.get('[data-testid="hits-section"]')
+    expect(section.findAll('tbody tr')).toHaveLength(3)
+    expect(section.text()).toContain('Enforced')
+    expect(section.text()).toContain('Bypassed (staff)')
+    expect(section.text()).toContain('Team notified')
+    expect(section.text()).toContain('lobby-1')
+    expect(section.text()).not.toContain('ab'.repeat(64))
+    expect(section.get('table a').attributes('href')).toBe(`/players/${'ab'.repeat(64)}`)
 
     wrapper.unmount()
   })
 
-  it('says so when a rule has no recorded hits and when loading them fails', async () => {
-    const clientRuleHits = vi.fn().mockResolvedValueOnce(ok([])).mockResolvedValueOnce(fail('boom', 500, 'UNKNOWN'))
-    const { mount } = setup({ clientRuleHits })
+  it('says so when a rule has no recorded hits', async () => {
+    const { mount } = setup({ clientRuleHits: vi.fn(async () => ok([])) })
     const { wrapper } = await mount()
 
     await rowAction(wrapper, 'meteor', 'Show hits')
     await flushPromises()
+
     expect(wrapper.get('[data-testid="hits-empty"]').text()).toContain('No recorded hits')
 
-    await wrapper.get('[data-testid="close-hits"]').trigger('click')
-    await rowAction(wrapper, 'no-op', 'Show hits')
+    wrapper.unmount()
+  })
+
+  it('shows the reason when loading the hits fails', async () => {
+    const { mount } = setup({ clientRuleHits: vi.fn(async () => fail('boom', 500, 'UNKNOWN')) })
+    const { wrapper } = await mount()
+
+    await rowAction(wrapper, 'meteor', 'Show hits')
     await flushPromises()
+
     expect(wrapper.get('[data-testid="hits-error"]').attributes('role')).toBe('alert')
 
     wrapper.unmount()
@@ -191,29 +202,36 @@ describe('ClientRulesView: hits', () => {
 })
 
 describe('ClientRulesView: delete', () => {
-  it('asks first, then deletes and reloads', async () => {
+  it('asks first, then deletes on the edit route and goes back to the list', async () => {
     const clientRules = vi.fn().mockResolvedValueOnce(ok([watching, denying])).mockResolvedValueOnce(ok([denying]))
     const { api, mount } = setup({ clientRules })
-    const { wrapper } = await mount()
+    const { wrapper, router } = await mount()
 
-    await rowAction(wrapper, 'meteor', 'Delete')
+    await wrapper.get('[data-testid="edit-meteor"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="delete-client-rule"]').trigger('click')
+    await flushPromises()
     expect(api.deleteClientRule).not.toHaveBeenCalled()
-    await wrapper.get('[data-testid="confirm"]').trigger('click')
+    await wrapper.get('[data-testid="confirm-delete"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.deleteClientRule).toHaveBeenCalledWith('meteor')
+    expect(router.currentRoute.value.name).toBe('admin-client-rules')
     expect(wrapper.findAll('tbody tr')).toHaveLength(1)
-    expect(wrapper.get('[role="status"]').text()).toContain('Rule deleted.')
 
     wrapper.unmount()
   })
 
-  it('keeps the dialog open and shows the reason when the delete fails', async () => {
+  it('keeps the confirmation open and shows the reason when the delete fails', async () => {
     const { mount } = setup({ deleteClientRule: vi.fn(async () => fail('there is no rule with key meteor', 404, 'NOT_FOUND')) })
     const { wrapper } = await mount()
 
-    await rowAction(wrapper, 'meteor', 'Delete')
-    await wrapper.get('[data-testid="confirm"]').trigger('click')
+    await wrapper.get('[data-testid="edit-meteor"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="delete-client-rule"]').trigger('click')
+    await wrapper.get('[data-testid="confirm-delete"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(wrapper.get('[role="dialog"] [data-testid="error"]').text()).toContain('no rule with key')
@@ -225,6 +243,7 @@ describe('ClientRulesView: delete', () => {
 describe('ClientRulesView: editor', () => {
   async function openNew(wrapper: Awaited<ReturnType<ReturnType<typeof setup>['mount']>>['wrapper']) {
     await wrapper.get('[data-testid="new-client-rule"]').trigger('click')
+    await flushPromises()
     await flushPromises()
   }
 
@@ -238,6 +257,7 @@ describe('ClientRulesView: editor', () => {
     await field(wrapper, 'Name').setValue('Meteor client')
     await field(wrapper, 'Patterns').setValue('meteor-client:*')
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.createClientRule).toHaveBeenCalledWith(expect.objectContaining({
@@ -269,10 +289,12 @@ describe('ClientRulesView: editor', () => {
     const { wrapper } = await mount()
     await wrapper.get('[data-testid="edit-old"]').trigger('click')
     await flushPromises()
+    await flushPromises()
 
     expect(wrapper.get('[data-testid="supported-versions"]').text()).toContain('767 (1.21-1.21.1)')
     await field(wrapper, 'Lowest protocol version').setValue('100')
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.updateClientRule).toHaveBeenCalledWith(expect.objectContaining({ key: 'old', kind: 'PROTOCOL', protocolMin: 100, protocolMax: 340, negate: true }))
@@ -285,9 +307,11 @@ describe('ClientRulesView: editor', () => {
     const { wrapper } = await mount()
     await wrapper.get('[data-testid="edit-old"]').trigger('click')
     await flushPromises()
+    await flushPromises()
 
     await field(wrapper, 'Highest protocol version').setValue('3.5')
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(wrapper.get('[role="dialog"]').text()).toContain('Enter a whole number')
@@ -310,7 +334,9 @@ describe('ClientRulesView: editor', () => {
     expect(wrapper.find('[data-testid="cloudnet-picker"]').exists()).toBe(true)
     await field(wrapper, 'Add a name').setValue('BedWars')
     await wrapper.get('[data-testid="add-name"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.createClientRule).toHaveBeenCalledWith(expect.objectContaining({
@@ -339,6 +365,7 @@ describe('ClientRulesView: editor', () => {
     await field(wrapper, 'Message for the player').setValue('Please update.')
     await wrapper.get('[data-testid="save"]').trigger('click')
     await flushPromises()
+    await flushPromises()
 
     expect(api.createClientRule).toHaveBeenCalledWith(expect.objectContaining({ action: 'DENY', denyMessage: 'Please update.' }))
 
@@ -354,6 +381,7 @@ describe('ClientRulesView: editor', () => {
     await chooseOption(combo(wrapper, 'Punishment template'), 'old-client')
     expect(wrapper.find('[data-testid="spoof-warning"]').exists(), 'the protocol is observed by the proxy, not announced by the client').toBe(false)
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.createClientRule).toHaveBeenCalledWith(expect.objectContaining({ action: 'TEMPLATE', templateKey: 'old-client', acknowledgedSpoofable: false }))
@@ -379,11 +407,13 @@ describe('ClientRulesView: editor', () => {
     expect(wrapper.get('[data-testid="spoof-warning"]').text()).toContain('Anybody can fake it')
     await wrapper.get('[data-testid="save"]').trigger('click')
     await flushPromises()
+    await flushPromises()
     expect(api.createClientRule).not.toHaveBeenCalled()
     expect(wrapper.get('[data-testid="spoof-warning"]').text()).toContain('Confirm that you know')
 
     await wrapper.get('[data-testid="ack"] input').setValue(true)
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
     expect(api.createClientRule).toHaveBeenCalledWith(expect.objectContaining({ kind: 'BRAND', action: 'TEMPLATE', acknowledgedSpoofable: true }))
 
@@ -413,6 +443,7 @@ describe('ClientRulesView: editor', () => {
     await openNew(wrapper)
 
     await wrapper.get('[data-testid="suggest-meteor-client:main"]').trigger('click')
+    await flushPromises()
     expect((field(wrapper, 'Patterns').element as HTMLInputElement).value).toBe('meteor-client:main')
     expect(wrapper.find('[data-testid="suggest-meteor-client:main"]').exists(), 'a value already in the list is not suggested again').toBe(false)
     wrapper.unmount()
@@ -437,6 +468,7 @@ describe('ClientRulesView: editor', () => {
 
     await wrapper.get('[data-testid="save"]').trigger('click')
     await flushPromises()
+    await flushPromises()
 
     const patterns = field(wrapper, 'Patterns')
     expect(patterns.attributes('aria-invalid')).toBe('true')
@@ -451,42 +483,15 @@ describe('ClientRulesView: editor', () => {
     const { wrapper } = await mount()
     await wrapper.get('[data-testid="edit-meteor"]').trigger('click')
     await flushPromises()
+    await flushPromises()
 
     expect(field(wrapper, 'Key').attributes('disabled')).toBeDefined()
     await wrapper.get('[role="dialog"] input[type="checkbox"]:last-of-type').setValue(false)
     await wrapper.get('[data-testid="save"]').trigger('click')
     await flushPromises()
-
-    expect(api.updateClientRule).toHaveBeenCalledWith(expect.objectContaining({ key: 'meteor', enabled: false }))
-
-    wrapper.unmount()
-  })
-})
-
-describe('ClientRulesView: page template', () => {
-  it('shows the hits of a rule as a section of the page, not in a dialog', async () => {
-    const { mount } = setup()
-    const { wrapper } = await mount()
-    await wrapper.findAll('tbody tr')[0]!.get('button[aria-haspopup="menu"]').trigger('click')
-    await wrapper.get('[role="menuitem"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.find('[role="dialog"]').exists(), 'no hit dialog').toBe(false)
-    expect(wrapper.get('[data-testid="hits-section"]').findAll('tbody tr')).toHaveLength(3)
-
-    wrapper.unmount()
-  })
-
-  it('moves delete into the row menu and confirms it with the error button', async () => {
-    const { mount } = setup()
-    const { wrapper } = await mount()
-    const row = wrapper.findAll('tbody tr')[0]!
-
-    expect(row.find('[data-testid="delete-meteor"]').exists(), 'delete is not a row button').toBe(false)
-    await row.get('button[aria-haspopup="menu"]').trigger('click')
-    await wrapper.findAll('[role="menuitem"]').at(-1)!.trigger('click')
-
-    expect(wrapper.get('[data-testid="confirm"]').classes(), 'destructive confirm').toContain('bg-error')
+    expect(api.updateClientRule).toHaveBeenCalledWith(expect.objectContaining({ key: 'meteor', enabled: false }))
 
     wrapper.unmount()
   })

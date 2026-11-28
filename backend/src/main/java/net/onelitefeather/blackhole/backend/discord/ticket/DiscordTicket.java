@@ -12,6 +12,7 @@ import java.util.UUID;
  * @param transcriptCount          messages the channel held when the transcript was verified, {@code null} before
  * @param transcriptLastMessageId  the highest Discord message id then, {@code null} for an empty channel or before
  * @param transcriptCompleteAt     when {@code ticket.transcript_complete} was recorded, {@code null} before
+ * @param freezeSource             why the channel is frozen: {@link #FREEZE_LEAK} or {@link #FREEZE_STAFF}, {@code null} when it is not
  */
 public record DiscordTicket(
         UUID id,
@@ -29,8 +30,14 @@ public record DiscordTicket(
         @Nullable Long transcriptLastMessageId,
         @Nullable Long transcriptCompleteAt,
         long createdAt,
-        long updatedAt
+        long updatedAt,
+        @Nullable String freezeSource
 ) {
+
+    /** A freeze set by the leak path: only the leak path may thaw it. */
+    public static final String FREEZE_LEAK = "LEAK";
+    /** A freeze set by a staff member (Lock): only a staff Unlock lifts it, never a leak thaw. */
+    public static final String FREEZE_STAFF = "STAFF";
 
     public boolean transcriptComplete() {
         return this.transcriptCompleteAt != null;

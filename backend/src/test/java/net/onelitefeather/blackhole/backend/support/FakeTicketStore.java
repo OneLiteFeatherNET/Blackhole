@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.support;
 
+import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
 import net.onelitefeather.blackhole.backend.discord.ticket.DiscordTicket;
 import net.onelitefeather.blackhole.backend.discord.ticket.DiscordTicketStore;
 import net.onelitefeather.blackhole.backend.discord.ticket.Participant;
@@ -30,6 +31,12 @@ public final class FakeTicketStore implements DiscordTicketStore {
     public Tally tally = new Tally(0, 0, 0, 0);
     public List<OutboxItem> outbox = new ArrayList<>();
     public final Map<UUID, Long> acknowledged = new LinkedHashMap<>();
+    /** The staff freezes a store call recorded, in order. */
+    public final List<StaffFreeze> staffFreezes = new ArrayList<>();
+
+    /** A staff lock or unlock that was recorded on the case timeline, with the staff member it names. */
+    public record StaffFreeze(boolean frozen, UUID recordedBy) {
+    }
     private final AtomicLong numbers = new AtomicLong();
 
     @Override
@@ -103,7 +110,7 @@ public final class FakeTicketStore implements DiscordTicketStore {
             throw new DuplicateTicketException(null);
         }
         DiscordTicket created = new DiscordTicket(ticket.id(), this.numbers.incrementAndGet(), ticket.punishmentIdentifier(), ticket.appealId(),
-                ticket.ownerParticipantId(), TicketState.PENDING_CHANNEL, null, null, false, 0, 0, null, null, null, ticket.now(), ticket.now());
+                ticket.ownerParticipantId(), TicketState.PENDING_CHANNEL, null, null, false, 0, 0, null, null, null, ticket.now(), ticket.now(), null);
         this.tickets.put(created.id(), created);
         this.appended.add("ticket.opened");
         return created;
@@ -131,10 +138,31 @@ public final class FakeTicketStore implements DiscordTicketStore {
     }
 
     @Override
-    public Optional<DiscordTicket> setFrozen(UUID id, boolean frozen, long now) {
+    public Optional<DiscordTicket> latestOf(String punishmentIdentifier) {
+        return this.tickets.values().stream().filter(t -> t.punishmentIdentifier().equals(punishmentIdentifier))
+                .max(java.util.Comparator.comparingLong(DiscordTicket::ticketNo));
+    }
+
+    @Override
+    public Optional<DiscordTicket> setStaffFrozen(UUID id, boolean frozen, long now, CaseActor actor) {
+        Optional<DiscordTicket> changed = setFrozen(id, frozen, frozen ? DiscordTicket.FREEZE_STAFF : null, now);
+        changed.ifPresent(ticket -> this.staffFreezes.add(new StaffFreeze(frozen, actor.recordedByOid())));
+        return changed;
+    }
+
+    @Override
+    public Optional<DiscordTicket> setFrozen(UUID id, boolean frozen, String freezeSource, long now) {
         DiscordTicket t = this.tickets.get(id);
-        return t == null ? Optional.empty()
-                : Optional.of(replace(t, t.state(), t.channelId(), t.guildId(), frozen, t.transcriptCompleteAt(), t.transcriptCount(), t.transcriptLastMessageId()));
+        if (t == null) {
+            return Optional.empty();
+        }
+        DiscordTicket changed = replace(t, t.state(), t.channelId(), t.guildId(), frozen, t.transcriptCompleteAt(), t.transcriptCount(), t.transcriptLastMessageId());
+        DiscordTicket withSource = new DiscordTicket(changed.id(), changed.ticketNo(), changed.punishmentIdentifier(), changed.appealId(),
+                changed.ownerParticipantId(), changed.state(), changed.channelId(), changed.guildId(), changed.frozen(), changed.ingestedCursor(),
+                changed.relayedSeq(), changed.transcriptCount(), changed.transcriptLastMessageId(), changed.transcriptCompleteAt(), changed.createdAt(),
+                changed.updatedAt(), freezeSource);
+        this.tickets.put(id, withSource);
+        return Optional.of(withSource);
     }
 
     @Override
@@ -190,7 +218,7 @@ public final class FakeTicketStore implements DiscordTicketStore {
         long relayed = Math.max(t.relayedSeq(), seq);
         this.tickets.put(ticketId, new DiscordTicket(t.id(), t.ticketNo(), t.punishmentIdentifier(), t.appealId(), t.ownerParticipantId(), t.state(),
                 t.channelId(), t.guildId(), t.frozen(), t.ingestedCursor(), relayed, t.transcriptCount(), t.transcriptLastMessageId(),
-                t.transcriptCompleteAt(), t.createdAt(), now));
+                t.transcriptCompleteAt(), t.createdAt(), now, t.freezeSource()));
         this.acknowledged.put(ticketId, relayed);
         return Optional.of(relayed);
     }
@@ -198,7 +226,7 @@ public final class FakeTicketStore implements DiscordTicketStore {
     private DiscordTicket replace(DiscordTicket t, TicketState state, String channelId, String guildId, boolean frozen, Long completeAt, Integer count,
                                   Long lastId) {
         DiscordTicket changed = new DiscordTicket(t.id(), t.ticketNo(), t.punishmentIdentifier(), t.appealId(), t.ownerParticipantId(), state, channelId,
-                guildId, frozen, t.ingestedCursor(), t.relayedSeq(), count, lastId, completeAt, t.createdAt(), t.updatedAt());
+                guildId, frozen, t.ingestedCursor(), t.relayedSeq(), count, lastId, completeAt, t.createdAt(), t.updatedAt(), frozen ? t.freezeSource() : null);
         this.tickets.put(t.id(), changed);
         return changed;
     }

@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.discord.ticket;
 
+import net.onelitefeather.blackhole.backend.support.StaffDelegations;
 import net.onelitefeather.blackhole.backend.casetimeline.BanIdLeakReason;
 import net.onelitefeather.blackhole.backend.casetimeline.BanIdLeakSource;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
@@ -15,13 +16,40 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.ActorKind;
+import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
+import net.onelitefeather.blackhole.backend.appeal.AppealStatus;
+import net.onelitefeather.blackhole.backend.support.InMemoryStaffAuditStore;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
+import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.BanIdTestBed;
+import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
+import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.FakeCaseStore;
+import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
+import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.FakeTicketStore;
+import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
+import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.InMemoryCaseEventRepository;
+import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
+import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
+import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
+import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
 import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.RecordingEventPublisher;
+import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
+import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.RecordingProtocols;
+import net.onelitefeather.blackhole.backend.appeal.AppealEntity;
+import net.onelitefeather.blackhole.backend.appeal.AppealRepository;
+import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
 import net.onelitefeather.blackhole.backend.support.TestClock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,6 +78,10 @@ class TicketServiceTest {
     private static final String OTHER = "222222222222222222";
     private static final UUID APPEAL = UUID.fromString("a99ea100-0000-4000-8000-000000000001");
     private static final Actor BOT = new Actor(UUID.fromString("b07b07b0-0000-4000-8000-000000000001"), "bot", ActorKind.SERVICE, false);
+    private static final Actor DISCORD_BOT = new Actor(UUID.fromString("b07b07b0-0000-4000-8000-000000000002"), "bot", ActorKind.SERVICE,
+            false, false, false, true);
+    private static final UUID STAFF = UUID.fromString("5ca00000-0000-4000-8000-000000000001");
+    private static final String STAFF_DISCORD = "333333333333333333";
 
     private final TestClock clock = new TestClock();
     private final InMemoryCaseEventRepository log = new InMemoryCaseEventRepository();
@@ -58,9 +90,14 @@ class TicketServiceTest {
     private final InMemoryProtocolStore protocolStore = new InMemoryProtocolStore();
     private final RecordingProtocols generator = new RecordingProtocols();
     private final RecordingEventPublisher events = new RecordingEventPublisher();
+    private final InMemoryRepository<AppealRepository, AppealEntity, UUID> appealRows =
+            InMemoryRepository.<AppealRepository, AppealEntity, UUID>of(AppealRepository.class, AppealEntity::getIdentifier).build();
     private final InMemoryRepository<PunishmentRepository, PunishmentEntity, String> punishments =
             InMemoryRepository.<PunishmentRepository, PunishmentEntity, String>of(PunishmentRepository.class, PunishmentEntity::getIdentifier).build();
     private final BanIdTestBed banIds = new BanIdTestBed(this.punishments.repository());
+    private final StaffDelegations.Linked linked = StaffDelegations.linked(this.clock);
+    private final InMemoryStaffAuditStore auditStore = new InMemoryStaffAuditStore();
+    private final StaffAuditRecorder auditRecorder = StaffDelegations.recorder(this.clock, this.auditStore);
     private TicketAppeals.Outcome appealOutcome = new TicketAppeals.Outcome.Existing(APPEAL);
     private int appealCalls;
     private String banId;
@@ -74,7 +111,7 @@ class TicketServiceTest {
             this.appealCalls++;
             return this.appealOutcome;
         }, this.cases, this.cases, this.protocolStore, this.generator, this.events, this.clock, DiscordTicketProperties.defaults(),
-                new SharePosts(null, null));
+                new SharePosts(null, null), this.linked.delegation(), this.auditRecorder, this.appealRows.repository());
     }
 
     private DiscordTicketDTO.Opened open(String discordUser, String ban, String statement) {
@@ -495,5 +532,71 @@ class TicketServiceTest {
     void anUnknownTicketIs404() {
         assertEquals(ErrorKind.NOT_FOUND, assertInstanceOf(DiscordTicketDTO.Error.class, this.service.get(UUID.randomUUID())).kind());
         assertNotNull(this.service.list(Set.of()));
+    }
+
+    // ---- close on behalf of a staff member ----
+
+    /** Gives the ticket's appeal a status, so the decision gate of a delegated close can be exercised. */
+    private void givenAppealWithStatus(AppealStatus status) {
+        AppealEntity appeal = new AppealEntity(this.punishments.repository().findById(PUNISHMENT).orElseThrow(), OWNER, "please", status,
+                new HashMap<>(), 0L, 0L, new HashMap<>());
+        this.appealRows.given(appeal, APPEAL);
+    }
+
+    @Test
+    void aCloseOnBehalfOfAStaffMemberAfterTheDecisionIsRecordedUnderThatMember() {
+        this.linked.givenLinkedStaff(STAFF, STAFF_DISCORD, "MODERATOR", this.clock.millis());
+        UUID id = openChannelTicket();
+        givenAppealWithStatus(AppealStatus.DENIED);
+        this.store.tally = new DiscordTicketStore.Tally(3, 5555, 1, 0);
+        this.generator.answer = new AppealProtocolGenerator.Result(AppealProtocolGenerator.Outcome.STORED, 2, UUID.randomUUID(), 4);
+
+        DiscordTicketDTO.Closed closed = assertInstanceOf(DiscordTicketDTO.Closed.class,
+                this.service.close(id, new DiscordTicketDTO.CloseRequest(3, "5555", STAFF), DISCORD_BOT));
+
+        assertEquals(TicketState.CLOSED, closed.ticket().state());
+        var closes = this.auditStore.rows().stream().filter(row -> row.action().equals("ticket.close")).toList();
+        assertEquals(1, closes.size(), "one ticket.close entry for the success");
+        assertEquals(STAFF, closes.getFirst().actorOid(), "the close is recorded under the staff member");
+        assertEquals(DISCORD_BOT.oid(), closes.getFirst().recordedByOid(), "the bot recorded it");
+    }
+
+    @Test
+    void aCloseOnBehalfOfBeforeTheDecisionIs409AndNoStaffMemberIsRecorded() {
+        this.linked.givenLinkedStaff(STAFF, STAFF_DISCORD, "MODERATOR", this.clock.millis());
+        UUID id = openChannelTicket();
+        givenAppealWithStatus(AppealStatus.ELIGIBLE_PENDING_REVIEW);
+        this.store.tally = new DiscordTicketStore.Tally(3, 5555, 1, 0);
+
+        DiscordTicketDTO.Error error = assertInstanceOf(DiscordTicketDTO.Error.class,
+                this.service.close(id, new DiscordTicketDTO.CloseRequest(3, "5555", STAFF), DISCORD_BOT));
+
+        assertEquals(Code.INVALID_STATE, error.code(), "the appeal is not decided yet");
+        assertTrue(this.auditStore.rows().isEmpty(), "no staff member is recorded as closing it");
+        assertTrue(this.generator.generated.isEmpty(), "no protocol is generated");
+    }
+
+    // ---- a leak thaw never lifts a staff lock ----
+
+    @Test
+    void aLeakThawDoesNotLiftAStaffLock() {
+        UUID id = openChannelTicket();
+        this.store.setFrozen(id, true, DiscordTicket.FREEZE_STAFF, this.clock.millis());
+
+        this.service.patch(id, new DiscordTicketDTO.PatchRequest(null, null, null, false, null), BOT);
+
+        DiscordTicket ticket = this.store.ticket(id).orElseThrow();
+        assertTrue(ticket.frozen(), "the staff lock survives the leak thaw");
+        assertEquals(DiscordTicket.FREEZE_STAFF, ticket.freezeSource());
+    }
+
+    @Test
+    void aLeakThawLiftsALeakFreeze() {
+        UUID id = openChannelTicket();
+        this.store.setFrozen(id, true, DiscordTicket.FREEZE_LEAK, this.clock.millis());
+
+        this.service.patch(id, new DiscordTicketDTO.PatchRequest(null, null, null, false, null), BOT);
+
+        assertFalse(this.store.ticket(id).orElseThrow().frozen(), "the leak freeze is thawed by the leak path");
     }
 }

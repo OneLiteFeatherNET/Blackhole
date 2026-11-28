@@ -5,6 +5,7 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.annotation.ReflectiveAccess;
 import io.micronaut.serde.annotation.Serdeable;
 import io.swagger.v3.oas.annotations.media.Schema;
+import net.onelitefeather.blackhole.backend.exemption.dto.ExemptionDTO;
 import net.onelitefeather.blackhole.backend.kick.KickKind;
 import net.onelitefeather.blackhole.backend.kick.KickScope;
 import net.onelitefeather.blackhole.backend.kick.KickStatus;
@@ -28,6 +29,7 @@ public sealed interface KickDTO {
      * @param scope  where to take the player from; {@code NETWORK} when absent
      * @param target the server name or section key for {@code SERVER} and {@code SECTION}, absent for {@code NETWORK}
      * @param reason why, 1 to 200 characters, shown to the player; no UUID, IP address or Ban ID
+     * @param exemptionOverride an ADMIN's justification to kick an exempt player; refused with 409 {@code TARGET_EXEMPT} without it
      */
     @Schema(name = "KickCreateRequest")
     @Serdeable
@@ -36,8 +38,14 @@ public sealed interface KickDTO {
             @NonNull String owner,
             @Nullable KickScope scope,
             @Nullable String target,
-            @NonNull String reason
+            @NonNull String reason,
+            @Nullable ExemptionDTO.Override exemptionOverride
     ) implements KickDTO {
+
+        /** A kick request without an exemption override. */
+        public CreateRequest(String owner, KickScope scope, String target, String reason) {
+            this(owner, scope, target, reason, null);
+        }
     }
 
     /**

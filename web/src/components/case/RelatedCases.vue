@@ -19,7 +19,7 @@ const label = (prefix: string, value: string) => (te(`${prefix}.${value}`) ? t(`
       <li v-for="(other, index) in related" :key="other.identifier" class="md-enter flex flex-wrap items-center gap-2" :style="{ '--md-i': index }">
         <RouterLink
           :to="{ name: 'case', params: { reference: other.identifier } }"
-          class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+          class="text-primary underline underline-offset-2 focus-ring"
         >
           {{ other.shortId }}
         </RouterLink>

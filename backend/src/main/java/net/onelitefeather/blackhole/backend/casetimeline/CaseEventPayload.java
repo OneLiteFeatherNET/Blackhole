@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.backend.casetimeline;
 
 import io.micronaut.core.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +32,8 @@ public sealed interface CaseEventPayload {
     String RETEMPLATED = "punishment.retemplated";
     String EXPIRED = "punishment.expired";
     String KICKED = "punishment.kicked";
+    String WARNED = "punishment.warned";
+    String ACKNOWLEDGED = "punishment.acknowledged";
     String EVIDENCE_ATTACHED = "evidence.attached";
     String EVIDENCE_LIFTED = "evidence.lifted";
     String EVIDENCE_REVOKED = "evidence.revoked";
@@ -40,6 +43,7 @@ public sealed interface CaseEventPayload {
     String ASSIGNEE_CHANGED = "case.assignee_changed";
     String PRIORITY_CHANGED = "case.priority_changed";
     String TAGS_CHANGED = "case.tags_changed";
+    String CASE_BULK_EDITED = "case.bulk_edited";
     String NOTE_ADDED = "note.added";
     String NOTE_EDITED = "note.edited";
     String NOTE_REDACTED = "note.redacted";
@@ -57,6 +61,7 @@ public sealed interface CaseEventPayload {
     String TICKET_TRANSCRIPT_COMPLETE = "ticket.transcript_complete";
     String TICKET_ARCHIVED = "ticket.archived";
     String TICKET_CHANNEL_DELETED = "ticket.channel_deleted";
+    String TICKET_FROZEN = "ticket.frozen";
 
     /**
      * The only event types a player-facing reader may return, on top of the {@code PLAYER} visibility
@@ -210,6 +215,50 @@ public sealed interface CaseEventPayload {
             put(map, "target", target);
             put(map, "eloCost", eloCost);
             return map;
+        }
+    }
+
+    /**
+     * A warning was given: the template it came from and the ELO cost of its step. The reason is on the warning itself.
+     *
+     * @param templateKey the key of the template the warning was applied from
+     * @param eloCost     the ELO cost of the warning's step, if any
+     */
+    record Warned(@Nullable String templateKey, @Nullable Integer eloCost) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return WARNED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            put(map, "templateKey", templateKey);
+            put(map, "eloCost", eloCost);
+            return map;
+        }
+    }
+
+    /** The player confirmed a warning: a moment, the time is the event's own. */
+    record Acknowledged() implements CaseEventPayload {
+        @Override
+        public String type() {
+            return ACKNOWLEDGED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            return new LinkedHashMap<>();
         }
     }
 
@@ -822,6 +871,32 @@ public sealed interface CaseEventPayload {
     }
 
     /**
+     * The staff lock of the ticket channel was set or lifted. {@code freezeSource} is {@code STAFF} while locked, {@code null} once unlocked.
+     * Staff only; carries no Discord id.
+     */
+    record TicketFrozen(String ticketId, String appealId, boolean frozen, @Nullable String freezeSource) implements CaseEventPayload {
+        @Override
+        public String type() {
+            return TICKET_FROZEN;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("ticketId", ticketId);
+            map.put("appealId", appealId);
+            map.put("frozen", frozen);
+            put(map, "freezeSource", freezeSource);
+            return map;
+        }
+    }
+
+    /**
      * The ticket channel is gone. {@code transcriptComplete} is false when a person deleted it before the transcript was
      * verified; {@code lastRecordedMessageAt} then tells the panel where the record ends.
      */
@@ -845,6 +920,61 @@ public sealed interface CaseEventPayload {
             map.put("transcriptComplete", transcriptComplete);
             put(map, "lastRecordedMessageAt", lastRecordedMessageAt);
             return map;
+        }
+    }
+
+    /**
+     * One case changed by a bulk edit: the changed fields with their old and new values only. Assignees are oids, tags
+     * are sorted lists; no name and no text. {@code changes} holds one map per field: {@code field}, {@code from}, {@code to}.
+     */
+    record BulkEdited(String batchId, List<Map<String, Object>> changes) implements CaseEventPayload {
+
+        /** The changed fields of one case, in the order status, assignee, priority, tags. */
+        public static BulkEdited of(String batchId, CaseMeta before, CaseMeta after) {
+            List<Map<String, Object>> changes = new ArrayList<>();
+            for (CaseEventPayload payload : after.diffFrom(before)) {
+                Map<String, Object> change = new LinkedHashMap<>();
+                switch (payload) {
+                    case StatusChanged status -> {
+                        change.put("field", "STATUS");
+                        change.put("from", status.from());
+                        change.put("to", status.to());
+                    }
+                    case AssigneeChanged assignee -> {
+                        change.put("field", "ASSIGNEE");
+                        change.put("from", assignee.from());
+                        change.put("to", assignee.to());
+                    }
+                    case PriorityChanged priority -> {
+                        change.put("field", "PRIORITY");
+                        change.put("from", priority.from());
+                        change.put("to", priority.to());
+                    }
+                    case TagsChanged tags -> {
+                        change.put("field", "TAGS");
+                        change.put("from", before.tags());
+                        change.put("to", after.tags());
+                    }
+                    default -> throw new IllegalStateException("not a case field: " + payload.type());
+                }
+                changes.add(change);
+            }
+            return new BulkEdited(batchId, changes);
+        }
+
+        @Override
+        public String type() {
+            return CASE_BULK_EDITED;
+        }
+
+        @Override
+        public int version() {
+            return CURRENT_VERSION;
+        }
+
+        @Override
+        public Map<String, Object> toMap() {
+            return Map.of("batchId", batchId, "changes", changes);
         }
     }
 

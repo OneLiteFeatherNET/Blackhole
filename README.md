@@ -182,6 +182,12 @@ chat delivered). Staff notices for new reports arrive as `report.created` events
 report from the backend (the proxy's token needs the `PROXY` role, which may read a single report) and
 takes the player names from its online players.
 
+**Error reporting (optional).** The plugin reports its own failures (a failed start, a failed command) to Sentry.
+It is off unless `SENTRY_DSN` is set in the proxy's environment; the DSN is never read from `config.json`.
+`SENTRY_ENVIRONMENT` (default `prod`), `SENTRY_RELEASE` (default: the plugin version) and
+`SENTRY_SEND_DEFAULT_PII` (default `true`) set the rest. Ban IDs, bearer tokens and the client secret are
+removed before anything is sent.
+
 **Upgrading from the Redis-based plugin (breaking).** The plugin no longer reads `redisUri` and has no Redis or
 Dragonfly client: it enforces over HTTP plus NATS only. Set `nats.url` and `nats.credsFile` (or `NATS_URL` and
 `NATS_CREDS_FILE`) before updating. A leftover `redisUri` is ignored with one warning at startup; remove it
@@ -548,11 +554,33 @@ turns that into an "allowed" message plus a cancel order that its backend plugin
 Required versions (SignedVelocity 1.5.0): Java 21+, Velocity 3.4.0+, Paper 26.1.2+ on the backend.
 Releases: <https://github.com/4drian3d/SignedVelocity/releases>.
 
-SignedVelocity is an optional dependency of Blackhole. Without it the proxy logs one warning at
-startup and never cancels a signed message (so nobody is kicked): a muted player is still shown the
-mute notice, but their message is delivered. Messages from clients older than 1.19.1 are unsigned
-and are always denied directly. Mutes and bans do not block commands, but [client command rules](#client-rules-and-fingerprints) can deny them, and a
-command with signed arguments is only denied when SignedVelocity is loaded.
+SignedVelocity is required on OLF proxies. Without it the proxy logs an error at startup and reports
+the missing relay to the backend, and the admin panel shows a banner while any proxy lacks it. A
+muted player's messages are never delivered, but the proxy cannot cancel a signed message on its
+own, so a muted player on a 1.19.1+ client who sends signed chat is **disconnected** with the mute
+screen as the reason (a reconnect is allowed, and the disconnect is logged without the message
+text). Messages from clients older than 1.19.1 are unsigned and are denied directly with the mute
+notice, without a disconnect.
+
+Muted players may not run the commands in `mute.commands` of the proxy's `config.json` (default
+`msg`, `tell`, `w`, `whisper`, `me`, `r`, `reply`); matching ignores a namespace, so `/minecraft:msg`
+is covered too. Other commands, such as `/spawn`, keep working. A listed command with signed arguments
+follows the same rule as chat. Client command rules are separate: a signed command that a client
+rule denies is still delivered without SignedVelocity, as described under
+[client command rules](#client-rules-and-fingerprints).
+
+#### Runbook checklist
+
+Every backend server a player can reach through the proxy needs the matching SignedVelocity backend
+plugin before players are sent there: `SignedVelocity-Paper` (Paper or Fabric 26.1.2+), the Sponge 8
+or 10 build, or the Minestom library 1.3.0+. Pin the proxy plugin to 1.5.0 or later (earlier proxy
+builds before 1.3.0 have a known exploit). For each server, tick:
+
+- [ ] Server name, backend build and SignedVelocity backend plugin installed (version)
+- [ ] Server restarted after the plugin was installed
+
+Adding a backend server means adding a line here and ticking the plugin before the server is listed
+in any section or fallback.
 
 ### Chat capture on the proxy (optional)
 

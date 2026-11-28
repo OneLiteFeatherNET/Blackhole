@@ -3,9 +3,12 @@ package net.onelitefeather.blackhole.velocity.punish;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.DiscordLinkCodeResponse;
 import net.onelitefeather.blackhole.client.model.EloProfileResponse;
+import net.onelitefeather.blackhole.client.model.LoginCheckResponse;
 import net.onelitefeather.blackhole.client.model.KickAccepted;
 import net.onelitefeather.blackhole.client.model.KickResponse;
 import net.onelitefeather.blackhole.client.model.KickScope;
+import net.onelitefeather.blackhole.client.model.NameHistoryOwner;
+import net.onelitefeather.blackhole.client.model.NameHistoryPage;
 import org.jetbrains.annotations.Nullable;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.ReportCategory;
@@ -16,6 +19,7 @@ import net.onelitefeather.blackhole.client.model.StaffLinkLookupResponse;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentRevokeResponse;
+import net.onelitefeather.blackhole.client.model.WarningResponse;
 import net.onelitefeather.blackhole.velocity.evidence.ChatSnapshot;
 
 import java.util.List;
@@ -38,15 +42,27 @@ public interface BackendGateway {
     /**
      * Applies the template with the given key to the owner.
      *
+     * @param playerUuid            the player's raw UUID, or null when unknown; sent next to the owner so the
+     *                              backend can list the punishment on the public ban list
      * @param evidenceCorrelationId the key chat evidence was posted under ahead of the punishment, or null
+     * @param warningOnly           whether the step the ladder reaches must be a warning (the backend refuses
+     *                              the apply with 422 otherwise, and applies nothing)
      */
-    PunishmentApplyResponse apply(String owner, String templateKey, UUID source, String evidenceCorrelationId) throws ApiException;
+    PunishmentApplyResponse apply(String owner, UUID playerUuid, String templateKey, UUID source, String evidenceCorrelationId, boolean warningOnly) throws ApiException;
 
     /**
      * Posts the chat snapshot as {@code CHAT_LOG} evidence that precedes its punishment, to be claimed
      * by the punishment that carries the same correlation id. Asynchronous: the caller bounds the wait.
      */
     CompletableFuture<Void> postChatEvidence(String owner, String correlationId, ChatSnapshot snapshot, String sourceSystem, UUID source);
+
+    /**
+     * The verdict for one login from the owner's address. Asynchronous: the caller bounds the wait.
+     *
+     * @param owner the player's hashed owner, never the raw UUID
+     * @param ip    the client's address as the proxy sees it
+     */
+    CompletableFuture<LoginCheckResponse> loginCheck(String owner, String ip);
 
     /**
      * Counts the valid evidence items of a punishment. Asynchronous: the caller bounds the wait.
@@ -72,6 +88,27 @@ public interface BackendGateway {
      * @return the owner's punishment profile; empty if they have none yet
      */
     Optional<PunishProfileDTO> profile(String owner) throws ApiException;
+
+    /**
+     * The live name lookup: the account that uses the name now.
+     *
+     * @return the account, empty when no account has the name
+     */
+    Optional<TargetResolver.Known> resolvePlayer(String name) throws ApiException;
+
+    /**
+     * @param owner the player's hashed owner, never the raw UUID
+     * @param size  the most names to return
+     * @return the newest names the owner used, newest last seen first
+     */
+    NameHistoryPage nameHistory(String owner, int size) throws ApiException;
+
+    /**
+     * The old-name lookup: the accounts that used the exact name, ignoring case.
+     *
+     * @return at most 20 accounts, newest last seen first; empty when none used it
+     */
+    List<NameHistoryOwner> nameOwners(String name) throws ApiException;
 
     /**
      * @return the owner's score in every section
@@ -156,4 +193,34 @@ public interface BackendGateway {
      * @param moved whether the player was moved or disconnected (a mass kick: whether at least one was)
      */
     void acknowledgeKick(String id, String proxyId, boolean found, boolean moved) throws ApiException;
+
+    /**
+     * Reports whether this proxy has SignedVelocity loaded; the backend shows staff a banner while it is
+     * missing. Replaces the proxy's previous report.
+     *
+     * @param version the SignedVelocity version, null if absent or unknown
+     */
+    void reportProxyCapabilities(String proxyId, boolean present, String version) throws ApiException;
+
+    /**
+     * Reads one warning: its reason, when it was given and whether the player confirmed it. The proxy reads the
+     * reason here before it shows the warning in game.
+     *
+     * @throws ApiException with code 404 when there is no such warning
+     */
+    WarningResponse warning(String id) throws ApiException;
+
+    /**
+     * @param owner the player's hashed owner, never the raw UUID
+     * @return the warnings of the owner that the player has not confirmed yet, oldest first
+     */
+    List<WarningResponse> pendingWarnings(String owner) throws ApiException;
+
+    /**
+     * Records the player's confirmation of a warning. Idempotent; the backend answers 404 for a warning that
+     * belongs to another owner.
+     *
+     * @param owner the hashed player the warning belongs to
+     */
+    void acknowledgeWarning(String id, String owner) throws ApiException;
 }

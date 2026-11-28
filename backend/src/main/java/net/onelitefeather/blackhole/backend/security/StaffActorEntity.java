@@ -34,6 +34,14 @@ public class StaffActorEntity {
     @Column(name = "last_seen_at")
     private long lastSeenAt;
 
+    /** The staff role names of the last verified HUMAN request, comma-separated ({@code ADMIN}, {@code MODERATOR}, {@code VIEWER}). */
+    @Column(length = 128)
+    private String roles;
+
+    /** When {@link #roles} was taken from a token; {@code null} until the first HUMAN request. */
+    @Column(name = "roles_seen_at")
+    private Long rolesSeenAt;
+
     public StaffActorEntity() {
         // Empty constructor for JPA
     }
@@ -76,5 +84,21 @@ public class StaffActorEntity {
 
     public void setLastSeenAt(long lastSeenAt) {
         this.lastSeenAt = lastSeenAt;
+    }
+
+    public String getRoles() {
+        return roles;
+    }
+
+    public void setRoles(String roles) {
+        this.roles = roles;
+    }
+
+    public Long getRolesSeenAt() {
+        return rolesSeenAt;
+    }
+
+    public void setRolesSeenAt(Long rolesSeenAt) {
+        this.rolesSeenAt = rolesSeenAt;
     }
 }

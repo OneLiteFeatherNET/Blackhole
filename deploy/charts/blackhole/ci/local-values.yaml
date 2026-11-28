@@ -28,6 +28,10 @@ auth:
 backend:
   replicaCount: 1
 
+# security.txt is off in this fixture: no contact, no route.
+securityTxt:
+  contact: ""
+
 web:
   enabled: false
 portal:

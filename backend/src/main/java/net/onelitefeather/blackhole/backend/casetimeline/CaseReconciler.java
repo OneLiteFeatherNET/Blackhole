@@ -88,6 +88,11 @@ public class CaseReconciler {
                 row -> CaseDrafts.applied(row, null, null, CaseEventOrigin.RECONSTRUCTED, row.createdAt()));
         repaired += drain(settledBefore, limit -> this.source.kickedMissing(since, limit),
                 row -> CaseDrafts.kicked(row, CaseEventOrigin.RECONSTRUCTED, row.createdAt()));
+        repaired += drain(settledBefore, limit -> this.source.warnedMissing(since, limit),
+                row -> CaseDrafts.warned(row, null, row.eloCost(), CaseEventOrigin.RECONSTRUCTED, row.createdAt()));
+        repaired += drain(settledBefore, limit -> this.source.acknowledgedMissing(since, limit),
+                row -> CaseDrafts.acknowledged(row.identifier(), CaseEventOrigin.RECONSTRUCTED,
+                        row.acknowledgedAt() != null ? row.acknowledgedAt() : row.createdAt()));
         repaired += drain(settledBefore, limit -> this.source.endedMissing(since, limit), CaseReconciler::ended);
         repaired += drain(settledBefore, limit -> this.source.expiredMissing(since, now, limit),
                 row -> CaseDrafts.expired(row, row.expiresAt(), CaseEventOrigin.RECONSTRUCTED, row.expiresAt()));

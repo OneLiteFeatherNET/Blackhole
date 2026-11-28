@@ -19,6 +19,14 @@ describe('MdTopAppBar', () => {
     expect(mark.attributes('href')).toBe('/')
   })
 
+  it('draws the brand accent as decoration that assistive technology skips', () => {
+    const wrapper = mountBar()
+
+    const accent = wrapper.get('[data-testid="brand-accent"]')
+    expect(accent.attributes('aria-hidden')).toBe('true')
+    expect(accent.text()).toBe('')
+  })
+
   it('renders the leading, search and actions slots in that order', () => {
     const wrapper = mountBar({
       leading: () => h('button', { type: 'button' }, 'Menü'),

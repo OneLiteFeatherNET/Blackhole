@@ -520,6 +520,23 @@ class PunishmentScreensTest {
     }
 
     @Test
+    void aReasonWithAClickTagIsShownAsWrittenAndClicksNothing() {
+        String reason = "<click:open_url:'https://evil.example'>Appeal here</click>";
+        Component screen = screen(screens(config("", "")), punishment("network", EnforcementKind.BAN, IN_59_MIN, reason),
+                Locale.ENGLISH, Surface.DISCONNECT, false);
+
+        assertTrue(plain(screen).contains(reason), "a staff reason is text, never markup: " + plain(screen));
+        assertFalse(any(screen, c -> c.clickEvent() != null), "no click event may come from a reason");
+    }
+
+    @Test
+    void aReasonWithAColourTagShowsTheTagAsText() {
+        String text = text(punishment("network", EnforcementKind.BAN, IN_59_MIN, "<red>Cheating</red>"), Locale.ENGLISH, Surface.DISCONNECT);
+
+        assertTrue(text.contains("<red>Cheating</red>"), text);
+    }
+
+    @Test
     void reasonCanUseTheDurationTag() {
         assertTrue(text(punishment("network", EnforcementKind.BAN, IN_59_MIN, "Banned <duration>"), Locale.ENGLISH, Surface.DISCONNECT)
                 .contains("Banned in 59 minutes"));

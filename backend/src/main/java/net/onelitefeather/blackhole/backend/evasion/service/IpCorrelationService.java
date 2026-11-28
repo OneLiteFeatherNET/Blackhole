@@ -2,6 +2,7 @@ package net.onelitefeather.blackhole.backend.evasion.service;
 
 import net.onelitefeather.blackhole.backend.evasion.IpCorrelationTokenEntity;
 import net.onelitefeather.blackhole.backend.evasion.IpCorrelationTokenRepository;
+import net.onelitefeather.blackhole.backend.intel.SessionStore;
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
@@ -16,6 +17,8 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * Privacy-preserving ban-evasion detection. A raw IP is never persisted - only
@@ -34,17 +37,20 @@ public class IpCorrelationService {
     private static final String HMAC_ALGORITHM = "HmacSHA512";
 
     private final IpCorrelationTokenRepository repository;
+    private final SessionStore sessions;
     private final DomainEventPublisher eventPublisher;
     private final String salt;
     private final long detectionWindowMillis;
 
     public IpCorrelationService(
             IpCorrelationTokenRepository repository,
+            SessionStore sessions,
             DomainEventPublisher eventPublisher,
             @Value("${blackhole.evasion.ip-salt:}") String salt,
             @Value("${blackhole.evasion.detection-window-days:7}") int detectionWindowDays
     ) {
         this.repository = repository;
+        this.sessions = sessions;
         this.eventPublisher = eventPublisher;
         this.salt = salt;
         this.detectionWindowMillis = Duration.ofDays(detectionWindowDays).toMillis();
@@ -85,10 +91,28 @@ public class IpCorrelationService {
         checkEvasion(token, now);
     }
 
+    /**
+     * The keyed token of an IP, or empty while the salt is unset. Sessions store it next to the clear IP.
+     */
+    public Optional<String> tokenFor(String rawIp) {
+        return isConfigured() ? Optional.of(hmacSha512(rawIp, this.salt)) : Optional.empty();
+    }
+
+    /**
+     * Checks a token for evasion over the legacy sightings and the stored sessions, and publishes {@code evasion.detected}
+     * when more than one owner shares it inside the window.
+     */
+    public void correlate(String token, long now) {
+        checkEvasion(token, now);
+    }
+
     private void checkEvasion(String token, long now) {
         long windowStart = now - this.detectionWindowMillis;
-        List<IpCorrelationTokenEntity> sightings = this.repository.findByTokenAndLastSeenGreaterThanEquals(token, windowStart);
-        List<String> distinctOwners = sightings.stream().map(IpCorrelationTokenEntity::getOwnerHash).distinct().toList();
+        Stream<String> legacy = this.repository.findByTokenAndLastSeenGreaterThanEquals(token, windowStart).stream()
+                .map(IpCorrelationTokenEntity::getOwnerHash);
+        Stream<String> recorded = this.sessions.sightingsOfTokens(List.of(token), windowStart).stream()
+                .map(SessionStore.TokenSighting::ownerHash);
+        List<String> distinctOwners = Stream.concat(legacy, recorded).distinct().toList();
         if (distinctOwners.size() <= 1) {
             return;
         }

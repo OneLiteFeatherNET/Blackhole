@@ -64,6 +64,51 @@ keys:
   # replaced after the first start: keep an offline copy (docs/kubernetes.md).
   existingSecret: ""
 
+# The public ban list (GET /public/bans) for named, authenticated clients. Off by default: with no clients
+# nothing of it is rendered and the backend runs without it.
+banList:
+  # Names of the clients (lower case, digits and hyphens, at most 32 characters). Each name needs a key of
+  # existingSecret that holds that client's Argon2id hash. Changing a hash or the list: raise backend.secretRevision.
+  clients: []
+  # Secret with one key per client, the key being the client name, the value its PHC hash. Hashes only: a password
+  # or a hash never goes into the values.
+  existingSecret: ""
+  # Directory the hash files are mounted read-only at (BLACKHOLE_BAN_LIST_SECRETS_DIR).
+  mountPath: /etc/blackhole/ban-list
+  # Required with clients. The peers whose X-Forwarded-Proto the backend trusts (BLACKHOLE_BAN_LIST_TRUSTED_INGRESS),
+  # comma separated addresses or CIDRs, e.g. the pod CIDR of the cluster. Requests from other peers are 403 HTTPS_REQUIRED.
+  # Tunnel mode: the cloudflared pods connect straight to the backend, so their pod CIDR. Nginx mode: the
+  # api-proxy pods, which set X-Forwarded-Proto themselves. See README, Public ban list.
+  trustedIngress: ""
+
+# The HMAC key of the public ban entries (BLACKHOLE_PUBLIC_BAN_KEY). Required with banList.clients, and the backend
+# requires it only then: with the list off no key is needed. Set it before enabling the list.
+publicBanKey:
+  # Secret with the key BLACKHOLE_PUBLIC_BAN_KEY (at least 32 random bytes). Changing it changes every entry hash.
+  existingSecret: ""
+
+# The firewall pull feeds (GET /firewall/feed/{token}/ips and /networks), read by the firewall. Off by default: with
+# clients empty the backend serves nothing and nothing of it is rendered. See README, Firewall feed.
+firewallFeed:
+  # Names of the firewall clients (lower case, digits and hyphens, at most 32 characters). Each name needs a key of
+  # existingSecret that holds the SHA-256 hex of that client's token. Changing a hash or the list: raise backend.secretRevision.
+  clients: []
+  # Secret with one key per client, the key being the client name, the value the lowercase SHA-256 hex of its token
+  # (64 characters). Hashes only: the plaintext token goes to the firewall and nowhere else.
+  existingSecret: ""
+  # Directory the hash files are mounted read-only at (BLACKHOLE_FIREWALL_FEED_SECRETS_DIR).
+  mountPath: /etc/blackhole/firewall-feed
+  # Optional: comma separated IP addresses or CIDRs that may read the feeds (BLACKHOLE_FIREWALL_FEED_ALLOWED_SOURCES).
+  # Empty admits every peer that presents a valid token. Host names are refused by the backend. The address checked is
+  # the TCP peer, so the list works only on a direct route to the backend, not behind a tunnel. See README, Firewall feed.
+  allowedSources: ""
+
+# The analytics views (schema analytics, read by Metabase through the read-only role analytics_reader). The backend
+# refreshes them on this interval; the chart only passes it on. See README, Analytics.
+analytics:
+  # How often the backend refreshes the views (BLACKHOLE_ANALYTICS_REFRESH_INTERVAL). Metabase shows the age of its data.
+  refreshInterval: 15m
+
 # Microsoft Entra ID, shared by the backend (token validation) and the Discord bot (client credentials).
 auth:
   tenantId: ""
@@ -112,6 +157,8 @@ backend:
   envFrom: {}
   # Non-secret application settings rendered into the ConfigMap of the backend (BLACKHOLE_* tunables of
   # application.yml). Takes precedence over the settings the chart derives from the typed values.
+  # BLACKHOLE_DISCORD_STAFF_ROLE_MAX_AGE (ISO-8601, default PT24H): how long a staff member's role snapshot is trusted
+  # for Discord ticket actions after their last verified request; a removed moderator keeps that access until then.
   config: {}
   # Raise this after a Secret changed: it is a pod annotation, so the pods are replaced on the next upgrade.
   secretRevision: "1"
@@ -133,6 +180,37 @@ backend:
     enabled: true
     endpoint: http://alloy-receiver.grafana.svc:4317
     serviceName: blackhole
+  # Offline MaxMind-format databases of the player sessions (ASN and country, e.g. DB-IP Lite). Off: nothing
+  # is rendered and sessions are stored without enrichment. On: the volume is mounted read-only at mountPath
+  # as asn.mmdb and country.mmdb, which the backend reads through BLACKHOLE_INTEL_GEOIP_ASN_PATH and
+  # BLACKHOLE_INTEL_GEOIP_CITY_PATH (the country file goes through the city setting).
+  geoip:
+    enabled: false
+    # PersistentVolumeClaim that holds the two files; required when enabled. Use a ReadWriteMany class when
+    # the refresh job and the backend pods can run on different nodes (see README.md, GeoIP section).
+    existingClaim: ""
+    mountPath: /data/geoip
+    # Group of the volume, so the refresh job (writer) and the backend (reader) can both use it.
+    fsGroup: 10001
+    refresh:
+      # Monthly CronJob that downloads the DB-IP Lite files into the claim. Needs geoip.enabled. No secrets.
+      enabled: false
+      schedule: "0 4 2 * *"
+      timeZone: UTC
+      # Base URL of the free DB-IP downloads: <base>/dbip-{asn,country}-lite-<YYYY-MM>.mmdb.gz.
+      baseUrl: https://download.db-ip.com/free
+      image:
+        registry: docker.io
+        repository: curlimages/curl
+        # Pinned: curl and gunzip from the Alpine base. Bump deliberately.
+        tag: "8.11.1"
+        pullPolicy: IfNotPresent
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          memory: 128Mi
   service:
     port: 8080
   strategy:
@@ -225,6 +303,20 @@ backend:
       - staff-link
       - player
       - cloudnet/catalogue
+      # Narrowed to the sub-paths the proxy calls where the controller has siblings it must not expose
+      # (/intel/policy, /intel/allow-list, /guard/settings). /player also carries /player-discord-link.
+      - intel/sessions
+      - intel/login-check
+      - intel/players
+      - intel/names
+      - guard/state
+      - guard/presence
+      - guard/level
+      - area-bans
+      - kick
+      - warn
+      - client-rule
+      - proxy/capabilities
     nginx:
       image:
         registry: docker.io
@@ -238,6 +330,18 @@ backend:
           memory: 32Mi
         limits:
           memory: 64Mi
+
+# RFC 9116 /.well-known/security.txt of the portal and the panel (BLACKHOLE_SECURITY_*). Clear contact to turn the
+# route off. Every deployment sets expires explicitly and renews it yearly: the apps refuse to start on a past or
+# more-than-a-year-ahead value. Unsigned in v1; empty policy is optional.
+securityTxt:
+  contact: mailto:security@onelitefeather.net
+  # RFC 3339 timestamp with a time zone, e.g. 2027-06-30T12:00:00Z. Required while contact is set; no default.
+  expires: ""
+  encryption: ""
+  acknowledgments: ""
+  policy: ""
+  preferredLanguages: en, de
 
 web:
   enabled: true
@@ -253,6 +357,9 @@ web:
   logFormat: plain
   # Empty: http://<release>-backend:<backend.service.port>
   backendUrl: ""
+  # Public origin of the panel (BLACKHOLE_UI_ORIGIN). Required when securityTxt.contact is set: security.txt names its
+  # Canonical URL on it.
+  origin: ""
   # The panel is a public OIDC client (PKCE): there is no secret.
   oidc:
     # Empty: derived from auth.tenantId.
@@ -410,6 +517,9 @@ discord:
     credsKey: ""
   # Secret with the keys DISCORD_TOKEN and BLACKHOLE_DISCORD_CLIENT_SECRET.
   existingSecret: ""
+  # Key of existingSecret that holds the staff audit webhook URL (DISCORD_AUDIT_WEBHOOK_URL). Optional: empty
+  # turns the audit off in the bot. It is a secret: never a value here. Add the key, then bump secretRevision.
+  auditWebhookKey: DISCORD_AUDIT_WEBHOOK_URL
   # Entra client of "Blackhole Discord (<env>)". The tenant is auth.tenantId.
   clientId: ""
   # Empty: api://<auth.apiClientId>/.default
@@ -426,6 +536,8 @@ discord:
     appealChannelId: ""
   # Optional settings as env names: DISCORD_ARCHIVE_DELETE_AFTER, DISCORD_SYNC_INTERVAL,
   # DISCORD_STAFF_RECONCILE_INTERVAL, DISCORD_LEAK_SCAN, DISCORD_LEAK_SCAN_CHANNELS, DISCORD_HEALTH_PORT.
+  # DISCORD_STAFF_ACTIONS (true/false, default false) turns on the staff control message and its buttons in the
+  # ticket channels; off, the channels behave as before. The backend routes it uses are always present.
   config: {}
   metrics:
     podMonitor:

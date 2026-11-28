@@ -155,6 +155,6 @@ public interface DiscordLinkApi {
         @ApiResponse(responseCode = "404", description = "There is no such link",
                 content = @Content(mediaType = "application/json", schema = @Schema(implementation = DiscordLinkDTO.Error.class)))
         @Delete("/{id}")
-        HttpResponse<DiscordLinkDTO> remove(@PathVariable UUID id);
+        HttpResponse<DiscordLinkDTO> remove(@PathVariable UUID id, @Parameter(hidden = true) Actor actor);
     }
 }

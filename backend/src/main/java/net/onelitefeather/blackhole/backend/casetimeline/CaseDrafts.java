@@ -5,6 +5,7 @@ import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.AppealRow;
 import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.EvidenceRow;
 import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.KickRow;
 import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.PunishmentRow;
+import net.onelitefeather.blackhole.backend.casetimeline.SourceRows.WarnRow;
 
 /**
  * Builds the case events of the lifecycle facts, with their deterministic dedupe keys. Used by the
@@ -47,6 +48,19 @@ public final class CaseDrafts {
     public static CaseEventDraft kicked(KickRow row, CaseEventOrigin origin, long occurredAt) {
         return new CaseEventDraft(row.identifier(), new CaseEventPayload.Kicked(row.scope(), row.target(), row.eloCost()),
                 occurredAt, origin, row.kickedBy(), null, "kicked:" + row.identifier());
+    }
+
+    /** {@code punishment.warned}, once per warning. */
+    public static CaseEventDraft warned(WarnRow row, @Nullable String templateKey, @Nullable Integer eloCost,
+                                        CaseEventOrigin origin, long occurredAt) {
+        return new CaseEventDraft(row.identifier(), new CaseEventPayload.Warned(templateKey, eloCost), occurredAt, origin,
+                row.warnedBy(), null, "warned:" + row.identifier());
+    }
+
+    /** {@code punishment.acknowledged}, once per warning: the player confirmed it. */
+    public static CaseEventDraft acknowledged(String identifier, CaseEventOrigin origin, long occurredAt) {
+        return new CaseEventDraft(identifier, new CaseEventPayload.Acknowledged(), occurredAt, origin,
+                CaseActor.player(), null, "acknowledged:" + identifier);
     }
 
     /** {@code punishment.expired}, always by the system. */

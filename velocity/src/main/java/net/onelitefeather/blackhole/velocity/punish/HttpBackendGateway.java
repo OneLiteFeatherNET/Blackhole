@@ -1,14 +1,24 @@
 package net.onelitefeather.blackhole.velocity.punish;
 
 import net.onelitefeather.blackhole.client.api.EloApi;
+import net.onelitefeather.blackhole.client.model.LoginCheckRequest;
+import net.onelitefeather.blackhole.client.model.LoginCheckResponse;
 import net.onelitefeather.blackhole.client.api.EvidenceApi;
 import net.onelitefeather.blackhole.client.api.PunishProfileApi;
 import net.onelitefeather.blackhole.client.api.PunishmentApi;
 import net.onelitefeather.blackhole.client.api.PunishmentTemplatesApi;
 import net.onelitefeather.blackhole.client.api.ReportApi;
 import net.onelitefeather.blackhole.client.api.DiscordLinkApi;
+import net.onelitefeather.blackhole.client.api.IntelApi;
 import net.onelitefeather.blackhole.client.api.KickApi;
+import net.onelitefeather.blackhole.client.api.PlayerApi;
+import net.onelitefeather.blackhole.client.api.ProxyApi;
+import net.onelitefeather.blackhole.client.model.ProxyCapabilityReportRequest;
+import net.onelitefeather.blackhole.client.model.ProxyCapabilitySignedVelocity;
 import net.onelitefeather.blackhole.client.api.StaffLinkApi;
+import net.onelitefeather.blackhole.client.api.WarningApi;
+import net.onelitefeather.blackhole.client.model.WarningAcknowledgeRequest;
+import net.onelitefeather.blackhole.client.model.WarningResponse;
 import net.onelitefeather.blackhole.client.model.KickAccepted;
 import net.onelitefeather.blackhole.client.model.KickAck;
 import net.onelitefeather.blackhole.client.model.KickCreateRequest;
@@ -18,6 +28,9 @@ import net.onelitefeather.blackhole.client.model.KickScope;
 import net.onelitefeather.blackhole.client.invoker.ApiClient;
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.DiscordLinkCodeResponse;
+import net.onelitefeather.blackhole.client.model.NameHistoryOwner;
+import net.onelitefeather.blackhole.client.model.NameHistoryPage;
+import net.onelitefeather.blackhole.client.model.PlayerResolveResponse;
 import net.onelitefeather.blackhole.client.model.DiscordLinkPlayerCodeRequest;
 import net.onelitefeather.blackhole.client.model.EloProfileResponse;
 import net.onelitefeather.blackhole.client.model.EvidenceCreateRequest;
@@ -67,6 +80,10 @@ public final class HttpBackendGateway implements BackendGateway {
     private final ReportApi reportApi;
     private final DiscordLinkApi discordLinkApi;
     private final KickApi kickApi;
+    private final ProxyApi proxyApi;
+    private final WarningApi warningApi;
+    private final PlayerApi playerApi;
+    private final IntelApi intelApi;
     private volatile CachedList cachedTemplates;
     private final Clock clock;
 
@@ -80,6 +97,10 @@ public final class HttpBackendGateway implements BackendGateway {
         this.reportApi = new ReportApi(client);
         this.discordLinkApi = new DiscordLinkApi(client);
         this.kickApi = new KickApi(client);
+        this.proxyApi = new ProxyApi(client);
+        this.warningApi = new WarningApi(client);
+        this.playerApi = new PlayerApi(client);
+        this.intelApi = new IntelApi(client);
         this.clock = clock;
     }
 
@@ -96,9 +117,18 @@ public final class HttpBackendGateway implements BackendGateway {
     }
 
     @Override
-    public PunishmentApplyResponse apply(String owner, String templateKey, UUID source, String evidenceCorrelationId) throws ApiException {
-        return this.punishmentApi.applyPunishment(new PunishmentApplyRequest()
-                .owner(owner).templateKey(templateKey).onBehalfOf(source).evidenceCorrelationId(evidenceCorrelationId));
+    public PunishmentApplyResponse apply(String owner, UUID playerUuid, String templateKey, UUID source, String evidenceCorrelationId, boolean warningOnly) throws ApiException {
+        PunishmentApplyRequest request = new PunishmentApplyRequest()
+                .owner(owner).templateKey(templateKey).onBehalfOf(source).evidenceCorrelationId(evidenceCorrelationId);
+        // An ordinary apply sends no flag at all, exactly as before warnings existed.
+        if (warningOnly) {
+            request.warningOnly(true);
+        }
+        // The UUID is sent only when the plugin knows it; the backend lists nothing without one.
+        if (playerUuid != null) {
+            request.playerUuid(playerUuid.toString());
+        }
+        return this.punishmentApi.applyPunishment(request);
     }
 
     @Override
@@ -152,6 +182,29 @@ public final class HttpBackendGateway implements BackendGateway {
             }
             throw e;
         }
+    }
+
+    @Override
+    public Optional<TargetResolver.Known> resolvePlayer(String name) throws ApiException {
+        try {
+            PlayerResolveResponse resolved = this.playerApi.resolvePlayer(name);
+            return Optional.of(new TargetResolver.Known(resolved.getUuid(), resolved.getName()));
+        } catch (ApiException e) {
+            if (e.getCode() == 404) {
+                return Optional.empty();
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public NameHistoryPage nameHistory(String owner, int size) throws ApiException {
+        return this.intelApi.listPlayerNames(owner, 0, size);
+    }
+
+    @Override
+    public List<NameHistoryOwner> nameOwners(String name) throws ApiException {
+        return this.intelApi.findNameOwners(name).getOwners();
     }
 
     @Override
@@ -227,5 +280,42 @@ public final class HttpBackendGateway implements BackendGateway {
     @Override
     public void acknowledgeKick(String id, String proxyId, boolean found, boolean moved) throws ApiException {
         this.kickApi.acknowledgeKick(id, new KickAck().proxyId(proxyId).found(found).moved(moved));
+    }
+
+    @Override
+    public void reportProxyCapabilities(String proxyId, boolean present, String version) throws ApiException {
+        ProxyCapabilitySignedVelocity signedVelocity = new ProxyCapabilitySignedVelocity().present(present);
+        if (version != null) {
+            signedVelocity.version(version);
+        }
+        this.proxyApi.reportProxyCapabilities(new ProxyCapabilityReportRequest().proxyId(proxyId).signedVelocity(signedVelocity));
+    }
+
+    @Override
+    public CompletableFuture<LoginCheckResponse> loginCheck(String owner, String ip) {
+        LoginCheckRequest request = new LoginCheckRequest().owner(owner).ip(ip);
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return this.intelApi.checkIntelLogin(request);
+            } catch (ApiException e) {
+                throw new CompletionException(e);
+            }
+        });
+    }
+
+    @Override
+    public WarningResponse warning(String id) throws ApiException {
+        return this.warningApi.getWarning(id);
+    }
+
+    @Override
+    public List<WarningResponse> pendingWarnings(String owner) throws ApiException {
+        List<WarningResponse> items = this.warningApi.listPendingWarnings(owner, null).getItems();
+        return items == null ? List.of() : items;
+    }
+
+    @Override
+    public void acknowledgeWarning(String id, String owner) throws ApiException {
+        this.warningApi.acknowledgeWarning(id, new WarningAcknowledgeRequest().owner(owner));
     }
 }

@@ -32,7 +32,8 @@ class KickSubscriptionCacheTest {
     private final List<MassKickMessage> massKicks = new ArrayList<>();
 
     private final NatsSyncService service = new NatsSyncService(mirror, new NatsSyncService.Reactions(
-            punishments::add, evicted::add, () -> { }, report -> { }, owner -> { }, kicks::add, massKicks::add), Runnable::run);
+            punishments::add, evicted::add, () -> { }, report -> { }, owner -> { }, kicks::add, massKicks::add, warning -> { }),
+            Runnable::run);
 
     private void publish(String subject, String payload) {
         String eventType = subject.substring("blackhole.events.".length());

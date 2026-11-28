@@ -11,6 +11,8 @@ import net.onelitefeather.blackhole.velocity.config.ChatCaptureConfig;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteNoticeCooldown;
 import net.onelitefeather.blackhole.velocity.enforcement.MuteNotices;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
+import net.onelitefeather.blackhole.velocity.intel.RecordingSessionBackend;
+import net.onelitefeather.blackhole.velocity.intel.SessionReporter;
 import net.onelitefeather.blackhole.velocity.listener.ChatCaptureListener;
 import net.onelitefeather.blackhole.velocity.listener.PlayerDisconnectListener;
 import net.onelitefeather.blackhole.velocity.utils.UUIDConverter;
@@ -109,7 +111,8 @@ class ChatListenersTest {
         MuteNotices notices = new MuteNotices(
                 new PunishmentScreens(clock, new BlackholeConfig(), TestData.standardRegistry(), GlobalTranslator.renderer()),
                 new MuteNoticeCooldown(clock, Duration.ofSeconds(30)));
-        new PlayerDisconnectListener(new PunishmentMirror(), buffer, notices)
+        SessionReporter sessions = new SessionReporter(new RecordingSessionBackend(), Runnable::run, UUID::randomUUID);
+        new PlayerDisconnectListener(new PunishmentMirror(), buffer, notices, sessions)
                 .onDisconnect(new DisconnectEvent(alice, DisconnectEvent.LoginStatus.SUCCESSFUL_LOGIN));
 
         assertTrue(texts(buffer).isEmpty(), "the buffer must not outlive the session");

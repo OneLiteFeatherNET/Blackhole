@@ -1,10 +1,14 @@
 package net.onelitefeather.blackhole.backend.casetimeline.service;
 
 import io.micronaut.core.annotation.Nullable;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.banid.service.BanIdService;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.casetimeline.ActorTrust;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseActor;
+import net.onelitefeather.blackhole.backend.casetimeline.CaseChangeRules;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseChanges;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventDraft;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseEventOrigin;
@@ -21,21 +25,25 @@ import net.onelitefeather.blackhole.backend.casetimeline.CaseTags;
 import net.onelitefeather.blackhole.backend.casetimeline.SourceRows;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseDTO;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseErrorKind;
+import net.onelitefeather.blackhole.backend.discord.ticket.DiscordTicketStore;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.evidence.validation.PiiGuard;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentShortId;
 import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.security.ActorKind;
+import net.onelitefeather.blackhole.backend.security.Attribution;
+import net.onelitefeather.blackhole.backend.security.StaffDelegation;
 import net.onelitefeather.blackhole.backend.security.StaffActorRepository;
 
 import java.time.Clock;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TreeSet;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -59,12 +67,15 @@ public class CaseService {
     static final int MAX_LIST_SIZE = 100;
     static final int MAX_RELATED = 20;
     private static final int OWNER_PREFIX = 12;
+    private static final Pattern OWNER = Pattern.compile("^[a-fA-F0-9]{128}$");
     private static final Pattern TYPE_FILTER = Pattern.compile("[a-z_]+(\\.[a-z_]+)*");
     private static final Pattern CURSOR = Pattern.compile("(\\d{1,18}):(\\d{1,18})");
     private static final List<String> STATES = List.of("ACTIVE", "EXPIRED", "LIFTED");
 
     private final PunishmentRepository punishments;
     private final StaffActorRepository staff;
+    private final StaffDelegation delegation;
+    private final StaffAuditRecorder audit;
     private final CaseReader reader;
     private final CaseChanges changes;
     private final CaseEventRepository events;
@@ -73,11 +84,17 @@ public class CaseService {
     private final CaseReference references;
     private final CaseEventPublisher caseEvents;
     private final MessageContent content;
+    private final DiscordTicketStore tickets;
 
     public CaseService(
             PunishmentRepository punishments, StaffActorRepository staff, CaseReader reader, CaseChanges changes,
-            CaseEventRepository events, DomainEventPublisher publisher, Clock clock, BanIdService banIds, MessageContent content
+            CaseEventRepository events, DomainEventPublisher publisher, Clock clock, BanIdService banIds, MessageContent content,
+            StaffDelegation delegation,
+            StaffAuditRecorder audit, DiscordTicketStore tickets
     ) {
+        this.tickets = tickets;
+        this.audit = audit;
+        this.delegation = delegation;
         this.punishments = punishments;
         this.staff = staff;
         this.reader = reader;
@@ -156,26 +173,74 @@ public class CaseService {
         return new CaseDTO.TimelinePage(shown.stream().map(this::toItem).toList(), next);
     }
 
-    /** The case list, newest activity first. */
+    /** The case list, newest activity first. {@code owner}, when given, narrows the list to one player. */
     public CaseDTO list(
+            @Nullable CaseStatus status, @Nullable UUID assignee, @Nullable String tag, @Nullable CasePriority priority,
+            @Nullable String section, @Nullable String punishmentState, @Nullable Integer page, @Nullable Integer size,
+            @Nullable String owner
+    ) {
+        CaseDTO.Error invalid = invalidFilter(tag, punishmentState);
+        if (invalid != null) {
+            return invalid;
+        }
+        if (owner != null && !OWNER.matcher(owner).matches()) {
+            return error(CaseErrorKind.VALIDATION, "owner is the 128 character hash of a player");
+        }
+        int pageNumber = page == null ? 0 : Math.max(0, page);
+        int pageSize = size == null ? DEFAULT_LIST_SIZE : Math.max(1, Math.min(size, MAX_LIST_SIZE));
+        CaseReader.ListPage result = this.reader.list(
+                listQuery(status, assignee, tag, priority, section, punishmentState, pageNumber, pageSize, owner), this.clock.millis());
+        List<CaseDTO.ListItem> items = result.items().stream().map(row -> new CaseDTO.ListItem(
+                row.identifier(), row.shortId(), row.section(), row.state(), CaseStatus.valueOf(row.meta().status()), row.meta().assignee(),
+                row.assigneeName(), CasePriority.valueOf(row.meta().priority()), row.meta().tags(), row.createdAt(), row.lastActivityAt(),
+                row.playerName(), shortOwner(row.owner()), row.version())).toList();
+        return new CaseDTO.ListPage(items, pageNumber, pageSize, result.total(), (int) Math.ceil(result.total() / (double) pageSize));
+    }
+
+    /**
+     * The players with at least one case that matches the filters, newest activity first. Each group counts the matching
+     * cases only; paging is over players, so one player's cases never span two pages.
+     */
+    public CaseDTO groups(
             @Nullable CaseStatus status, @Nullable UUID assignee, @Nullable String tag, @Nullable CasePriority priority,
             @Nullable String section, @Nullable String punishmentState, @Nullable Integer page, @Nullable Integer size
     ) {
+        CaseDTO.Error invalid = invalidFilter(tag, punishmentState);
+        if (invalid != null) {
+            return invalid;
+        }
+        int pageNumber = page == null ? 0 : Math.max(0, page);
+        int pageSize = size == null ? DEFAULT_LIST_SIZE : Math.max(1, Math.min(size, MAX_LIST_SIZE));
+        CaseReader.GroupPage result = this.reader.groups(
+                listQuery(status, assignee, tag, priority, section, punishmentState, pageNumber, pageSize, null), this.clock.millis());
+        List<CaseDTO.GroupItem> items = result.items().stream().map(group -> new CaseDTO.GroupItem(
+                group.owner(), shortOwner(group.owner()), group.playerName(), group.openCount(), group.totalCount(),
+                group.lastActivityAt())).toList();
+        return new CaseDTO.GroupPage(items, pageNumber, pageSize, result.total(), (int) Math.ceil(result.total() / (double) pageSize));
+    }
+
+    @Nullable
+    private static CaseDTO.Error invalidFilter(@Nullable String tag, @Nullable String punishmentState) {
         if (tag != null && !CaseTags.VALID.matcher(tag).matches()) {
             return error(CaseErrorKind.VALIDATION, "a tag is a slug of lower case letters, digits and dashes");
         }
         if (punishmentState != null && !STATES.contains(punishmentState)) {
             return error(CaseErrorKind.VALIDATION, "punishmentState is ACTIVE, EXPIRED or LIFTED");
         }
-        int pageNumber = page == null ? 0 : Math.max(0, page);
-        int pageSize = size == null ? DEFAULT_LIST_SIZE : Math.max(1, Math.min(size, MAX_LIST_SIZE));
-        CaseReader.ListPage result = this.reader.list(new CaseReader.ListQuery(
-                status == null ? null : status.name(), assignee, tag, priority == null ? null : priority.name(), section, punishmentState,
-                pageNumber, pageSize), this.clock.millis());
-        List<CaseDTO.ListItem> items = result.items().stream().map(row -> new CaseDTO.ListItem(
-                row.identifier(), row.shortId(), row.section(), row.state(), CaseStatus.valueOf(row.meta().status()), row.meta().assignee(),
-                row.assigneeName(), CasePriority.valueOf(row.meta().priority()), row.meta().tags(), row.createdAt(), row.lastActivityAt())).toList();
-        return new CaseDTO.ListPage(items, pageNumber, pageSize, result.total(), (int) Math.ceil(result.total() / (double) pageSize));
+        return null;
+    }
+
+    private static CaseReader.ListQuery listQuery(
+            @Nullable CaseStatus status, @Nullable UUID assignee, @Nullable String tag, @Nullable CasePriority priority,
+            @Nullable String section, @Nullable String punishmentState, int page, int size, @Nullable String owner
+    ) {
+        return new CaseReader.ListQuery(status == null ? null : status.name(), assignee, tag, priority == null ? null : priority.name(),
+                section, punishmentState, page, size, owner);
+    }
+
+    /** The short owner for the screen: the first characters of the hash, never the whole of it. */
+    private static String shortOwner(String owner) {
+        return owner.substring(0, Math.min(OWNER_PREFIX, owner.length()));
     }
 
     /**
@@ -189,12 +254,18 @@ public class CaseService {
         if (found.error() != null) {
             return found.error();
         }
+        StaffDelegation.Outcome delegated = this.delegation.attribute(actor, request.onBehalfOf());
+        if (delegated instanceof StaffDelegation.Outcome.Refused refused) {
+            return error(refused.reason() == StaffDelegation.Reason.NOT_DISCORD ? CaseErrorKind.VALIDATION : CaseErrorKind.FORBIDDEN,
+                    refused.message());
+        }
+        Attribution by = ((StaffDelegation.Outcome.Allowed) delegated).attribution();
         if (request.expectedVersion() == null) {
             return error(CaseErrorKind.VALIDATION, "expectedVersion is required");
         }
         List<String> tags = null;
         if (request.tags() != null) {
-            tags = normalizeTags(request.tags());
+            tags = CaseChangeRules.normalizeTags(request.tags());
             if (tags == null) {
                 return error(CaseErrorKind.VALIDATION, "tags are at most " + CaseTags.MAX + " slugs of [a-z0-9-], 1 to 32 characters each");
             }
@@ -209,28 +280,26 @@ public class CaseService {
         if (request.expectedVersion() != version) {
             return stale();
         }
-        CaseMeta after = new CaseMeta(
-                request.status() != null ? request.status().name() : before.status(),
-                request.clearAssignee() ? null : request.assigneeOid() != null ? request.assigneeOid() : before.assignee(),
-                request.priority() != null ? request.priority().name() : before.priority(),
-                tags != null ? tags : before.tags());
+        CaseMeta after = CaseChangeRules.replace(before, request.status() != null ? request.status().name() : null,
+                request.assigneeOid(), request.clearAssignee(), request.priority() != null ? request.priority().name() : null, tags);
         List<CaseEventPayload> payloads = after.diffFrom(before);
         if (payloads.isEmpty()) {
             return view(punishment);
         }
         long now = this.clock.millis();
-        CaseActor by = CaseActor.of(actor.attribution());
+        CaseActor writer = CaseActor.of(by);
         if (current.isEmpty()) {
             this.changes.ensureCase(punishment.getIdentifier(), now);
         }
-        List<CaseChanges.Appended> appended = this.changes.update(punishment.getIdentifier(), version, now, by, before, after);
+        List<CaseChanges.Appended> appended = this.changes.update(punishment.getIdentifier(), version, now, writer, before, after);
         if (appended.isEmpty()) {
             return stale();
         }
         for (CaseChanges.Appended event : appended) {
             payloads.stream().filter(payload -> payload.type().equals(event.type())).findFirst()
-                    .ifPresent(payload -> publish(punishment, event, by, now, payload.toMap()));
+                    .ifPresent(payload -> publish(punishment, event, writer, now, payload.toMap()));
         }
+        this.audit.record(by, actor, AuditAction.CASE_UPDATE, AuditTarget.ofCase(punishment.getShortId()));
         return view(punishment);
     }
 
@@ -252,6 +321,7 @@ public class CaseService {
                 CaseEventOrigin.LIVE, by, noteId, null));
         CaseEventRecord stored = lastOfType(punishment.getIdentifier(), noteId, CaseEventPayload.NOTE_ADDED);
         publish(punishment, stored, by, now, Map.of("noteId", noteId));
+        recordAudit(actor, AuditAction.CASE_NOTE_ADD, punishment);
         return new CaseDTO.NoteResponse(noteId, stored.seq());
     }
 
@@ -289,6 +359,7 @@ public class CaseService {
             return error(CaseErrorKind.CONFLICT, "the note was redacted");
         }
         publish(punishment, edited, by, now, Map.of("noteId", noteId.toString()));
+        recordAudit(actor, AuditAction.CASE_NOTE_EDIT, punishment);
         return new CaseDTO.NoteResponse(noteId.toString(), edited.seq());
     }
 
@@ -319,7 +390,13 @@ public class CaseService {
             CaseEventRecord stored = lastOfType(id, noteId.toString(), CaseEventPayload.NOTE_REDACTED);
             publish(punishment, stored, by, now, Map.of("noteId", noteId.toString(), "reason", request.reason().name()));
         }
+        recordAudit(actor, AuditAction.CASE_NOTE_REDACT, punishment);
         return new CaseDTO.RedactResponse(noteId.toString(), redacted);
+    }
+
+    /** Records one staff write of a case after it has succeeded; the entry names the case by its short id only. */
+    private void recordAudit(Actor actor, AuditAction action, PunishmentEntity punishment) {
+        this.audit.record(actor.attribution(), actor, action, AuditTarget.ofCase(punishment.getShortId()));
     }
 
     private CaseDTO.Response view(PunishmentEntity punishment) {
@@ -329,14 +406,20 @@ public class CaseService {
         List<CaseDTO.Related> related = this.reader.related(punishment.getOwner(), punishment.getIdentifier(), now, MAX_RELATED).stream()
                 .map(other -> new CaseDTO.Related(other.identifier(), other.shortId(), other.section(), other.state(), other.caseStatus(), other.createdAt()))
                 .toList();
-        String owner = punishment.getOwner();
         return new CaseDTO.Response(punishment.getIdentifier(), PunishmentShortId.display(punishment.getShortId()),
-                owner.substring(0, Math.min(OWNER_PREFIX, owner.length())), punishment.getSectionKey(), state(punishment, now),
+                shortOwner(punishment.getOwner()), punishment.getSectionKey(), state(punishment, now),
                 punishment.isPermanent(), punishment.getCreatedAt() == null ? 0 : punishment.getCreatedAt(),
                 CaseStatus.valueOf(meta.status()), meta.assignee(), row.map(CaseReader.CaseRow::assigneeName).orElse(null),
                 CasePriority.valueOf(meta.priority()), meta.tags(), row.map(CaseReader.CaseRow::version).orElse(0L), related,
                 row.map(CaseReader.CaseRow::banIdLeakedAt).orElse(null), row.map(CaseReader.CaseRow::banIdLeakReason).orElse(null),
-                row.map(CaseReader.CaseRow::playerSeenSeq).orElse(0L));
+                row.map(CaseReader.CaseRow::playerSeenSeq).orElse(0L), ticketState(punishment.getIdentifier()));
+    }
+
+    @Nullable
+    private CaseDTO.Ticket ticketState(String punishmentIdentifier) {
+        return this.tickets.latestOf(punishmentIdentifier)
+                .map(ticket -> new CaseDTO.Ticket(ticket.state().name(), ticket.frozen(), ticket.freezeSource()))
+                .orElse(null);
     }
 
     /** {@code LIFTED} (revoked or lifted by an appeal), {@code EXPIRED} or {@code ACTIVE}. */
@@ -385,18 +468,6 @@ public class CaseService {
 
     private boolean isKnownHuman(UUID oid) {
         return this.staff.findById(oid).filter(actor -> actor.getKind() == ActorKind.HUMAN).isPresent();
-    }
-
-    /** The sorted unique tags, or {@code null} when a tag is no slug or there are too many. */
-    static @Nullable List<String> normalizeTags(List<String> tags) {
-        TreeSet<String> unique = new TreeSet<>();
-        for (String tag : tags) {
-            if (tag == null || !CaseTags.VALID.matcher(tag).matches()) {
-                return null;
-            }
-            unique.add(tag);
-        }
-        return unique.size() > CaseTags.MAX ? null : new ArrayList<>(unique);
     }
 
     private @Nullable CaseDTO.Error checkText(@Nullable String text) {

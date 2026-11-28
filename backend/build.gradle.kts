@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.micronaut.application)
     alias(libs.plugins.micronaut.aot)
-    `maven-publish`
 }
 
 dependencies {
@@ -64,6 +63,17 @@ dependencies {
 
     // Evidence file storage on S3-compatible object storage (Apache-2.0). The CRT/Netty async
     // clients are not needed: the blocking Apache client is enough for streamed uploads/ranges.
+    // Offline ASN and country lookup over MaxMind DB files (DB-IP Lite or GeoLite2). Reads local files only.
+    implementation("com.maxmind.db:maxmind-db:4.2.0")
+    // Proof-of-work challenge of the appeal portal (publicapi/challenge), ALTCHA protocol v2, MIT. org.json is the
+    // library's runtime dependency (public domain). Both pinned exactly; see openspec add-portal-bot-challenge.
+    implementation("org.altcha:altcha:2.1.1")
+    implementation("org.json:json:20240303")
+    // Argon2id verification of the ban-list client passwords (publicbans/auth). Bouncy Castle 1.84, released well over two weeks ago.
+    implementation("org.bouncycastle:bcprov-jdk18on:1.87")
+    // JSON Schema 2020-12 validation of integration detection payloads (openspec add-integration-evidence, decision 5).
+    // Apache-2.0, uploaded to Maven Central on 2026-10-02; Jackson 2 like the rest of the backend.
+    implementation("com.networknt:json-schema-validator:2.0.8")
     implementation(libs.awssdk.s3) {
         exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
     }
@@ -72,6 +82,8 @@ dependencies {
     testImplementation(mn.junit.jupiter.params)
     testRuntimeOnly(mn.junit.jupiter.engine)
     testImplementation(mn.micronaut.test.junit5)
+    // InMemorySpanExporter for the tracing tests; no collector is involved.
+    testImplementation(libs.opentelemetry.sdk.testing)
     // Integration tests run against real PostgreSQL/NATS/Redis containers (Testcontainers).
     testImplementation(mn.testcontainers.postgres)
     testImplementation(mn.testcontainers.redis)
@@ -135,64 +147,7 @@ tasks.withType<Test>().configureEach {
     providers.gradleProperty("excludeTags").orNull?.let { tags ->
         useJUnitPlatform { excludeTags(tags) }
     }
-}
-
-publishing {
-    publications.create<MavenPublication>("maven") {
-        artifact(project.tasks.optimizedJitJar)
-        artifact(project.tasks.optimizedRunnerJitJar)
-        artifact(project.tasks.runnerJar)
-        artifact(project.tasks.jar)
-        artifact(project.tasks.optimizedDistTar)
-        artifact(project.tasks.optimizedDistZip)
-
-        version = rootProject.version as String
-        artifactId = "blackhole-backend"
-        groupId = rootProject.group as String
-        pom {
-            name = "Blackhole"
-            description = "A backend server for managing different kind of punishments"
-            url = "https://github.com/OneLiteFeatherNET/Blackhole"
-            licenses {
-                license {
-                    name = "AGPL-3.0"
-                    url = "https://www.gnu.org/licenses/agpl-3.0.en.html"
-                }
-            }
-            developers {
-                developer {
-                    id = "themeinerlp"
-                    name = "Phillipp Glanz"
-                    email = "p.glanz@madfix.me"
-                }
-                developer {
-                    id = "theEvilReaper"
-                    name = "Steffen Wonning"
-                    email = "steffenwx@gmail.com"
-                }
-            }
-            scm {
-                connection = "scm:git:git://github.com:OneLiteFeatherNET/Blackhole.git"
-                developerConnection = "scm:git:ssh://git@github.com:OneLiteFeatherNET/Blackhole.git"
-                url = "https://github.com/OneLiteFeatherNET/Blackhole"
-            }
-        }
-    }
-
-    repositories {
-        maven {
-            authentication {
-                credentials(PasswordCredentials::class) {
-                    // Those credentials need to be set under "Settings -> Secrets -> Actions" in your repository
-                    username = System.getenv("ONELITEFEATHER_MAVEN_USERNAME")
-                    password = System.getenv("ONELITEFEATHER_MAVEN_PASSWORD")
-                }
-            }
-
-            name = "OneLiteFeatherRepository"
-            val releasesRepoUrl = uri("https://repo.onelitefeather.dev/onelitefeather-releases")
-            val snapshotsRepoUrl = uri("https://repo.onelitefeather.dev/onelitefeather-snapshots")
-            url = if (version.toString().contains("BETA") || version.toString().contains("ALPHA") || version.toString().contains("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl
-        }
-    }
+    // Integration tests start a full application context each; the default test heap runs out of memory
+    // in CI when several of them share one test executor.
+    maxHeapSize = "2g"
 }

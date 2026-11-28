@@ -2,7 +2,7 @@
 import { computed, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../../api/inject'
-import type { Section, Template } from '../../api/types'
+import type { Section, Template, TemplateStep } from '../../api/types'
 import { describeDuration, parseDuration } from '../../duration'
 import MdButton from '../md/MdButton.vue'
 import MdDialog from '../md/MdDialog.vue'
@@ -11,31 +11,43 @@ import MdIconButton from '../md/MdIconButton.vue'
 import MdSelect from '../md/MdSelect.vue'
 import MdTextField from '../md/MdTextField.vue'
 import { templateFieldErrors, type FieldErrors } from './fieldErrors'
+import { useSessionStore } from '../../stores/session'
 
 const props = defineProps<{ open: boolean; template: Template | null; sections: Section[] }>()
 const emit = defineEmits<{ close: []; saved: [message: string] }>()
 
 const { t, locale } = useI18n()
 const api = useApi()
+const session = useSessionStore()
+
+/** The public ban list shows at most this many characters of a template's public reason (the backend checks the same). */
+const PUBLIC_REASON_MAX = 200
+
+type StepKindValue = NonNullable<TemplateStep['kind']>
 
 interface StepRow {
   /** Stable identity so a field keeps its focus and value when rows move. */
   id: number
+  kind: StepKindValue
   duration: string
   eloCost: string
 }
 
 let nextId = 0
-const newRow = (duration = '', eloCost = '0'): StepRow => ({ id: nextId++, duration, eloCost })
+const newRow = (duration = '', eloCost = '0', kind: StepKindValue = 'PUNISH'): StepRow => ({ id: nextId++, kind, duration, eloCost })
 
 const STEP_CHIPS = ['5m', '1h', '1d', '7d', '30d']
 const WINDOW_CHIPS = ['7d', '30d', '90d']
+// A kick and a warning are moments: they have no duration, only a cost.
+const STEP_KINDS: StepKindValue[] = ['PUNISH', 'KICK', 'WARN']
 
 const key = ref('')
 const reason = ref('')
 const section = ref('')
 const escalationGroup = ref('')
 const escalationWindow = ref('')
+const warnWindow = ref('')
+const publicReason = ref('')
 const steps = ref<StepRow[]>([])
 const errors = ref<FieldErrors>({ fields: {}, general: [] })
 const saving = ref(false)
@@ -57,6 +69,8 @@ const sectionOptions = computed(() =>
   }),
 )
 
+const kindOptions = computed(() => STEP_KINDS.map((value) => ({ value, label: t(`templates.editor.kinds.${value}`) })))
+
 // Every time the dialog opens it starts from the template being edited, or from an empty form.
 watch(
   () => props.open,
@@ -68,10 +82,14 @@ watch(
     section.value = source?.section ?? sectionOptions.value.find((option) => !option.disabled)?.value ?? ''
     escalationGroup.value = source?.escalationGroup ?? ''
     escalationWindow.value = source?.escalationWindow ?? ''
-    steps.value = source ? source.steps.map((step) => newRow(step.duration ?? '', String(step.eloCost))) : [newRow()]
+    warnWindow.value = source?.warnWindow ?? ''
+    publicReason.value = source?.publicReason ?? ''
+    steps.value = source
+      ? source.steps.map((step) => newRow(step.duration ?? '', String(step.eloCost), step.kind ?? 'PUNISH'))
+      : [newRow()]
     errors.value = { fields: {}, general: [] }
     // The advanced settings are rarely used: open them only when there is something in them.
-    advancedOpen.value = Boolean(source?.escalationGroup || source?.escalationWindow)
+    advancedOpen.value = Boolean(source?.escalationGroup || source?.escalationWindow || source?.warnWindow)
   },
   { immediate: true },
 )
@@ -90,7 +108,7 @@ const addStep = () => steps.value.push(newRow())
 const fieldError = (name: string) => errors.value.fields[name] ?? ''
 
 // A message about a field is stale as soon as the form is edited.
-watch([key, reason, section, escalationGroup, escalationWindow, steps], () => {
+watch([key, reason, section, escalationGroup, escalationWindow, warnWindow, publicReason, steps], () => {
   if (Object.keys(errors.value.fields).length > 0) errors.value = { fields: {}, general: errors.value.general }
 }, { deep: true })
 const WHOLE_NUMBER = /^\d+$/
@@ -98,9 +116,13 @@ const WHOLE_NUMBER = /^\d+$/
 /** What the steps mean in words: "Offence 1: 5 minutes, -50 ELO" for every step that is filled in. */
 const summary = computed(() =>
   steps.value.flatMap((step, index) => {
-    const duration = parseDuration(step.duration)
     const cost = String(step.eloCost).trim()
-    if (!duration.ok || !WHOLE_NUMBER.test(cost)) return []
+    if (!WHOLE_NUMBER.test(cost)) return []
+    if (step.kind !== 'PUNISH') {
+      return [t(step.kind === 'KICK' ? 'templates.editor.summaryKick' : 'templates.editor.summaryWarn', { n: index + 1, cost: Number(cost) })]
+    }
+    const duration = parseDuration(step.duration)
+    if (!duration.ok) return []
     return [
       t(Number(cost) === 0 ? 'templates.editor.summaryStepFree' : 'templates.editor.summaryStep', {
         n: index + 1,
@@ -123,16 +145,24 @@ async function save(): Promise<void> {
   const local: Record<string, string> = {}
   steps.value.forEach((step, index) => {
     if (!WHOLE_NUMBER.test(String(step.eloCost).trim())) local[`steps.${index}.eloCost`] = t('templates.editor.invalidCost')
+    if (step.kind !== 'PUNISH') return
     const problem = durationError(step.duration)
     if (problem) local[`steps.${index}.duration`] = problem
   })
-  if (escalationWindow.value.trim() !== '') {
-    const problem = durationError(escalationWindow.value)
-    if (problem) local.escalationWindow = problem
+  for (const [field, value] of [
+    ['escalationWindow', escalationWindow.value],
+    ['warnWindow', warnWindow.value],
+  ] as const) {
+    if (value.trim() === '') continue
+    const problem = durationError(value)
+    if (problem) local[field] = problem
+  }
+  if (session.administrator && publicReason.value.length > PUBLIC_REASON_MAX) {
+    local.publicReason = t('templates.editor.publicReasonTooLong', { max: PUBLIC_REASON_MAX })
   }
   if (Object.keys(local).length > 0) {
     errors.value = { fields: local, general: [] }
-    if (local.escalationWindow) advancedOpen.value = true
+    if (local.escalationWindow || local.warnWindow) advancedOpen.value = true
     return
   }
 
@@ -141,10 +171,14 @@ async function save(): Promise<void> {
     key: key.value,
     reason: reason.value,
     section: section.value,
+    // Only an administrator edits the public reason; for anyone else the stored one is sent back unchanged.
+    publicReason: session.administrator ? publicReason.value.trim() || null : (props.template?.publicReason ?? null),
     escalationGroup: escalationGroup.value.trim() || null,
     escalationWindow: escalationWindow.value.trim() ? (parseDuration(escalationWindow.value) as { iso: string }).iso : null,
+    warnWindow: warnWindow.value.trim() ? (parseDuration(warnWindow.value) as { iso: string }).iso : null,
     steps: steps.value.map((step) => ({
-      duration: (parseDuration(step.duration) as { iso: string }).iso,
+      kind: step.kind,
+      duration: step.kind === 'PUNISH' ? (parseDuration(step.duration) as { iso: string }).iso : null,
       eloCost: Number(String(step.eloCost).trim()),
     })),
   }
@@ -154,7 +188,7 @@ async function save(): Promise<void> {
   saving.value = false
   if (!result.ok) {
     errors.value = templateFieldErrors(result.error.message)
-    if (errors.value.fields.escalationGroup || errors.value.fields.escalationWindow) advancedOpen.value = true
+    if (errors.value.fields.escalationGroup || errors.value.fields.escalationWindow || errors.value.fields.warnWindow) advancedOpen.value = true
     if (result.error.kind === 'NETWORK') errors.value.general.push(result.error.message)
     return
   }
@@ -192,6 +226,16 @@ const ICON = {
         <MdTextField v-model="reason" required :label="t('templates.editor.reason')" :error="fieldError('reason')" :supporting-text="t('templates.editor.reasonHint')" />
       </div>
 
+      <div v-if="session.administrator" class="flex flex-col gap-1">
+        <MdTextField
+          v-model="publicReason"
+          :label="t('templates.editor.publicReason')"
+          :error="fieldError('publicReason')"
+          :supporting-text="t('templates.editor.publicReasonCounter', { count: publicReason.length, max: PUBLIC_REASON_MAX })"
+        />
+        <p class="px-4 text-body-small text-on-surface-variant">{{ t('templates.editor.publicReasonHint') }}</p>
+      </div>
+
       <fieldset class="flex flex-col gap-4 rounded-md-md border border-outline-variant p-4">
         <legend class="px-2 text-title-small text-on-surface">{{ t('templates.editor.steps') }}</legend>
         <p class="text-body-small text-on-surface-variant">{{ t('templates.editor.stepsHint') }}</p>
@@ -215,7 +259,15 @@ const ICON = {
               <MdIconButton :label="t('templates.editor.moveDown', { n: index + 1 })" :path="ICON.down" :disabled="index === steps.length - 1" @click="move(index, 1)" />
               <MdIconButton :label="t('templates.editor.remove', { n: index + 1 })" :path="ICON.remove" :disabled="steps.length === 1" @click="remove(index)" />
             </div>
+            <MdSelect
+              v-model="step.kind"
+              class="order-3 basis-full sm:w-56 sm:basis-auto"
+              :label="t('templates.editor.kind', { n: index + 1 })"
+              :options="kindOptions"
+              :error="fieldError(`steps.${index}.kind`)"
+            />
             <MdDurationField
+              v-if="step.kind === 'PUNISH'"
               v-model="step.duration"
               class="order-3 basis-full sm:min-w-56 sm:flex-1 sm:basis-0"
               required
@@ -223,6 +275,9 @@ const ICON = {
               :error="fieldError(`steps.${index}.duration`)"
               :chips="STEP_CHIPS"
             />
+            <p v-else class="order-3 basis-full text-body-medium text-on-surface-variant sm:mt-3 sm:flex-1 sm:basis-0">
+              {{ t('templates.editor.noDuration') }}
+            </p>
             <MdTextField
               v-model="step.eloCost"
               class="order-3 basis-full sm:w-44 sm:basis-auto"
@@ -284,11 +339,19 @@ const ICON = {
               :supporting-text="t('templates.editor.windowHint')"
               :chips="WINDOW_CHIPS"
             />
+            <MdDurationField
+              v-model="warnWindow"
+              :label="t('templates.editor.warnWindow')"
+              :error="fieldError('warnWindow')"
+              :supporting-text="t('templates.editor.warnWindowHint')"
+              :chips="WINDOW_CHIPS"
+            />
           </div>
         </div>
       </section>
     </form>
     <template #actions>
+      <slot name="extra-actions" />
       <MdButton variant="text" data-testid="cancel" @click="emit('close')">{{ t('actions.cancel') }}</MdButton>
       <MdButton data-testid="save" :disabled="saving" @click="save">{{ t('templates.editor.save') }}</MdButton>
     </template>

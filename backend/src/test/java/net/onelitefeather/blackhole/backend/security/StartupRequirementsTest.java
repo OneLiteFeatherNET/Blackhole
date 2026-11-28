@@ -22,14 +22,29 @@ class StartupRequirementsTest extends PostgresIntegrationTest {
     private static final String GUID = "774f6ffd-1111-4222-8333-444455556666";
     private static final String TENANT = "11111111-2222-4333-8444-555566667777";
 
+    /** Starts with a valid challenge key, so only the setting under test can fail the startup. */
     private static ApplicationContext start(String environment, String audience, String tenant) {
+        return start(environment, audience, tenant, net.onelitefeather.blackhole.backend.support.TestKeys.randomBase64());
+    }
+
+    private static ApplicationContext start(String environment, String audience, String tenant, String challengeKey) {
         Map<String, Object> properties = new HashMap<>(contextProperties());
         properties.put("micronaut.server.port", -1);
         properties.put("blackhole.banid.key", net.onelitefeather.blackhole.backend.support.TestKeys.randomBase64());
         properties.put("micronaut.security.token.jwt.claims-validators.issuer", "https://login.microsoftonline.com/tenant/v2.0");
         properties.put(AUDIENCE_KEY, audience);
         properties.put("blackhole.security.tenant-id", tenant);
+        // The challenge runs as in a deployment: on, with its own key (an empty key is refused outside dev and test).
+        properties.put("blackhole.public.challenge.enabled", true);
+        properties.put("blackhole.public.challenge.key", challengeKey);
         return ApplicationContext.builder().deduceEnvironment(false).environments(environment).properties(properties).start();
+    }
+
+    @Test
+    void aMissingChallengeKeyOutsideDevFailsToStartAndNamesTheSetting() {
+        Throwable failure = assertThrows(Throwable.class, () -> start("prod", GUID, TENANT, ""), "empty challenge key");
+
+        assertTrue(messages(failure).contains("BLACKHOLE_PUBLIC_CHALLENGE_KEY"), "the failure names the challenge key: " + messages(failure));
     }
 
     private static String messages(Throwable failure) {

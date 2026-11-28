@@ -188,7 +188,16 @@ The one anchored expression that allows the proxy prefixes on the external API h
 The tunnel (cloudflared) matches it as an unanchored regular expression against the request path.
 */}}
 {{- define "blackhole.apiPathRegex" -}}
-{{- printf "^/(%s)" (join "|" .Values.backend.externalApi.prefixes) -}}
+{{- $alternatives := .Values.backend.externalApi.prefixes -}}
+{{- /* The public ban list is the one /public route the external host carries, and only with named clients. */ -}}
+{{- if .Values.banList.clients -}}
+{{- $alternatives = append $alternatives "public/bans(/|$)" -}}
+{{- end -}}
+{{- /* The firewall pull feeds: the firewall sits outside the cluster and fetches /firewall/feed/{token}/... through this host. */ -}}
+{{- if .Values.firewallFeed.clients -}}
+{{- $alternatives = append $alternatives "firewall/feed(/|$)" -}}
+{{- end -}}
+{{- printf "^/(%s)" (join "|" $alternatives) -}}
 {{- end -}}
 
 {{/* Host and port of the scanner: an external one, or the Service of this release. */}}
@@ -206,6 +215,24 @@ Cross-field checks a JSON schema cannot express. Included by templates/validate.
 nothing, so every render runs them.
 */}}
 {{- define "blackhole.validate" -}}
+{{- if and .Values.backend.geoip.enabled (not .Values.backend.geoip.existingClaim) -}}
+{{- fail "backend.geoip.existingClaim is required when backend.geoip.enabled is true: the PVC that holds asn.mmdb and country.mmdb" -}}
+{{- end -}}
+{{- if and .Values.backend.geoip.refresh.enabled (not .Values.backend.geoip.enabled) -}}
+{{- fail "backend.geoip.refresh.enabled needs backend.geoip.enabled: the refresh writes the files the backend reads" -}}
+{{- end -}}
+{{- if and .Values.banList.clients (not .Values.banList.existingSecret) -}}
+{{- fail "banList.existingSecret is required when banList.clients is set: the Secret with one hash key per client" -}}
+{{- end -}}
+{{- if and .Values.banList.clients (not .Values.banList.trustedIngress) -}}
+{{- fail "banList.trustedIngress is required when banList.clients is set: the addresses or CIDRs of the ingress peers (the cloudflared pods in tunnel mode, the api-proxy pods in nginx mode) whose X-Forwarded-Proto is trusted" -}}
+{{- end -}}
+{{- if and .Values.banList.clients (not .Values.publicBanKey.existingSecret) -}}
+{{- fail "publicBanKey.existingSecret is required when banList.clients is set: the public ban entries are hashed with that key" -}}
+{{- end -}}
+{{- if and .Values.firewallFeed.clients (not .Values.firewallFeed.existingSecret) -}}
+{{- fail "firewallFeed.existingSecret is required when firewallFeed.clients is set: the Secret with one hash key per client" -}}
+{{- end -}}
 {{- if and .Values.backend.enabled .Values.web.enabled (ne (int64 .Values.backend.evidence.maxVideoBytes) (int64 .Values.web.evidence.maxVideoBytes)) -}}
 {{- fail (printf "backend.evidence.maxVideoBytes (%d) and web.evidence.maxVideoBytes (%d) must be equal: the panel would accept uploads the backend refuses, or the other way round" (int64 .Values.backend.evidence.maxVideoBytes) (int64 .Values.web.evidence.maxVideoBytes)) -}}
 {{- end -}}
@@ -216,5 +243,18 @@ nothing, so every render runs them.
 {{- fail (printf "%s.backendUrl is required when backend.enabled is false: there is no backend Service of this release to talk to" $c) -}}
 {{- end -}}
 {{- end -}}
+{{- end -}}
+{{- with .Values.securityTxt -}}
+{{- if .contact -}}
+{{- if not .expires -}}
+{{- fail "securityTxt.expires is required when securityTxt.contact is set: every deployment sets the expiry it has looked at (RFC 9116 Expires), there is no default" -}}
+{{- end -}}
+{{- if not (regexMatch "^[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?([Zz]|[+-][0-9]{2}:[0-9]{2})$" (toString .expires)) -}}
+{{- fail (printf "securityTxt.expires must be an RFC 3339 timestamp with a time zone, e.g. 2027-06-30T12:00:00Z (got: %s)" (toString .expires)) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- if and .Values.securityTxt.contact .Values.web.enabled (not .Values.web.origin) -}}
+{{- fail "web.origin is required when securityTxt.contact is set: security.txt names its Canonical URL on the panel origin" -}}
 {{- end -}}
 {{- end -}}

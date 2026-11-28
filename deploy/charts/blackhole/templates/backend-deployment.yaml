@@ -35,7 +35,11 @@ spec:
       serviceAccountName: {{ $name }}
       {{- include "blackhole.podDefaults" . | nindent 6 }}
       securityContext:
-        {{- toYaml $v.podSecurityContext | nindent 8 }}
+        {{- $psc := deepCopy $v.podSecurityContext }}
+        {{- if $v.geoip.enabled }}
+        {{- $_ := set $psc "fsGroup" $v.geoip.fsGroup }}
+        {{- end }}
+        {{- toYaml $psc | nindent 8 }}
       containers:
         - name: backend
           image: {{ include "blackhole.image" (dict "ctx" . "image" $v.image "app" true) }}
@@ -55,6 +59,9 @@ spec:
             {{- include "blackhole.secretEnv" (dict "name" "REDIS_URI" "secret" .Values.redis.existingSecret "key" "REDIS_URI") | nindent 12 }}
             {{- include "blackhole.secretEnv" (dict "name" "BLACKHOLE_BANID_KEY" "secret" .Values.keys.existingSecret "key" "BLACKHOLE_BANID_KEY") | nindent 12 }}
             {{- include "blackhole.secretEnv" (dict "name" "BLACKHOLE_EVASION_IP_SALT" "secret" .Values.keys.existingSecret "key" "BLACKHOLE_EVASION_IP_SALT") | nindent 12 }}
+            {{- if .Values.publicBanKey.existingSecret }}
+            {{- include "blackhole.secretEnv" (dict "name" "BLACKHOLE_PUBLIC_BAN_KEY" "secret" .Values.publicBanKey.existingSecret "key" "BLACKHOLE_PUBLIC_BAN_KEY") | nindent 12 }}
+            {{- end }}
             {{- include "blackhole.secretEnv" (dict "name" "BLACKHOLE_EVIDENCE_S3_ACCESS_KEY" "secret" .Values.s3.existingSecret "key" .Values.s3.accessKeyKey) | nindent 12 }}
             {{- include "blackhole.secretEnv" (dict "name" "BLACKHOLE_EVIDENCE_S3_SECRET_KEY" "secret" .Values.s3.existingSecret "key" .Values.s3.secretKeyKey) | nindent 12 }}
             {{- include "blackhole.env" $v.env | nindent 12 }}
@@ -77,6 +84,21 @@ spec:
             - name: nats
               mountPath: {{ .Values.nats.credsMountPath }}
               readOnly: true
+            {{- if .Values.banList.clients }}
+            - name: ban-list
+              mountPath: {{ .Values.banList.mountPath }}
+              readOnly: true
+            {{- end }}
+            {{- if .Values.firewallFeed.clients }}
+            - name: firewall-feed
+              mountPath: {{ .Values.firewallFeed.mountPath }}
+              readOnly: true
+            {{- end }}
+            {{- if $v.geoip.enabled }}
+            - name: geoip
+              mountPath: {{ $v.geoip.mountPath }}
+              readOnly: true
+            {{- end }}
       volumes:
         - name: tmp
           emptyDir:
@@ -87,6 +109,40 @@ spec:
             items:
               - key: {{ include "blackhole.natsCredsKey" (dict "ctx" . "values" $v) }}
                 path: {{ include "blackhole.natsCredsKey" (dict "ctx" . "values" $v) }}
+        {{- if .Values.banList.clients }}
+        # One password hash per client, read-only: the backend checks the Basic Auth of the ban list against them.
+        - name: ban-list
+          secret:
+            secretName: {{ .Values.banList.existingSecret }}
+            items:
+              {{- range .Values.banList.clients }}
+              - key: {{ . }}
+                path: {{ . }}
+              {{- end }}
+        {{- end }}
+        {{- if .Values.firewallFeed.clients }}
+        # One SHA-256 hash per firewall client, read-only: the backend checks the token in the feed path against them.
+        # The optional <name>.next key is the hash of the next token during a rotation. optional lets a missing key
+        # skip its file instead of failing the pod; the backend still refuses a client whose own file is missing.
+        - name: firewall-feed
+          secret:
+            secretName: {{ .Values.firewallFeed.existingSecret }}
+            optional: true
+            items:
+              {{- range .Values.firewallFeed.clients }}
+              - key: {{ . }}
+                path: {{ . }}
+              - key: {{ . }}.next
+                path: {{ . }}.next
+              {{- end }}
+        {{- end }}
+        {{- if $v.geoip.enabled }}
+        # The GeoIP files, written by the refresh CronJob. The backend only reads them.
+        - name: geoip
+          persistentVolumeClaim:
+            claimName: {{ $v.geoip.existingClaim }}
+            readOnly: true
+        {{- end }}
       {{- include "blackhole.scheduling" (dict "ctx" . "component" "backend" "values" $v "spread" true) | nindent 6 }}
 ---
 apiVersion: v1

@@ -12,11 +12,15 @@ import net.onelitefeather.blackhole.velocity.enforcement.MuteNotices;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentMirror;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentState;
 import net.onelitefeather.blackhole.velocity.enforcement.PunishmentSyncHandler;
+import net.onelitefeather.blackhole.velocity.intel.SessionReporter;
 import net.onelitefeather.blackhole.velocity.evidence.ChatBuffer;
 import net.onelitefeather.blackhole.velocity.evidence.EvidenceCounts;
+import net.onelitefeather.blackhole.velocity.guard.GuardBackend;
+import net.onelitefeather.blackhole.velocity.guard.HttpGuardBackend;
 import net.onelitefeather.blackhole.velocity.punish.BackendGateway;
 import net.onelitefeather.blackhole.velocity.punish.PunishService;
 import net.onelitefeather.blackhole.velocity.report.ReportFeedbackDelivery;
+import net.onelitefeather.blackhole.velocity.enforcement.WarningHandler;
 import net.onelitefeather.blackhole.velocity.report.ReportNotifier;
 import net.onelitefeather.blackhole.velocity.report.ReportService;
 import net.onelitefeather.blackhole.velocity.section.SectionRegistry;
@@ -48,6 +52,8 @@ import java.time.Clock;
  * @param reportNotifier tells online staff about new reports
  * @param reportFeedback tells reporters what became of their reports
  * @param kickRunner  sends a staff member's kick and follows it to its outcome
+ * @param warnings    shows warnings to players and records their confirmation
+ * @param sessions    reports login attempts, brands and disconnects to the backend
  */
 public record BlackholeClientModule(
         @NotNull ApiClient apiClient,
@@ -69,7 +75,9 @@ public record BlackholeClientModule(
         @NotNull ReportService reports,
         @NotNull ReportNotifier reportNotifier,
         @NotNull ReportFeedbackDelivery reportFeedback,
-        @NotNull KickRunner kickRunner
+        @NotNull KickRunner kickRunner,
+        @NotNull WarningHandler warnings,
+        @NotNull SessionReporter sessions
 ) {
 
     /**
@@ -87,6 +95,7 @@ public record BlackholeClientModule(
                 bind(PunishmentSyncHandler.class).toInstance(syncHandler);
                 bind(EnforcementActions.class).toInstance(actions);
                 bind(BackendGateway.class).toInstance(backend);
+                bind(GuardBackend.class).toInstance(new HttpGuardBackend(apiClient));
                 bind(PunishService.class).toInstance(service);
                 bind(Clock.class).toInstance(clock);
                 bind(PunishmentScreens.class).toInstance(screens);
@@ -99,6 +108,8 @@ public record BlackholeClientModule(
                 bind(ReportNotifier.class).toInstance(reportNotifier);
                 bind(ReportFeedbackDelivery.class).toInstance(reportFeedback);
                 bind(KickRunner.class).toInstance(kickRunner);
+                bind(WarningHandler.class).toInstance(warnings);
+                bind(SessionReporter.class).toInstance(sessions);
             }
         };
     }

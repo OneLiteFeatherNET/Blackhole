@@ -44,7 +44,32 @@ public enum ErrorKind {
     STAFF_PROFILE_REQUIRED(HttpStatus.CONFLICT),
 
     /** A kick's scope and target do not fit: a scoped kick without a target, a target that is no server or section (422). */
-    KICK_TARGET_INVALID(HttpStatus.UNPROCESSABLE_ENTITY);
+    KICK_TARGET_INVALID(HttpStatus.UNPROCESSABLE_ENTITY),
+
+    /** A warning was asked for, but the template's ladder reached a step that is not a warning (422). */
+    WARN_STEP_REQUIRED(HttpStatus.UNPROCESSABLE_ENTITY),
+
+    /** A rollback's selector is not a human staff actor, such as the proxy's service principal (400). */
+    ROLLBACK_SELECTOR_INVALID(HttpStatus.BAD_REQUEST),
+
+    /** A rollback's preview matches more punishments than the configured maximum; narrow the window (422). */
+    ROLLBACK_TOO_LARGE(HttpStatus.UNPROCESSABLE_ENTITY),
+
+    /** Only an admin may set a login policy to DENY (403). */
+    FORBIDDEN_POLICY(HttpStatus.FORBIDDEN),
+
+    /** Only an admin may exempt a player for good; a moderator's exemption is at most 90 days (403). */
+    FORBIDDEN_DURATION(HttpStatus.FORBIDDEN),
+    /** The player is exempt from punishment and the actor's rank does not outrank the exemption (409). */
+    TARGET_EXEMPT(HttpStatus.CONFLICT),
+
+    /** Only an admin may ban a country; a moderator may ban one ASN for up to seven days (403). */
+    FORBIDDEN_KIND(HttpStatus.FORBIDDEN),
+    /** An IP ban names a range that may not be banned: too wide, or protected (422). */
+    IP_BAN_NOT_ALLOWED(HttpStatus.UNPROCESSABLE_ENTITY),
+
+    /** A batch exceeds its size or item cap; nothing in it was parsed or stored (413). */
+    PAYLOAD_TOO_LARGE(HttpStatus.REQUEST_ENTITY_TOO_LARGE);
 
     private final HttpStatus status;
 

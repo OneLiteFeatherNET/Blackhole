@@ -10,6 +10,9 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEvents;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.Attribution;
 import org.slf4j.Logger;
@@ -44,6 +47,7 @@ public class ImportedPunishmentService {
     private final ProfileCache profileCache;
     private final CaseTimeline caseTimeline;
     private final Clock clock;
+    private final StaffAuditRecorder audit;
 
     public ImportedPunishmentService(
             PunishmentRepository punishmentRepository,
@@ -52,8 +56,10 @@ public class ImportedPunishmentService {
             DomainEventPublisher eventPublisher,
             ProfileCache profileCache,
             CaseTimeline caseTimeline,
-            Clock clock
+            Clock clock,
+            StaffAuditRecorder audit
     ) {
+        this.audit = audit;
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
         this.templateResolver = templateResolver;
@@ -118,6 +124,7 @@ public class ImportedPunishmentService {
                 retemplated++;
             }
         }
+        this.audit.record(actor.attribution(), actor, AuditAction.IMPORT_RETEMPLATE, AuditTarget.none());
         return new ImportedPunishmentDTO.RetemplateResponse(request.templateKey(), selected.found().size() + selected.unknown(), retemplated, unchanged, skipped);
     }
 

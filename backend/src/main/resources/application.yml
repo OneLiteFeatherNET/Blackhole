@@ -47,6 +47,13 @@ endpoints:
     sensitive: false
 
 blackhole:
+  analytics:
+    refresh:
+      # How often the analytics views (schema analytics, read by Metabase) are refreshed. Each refresh is one aggregate over the
+      # operational tables; Metabase shows the age of its data from analytics.refresh_state. ISO-8601 or Spring-style duration.
+      interval: ${BLACKHOLE_ANALYTICS_REFRESH_INTERVAL:15m}
+      # Off switches the schedule off; the views then keep their last data. Only one replica refreshes at a time (advisory lock).
+      enabled: ${BLACKHOLE_ANALYTICS_REFRESH_ENABLED:true}
   staff:
     avatar:
       # HMAC secret that derives the public avatar key from a Minecraft UUID (staff-profile). The key is what a
@@ -124,6 +131,9 @@ blackhole:
       machine-metrics: ${BLACKHOLE_AUTH_MACHINE_ROLE_METRICS:Blackhole.Metrics}
       # The Discord bot (discord module) acts with this app role; it only reaches /discord/**.
       machine-discord: ${BLACKHOLE_AUTH_MACHINE_ROLE_DISCORD:Blackhole.Discord}
+      # A third-party detection integration (its own Entra app registration per instance or task, see the
+      # integration module) acts with this app role; it only reaches POST /integration/detections.
+      machine-integration: ${BLACKHOLE_AUTH_MACHINE_ROLE_INTEGRATION:Blackhole.Integration}
       # Client ids (the azp claim, never appid) allowed to act with each machine role. An app-only
       # token with the role value but another azp gets no role. Comma separated; empty means nobody,
       # so production must set these. The dev defaults are in application-dev.yml.
@@ -138,6 +148,22 @@ blackhole:
   # warning, so Ban IDs do not survive a restart. Elsewhere it refuses to start without the key. Losing or changing the
   # key makes every Ban ID unreadable and unusable, so back it up like any other secret. The backfill
   # issues Ban IDs to punishments that have none (right after start, then periodically).
+  # Public ban list (publicbans/). The key derives the entry hash of each listed sanction; the guard requires it
+  # outside dev and test only when ban-list clients are configured. Rotating it changes every entry hash.
+  public-bans:
+    key: ${BLACKHOLE_PUBLIC_BAN_KEY:}
+    # Ended entries (revoked or expired) stay listed this long after they end. Active entries are always listed.
+    retention: ${BLACKHOLE_PUBLIC_BANS_RETENTION:P90D}
+    # Summary counts below this minimum are withheld, so a single entry cannot be read off the summary.
+    summary-min-count: ${BLACKHOLE_PUBLIC_BANS_SUMMARY_MIN_COUNT:5}
+  # Named ban-list clients (Basic Auth). Comma-separated names; each needs one file in secrets-dir holding its
+  # Argon2id PHC hash. Clients are read once at startup: a rotation or a change is a restart.
+  ban-list:
+    clients: ${BLACKHOLE_BAN_LIST_CLIENTS:}
+    secrets-dir: ${BLACKHOLE_BAN_LIST_SECRETS_DIR:/etc/blackhole/ban-list}
+    # The ingress addresses or CIDR blocks whose X-Forwarded-Proto is believed. Empty trusts none, so the list then answers
+    # 403 HTTPS_REQUIRED to every request that does not arrive over TLS in this process.
+    trusted-ingress: ${BLACKHOLE_BAN_LIST_TRUSTED_INGRESS:}
   banid:
     key: ${BLACKHOLE_BANID_KEY:}
     # Key rotation recovery. After BLACKHOLE_BANID_KEY was replaced, set this to true for ONE start: the
@@ -156,6 +182,9 @@ blackhole:
     # returns; they are not rate limits (infra owns those: a global limit on POST /discord/tickets and
     # POST /discord/leak-check at the edge, see the discord module's docs). Everything the bot needs to resume
     # (tickets, message links, cursors) lives in the database, so these are the only backend settings.
+    # A staff member's role snapshot (staff_actor.roles) is trusted for Discord actions this long after their last
+    # verified request. A removed MODERATOR keeps Discord access until then (proposed 24 hours; the team may shorten it).
+    staff-role-max-age: ${BLACKHOLE_DISCORD_STAFF_ROLE_MAX_AGE:PT24H}
     ticket:
       # Events one outbox read returns when the bot names no limit, and the most it may ask for.
       outbox-page-size: ${BLACKHOLE_DISCORD_OUTBOX_PAGE_SIZE:50}
@@ -184,6 +213,22 @@ blackhole:
       absolute: ${BLACKHOLE_PUBLIC_SESSION_ABSOLUTE:PT4H}
       # How often sessions past either limit are deleted.
       sweep-interval: ${BLACKHOLE_PUBLIC_SESSION_SWEEP_INTERVAL:PT1M}
+    # Proof-of-work challenge (ALTCHA) in front of sign-in and appeal filing. Each solution works once; a missing,
+    # wrong or replayed one answers 403 CHALLENGE_FAILED. Only dev and test may switch it off (enabled: false), and
+    # outside them the key is required: base64 of 32 random bytes, set from the operator's secret, never committed.
+    challenge:
+      # Off only in the dev and test environments; elsewhere a false value stops the application from starting.
+      enabled: ${BLACKHOLE_PUBLIC_CHALLENGE_ENABLED:true}
+      # The HMAC key that signs the challenges (openssl rand -base64 32). Required outside dev and test.
+      key: ${BLACKHOLE_PUBLIC_CHALLENGE_KEY:}
+      # PBKDF2 iterations the browser must run per try. Provisional: measure on a mid-range phone before a change.
+      cost: ${BLACKHOLE_PUBLIC_CHALLENGE_COST:5000}
+      # Hex prefix the derived key must start with, an even number of characters ("00" is about 256 tries).
+      key-prefix: "${BLACKHOLE_PUBLIC_CHALLENGE_KEY_PREFIX:00}"
+      # How long a challenge is valid (ISO-8601). A slow Ban ID typed after the solve needs a new solve.
+      expiry: ${BLACKHOLE_PUBLIC_CHALLENGE_EXPIRY:PT5M}
+      # The longest wait for the Dragonfly reserve of a solution; a timeout or error fails closed with 503.
+      store-timeout: ${BLACKHOLE_PUBLIC_CHALLENGE_STORE_TIMEOUT:PT0.5S}
     message:
       # The longest player message and appeal statement, in characters (never above 2000, the cap of
       # every conversation message).
@@ -250,6 +295,15 @@ blackhole:
     feedback:
       ttl: ${BLACKHOLE_REPORT_FEEDBACK_TTL:P14D}
       sweep-interval: ${BLACKHOLE_REPORT_FEEDBACK_SWEEP_INTERVAL:PT1H}
+  # Inbox. changed-window is the rolling window of the changedByOthers section: a case or appeal whose newest change came from
+  # another verified staff member within it is listed. ISO-8601 duration, measured from the read; 24 hours by default.
+  inbox:
+    changed-window: ${INBOX_CHANGED_WINDOW:PT24H}
+  # Staff audit log. retention is how long an entry is kept (one year by default, a team decision still open);
+  # AuditRetentionSweeper deletes older entries every sweep-interval, in batches.
+  audit:
+    retention: ${BLACKHOLE_AUDIT_RETENTION:P365D}
+    sweep-interval: ${BLACKHOLE_AUDIT_SWEEP_INTERVAL:PT1H}
   # PunishmentExpirySweeper periodically moves expired active bans/mutes into a profile's
   # history, so expiry is an active background process rather than something only noticed the
   # next time a profile happens to be read. sweep-interval controls how often that scan runs -
@@ -260,6 +314,8 @@ blackhole:
     # Escalating staff templates: the step of a template is chosen by how many of the player's earlier,
     # not-lifted punishments in the template's escalation group were created within this window
     # (ISO-8601). A template can carry its own window; this is the fallback for templates without one.
+    # Warnings (WARN steps) count towards escalation within the escalation window unless a template sets
+    # its own warnWindow; no env var is involved, the window is per template.
     escalation:
       default-window: ${BLACKHOLE_PUNISHMENT_ESCALATION_DEFAULT_WINDOW:P365D}
   # Kicks: how long a kick waits for a proxy to acknowledge it (ISO-8601). The backend never waits in
@@ -267,6 +323,20 @@ blackhole:
   # it, NOT_ONLINE (NO_PROXY_ANSWER for a mass kick) at or after it when no proxy answered positively.
   kick:
     ack-timeout: ${BLACKHOLE_KICK_ACK_TIMEOUT:PT5S}
+  # Staff rollback (add-staff-rollback). preview-ttl is how long a frozen preview stays startable (ISO-8601);
+  # max-items caps how many punishments one preview may freeze, so one job and its NATS burst stay bounded.
+  # lease is how long a runner keeps a job before another replica may take it over after a crash (ISO-8601);
+  # tick-interval is how often the runner looks for work (Micronaut duration).
+  rollback:
+    preview-ttl: ${BLACKHOLE_ROLLBACK_PREVIEW_TTL:PT1H}
+    max-items: ${BLACKHOLE_ROLLBACK_MAX_ITEMS:5000}
+    lease: ${BLACKHOLE_ROLLBACK_LEASE:PT2M}
+    tick-interval: ${BLACKHOLE_ROLLBACK_TICK_INTERVAL:5s}
+  # Punishment exemption: linked staff and players with the proxy's blackhole.exempt permission are protected
+  # from punishment by an equal or lower rank. Emergency switch only: false turns the protection off and
+  # punishments behave as they did before the feature.
+  exemption:
+    enabled: ${BLACKHOLE_EXEMPTION_ENABLED:true}
   # Punishment case: an append-only timeline of what happens to each punishment. The flows record
   # their events after their own write; a failed recording is counted in
   # blackhole.case.record.failures and never fails the write. CaseReconciler repairs lost recordings
@@ -308,17 +378,35 @@ blackhole:
     decay:
       interval-ms: ${BLACKHOLE_ELO_DECAY_INTERVAL_MS:86400000}
       sweep-cron: ${BLACKHOLE_ELO_DECAY_SWEEP_CRON:`0 0 3 * * *`}
-    # Rule-based ToxicityScorer default: an obviously-placeholder keyword list, not a real
-    # moderation wordlist - swap the ToxicityScorer bean entirely for production use (an ML
-    # classifier is an explicit later replacement per the roadmap, not part of this phase).
     chat:
       # The section a flagged chat message is scored in.
       section: ${BLACKHOLE_ELO_CHAT_SECTION:chat}
-      toxic-patterns: ${BLACKHOLE_ELO_CHAT_TOXIC_PATTERNS:stupid,idiot,shut up,hate you}
-      severity-per-match: ${BLACKHOLE_ELO_CHAT_SEVERITY_PER_MATCH:0.4}
-      flag-threshold: ${BLACKHOLE_ELO_CHAT_FLAG_THRESHOLD:0.3}
       flag-delta: ${BLACKHOLE_ELO_CHAT_FLAG_DELTA:-50}
       evidence-retention-days: ${BLACKHOLE_ELO_CHAT_EVIDENCE_RETENTION_DAYS:60}
+      toxicity:
+        # OFF never calls the scorer, SHADOW counts and logs would-be flags without any ELO change,
+        # ENFORCE applies the flag. Changing the mode needs a restart.
+        mode: ${BLACKHOLE_ELO_CHAT_TOXICITY_MODE:OFF}
+        # A message is flagged when its score (the highest matched category weight) reaches this.
+        flag-threshold: ${BLACKHOLE_ELO_CHAT_TOXICITY_FLAG_THRESHOLD:0.5}
+        # Comma-separated game phrases that are never matched, for example "kill the dragon".
+        allow-list: ${BLACKHOLE_ELO_CHAT_TOXICITY_ALLOW_LIST:kill the dragon,bed wars}
+        # Comma-separated words and phrases per category (INSULT, THREAT, SEXUAL, HATE, SPAM).
+        # The repository ships no word list. Empty defaults mean nothing is matched until the deployment
+        # fills these in via the env vars.
+        terms:
+          insult: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_INSULT:}
+          threat: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_THREAT:}
+          sexual: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_SEXUAL:}
+          hate: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_HATE:}
+          spam: ${BLACKHOLE_ELO_CHAT_TOXICITY_TERMS_SPAM:}
+        # Weight of each category in [0, 1]. A category's weight is its ELO strength.
+        weights:
+          threat: ${BLACKHOLE_ELO_CHAT_TOXICITY_WEIGHTS_THREAT:1.0}
+          hate: ${BLACKHOLE_ELO_CHAT_TOXICITY_WEIGHTS_HATE:0.9}
+          sexual: ${BLACKHOLE_ELO_CHAT_TOXICITY_WEIGHTS_SEXUAL:0.8}
+          insult: ${BLACKHOLE_ELO_CHAT_TOXICITY_WEIGHTS_INSULT:0.6}
+          spam: ${BLACKHOLE_ELO_CHAT_TOXICITY_WEIGHTS_SPAM:0.5}
     report:
       actioned-delta: ${BLACKHOLE_ELO_REPORT_ACTIONED_DELTA:-100}
       # Awarded to the reporter when their report is resolved ACTIONED with an actual
@@ -342,6 +430,105 @@ blackhole:
   # Ban-evasion detection (Phase 7): ip-salt gates the whole feature - POST /evasion/record
   # returns 503 rather than silently computing a weak unsalted-equivalent hash if it's unset.
   # See IpCorrelationService's javadoc for the salt rotation tradeoff before ever rotating this.
+  # Player sessions (net.onelitefeather.blackhole.backend.intel): one record per login attempt, with the clear IP and
+  # the raw UUID, kept for retention-days and then deleted. Off means /intel answers 404 and Velocity's reports are dropped.
+  intel:
+    enabled: ${BLACKHOLE_INTEL_ENABLED:true}
+    retention-days: ${BLACKHOLE_INTEL_RETENTION_DAYS:90}
+    retention-sweep-cron: ${BLACKHOLE_INTEL_RETENTION_SWEEP_CRON:`0 45 3 * * *`}
+    # Name history (intel/names): the names an account logged in with, kept longer than the sessions on purpose so that
+    # "first seen" stays meaningful. Deleted when not seen for name-retention-days; erasure removes them at once.
+    name-retention-days: ${BLACKHOLE_INTEL_NAME_RETENTION_DAYS:180}
+    name-retention-sweep-cron: ${BLACKHOLE_INTEL_NAME_RETENTION_SWEEP_CRON:`0 0 4 * * *`}
+    # MaxMind DB files mounted read-only into the pod (refreshed by a CronJob). Missing files store sessions without enrichment.
+    geoip:
+      asn-path: ${BLACKHOLE_INTEL_GEOIP_ASN_PATH:/data/geoip/asn.mmdb}
+      city-path: ${BLACKHOLE_INTEL_GEOIP_CITY_PATH:/data/geoip/city.mmdb}
+    # VPN and hosting detection (openspec add-vpn-proxy-detection). Classification is offline: the hosting ASNs below and
+    # the enabled list sources. Sources are configuration only; the panel cannot change a URL. Each source stays off until
+    # an admin has checked a refresh. Attribution is shown in the panel; the X4BNet lists are MIT licensed.
+    hosting-asns: ${BLACKHOLE_INTEL_HOSTING_ASNS:}   # comma-separated AS numbers; empty by default, set per network
+    hit-retention: ${BLACKHOLE_INTEL_HIT_RETENTION:P90D}   # how long a VPN or hosting hit (it holds the clear address) is kept
+    hit-retention-sweep-cron: ${BLACKHOLE_INTEL_HIT_RETENTION_SWEEP_CRON:`0 50 3 * * *`}
+    login-check:
+      # Read by the Velocity proxy, which owns the call timeout. A timed-out or failed check lets the login through.
+      timeout: ${BLACKHOLE_INTEL_LOGIN_CHECK_TIMEOUT:PT1S}
+    lists:
+      # How often each enabled source is downloaded, and the delay before the first download after start-up.
+      refresh-interval: ${BLACKHOLE_INTEL_LISTS_REFRESH_INTERVAL:PT6H}
+      refresh-initial-delay: ${BLACKHOLE_INTEL_LISTS_REFRESH_INITIAL_DELAY:PT1M}
+      # How often a replica checks the active generations and reloads its in-memory classifier when they changed.
+      reload-interval: ${BLACKHOLE_INTEL_LISTS_RELOAD_INTERVAL:PT5M}
+      sweep-cron: ${BLACKHOLE_INTEL_LISTS_SWEEP_CRON:`0 20 * * * *`}
+      sources:
+        # X4BNet lists_vpn, MIT, copyright 2024 X4B (Mathew Heard). output/vpn is known VPN networks.
+        x4bnet-vpn:
+          kind: VPN
+          url: ${BLACKHOLE_INTEL_LISTS_X4BNET_VPN_URL:`https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output/vpn/ipv4.txt`}
+          enabled: ${BLACKHOLE_INTEL_LISTS_X4BNET_VPN_ENABLED:false}
+          attribution: "X4BNet lists_vpn, MIT, copyright 2024 X4B (Mathew Heard), https://github.com/X4BNet/lists_vpn"
+          licence: MIT
+        # X4BNet lists_vpn. output/datacenter is VPN and datacenter ranges, so it is classified as hosting.
+        x4bnet-datacenter:
+          kind: HOSTING
+          url: ${BLACKHOLE_INTEL_LISTS_X4BNET_DATACENTER_URL:`https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output/datacenter/ipv4.txt`}
+          enabled: ${BLACKHOLE_INTEL_LISTS_X4BNET_DATACENTER_ENABLED:false}
+          attribution: "X4BNet lists_vpn, MIT, copyright 2024 X4B (Mathew Heard), https://github.com/X4BNet/lists_vpn"
+          licence: MIT
+  # Join guard (openspec add-join-guard). The unattended level is raised while no staff member is on a proxy, after the
+  # absence threshold or inside the night window, and is cleared the moment staff return. It may be STRICT or LOCKDOWN,
+  # never OFF. LOCKDOWN is not automatic by default: set it only when unknown players must be kept out unattended.
+  # The unattended.* values below seed the stored settings on the first start only (openspec configure-join-guard-in-panel).
+  # After that the stored settings win: edit them in the panel or with PUT /guard/settings, and a later change to these
+  # environment variables has no effect.
+  guard:
+    tick-interval: ${BLACKHOLE_GUARD_TICK_INTERVAL:PT30S}   # how often the unattended level is re-evaluated
+    unattended:
+      level: ${BLACKHOLE_GUARD_UNATTENDED_LEVEL:STRICT}
+      absence-threshold: ${BLACKHOLE_GUARD_UNATTENDED_ABSENCE_THRESHOLD:PT20M}   # staff absent this long, then the level applies
+      night-window: ${BLACKHOLE_GUARD_UNATTENDED_NIGHT_WINDOW:`01:00-07:00`}   # local time; end exclusive, may cross midnight
+      zone: ${BLACKHOLE_GUARD_UNATTENDED_ZONE:Europe/Berlin}   # the zone the night window is read in
+    presence:
+      ttl: ${BLACKHOLE_GUARD_PRESENCE_TTL:PT5M}   # a proxy heartbeat older than this no longer counts as staff on the proxy
+    # How often each replica reloads its in-memory area bans, guard level and known or staff owners. A write made on
+    # this replica is loaded at once; this interval is how a write made on another replica is seen.
+    snapshot-interval: ${BLACKHOLE_GUARD_SNAPSHOT_INTERVAL:PT2M}
+    lockdown:
+      min-playtime: ${BLACKHOLE_GUARD_LOCKDOWN_MIN_PLAYTIME:PT60M}   # recorded playtime that makes an owner a known player
+    # Refusal summary: one staff message per interval, the ten ASNs with the most refusals, instead of one per login.
+    summary-interval: ${BLACKHOLE_GUARD_SUMMARY_INTERVAL:PT10M}
+    # Burst rule (off by default): this many guard refusals from one ASN within the window create an automatic area ban
+    # of ban-duration. Area bans and VPN policy refusals are not counted. Turn on only after a week of summaries.
+    burst:
+      enabled: ${BLACKHOLE_GUARD_BURST_ENABLED:false}
+      threshold: ${BLACKHOLE_GUARD_BURST_THRESHOLD:10}
+      window: ${BLACKHOLE_GUARD_BURST_WINDOW:PT5M}
+      ban-duration: ${BLACKHOLE_GUARD_BURST_BAN_DURATION:PT2H}
+  # IP bans (openspec add-ip-bans-via-firewall). The clear address is stored on purpose; retention deletes closed rows.
+  ipban:
+    # A moderator may ban an address for at most this long; an administrator may ban permanently.
+    moderator-max-duration: ${BLACKHOLE_IPBAN_MODERATOR_MAX_DURATION:P30D}
+    # Lifted and expired rows are deleted this long after they closed.
+    retention: ${BLACKHOLE_IPBAN_RETENTION:P365D}
+    retention-sweep-cron: ${BLACKHOLE_IPBAN_RETENTION_SWEEP_CRON:`0 40 3 * * *`}
+    # Comma-separated CIDR ranges that may never be banned, in addition to loopback, link-local, RFC 1918 and ULA.
+    # Add the edge ranges of your proxy here.
+    protected-networks: ${BLACKHOLE_IPBAN_PROTECTED_NETWORKS:}
+  # Firewall pull feeds (openspec add-ip-bans-via-firewall, decisions 2 to 4). Off until a client has a hash file.
+  firewall:
+    feed:
+      # Comma-separated client names ([a-z0-9-]{1,32}); each needs a file of that name in secrets-dir holding the SHA-256 hex of its token.
+      clients: ${BLACKHOLE_FIREWALL_FEED_CLIENTS:}
+      # Mounted secret directory: one hash file per client, and <name>.next during a token rotation.
+      secrets-dir: ${BLACKHOLE_FIREWALL_FEED_SECRETS_DIR:/etc/blackhole/firewall-feed}
+      # Optional source allow-list: IP addresses and CIDR ranges only. Empty admits every peer.
+      allowed-sources: ${BLACKHOLE_FIREWALL_FEED_ALLOWED_SOURCES:}
+      # The IntelClass values whose DENY policy adds their list ranges to the networks feed.
+      vpn-classes: ${BLACKHOLE_FIREWALL_FEED_VPN_CLASSES:VPN,HOSTING,PROXY}
+      # How often the feeds check whether they are stale. A rebuild happens only then: a ban was written or lifted on any
+      # replica (the marker of the ban table changed, which also covers a lost event), a list generation changed, or an
+      # entry expired. A quiet check reads one marker aggregate and the source versions.
+      rebuild-interval: ${BLACKHOLE_FIREWALL_FEED_REBUILD_INTERVAL:PT60S}
   evasion:
     ip-salt: ${BLACKHOLE_EVASION_IP_SALT:}
     detection-window-days: ${BLACKHOLE_EVASION_DETECTION_WINDOW_DAYS:7}
@@ -373,6 +560,13 @@ blackhole:
     # The enabled client rules proxies read; every rule write evicts it.
     client-rule:
       ttl: ${BLACKHOLE_CACHE_CLIENT_RULE_TTL:PT5M}
+  # Integration detections (net.onelitefeather.blackhole.backend.integration): a third-party integration's detection
+  # is a signal stored for staff. detection-retention is how long an UNATTACHED detection is kept, counted from its
+  # occurrence time (ISO-8601 duration, default 180 days: an appeal can arrive long after a punishment). Attached
+  # detections are evidence and are not swept. The sweep runs daily; it logs only the number of rows it deletes.
+  integration:
+    detection-retention: ${BLACKHOLE_INTEGRATION_DETECTION_RETENTION:P180D}
+    detection-retention-sweep-cron: ${BLACKHOLE_INTEGRATION_DETECTION_RETENTION_SWEEP_CRON:`0 35 3 * * *`}
   # Client rules (net.onelitefeather.blackhole.backend.clientrule): the proxy evaluates the rules,
   # the backend stores them. The catalogue only feeds the rule editor's suggestions; a brand or
   # channel is listed only when at least min-players distinct players showed it, so a rare value
@@ -390,6 +584,11 @@ blackhole:
     catalogue:
       ttl: ${BLACKHOLE_CLIENTRULES_CATALOGUE_TTL:PT24H}
       min-players: ${BLACKHOLE_CLIENTRULES_CATALOGUE_MIN_PLAYERS:3}
+  # SignedVelocity state per proxy (net.onelitefeather.blackhole.backend.proxy). A proxy reports at a heartbeat of
+  # five minutes; a report older than stale-after (default twice that) is shown as unknown, not as present.
+  proxy:
+    capabilities:
+      stale-after: ${BLACKHOLE_PROXY_CAPABILITIES_STALE_AFTER:PT10M}
   # Punishment evidence (net.onelitefeather.blackhole.backend.evidence): anticheat records, replay
   # links, chat excerpts, links and uploaded screenshots/videos attached to punishments. There is
   # NO time-based expiry: evidence lives as long as its punishment record, and is deleted only with
@@ -574,6 +773,10 @@ otel:
     name: ${OTEL_SERVICE_NAME:blackhole}
   traces:
     exporter: ${OTEL_TRACES_EXPORTER:none}
+    # Head sampler. parentbased_always_on keeps every trace so the Alloy tail policy sees all spans;
+    # lowering it below 1.0 would hide slow and failed traces from that policy. OTEL_TRACES_SAMPLER_ARG
+    # is read by the SDK directly and is only needed for the ratio samplers.
+    sampler: ${OTEL_TRACES_SAMPLER:parentbased_always_on}
   metrics:
     exporter: none
   logs:

@@ -40,7 +40,7 @@ public sealed interface StaffActorDTO {
     @ReflectiveAccess
     record Item(
             @NonNull UUID oid, @NonNull ActorKind kind, @Nullable String displayName, long firstSeenAt, long lastSeenAt
-    ) {
+    ) implements StaffActorDTO {
     }
 
     /** Every known staff principal, most recently seen first. */

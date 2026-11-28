@@ -152,6 +152,18 @@ public sealed interface DiscordLinkDTO {
     record StaffLink(@NonNull String discordUserId, long linkedAt) {
     }
 
+    /**
+     * The staff member behind a Discord account, for the bot's staff lookup before a button press. Never carries the Discord id.
+     *
+     * @param oid      the staff member's Entra object id
+     * @param eligible whether a press would be allowed now (fresh MODERATOR or ADMIN snapshot)
+     */
+    @Schema(name = "DiscordStaffLookupResponse")
+    @Serdeable
+    @ReflectiveAccess
+    record StaffLookupResponse(@NonNull UUID oid, boolean eligible) implements DiscordLinkDTO {
+    }
+
     /** Every live staff link; a staff member without one is not in the list and does not get into ticket channels. */
     @Schema(name = "DiscordStaffLinksResponse")
     @Serdeable

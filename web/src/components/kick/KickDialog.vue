@@ -5,7 +5,9 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../../api/inject'
-import type { CloudNetCatalogue, KickResult, KickScope, Section } from '../../api/types'
+import type { CloudNetCatalogue, ExemptionOverride as Override, KickResult, KickScope, Section } from '../../api/types'
+import { useSessionStore } from '../../stores/session'
+import ExemptionOverride from '../exemption/ExemptionOverride.vue'
 import MdButton from '../md/MdButton.vue'
 import MdChip from '../md/MdChip.vue'
 import MdDialog from '../md/MdDialog.vue'
@@ -27,6 +29,7 @@ const SCOPES: KickScope[] = ['NETWORK', 'SERVER', 'SECTION']
 
 const { t } = useI18n()
 const api = useApi()
+const session = useSessionStore()
 
 const scope = ref<KickScope>('NETWORK')
 const target = ref('')
@@ -35,6 +38,8 @@ const submitted = ref(false)
 const sending = ref(false)
 const waiting = ref(false)
 const error = ref('')
+/** The backend's message when the player is protected (TARGET_EXEMPT); the override panel is shown instead of an error. */
+const refusal = ref('')
 const warnings = ref<string[]>([])
 const outcome = ref<KickResult | null>(null)
 const timedOut = ref(false)
@@ -59,6 +64,7 @@ function reset(): void {
   sending.value = false
   waiting.value = false
   error.value = ''
+  refusal.value = ''
   warnings.value = []
   outcome.value = null
   timedOut.value = false
@@ -89,18 +95,36 @@ watch(scope, async (next) => {
 async function submit(): Promise<void> {
   submitted.value = true
   if (locked.value || reasonProblem.value || (scope.value !== 'NETWORK' && target.value === '')) return
+  await send()
+}
+
+/** The ADMIN's override of a refused kick: the same request with the justification, under the same idempotency key. */
+function override(justification: string): void {
+  if (sending.value || waiting.value) return
+  void send({ justification })
+}
+
+async function send(exemptionOverride?: Override): Promise<void> {
   sending.value = true
   error.value = ''
   key ??= newIdempotencyKey()
   const result = await api.kickPlayer(
-    { owner: props.owner, scope: scope.value, target: scope.value === 'NETWORK' ? null : target.value, reason: reason.value.trim() },
+    {
+      owner: props.owner,
+      scope: scope.value,
+      target: scope.value === 'NETWORK' ? null : target.value,
+      reason: reason.value.trim(),
+      ...(exemptionOverride ? { exemptionOverride } : {}),
+    },
     key,
   )
   sending.value = false
   if (!result.ok) {
-    error.value = result.error.message
+    if (result.error.kind === 'TARGET_EXEMPT') refusal.value = result.error.message
+    else error.value = result.error.message
     return
   }
+  refusal.value = ''
   warnings.value = result.data.warnings
   waiting.value = true
   const id = result.data.id
@@ -168,9 +192,18 @@ async function submit(): Promise<void> {
       <p v-if="timedOut" role="status" data-testid="kick-timeout">{{ t('kick.timedOut') }}</p>
       <p v-if="error" role="alert" data-testid="error" class="rounded-md-md bg-error-container p-3 text-on-error-container">{{ error }}</p>
     </form>
+    <!-- Outside the form, so Enter in the justification cannot submit the kick without the override. -->
+    <ExemptionOverride
+      v-if="refusal"
+      class="mt-4"
+      :admin="session.administrator"
+      :message="refusal"
+      :busy="sending"
+      @override="override"
+    />
     <template #actions>
       <MdButton variant="text" data-testid="cancel" @click="emit('close')">{{ outcome || timedOut ? t('kick.close') : t('actions.cancel') }}</MdButton>
-      <MdButton v-if="!outcome && !timedOut" variant="error" data-testid="confirm" :disabled="locked" @click="submit">{{ t('kick.submit') }}</MdButton>
+      <MdButton v-if="!outcome && !timedOut" variant="error" data-testid="confirm" :disabled="locked || refusal !== ''" @click="submit">{{ t('kick.submit') }}</MdButton>
     </template>
   </MdDialog>
 </template>

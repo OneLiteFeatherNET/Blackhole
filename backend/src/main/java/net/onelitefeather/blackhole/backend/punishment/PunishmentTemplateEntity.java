@@ -48,6 +48,14 @@ public class PunishmentTemplateEntity {
 
     private String escalationWindow;
 
+    /** ISO-8601 window for warnings only; {@code null} means warnings count within the escalation window. */
+    @Column(name = "warn_window", length = 32)
+    private String warnWindow;
+
+    /** The text the public ban list shows for punishments of this template; {@code null} means not listed. */
+    @Column(name = "public_reason", length = 200)
+    private String publicReason;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "punishment_template_steps", joinColumns = @JoinColumn(name = "template_identifier"))
     @OrderColumn(name = "step_index")
@@ -61,12 +69,15 @@ public class PunishmentTemplateEntity {
      * Rebuilds the entity from its response form, for callers that submit whole profiles.
      */
     public static PunishmentTemplateEntity toEntity(PunishTemplateDTO.Response template) {
-        return new PunishmentTemplateEntity(
+        PunishmentTemplateEntity entity = new PunishmentTemplateEntity(
                 template.identifier(), template.key(), template.reason(), template.section(), template.escalationGroup(),
                 template.escalationWindow(),
                 template.steps().stream().map(step -> new TemplateStep(step.kind(), step.duration(), step.eloCost())).toList(),
                 template.metaData()
         );
+        entity.warnWindow = template.warnWindow();
+        entity.publicReason = template.publicReason();
+        return entity;
     }
 
     public PunishmentTemplateEntity() {
@@ -118,6 +129,24 @@ public class PunishmentTemplateEntity {
         return escalationWindow;
     }
 
+    /** The ISO-8601 warn window, or {@code null} when warnings count within the escalation window. */
+    public String getWarnWindow() {
+        return warnWindow;
+    }
+
+    public void setWarnWindow(String warnWindow) {
+        this.warnWindow = warnWindow;
+    }
+
+    /** The public reason, or {@code null} when punishments of this template are not listed. */
+    public String getPublicReason() {
+        return publicReason;
+    }
+
+    public void setPublicReason(String publicReason) {
+        this.publicReason = publicReason;
+    }
+
     public List<TemplateStep> getSteps() {
         return steps;
     }
@@ -134,8 +163,10 @@ public class PunishmentTemplateEntity {
                 this.sectionKey,
                 this.escalationGroup,
                 this.escalationWindow,
+                this.warnWindow,
                 this.steps.stream().map(step -> new PunishTemplateDTO.Step(step.getDuration(), step.getEloCost(), step.getKind())).toList(),
-                this.metaData
+                this.metaData,
+                this.publicReason
         );
     }
 }

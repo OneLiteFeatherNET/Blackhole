@@ -17,6 +17,7 @@ import java.util.UUID;
  *                        the new, sooner expiration timestamp (epoch millis)
  * @param playerMessage  an optional message to the player, 1 to 2000 characters without a UUID, an IP address or a Ban ID; it is
  *                        recorded on the case as a staff message the player can read, while {@code decisionNote} stays internal
+ * @param onBehalfOf     the staff member's oid, sent by the Discord bot only (the decision is theirs); see {@code StaffDelegation}
  */
 @Serdeable
 @ReflectiveAccess
@@ -24,11 +25,16 @@ public record AppealReviewDTO(
         @NonNull AppealStatus decision,
         @Nullable @Size(max = 2000) String decisionNote,
         @Nullable Long newExpirationAt,
-        @Nullable @Size(min = 1, max = 2000) String playerMessage
+        @Nullable @Size(min = 1, max = 2000) String playerMessage,
+        @Nullable UUID onBehalfOf
 ) {
+
+    public AppealReviewDTO(AppealStatus decision, @Nullable String decisionNote, @Nullable Long newExpirationAt, @Nullable String playerMessage) {
+        this(decision, decisionNote, newExpirationAt, playerMessage, null);
+    }
 
     /** A review without a message to the player. */
     public static AppealReviewDTO withoutMessage(AppealStatus decision, @Nullable String decisionNote, @Nullable Long newExpirationAt) {
-        return new AppealReviewDTO(decision, decisionNote, newExpirationAt, null);
+        return new AppealReviewDTO(decision, decisionNote, newExpirationAt, null, null);
     }
 }

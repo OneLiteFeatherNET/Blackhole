@@ -5,12 +5,18 @@ import io.micronaut.data.model.Page;
 import io.micronaut.data.model.Pageable;
 import jakarta.inject.Provider;
 import jakarta.inject.Singleton;
+import net.onelitefeather.blackhole.backend.publicbans.PlayerUuids;
+import net.onelitefeather.blackhole.backend.publicbans.PublicBanListing;
 import net.onelitefeather.blackhole.backend.casetimeline.CaseTimeline;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.elo.EloChange;
 import net.onelitefeather.blackhole.backend.elo.EloReasonCode;
 import net.onelitefeather.blackhole.backend.elo.EloScoring;
 import net.onelitefeather.blackhole.backend.elo.service.EloService;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.exemption.ExemptionGuard;
 import net.onelitefeather.blackhole.backend.evidence.service.PunishmentEvidenceGateway;
 import net.onelitefeather.blackhole.backend.kick.KickValidator;
 import net.onelitefeather.blackhole.backend.kick.dto.KickDTO;
@@ -21,6 +27,7 @@ import net.onelitefeather.blackhole.backend.profile.PunishmentProfileEntity;
 import net.onelitefeather.blackhole.backend.profile.PunishmentProfileRepository;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEntity;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentEvents;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentKind;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentRepository;
 import net.onelitefeather.blackhole.backend.banid.service.BanIdService;
 import net.onelitefeather.blackhole.backend.punishment.PunishmentShortId;
@@ -29,6 +36,7 @@ import net.onelitefeather.blackhole.backend.punishment.PunishmentTemplateReposit
 import net.onelitefeather.blackhole.backend.punishment.SectionPunisher;
 import net.onelitefeather.blackhole.backend.punishment.StepKind;
 import net.onelitefeather.blackhole.backend.punishment.StepSelector;
+import net.onelitefeather.blackhole.backend.warning.WarningEventPublisher;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishEntryDTO;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishmentDTO;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
@@ -53,6 +61,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * The one chokepoint every punishment goes through: staff templates (direct or from a resolved
@@ -101,7 +110,11 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
     private final Clock clock;
     private final BanIdService banIds;
     private final KickService kicks;
+    private final WarningEventPublisher warningEvents;
+    private final StaffAuditRecorder audit;
     private final Duration defaultEscalationWindow;
+    private final PublicBanListing publicListing;
+    private final ExemptionGuard exemptions;
 
     /**
      * @param eloScoring lazy - {@link EloService} itself depends on this service (to apply
@@ -123,8 +136,15 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
             Clock clock,
             BanIdService banIds,
             KickService kicks,
-            @Value("${blackhole.punishment.escalation.default-window:P365D}") Duration defaultEscalationWindow
+            WarningEventPublisher warningEvents,
+            StaffAuditRecorder audit,
+            PublicBanListing publicListing,
+            @Value("${blackhole.punishment.escalation.default-window:P365D}") Duration defaultEscalationWindow,
+            ExemptionGuard exemptions
     ) {
+        this.exemptions = exemptions;
+        this.audit = audit;
+        this.publicListing = publicListing;
         this.punishmentRepository = punishmentRepository;
         this.profileRepository = profileRepository;
         this.slots = slots;
@@ -139,6 +159,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         this.clock = clock;
         this.banIds = banIds;
         this.kicks = kicks;
+        this.warningEvents = warningEvents;
         this.defaultEscalationWindow = defaultEscalationWindow;
     }
 
@@ -167,9 +188,13 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         );
     }
 
-    /** Everything {@link #apply} and {@link #preview} agree on before they diverge. */
+    /**
+     * Everything {@link #apply} and {@link #preview} agree on before they diverge.
+     *
+     * @param override the exemption override record for the metadata; empty unless an admin's override let the write through
+     */
     private record Plan(PunishmentTemplateEntity template, SectionDTO.Response section, long now, String group,
-                        StepSelector.Selection selection, Attribution attribution) {
+                        StepSelector.Selection selection, Attribution attribution, Map<String, Object> override) {
     }
 
     private record Planned(Plan plan, PunishmentDTO.Error error) {
@@ -188,12 +213,16 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         if (attribution == null) {
             return failed(ErrorKind.VALIDATION, ON_BEHALF_OF_PROXY_ONLY);
         }
-        return plan(request, attribution);
+        return plan(request, attribution, actor);
     }
 
-    private Planned plan(PunishmentDTO.ApplyRequest request, Attribution attribution) {
+    /** @param actor the verified caller, or null for a system write, which has no rank and so may not punish an exempt player */
+    private Planned plan(PunishmentDTO.ApplyRequest request, Attribution attribution, Actor actor) {
         if (!OwnerHash.isValid(request.owner())) {
             return failed(ErrorKind.VALIDATION, "owner must be a sha-512 hash");
+        }
+        if (request.playerUuid() != null && PlayerUuids.parse(request.playerUuid()).isEmpty()) {
+            return failed(ErrorKind.VALIDATION, "playerUuid must be a UUID in dashed or 32-digit form");
         }
         boolean hasKey = request.templateKey() != null && !request.templateKey().isBlank();
         if (hasKey == (request.templateId() != null)) {
@@ -213,18 +242,28 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         if (!section.enabled()) {
             return failed(ErrorKind.CONFLICT, "section '" + section.key() + "' is disabled");
         }
+        ExemptionGuard.Outcome exempt = this.exemptions.check(request.owner(), section.key(), attribution, actor,
+                request.exemptionOverride());
+        if (exempt instanceof ExemptionGuard.Outcome.Refused refused) {
+            return failed(refused.kind(), refused.message());
+        }
+        Map<String, Object> override = exempt instanceof ExemptionGuard.Outcome.Allowed allowed ? allowed.record() : Map.of();
 
         String owner = request.owner();
         long now = this.clock.millis();
         String group = template.getEscalationGroup() != null ? template.getEscalationGroup() : template.getTemplateKey();
         Duration window = Durations.parsePositive(template.getEscalationWindow()).orElse(this.defaultEscalationWindow);
-        // Kicks are counted too: the query does not look at the kind, so a kick is an earlier step of its group.
-        long counted = this.punishmentRepository.countByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals(
-                owner, group, now - window.toMillis()
-        );
+        long counted = countEarlier(owner, group, template, now, window);
         StepSelector.Selection selection = StepSelector.select(template.getSteps(), counted);
 
-        if (selection.step().getKind() == StepKind.KICK) {
+        if (Boolean.TRUE.equals(request.warningOnly()) && selection.step().getKind() != StepKind.WARN) {
+            return failed(ErrorKind.WARN_STEP_REQUIRED, "the template's next step for this player is "
+                    + selection.step().getKind() + ", not a warning; apply it as a punishment instead");
+        }
+        if (selection.step().getKind() == StepKind.WARN) {
+            // A warning never takes the slot and never blocks: the template is all there is to check.
+            return new Planned(new Plan(template, section, now, group, selection, attribution, override), null);
+        } else if (selection.step().getKind() == StepKind.KICK) {
             // A kick never takes the slot, so an existing permanent punishment does not stand in its way.
             Optional<KickDTO.Error> invalid = this.kicks.checkTemplateKick(owner, request.scope(), request.target(), kickReason(template));
             if (invalid.isPresent()) {
@@ -237,7 +276,25 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
                 return failed(ErrorKind.CONFLICT, "the player is already permanently punished in section '" + section.key() + "'");
             }
         }
-        return new Planned(new Plan(template, section, now, group, selection, attribution), null);
+        return new Planned(new Plan(template, section, now, group, selection, attribution, override), null);
+    }
+
+    /**
+     * How many earlier punishments count towards the template's escalation group: every row that is not lifted and
+     * is inside the escalation window, except warnings; plus the warnings inside the warn window (the escalation
+     * window when the template sets none). A warning older than the warn window stays in the history but stops
+     * climbing the ladder.
+     */
+    private long countEarlier(String owner, String group, PunishmentTemplateEntity template, long now, Duration window) {
+        long all = this.punishmentRepository.countByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals(
+                owner, group, now - window.toMillis());
+        long warningsInWindow = this.punishmentRepository.countWarningsByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals(
+                owner, group, now - window.toMillis());
+        Duration warnWindow = Durations.parsePositive(template.getWarnWindow()).orElse(window);
+        long warningsInWarnWindow = warnWindow.equals(window) ? warningsInWindow
+                : this.punishmentRepository.countWarningsByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals(
+                owner, group, now - warnWindow.toMillis());
+        return all - warningsInWindow + warningsInWarnWindow;
     }
 
     /**
@@ -255,7 +312,15 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         if (planned.error() != null) {
             return planned.error();
         }
-        return execute(request, planned.plan(), Map.of(), false);
+        PunishmentDTO result = execute(request, planned.plan(), Map.of(), false);
+        if (result instanceof PunishmentDTO.ApplyResponse applied) {
+            this.audit.record(planned.plan().attribution(), actor, AuditAction.PUNISHMENT_APPLY,
+                    AuditTarget.ofCase(PunishmentShortId.storageKey(applied.punishment().identifier())));
+            if (!planned.plan().override().isEmpty()) {
+                this.exemptions.announceOverride(request.owner(), planned.plan().section().key(), planned.plan().override());
+            }
+        }
+        return result;
     }
 
     /**
@@ -268,7 +333,7 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
     @Override
     public ClientRuleTemplateApplier.Result applyForRule(String owner, String templateKey, String ruleKey) {
         PunishmentDTO.ApplyRequest request = new PunishmentDTO.ApplyRequest(owner, templateKey, null, null);
-        Planned planned = plan(request, new Attribution(EloService.SYSTEM_ELO_SOURCE, null));
+        Planned planned = plan(request, new Attribution(EloService.SYSTEM_ELO_SOURCE, null), null);
         if (planned.error() != null) {
             LOGGER.warn("Client rule {} could not apply template {}: {}", ruleKey, templateKey, planned.error().errorMessage());
             return new ClientRuleTemplateApplier.Result(ClientRuleTemplateApplier.Outcome.NOT_APPLIED, null);
@@ -303,15 +368,20 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         int cost = selection.step().getEloCost();
 
         PunishmentEntity saved;
-        if (selection.step().getKind() == StepKind.KICK) {
+        if (selection.step().getKind() == StepKind.WARN) {
+            saved = recordWarning(owner, template, attribution, group, selection, now, plan.override());
+        } else if (selection.step().getKind() == StepKind.KICK) {
             // The kick path: a KICK row of the group, no Ban ID, no slot, nothing active. Only the cost below is shared.
             saved = this.kicks.kickForTemplate(owner, request.scope(), request.target(), kickReason(template), attribution,
-                    template, group, selection.index(), selection.stepCount(), cost);
+                    template, group, selection.index(), selection.stepCount(), cost, plan.override());
         } else {
             Map<String, Object> metadata = new HashMap<>(extraMetadata);
             metadata.put(Metadata.META_DATA_KEY_CREATION_DATE, now);
             metadata.put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
             metadata.put(Expirable.META_DATA_KEY_EXPIRATION_DATE, now + selection.step().parsedDuration().toMillis());
+            if (!plan.override().isEmpty()) {
+                metadata.put(ExemptionGuard.OVERRIDE_METADATA_KEY, plan.override());
+            }
 
             PunishmentEntity punishment = new PunishmentEntity(
                     IdGenerator.generateId(), attribution.source(), owner, section.key(), false, now, template, metadata
@@ -319,6 +389,9 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
             punishment.setRecordedByOid(attribution.recordedByOid());
             punishment.setActorOid(attribution.actorOid());
             punishment.recordEscalation(group, selection.index(), selection.stepCount(), cost);
+            UUID playerUuid = PlayerUuids.parse(request.playerUuid()).orElse(null);
+            this.publicListing.applied(punishment, template, section.enforcement(), playerUuid, now,
+                    now + selection.step().parsedDuration().toMillis());
             saved = this.punishmentRepository.save(punishment);
             this.banIds.issue(saved.getIdentifier());
             if (!place(owner, section, saved)) {
@@ -355,13 +428,45 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
             scoreAfter = scoreBefore;
         }
 
-        if (selection.step().getKind() != StepKind.KICK) {
+        if (selection.step().getKind() == StepKind.PUNISH) {
             this.caseTimeline.applied(saved, scoreBefore, scoreAfter);
         }
         return new PunishmentDTO.ApplyResponse(
                 withEvidenceCount(saved), section.key(), section.enforcement(),
                 selection.index() + 1, selection.stepCount(), scoreBefore, scoreAfter, escalation
         );
+    }
+
+    /**
+     * Stores the warning a WARN step stands for: a WARN row of the template's escalation group, with a Ban ID and in the
+     * player's history, never in an active slot. Charging the step's ELO cost is the caller's job.
+     */
+    private PunishmentEntity recordWarning(String owner, PunishmentTemplateEntity template, Attribution attribution,
+                                           String group, StepSelector.Selection selection, long now, Map<String, Object> override) {
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put(Metadata.META_DATA_KEY_CREATION_DATE, now);
+        metadata.put(Metadata.META_DATA_KEY_UPDATE_DATE, now);
+        metadata.put("reason", kickReason(template));
+        if (!override.isEmpty()) {
+            metadata.put(ExemptionGuard.OVERRIDE_METADATA_KEY, override);
+        }
+        PunishmentEntity warning = new PunishmentEntity(
+                IdGenerator.generateId(), attribution.source(), owner, null, false, now, template, metadata);
+        warning.recordWarning();
+        warning.recordEscalation(group, selection.index(), selection.stepCount(), selection.step().getEloCost());
+        warning.setRecordedByOid(attribution.recordedByOid());
+        warning.setActorOid(attribution.actorOid());
+        PunishmentEntity saved = this.punishmentRepository.save(warning);
+        this.banIds.issue(saved.getIdentifier());
+        try {
+            this.slots.appendHistory(owner, saved.getIdentifier());
+            this.profileCache.evict(owner);
+        } catch (RuntimeException e) {
+            LOGGER.warn("Could not add warning {} to the player's history", saved.getIdentifier(), e);
+        }
+        this.caseTimeline.warned(saved, template.getTemplateKey(), selection.step().getEloCost());
+        this.warningEvents.warned(saved.getIdentifier(), owner, now);
+        return saved;
     }
 
     /** The reason a template kick shows the player: the template's reason, cut to what a kick may carry. */
@@ -529,16 +634,43 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
         if (active == null) {
             return error(ErrorKind.NOT_FOUND, "the player has no active punishment in section '" + request.section() + "'");
         }
+        return revokeHeld(owner, request.section(), active.getIdentifier(), attribution, actor, null, null)
+                .<PunishmentDTO>map(revoked -> revoked)
+                .orElseGet(() -> error(ErrorKind.NOT_FOUND, "the player has no active punishment in section '" + request.section() + "'"));
+    }
+
+    /**
+     * Revokes the punishment {@code identifier} from the owner's {@code section} slot, but only while the slot
+     * still holds it. A manual revoke and a rollback item share this path, so both get the same case event,
+     * evidence marking, ELO handling, audit entry and {@code punishment.revoked}.
+     *
+     * @param rollbackJobId  the rollback job the revoke belongs to, or {@code null} for a manual revoke
+     * @param rollbackReason the job's reason, written to the punishment's metadata; {@code null} for a manual revoke
+     * @return the response, or empty when the slot no longer holds this punishment; then nothing was changed
+     */
+    public Optional<PunishmentDTO.RevokeResponse> revokeHeld(String owner, String section, String identifier, Attribution attribution,
+                                                            Actor actor, @io.micronaut.core.annotation.Nullable UUID rollbackJobId,
+                                                            @io.micronaut.core.annotation.Nullable String rollbackReason) {
+        PunishmentProfileEntity profile = this.profileRepository.findById(owner).orElse(null);
+        PunishmentEntity active = profile == null ? null : profile.getActive().get(section);
+        if (active == null || !identifier.equals(active.getIdentifier())) {
+            return Optional.empty();
+        }
 
         // Clears only if the slot still holds the punishment we read, so a punishment applied
         // concurrently in the meantime is never removed by mistake.
-        if (!this.slots.clearIf(owner, request.section(), active.getIdentifier())) {
-            return error(ErrorKind.NOT_FOUND, "the player has no active punishment in section '" + request.section() + "'");
+        if (!this.slots.clearIf(owner, section, identifier)) {
+            return Optional.empty();
         }
         active.getMetaData().put("revokedBy", attribution.source().toString());
         active.getMetaData().put("recordedByOid", attribution.recordedByOid().toString());
         active.getMetaData().put(Metadata.META_DATA_KEY_UPDATE_DATE, this.clock.millis());
+        if (rollbackJobId != null) {
+            active.getMetaData().put("rollbackJobId", rollbackJobId.toString());
+            active.getMetaData().put("rollbackReason", rollbackReason);
+        }
         active.setLifted(true);
+        this.publicListing.revoked(active, this.clock.millis());
         this.punishmentRepository.update(active);
         this.profileCache.evict(owner);
         markEvidenceRevoked(active, attribution);
@@ -546,17 +678,46 @@ public class PunishmentApplicationService implements SectionPunisher, ClientRule
 
         Integer scoreReset = null;
         if (active.isPermanent()) {
-            scoreReset = this.eloScoring.get().resetToPardon(owner, request.section(), Map.of(
+            Map<String, Object> eloMeta = new HashMap<>(Map.of(
                     "punishmentIdentifier", active.getIdentifier(),
                     "revokedBy", attribution.source().toString(),
                     "recordedByOid", attribution.recordedByOid().toString()
-            )).orElse(null);
+            ));
+            if (rollbackJobId != null) {
+                eloMeta.put("rollbackJobId", rollbackJobId.toString());
+            }
+            scoreReset = this.eloScoring.get().resetToPardon(owner, section, eloMeta).orElse(null);
         }
 
-        SectionDTO.Response section = this.sectionService.find(request.section()).orElse(null);
-        this.eventPublisher.publish("punishment.revoked", PunishmentEvents.revoked(active, section, attribution.source().toString(), attribution.recordedByOid()));
+        SectionDTO.Response sectionDto = this.sectionService.find(section).orElse(null);
+        this.eventPublisher.publish("punishment.revoked", PunishmentEvents.revoked(active, sectionDto, attribution.source().toString(), attribution.recordedByOid()));
+        this.audit.record(attribution, actor, AuditAction.PUNISHMENT_REVOKE, AuditTarget.ofCase(active.getShortId()));
 
-        return new PunishmentDTO.RevokeResponse(withEvidenceCount(active), request.section(), scoreReset);
+        return Optional.of(new PunishmentDTO.RevokeResponse(withEvidenceCount(active), section, scoreReset));
+    }
+
+    /**
+     * Marks a kick as rolled back by a rollback job. Only the metadata changes: a kick is never active, so nothing
+     * is enforced, no score moves and no proxy is told. The kick stays in the player's history and case. The mark is
+     * audited as the admin's action; marking the same kick again writes the same metadata.
+     *
+     * @param attribution the rollback's attribution: the admin who asked
+     * @param actor       the verified caller, for the audit entry
+     * @return whether the identifier is a kick and was marked
+     */
+    public boolean markRolledBack(String identifier, Attribution attribution, Actor actor, UUID rollbackJobId) {
+        Optional<PunishmentEntity> found = this.punishmentRepository.findById(identifier);
+        if (found.isEmpty() || found.get().getKind() != PunishmentKind.KICK) {
+            return false;
+        }
+        PunishmentEntity kick = found.get();
+        kick.getMetaData().put("rolledBackBy", attribution.source().toString());
+        kick.getMetaData().put("rollbackJobId", rollbackJobId.toString());
+        kick.getMetaData().put(Metadata.META_DATA_KEY_UPDATE_DATE, this.clock.millis());
+        this.punishmentRepository.update(kick);
+        this.profileCache.evict(kick.getOwner());
+        this.audit.record(attribution, actor, AuditAction.KICK_ROLLBACK_MARK, AuditTarget.ofCase(kick.getShortId()));
+        return true;
     }
 
     /**

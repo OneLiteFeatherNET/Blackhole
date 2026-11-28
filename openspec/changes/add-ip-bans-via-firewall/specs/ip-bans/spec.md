@@ -100,7 +100,7 @@ The system SHALL delete lifted and expired IP ban rows once `blackhole.ipban.ret
 - **THEN** the row is kept
 
 ### Requirement: Staff only view of an address
-The clear address of an IP ban MUST be shown only to callers with the `ADMIN`, `MODERATOR` or `VIEWER` role and MUST NOT appear in the public API, in any published event or in any log line written by the IP ban feature.
+The clear address of an IP ban MUST be shown only to callers with the `ADMIN`, `MODERATOR` or `VIEWER` role, and to the firewall through the token-gated feeds of `firewall-feed`. It MUST NOT appear in the public API, in any published event or in any log line written by the IP ban feature.
 
 #### Scenario: Public API
 - **WHEN** the public ban list is read

@@ -2,6 +2,10 @@ package net.onelitefeather.blackhole.backend.security;
 
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.exemption.ExemptionService;
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
 import net.onelitefeather.blackhole.backend.security.dto.StaffLinkDTO;
 import net.onelitefeather.blackhole.backend.staffprofile.StaffAvatarJob;
@@ -37,7 +41,7 @@ public class StaffLinkService {
 
     /** Why a link was removed, as published in {@code staff-link.removed}. */
     enum RemovalReason {
-        SELF, ADMIN, REPLACED, ANONYMIZED
+        SELF, ADMIN, REPLACED, ANONYMIZED, ROLLBACK
     }
 
     private static final String INVALID_CODE = "the link code is invalid or expired";
@@ -51,6 +55,8 @@ public class StaffLinkService {
     private final StaffLinkProperties properties;
     private final Clock clock;
     private final StaffAvatarJob avatars;
+    private final StaffAuditRecorder audit;
+    private final ExemptionService exemptions;
 
     public StaffLinkService(
             StaffLinkRepository links,
@@ -60,8 +66,11 @@ public class StaffLinkService {
             DomainEventPublisher events,
             StaffLinkProperties properties,
             Clock clock,
-            StaffAvatarJob avatars
+            StaffAvatarJob avatars,
+            StaffAuditRecorder audit,
+            ExemptionService exemptions
     ) {
+        this.exemptions = exemptions;
         this.links = links;
         this.codes = codes;
         this.actors = actors;
@@ -70,6 +79,7 @@ public class StaffLinkService {
         this.properties = properties;
         this.clock = clock;
         this.avatars = avatars;
+        this.audit = audit;
     }
 
     /**
@@ -155,6 +165,7 @@ public class StaffLinkService {
                 LOG.warn("Staff link of {} conflicted with a concurrent confirmation", oid);
                 return new StaffLinkDTO.Error("the Minecraft account was linked concurrently, try again", ErrorKind.CONFLICT);
             }
+            this.exemptions.linkStaff(ExemptionService.ownerOf(minecraftUuid), oid);
             LOG.info("Linked staff member {} to a Minecraft account", oid);
             this.events.publish(CREATED_EVENT, Map.of("oid", oid.toString(), "linkedBy", proxy.oid().toString()));
             this.avatars.onLinked(oid, minecraftUuid);
@@ -192,7 +203,25 @@ public class StaffLinkService {
 
     /** Removes the link of {@code oid}, audited with the admin's own {@code oid}. */
     public StaffLinkDTO unlink(UUID oid, Actor admin) {
-        return unlink(oid, RemovalReason.ADMIN, admin.oid());
+        StaffLinkDTO result = unlink(oid, RemovalReason.ADMIN, admin.oid());
+        if (result instanceof StaffLinkDTO.RemovedResponse) {
+            this.audit.record(admin.attribution(), admin, AuditAction.STAFF_LINK_UNLINK, AuditTarget.none());
+        }
+        return result;
+    }
+
+    /**
+     * Removes the Minecraft link of a staff member as part of a rollback, with the removal reason {@code ROLLBACK}.
+     * Stored {@code actor_oid} values are not touched: the link stops future attribution only. The Entra account
+     * is not affected.
+     *
+     * @return whether a link was removed
+     */
+    public boolean removeForRollback(UUID oid, UUID rollbackAdminOid) {
+        return this.links.findById(oid).map(link -> {
+            remove(link, RemovalReason.ROLLBACK, rollbackAdminOid);
+            return true;
+        }).orElse(false);
     }
 
     /** Removes the link of an anonymized staff actor, if there is one; a no-op otherwise. */
@@ -239,6 +268,7 @@ public class StaffLinkService {
 
     private void remove(StaffLinkEntity link, RemovalReason reason, UUID removedBy) {
         this.links.delete(link);
+        this.exemptions.unlinkStaff(ExemptionService.ownerOf(link.getMinecraftUuid()));
         this.avatars.onUnlinked(link.getOid());
         LOG.info("Removed the staff link of {} ({})", link.getOid(), reason);
         this.events.publish(REMOVED_EVENT, Map.of(

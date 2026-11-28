@@ -1,5 +1,9 @@
 package net.onelitefeather.blackhole.backend.casetimeline;
 
+import net.onelitefeather.blackhole.backend.discord.ticket.DiscordTicket;
+import net.onelitefeather.blackhole.backend.discord.ticket.TicketState;
+import net.onelitefeather.blackhole.backend.support.FakeTicketStore;
+import net.onelitefeather.blackhole.backend.support.StaffDelegations;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseDTO;
 import net.onelitefeather.blackhole.backend.casetimeline.dto.CaseErrorKind;
 import net.onelitefeather.blackhole.backend.casetimeline.service.CaseService;
@@ -9,7 +13,15 @@ import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.ActorKind;
 import net.onelitefeather.blackhole.backend.security.StaffActorEntity;
 import net.onelitefeather.blackhole.backend.security.StaffActorRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import net.onelitefeather.blackhole.backend.audit.AuditPayloadGuard;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditEntry;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
+import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
+import net.onelitefeather.blackhole.backend.punishment.PunishmentShortId;
 import net.onelitefeather.blackhole.backend.support.BanIdTestBed;
+import net.onelitefeather.blackhole.backend.support.InMemoryStaffAuditStore;
+import net.onelitefeather.blackhole.backend.support.RecordingEventTransport;
 import net.onelitefeather.blackhole.backend.support.FakeCaseStore;
 import net.onelitefeather.blackhole.backend.support.InMemoryCaseEventRepository;
 import net.onelitefeather.blackhole.backend.support.InMemoryRepository;
@@ -51,9 +63,14 @@ class CaseServiceTest {
     private final InMemoryRepository<StaffActorRepository, StaffActorEntity, UUID> staff =
             InMemoryRepository.<StaffActorRepository, StaffActorEntity, UUID>of(StaffActorRepository.class, StaffActorEntity::getOid).build();
     private final BanIdTestBed banIds = new BanIdTestBed(this.punishments.repository());
+    private final InMemoryStaffAuditStore auditStore = new InMemoryStaffAuditStore();
+    private final StaffAuditRecorder audit = new StaffAuditRecorder(this.auditStore,
+            new DomainEventPublisher(new RecordingEventTransport(), this.clock), new AuditPayloadGuard(), this.clock, new SimpleMeterRegistry());
+    private final FakeTicketStore tickets = new FakeTicketStore();
     private final CaseService service = new CaseService(
             this.punishments.repository(), this.staff.repository(), this.store, this.store, this.log, this.events, this.clock,
-            this.banIds.service, new MessageContent("onelitefeather.net"));
+            this.banIds.service, new MessageContent("onelitefeather.net"), StaffDelegations.withoutLinks(this.clock), this.audit,
+            this.tickets);
 
     private void givenPunishment(String identifier) {
         this.punishments.given(new PunishmentEntity(identifier, UUID.randomUUID(), OWNER, "network", false, 1L, null, new HashMap<>()), identifier);
@@ -87,6 +104,31 @@ class CaseServiceTest {
         assertEquals(ALICE.oid(), this.log.all().getFirst().actorOid());
     }
 
+    private void givenTicket(TicketState state, boolean frozen, String freezeSource) {
+        UUID id = UUID.randomUUID();
+        this.tickets.tickets.put(id, new DiscordTicket(id, 1, ID, UUID.randomUUID(), UUID.randomUUID(), state, "123456789012345678",
+                "223456789012345678", frozen, 0, 0, null, null, null, 1L, 1L, freezeSource));
+    }
+
+    @Test
+    void theCaseShowsTheStateOfItsTicketWithoutTheDiscordIds() {
+        givenPunishment(ID);
+        givenTicket(TicketState.OPEN, true, DiscordTicket.FREEZE_STAFF);
+
+        CaseDTO.Response response = assertInstanceOf(CaseDTO.Response.class, this.service.get(ID));
+
+        assertEquals(new CaseDTO.Ticket("OPEN", true, "STAFF"), response.ticket(), "the lock made in Discord is visible to the panel");
+    }
+
+    @Test
+    void aCaseWithoutATicketShowsNoTicketState() {
+        givenPunishment(ID);
+
+        CaseDTO.Response response = assertInstanceOf(CaseDTO.Response.class, this.service.get(ID));
+
+        assertNull(response.ticket(), "a case that never had an appeal ticket has no ticket state");
+    }
+
     @Test
     void aStaleVersionAnswers409AndChangesNothing() {
         givenPunishment(ID);
@@ -112,6 +154,11 @@ class CaseServiceTest {
             }
 
             @Override
+            public java.util.Map<String, CaseRow> findAll(java.util.Collection<String> identifiers) {
+                return java.util.Map.of();
+            }
+
+            @Override
             public List<Related> related(String owner, String excluded, long now, int limit) {
                 return List.of();
             }
@@ -130,9 +177,15 @@ class CaseServiceTest {
             public ListPage list(ListQuery query, long now) {
                 return new ListPage(List.of(), 0);
             }
+
+            @Override
+            public GroupPage groups(ListQuery query, long now) {
+                return new GroupPage(List.of(), 0);
+            }
         };
         CaseService racing = new CaseService(this.punishments.repository(), this.staff.repository(), racingReader, this.store, this.log,
-                this.events, this.clock, this.banIds.service, new MessageContent("onelitefeather.net"));
+                this.events, this.clock, this.banIds.service, new MessageContent("onelitefeather.net"), StaffDelegations.withoutLinks(this.clock), this.audit,
+                this.tickets);
 
         CaseDTO result = racing.update(ID, patch(0, CaseStatus.CLOSED, null, null, null), ALICE);
 
@@ -205,6 +258,20 @@ class CaseServiceTest {
         givenPunishment(ID);
 
         assertEquals(CaseErrorKind.VALIDATION, kindOf(this.service.update(ID, patch(0, null, null, null, List.of("Bad Tag!")), ALICE)));
+    }
+
+    @Test
+    void aNoteAddedRecordsOneCaseNoteAddEntryNamedByShortIdOnly() {
+        givenPunishment(ID);
+
+        addNote(ALICE, "seen twice in a week");
+
+        assertEquals(1, this.auditStore.rows().size(), "exactly one audit entry for the note");
+        StaffAuditEntry row = this.auditStore.rows().getFirst();
+        assertEquals("case.note.add", row.action());
+        assertEquals("CASE", row.targetKind());
+        assertEquals(PunishmentShortId.storageKey(ID), row.targetRef(), "the case is named by its short id");
+        assertFalse(row.targetRef().contains(ID), "the audit entry never carries the punishment identifier");
     }
 
     @Test

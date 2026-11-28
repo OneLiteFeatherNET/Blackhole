@@ -1,4 +1,7 @@
 {
+  "lists": {
+    "missing": "This entry does not exist any more."
+  },
   "nav": {
     "label": "Main navigation",
     "skip": "Skip to content",
@@ -8,23 +11,38 @@
     "reports": "Reports",
     "playerLookup": "Player lookup",
     "activePunishments": "Active punishments",
+    "allowList": "Allow-list",
+    "vpnPolicy": "VPN policy",
     "sections": "Sections",
     "templates": "Templates",
     "appealTerms": "Appeal terms",
     "clientRules": "Client rules",
     "administration": "Administration",
     "groups": {
+      "today": "Today",
       "work": "Work",
       "players": "Players",
       "configuration": "Configuration",
       "administration": "Administration",
-      "system": "System"
+      "review": "Review",
+      "system": "System",
+      "protection": "Protection"
+    },
+    "more": "More",
+    "shortcuts": {
+      "open": "Keyboard shortcuts",
+      "title": "Keyboard shortcuts",
+      "intro": "Outside text fields, press g and then a letter to open a page. Press ? to show this list.",
+      "help": "Show this list",
+      "then": "then",
+      "nextRow": "Next row in a list",
+      "previousRow": "Previous row in a list",
+      "openRow": "Open the selected row",
+      "closeRow": "Close the open item",
+      "close": "Close"
     },
     "brand": "Blackhole",
-    "open": "Open navigation",
     "close": "Close navigation",
-    "collapse": "Collapse navigation",
-    "expand": "Expand navigation",
     "breadcrumbs": "Breadcrumbs",
     "badge": {
       "inbox": "{n} item needs attention | {n} items need attention",
@@ -33,9 +51,15 @@
       "reports": "{n} unresolved report | {n} unresolved reports"
     },
     "staffAccounts": "Staff accounts",
+    "rollback": "Staff rollback",
     "imports": "Imports",
     "cloudnet": "CloudNet",
-    "kick": "Mass kick"
+    "kick": "Mass kick",
+    "audit": "Audit log",
+    "exemptionReviews": "Exemption reviews",
+    "joinGuard": "Join guard",
+    "areaBans": "Area bans",
+    "ipBans": "IP bans"
   },
   "panel": {
     "close": "Close",
@@ -65,6 +89,8 @@
       "body": "You are signed in, but your account has no role for Blackhole. Ask an administrator to add you to the right group, then sign in again.",
       "adminHeading": "Administrators only",
       "adminBody": "This page is only available to administrators. Your role does not include it.",
+      "moderatorHeading": "Moderators only",
+      "moderatorBody": "Only moderators change players and punishments. Your role lets you read them.",
       "back": "Back to the dashboard"
     },
     "error": {
@@ -141,9 +167,39 @@
     "nameHint": "3 to 16 letters, digits or underscores",
     "invalidName": "Enter a valid name: 3 to 16 letters, digits or underscores.",
     "notFound": "No player named \"{name}\" was found.",
-    "search": "Look up"
+    "search": "Look up",
+    "choose": "Several accounts used this name. Open the one you mean.",
+    "lastSeen": "Last seen {date}"
   },
   "player": {
+    "tabs": {
+      "label": "Player sections",
+      "overview": "Overview",
+      "punishments": "Punishments",
+      "reports": "Reports",
+      "cases": "Cases",
+      "evasion": "Evasion",
+      "elo": "ELO",
+      "names": "Names",
+      "intel": "Intel",
+      "warnings": "Warnings",
+      "evidence": "Evidence"
+    },
+    "reports": {
+      "empty": "No report has been filed against this player.",
+      "open": "Open report"
+    },
+    "cases": {
+      "empty": "No case exists for this player."
+    },
+    "warnings": {
+      "empty": "This player has not been warned."
+    },
+    "evidence": {
+      "hint": "Evidence belongs to a punishment. Open a punishment to see its evidence.",
+      "count": "{count} evidence items",
+      "empty": "This player has no punishment."
+    },
     "backToSearch": "Back to search",
     "invalidOwner": "This is not a valid player identifier.",
     "scores": "Scores per section",
@@ -201,7 +257,39 @@
       "weakNote": "A link by the client setup alone is a weak hint, not proof: players who use the same modpack or launcher look alike. An address together with the client setup is the stronger signal.",
       "weakOnly": "Every account listed here shares only the client setup with this player. That is a weak hint, no proof: a modpack or launcher is used by many unrelated players."
     },
-    "activeCount": "{count} active"
+    "activeCount": "{count} active",
+  "names": {
+   "title": "Name history",
+   "empty": "No name has been recorded for this player yet.",
+   "note": "Names are recorded from the first login after the session records began; earlier names are not known.",
+   "loadMore": "Load more",
+   "columns": {
+    "name": "Name",
+    "firstSeen": "First seen",
+    "lastSeen": "Last seen"
+   }
+  },
+  "sessions": {
+   "title": "Sessions",
+   "empty": "No session has been recorded yet.",
+   "approximate": "{country} (approximate)",
+   "loadMore": "Load more",
+   "attribution": "Geolocation and ASN data: DB-IP, licensed under CC BY 4.0.",
+   "outcome": {
+    "ALLOWED": "Allowed",
+    "DENIED": "Denied"
+   },
+   "columns": {
+    "when": "Time",
+    "outcome": "Outcome",
+    "ip": "IP address",
+    "provider": "Provider (ASN)",
+    "country": "Country",
+    "client": "Client",
+    "protocol": "Protocol",
+    "host": "Virtual host"
+   }
+  }
   },
   "actions": {
     "cancel": "Cancel",
@@ -296,6 +384,10 @@
       "sectionHint": "The ELO section this template charges and punishes in",
       "sectionDisabled": "Disabled",
       "reasonHint": "Shown to the player",
+      "publicReason": "Public reason",
+      "publicReasonHint": "Shown on the public ban list when this template is applied. Admins only. No IP addresses, UUIDs or Ban IDs.",
+      "publicReasonCounter": "{count} / {max} characters",
+      "publicReasonTooLong": "Use at most {max} characters.",
       "advanced": "Advanced",
       "advancedHint": "Offences in the same escalation group count together: each new offence within the window moves one step up. Without a group the key is used and the default window applies. Most templates need neither.",
       "step": "Step {n}",
@@ -303,7 +395,18 @@
       "summaryTitle": "What this means",
       "summaryStep": "Offence {n}: {duration}, −{cost} ELO",
       "summaryRepeat": "Further offences repeat the last step.",
-      "summaryStepFree": "Offence {n}: {duration}, no ELO cost"
+      "summaryStepFree": "Offence {n}: {duration}, no ELO cost",
+      "kind": "Step type (step {n})",
+      "kinds": {
+        "PUNISH": "Punishment",
+        "KICK": "Kick",
+        "WARN": "Warning"
+      },
+      "noDuration": "A kick or a warning has no duration; only its ELO cost applies.",
+      "warnWindow": "Warning window",
+      "warnWindowHint": "Optional; warnings older than this stop counting towards the next step, e.g. 30d. Empty: the escalation window applies.",
+      "summaryKick": "Offence {n}: kick, −{cost} ELO",
+      "summaryWarn": "Offence {n}: warning, −{cost} ELO"
     }
   },
   "sections": {
@@ -406,6 +509,7 @@
     "empty": "No open reports.",
     "showAll": "Show all reports",
     "noneYet": "No reports yet.",
+    "selectHint": "Select a report to see it here.",
     "resolved": "Report resolved.",
     "columns": {
       "when": "Received",
@@ -477,6 +581,42 @@
       "dismissConfirm": "Dismiss report"
     }
   },
+  "appeal": {
+    "title": "Appeal",
+    "type": "Appeal",
+    "notFound": "There is no such appeal.",
+    "back": "Back to the appeals",
+    "alreadyDecided": "This appeal is already decided.",
+    "tabs": {
+      "label": "Appeal sections",
+      "conversation": "Conversation",
+      "decision": "Decision",
+      "case": "Case"
+    },
+    "summary": {
+      "submitted": "Submitted",
+      "statement": "Statement",
+      "evidence": "Evidence items",
+      "appellant": "Player"
+    },
+    "conversation": {
+      "none": "No message has been written yet.",
+      "playerLast": "The player wrote last. Answer in the case conversation.",
+      "staffLast": "Staff wrote last.",
+      "failed": "The conversation could not be loaded.",
+      "open": "Open the conversation in the case"
+    },
+    "decision": {
+      "waiting": "Waiting for a decision.",
+      "readOnly": "Read-only: moderators act on cases and appeals.",
+      "noNote": "No note was recorded with the decision.",
+      "updated": "Last changed {when}"
+    },
+    "case": {
+      "open": "Open case {id}",
+      "hint": "The punishment this appeal contests."
+    }
+  },
   "appeals": {
     "title": "Appeals",
     "filter": "Which appeals to show",
@@ -524,6 +664,7 @@
       "note": "Note",
       "noteHint": "Optional; recorded with the decision",
       "confirm": "Save decision",
+      "confirmReason": "Choose a decision to save it.",
       "playerMessage": "Message to the player",
       "playerMessageHint": "Optional; the player can read it in the appeal portal. 1 to 2000 characters, no UUIDs, IP addresses or Ban IDs. The note above stays internal."
     },
@@ -817,6 +958,8 @@
   },
   "vanillaImport": {
     "title": "Import vanilla bans",
+    "tabsLabel": "Import type",
+    "newLink": "New vanilla import",
     "intro": "Brings the bans of a vanilla server into Blackhole. Every imported ban is linked to a punishment template, so players see the template's reason in their language. Imported bans are enforced like any other punishment and cost no ELO. Use the preview first: it changes nothing.",
     "playersFile": "banned-players.json (file)",
     "paste": "or paste the contents of banned-players.json",
@@ -881,6 +1024,10 @@
     "confirm": "Link now",
     "done": "{linked} punishments linked to {template}, {skipped} left alone."
   },
+  "relayBanner": {
+    "absent": "{proxy} runs without SignedVelocity. Signed mutes there are enforced by disconnecting the muted player, not by cancelling the message. Install SignedVelocity on the proxy and on every backend server.",
+    "unknown": "The SignedVelocity state of {proxy} is unknown: it has not reported recently."
+  },
   "cloudnetCatalogue": {
     "title": "CloudNet catalogue",
     "intro": "What the proxies report from CloudNet. Read-only; the section editor uses it for suggestions.",
@@ -899,6 +1046,19 @@
     "none": "none",
     "running": "Running",
     "stopped": "Stopped",
+    "tabsLabel": "View",
+    "tabs": {
+      "catalogue": "Tasks, groups and services",
+      "proxies": "Reporting proxies"
+    },
+    "kinds": {
+      "tasks": "Task",
+      "groups": "Group",
+      "services": "Service",
+      "proxies": "Proxy",
+      "unknown": "CloudNet entry"
+    },
+    "entryMissing": "No CloudNet entry with this name. The proxies may have stopped reporting it.",
     "columns": {
       "task": "Task",
       "groups": "Groups",
@@ -906,8 +1066,83 @@
       "state": "State"
     }
   },
+  "entity": {
+    "type": {
+      "case": "Case",
+      "report": "Report",
+      "player": "Player",
+      "appeal": "Appeal"
+    },
+    "owner": "Player",
+    "assignee": "Assignee",
+    "unassigned": "Unassigned",
+    "state": {
+      "case": {
+        "OPEN": "Open",
+        "IN_REVIEW": "In review",
+        "WAITING": "Waiting",
+        "CLOSED": "Closed"
+      },
+      "appeal": {
+        "SUBMITTED": "Submitted",
+        "ELIGIBLE_PENDING_REVIEW": "Pending review",
+        "IN_REVIEW": "In review",
+        "GRANTED_FULL_LIFT": "Granted: lifted",
+        "GRANTED_DURATION_REDUCTION": "Granted: shorter",
+        "DENIED": "Denied",
+        "INELIGIBLE": "Not eligible"
+      },
+      "report": {
+        "OPEN": "Open",
+        "UNDER_REVIEW": "Under review",
+        "ACTIONED": "Actioned",
+        "DISMISSED": "Dismissed"
+      },
+      "player": {
+        "ACTIVE": "Punished",
+        "NONE": "Not punished"
+      }
+    },
+    "notice": {
+      "viewerCase": "A viewer cannot change a case.",
+      "viewerReport": "A viewer cannot resolve a report.",
+      "viewerPlayer": "A viewer cannot change a player.",
+      "reportResolved": "This report is already resolved."
+    },
+    "caseDialog": {
+      "closeTitle": "Close the case?",
+      "reopenTitle": "Reopen the case?",
+      "closeBody": "The case is closed. You can undo this for ten seconds.",
+      "reopenBody": "The case returns to {status}.",
+      "reopenLoading": "Looking up the status the case had before it was closed.",
+      "reopenFallback": "No earlier status was found. The case reopens as Open.",
+      "confirmClose": "Close case",
+      "confirmReopen": "Reopen case",
+      "viewer": "A viewer cannot change a case.",
+      "conflict": "The case changed since it was read. Reload to see it."
+    },
+    "undo": {
+      "action": "Undo",
+      "undone": "Close undone.",
+      "changed": "The case changed since. Reload to see it."
+    }
+  },
   "case": {
     "title": "Case",
+    "tabs": {
+      "label": "Case sections",
+      "overview": "Overview",
+      "conversation": "Conversation",
+      "audit": "Notes & audit",
+      "unseen": "{n} new message | {n} new messages"
+    },
+    "bar": {
+      "title": "Case status",
+      "close": "Close",
+      "reopen": "Reopen",
+      "closed": "Case closed.",
+      "reopened": "Case reopened."
+    },
     "open": "Open case",
     "back": "Back to all cases",
     "header": {
@@ -971,6 +1206,8 @@
       "punishmentLifted": "Punishment lifted by appeal",
       "punishmentRetemplated": "Linked to a template",
       "punishmentExpired": "Punishment expired",
+      "punishmentWarned": "Warning given",
+      "punishmentAcknowledged": "Warning acknowledged by the player",
       "evidenceAttached": "Evidence attached",
       "evidenceLifted": "Evidence lifted",
       "evidenceRevoked": "Evidence revoked",
@@ -979,6 +1216,7 @@
       "statusChanged": "Status changed",
       "assigneeChanged": "Assignee changed",
       "tagsChanged": "Tags changed",
+      "bulkEdited": "Changed in bulk",
       "priorityChanged": "Priority changed",
       "noteAdded": "Note added",
       "noteEdited": "Note edited",
@@ -995,7 +1233,8 @@
       "ticketOpened": "Discord ticket opened",
       "ticketTranscriptComplete": "Discord transcript verified complete",
       "ticketArchived": "Discord channel archived",
-      "ticketChannelDeleted": "Discord channel deleted"
+      "ticketChannelDeleted": "Discord channel deleted",
+      "ticketFrozen": "Discord channel locked or unlocked"
     },
     "detail": {
       "step": "Step {step} of {count}",
@@ -1098,9 +1337,54 @@
         "assignee": "Assignee",
         "priority": "Priority",
         "tags": "Tags",
-        "activity": "Last activity"
+        "activity": "Last activity",
+        "player": "Player"
       },
-      "noneYet": "No cases yet."
+      "noneYet": "No cases yet.",
+      "selectHint": "Select a case to see it here.",
+      "view": "View",
+      "viewCases": "All cases",
+      "viewPlayer": "By player",
+      "groupSummary": "{open} open, {total} in total",
+      "expandGroup": "Show the cases of {player}",
+      "collapseGroup": "Hide the cases of {player}",
+      "groupCases": "Cases of {player}",
+      "loadFailed": "The cases could not be loaded.",
+      "unknownPlayer": "Player {hash}",
+      "select": {
+        "column": "Select",
+        "page": "Select all cases on this page",
+        "case": "Select case {id}",
+        "player": "Select all cases of {player}",
+        "loaded": "Loaded {loaded} of {total}"
+      }
+    },
+    "bulk": {
+      "title": "Edit {count} cases",
+      "change": "{field}: {change}",
+      "hint": "The change is applied to each case on its own. A case that changed meanwhile is reported as a conflict; the others still change.",
+      "keep": "Keep",
+      "addTags": "Add tags",
+      "removeTags": "Remove tags",
+      "close": "Close",
+      "apply": "Apply to {count} cases",
+      "running": "Applying the change",
+      "summary": "Updated {updated}, unchanged {unchanged}, conflicts {conflicts}, not found {notFound}, failed {failed}.",
+      "reload": "Reload the cases",
+      "outcome": {
+        "UPDATED": "Updated",
+        "UNCHANGED": "Unchanged",
+        "CONFLICT": "Conflict",
+        "NOT_FOUND": "Not found",
+        "FAILED": "Failed"
+      }
+    },
+    "selection": {
+      "region": "Selected cases",
+      "count": "{count} selected",
+      "limit": "Selection is limited to {cap} cases.",
+      "clear": "Clear selection",
+      "edit": "Edit selected"
     },
     "reason": {
       "label": "Reason",
@@ -1108,6 +1392,8 @@
     },
     "conversation": {
       "title": "Conversation",
+      "chatHint": "Enter sends, Shift+Enter adds a line. The player can read this. No UUIDs, IP addresses or Ban IDs.",
+      "adminTools": "Admin tools",
       "thread": "{count} messages",
       "empty": "No messages yet.",
       "player": "Player",
@@ -1167,6 +1453,25 @@
       "withdrawn": "Evidence share withdrawn",
       "playerFile": "Player-supplied, unverified",
       "reconnecting": "Live updates paused, reconnecting."
+    },
+    "lock": {
+      "title": "Ticket lock",
+      "claimedBy": "Claimed by",
+      "notClaimed": "Not claimed",
+      "appeal": "Appeal",
+      "decided": "Decided",
+      "notDecided": "Not decided yet",
+      "state": "Lock",
+      "unlocked": "Not locked",
+      "unknown": "Not known yet. Locking or unlocking here shows the state.",
+      "lockedStaff": "Locked by staff",
+      "lockedLeak": "Locked by the leak check",
+      "lock": "Lock ticket",
+      "unlock": "Unlock ticket",
+      "leak": "The leak check locked this ticket. Staff cannot unlock it, and the player cannot write while it is locked.",
+      "hint": "A locked ticket takes no messages from the player. Staff can still write.",
+      "lockedDone": "Ticket locked.",
+      "unlockedDone": "Ticket unlocked."
     },
     "tickets": {
       "title": "Discord tickets",
@@ -1300,7 +1605,31 @@
       "warning": "The player will see these files once you send the message."
     }
   },
+  "punishedDetail": {
+    "notFound": "This item does not exist or was removed.",
+    "ambiguous": "More than one punishment has this short ID.",
+    "noOwner": "Open the player to revoke this punishment.",
+    "historyNeedsOwner": "Open the player to see its history."
+  },
   "punished": {
+    "detail": {
+      "title": "Punishment",
+      "heading": "Punishment {id}",
+      "open": "Details",
+      "tabs": {
+        "label": "Punishment sections",
+        "details": "Details",
+        "evidence": "Evidence",
+        "history": "History"
+      },
+      "section": "Section",
+      "reason": "Reason",
+      "term": "Duration",
+      "since": "Since",
+      "state": "State",
+      "inForce": "In force",
+      "lifted": "Lifted or ended"
+    },
     "title": "Active punishments",
     "kind": {
       "label": "Kind",
@@ -1377,9 +1706,17 @@
     "hint": "Enter a player name (3 to 16 characters), a case id such as #A1B2C3D4 or report: and a report id.",
     "caseNotFound": "Nothing matches the case id {id}.",
     "ambiguous": "The id {id} matches {n} cases. Pick one.",
-    "report": "Open report {id}"
+    "report": "Open report {id}",
+    "types": {
+      "player": "Player",
+      "case": "Case",
+      "report": "Report"
+    }
   },
   "appealConditions": {
+    "newVersion": "New version",
+    "openVersion": "Open version {version}",
+    "versionTitle": "Appeal terms, version {version}",
     "title": "Appeal terms",
     "intro": "Players read these conditions and confirm them before they file an appeal. Every save creates a new version; earlier versions are kept.",
     "current": "Current version {version}",
@@ -1392,7 +1729,69 @@
     "history": "Earlier versions",
     "versionLine": "Version {version}, {when}"
   },
+  "audit": {
+    "title": "Audit log",
+    "intro": "Every staff action, newest first. Read only: an entry is never changed here.",
+    "noneYet": "No audited actions yet.",
+    "noMatches": "No entry matches these filters.",
+    "loadMore": "Load more",
+    "nextPage": "Next page",
+    "firstPage": "First page",
+    "entryLoading": "Loading the entry…",
+    "entryMissing": "No audit entry with this id.",
+    "entryFailed": "The entry could not be loaded. Reload the page to try again.",
+    "details": "Details",
+    "filters": {
+      "action": "Action",
+      "allActions": "All actions",
+      "actor": "Actor (staff oid)",
+      "target": "Target (case or owner)"
+    },
+    "columns": {
+      "when": "When",
+      "who": "Who",
+      "surface": "Surface",
+      "action": "Action",
+      "target": "Target"
+    },
+    "surfaces": {
+      "PANEL": "Panel",
+      "API": "API",
+      "IN_GAME": "In game",
+      "DISCORD": "Discord"
+    },
+    "actions": {
+      "kickCreate": "Kick player",
+      "kickMass": "Mass kick",
+      "punishmentRevoke": "Revoke punishment",
+      "staffLinkUnlink": "Unlink staff account"
+    },
+    "targets": {
+      "CASE": "Case",
+      "PLAYER": "Player",
+      "SECTION": "Section",
+      "SERVER": "Server",
+      "NONE": "None"
+    },
+    "detail": {
+      "title": "Audit entry",
+      "id": "Audit id",
+      "when": "When",
+      "actor": "Who",
+      "recordedBy": "Recorded by",
+      "surface": "Surface",
+      "action": "Action",
+      "target": "Target",
+      "openCase": "Open case",
+      "openPlayer": "Open player"
+    }
+  },
   "clientRules": {
+    "tab": {
+      "details": "Details",
+      "hits": "Hits"
+    },
+    "tabs": "Views of the rule",
     "title": "Client rules",
     "intro": "Rules over the client brand, mods, plugin channels, protocol version and commands. The proxy applies them; each rule can notify the team, deny the connection or the command, or apply a punishment template.",
     "honesty": "Brand, mods and channels are chosen by the client and can be faked: a hit is a signal, not proof, and a miss proves nothing. Rules on them are a deterrent and a hint for the team. Start every rule with Notify, read the hit counts, and only then switch it to Deny or Punishment. Only the protocol version and commands are observed by the proxy itself.",
@@ -1535,12 +1934,63 @@
   },
   "inbox": {
     "title": "Inbox",
-    "needsAnswer": "Needs an answer",
-    "openAppeals": "Open appeals",
-    "newReports": "New reports",
-    "unassignedCases": "Unassigned cases",
     "showAll": "Show all",
-    "empty": "Nothing waiting"
+    "sections": {
+      "assigned": "Assigned to me",
+      "urgent": "Unassigned and urgent",
+      "appeals": "Appeals waiting for a decision",
+      "answers": "Answers waiting",
+      "reports": "Open reports",
+      "changed": "Changed by others"
+    },
+    "empty": {
+      "assigned": "No case is assigned to you. Cases you take appear here.",
+      "urgent": "No urgent case waits without an assignee.",
+      "appeals": "No appeal waits for a decision.",
+      "answers": "No player waits for an answer.",
+      "reports": "No report is open.",
+      "changed": "No case or appeal changed by another staff member in the last 24 hours. Changes by others appear here."
+    },
+    "noIdentity": "Your account has no staff identity yet.",
+    "readOnly": "Read-only: moderators act on cases and appeals.",
+    "assign": "Assign to me",
+    "close": "Close",
+    "undo": "Undo",
+    "assignedNotice": "Case {reference} is assigned to you.",
+    "undone": "The assignment is undone.",
+    "closeDialog": {
+      "headline": "Close case {reference}?",
+      "text": "The case is closed. You can reopen it on its page.",
+      "confirm": "Close case",
+      "cancel": "Cancel"
+    },
+    "conflict": "The case changed since. Reload to see it.",
+    "types": {
+      "case": "Case",
+      "appeal": "Appeal",
+      "report": "Report",
+      "player": "Player"
+    },
+    "states": {
+      "appeal": "Waiting for a decision",
+      "answer": "Answer waiting",
+      "report": "Open"
+    },
+    "changed": {
+      "by": "by {name}",
+      "former": "by a former staff member",
+      "changes": {
+        "status": "Status changed",
+        "assignee": "Assignee changed",
+        "priority": "Priority changed",
+        "tags": "Tags changed",
+        "note": "Note added or edited",
+        "message": "Message changed",
+        "appealFiled": "Appeal filed",
+        "appealDecided": "Appeal decided",
+        "other": "Changed"
+      }
+    }
   },
   "filters": {
     "clearAll": "Clear all",
@@ -1556,6 +2006,21 @@
     "switch": "Workspace",
     "moderationHint": "Cases, appeals, reports and players",
     "administrationHint": "Templates, sections, client rules, staff accounts and imports"
+  },
+  "warn": {
+    "open": "Warn",
+    "title": "Warn player",
+    "intro": "The template decides what the player gets: a warning, a kick or a punishment. A warning is shown in game and confirmed once.",
+    "submit": "Warn",
+    "applied": "Applied:",
+    "close": "Close",
+    "done": "Applied template {template}: {step}.",
+    "badge": "Warning",
+    "pending": "Pending",
+    "acknowledged": "Confirmed {when}",
+    "chip": {
+      "WARN": "Warning"
+    }
   },
   "kick": {
     "title": "Kick {name}",
@@ -1599,7 +2064,532 @@
       "confirmLabel": "Type the target name to confirm",
       "confirmHint": "Type \"{target}\" exactly.",
       "submit": "Kick everybody",
-      "result": "Status: {status}. Delivered by {count} proxies."
+      "result": "Status: {status}. Delivered by {count} proxies.",
+      "newLink": "New mass kick",
+      "openKick": "Open this kick"
+    },
+    "detail": {
+      "title": "Kick",
+      "loading": "Loading the kick…",
+      "notFound": "No kick with this id.",
+      "target": "Target",
+      "by": "Staff member",
+      "when": "Sent at",
+      "delivered": "Proxies that delivered it"
     }
+  },
+  "intel": {
+    "classes": {
+      "VPN": "VPN",
+      "HOSTING": "Hosting",
+      "PROXY": "Proxy"
+    },
+    "classHint": {
+      "VPN": "Known VPN networks.",
+      "HOSTING": "Hosting and datacenter networks.",
+      "PROXY": "Known open proxies."
+    },
+    "policies": {
+      "ALLOW": "Allow",
+      "FLAG": "Flag",
+      "DENY": "Deny"
+    },
+    "policy": {
+      "change": "Change the policy",
+      "backToList": "Back to the VPN and hosting policy",
+      "editTitle": "Change the policy of {classification}",
+      "title": "VPN and hosting policy",
+      "intro": "What happens to a login from a VPN, hosting or proxy address. Only an administrator can change it.",
+      "policyLabel": "New policy",
+      "save": "Review change",
+      "confirmTitle": "Change the policy?",
+      "confirmBody": "{classification}: change from {previous} to {next}?",
+      "confirm": "Change policy",
+      "saved": "Policy for {classification} saved as {policy}."
+    },
+    "sources": {
+      "title": "List sources",
+      "VPN": "VPN networks",
+      "HOSTING": "Datacenter and hosting ranges"
+    },
+    "source": {
+      "licence": "Licence: {licence}",
+      "status": {
+        "FRESH": "Fresh",
+        "STALE": "Stale",
+        "FAILED": "Failed"
+      },
+      "notReported": "Status not reported",
+      "lastOk": "Last successful refresh: {when}"
+    },
+    "allowList": {
+      "columns": {
+        "player": "Player",
+        "reason": "Reason",
+        "expires": "Expires",
+        "added": "Added",
+        "actor": "Added by"
+      },
+      "new": "New exemption",
+      "empty": "No exemptions on this page.",
+      "pages": "Pages",
+      "previous": "Previous page",
+      "next": "Next page",
+      "entry": {
+        "title": "Exemption",
+        "back": "Back to the exemptions",
+        "active": "Active"
+      },
+      "remove": {
+        "open": "Remove exemption",
+        "title": "Remove the exemption?",
+        "body": "The player is checked against the VPN and hosting policy again at the next login.",
+        "confirm": "Remove"
+      },
+      "title": "Allow-list",
+      "intro": "Exempt a player from the VPN and hosting policy for a while. The reason is kept with the exemption.",
+      "readonly": "Only moderators can add exemptions.",
+      "player": "Player name",
+      "playerHint": "The name is resolved to the player before the exemption is stored.",
+      "reason": "Reason",
+      "reasonRequired": "Give a reason for the exemption. Submit stays disabled until then.",
+      "reasonTooLong": "Use at most 200 characters.",
+      "duration": "Duration",
+      "days": "{days} days",
+      "permanent": "Permanent",
+      "permanentLabel": "Permanent",
+      "expired": "Expired",
+      "until": "Until {when}",
+      "submit": "Add exemption",
+      "added": "Added in this visit"
+    },
+    "hits": {
+      "title": "VPN and hosting logins",
+      "hint": "Logins of this player from a VPN, hosting or proxy address. The address itself is not shown.",
+      "empty": "No VPN or hosting login was recorded for this player.",
+      "allowListedYes": "Allow-listed at the last login.",
+      "allowListedNo": "Not allow-listed at the last login.",
+      "yes": "Yes",
+      "no": "No",
+      "columns": {
+        "time": "Time",
+        "class": "Class",
+        "source": "Source",
+        "verdict": "Verdict",
+        "allowListed": "Allow-listed"
+      }
+    }
+  },
+  "rollback": {
+    "title": "Staff rollback",
+    "intro": "Undoes what one staff member's punishments did in a time window, as a manual revoke would. Preview first: nothing changes until you confirm.",
+    "mode": {
+      "label": "Whose punishments",
+      "STAFF": "Staff member",
+      "UNLINKED": "Unlinked in-game account"
+    },
+    "staff": {
+      "label": "Staff member",
+      "choose": "Choose a staff member"
+    },
+    "uuid": {
+      "invalid": "Enter the UUID with dashes, for example 069a79f4-44e9-4726-a5be-fca90e38aaf5.",
+      "label": "Minecraft UUID",
+      "hint": "The UUID of the unlinked in-game account, with dashes."
+    },
+    "window": {
+      "from": "From",
+      "to": "To",
+      "invalid": "The end must be after the start."
+    },
+    "preview": "Preview",
+    "loading": "Working...",
+    "byKind": "By kind",
+    "bySection": "By section",
+    "revocable": "Punishments to revoke",
+    "alreadyInactive": "Already inactive (not touched)",
+    "players": "Players affected",
+    "kicks": "Kicks in the window",
+    "expires": "The preview expires at {time}. Start it before then.",
+    "nothing": "Nothing matches this window. Nothing would change.",
+    "back": "Back",
+    "continue": "Continue",
+    "confirm": {
+      "title": "Roll back {name}?",
+      "counts": "Revokes {revocable} punishments of {players} players. Kicks in the window: {kicks}.",
+      "manual": "Each punishment is revoked as a manual revoke does, with you as the actor.",
+      "submit": "Start rollback"
+    },
+    "options": {
+      "marks": "Mark the {count} kicks as rolled back",
+      "marksAll": "Mark the kicks in the window as rolled back",
+      "marksHint": "Only a note in the history. Kicks are never revoked and no ELO changes.",
+      "suspend": "Remove the Minecraft link of this staff member",
+      "suspendHint": "Done before the first punishment is revoked. The person can link again later."
+    },
+    "reason": {
+      "label": "Reason",
+      "hint": "Shown in the audit trail. 1 to 500 characters.",
+      "tooLong": "At most 500 characters."
+    },
+    "state": {
+      "PREVIEW": "Preview",
+      "RUNNING": "Running",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled"
+    },
+    "items": {
+      "PENDING": "Pending",
+      "REVOKED": "Revoked",
+      "SKIPPED": "Skipped",
+      "FAILED": "Failed"
+    },
+    "progress": {
+      "label": "Rollback progress",
+      "cancel": "Cancel rollback",
+      "retry": "Check again",
+      "again": "New rollback"
+    },
+    "done": {
+      "COMPLETED": "Done. The punishments are revoked.",
+      "CANCELLED": "Cancelled. Items already revoked stay revoked."
+    },
+    "started": "The rollback has started.",
+    "error": {
+      "selectorInvalid": "This cannot be rolled back. Choose a staff member or an unlinked in-game account.",
+      "tooLarge": "Too many punishments match. Narrow the window and preview again."
+    },
+    "noStaff": "No staff members are known yet.",
+    "new": {
+      "title": "New rollback"
+    },
+    "jobs": {
+      "title": "Rollback job",
+      "newLink": "New rollback",
+      "open": "Open the rollback",
+      "previewReady": "The preview is ready. Nothing has changed yet.",
+      "pending": "{count} punishments are frozen for this rollback. Nothing is revoked until you start it.",
+      "execute": "Start the rollback…",
+      "executeTitle": "Start this rollback?",
+      "cancelTitle": "Cancel this rollback?",
+      "cancelBody": "A rollback that has not started changes nothing. A running rollback stops before its next item; items already revoked stay revoked.",
+      "alreadyEnded": "This rollback has already ended, so it cannot be cancelled.",
+      "notFound": "No rollback with this id."
+    }
+  },
+  "exemption": {
+    "badge": {
+      "linked": "Linked staff",
+      "exempt": "Exempt",
+      "protectedAt": "Protected at the {rank} rank.",
+      "permissionNote": "A permission removed while the player is offline keeps protecting until the next login."
+    },
+    "rank": {
+      "ADMIN": "Admin",
+      "MODERATOR": "Moderator"
+    },
+    "refused": {
+      "title": "Protected player",
+      "moderator": "Only an administrator can apply a punishment to a protected player. Ask an administrator to decide.",
+      "admin": "As an administrator you can apply it anyway. The justification is recorded on the punishment."
+    },
+    "override": {
+      "label": "Justification",
+      "hint": "1 to 500 characters. Do not write a UUID or IP address.",
+      "empty": "Enter a justification.",
+      "tooLong": "At most 500 characters.",
+      "submit": "Apply with override"
+    }
+  },
+  "exemptionReviews": {
+    "title": "Exemption reviews",
+    "intro": "Automatic punishments that were held back because the player is protected. Apply one with a justification, or dismiss it. Each review is decided once.",
+    "empty": "No open exemption reviews.",
+    "columns": {
+      "player": "Player",
+      "section": "Section",
+      "track": "Track",
+      "score": "Score",
+      "crossed": "Crossed at",
+      "decision": "Decision"
+    },
+    "apply": {
+      "open": "Apply",
+      "title": "Apply the held-back punishment",
+      "intro": "Places the punishment that was held back. The justification is recorded on it.",
+      "confirm": "Apply"
+    },
+    "dismiss": {
+      "open": "Dismiss",
+      "title": "Dismiss the review",
+      "intro": "Closes the review without a punishment. The score change stays.",
+      "confirm": "Dismiss"
+    },
+    "justification": {
+      "label": "Justification",
+      "hint": "1 to 500 characters. Do not write a UUID or IP address.",
+      "empty": "Enter a justification.",
+      "tooLong": "At most 500 characters."
+    },
+    "applied": "Review applied.",
+    "dismissed": "Review dismissed.",
+    "state": {
+      "OPEN": "Open",
+      "APPLIED": "Applied",
+      "DISMISSED": "Dismissed"
+    },
+    "detail": {
+      "title": "Exemption review",
+      "state": "Status",
+      "justification": "Justification",
+      "open": "Open",
+      "back": "Back to the reviews",
+      "notFound": "There is no such review."
+    }
+  },
+  "guard": {
+    "title": "Join guard",
+    "intro": "Decides who may join the network right now. The level in force is the stricter of the manual level and the level the unattended evaluator sets.",
+    "effective": "Level in force",
+    "level": {
+      "OFF": "Off",
+      "STRICT": "Strict",
+      "LOCKDOWN": "Lockdown"
+    },
+    "source": {
+      "manual": "Set manually",
+      "unattended": "Set by the unattended evaluator",
+      "cleared": "No level in force"
+    },
+    "manualLevel": "Manual level",
+    "unattendedLevel": "Unattended level",
+    "updatedAt": "Last change",
+    "set": {
+      "title": "Set the manual level",
+      "hint": "A lower level is not restricted. Every change is recorded.",
+      "open": "Set level"
+    },
+    "saved": "Manual level set to {level}.",
+    "readOnly": "Only moderators and admins can change the level.",
+    "settings": {
+      "open": "Open the join guard settings",
+      "edit": "Edit the settings",
+      "backToGuard": "Back to the join guard",
+      "title": "Unattended settings",
+      "intro": "Applied on every replica within about 30 seconds. Every save is recorded.",
+      "level": "Unattended level",
+      "threshold": "Absence threshold in minutes",
+      "thresholdHelp": "From 5 to 240 minutes, whole minutes only.",
+      "nightWindow": "Night window",
+      "nightEnabled": "Night window applies",
+      "nightStart": "Night window start",
+      "nightEnd": "Night window end",
+      "nightEndHelp": "This time is not included in the night window.",
+      "zone": "Time zone",
+      "window": "{start} to {end}",
+      "nextWindow": "Next night window: {window}, in your time zone. Configured zone: {zone}.",
+      "noNightWindow": "No night window applies: the window is disabled.",
+      "disabled": "Disabled",
+      "minutesValue": "{n} minutes",
+      "save": "Save settings",
+      "saved": "Unattended settings saved.",
+      "readOnly": "Only administrators can change these settings.",
+      "problem": {
+        "threshold": "Enter a whole number of minutes from {min} to {max}.",
+        "window": "Start and end must be different times in HH:mm.",
+        "zone": "Choose a time zone."
+      },
+      "confirm": {
+        "title": "Set the unattended level to {level}?",
+        "body": "While no staff member is online, only players the network knows may join. Set {level} only when unknown players must be kept out."
+      }
+    },
+    "confirm": {
+      "title": "Set the join guard level?",
+      "body": "The manual level becomes {level}.",
+      "confirm": "Set level"
+    },
+    "tile": {
+      "title": "Join guard",
+      "bans": "{n} active area ban | {n} active area bans"
+    }
+  },
+  "areaBans": {
+    "detail": {
+      "title": "Area ban",
+      "backToList": "Back to the area bans",
+      "created": "Created",
+      "lifted": "Lifted at"
+    },
+    "title": "Area bans",
+    "intro": "Autonomous systems (ASN) and countries whose connections are refused when they join.",
+    "kind": {
+      "ASN": "ASN",
+      "COUNTRY": "Country"
+    },
+    "columns": {
+      "kind": "Kind",
+      "value": "Area",
+      "reason": "Reason",
+      "source": "Source",
+      "expires": "Expires",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "expired": "Expired",
+      "lifted": "Lifted"
+    },
+    "permanent": "Permanent",
+    "liftedAt": "Lifted on {when}",
+    "showInactive": "Show lifted and expired bans",
+    "showInactiveHint": "Lifted and expired bans stay in the history.",
+    "empty": "No area bans.",
+    "create": {
+      "open": "New area ban",
+      "title": "New area ban",
+      "intro": "Refuses joins from one autonomous system or one country.",
+      "confirm": "Ban"
+    },
+    "value": {
+      "asn": "ASN",
+      "asnHint": "The number, with or without AS",
+      "country": "Country code",
+      "countryHint": "Two letters, ISO 3166 (for example DE)"
+    },
+    "reasonHint": "Up to {max} characters. Stored with the ban.",
+    "duration": {
+      "label": "Duration",
+      "days": "{n} day | {n} days",
+      "permanent": "Permanent"
+    },
+    "moderatorLimit": "Moderators can ban for up to seven days.",
+    "created": "Area ban created.",
+    "lifted": "Area ban lifted.",
+    "lift": {
+      "open": "Lift",
+      "title": "Lift area ban",
+      "body": "{value} is no longer refused once the ban is lifted. The ban stays in the history.",
+      "reason": "Reason",
+      "reasonHint": "Required",
+      "confirm": "Lift ban"
+  }
+},
+  "ipBans": {
+    "detail": {
+      "title": "IP ban",
+      "backToList": "Back to the IP bans",
+      "lifted": "Lifted at",
+      "liftReason": "Reason for lifting"
+    },
+    "title": "IP bans",
+    "intro": "Holds one address or range at the firewall and on every proxy. The list shows the clear address, so it is for staff only.",
+    "new": "New IP ban",
+    "readOnly": "You can read the IP bans. Creating and lifting them needs the moderator role.",
+    "filter": {
+      "label": "Show",
+      "active": "Active",
+      "lifted": "Lifted"
+    },
+    "columns": {
+      "range": "Address or range",
+      "reason": "Reason",
+      "state": "State",
+      "source": "Source",
+      "created": "Banned",
+      "expires": "Expires",
+      "actor": "Actor",
+      "actions": "Actions"
+    },
+    "state": {
+      "active": "Active",
+      "lifted": "Lifted",
+      "expired": "Expired"
+    },
+    "source": {
+      "PANEL": "Panel",
+      "COMMAND": "Command"
+    },
+    "permanent": "Permanent",
+    "noActor": "No actor",
+    "empty": "No active IP bans.",
+    "emptyLifted": "No lifted or expired IP bans.",
+    "create": {
+      "title": "New IP ban",
+      "address": "Address or range",
+      "addressHint": "One IPv4 or IPv6 address, or a CIDR range such as 203.0.113.0/24.",
+      "reason": "Reason",
+      "reasonHint": "1 to {max} characters. Staff will read it.",
+      "duration": "Duration",
+      "moderatorCap": "Moderators may ban for at most 30 days.",
+      "permanent": "Permanent",
+      "permanentHint": "Administrators only. The ban does not expire until it is lifted.",
+      "submit": "Ban"
+    },
+    "validation": {
+      "address": {
+        "empty": "Enter an address or a range.",
+        "invalid": "Enter one IPv4 or IPv6 address, or a CIDR range such as 203.0.113.0/24.",
+        "tooWide": "A range this wide is refused. IPv4 ranges need /16 or narrower, IPv6 ranges /32 or narrower."
+      },
+      "reason": {
+        "empty": "Enter a reason.",
+        "tooLong": "At most 200 characters."
+      },
+      "duration": {
+        "tooLong": "A moderator may ban for at most 30 days."
+      }
+    },
+    "errors": {
+      "protected": "This address is protected and cannot be banned.",
+      "tooWide": "This range is too wide to ban here.",
+      "forbiddenDuration": "A moderator may ban for at most 30 days. Ask an administrator for a longer or permanent ban.",
+      "alreadyBanned": "An active ban already holds this address or range.",
+      "notActive": "This ban is no longer active."
+    },
+    "created": {
+      "done": "The IP ban was stored.",
+      "withWarnings": "The IP ban was stored. Warning: {warnings}"
+    },
+    "lift": {
+      "open": "Lift ban",
+      "title": "Lift the IP ban?",
+      "body": "The address is released at the firewall and on the proxies. The ban stays in the list as lifted.",
+      "reason": "Reason for lifting",
+      "reasonHint": "1 to {max} characters.",
+      "reasonRequired": "A reason is required.",
+      "submit": "Lift ban",
+      "done": "The IP ban was lifted."
+    }
+  },
+  "copyLink": {
+    "button": "Copy link",
+    "copied": "Link copied to the clipboard.",
+    "failed": "The link could not be copied. Copy it from the address bar."
+  },
+  "configDetail": {
+    "notFound": "This item does not exist or was removed.",
+    "backToList": "Back to the list"
+  },
+  "routedDialog": {
+    "notFoundTitle": "Not found",
+    "close": "Close",
+    "notFound": "This item does not exist or was removed.",
+    "backToPage": "Back to the page",
+    "actionFailed": "The change was not saved. Reload the page to see the current version."
+  },
+  "integration": {
+    "title": "Integration detection",
+    "reportedBy": "Reported by {source}",
+    "signalNotVerdict": "A signal, not a verdict: staff decide.",
+    "kind": "Kind",
+    "server": "Server",
+    "detectionTime": "Time",
+    "reportedSeverity": "Reported severity",
+    "payload": "Reported values",
+    "field": "Field",
+    "value": "Value",
+    "notReported": "not reported"
   }
 }

@@ -49,7 +49,8 @@ class NotificationEventTest {
         ScriptedBackend backend = new ScriptedBackend();
         FakeDiscord discord = new FakeDiscord();
         NotificationDispatcher dispatcher = new NotificationDispatcher(
-                new NotificationHandler(backend, discord, new EmbedRenderer("https://panel.example.org", 1L), 2L));
+                new NotificationHandler(backend, discord, new EmbedRenderer("https://panel.example.org", 1L), 2L),
+                new GuardNotificationHandler(discord, new GuardMessageRenderer("https://panel.example.org"), 2L));
 
         assertEquals(Outcome.DROP, dispatcher.onMessage(json("nope")), "not an event");
 
@@ -61,8 +62,9 @@ class NotificationEventTest {
     }
 
     @Test
-    void theRoutingKeysAreExactlyTheFourEventsTheBotHandles() {
-        assertEquals(java.util.List.of("report.created", "report.resolved", "appeal.submitted", "appeal.resolved"),
+    void theRoutingKeysAreTheReportAndAppealEventsAndTheGuardEvents() {
+        assertEquals(java.util.List.of("report.created", "report.resolved", "appeal.submitted", "appeal.resolved",
+                        "guard.level_changed", "area_ban.created", "area_ban.lifted", "guard.denials.summary"),
                 java.util.List.of(NotificationEvent.ROUTING_KEYS), "subscriptions");
     }
 }

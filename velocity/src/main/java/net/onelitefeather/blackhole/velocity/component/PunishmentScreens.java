@@ -4,11 +4,10 @@ import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.renderer.ComponentRenderer;
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
+import net.onelitefeather.blackhole.client.model.LoginDenialReason;
 import net.onelitefeather.blackhole.velocity.component.tag.DurationTag;
 import net.onelitefeather.blackhole.velocity.config.BlackholeConfig;
 import net.onelitefeather.blackhole.velocity.enforcement.BanIds;
@@ -45,12 +44,18 @@ public final class PunishmentScreens {
      * Where a message is shown; decides whether hover and click events are attached. {@code KICK} is the
      * disconnect screen of a kick, which has no punishment behind it and so no appeal hint.
      */
-    public enum Surface { DISCONNECT, CHAT, KICK }
+    public enum Surface { DISCONNECT, CHAT, KICK, VPN_DENY }
+
+    /** The English text of the VPN denial, used where the message bundle has no translation. */
+    static final String VPN_DENY_TEXT = "VPN and hosting connections are not allowed on this network.";
+
+    /** The English texts of the join guard and area ban screens, used where the message bundle has no translation. */
+    static final String AREA_BAN_TEXT = "This provider or country is currently blocked from this network.";
+    static final String STRICT_TEXT = "Connections from VPN, proxy or hosting addresses are paused right now. Try again later.";
+    static final String LOCKDOWN_TEXT = "The network is currently only open to known players. Try again later.";
 
     /** What a kicked player is told, with or without a reason. */
     static final String KICK_TITLE = "You were removed from the network";
-
-    private static final MiniMessage MINI = MiniMessage.miniMessage();
 
     private final Clock clock;
     private final BlackholeConfig config;
@@ -191,6 +196,39 @@ public final class PunishmentScreens {
     }
 
     /**
+     * The disconnect screen of a login refused by the VPN policy ({@link Surface#VPN_DENY}). It names no
+     * address, no account and no punishment, so there is no Ban ID or appeal hint.
+     *
+     * @return the text, in the locale's translation or the English text where there is none
+     */
+    public @NotNull Component vpnDenial(@NotNull Locale locale) {
+        return this.renderer.render(Component.translatable("punishment.screen.vpn.deny").fallback(VPN_DENY_TEXT), locale);
+    }
+
+    /**
+     * The disconnect screen of a login the backend refused, chosen by its reason: an area ban, the strict
+     * or the lockdown guard. A refusal without a reason (or for the VPN policy) shows the VPN screen. The
+     * screens name no address, no owner, no player and no area ban reason. An area ban also says how long
+     * it lasts: until its end when the backend gave one, permanent otherwise.
+     *
+     * @param expiresAt when the area ban ends, in epoch milliseconds; null for a permanent ban; not used by the other reasons
+     * @return the text, in the locale's translation or the English text where there is none
+     */
+    public @NotNull Component loginDenial(@NotNull Locale locale, @Nullable LoginDenialReason reason, @Nullable Long expiresAt) {
+        if (reason == null) {
+            return vpnDenial(locale);
+        }
+        return switch (reason) {
+            case AREA_BAN -> areaBanDenial(locale, expiresAt);
+            case GUARD_STRICT -> this.renderer.render(
+                    Component.translatable("guard.screen.strict").fallback(STRICT_TEXT), locale);
+            case GUARD_LOCKDOWN -> this.renderer.render(
+                    Component.translatable("guard.screen.lockdown").fallback(LOCKDOWN_TEXT), locale);
+            case VPN_POLICY -> vpnDenial(locale);
+        };
+    }
+
+    /**
      * The one-line reminder for a muted player who keeps chatting: the title, the remaining time (or
      * "permanent") and the Ban ID. The reason and the appeal hint are left to the full screen.
      */
@@ -268,22 +306,36 @@ public final class PunishmentScreens {
         if (punishment.reason() == null || punishment.reason().isBlank()) {
             return Component.translatable("punishment.reason.default");
         }
-        TagResolver duration = punishment.expiresAt() == null
-                ? TagResolver.empty()
-                : DurationTag.resolver(punishment.expiresAt(), this.clock.millis());
-        return MINI.deserialize(punishment.reason(), duration);
+        Component duration = punishment.expiresAt() == null
+                ? Component.translatable("duration.permanent")
+                : DurationTag.format(Duration.ofMillis(punishment.expiresAt() - this.clock.millis()));
+        return Reasons.text(punishment.reason(), duration);
     }
 
     private Component duration(PunishmentSyncMessage punishment, Locale locale) {
         if (punishment.expiresAt() == null) {
             return Component.translatable("punishment.screen.duration.permanent");
         }
-        Duration remaining = Duration.ofMillis(punishment.expiresAt() - this.clock.millis());
+        return remainingUntil(punishment.expiresAt(), locale);
+    }
+
+    /** The time left and the end date of a temporary punishment, in the same words and format for every screen. */
+    private Component remainingUntil(long expiresAt, Locale locale) {
+        Duration remaining = Duration.ofMillis(expiresAt - this.clock.millis());
         DateTimeFormatter format = new DateTimeFormatterBuilder()
                 .appendLocalized(FormatStyle.MEDIUM, FormatStyle.SHORT)
                 .toFormatter(locale);
-        String until = format.format(Instant.ofEpochMilli(punishment.expiresAt()).atZone(this.config.getZone()));
+        String until = format.format(Instant.ofEpochMilli(expiresAt).atZone(this.config.getZone()));
         return Component.translatable("punishment.screen.duration.temporary", DurationTag.remaining(remaining), Component.text(until));
+    }
+
+    /** The area ban denial: the text, then how long it lasts, the end date when the backend gave one. */
+    private Component areaBanDenial(Locale locale, @Nullable Long expiresAt) {
+        Component ends = expiresAt == null
+                ? Component.translatable("punishment.screen.duration.permanent")
+                : remainingUntil(expiresAt, locale);
+        Component blocked = Component.translatable("guard.screen.area_ban").fallback(AREA_BAN_TEXT);
+        return this.renderer.render(Component.join(JoinConfiguration.newlines(), blocked, ends), locale);
     }
 
     private @Nullable Component id(@Nullable String identifier) {

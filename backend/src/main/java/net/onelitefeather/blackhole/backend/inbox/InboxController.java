@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.inbox;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
 import io.micronaut.core.version.annotation.Version;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Controller;
@@ -21,8 +22,8 @@ public class InboxController implements InboxApi {
 
     @Override
     @Secured(Roles.VIEWER)
-    public HttpResponse<InboxDTO> summary() {
-        InboxDTO result = this.inboxService.summary();
+    public HttpResponse<InboxDTO> summary(Actor actor) {
+        InboxDTO result = this.inboxService.summary(actor.oid());
         return switch (result) {
             case InboxDTO.Response response -> HttpResponse.ok(response);
             case InboxDTO.Error error -> HttpResponse.<InboxDTO>status(error.kind().status()).body(error);

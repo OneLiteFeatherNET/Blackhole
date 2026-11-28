@@ -15,15 +15,40 @@ export type EvidenceStatus = Schemas['EvidenceStatus']
 export type DashboardSummary = Schemas['DashboardSummaryResponse']
 export type InboxSummary = Schemas['InboxResponse']
 export type InboxItem = Schemas['InboxItem']
+export type InboxChangedItem = Schemas['InboxChangedItem']
+export type InboxChangedSection = Schemas['InboxChangedSection']
 export type ResolvedPlayer = Schemas['PlayerResolveResponse']
 export type Punishment = Schemas['PunishEntryDTO']
 export type EloSectionScore = Schemas['EloSectionScore']
 export type EloProfile = Schemas['EloProfileResponse']
 export type EloEvent = Schemas['EloEventResponse']
 export type EvasionSightings = Schemas['EvasionSightingsResponse']
+export type SessionPage = Schemas['SessionPage']
+export type SessionResponse = Schemas['SessionResponse']
+export type NameHistoryPage = Schemas['NameHistoryPage']
+export type NameHistoryName = Schemas['NameHistoryName']
+export type NameHistoryOwner = Schemas['NameHistoryOwner']
 export type EvasionLinkedOwner = Schemas['EvasionLinkedOwner']
+/** A login address class of the VPN and hosting detection. */
+export type IntelClass = Schemas['IntelClass']
+/** What happens to a login of a class: ALLOW, FLAG or DENY. */
+export type IntelPolicy = Schemas['IntelPolicy']
+/** The stored policy of one class; `previous` is set when a change replaced a value. */
+export type IntelPolicyEntry = Schemas['PolicyResponse']
+/** An allow-list exemption; `expiresAt` is null for a permanent one. */
+export type AllowListEntry = Schemas['AllowListResponse']
+/** One page of exemptions; `hasMore` says whether a next page exists. */
+export type AllowListPage = Schemas['AllowListPage']
+/** One exemption as the list and the read-by-owner return it; `expired` is set once its end has passed. */
+export type AllowListItem = Schemas['AllowListEntry']
+/** One VPN or hosting login of a player; `allowListed` is whether the owner was exempt at that login. */
+export type IntelHit = Schemas['HitResponse']
 export type EloAdjustResult = Schemas['EloAdjustResponse']
 export type ApplyResult = Schemas['PunishmentApplyResponse']
+export type ExemptionStatus = Schemas['ExemptionStatusResponse']
+export type ExemptionReview = Schemas['ExemptionReview']
+export type ExemptionRank = 'ADMIN' | 'MODERATOR'
+export type ExemptionOverride = Schemas['ExemptionOverride']
 export type RevokeResult = Schemas['PunishmentRevokeResponse']
 export type Template = Schemas['PunishTemplateResponse']
 export type TemplateStep = Schemas['PunishTemplateStep']
@@ -32,7 +57,11 @@ export type Section = Schemas['SectionResponse']
 export type AppealConditions = Schemas['AppealConditions']
 /** The CloudNet tasks, groups and services the proxies report, merged; `available` is false when none is known. */
 export type CloudNetCatalogue = Schemas['CatalogueResponse']
+/** Each proxy's last report of whether SignedVelocity is loaded; `state` is UNKNOWN for a proxy that stopped reporting. */
+export type ProxyCapabilities = { proxies: Schemas['ProxyRelayEntry'][] }
 export type Report = Schemas['ReportDTO']
+/** An IP ban as the panel reads it: the clear address or range is shown to staff only, never in a link or a log line. */
+export type IpBan = Schemas['IpBanResponse']
 export type ClientRuleKind = Schemas['ClientRuleKind']
 export type ClientRuleAction = Schemas['ClientRuleAction']
 export type ClientRuleScope = Schemas['ClientRuleScope']
@@ -55,6 +84,21 @@ export type StaffLink = Schemas['StaffLinkItem']
 export type DiscordLinkCode = Schemas['DiscordLinkCodeResponse']
 export type DiscordLinkStatus = Schemas['DiscordLinkStatusResponse']
 export type DiscordLink = Schemas['DiscordLinkItem']
+/** One staff action in the audit log. Names its target by a case short id or a hashed owner, never a Ban ID, IP or raw UUID. */
+export type AuditEntry = Schemas['AuditItem']
+export type AuditPage = Schemas['AuditPage']
+/** The filters and cursor of `GET /admin/audit`; a filter that is not given is left out. */
+export interface AuditQuery {
+  /** 1 to 100, the backend default is 50. */
+  limit?: number
+  /** The `nextCursor` of the previous page. */
+  cursor?: string
+  /** A wire action name such as `punishment.revoke`. */
+  action?: string
+  actorOid?: string
+  /** A case short id or an owner hash. */
+  targetRef?: string
+}
 /** The summary of a vanilla ban-list import or preview. The endpoint is hidden from the published spec, so this is typed by hand. */
 export interface VanillaImportResult {
   dryRun: boolean
@@ -81,6 +125,8 @@ export interface VanillaImportRequest {
   dryRun: boolean
 }
 
+/** What a punishment row is: a real punishment, a kick, or a warning the player confirms once. */
+export type PunishmentKind = Schemas['PunishmentKind']
 export type KickScope = Schemas['KickScope']
 export type KickStatus = Schemas['KickStatus']
 export type KickAccepted = Schemas['KickAccepted']
@@ -93,6 +139,14 @@ export type ImportedPunishmentGroups =Schemas['ImportedPunishmentGroups']
 export type ImportedPunishmentGroup = Schemas['ImportedPunishmentGroup']
 export type ImportedPunishmentRetemplateResult = Schemas['ImportedPunishmentRetemplateResponse']
 
+/** A staff rollback: the preview counts of one staff member's (or unlinked in-game account's) punishments in a window. */
+export type RollbackPreviewRequest = Schemas['RollbackPreviewRequest']
+export type RollbackPreview = Schemas['RollbackPreviewResponse']
+export type RollbackExecuteRequest = Schemas['RollbackExecuteRequest']
+export type RollbackStarted = Schemas['RollbackStarted']
+export type RollbackProgress = Schemas['RollbackProgress']
+export type RollbackCancelled = Schemas['RollbackCancelled']
+
 /** A known staff principal (a person or an application) with the name kept for it. */
 export type StaffActor = Schemas['StaffActorItem']
 
@@ -101,6 +155,8 @@ export type ActivePunishmentPage = Schemas['ActivePunishmentPage']
 export type Case = Schemas['CaseResponse']
 export type CaseListItem = Schemas['CaseListItem']
 export type CaseListPage = Schemas['CaseListPage']
+export type CaseGroupItem = Schemas['CaseGroupItem']
+export type CaseGroupPage = Schemas['CaseGroupPage']
 export type CaseRelated = Schemas['CaseRelated']
 export type CaseStatus = Schemas['CaseStatus']
 export type CasePriority = Schemas['CasePriority']
@@ -109,6 +165,19 @@ export type CaseTimelinePage = Schemas['CaseTimelinePage']
 export type CaseUpdate = Omit<Schemas['CaseUpdateRequest'], 'clearAssignee' | 'assigneeOid'> & {
   /** The staff member to assign, or null to remove the assignee; absent leaves it alone. */
   assigneeOid?: string | null
+}
+export type CaseBulkOutcome = Schemas['CaseBulkOutcome']
+export type CaseBulkItem = Schemas['CaseBulkItem']
+export type CaseBulkResult = Schemas['CaseBulkResult']
+/** One shared change for many cases. Each case carries the version it was read at; the change is sent in chunks. */
+export interface CaseBulkChange {
+  cases: Array<{ punishmentIdentifier: string; expectedVersion: number }>
+  status?: CaseStatus
+  /** The staff member to assign, or null to remove the assignee; absent leaves it alone. */
+  assigneeOid?: string | null
+  priority?: CasePriority
+  addTags?: string[]
+  removeTags?: string[]
 }
 export type NoteRedactionReason = Schemas['NoteRedactionReason']
 export type ActorTrust = Schemas['ActorTrust']
@@ -125,6 +194,8 @@ export type MessageAuthorKind = Schemas['MessageAuthorKind']
 export type MessageChannel = Schemas['MessageChannel']
 export type CaseBanIdLeakResult = Schemas['CaseBanIdLeakResponse']
 export type CaseBanIdReissueResult = Schemas['CaseBanIdReissueResponse']
+/** The Discord ticket lock after a change: `freezeSource` is STAFF or LEAK while frozen, null when not. */
+export type StaffTicketState = Schemas['StaffTicketResponse']
 export type CaseProtocolText = Schemas['CaseProtocolText']
 /** A file staged for the next message of a case; its `attachmentId` goes into `attachmentIds`. */
 export type ChatAttachment = Schemas['ChatAttachmentStaged']
@@ -162,6 +233,10 @@ export interface TemplateDraft {
   section: string
   escalationGroup: string | null
   escalationWindow: string | null
+  /** ISO-8601; warnings older than it stop counting towards escalation. Null: the escalation window applies. */
+  warnWindow?: string | null
+  /** Shown on the public ban list for punishments from this template; only ADMIN may set it. */
+  publicReason?: string | null
   steps: TemplateStep[]
 }
 
@@ -223,6 +298,15 @@ export interface ApiError {
   status: number
   message: string
   kind: ErrorKind | 'FORBIDDEN' | 'NETWORK' | 'UNKNOWN'
+  /** The stable rule code the backend names with a refusal, such as IPBAN_PROTECTED, when it sends one. */
+  code?: string
+}
+
+/** What the create form sends; `expiresAt` is omitted for a permanent ban. */
+export interface IpBanDraft {
+  address: string
+  reason: string
+  expiresAt: number | null
 }
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError }
@@ -261,6 +345,8 @@ export interface CaseListQuery {
   assignee?: string
   tag?: string
   priority?: CasePriority
+  /** The full owner hash of one player: the list of that player's cases (the expansion of a group). */
+  owner?: string
   page?: number
   size?: number
 }
@@ -280,4 +366,23 @@ export interface ActivePunishmentQuery {
   direction?: Schemas['SortDirection']
   page?: number
   size?: number
+}
+
+/** The join guard levels, least to most strict. The backend sends them as plain strings. */
+export type GuardLevel = 'OFF' | 'STRICT' | 'LOCKDOWN'
+/** The manual level, the unattended (automatic) level and the level in force, which is the stricter of the two. */
+export type GuardState = Schemas['GuardStateResponse']
+/** The stored unattended settings and the next night window, as the backend answers them. */
+export type GuardSettings = Schemas['GuardSettingsResponse']
+/** The whole settings object an administrator saves. */
+export type GuardSettingsRequest = Schemas['GuardSettingsRequest']
+export type AreaBanKind = 'ASN' | 'COUNTRY'
+/** An autonomous system or country ban; `expiresAt` and `liftedAt` are null when they do not apply. */
+export type AreaBan = Schemas['AreaBanResponse']
+/** What the create form sends. A null duration is a permanent ban (ADMIN only). */
+export interface AreaBanDraft {
+  kind: AreaBanKind
+  value: string
+  reason: string
+  durationSeconds: number | null
 }

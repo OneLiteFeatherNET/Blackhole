@@ -23,11 +23,18 @@ public sealed interface PublicAppealDTO {
      *
      * @param statement         1 to 2000 characters, plain text, without a UUID, an IP address or a Ban ID
      * @param conditionsVersion the version of the appeal conditions the player confirmed; must be the current one, else 409 {@code CONDITIONS_CHANGED}
+     * @param altcha            the solved proof-of-work challenge for appeal filing, required while the challenge is enabled
      */
     @Schema(name = "PublicAppealRequest")
     @Serdeable
     @ReflectiveAccess
-    record FileRequest(@Nullable String statement, @Nullable Integer conditionsVersion) implements PublicAppealDTO {
+    record FileRequest(@Nullable String statement, @Nullable Integer conditionsVersion, @Nullable String altcha) implements PublicAppealDTO {
+
+        /** Never prints the solution. */
+        @Override
+        public String toString() {
+            return "FileRequest[statement=***, conditionsVersion=" + this.conditionsVersion + ", altcha=***]";
+        }
     }
 
     /**

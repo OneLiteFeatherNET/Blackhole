@@ -38,6 +38,8 @@ const KNOWN: Record<string, EventInfo> = {
   'punishment.lifted': { key: 'punishmentLifted', icon: 'undo' },
   'punishment.retemplated': { key: 'punishmentRetemplated', icon: 'label' },
   'punishment.expired': { key: 'punishmentExpired', icon: 'hourglass' },
+  'punishment.warned': { key: 'punishmentWarned', icon: 'warning' },
+  'punishment.acknowledged': { key: 'punishmentAcknowledged', icon: 'verified' },
   'evidence.attached': { key: 'evidenceAttached', icon: 'attach' },
   'evidence.lifted': { key: 'evidenceLifted', icon: 'attach' },
   'evidence.revoked': { key: 'evidenceRevoked', icon: 'attach' },
@@ -47,6 +49,7 @@ const KNOWN: Record<string, EventInfo> = {
   'case.assignee_changed': { key: 'assigneeChanged', icon: 'person' },
   'case.tags_changed': { key: 'tagsChanged', icon: 'label' },
   'case.priority_changed': { key: 'priorityChanged', icon: 'priority' },
+  'case.bulk_edited': { key: 'bulkEdited', icon: 'edit' },
   'note.added': { key: 'noteAdded', icon: 'note' },
   'note.edited': { key: 'noteEdited', icon: 'edit' },
   'note.redacted': { key: 'noteRedacted', icon: 'delete' },
@@ -63,6 +66,7 @@ const KNOWN: Record<string, EventInfo> = {
   'ticket.transcript_complete': { key: 'ticketTranscriptComplete', icon: 'verified' },
   'ticket.archived': { key: 'ticketArchived', icon: 'lock' },
   'ticket.channel_deleted': { key: 'ticketChannelDeleted', icon: 'delete' },
+  'ticket.frozen': { key: 'ticketFrozen', icon: 'lock' },
 }
 
 /** Unknown types (a newer backend, a reserved portal type) are shown generically, never dropped. */

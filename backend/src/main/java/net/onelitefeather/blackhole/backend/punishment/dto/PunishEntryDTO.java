@@ -71,6 +71,7 @@ public record PunishEntryDTO(
         @Nullable PunishmentKind kind,
         @Nullable String kickScope,
         @Nullable String kickTarget,
+        @Nullable Long acknowledgedAt,
         Map<String, Object> metaData
 ) implements Metadata, Expirable {
 
@@ -78,28 +79,28 @@ public record PunishEntryDTO(
     public PunishEntryDTO withEvidenceCount(long count) {
         return new PunishEntryDTO(this.identifier, this.shortId, this.source, this.recordedByOid, this.verified, this.actorOid, this.actorName, this.section, this.scope, this.permanent,
                 this.lifted, this.createdAt, this.escalationGroup, this.stepIndex, this.stepCount, this.eloCost,
-                this.template, count, this.kind, this.kickScope, this.kickTarget, this.metaData);
+                this.template, count, this.kind, this.kickScope, this.kickTarget, this.acknowledgedAt, this.metaData);
     }
 
     /** This entry attributed to the given verified principal, or to none ({@code null}), which marks it unverified. */
     public PunishEntryDTO withRecordedByOid(UUID recordedByOid) {
         return new PunishEntryDTO(this.identifier, this.shortId, this.source, recordedByOid, recordedByOid != null, this.actorOid, this.actorName, this.section,
                 this.scope, this.permanent, this.lifted, this.createdAt, this.escalationGroup, this.stepIndex, this.stepCount,
-                this.eloCost, this.template, this.evidenceCount, this.kind, this.kickScope, this.kickTarget, this.metaData);
+                this.eloCost, this.template, this.evidenceCount, this.kind, this.kickScope, this.kickTarget, this.acknowledgedAt, this.metaData);
     }
 
     /** This entry attributed to the staff member the guard found stored ({@code null} if none). */
     public PunishEntryDTO withActorOid(UUID actorOid) {
         return new PunishEntryDTO(this.identifier, this.shortId, this.source, this.recordedByOid, this.verified, actorOid, null,
                 this.section, this.scope, this.permanent, this.lifted, this.createdAt, this.escalationGroup, this.stepIndex,
-                this.stepCount, this.eloCost, this.template, this.evidenceCount, this.kind, this.kickScope, this.kickTarget, this.metaData);
+                this.stepCount, this.eloCost, this.template, this.evidenceCount, this.kind, this.kickScope, this.kickTarget, this.acknowledgedAt, this.metaData);
     }
 
     /** This entry with the display name of its {@code actorOid} filled in. */
     public PunishEntryDTO withActorName(String actorName) {
         return new PunishEntryDTO(this.identifier, this.shortId, this.source, this.recordedByOid, this.verified, this.actorOid, actorName,
                 this.section, this.scope, this.permanent, this.lifted, this.createdAt, this.escalationGroup, this.stepIndex,
-                this.stepCount, this.eloCost, this.template, this.evidenceCount, this.kind, this.kickScope, this.kickTarget, this.metaData);
+                this.stepCount, this.eloCost, this.template, this.evidenceCount, this.kind, this.kickScope, this.kickTarget, this.acknowledgedAt, this.metaData);
     }
 
     @Override

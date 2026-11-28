@@ -31,6 +31,26 @@ describe('discord tickets on the case', () => {
     expect(!result.ok && result.error.status).toBe(404)
   })
 
+  it('locks the appeal ticket of the case on the freeze route with the body frozen', async () => {
+    const { calls, api: client } = api([{ body: { frozen: true, freezeSource: 'STAFF' } }])
+
+    const result = await client.setStaffTicketFreeze('p-1', true)
+
+    expect(route(calls[0]!)).toBe('PUT /api/case/p-1/ticket/freeze')
+    expect(JSON.parse(String(calls[0]!.body))).toEqual({ frozen: true })
+    expect(result).toEqual({ ok: true, data: { frozen: true, freezeSource: 'STAFF' } })
+  })
+
+  it('reports a staff unlock refused for a leak freeze with the server text and status', async () => {
+    const { api: client } = api([{ status: 409, body: { errorMessage: 'the channel was locked by the leak check', kind: 'CONFLICT', code: 'FREEZE_BY_LEAK' } }])
+
+    const result = await client.setStaffTicketFreeze('p-1', false)
+
+    expect(result.ok).toBe(false)
+    expect(!result.ok && result.error.status).toBe(409)
+    expect(!result.ok && result.error.message).toBe('the channel was locked by the leak check')
+  })
+
   it('lists the stored protocols of the case', async () => {
     const version = { appealId: PARTICIPANT, version: 2, evidenceId: PARTICIPANT, current: true, entryCount: 4, sourceDigest: 'abc', createdAt: 1 }
     const { calls, api: client } = api([{ body: { items: [version] } }])

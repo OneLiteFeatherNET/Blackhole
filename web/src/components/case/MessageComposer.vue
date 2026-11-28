@@ -36,6 +36,8 @@ const props = defineProps<{
   cancellable?: boolean
   /** Stages one file with the server; without it the composer takes no files (an edit). */
   upload?: (file: File) => Promise<ApiResult<ChatAttachment>>
+  /** The reply composer of the thread: two rows, Enter sends and Shift+Enter adds a line. */
+  chat?: boolean
 }>()
 const emit = defineEmits<{ saved: []; cancel: [] }>()
 
@@ -161,7 +163,10 @@ async function submit(): Promise<void> {
 }
 
 function onKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+  if (event.key !== 'Enter') return
+  // Ctrl/Cmd+Enter sends in every composer; a plain Enter sends only in the chat, and never while an IME is composing.
+  const chatSend = props.chat === true && !event.shiftKey && !event.isComposing
+  if (event.ctrlKey || event.metaKey || chatSend) {
     event.preventDefault()
     void submit()
   }
@@ -187,7 +192,7 @@ function onKeydown(event: KeyboardEvent): void {
       <textarea
         :id="id"
         v-model="text"
-        rows="4"
+        :rows="props.chat ? 2 : 4"
         :disabled="saving"
         :aria-invalid="error ? 'true' : undefined"
         :aria-describedby="`${id}-meta`"
@@ -199,7 +204,7 @@ function onKeydown(event: KeyboardEvent): void {
       />
       <div :id="`${id}-meta`" class="flex flex-wrap items-center gap-2 text-body-small text-on-surface-variant">
         <span data-testid="message-counter" :class="length > MAX_CASE_MESSAGE_LENGTH ? 'text-error' : ''">{{ length }} / {{ MAX_CASE_MESSAGE_LENGTH }}</span>
-        <span>{{ t('case.conversation.hint') }}</span>
+        <span>{{ props.chat ? t('case.conversation.chatHint') : t('case.conversation.hint') }}</span>
       </div>
       <p data-testid="format-hint" class="text-body-small text-on-surface-variant">{{ t('case.conversation.formatHint') }}</p>
 

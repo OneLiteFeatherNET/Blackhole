@@ -1,0 +1,109 @@
+{{- if and .Values.backend.geoip.enabled .Values.backend.geoip.refresh.enabled }}
+{{- $g := .Values.backend.geoip }}
+{{- $r := $g.refresh }}
+{{- $d := dict "ctx" . "component" "geoip-refresh" "values" $r }}
+{{- $name := include "blackhole.fullname" $d }}
+{{- /*
+Monthly refresh of the offline player-intelligence databases (DB-IP Lite ASN and country, MMDB). The job writes
+the files the backend mounts read-only. Each file is downloaded under a .part name and renamed when complete, so
+the backend never reads a half-written file. DB-IP's free downloads need no account, so the job holds no secret.
+If the current month is not published yet, the previous month is tried. Runs as the same user as the backend.
+*/ -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "blackhole.labels" $d | nindent 4 }}
+spec:
+  schedule: {{ $r.schedule | quote }}
+  timeZone: {{ $r.timeZone | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            {{- include "blackhole.podLabels" $d | nindent 12 }}
+        spec:
+          serviceAccountName: {{ $name }}
+          restartPolicy: OnFailure
+          {{- include "blackhole.podDefaults" . | nindent 10 }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            fsGroup: {{ $g.fsGroup }}
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: geoip-refresh
+              image: {{ include "blackhole.image" (dict "ctx" . "image" $r.image) }}
+              imagePullPolicy: {{ $r.image.pullPolicy }}
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+                  dir="${GEOIP_DIR}"
+                  # The month before the given YYYY-MM, for the first days of a month before DB-IP publishes.
+                  prev_month() {
+                    y="$(date -u +%Y)"
+                    m="$(date -u +%m | sed 's/^0//')"
+                    if [ "${m}" -eq 1 ]; then
+                      echo "$((y - 1))-12"
+                    else
+                      printf '%s-%02d\n' "${y}" "$((m - 1))"
+                    fi
+                  }
+                  # fetch <dataset: asn|country> <file name in GEOIP_DIR>
+                  fetch() {
+                    for month in "$(date -u +%Y-%m)" "$(prev_month)"; do
+                      url="${GEOIP_BASE_URL}/dbip-$1-lite-${month}.mmdb.gz"
+                      if curl -fsSL --retry 3 --retry-delay 10 -o "${dir}/$2.gz.part" "${url}"; then
+                        gunzip -c "${dir}/$2.gz.part" >"${dir}/$2.part"
+                        rm -f "${dir}/$2.gz.part"
+                        mv -f "${dir}/$2.part" "${dir}/$2"
+                        echo "refreshed $2 from dbip-$1-lite-${month}"
+                        return 0
+                      fi
+                    done
+                    echo "no $1 file published for the current or the previous month" >&2
+                    return 1
+                  }
+                  fetch asn asn.mmdb
+                  fetch country country.mmdb
+              env:
+                - name: GEOIP_BASE_URL
+                  value: {{ $r.baseUrl | quote }}
+                - name: GEOIP_DIR
+                  value: {{ trimSuffix "/" $g.mountPath | quote }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                {{- toYaml $r.resources | nindent 16 }}
+              volumeMounts:
+                - name: geoip
+                  mountPath: {{ $g.mountPath }}
+          volumes:
+            - name: geoip
+              persistentVolumeClaim:
+                claimName: {{ $g.existingClaim }}
+{{- end }}

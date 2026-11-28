@@ -127,10 +127,12 @@ assert_eq "discord has no Service" "0" "$(y "${prod}" '[select(.kind == "Service
 
 # --- images ----------------------------------------------------------------------------------------------------------------
 img() { y "$1" "$(dep "$2") | .spec.template.spec.containers[0].image"; }
-assert_eq "backend image falls back to the appVersion" "harbor.onelitefeather.dev/onelitefeather/blackhole:1.0.0" "$(img "${prod}" t-backend)"
-assert_eq "web image" "harbor.onelitefeather.dev/onelitefeather/blackhole-web:1.0.0" "$(img "${prod}" t-web)"
-assert_eq "portal image" "harbor.onelitefeather.dev/onelitefeather/blackhole-portal:1.0.0" "$(img "${prod}" t-portal)"
-assert_eq "discord image" "harbor.onelitefeather.dev/onelitefeather/blackhole-discord:1.0.0" "$(img "${prod}" t-discord)"
+# The default image tag is the chart's appVersion, which release-please bumps; read it instead of hard-coding it.
+app_version="$(yq eval '.appVersion' "${CHART_DIR}/Chart.yaml")"
+assert_eq "backend image falls back to the appVersion" "harbor.onelitefeather.dev/onelitefeather/blackhole:${app_version}" "$(img "${prod}" t-backend)"
+assert_eq "web image" "harbor.onelitefeather.dev/onelitefeather/blackhole-web:${app_version}" "$(img "${prod}" t-web)"
+assert_eq "portal image" "harbor.onelitefeather.dev/onelitefeather/blackhole-portal:${app_version}" "$(img "${prod}" t-portal)"
+assert_eq "discord image" "harbor.onelitefeather.dev/onelitefeather/blackhole-discord:${app_version}" "$(img "${prod}" t-discord)"
 assert_eq "the global tag moves all four Blackhole images (dev backend)" "harbor.onelitefeather.dev/onelitefeather/blackhole:main-1790000000-abcdef1" "$(img "${dev}" t-backend)"
 assert_eq "the global tag moves all four Blackhole images (dev discord)" "harbor.onelitefeather.dev/onelitefeather/blackhole-discord:main-1790000000-abcdef1" "$(img "${dev}" t-discord)"
 assert_eq "ClamAV is pinned and ignores the global tag" "docker.io/clamav/clamav:1.5.4" "$(img "${prod}" t-clamav)"
@@ -168,6 +170,18 @@ dtok="$(pod_env "${prod}" t-discord DISCORD_TOKEN)"
 assert_eq "discord token comes from its Secret" "blackhole-discord" "$(yq eval '.valueFrom.secretKeyRef.name' - <<<"${dtok}")"
 dcs="$(pod_env "${prod}" t-discord BLACKHOLE_DISCORD_CLIENT_SECRET)"
 assert_eq "discord client secret comes from its Secret" "BLACKHOLE_DISCORD_CLIENT_SECRET" "$(yq eval '.valueFrom.secretKeyRef.key' - <<<"${dcs}")"
+# The staff audit webhook is a URL that is a secret: it is read from the discord Secret, never the ConfigMap.
+audit="$(pod_env "${prod}" t-discord DISCORD_AUDIT_WEBHOOK_URL)"
+assert_eq "audit webhook comes from the discord Secret" "blackhole-discord" "$(yq eval '.valueFrom.secretKeyRef.name' - <<<"${audit}")"
+assert_eq "audit webhook reads the default key" "DISCORD_AUDIT_WEBHOOK_URL" "$(yq eval '.valueFrom.secretKeyRef.key' - <<<"${audit}")"
+assert_eq "audit webhook is not in the ConfigMap" "null" "$(dc DISCORD_AUDIT_WEBHOOK_URL)"
+assert_eq "audit webhook reference is optional (an old Secret still starts the bot)" "true" "$(yq eval '.valueFrom.secretKeyRef.optional' - <<<"${audit}")"
+audit_off="${WORK_DIR}/audit-off.yaml"
+render_to prod-values.yaml "${audit_off}" --set discord.auditWebhookKey=
+assert_eq "no audit webhook entry when no key is named" "" "$(pod_env "${audit_off}" t-discord DISCORD_AUDIT_WEBHOOK_URL)"
+audit_key="${WORK_DIR}/audit-key.yaml"
+render_to prod-values.yaml "${audit_key}" --set discord.auditWebhookKey=staff-audit-hook
+assert_eq "audit webhook key is the one the values name" "staff-audit-hook" "$(yq eval '.valueFrom.secretKeyRef.key' - <<<"$(pod_env "${audit_key}" t-discord DISCORD_AUDIT_WEBHOOK_URL)")"
 assert_eq "the NATS credentials are mounted from the Secret" "blackhole-nats" "$(y "${prod}" "$(dep t-discord) | .spec.template.spec.volumes[] | select(.name == \"nats\") | .secret.secretName")"
 assert_eq "the backend mounts the NATS credentials too" "/etc/blackhole/nats" "$(y "${prod}" "$(dep t-backend) | .spec.template.spec.containers[0].volumeMounts[] | select(.name == \"nats\") | .mountPath")"
 

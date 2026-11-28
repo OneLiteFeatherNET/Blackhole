@@ -1,12 +1,21 @@
 package net.onelitefeather.blackhole.backend.clientrule;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import net.onelitefeather.blackhole.backend.audit.AuditPayloadGuard;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.cache.CacheKeys;
 import net.onelitefeather.blackhole.backend.cache.InMemorySharedCache;
 import net.onelitefeather.blackhole.backend.clientrule.dto.ClientRuleDTO;
+import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.response.ErrorKind;
+import net.onelitefeather.blackhole.backend.security.Actor;
+import net.onelitefeather.blackhole.backend.security.ActorKind;
 import net.onelitefeather.blackhole.backend.section.ServerTargetKind;
 import net.onelitefeather.blackhole.backend.support.FakeClientRuleStore;
+import net.onelitefeather.blackhole.backend.support.InMemoryStaffAuditStore;
+import net.onelitefeather.blackhole.backend.support.RecordingEventTransport;
 import net.onelitefeather.blackhole.backend.support.TestClock;
+
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -22,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ClientRuleServiceTest {
 
-    private static final UUID ADMIN = UUID.fromString("00000000-0000-0000-0000-0000000000a1");
+    private static final Actor ADMIN = new Actor(UUID.fromString("00000000-0000-0000-0000-0000000000a1"), "Admin", ActorKind.HUMAN, false, true);
 
     private final FakeClientRuleStore store = new FakeClientRuleStore();
     private final InMemorySharedCache sharedCache = new InMemorySharedCache();
@@ -40,8 +49,22 @@ class ClientRuleServiceTest {
             return store.templateKnown(templateKey);
         }
     };
+    private final InMemoryStaffAuditStore auditStore = new InMemoryStaffAuditStore();
     private final ClientRuleService service = new ClientRuleService(
-            store, references, new ClientRuleCache(sharedCache, Duration.ofMinutes(5)), notified::add, clock);
+            store, references, new ClientRuleCache(sharedCache, Duration.ofMinutes(5)), notified::add, clock,
+            new StaffAuditRecorder(this.auditStore, new DomainEventPublisher(new RecordingEventTransport(), clock),
+                    new AuditPayloadGuard(), clock, new SimpleMeterRegistry()));
+
+    @Test
+    void aCreatedRuleRecordsOneClientRuleCreateEntryNamedByKey() {
+        service.create(channelRule("meteor"), ADMIN);
+
+        assertEquals(1, this.auditStore.rows().size(), "exactly one audit entry for the create");
+        var row = this.auditStore.rows().getFirst();
+        assertEquals("client-rule.create", row.action());
+        assertEquals("CLIENT_RULE", row.targetKind());
+        assertEquals("meteor", row.targetRef());
+    }
 
     private static ClientRuleDTO.CreateRequest channelRule(String key) {
         return new ClientRuleDTO.CreateRequest(key, "Meteor client", ClientRuleKind.CHANNEL, List.of("Meteor-Client:*"),
@@ -81,7 +104,7 @@ class ClientRuleServiceTest {
         service.create(channelRule("meteor"), ADMIN);
 
         ClientRuleStore.Stored stored = store.find("meteor").orElseThrow();
-        assertEquals(ADMIN, stored.recordedByOid(), "verified actor");
+        assertEquals(ADMIN.oid(), stored.recordedByOid(), "verified actor");
         assertEquals(clock.millis(), stored.createdAt());
     }
 
@@ -205,11 +228,11 @@ class ClientRuleServiceTest {
         service.create(channelRule("meteor"), ADMIN);
         notified.clear();
 
-        assertInstanceOf(ClientRuleDTO.Response.class, service.delete("meteor"));
+        assertInstanceOf(ClientRuleDTO.Response.class, service.delete("meteor", ADMIN));
 
         assertTrue(store.all().isEmpty());
         assertEquals(List.of("meteor"), notified);
-        expectError(service.delete("meteor"), ErrorKind.NOT_FOUND);
+        expectError(service.delete("meteor", ADMIN), ErrorKind.NOT_FOUND);
     }
 
     @Test

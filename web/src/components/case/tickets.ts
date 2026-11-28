@@ -26,6 +26,34 @@ export interface TicketView {
   protocolMissing: boolean
 }
 
+/** A lock as the case knows it: frozen, and by whom (`STAFF` or the leak check). */
+export interface LockState {
+  frozen: boolean
+  source: 'STAFF' | 'LEAK' | null
+}
+
+export function lockSource(value: unknown): 'STAFF' | 'LEAK' | null {
+  return value === 'STAFF' || value === 'LEAK' ? value : null
+}
+
+/**
+ * The lock of the ticket as the case knows it: the newest `ticket.frozen` event of that ticket, else the state the case itself
+ * carried when it was loaded (a lock made in Discord before this page loaded has no event). Null when neither says.
+ */
+export function knownLockOf(
+  events: CaseTimelineItem[],
+  caseTicket: { frozen: boolean; freezeSource?: string | null } | null | undefined,
+  ticketId: string | null,
+): LockState | null {
+  const newest = [...events]
+    .sort((a, b) => a.seq - b.seq)
+    .filter((event) => event.type === 'ticket.frozen' && ticketId !== null && text(field(event, 'ticketId')) === ticketId)
+    .pop()
+  if (newest) return { frozen: field(newest, 'frozen') === true, source: lockSource(field(newest, 'freezeSource')) }
+  if (caseTicket) return { frozen: caseTicket.frozen, source: lockSource(caseTicket.freezeSource) }
+  return null
+}
+
 const OWN_TYPES = new Set(['ticket.transcript_complete', 'ticket.archived', 'ticket.channel_deleted'])
 
 /** The tickets of a case, oldest first. Events of a ticket whose `ticket.opened` was not loaded are ignored. */

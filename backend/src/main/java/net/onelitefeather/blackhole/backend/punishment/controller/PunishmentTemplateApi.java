@@ -9,11 +9,13 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishTemplateDTO;
+import net.onelitefeather.blackhole.backend.security.Actor;
 
 import java.util.UUID;
 
@@ -32,7 +34,7 @@ public interface PunishmentTemplateApi {
     @ApiResponse(responseCode = "409", description = "A template with this key already exists",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishTemplateDTO.Error.class)))
     @Post("/")
-    HttpResponse<PunishTemplateDTO> addTemplate(@Valid @Body PunishTemplateDTO.CreateRequest template);
+    HttpResponse<PunishTemplateDTO> addTemplate(@Valid @Body PunishTemplateDTO.CreateRequest template, @Parameter(hidden = true) Actor actor);
 
     @Operation(
             summary = "Update punishment template",
@@ -49,7 +51,7 @@ public interface PunishmentTemplateApi {
     @ApiResponse(responseCode = "409", description = "Another template already uses this key",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishTemplateDTO.Error.class)))
     @Post(value = "/update")
-    HttpResponse<PunishTemplateDTO> updateTemplate(@Valid @Body PunishTemplateDTO.UpdateRequest template);
+    HttpResponse<PunishTemplateDTO> updateTemplate(@Valid @Body PunishTemplateDTO.UpdateRequest template, @Parameter(hidden = true) Actor actor);
 
     @Operation(
             summary = "Delete punishment template",
@@ -64,7 +66,7 @@ public interface PunishmentTemplateApi {
     @ApiResponse(responseCode = "409", description = "At least one punishment still references this template",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = PunishTemplateDTO.Error.class)))
     @Delete(value = "/delete/{identifier}")
-    HttpResponse<PunishTemplateDTO> removeTemplate(@PathVariable UUID identifier);
+    HttpResponse<PunishTemplateDTO> removeTemplate(@PathVariable UUID identifier, @Parameter(hidden = true) Actor actor);
 
     @Operation(
             summary = "Get all punishment templates",

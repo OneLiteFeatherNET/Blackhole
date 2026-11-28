@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.appeal;
 
+import net.onelitefeather.blackhole.backend.security.StaffDelegation;
+
 /**
  * The outcome of {@code AppealDecisionService.reviewAppeal} - every rejection reason the review
  * endpoint can hit, plus the decided appeal on success, so {@code AppealController} only has to
@@ -24,6 +26,10 @@ public record AppealReviewResult(Kind kind, String message, AppealEntity appeal)
         PUNISHMENT_NOT_ACTIVE,
         INVALID_PLAYER_MESSAGE,
         STAFF_PROFILE_REQUIRED,
+        /** A delegation the bot may not make (a malformed onBehalfOf): 400. */
+        ON_BEHALF_OF_REJECTED,
+        /** A delegation the staff member may not be acted for (no live link, stale or no moderator role): 403. */
+        DELEGATION_FORBIDDEN,
         DECIDED
     }
 
@@ -67,6 +73,12 @@ public record AppealReviewResult(Kind kind, String message, AppealEntity appeal)
 
     public static AppealReviewResult staffProfileRequired() {
         return new AppealReviewResult(Kind.STAFF_PROFILE_REQUIRED, "set your display name before a decision reaches the player", null);
+    }
+
+    /** The refusal of a Discord delegation, mapped to 400 or 403 by its reason. */
+    public static AppealReviewResult delegationRefused(StaffDelegation.Outcome.Refused refused) {
+        Kind kind = refused.reason() == StaffDelegation.Reason.NOT_DISCORD ? Kind.ON_BEHALF_OF_REJECTED : Kind.DELEGATION_FORBIDDEN;
+        return new AppealReviewResult(kind, refused.message(), null);
     }
 
     public static AppealReviewResult invalidPlayerMessage(String message) {

@@ -9,6 +9,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -71,6 +72,57 @@ class BotConfigTest {
 
         assertTrue(problems.stream().anyMatch(p -> p.startsWith("DISCORD_GUILD_ID")), "guild id: " + problems);
         assertTrue(problems.stream().anyMatch(p -> p.startsWith("BLACKHOLE_BACKEND_URL")), "backend url: " + problems);
+    }
+
+    @Test
+    void aValidAuditWebhookIsReadButNeverPrinted() throws Exception {
+        Map<String, String> env = complete();
+        env.put("DISCORD_AUDIT_WEBHOOK_URL", "https://discord.com/api/webhooks/123456789012345678/AUDIT-TOKEN-9");
+
+        BotConfig config = BotConfig.fromEnvironment(env::get);
+
+        assertEquals("https://discord.com/api/webhooks/123456789012345678/AUDIT-TOKEN-9", config.audit().webhookUrl(), "the webhook is set");
+        assertFalse(config.toString().contains("AUDIT-TOKEN-9"), "the token is not printed by the configuration");
+    }
+
+    @Test
+    void anUnsetAuditWebhookSwitchesTheAuditOff() throws Exception {
+        BotConfig config = BotConfig.fromEnvironment(complete()::get);
+
+        assertNull(config.audit().webhookUrl(), "no webhook, no audit posts");
+    }
+
+    @Test
+    void theAuditDeliveryLimitDefaultsToFiftyAndCanBeSet() throws Exception {
+        assertEquals(50, BotConfig.fromEnvironment(complete()::get).audit().maxDeliver(), "default");
+
+        Map<String, String> env = complete();
+        env.put("DISCORD_AUDIT_MAX_DELIVER", "7");
+
+        assertEquals(7, BotConfig.fromEnvironment(env::get).audit().maxDeliver(), "set");
+    }
+
+    @Test
+    void anAuditDeliveryLimitBelowOneOrNotANumberIsRefused() {
+        for (String value : List.of("0", "many")) {
+            Map<String, String> env = complete();
+            env.put("DISCORD_AUDIT_MAX_DELIVER", value);
+
+            List<String> problems = problems(env);
+
+            assertTrue(problems.stream().anyMatch(p -> p.startsWith("DISCORD_AUDIT_MAX_DELIVER")), value + " is named: " + problems);
+        }
+    }
+
+    @Test
+    void aMalformedAuditWebhookStopsTheStartAndTheUrlIsNotPrinted() {
+        Map<String, String> env = complete();
+        env.put("DISCORD_AUDIT_WEBHOOK_URL", "http://example.test/hook-SECRET-7");
+
+        BotConfig.ConfigException thrown = assertThrows(BotConfig.ConfigException.class, () -> BotConfig.fromEnvironment(env::get));
+
+        assertTrue(thrown.getMessage().contains("DISCORD_AUDIT_WEBHOOK_URL"), "the variable is named: " + thrown.getMessage());
+        assertFalse(thrown.getMessage().contains("example.test") || thrown.getMessage().contains("SECRET-7"), "the value is not printed");
     }
 
     @Test

@@ -23,5 +23,9 @@ An ACTIONED report with a template costs the reported player only the template's
 cost of a temporary punishment; a granted appeal that fully lifts it does (`APPEAL_REFUND`), and lifting
 a permanent one resets the score to the pardon score (`PARDON_RESET`).
 
-The built-in `ToxicityScorer` is a placeholder keyword matcher, explicitly meant to be swapped for a
-real classifier later - don't harden or extend its keyword list as if it were production moderation logic.
+The default `ToxicityScorer` is `TermListToxicityScorer`: it normalises the message (`elo/toxicity`),
+matches the configured word lists per category (`blackhole.elo.chat.toxicity.terms.*`) on word
+boundaries, drops allow-listed phrases, and scores the highest matched category weight. The word lists
+are configuration (env-var overridable), not code; the repo ships them empty. Mode
+`blackhole.elo.chat.toxicity.mode` is `OFF` (scorer not called), `SHADOW` (metric and log only, no ELO
+change) or `ENFORCE`. A scorer failure is fail-open: no delta, no flag, the request still answers.

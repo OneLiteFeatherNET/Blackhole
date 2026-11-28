@@ -38,6 +38,7 @@ secretKeyRef entries in the Deployment.
       "NATS_STREAM_REPLICAS" .Values.nats.stream.replicas
       "NATS_EVENTS_MAX_AGE" .Values.nats.stream.maxAge
       "NATS_EVENTS_MAX_BYTES" .Values.nats.stream.maxBytes
+      "BLACKHOLE_ANALYTICS_REFRESH_INTERVAL" .Values.analytics.refreshInterval
 -}}
 {{- if $v.evidence.scan.enabled }}
 {{- $_ := set $c "BLACKHOLE_EVIDENCE_SCAN_CLAMD_HOST" (include "blackhole.clamdHost" .) }}
@@ -48,6 +49,21 @@ secretKeyRef entries in the Deployment.
 {{- $_ := set $c "OTEL_TRACES_EXPORTER" "otlp" }}
 {{- $_ := set $c "OTEL_EXPORTER_OTLP_ENDPOINT" $v.tracing.endpoint }}
 {{- $_ := set $c "OTEL_SERVICE_NAME" $v.tracing.serviceName }}
+{{- end }}
+{{- if $v.geoip.enabled }}
+{{- $dir := trimSuffix "/" $v.geoip.mountPath }}
+{{- $_ := set $c "BLACKHOLE_INTEL_GEOIP_ASN_PATH" (printf "%s/asn.mmdb" $dir) }}
+{{- $_ := set $c "BLACKHOLE_INTEL_GEOIP_CITY_PATH" (printf "%s/country.mmdb" $dir) }}
+{{- end }}
+{{- if .Values.banList.clients }}
+{{- $_ := set $c "BLACKHOLE_BAN_LIST_CLIENTS" (join "," .Values.banList.clients) }}
+{{- $_ := set $c "BLACKHOLE_BAN_LIST_SECRETS_DIR" .Values.banList.mountPath }}
+{{- $_ := set $c "BLACKHOLE_BAN_LIST_TRUSTED_INGRESS" .Values.banList.trustedIngress }}
+{{- end }}
+{{- if .Values.firewallFeed.clients }}
+{{- $_ := set $c "BLACKHOLE_FIREWALL_FEED_CLIENTS" (join "," .Values.firewallFeed.clients) }}
+{{- $_ := set $c "BLACKHOLE_FIREWALL_FEED_SECRETS_DIR" .Values.firewallFeed.mountPath }}
+{{- $_ := set $c "BLACKHOLE_FIREWALL_FEED_ALLOWED_SOURCES" .Values.firewallFeed.allowedSources }}
 {{- end }}
 {{- range $key, $value := $v.config }}
 {{- $_ := set $c $key $value }}

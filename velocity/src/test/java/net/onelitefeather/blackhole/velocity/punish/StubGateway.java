@@ -2,6 +2,10 @@ package net.onelitefeather.blackhole.velocity.punish;
 
 import net.onelitefeather.blackhole.client.invoker.ApiException;
 import net.onelitefeather.blackhole.client.model.EloProfileResponse;
+import net.onelitefeather.blackhole.client.model.NameHistoryOwner;
+import net.onelitefeather.blackhole.client.model.NameHistoryPage;
+import net.onelitefeather.blackhole.client.model.IntelPolicy;
+import net.onelitefeather.blackhole.client.model.LoginCheckResponse;
 import net.onelitefeather.blackhole.client.model.PunishProfileDTO;
 import net.onelitefeather.blackhole.client.model.PunishTemplateResponse;
 import net.onelitefeather.blackhole.client.model.PunishmentApplyResponse;
@@ -9,6 +13,7 @@ import net.onelitefeather.blackhole.client.model.PunishmentRevokeResponse;
 import net.onelitefeather.blackhole.client.model.ReportCategory;
 import net.onelitefeather.blackhole.client.model.ReportDTO;
 import net.onelitefeather.blackhole.client.model.ReportFeedbackResponse;
+import net.onelitefeather.blackhole.client.model.WarningResponse;
 import net.onelitefeather.blackhole.client.model.DiscordLinkCodeResponse;
 import net.onelitefeather.blackhole.client.model.StaffLinkConfirmResponse;
 import net.onelitefeather.blackhole.client.model.StaffLinkLookupResponse;
@@ -23,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * A backend the test controls: what it answers is set per test, what was asked is recorded.
  */
-final class StubGateway implements BackendGateway {
+public final class StubGateway implements BackendGateway {
 
     List<PunishTemplateResponse> templates = new ArrayList<>();
     ApiException templatesFailure;
@@ -41,10 +46,31 @@ final class StubGateway implements BackendGateway {
     ApiException confirmFailure;
     StaffLinkLookupResponse lookupResponse = new StaffLinkLookupResponse().linked(false);
     ApiException lookupFailure;
+    /** A relay state report as the backend received it. */
+    record RelayReport(String proxyId, boolean present, String version) {
+    }
+
+    /** The relay reports the backend accepted, in order. */
+    final List<RelayReport> relayReports = new ArrayList<>();
+    /** What the next relay report fails with, null for success. */
+    ApiException relayReportFailure;
     /** The player and code of each confirm call. */
     final List<String> confirmed = new ArrayList<>();
 
+    /** A login check as the backend received it. */
+    public record LoginCheck(String owner, String ip) {
+    }
+
+    /** The login checks the backend received, in order. */
+    public final List<LoginCheck> loginChecks = new ArrayList<>();
+    /** What the login check answers; a future that never completes models a backend that does not answer. */
+    public CompletableFuture<LoginCheckResponse> loginCheckAnswer = CompletableFuture.completedFuture(new LoginCheckResponse().verdict(IntelPolicy.ALLOW));
+
     final List<String> applied = new ArrayList<>();
+    /** The player UUID each apply call carried, null where unknown. */
+    final List<UUID> appliedPlayers = new ArrayList<>();
+    /** The warning-only flag of each apply call, in order. */
+    final List<Boolean> warningOnlyFlags = new ArrayList<>();
     final List<String> revoked = new ArrayList<>();
     /** The correlation id each apply call carried, null where none. */
     final List<String> appliedCorrelationIds = new ArrayList<>();
@@ -89,6 +115,21 @@ final class StubGateway implements BackendGateway {
     ReportDTO lookedUpReport;
     ApiException lookupReportFailure;
     final List<UUID> lookedUp = new ArrayList<>();
+
+    @Override
+    public Optional<TargetResolver.Known> resolvePlayer(String name) {
+        return Optional.empty();
+    }
+
+    @Override
+    public NameHistoryPage nameHistory(String owner, int size) {
+        return new NameHistoryPage();
+    }
+
+    @Override
+    public List<NameHistoryOwner> nameOwners(String name) {
+        return List.of();
+    }
 
     @Override
     public ReportDTO report(UUID identifier) throws ApiException {
@@ -145,8 +186,10 @@ final class StubGateway implements BackendGateway {
     }
 
     @Override
-    public PunishmentApplyResponse apply(String owner, String templateKey, UUID source, String evidenceCorrelationId) throws ApiException {
+    public PunishmentApplyResponse apply(String owner, UUID playerUuid, String templateKey, UUID source, String evidenceCorrelationId, boolean warningOnly) throws ApiException {
+        this.appliedPlayers.add(playerUuid);
         this.applied.add(templateKey);
+        this.warningOnlyFlags.add(warningOnly);
         this.appliedCorrelationIds.add(evidenceCorrelationId);
         this.calls.add("apply");
         if (this.applyFailure != null) {
@@ -229,6 +272,27 @@ final class StubGateway implements BackendGateway {
     }
 
     @Override
+    public CompletableFuture<LoginCheckResponse> loginCheck(String owner, String ip) {
+        this.loginChecks.add(new LoginCheck(owner, ip));
+        return this.loginCheckAnswer;
+    }
+
+    @Override
+    public WarningResponse warning(String id) {
+        throw new UnsupportedOperationException("warning");
+    }
+
+    @Override
+    public List<WarningResponse> pendingWarnings(String owner) {
+        throw new UnsupportedOperationException("pendingWarnings");
+    }
+
+    @Override
+    public void acknowledgeWarning(String id, String owner) {
+        throw new UnsupportedOperationException("acknowledgeWarning");
+    }
+
+    @Override
     public net.onelitefeather.blackhole.client.model.KickAccepted kick(String idempotencyKey, String owner,
             net.onelitefeather.blackhole.client.model.KickScope scope, String target, String reason) {
         throw new UnsupportedOperationException("kick");
@@ -248,6 +312,14 @@ final class StubGateway implements BackendGateway {
     @Override
     public void acknowledgeKick(String id, String proxyId, boolean found, boolean moved) {
         throw new UnsupportedOperationException("acknowledgeKick");
+    }
+
+    @Override
+    public void reportProxyCapabilities(String proxyId, boolean present, String version) throws ApiException {
+        if (this.relayReportFailure != null) {
+            throw this.relayReportFailure;
+        }
+        this.relayReports.add(new RelayReport(proxyId, present, version));
     }
 
     static PunishTemplateResponse template(String key, String section) {

@@ -1,13 +1,15 @@
 <script setup lang="ts">
 // The page template of the panel: breadcrumbs, the title, an optional description, the primary action, the
 // filter toolbar, the content and an optional aside. The title is the page's only level-one heading. The
-// aside sits to the right of the content from 1024 px; below that it follows the content.
+// aside sits to the right of the content from 1024 px; below that it follows the content. An entity page may
+// replace the whole heading block with its own header (`header` slot, e.g. EntityHeader, which has the h1).
 defineProps<{ title: string; description?: string }>()
 </script>
 
 <template>
   <div class="mx-auto flex w-full max-w-6xl flex-col gap-4">
-    <header class="flex flex-col gap-2">
+    <slot v-if="$slots.header" name="header" />
+    <header v-else class="flex flex-col gap-2">
       <slot name="breadcrumbs" />
       <div class="flex flex-wrap items-start gap-3">
         <div class="min-w-0 flex-1">

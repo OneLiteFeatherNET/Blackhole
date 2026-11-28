@@ -22,6 +22,8 @@ public final class Subjects {
     public static final String PUNISHMENT_KICK = PREFIX + "punishment.kick";
     /** Everybody is to be taken off a server or section. */
     public static final String KICK_MASS = PREFIX + "kick.mass";
+    /** A player was warned. Matched by the punishment wildcard; a warning never touches the punishment cache. */
+    public static final String PUNISHMENT_WARNED = PREFIX + "punishment.warned";
 
     /** The subscriptions: one wildcard for the punishment events (kicks included), the others singly. */
     public static final List<String> SUBSCRIPTIONS = List.of(

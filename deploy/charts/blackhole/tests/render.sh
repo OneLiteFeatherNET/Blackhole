@@ -44,7 +44,7 @@ expect_render_failure "an enabled ingress without a host" "/web/ingress/host" pr
 expect_render_failure "an enabled service monitor without credentials" "/backend/metrics/serviceMonitor/oauth2/existingSecret" prod-values.yaml --set backend.metrics.serviceMonitor.oauth2.existingSecret=
 # A disabled component does not need its values.
 if render - --set backend.enabled=false --set web.enabled=false --set portal.enabled=false \
-  --set discord.enabled=false --set clamav.enabled=false >/dev/null 2>&1; then pass; else fail "everything disabled must render"; fi
+  --set discord.enabled=false --set clamav.enabled=false --set securityTxt.contact= >/dev/null 2>&1; then pass; else fail "everything disabled must render"; fi
 
 # --- the evidence scan needs a scanner --------------------------------------------------------------------
 expect_render_failure "scan enabled without a scanner" "/clamav" prod-values.yaml \
@@ -64,6 +64,10 @@ fi
 expect_render_failure "a literal Ban ID key in env" "BLACKHOLE_BANID_KEY" prod-values.yaml --set backend.env.BLACKHOLE_BANID_KEY=abc
 expect_render_failure "a literal password in config" "JDBC_PASSWORD" prod-values.yaml --set backend.config.JDBC_PASSWORD=abc
 expect_render_failure "a literal discord token in env" "DISCORD_TOKEN" prod-values.yaml --set discord.env.DISCORD_TOKEN=abc
+expect_render_failure "a literal audit webhook in env" "DISCORD_AUDIT_WEBHOOK_URL" prod-values.yaml --set discord.env.DISCORD_AUDIT_WEBHOOK_URL=https://discord.com/api/webhooks/1/abc
+expect_render_failure "a literal audit webhook in config" "DISCORD_AUDIT_WEBHOOK_URL" prod-values.yaml --set discord.config.DISCORD_AUDIT_WEBHOOK_URL=https://discord.com/api/webhooks/1/abc
+# No key set: the audit is off in the bot, so the chart renders without the webhook reference.
+if render prod-values.yaml --set discord.auditWebhookKey= >/dev/null 2>&1; then pass; else fail "a discord without an audit key must render"; fi
 expect_render_failure "a RabbitMQ setting (the event bus is NATS)" "RABBITMQ_HOST" prod-values.yaml --set backend.env.RABBITMQ_HOST=mq
 expect_render_failure "insecure issuers" "/auth/allowInsecureIssuer" prod-values.yaml --set auth.allowInsecureIssuer=true
 

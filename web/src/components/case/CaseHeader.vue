@@ -13,7 +13,6 @@ import MdButton from '../md/MdButton.vue'
 import MdChip from '../md/MdChip.vue'
 import MdSelect from '../md/MdSelect.vue'
 import MdTextField from '../md/MdTextField.vue'
-import StatusPill from '../StatusPill.vue'
 
 const NONE = '__none__'
 const STATUSES: CaseStatus[] = ['OPEN', 'IN_REVIEW', 'WAITING', 'CLOSED']
@@ -49,8 +48,6 @@ const assigneeOptions = computed(() => {
   if (current && current !== me?.oid) options.push({ value: current, label: props.kase.assigneeName ?? `${current.slice(0, 8)}…` })
   return options
 })
-
-const stateTone = computed(() => (props.kase.punishmentState === 'ACTIVE' ? 'error' : 'neutral'))
 
 const facts = computed(() => [
   { term: t('case.header.player'), value: `${props.kase.ownerPrefix}…`, testid: 'player-prefix' },
@@ -112,11 +109,6 @@ const removeTag = (tag: string) => apply({ tags: props.kase.tags.filter((existin
 
 <template>
   <section :aria-label="t('case.header.title')" class="flex flex-col gap-4 rounded-md-lg bg-surface-container p-4" data-testid="case-header">
-    <div class="flex flex-wrap items-center gap-2">
-      <StatusPill :label="t(`case.state.${kase.punishmentState}`)" :tone="stateTone" data-testid="punishment-state" />
-      <StatusPill v-if="kase.permanent" :label="t('player.permanent')" tone="error" />
-    </div>
-
     <DefinitionList :items="facts" />
 
     <p v-if="!editable" class="text-body-medium text-on-surface-variant" data-testid="read-only">{{ t('case.header.readOnly') }}</p>

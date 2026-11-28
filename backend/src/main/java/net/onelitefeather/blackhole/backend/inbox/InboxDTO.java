@@ -55,8 +55,38 @@ public sealed interface InboxDTO {
             @NonNull @Schema(description = "Appeal chats whose last visible message is from the player") Section needsAnswer,
             @NonNull @Schema(description = "Pending appeals without a decision") Section openAppeals,
             @NonNull @Schema(description = "Reports that are still open") Section newReports,
-            @NonNull @Schema(description = "Open cases without an assignee") Section unassignedCases
+            @NonNull @Schema(description = "Open cases without an assignee") Section unassignedCases,
+            @NonNull @Schema(description = "Cases and appeals whose latest change in the window came from another verified staff member")
+            ChangedSection changedByOthers
     ) implements InboxDTO {
+    }
+
+    /**
+     * One case or appeal whose latest change came from another staff member. {@code id} is the case short reference, or the
+     * appeal identifier for an appeal row. The name is the staff display name, {@code null} once anonymized. No staff object id,
+     * no note or message text.
+     *
+     * @param at epoch millis of the latest event
+     */
+    @Schema(name = "InboxChangedItem", description = "A case or appeal changed last by another staff member")
+    @Serdeable
+    @ReflectiveAccess
+    record ChangedItem(
+            @NonNull InboxChangeKind kind,
+            @NonNull String id,
+            @Nullable @Schema(description = "Short reference of the punishment") String reference,
+            @NonNull InboxChange change,
+            @Nullable @Schema(description = "Staff display name, null once anonymized") String byName,
+            long at
+    ) {
+    }
+
+    @Schema(name = "InboxChangedSection", description = "Changes by other staff in the window: the full count and at most ten items")
+    @JsonInclude(JsonInclude.Include.ALWAYS)
+    @Serdeable
+    @ReflectiveAccess
+    record ChangedSection(@Schema(description = "How many changes the window holds, not capped") long count,
+                          @NonNull List<ChangedItem> items) {
     }
 
     @Schema(name = "InboxError", description = "The inbox could not be read")

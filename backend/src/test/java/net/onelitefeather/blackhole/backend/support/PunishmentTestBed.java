@@ -2,6 +2,8 @@ package net.onelitefeather.blackhole.backend.support;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import net.onelitefeather.blackhole.backend.audit.AuditPayloadGuard;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.events.DomainEventPublisher;
 import net.onelitefeather.blackhole.backend.kick.KickDeadline;
 import net.onelitefeather.blackhole.backend.kick.KickEventPublisher;
@@ -22,6 +24,8 @@ import net.onelitefeather.blackhole.backend.punishment.TemplateStep;
 import net.onelitefeather.blackhole.backend.punishment.service.PunishmentApplicationService;
 import net.onelitefeather.blackhole.backend.punishment.service.PunishmentTemplateService;
 import net.onelitefeather.blackhole.backend.section.EnforcementKind;
+import net.onelitefeather.blackhole.backend.warning.WarningEventPublisher;
+import net.onelitefeather.blackhole.backend.warning.service.WarningService;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -46,10 +50,21 @@ public final class PunishmentTestBed {
     public final EloTestBed eloBed = new EloTestBed();
     public final InMemoryRepository<PunishmentRepository, PunishmentEntity, String> punishments =
             InMemoryRepository.<PunishmentRepository, PunishmentEntity, String>of(PunishmentRepository.class, PunishmentEntity::getIdentifier)
+                    .finder("findByOwner", args -> this.punishments.all().stream()
+                            .filter(p -> args[0].equals(p.getOwner())).toList())
                     .finder("countByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals", args -> this.punishments.all().stream()
                             .filter(p -> args[0].equals(p.getOwner()) && args[1].equals(p.getEscalationGroup()))
                             .filter(p -> !p.isLifted() && p.getCreatedAt() >= (Long) args[2])
                             .count())
+                    .finder("countWarningsByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals", args -> this.punishments.all().stream()
+                            .filter(p -> args[0].equals(p.getOwner()) && args[1].equals(p.getEscalationGroup()))
+                            .filter(p -> !p.isLifted() && p.isWarning() && p.getCreatedAt() >= (Long) args[2])
+                            .count())
+                    .finder("findPendingWarnings", args -> this.punishments.all().stream()
+                            .filter(p -> args[0].equals(p.getOwner()) && p.isWarning() && p.getAcknowledgedAt() == null)
+                            .sorted(java.util.Comparator.comparing(PunishmentEntity::getCreatedAt))
+                            .limit(((io.micronaut.data.model.Pageable) args[1]).getSize())
+                            .toList())
                     .finder("findByShortId", args -> this.punishments.all().stream()
                             .filter(p -> args[0].equals(p.getShortId()))
                             .toList())
@@ -75,7 +90,11 @@ public final class PunishmentTestBed {
     public final PunishmentTemplateCache templateCache = new PunishmentTemplateCache(eloBed.sharedCache, Duration.ofMinutes(5));
     public final RecordingEvidenceGateway evidence = new RecordingEvidenceGateway();
     public final CaseTestBed cases = new CaseTestBed(eloBed.clock);
-    public final StaffLinkTestBed staffLinks = new StaffLinkTestBed(eloBed.events, eloBed.clock);
+    public final InMemoryStaffAuditStore auditStore = new InMemoryStaffAuditStore();
+    public final RecordingEventTransport auditTransport = new RecordingEventTransport();
+    public final StaffAuditRecorder audit = new StaffAuditRecorder(auditStore,
+            new DomainEventPublisher(auditTransport, eloBed.clock), new AuditPayloadGuard(), eloBed.clock, new SimpleMeterRegistry());
+    public final StaffLinkTestBed staffLinks = new StaffLinkTestBed(eloBed.events, eloBed.clock, audit);
     public final BanIdTestBed banIds = new BanIdTestBed(punishments.repository());
     public final InMemoryKickStore kickStore = new InMemoryKickStore();
     public final RecordingEventTransport kickTransport = new RecordingEventTransport();
@@ -84,20 +103,36 @@ public final class PunishmentTestBed {
     public final KickService kickService = new KickService(
             punishments.repository(), profiles.repository(), slots, profileCache, kickStore, kickDeadline,
             new KickEventPublisher(new DomainEventPublisher(kickTransport, eloBed.clock), kickMeters),
-            eloBed.sections, cases.timeline, staffLinks.service);
+            eloBed.sections, cases.timeline, staffLinks.service, audit, staffLinks.guard);
+    public final RecordingEventTransport warningTransport = new RecordingEventTransport();
+    public final MeterRegistry warningMeters = new SimpleMeterRegistry();
+    public final WarningEventPublisher warningEvents = new WarningEventPublisher(
+            new DomainEventPublisher(warningTransport, eloBed.clock), warningMeters);
+    public final WarningService warningService = new WarningService(
+            punishments.repository(), cases.timeline, eloBed.clock, staffLinks.service);
     public final PunishmentApplicationService punishmentService = new PunishmentApplicationService(
             punishments.repository(), profiles.repository(), slots, templates.repository(), eloBed.sections, eloBed.events,
             profileCache, evidence, cases.timeline, () -> this.elo, this.staffLinks.service, eloBed.clock, banIds.service,
-            kickService, Duration.ofDays(365));
+            kickService, warningEvents, audit,
+            new net.onelitefeather.blackhole.backend.publicbans.PublicBanListing(
+                    new net.onelitefeather.blackhole.backend.publicbans.PublicBanHasher(
+                            java.util.Base64.getEncoder().encodeToString(new byte[32])),
+                    punishments.repository()),
+            Duration.ofDays(365), staffLinks.guard);
     public final FakeClientRuleStore clientRules = new FakeClientRuleStore();
     public final PunishmentTemplateService templateService = new PunishmentTemplateService(
-            templates.repository(), punishments.repository(), templateCache, eloBed.sections, clientRules);
+            templates.repository(), punishments.repository(), templateCache, eloBed.sections, clientRules, audit);
+
+    public final ExemptionReviewTestBed reviewBed = new ExemptionReviewTestBed();
+    public final net.onelitefeather.blackhole.backend.exemption.ExemptionReviewService reviewService = reviewBed.service(
+            () -> this.punishmentService, eloBed.sections, staffLinks.guard, staffLinks.exemptions, eloBed.clock);
 
     /** The ELO engine, punishing through {@link #punishmentService} exactly as in the application. */
     public final EloService elo = new EloService(
             eloBed.scoreRepository.repository(), new InMemoryEloScoreWriter(eloBed.scoreRepository.repository()),
             eloBed.eventRepository.repository(), eloBed.sections, punishmentService,
-            new ThresholdEscalationPolicy(), eloBed.events, eloBed.profileCache, eloBed.clock, 86_400_000L);
+            new ThresholdEscalationPolicy(), eloBed.events, eloBed.profileCache, eloBed.clock, 86_400_000L, audit,
+            staffLinks.exemptions, reviewService);
 
     /** Stores a template with the given steps (duration, cost) and returns it. */
     public PunishmentTemplateEntity givenTemplate(String key, String section, String group, TemplateStep... steps) {

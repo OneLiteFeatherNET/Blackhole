@@ -1,5 +1,8 @@
 package net.onelitefeather.blackhole.backend.report.service;
 
+import net.onelitefeather.blackhole.backend.audit.AuditAction;
+import net.onelitefeather.blackhole.backend.audit.AuditTarget;
+import net.onelitefeather.blackhole.backend.audit.StaffAuditRecorder;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.report.ReportEntity;
 import net.onelitefeather.blackhole.backend.report.ReportRepository;
@@ -91,6 +94,7 @@ public class ReportService {
     private final Duration rateLimitWindow;
     private final int reportActionedDelta;
     private final int reportRewardDelta;
+    private final StaffAuditRecorder audit;
 
     public ReportService(
             ReportRepository reportRepository,
@@ -105,8 +109,10 @@ public class ReportService {
             @Value("${blackhole.report.rate-limit.max-reports-network-wide:50}") int rateLimitMaxReportsNetworkWide,
             @Value("${blackhole.report.rate-limit.window:PT10M}") Duration rateLimitWindow,
             @Value("${blackhole.elo.report.actioned-delta:-100}") int reportActionedDelta,
-            @Value("${blackhole.elo.report.reward-delta:50}") int reportRewardDelta
+            @Value("${blackhole.elo.report.reward-delta:50}") int reportRewardDelta,
+            StaffAuditRecorder audit
     ) {
+        this.audit = audit;
         this.reportRepository = reportRepository;
         this.feedback = feedback;
         this.evidence = evidence;
@@ -304,6 +310,7 @@ public class ReportService {
                 "recordedByOid", actor.oid().toString()
         ));
 
+        this.audit.record(actor.attribution(), actor, AuditAction.REPORT_RESOLVE, AuditTarget.ofPlayer(report.getReportedHash()));
         return new ResolveResult.Success(saved.toDTO());
     }
 

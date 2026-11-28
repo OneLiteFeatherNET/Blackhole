@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ActivePunishment, ActivePunishmentPage, Section } from '../api/types'
 import { useLookupStore } from '../stores/lookup'
 import { ME } from '../test/cases'
-import { mockApi, mountWithApp, ok } from '../test/mount'
+import { chooseRowMenuItem, mockApi, mountWithApp, ok } from '../test/mount'
 import { chooseOption } from '../test/select'
 import PunishedPlayersView from './PunishedPlayersView.vue'
 
@@ -40,7 +40,7 @@ const sections = [{ key: 'network', displayName: 'Network' }, { key: 'chat', dis
 function setup(pages: ActivePunishmentPage[] = [page([row(), row({ owner: BOB, punishmentId: 'p-0002', shortId: '#EF56AB78', permanent: true, expiresAt: null, automatic: true, actorName: null, caseStatus: null, kind: 'MUTE', sectionName: 'Chat', section: 'chat' })])]) {
   const activePunishments = vi.fn(async () => ok(pages.shift() ?? page([])))
   const mount = (roles?: string[], path = '/punished') =>
-    mountWithApp(PunishedPlayersView, { api: mockApi({ activePunishments, sections: vi.fn(async () => ok(sections)) }), path, roles })
+    mountWithApp(PunishedPlayersView, { api: mockApi({ activePunishments, sections: vi.fn(async () => ok(sections)), templates: vi.fn(async () => ok([])) }), path, roles })
   return { activePunishments, mount }
 }
 
@@ -323,6 +323,17 @@ describe('PunishedPlayersView', () => {
 
     expect(wrapper.get('[data-testid="kind-SERVER"]').attributes('aria-pressed')).toBe('false')
 
+    wrapper.unmount()
+  })
+
+  it('offers Warn in the row menu of a moderator and opens the warn dialog for that player', async () => {
+    const { mount } = setup()
+    const { wrapper } = await mount(['MODERATOR', 'VIEWER'])
+
+    await chooseRowMenuItem(wrapper, 0, 'Warn')
+    await flushPromises()
+
+    expect(document.body.textContent, 'the warn dialog opened').toContain('Warn player')
     wrapper.unmount()
   })
 

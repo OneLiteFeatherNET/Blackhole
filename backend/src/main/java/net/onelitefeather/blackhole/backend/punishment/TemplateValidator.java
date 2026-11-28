@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.punishment;
 
+import net.onelitefeather.blackhole.backend.evidence.validation.PiiGuard;
 import net.onelitefeather.blackhole.backend.punishment.dto.PunishTemplateDTO;
 import net.onelitefeather.blackhole.backend.section.SectionValidator;
 import net.onelitefeather.blackhole.backend.utils.Durations;
@@ -15,6 +16,8 @@ public final class TemplateValidator {
 
     private static final int MAX_KEY_LENGTH = 64;
     private static final int MAX_REASON_LENGTH = 255;
+    /** The public ban list text is shorter than the staff reason: it is shown to partner networks. */
+    static final int MAX_PUBLIC_REASON_LENGTH = 200;
     private static final int MAX_STEPS = 20;
 
     /**
@@ -37,8 +40,34 @@ public final class TemplateValidator {
         if (spec.escalationWindow() != null && Durations.parsePositive(spec.escalationWindow()).isEmpty()) {
             errors.add("escalationWindow must be a positive ISO-8601 duration when set");
         }
+        if (spec.warnWindow() != null && !spec.warnWindow().isBlank() && Durations.parsePositive(spec.warnWindow()).isEmpty()) {
+            errors.add("warnWindow must be a positive ISO-8601 duration when set");
+        }
         validateSteps(spec.steps(), errors);
+        validatePublicReason(spec.publicReason(), errors);
         return errors;
+    }
+
+    /**
+     * The public reason is optional (blank means absent). It is public text, so it may not carry an IP address, a UUID
+     * or a Ban ID. The messages never echo the value.
+     */
+    static void validatePublicReason(String publicReason, List<String> errors) {
+        if (publicReason == null || publicReason.isBlank()) {
+            return;
+        }
+        if (publicReason.length() > MAX_PUBLIC_REASON_LENGTH) {
+            errors.add("publicReason must be at most " + MAX_PUBLIC_REASON_LENGTH + " characters");
+        }
+        if (PiiGuard.containsIp(publicReason)) {
+            errors.add("publicReason must not contain an IP address");
+        }
+        if (PiiGuard.containsUuid(publicReason)) {
+            errors.add("publicReason must not contain a UUID");
+        }
+        if (!PiiGuard.banIdCandidates(publicReason).isEmpty()) {
+            errors.add("publicReason must not contain a Ban ID");
+        }
     }
 
     private static void validateSteps(List<PunishTemplateDTO.Step> steps, List<String> errors) {
@@ -55,9 +84,9 @@ public final class TemplateValidator {
                 errors.add("step " + (i + 1) + " is missing");
                 continue;
             }
-            if (step.kind() == StepKind.KICK) {
+            if (step.kind() == StepKind.KICK || step.kind() == StepKind.WARN) {
                 if (step.duration() != null && !step.duration().isBlank()) {
-                    errors.add("step " + (i + 1) + " is a KICK step and must not have a duration");
+                    errors.add("step " + (i + 1) + " is a " + step.kind() + " step and must not have a duration");
                 }
             } else if (step.duration() == null || Durations.parsePositive(step.duration()).isEmpty()) {
                 errors.add("step " + (i + 1) + " needs a duration that is a positive ISO-8601 duration");

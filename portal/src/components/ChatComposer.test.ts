@@ -12,7 +12,24 @@ let mounted: Awaited<ReturnType<typeof mountPortal>> | undefined
 afterEach(() => {
   mounted?.wrapper.unmount()
   mounted = undefined
+  vi.unstubAllGlobals()
 })
+
+/** Stubs the pointer of the device: `coarse` is a touch screen, `fine` a mouse, `missing` a browser without matchMedia. */
+function stubPointer(pointer: 'coarse' | 'fine' | 'missing') {
+  if (pointer === 'missing') {
+    vi.stubGlobal('matchMedia', undefined)
+    return
+  }
+  vi.stubGlobal('matchMedia', (query: string) => ({ media: query, matches: pointer === 'coarse' && query === '(pointer: coarse)' }))
+}
+
+/** Presses a key in the message field and reports whether the browser was told to keep its default (a new line). */
+function press(wrapper: Awaited<ReturnType<typeof composer>>['wrapper'], init: KeyboardEventInit): boolean {
+  const event = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true, ...init })
+  wrapper.get('textarea').element.dispatchEvent(event)
+  return event.defaultPrevented
+}
 
 async function composer(methods: Partial<PortalApi> = {}) {
   mounted = await mountPortal(fakeApi(methods), { component: ChatComposer })
@@ -250,5 +267,100 @@ describe('labels and live regions', () => {
     const { wrapper } = await composer()
 
     expect(wrapper.get('[data-testid="file-input"]').classes()).toContain('hidden')
+  })
+})
+
+describe('Enter', () => {
+  it('sends a plain Enter on a device with a fine pointer', async () => {
+    stubPointer('fine')
+    const { wrapper, session } = await composer()
+    session.state.drafts.message = 'hello'
+    await flushPromises()
+
+    const kept = press(wrapper, {})
+
+    expect(kept).toBe(true)
+    expect(wrapper.emitted('send')).toHaveLength(1)
+  })
+
+  it('adds a line on Shift+Enter with a fine pointer and does not send', async () => {
+    stubPointer('fine')
+    const { wrapper, session } = await composer()
+    session.state.drafts.message = 'hello'
+    await flushPromises()
+
+    const kept = press(wrapper, { shiftKey: true })
+
+    expect(kept).toBe(false)
+    expect(wrapper.emitted('send')).toBeUndefined()
+  })
+
+  it('adds a line on a plain Enter on a touch device and does not send', async () => {
+    stubPointer('coarse')
+    const { wrapper, session } = await composer()
+    session.state.drafts.message = 'hello'
+    await flushPromises()
+
+    const kept = press(wrapper, {})
+
+    expect(kept).toBe(false)
+    expect(wrapper.emitted('send')).toBeUndefined()
+  })
+
+  it('adds a line on a plain Enter where matchMedia is missing', async () => {
+    stubPointer('missing')
+    const { wrapper, session } = await composer()
+    session.state.drafts.message = 'hello'
+    await flushPromises()
+
+    press(wrapper, {})
+
+    expect(wrapper.emitted('send')).toBeUndefined()
+  })
+
+  it('does not send a plain Enter while an input method is composing text', async () => {
+    stubPointer('fine')
+    const { wrapper, session } = await composer()
+    session.state.drafts.message = 'hello'
+    await flushPromises()
+
+    const kept = press(wrapper, { isComposing: true })
+
+    expect(kept).toBe(false)
+    expect(wrapper.emitted('send')).toBeUndefined()
+  })
+
+  it('sends Ctrl+Enter on a touch device too', async () => {
+    stubPointer('coarse')
+    const { wrapper, session } = await composer()
+    session.state.drafts.message = 'hello'
+    await flushPromises()
+
+    press(wrapper, { ctrlKey: true })
+
+    expect(wrapper.emitted('send')).toHaveLength(1)
+  })
+
+  it('says that Enter sends only on a device with a fine pointer', async () => {
+    stubPointer('fine')
+    const fine = await composer()
+    expect(fine.wrapper.get('#message-hint').text()).toContain('Press Enter to send and Shift+Enter for a new line.')
+    fine.wrapper.unmount()
+    mounted = undefined
+
+    stubPointer('coarse')
+    const coarse = await composer()
+    expect(coarse.wrapper.get('#message-hint').text()).not.toContain('Press Enter')
+    expect(coarse.wrapper.get('#message-hint').text()).toContain('**bold**')
+  })
+})
+
+describe('compact layout', () => {
+  it('keeps the attach button in the row of the text field and the send button', async () => {
+    const { wrapper } = await composer()
+
+    const row = wrapper.get('textarea').element.parentElement
+    expect(row?.contains(wrapper.get('button[aria-describedby="file-count"]').element)).toBe(true)
+    expect(row?.contains(wrapper.get('button[type="submit"]').element)).toBe(true)
   })
 })

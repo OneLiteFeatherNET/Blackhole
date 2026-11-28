@@ -1,6 +1,8 @@
 package net.onelitefeather.blackhole.backend.punishment;
 
+import io.micronaut.data.annotation.Query;
 import io.micronaut.data.annotation.Repository;
+import io.micronaut.data.model.Pageable;
 import io.micronaut.data.repository.PageableRepository;
 
 import java.util.List;
@@ -22,6 +24,9 @@ public interface PunishmentRepository extends PageableRepository<PunishmentEntit
      */
     boolean existsByTemplate_Identifier(UUID templateIdentifier);
 
+    /** Every punishment of one owner, for the erasure of that owner. */
+    List<PunishmentEntity> findByOwner(String owner);
+
     /** The punishments of one source (such as the vanilla import identity) that are linked to no template. */
     List<PunishmentEntity> findBySourceAndTemplateIsNull(UUID source);
 
@@ -33,4 +38,24 @@ public interface PunishmentRepository extends PageableRepository<PunishmentEntit
     long countByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals(
             String owner, String escalationGroup, long createdSince
     );
+
+    /**
+     * The same count restricted to warnings. Escalation counts a warning only inside the template's warn window
+     * (or the escalation window when it sets none), so the caller subtracts this from the total and adds it back for
+     * the warn window.
+     */
+    @Query("SELECT COUNT(p) FROM PunishmentEntity p WHERE p.owner = :owner AND p.escalationGroup = :escalationGroup "
+            + "AND p.lifted = false AND p.createdAt >= :createdSince AND p.kind = net.onelitefeather.blackhole.backend.punishment.PunishmentKind.WARN")
+    long countWarningsByOwnerAndEscalationGroupAndLiftedFalseAndCreatedAtGreaterThanEquals(
+            String owner, String escalationGroup, long createdSince
+    );
+
+    /**
+     * The owner's warnings nobody acknowledged yet, oldest first, at most the page size. The proxy reads them on login;
+     * a player with more pending warnings than one page sees the rest on the next login.
+     */
+    @Query("SELECT p FROM PunishmentEntity p WHERE p.owner = :owner "
+            + "AND p.kind = net.onelitefeather.blackhole.backend.punishment.PunishmentKind.WARN "
+            + "AND p.acknowledgedAt IS NULL ORDER BY p.createdAt ASC")
+    List<PunishmentEntity> findPendingWarnings(String owner, Pageable pageable);
 }

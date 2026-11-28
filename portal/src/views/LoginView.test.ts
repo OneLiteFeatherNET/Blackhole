@@ -86,6 +86,17 @@ describe('login page', () => {
     expect(mounted.wrapper.get('#ban-id-error').text()).toContain('could not be used')
   })
 
+  it('asks the player to wait when sign-in is rate limited, and does not call the Ban ID wrong', async () => {
+    mounted = await mountPortal(fakeApi({ session: async () => signedOut(), login: async () => fail<never>('RATE_LIMITED', 429) }))
+
+    await mounted.wrapper.get('input#ban-id').setValue(TYPED)
+    await mounted.wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(mounted.wrapper.get('#ban-id-error').text()).toContain('Too many attempts, please wait a moment.')
+    expect(mounted.wrapper.get('#ban-id-error').text()).not.toContain('could not be used')
+  })
+
   it('says so when the portal cannot be reached, which is not a wrong Ban ID', async () => {
     mounted = await mountPortal(fakeApi({ session: async () => signedOut(), login: async () => fail<never>('UNAVAILABLE', 503) }))
 

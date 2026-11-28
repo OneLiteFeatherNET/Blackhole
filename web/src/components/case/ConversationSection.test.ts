@@ -48,7 +48,7 @@ describe('ConversationSection: thread', () => {
     const { mount } = setup()
     const { wrapper } = await mount()
 
-    const items = wrapper.findAll('[data-testid="thread"] > li')
+    const items = wrapper.findAll('[data-testid="thread"] > li[data-author]')
     expect(items.map((item) => item.attributes('data-author'))).toEqual(['PLAYER', 'STAFF', 'STAFF'])
     expect(items.map((item) => item.get('[data-testid="message-author"]').text())).toEqual(['Player', 'Me Myself', 'Ada'])
     expect(items[0]!.get('[data-testid="from-player"]').text()).toContain('not verified')
@@ -127,7 +127,7 @@ describe('ConversationSection: thread', () => {
     await wrapper.get('[data-testid="retry"]').trigger('click')
     await flushPromises()
 
-    expect(wrapper.findAll('[data-testid="thread"] > li')).toHaveLength(3)
+    expect(wrapper.findAll('[data-testid="thread"] > li[data-author]')).toHaveLength(3)
 
     wrapper.unmount()
   })
@@ -243,7 +243,7 @@ describe('ConversationSection: composing', () => {
     const { mount } = setup({ roles: ['VIEWER'] })
     const { wrapper } = await mount()
 
-    expect(wrapper.findAll('[data-testid="thread"] > li')).toHaveLength(3)
+    expect(wrapper.findAll('[data-testid="thread"] > li[data-author]')).toHaveLength(3)
     expect(wrapper.find('[data-testid="message-composer"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="conversation-read-only"]').text()).toContain('moderator role')
     for (const action of ['message-edit', 'message-delete', 'message-redact', 'erase-player']) {

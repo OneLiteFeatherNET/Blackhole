@@ -64,7 +64,11 @@ describe('role-aware controls', () => {
         eloProfile: vi.fn(async () => ok(elo)),
         eloHistory: vi.fn(async () => ok([])),
         evasionSightings: vi.fn(async () => ok({ detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false })),
+        intelHits: vi.fn(async () => ok([])),
         clientRuleHitsOfOwner: vi.fn(async () => ok([])),
+        exemption: vi.fn(async () => ok({ exempt: false, sources: [], sections: [], rank: null })),
+        playerSessions: vi.fn(async () => ok({ sessions: [], page: 0, size: 50, hasMore: false })),
+        listPlayerNames: vi.fn(async () => ok({ owner: OWNER, playerUuid: null, names: [], page: 0, size: 50, hasMore: false })),
       })
 
       const offered = await controls(PlayerDetailView, api, roles, ['open-apply', 'open-adjust-network', 'open-revoke-network'], {
@@ -114,12 +118,12 @@ describe('role-aware controls', () => {
       expect(offered).toEqual(expected)
     })
 
-    it('reads the hits in the row menu for every team role and offers delete there only to admins', async () => {
+    it('reads the hits in the row menu for every team role; delete is on the rule edit route', async () => {
       const api = mockApi({ clientRules: vi.fn(async () => ok([clientRule()])) })
 
       const items = await firstRowMenu(ClientRulesView, api, roles, '/client-rules')
 
-      expect(items).toEqual(roles === ADMIN ? ['Show hits', 'Delete'] : ['Show hits'])
+      expect(items).toEqual(['Show hits'])
     })
   })
 
@@ -137,12 +141,12 @@ describe('role-aware controls', () => {
       expect(offered).toEqual(expected)
     })
 
-    it('offers delete only in the row menu, and only to admins', async () => {
+    it('has no row menu, so delete is never one click from the list, for any role', async () => {
       const api = mockApi({ templates: vi.fn(async () => ok([template])), sections: vi.fn(async () => ok([section])) })
 
       const items = await firstRowMenu(TemplatesView, api, roles, '/templates')
 
-      expect(items).toEqual(roles === ADMIN ? ['Delete'] : [])
+      expect(items).toEqual([])
     })
   })
 
