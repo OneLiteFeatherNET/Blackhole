@@ -33,6 +33,7 @@ async function mountApp(path = '/', options: { roles?: string[]; auth?: ReturnTy
           profile: async () => ok({ active: {}, history: [] }),
           eloProfile: async () => ok({ owner: '', sections: [] }),
           playerSessions: async () => ok({ sessions: [], page: 0, size: 50, hasMore: false }),
+          listPlayerNames: async () => ok({ owner: '', playerUuid: null, names: [], page: 0, size: 50, hasMore: false }),
           eloHistory: async () => ok([]),
           evasionSightings: async () => ok({ detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false }),
           intelHits: async () => ok([]),
@@ -352,7 +353,7 @@ describe('App shell', () => {
     await wrapper.get('[data-testid="shortcuts-help"]').trigger('click')
 
     const keys = wrapper.get('[role="dialog"]').findAll('dt').map((term) => term.findAll('kbd').map((key) => key.text()).join(' '))
-    expect(keys).toEqual(['g i', 'g c', 'g a', 'g r', 'g p', '?'])
+    expect(keys).toEqual(['g i', 'g c', 'g a', 'g r', 'g p', 'j', 'k', 'Enter', 'Esc', '?'])
 
     wrapper.unmount()
   })

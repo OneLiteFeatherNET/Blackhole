@@ -1,18 +1,13 @@
 import { flushPromises } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
-import type { GuardState } from '../api/types'
 import { windowInZone } from '../components/guard/guardSettings'
 import { fail, mockApi, mountWithApp, ok } from '../test/mount'
 import { chooseOption } from '../test/select'
-import JoinGuardView from './JoinGuardView.vue'
+import GuardSettingsView from './GuardSettingsView.vue'
 
 const NOW = Date.UTC(2030, 0, 3, 12, 0)
 const NEXT_START = Date.UTC(2030, 0, 4, 0, 0)
 const NEXT_END = Date.UTC(2030, 0, 4, 6, 0)
-
-function state(): GuardState {
-  return { manualLevel: 'OFF', automaticLevel: 'OFF', effectiveLevel: 'OFF', updatedAt: NOW }
-}
 
 interface Settings {
   unattendedLevel: string
@@ -43,27 +38,47 @@ function settings(overrides: Partial<Settings> = {}): Settings {
   }
 }
 
+const EDIT = '/guard/settings/edit'
+const PAGE = '/guard/settings'
+
+/** Mounts the settings page at `path`; the edit route is the dialog over it. */
 function setup(initial: Settings, overrides: Record<string, unknown> = {}) {
   const api = {
-    joinGuard: vi.fn(async () => ok(state())),
     joinGuardSettings: vi.fn(async () => ok(initial)),
     setJoinGuardSettings: vi.fn(async (body: Settings) => ok({ ...body, updatedAt: NOW, updatedByOid: null, nextNightWindowStart: NEXT_START, nextNightWindowEnd: NEXT_END })),
     ...overrides,
   }
-  return { api, mount: (roles: string[]) => mountWithApp(JoinGuardView, { api: mockApi(api), roles, path: '/guard' }) }
+  return {
+    api,
+    mount: (roles: string[], path = EDIT) => mountWithApp(GuardSettingsView, { api: mockApi(api), roles, path }),
+  }
 }
 
 const ADMIN = ['ADMIN', 'MODERATOR', 'VIEWER']
 
-describe('JoinGuardView settings section, roles', () => {
+describe('GuardSettingsView roles', () => {
   it('lets an administrator edit the settings and save them', async () => {
     const { mount } = setup(settings())
     const { wrapper } = await mount(ADMIN)
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="settings-form"]').exists(), 'an admin sees the form').toBe(true)
+    expect(wrapper.find('[data-testid="settings-form"]').exists(), 'an admin sees the form in the edit route').toBe(true)
     expect(wrapper.find('[data-testid="settings-save"]').exists(), 'an admin sees the save action').toBe(true)
     expect(wrapper.find('[data-testid="settings-read-only"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('offers an administrator the edit action on the page, which opens the edit route', async () => {
+    const { mount } = setup(settings())
+    const { wrapper, router } = await mount(ADMIN, PAGE)
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="settings-form"]').exists(), 'the page alone shows no form').toBe(false)
+    await wrapper.get('[data-testid="edit-settings"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe(EDIT)
+    expect(wrapper.find('[data-testid="settings-form"]').exists()).toBe(true)
     wrapper.unmount()
   })
 
@@ -72,7 +87,7 @@ describe('JoinGuardView settings section, roles', () => {
     ['a viewer', ['VIEWER']],
   ])('shows %s the values read-only and no form', async (_label, roles) => {
     const { mount } = setup(settings())
-    const { wrapper } = await mount(roles)
+    const { wrapper } = await mount(roles, PAGE)
     await flushPromises()
 
     expect(wrapper.find('[data-testid="settings-form"]').exists(), 'no input control for a non-admin').toBe(false)
@@ -81,10 +96,10 @@ describe('JoinGuardView settings section, roles', () => {
   })
 })
 
-describe('JoinGuardView next night window', () => {
+describe('GuardSettingsView next night window', () => {
   it('shows the next window in the viewer zone and names the configured zone', async () => {
     const { mount } = setup(settings())
-    const { wrapper } = await mount(['VIEWER'])
+    const { wrapper } = await mount(['VIEWER'], PAGE)
     await flushPromises()
 
     const text = wrapper.get('[data-testid="settings-next-window"]').text()
@@ -96,7 +111,7 @@ describe('JoinGuardView next night window', () => {
 
   it('says that no night window applies when the window is disabled, and shows no times', async () => {
     const { mount } = setup(settings({ nightWindowEnabled: false, nextNightWindowStart: null, nextNightWindowEnd: null }))
-    const { wrapper } = await mount(['VIEWER'])
+    const { wrapper } = await mount(['VIEWER'], PAGE)
     await flushPromises()
 
     const text = wrapper.get('[data-testid="settings-next-window"]').text()
@@ -105,7 +120,7 @@ describe('JoinGuardView next night window', () => {
   })
 })
 
-describe('JoinGuardView night window fields', () => {
+describe('GuardSettingsView night window fields', () => {
   it('labels the night window start field with a short label and no supporting text', async () => {
     const { mount } = setup(settings())
     const { wrapper } = await mount(ADMIN)
@@ -129,7 +144,7 @@ describe('JoinGuardView night window fields', () => {
   })
 })
 
-describe('JoinGuardView saving the settings', () => {
+describe('GuardSettingsView saving the settings', () => {
   it('saves a change of the threshold without asking for confirmation', async () => {
     const { api, mount } = setup(settings())
     const { wrapper } = await mount(ADMIN)
@@ -141,6 +156,19 @@ describe('JoinGuardView saving the settings', () => {
 
     expect(wrapper.find('[data-testid="settings-confirm-body"]').exists(), 'no dialog for a threshold change').toBe(false)
     expect(api.setJoinGuardSettings).toHaveBeenCalledWith(expect.objectContaining({ absenceThresholdMinutes: 30, unattendedLevel: 'STRICT' }))
+    wrapper.unmount()
+  })
+
+  it('leaves the edit route after a saved change', async () => {
+    const { mount } = setup(settings())
+    const { wrapper, router } = await mount(ADMIN)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="settings-threshold"] input').setValue('30')
+    await wrapper.get('[data-testid="settings-save"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe(PAGE)
     wrapper.unmount()
   })
 
@@ -176,11 +204,11 @@ describe('JoinGuardView saving the settings', () => {
     wrapper.unmount()
   })
 
-  it('shows the refusal of the server in the form', async () => {
+  it('shows the refusal of the server in the form and stays on the edit route', async () => {
     const { mount } = setup(settings(), {
       setJoinGuardSettings: vi.fn(async () => fail('The threshold is outside its bounds.', 400, 'VALIDATION')),
     })
-    const { wrapper } = await mount(ADMIN)
+    const { wrapper, router } = await mount(ADMIN)
     await flushPromises()
 
     await wrapper.get('[data-testid="settings-threshold"] input').setValue('30')
@@ -188,6 +216,7 @@ describe('JoinGuardView saving the settings', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="settings-error"]').text()).toContain('The threshold is outside its bounds.')
+    expect(router.currentRoute.value.fullPath).toBe(EDIT)
     wrapper.unmount()
   })
 })

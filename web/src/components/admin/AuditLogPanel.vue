@@ -1,13 +1,15 @@
 <script setup lang="ts">
-// The staff audit log (ADMIN only, see AdminView). Read only: newest first, one cursor page at a time ("Load more"),
-// filtered by action, actor and target. An entry opens in a side sheet with a link to its case or player page. The
-// backend is authoritative for access; this screen is only offered to administrators.
+// The staff audit log (ADMIN only, see AdminView). Read only: newest first, one cursor page at a time. The filters, the
+// cursor and the open entry are in the address (`/admin/audit?action=&actor=&target=&cursor=`, `/admin/audit/:auditId`),
+// so a link shows the same view. An entry opens in a side sheet, loaded by its id, with a link to its case or player page.
+// The backend is authoritative for access; this screen is only offered to administrators.
 import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter, type LocationQuery } from 'vue-router'
 import { useApi } from '../../api/inject'
 import type { ApiError, AuditEntry, AuditQuery } from '../../api/types'
 import { formatDateTime, shortHash } from '../../format'
+import CopyLink from '../CopyLink.vue'
 import DataTable, { type DataColumn } from '../DataTable.vue'
 import DefinitionList from '../DefinitionList.vue'
 import EmptyState from '../EmptyState.vue'
@@ -27,62 +29,120 @@ const ACTION_KEYS: Record<string, string> = {
 }
 // A link is only drawn to a path the panel really has; anything else in a payload is shown as text.
 const PANEL_PATH = /^\/(cases|players)\/[A-Za-z0-9._-]{1,128}$/
+const FILTER_KEYS = ['action', 'actor', 'target'] as const
 
 const { t, locale } = useI18n()
 const api = useApi()
+const route = useRoute()
+const router = useRouter()
 const windowClass = useWindowClass()
 
-const values = ref<Record<string, string>>({ action: '', actor: '', target: '' })
+function queryText(key: string): string {
+  const value = route.query[key]
+  return typeof value === 'string' ? value : ''
+}
+
+/** The filters of the address. Changing one starts again at the first page (the cursor is dropped). */
+const values = computed<Record<string, string>>({
+  get: () => Object.fromEntries(FILTER_KEYS.map((key) => [key, queryText(key)])),
+  set: (next) => {
+    const query: LocationQuery = { ...route.query }
+    for (const key of FILTER_KEYS) {
+      if (next[key]) query[key] = next[key]
+      else delete query[key]
+    }
+    delete query.cursor
+    void router.replace({ query })
+  },
+})
+const cursor = computed(() => queryText('cursor') || undefined)
+
 const rows = shallowRef<AuditEntry[]>([])
 const nextCursor = ref<string | null>(null)
 const shown = ref(false)
 const loading = ref(true)
-const loadingMore = ref(false)
 const error = ref<ApiError | null>(null)
-const selected = ref<AuditEntry | null>(null)
 
-const filtersApplied = computed(() => Object.values(values.value).some((value) => value !== ''))
+const entryId = computed(() => (typeof route.params.auditId === 'string' ? route.params.auditId : null))
+const entry = ref<AuditEntry | null>(null)
+const entryState = ref<'loading' | 'found' | 'missing' | 'failed'>('loading')
+
+const filtersApplied = computed(() => FILTER_KEYS.some((key) => queryText(key) !== ''))
 
 // The newest answer wins: a filter changed while a page is on its way must not be overwritten by the old page.
 let generation = 0
 
-function queryOf(cursor: string | undefined): AuditQuery {
+function queryOf(): AuditQuery {
   const query: AuditQuery = { limit: PAGE_SIZE }
-  if (cursor) query.cursor = cursor
-  if (values.value.action) query.action = values.value.action
-  if (values.value.actor.trim()) query.actorOid = values.value.actor.trim()
-  if (values.value.target.trim()) query.targetRef = values.value.target.trim()
+  if (cursor.value) query.cursor = cursor.value
+  if (queryText('action')) query.action = queryText('action')
+  if (queryText('actor').trim()) query.actorOid = queryText('actor').trim()
+  if (queryText('target').trim()) query.targetRef = queryText('target').trim()
   return query
 }
 
-/** The first page when `reset` is set (also after a filter change), otherwise the page after the last one shown. */
-async function load(reset: boolean): Promise<void> {
+/** One page: the first one, or the one the address names by its cursor. */
+async function load(): Promise<void> {
   const current = ++generation
-  if (reset) loading.value = true
-  else loadingMore.value = true
-  const result = await api.auditLog(queryOf(reset ? undefined : (nextCursor.value ?? undefined)))
+  loading.value = true
+  const result = await api.auditLog(queryOf())
   if (current !== generation) return
   loading.value = false
-  loadingMore.value = false
   if (!result.ok) {
     error.value = result.error
-    if (reset) {
-      rows.value = []
-      shown.value = false
-    }
+    rows.value = []
+    shown.value = false
     return
   }
   error.value = null
-  rows.value = reset ? result.data.items : [...rows.value, ...result.data.items]
+  rows.value = result.data.items
   nextCursor.value = result.data.nextCursor ?? null
   shown.value = true
 }
 
-onMounted(() => void load(true))
-watch(values, () => void load(true), { deep: true })
+async function loadEntry(id: string | null): Promise<void> {
+  if (id === null) {
+    entry.value = null
+    return
+  }
+  entryState.value = 'loading'
+  const result = await api.auditEntry(id)
+  if (id !== entryId.value) return
+  if (result.ok) {
+    entry.value = result.data
+    entryState.value = 'found'
+    return
+  }
+  entry.value = null
+  entryState.value = result.error.kind === 'NOT_FOUND' ? 'missing' : 'failed'
+}
+
+onMounted(() => void load())
+watch(() => JSON.stringify([queryText('action'), queryText('actor'), queryText('target'), cursor.value ?? '']), () => void load())
+watch(entryId, (id) => void loadEntry(id), { immediate: true })
 
 function clearFilters(): void {
-  values.value = { action: '', actor: '', target: '' }
+  values.value = {}
+}
+
+/** The next page is a new address, so Back returns to the page before it. */
+function nextPage(): void {
+  if (!nextCursor.value) return
+  void router.push({ query: { ...route.query, cursor: nextCursor.value } })
+}
+
+function firstPage(): void {
+  const query: LocationQuery = { ...route.query }
+  delete query.cursor
+  void router.push({ query })
+}
+
+function openEntry(row: AuditEntry): void {
+  void router.push({ name: 'admin-audit-entry', params: { auditId: row.auditId }, query: route.query })
+}
+
+function closeEntry(): void {
+  void router.push({ name: 'admin-audit', query: route.query })
 }
 
 function actionLabel(action: string): string {
@@ -90,20 +150,20 @@ function actionLabel(action: string): string {
   return key ? t(`audit.actions.${key}`) : action
 }
 
-function linkOf(entry: AuditEntry): string | null {
-  return entry.panelPath && PANEL_PATH.test(entry.panelPath) ? entry.panelPath : null
+function linkOf(item: AuditEntry): string | null {
+  return item.panelPath && PANEL_PATH.test(item.panelPath) ? item.panelPath : null
 }
 
-function targetText(entry: AuditEntry): string {
-  const kind = t(`audit.targets.${entry.targetKind}`)
-  if (!entry.targetRef) return kind
+function targetText(item: AuditEntry): string {
+  const kind = t(`audit.targets.${item.targetKind}`)
+  if (!item.targetRef) return kind
   // A player is named by its owner hash, shortened like everywhere else; a case by its short id.
-  const ref = entry.targetKind === 'PLAYER' ? shortHash(entry.targetRef) : entry.targetRef
+  const ref = item.targetKind === 'PLAYER' ? shortHash(item.targetRef) : item.targetRef
   return `${kind} ${ref}`
 }
 
-function whoText(entry: AuditEntry): string {
-  return entry.actorName ?? shortHash(entry.actorOid)
+function whoText(item: AuditEntry): string {
+  return item.actorName ?? shortHash(item.actorOid)
 }
 
 const filters = computed<FilterDef[]>(() => [
@@ -127,16 +187,16 @@ const columns = computed<DataColumn<AuditEntry>[]>(() => [
 ])
 
 const detailItems = computed(() => {
-  const entry = selected.value
-  if (!entry) return []
+  const item = entry.value
+  if (!item) return []
   return [
-    { term: t('audit.detail.when'), value: formatDateTime(entry.occurredAt, locale.value) },
-    { term: t('audit.detail.actor'), value: entry.actorName ? `${entry.actorName} (${entry.actorOid})` : entry.actorOid },
-    { term: t('audit.detail.surface'), value: t(`audit.surfaces.${entry.surface}`) },
-    { term: t('audit.detail.action'), value: actionLabel(entry.action) },
-    { term: t('audit.detail.target'), value: targetText(entry) },
-    { term: t('audit.detail.recordedBy'), value: entry.recordedByOid },
-    { term: t('audit.detail.id'), value: entry.auditId },
+    { term: t('audit.detail.when'), value: formatDateTime(item.occurredAt, locale.value) },
+    { term: t('audit.detail.actor'), value: item.actorName ? `${item.actorName} (${item.actorOid})` : item.actorOid },
+    { term: t('audit.detail.surface'), value: t(`audit.surfaces.${item.surface}`) },
+    { term: t('audit.detail.action'), value: actionLabel(item.action) },
+    { term: t('audit.detail.target'), value: targetText(item) },
+    { term: t('audit.detail.recordedBy'), value: item.recordedByOid },
+    { term: t('audit.detail.id'), value: item.auditId },
   ]
 })
 </script>
@@ -151,7 +211,7 @@ const detailItems = computed(() => {
       :loading="loading"
       :error="error"
       :has-data="shown"
-      @retry="load(rows.length === 0)"
+      @retry="load"
     >
       <template v-if="shown">
         <DataTable
@@ -159,7 +219,6 @@ const detailItems = computed(() => {
           :caption="t('audit.title')"
           :columns="columns"
           :rows="rows"
-          :loading="loadingMore"
         >
           <template #cell="{ row, column }">
             <template v-if="column.key === 'occurredAt'">{{ formatDateTime(row.occurredAt, locale) }}</template>
@@ -176,7 +235,13 @@ const detailItems = computed(() => {
               </RouterLink>
               <template v-else>{{ targetText(row) }}</template>
             </template>
-            <MdButton v-else-if="column.key === 'auditId'" variant="text" data-testid="audit-open" @click="selected = row">
+            <MdButton
+              v-else-if="column.key === 'auditId'"
+              variant="text"
+              data-testid="audit-open"
+              :aria-current="row.auditId === entryId ? 'true' : undefined"
+              @click="openEntry(row)"
+            >
               {{ t('audit.details') }}
             </MdButton>
           </template>
@@ -193,24 +258,27 @@ const detailItems = computed(() => {
           </MdButton>
         </EmptyState>
 
-        <nav v-if="nextCursor" class="flex">
-          <MdButton variant="tonal" data-testid="audit-next" :disabled="loadingMore" @click="load(false)">
-            {{ t('audit.loadMore') }}
-          </MdButton>
+        <nav v-if="nextCursor || cursor" class="flex flex-wrap gap-2">
+          <MdButton v-if="cursor" variant="text" data-testid="audit-first" @click="firstPage">{{ t('audit.firstPage') }}</MdButton>
+          <MdButton v-if="nextCursor" variant="tonal" data-testid="audit-next" @click="nextPage">{{ t('audit.nextPage') }}</MdButton>
         </nav>
       </template>
     </ResourceState>
 
-    <SidePanel v-if="selected" :title="t('audit.detail.title')" :size-class="windowClass" @close="selected = null">
-      <div data-testid="audit-detail" class="flex flex-col gap-4 pt-2">
+    <SidePanel v-if="entryId" :title="t('audit.detail.title')" :size-class="windowClass" @close="closeEntry">
+      <div v-if="entryState === 'loading'" class="pt-2" data-testid="audit-entry-loading">{{ t('audit.entryLoading') }}</div>
+      <p v-else-if="entryState === 'missing'" role="alert" data-testid="audit-entry-missing" class="pt-2">{{ t('audit.entryMissing') }}</p>
+      <p v-else-if="entryState === 'failed'" role="alert" data-testid="audit-entry-failed" class="pt-2">{{ t('audit.entryFailed') }}</p>
+      <div v-else-if="entry" data-testid="audit-detail" class="flex flex-col gap-4 pt-2">
         <DefinitionList :items="detailItems" />
         <RouterLink
-          v-if="linkOf(selected)"
-          :to="linkOf(selected)!"
+          v-if="linkOf(entry)"
+          :to="linkOf(entry)!"
           class="text-primary underline underline-offset-2 focus-ring"
         >
-          {{ t(selected.targetKind === 'PLAYER' ? 'audit.detail.openPlayer' : 'audit.detail.openCase') }}
+          {{ t(entry.targetKind === 'PLAYER' ? 'audit.detail.openPlayer' : 'audit.detail.openCase') }}
         </RouterLink>
+        <CopyLink />
       </div>
     </SidePanel>
   </section>

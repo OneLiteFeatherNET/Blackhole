@@ -27,6 +27,26 @@ describe('createBlackholeApi', () => {
     expect(result.ok && result.data.openAppeals.count).toBe(0)
   })
 
+  it('reads the changed-by-others section of GET /inbox', async () => {
+    const changed = { count: 1, items: [{ kind: 'CASE', id: 'AB12CD34', change: 'STATUS', byName: 'Anna', at: 5 }] }
+    const { calls, impl } = fakeFetch([{ body: { generatedAt: 1, needsAnswer: { count: 0, items: [] }, openAppeals: { count: 0, items: [] }, newReports: { count: 0, items: [] }, unassignedCases: { count: 0, items: [] }, changedByOthers: changed } }])
+    const api = createBlackholeApi({ baseUrl: 'http://ui.test/api', auth: fakeHttpAuth().auth, fetch: impl })
+
+    const result = await api.changedByOthers()
+
+    expect(calls[0]!.url).toBe('http://ui.test/api/inbox')
+    expect(result).toEqual({ ok: true, data: changed })
+  })
+
+  it('answers an empty changed-by-others section when the backend does not send one', async () => {
+    const { impl } = fakeFetch([{ body: { generatedAt: 1, needsAnswer: { count: 0, items: [] }, openAppeals: { count: 0, items: [] }, newReports: { count: 0, items: [] }, unassignedCases: { count: 0, items: [] } } }])
+    const api = createBlackholeApi({ baseUrl: 'http://ui.test/api', auth: fakeHttpAuth().auth, fetch: impl })
+
+    const result = await api.changedByOthers()
+
+    expect(result).toEqual({ ok: true, data: { count: 0, items: [] } })
+  })
+
   it('returns the data of a successful call', async () => {
     const summary = { activePunishmentsBySection: [{ section: 'chat', active: 2 }], latestEscalations: [], openReports: 4 }
     const { impl } = fakeFetch([{ body: summary }])

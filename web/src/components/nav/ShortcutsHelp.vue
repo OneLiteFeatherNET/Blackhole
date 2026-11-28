@@ -16,6 +16,10 @@ const rows: { keys: string[]; label: string }[] = [
   { keys: ['g', 'a'], label: t('nav.appeals') },
   { keys: ['g', 'r'], label: t('nav.reports') },
   { keys: ['g', 'p'], label: t('nav.playerLookup') },
+  { keys: ['j'], label: t('nav.shortcuts.nextRow') },
+  { keys: ['k'], label: t('nav.shortcuts.previousRow') },
+  { keys: ['Enter'], label: t('nav.shortcuts.openRow') },
+  { keys: ['Esc'], label: t('nav.shortcuts.closeRow') },
   { keys: ['?'], label: t('nav.shortcuts.help') },
 ]
 </script>

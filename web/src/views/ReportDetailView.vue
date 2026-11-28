@@ -9,12 +9,14 @@ import { useApi } from '../api/inject'
 import type { Evidence, Punishment, Report, ReportStatus } from '../api/types'
 import Breadcrumbs from '../components/Breadcrumbs.vue'
 import DefinitionList from '../components/DefinitionList.vue'
+import EntityHeader from '../components/entity/EntityHeader.vue'
+import type { EntityAction, EntityStateView } from '../components/entity/entityHeader'
+import { reportStatePill } from '../components/entity/entityState'
 import PageShell from '../components/PageShell.vue'
 import SkeletonBlock from '../components/SkeletonBlock.vue'
 import TextLink from '../components/TextLink.vue'
 import DeleteEvidenceDialog from '../components/evidence/DeleteEvidenceDialog.vue'
 import EvidenceList from '../components/evidence/EvidenceList.vue'
-import MdButton from '../components/md/MdButton.vue'
 import MdSnackbar from '../components/md/MdSnackbar.vue'
 import ActivePunishments from '../components/player/ActivePunishments.vue'
 import ApplyTemplateDialog from '../components/player/ApplyTemplateDialog.vue'
@@ -56,6 +58,24 @@ const playerName = computed(() => (current.value ? lookup.nameOf(current.value.r
 
 // The trail back to the list is the breadcrumbs; the title of the page is the report itself.
 const crumbs = computed(() => [{ label: t('nav.reports'), to: '/reports' }, { label: `#${props.id.slice(0, 8)}` }])
+
+// The header: one primary action (applying a template resolves the report as actioned), dismiss in the overflow.
+// A resolved report keeps its primary action visible but disabled, with the reason as text.
+const states = computed<EntityStateView[]>(() => {
+  const pill = reportStatePill(current.value?.status ?? null)
+  return [{ label: t(pill.key), tone: pill.tone, testid: 'status' }]
+})
+const primary = computed<EntityAction | null>(() => {
+  if (!session.moderator || !current.value?.identifier) return null
+  const action = { key: 'apply', label: t('reports.detail.applyTemplate'), testid: 'apply-template' }
+  return isOpen.value ? action : { ...action, disabled: true, reason: t('entity.notice.reportResolved') }
+})
+const overflow = computed<EntityAction[]>(() => (canResolve.value ? [{ key: 'dismiss', label: t('reports.detail.dismiss') }] : []))
+
+function chosen(key: string): void {
+  if (key === 'apply') applying.value = true
+  if (key === 'dismiss') dismissing.value = true
+}
 // The workspace leads the trail for an administrator (the switcher is shown to them only).
 const trail = (items: { label: string; to?: string }[]) => withWorkspace(items, { show: session.administrator, workspace: 'moderation', translate: (key) => t(key) })
 
@@ -115,18 +135,30 @@ async function done(text: string): Promise<void> {
 
 <template>
   <PageShell :title="t('reports.detail.title')">
-    <template #breadcrumbs>
-      <Breadcrumbs :items="trail(crumbs)" />
+    <template #header>
+      <EntityHeader
+        v-if="current"
+        :type-label="t('entity.type.report')"
+        :heading="t('reports.detail.title')"
+        :short-id="`#${props.id.slice(0, 8)}`"
+        :states="states"
+        :owner="{ label: playerName ?? shortHash(current.reportedHash), to: `/players/${current.reportedHash}`, testid: 'report-owner' }"
+        :primary="primary"
+        :overflow="overflow"
+        :notice="session.moderator ? undefined : t('entity.notice.viewerReport')"
+        :crumbs="trail(crumbs)"
+        @action="chosen"
+      />
+      <header v-else class="flex flex-col gap-2">
+        <Breadcrumbs :items="trail(crumbs)" />
+        <h1 class="text-headline-small text-on-surface">{{ t('reports.detail.title') }}</h1>
+      </header>
     </template>
 
     <SkeletonBlock v-if="report.loading.value && report.data.value === null" height="12rem" />
 
     <ResourceState :loading="report.loading.value" :error="report.error.value" :has-data="current !== null" @retry="report.reload">
       <div v-if="current" class="flex flex-col gap-8">
-        <div>
-          <StatusPill :label="t(`reports.status.${current.status ?? 'OPEN'}`)" :tone="isOpen ? 'tertiary' : 'neutral'" data-testid="status" />
-        </div>
-
         <section aria-labelledby="report-summary" class="flex flex-col gap-3">
           <h2 id="report-summary" class="text-title-medium">{{ t('reports.detail.summary') }}</h2>
           <DefinitionList data-testid="summary" :items="summaryItems">
@@ -141,10 +173,6 @@ async function done(text: string): Promise<void> {
               <template v-else>{{ item.value }}</template>
             </template>
           </DefinitionList>
-          <div v-if="canResolve" class="flex flex-wrap gap-2" role="group" :aria-label="t('reports.detail.actions')">
-            <MdButton data-testid="apply-template" @click="applying = true">{{ t('reports.detail.applyTemplate') }}</MdButton>
-            <MdButton variant="outlined" data-testid="dismiss" @click="dismissing = true">{{ t('reports.detail.dismiss') }}</MdButton>
-          </div>
         </section>
 
         <section aria-labelledby="report-evidence" class="flex flex-col gap-3">

@@ -127,6 +127,18 @@ describe('pollRollback', () => {
     expect(scheduled, 'nothing is scheduled after the end').toHaveLength(0)
   })
 
+  it('reads a preview once when the caller says a preview is not polled', async () => {
+    const { timer, scheduled } = manualTimer()
+    const reads: string[] = []
+    const fetch = async (): Promise<ApiResult<RollbackProgress>> => ({ ok: true, data: progress('PREVIEW') })
+
+    pollRollback({ fetch, timer, onProgress: (p) => reads.push(p.state), onError: () => {}, stopWhen: (state) => state !== 'RUNNING' })
+    await settle()
+
+    expect(reads).toEqual(['PREVIEW'])
+    expect(scheduled, 'nothing is scheduled for a preview').toHaveLength(0)
+  })
+
   it('stops and reports the error when a read fails', async () => {
     const { timer, scheduled } = manualTimer()
     const errors: ApiError[] = []

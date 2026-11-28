@@ -151,4 +151,15 @@ describe('DataTable: leading column', () => {
 
     wrapper.unmount()
   })
+
+  it('puts the attributes that rowProps gives each row on that row', async () => {
+    const { wrapper } = await setup({
+      rowProps: (row: Row, index: number) => ({ id: `row-${index}`, 'aria-current': row.name === '#ZZ99XX' ? 'true' : undefined }),
+    })
+
+    expect(wrapper.get('#row-0').attributes('aria-current')).toBeUndefined()
+    expect(wrapper.get('#row-1').attributes('aria-current')).toBe('true')
+
+    wrapper.unmount()
+  })
 })

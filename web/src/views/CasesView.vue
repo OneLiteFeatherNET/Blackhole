@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { type LocationQuery, useRoute, useRouter } from 'vue-router'
 import { useApi } from '../api/inject'
@@ -18,18 +18,28 @@ import MdCheckbox from '../components/md/MdCheckbox.vue'
 import MdSegmentedButton, { type SegmentOption } from '../components/md/MdSegmentedButton.vue'
 import { useCaseSelection } from '../composables/useCaseSelection'
 import { useResource } from '../composables/useResource'
+import { createListKeys, detailIsShown, listIsShown, rowDomId } from '../nav/listDetail'
+import { useBreakpoint } from '../nav/useBreakpoint'
 import { useSessionStore } from '../stores/session'
+import CaseView from './CaseView.vue'
 import { type CasesViewMode, readCasesView, writeCasesView } from './casesViewMemory'
 
 const STATUSES: CaseStatus[] = ['OPEN', 'IN_REVIEW', 'WAITING', 'CLOSED']
 const TAG = /^[a-z0-9-]{1,32}$/
 const FILTER_KEYS = ['status', 'mine', 'tag'] as const
 
+// The open case is the `reference` of the route; this page is the list and, beside or in place of it, the case.
+const props = defineProps<{ reference?: string }>()
+
 const { t } = useI18n()
 const api = useApi()
 const session = useSessionStore()
 const route = useRoute()
 const router = useRouter()
+const size = useBreakpoint()
+const listShown = computed(() => listIsShown(size.value, props.reference !== undefined))
+const detailShown = computed(() => detailIsShown(size.value, props.reference !== undefined))
+const detailPane = ref<HTMLElement | null>(null)
 
 // Every filter value is a string; '' means the filter is not applied. The route query holds the same values, so a
 // reload or Back returns to the same filtered list. Anything the query cannot hold is ignored.
@@ -105,6 +115,69 @@ watch(page, () => {
   if (view.value === 'cases') void cases.reload()
 })
 
+// The keys move a cursor over the rows of this page. The cursor follows the open case, and is kept on the list.
+const cursor = ref(0)
+const rowId = (row: CaseListItem) => rowDomId('case-row', row.punishmentIdentifier)
+
+function focusRow(row: CaseListItem | undefined): void {
+  if (row) void nextTick(() => document.getElementById(rowId(row))?.focus())
+}
+
+function syncCursor(): void {
+  const index = pageItems.value.findIndex((row) => row.punishmentIdentifier === props.reference)
+  cursor.value = index >= 0 ? index : Math.min(cursor.value, Math.max(pageItems.value.length - 1, 0))
+}
+watch(() => props.reference, syncCursor)
+watch(pageItems, syncCursor)
+
+function moveCursor(step: number): void {
+  const items = pageItems.value
+  if (items.length === 0) return
+  cursor.value = Math.min(Math.max(cursor.value + step, 0), items.length - 1)
+  focusRow(items[cursor.value])
+}
+
+/** Enter opens the row under the cursor, with the list query kept. Beside the list the focus stays on the row. */
+async function openCursorRow(): Promise<void> {
+  const row = pageItems.value[cursor.value]
+  if (!row) return
+  await router.push({ name: 'case', params: { reference: row.punishmentIdentifier }, query: route.query })
+  // Below 840dp the list is hidden now, so the focus goes to the case that replaced it.
+  if (size.value !== 'expanded') {
+    await nextTick()
+    detailPane.value?.focus()
+  }
+}
+
+/** Esc closes the case and puts the focus back on its row. */
+async function closeOpenCase(): Promise<void> {
+  const previous = pageItems.value.find((row) => row.punishmentIdentifier === props.reference)
+  await router.push({ name: 'cases', query: route.query })
+  focusRow(previous)
+}
+
+const keys = createListKeys({
+  listShown: () => listShown.value && view.value === 'cases',
+  detailOpen: () => props.reference !== undefined,
+  next: () => moveCursor(1),
+  previous: () => moveCursor(-1),
+  open: () => void openCursorRow(),
+  close: () => void closeOpenCase(),
+})
+onMounted(() => document.addEventListener('keydown', keys))
+onBeforeUnmount(() => document.removeEventListener('keydown', keys))
+
+/** The row of the open case is marked with aria-current; the cursor row is the one in the tab order. */
+function rowProps(row: CaseListItem, index: number): Record<string, unknown> {
+  const open = row.punishmentIdentifier === props.reference
+  return {
+    id: rowId(row),
+    tabindex: index === cursor.value ? 0 : -1,
+    'aria-current': open ? 'true' : undefined,
+    class: open ? 'bg-secondary-container focus-ring' : 'focus-ring',
+  }
+}
+
 // Back and forward change the query; the filters follow it.
 watch(
   () => route.query,
@@ -153,6 +226,13 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
 </script>
 
 <template>
+  <div class="flex min-w-0 flex-col gap-4 min-[840px]:flex-row min-[840px]:items-start">
+    <!-- The list stays mounted while a case is open, so it is not requested again and keeps its scroll and selection. -->
+    <div
+      v-show="listShown"
+      data-testid="list-pane"
+      class="flex min-w-0 flex-col min-[840px]:w-96 min-[840px]:shrink-0 min-[840px]:max-h-[calc(100dvh-8rem)] min-[840px]:overflow-y-auto"
+    >
   <PageShell :title="t('case.list.title')">
     <template #toolbar>
       <FilterToolbar v-model="values" :filters="filters" />
@@ -196,6 +276,7 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
           :caption="t('case.list.title')"
           :columns="columns"
           :rows="cases.data.value.items"
+          :row-props="rowProps"
           leading
           class="bg-surface-container-low"
         >
@@ -246,4 +327,18 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
 
     <CaseBulkDialog :open="bulkOpen" :cases="selection.items.value" @close="bulkOpen = false" @done="onBulkDone" @reload="reloadList" />
   </PageShell>
+    </div>
+
+    <!-- Beside the list from 840dp (a placeholder while nothing is open); in place of the list below it. -->
+    <div
+      v-if="detailShown"
+      ref="detailPane"
+      tabindex="-1"
+      data-testid="detail-pane"
+      class="flex min-w-0 flex-1 flex-col focus:outline-none min-[840px]:max-h-[calc(100dvh-8rem)] min-[840px]:overflow-y-auto"
+    >
+      <CaseView v-if="props.reference !== undefined" :key="props.reference" :reference="props.reference" />
+      <p v-else data-testid="detail-placeholder" class="text-body-large text-on-surface-variant">{{ t('case.list.selectHint') }}</p>
+    </div>
+  </div>
 </template>

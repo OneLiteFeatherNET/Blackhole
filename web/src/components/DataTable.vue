@@ -32,8 +32,10 @@ const props = withDefaults(
     error?: string | null
     /** Adds a column before the data columns, for a selection checkbox; its header and cells come from the slots below. */
     leading?: boolean
+    /** Attributes of a row (its id, aria-current, tabindex), given by the page that knows the open item. */
+    rowProps?: (row: T, index: number) => Record<string, unknown>
   }>(),
-  { captionVisible: false, sort: null, loading: false, error: null, leading: false },
+  { captionVisible: false, sort: null, loading: false, error: null, leading: false, rowProps: undefined },
 )
 const emit = defineEmits<{ sort: [key: string] }>()
 
@@ -107,6 +109,7 @@ function cellClasses(column: DataColumn<T>): string[] {
         <tr
           v-for="(row, index) in props.rows"
           :key="index"
+          v-bind="props.rowProps?.(row, index) ?? {}"
           class="border-t border-outline-variant hover:bg-on-surface/(--md-sys-state-hover-opacity) max-[840px]:flex max-[840px]:flex-col"
         >
           <td v-if="props.leading" class="px-2 py-1 align-middle max-[840px]:flex max-[840px]:items-center">

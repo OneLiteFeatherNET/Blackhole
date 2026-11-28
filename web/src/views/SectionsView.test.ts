@@ -4,8 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Section } from '../api/types'
 import DiscordLinksPanel from '../components/account/DiscordLinksPanel.vue'
 import StaffLinksPanel from '../components/account/StaffLinksPanel.vue'
-import { fail, mockApi, mountWithApp, ok } from '../test/mount'
-import SectionsView from './SectionsView.vue'
+import { fail, mockApi, mountRouted, ok } from '../test/mount'
 
 function section(overrides: Partial<Section> = {}): Section {
   return {
@@ -31,6 +30,7 @@ const chat = section({ key: 'chat', displayName: 'Chat', enforcement: 'MUTE', so
 function setup(overrides: Record<string, unknown> = {}) {
   const api = {
     sections: vi.fn(async () => ok([chat, section()])),
+    section: vi.fn(async (key: string) => ok([chat, section()].find((item) => item.key === key) ?? chat)),
     createSection: vi.fn(async () => ok(section())),
     updateSection: vi.fn(async () => ok(section())),
     disableSection: vi.fn(async () => ok(section())),
@@ -38,7 +38,7 @@ function setup(overrides: Record<string, unknown> = {}) {
     discordLinks: vi.fn(async () => ok([])),
     ...overrides,
   }
-  return { api, mount: () => mountWithApp(SectionsView, { api: mockApi(api), path: '/sections' }) }
+  return { api, mount: () => mountRouted({ api: mockApi(api), path: '/sections' }) }
 }
 
 type Wrapper = Awaited<ReturnType<ReturnType<typeof setup>['mount']>>['wrapper']
@@ -53,9 +53,11 @@ function rowOf(wrapper: Wrapper, key: string) {
 /** Chooses an item of a section's row menu, which holds the actions beyond edit. */
 async function rowAction(wrapper: Wrapper, key: string, label: string): Promise<void> {
   await rowOf(wrapper, key).get('button[aria-haspopup="menu"]').trigger('click')
+  await flushPromises()
   const item = wrapper.findAll('[role="menuitem"]').find((candidate) => candidate.text() === label)
   if (!item) throw new Error(`no menu item ${label}`)
   await item.trigger('click')
+  await flushPromises()
 }
 
 const field = (wrapper: Wrapper, label: string) => {
@@ -103,6 +105,7 @@ describe('SectionsView: list', () => {
     expect(wrapper.get('[role="alert"]').text()).toContain('backend down')
     await wrapper.get('[data-testid="retry"]').trigger('click')
     await flushPromises()
+    await flushPromises()
 
     expect(wrapper.findAll('tbody tr')).toHaveLength(1)
 
@@ -111,16 +114,24 @@ describe('SectionsView: list', () => {
 })
 
 describe('SectionsView: edit', () => {
-  it('changes the permanent threshold and shows the new value', async () => {
+  it('changes the permanent threshold and shows the new value on the section page', async () => {
     const changed = section({ permanentThreshold: 250 })
-    const sections = vi.fn().mockResolvedValueOnce(ok([chat, section()])).mockResolvedValueOnce(ok([chat, changed]))
-    const { api, mount } = setup({ sections })
+    let saved = false
+    const { api, mount } = setup({
+      section: vi.fn(async () => ok(saved ? changed : section())),
+      updateSection: vi.fn(async () => {
+        saved = true
+        return ok(changed)
+      }),
+    })
     const { wrapper } = await mount()
 
     await wrapper.get('[data-testid="edit-network"]').trigger('click')
+    await flushPromises()
     expect(field(wrapper, 'Key').attributes('disabled'), 'the key of an existing section is fixed').toBeDefined()
     await field(wrapper, 'Permanent threshold').setValue('250')
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.updateSection).toHaveBeenCalledWith({
@@ -138,8 +149,8 @@ describe('SectionsView: edit', () => {
       decayPerDay: 10,
       enabled: true,
     })
-    expect(wrapper.findAll('tbody tr')[1]!.text()).toContain('250')
-    expect(wrapper.get('[role="status"]').text()).toContain('Section saved.')
+    expect(wrapper.get('dl').text()).toContain('250')
+    expect(wrapper.text()).toContain('Section saved.')
 
     wrapper.unmount()
   })
@@ -149,9 +160,11 @@ describe('SectionsView: edit', () => {
     const { mount } = setup({ updateSection })
     const { wrapper } = await mount()
     await wrapper.get('[data-testid="edit-network"]').trigger('click')
+    await flushPromises()
     await field(wrapper, 'Permanent threshold').setValue('5000')
 
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     const threshold = field(wrapper, 'Permanent threshold')
@@ -166,9 +179,11 @@ describe('SectionsView: edit', () => {
     const { api, mount } = setup()
     const { wrapper } = await mount()
     await wrapper.get('[data-testid="edit-network"]').trigger('click')
+    await flushPromises()
 
     await field(wrapper, 'Soft threshold').setValue('')
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.updateSection).toHaveBeenCalledWith(expect.objectContaining({ softThreshold: null, softDuration: null }))
@@ -180,9 +195,11 @@ describe('SectionsView: edit', () => {
     const { api, mount } = setup()
     const { wrapper } = await mount()
     await wrapper.get('[data-testid="edit-network"]').trigger('click')
+    await flushPromises()
 
     await field(wrapper, 'Base score').setValue('1.5')
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(wrapper.text()).toContain('Enter a whole number.')
@@ -193,12 +210,14 @@ describe('SectionsView: edit', () => {
 
   it('can re-enable a disabled section', async () => {
     const old = section({ key: 'old', displayName: 'Old', enabled: false })
-    const { api, mount } = setup({ sections: vi.fn(async () => ok([old])) })
+    const { api, mount } = setup({ sections: vi.fn(async () => ok([old])), section: vi.fn(async () => ok(old)) })
     const { wrapper } = await mount()
 
     await wrapper.get('[data-testid="edit-old"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[role="dialog"] input[type="checkbox"]').setValue(true)
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.updateSection).toHaveBeenCalledWith(expect.objectContaining({ key: 'old', enabled: true }))
@@ -210,6 +229,7 @@ describe('SectionsView: edit', () => {
 describe('SectionsView: create', () => {
   async function openNew(wrapper: Wrapper) {
     await wrapper.get('[data-testid="new-section"]').trigger('click')
+    await flushPromises()
   }
 
   it('creates a server section with its patterns and lists it', async () => {
@@ -228,6 +248,7 @@ describe('SectionsView: create', () => {
     await field(wrapper, 'Pardon score').setValue('700')
     await field(wrapper, 'Permanent reason').setValue('Banned from bedwars')
     await wrapper.get('[data-testid="save"]').trigger('click')
+    await flushPromises()
     await flushPromises()
 
     expect(api.createSection).toHaveBeenCalledWith({
@@ -279,6 +300,7 @@ describe('SectionsView: create', () => {
 
     await wrapper.get('[data-testid="save"]').trigger('click')
     await flushPromises()
+    await flushPromises()
 
     expect(api.createSection).toHaveBeenCalledWith(expect.objectContaining({ servers: ['arena-*', 'pvp-?'] }))
 
@@ -296,6 +318,7 @@ describe('SectionsView: create', () => {
 
     await wrapper.get('[data-testid="save"]').trigger('click')
     await flushPromises()
+    await flushPromises()
 
     const key = field(wrapper, 'Key')
     expect(wrapper.get(`[id="${key.attributes('aria-describedby')}"]`).text()).toContain('already exists')
@@ -305,21 +328,26 @@ describe('SectionsView: create', () => {
 })
 
 describe('SectionsView: disable', () => {
-  it('disables a section after confirmation and reloads', async () => {
-    const sections = vi
-      .fn()
-      .mockResolvedValueOnce(ok([chat, section()]))
-      .mockResolvedValueOnce(ok([chat, section({ enabled: false })]))
-    const { api, mount } = setup({ sections })
+  it('disables a section after confirmation and shows it disabled on its page', async () => {
+    let disabled = false
+    const { api, mount } = setup({
+      section: vi.fn(async () => ok(disabled ? section({ enabled: false }) : section())),
+      disableSection: vi.fn(async () => {
+        disabled = true
+        return ok(section({ enabled: false }))
+      }),
+    })
     const { wrapper } = await mount()
 
     await rowAction(wrapper, 'network', 'Disable')
+    await flushPromises()
     expect(api.disableSection, 'asks first').not.toHaveBeenCalled()
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
+    await flushPromises()
 
     expect(api.disableSection).toHaveBeenCalledWith('network')
-    expect(wrapper.findAll('tbody tr')[1]!.text()).toContain('Disabled')
+    expect(wrapper.text()).toContain('Disabled')
 
     wrapper.unmount()
   })
@@ -332,6 +360,7 @@ describe('SectionsView: disable', () => {
     await rowAction(wrapper, 'network', 'Disable')
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
+    await flushPromises()
 
     expect(wrapper.get('[data-testid="error"]').text()).toContain('no section with key')
 
@@ -342,7 +371,7 @@ describe('SectionsView: disable', () => {
 describe('SectionsView: page template', () => {
   it('no longer renders the account link panels on the sections page', async () => {
     const { api } = setup()
-    const { wrapper } = await mountWithApp(SectionsView, { api: mockApi(api), path: '/sections', roles: ['ADMIN', 'MODERATOR', 'VIEWER'] })
+    const { wrapper } = await mountRouted({ api: mockApi(api), path: '/sections', roles: ['ADMIN', 'MODERATOR', 'VIEWER'] })
 
     expect(wrapper.findComponent(StaffLinksPanel).exists()).toBe(false)
     expect(wrapper.findComponent(DiscordLinksPanel).exists()).toBe(false)
@@ -367,6 +396,7 @@ describe('SectionsView: page template', () => {
     expect(row.find('[data-testid="edit-network"]').exists()).toBe(true)
     expect(row.find('[data-testid="disable-network"]').exists(), 'disable is not a row button').toBe(false)
     await row.get('button[aria-haspopup="menu"]').trigger('click')
+    await flushPromises()
     expect(wrapper.findAll('[role="menuitem"]').map((item) => item.text())).toEqual(['Disable'])
 
     wrapper.unmount()
@@ -376,7 +406,9 @@ describe('SectionsView: page template', () => {
     const { mount } = setup()
     const { wrapper } = await mount()
     await wrapper.findAll('tbody tr')[1]!.get('button[aria-haspopup="menu"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[role="menuitem"]').trigger('click')
+    await flushPromises()
 
     expect(wrapper.get('[data-testid="confirm"]').classes(), 'destructive confirm').toContain('bg-error')
 

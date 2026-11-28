@@ -1,80 +1,56 @@
 <script setup lang="ts">
-// The appeal conditions a player confirms before filing. Every team role reads them; only an admin
-// edits. A save always creates a new version, nothing is overwritten. The backend stays authoritative.
-import { computed, nextTick, ref, watch } from 'vue'
+// The appeal conditions a player confirms before filing. Every team role reads them; only an admin edits. A save
+// always creates a new version, nothing is overwritten. The editor is the `new` route; each earlier version has
+// its own address. The backend stays authoritative.
+import { computed, provide, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '../api/inject'
 import PageShell from '../components/PageShell.vue'
+import AppealTermsEditRoute from '../components/appealterms/AppealTermsEditRoute.vue'
+import { CONFIG_PAGE } from '../components/config/configPage'
 import MdButton from '../components/md/MdButton.vue'
 import MdCard from '../components/md/MdCard.vue'
 import MdSnackbar from '../components/md/MdSnackbar.vue'
-import MdTextField from '../components/md/MdTextField.vue'
 import ResourceState from '../components/ResourceState.vue'
+import TextLink from '../components/TextLink.vue'
 import { useResource } from '../composables/useResource'
 import { formatDateTime } from '../format'
 import { useSessionStore } from '../stores/session'
 
-/** The longest text the backend accepts. */
-const MAX_LENGTH = 4000
-
 const { t, locale } = useI18n()
 const api = useApi()
+const route = useRoute()
+const router = useRouter()
 const session = useSessionStore()
 
 const current = useResource(() => api.appealConditions())
 const versions = useResource(() => api.appealConditionVersions())
-
-const draft = ref('')
-const saving = ref(false)
-const error = ref('')
-const conflict = ref(false)
 const message = ref('')
 
-// The editor starts from the current text, and follows it when it is reloaded after a save.
-watch(
-  () => current.data.value?.text,
-  (text) => {
-    if (text !== undefined) draft.value = text
+provide(CONFIG_PAGE, {
+  reload: () => Promise.all([current.reload(), versions.reload()]).then(() => undefined),
+  async changed(done: string) {
+    message.value = done
+    await Promise.all([current.reload(), versions.reload()])
   },
-  { immediate: true },
-)
+})
 
-const length = computed(() => draft.value.length)
-const tooLong = computed(() => length.value > MAX_LENGTH)
-const valid = computed(() => draft.value.trim().length > 0 && !tooLong.value)
-const counter = computed(() => `${length.value} / ${MAX_LENGTH}`)
+const creating = computed(() => route.name === 'admin-appeal-terms-new')
 
 function when(iso: string): string {
   return formatDateTime(Date.parse(iso), locale.value)
-}
-
-async function save(): Promise<void> {
-  if (saving.value || !valid.value) return
-  saving.value = true
-  error.value = ''
-  conflict.value = false
-  const result = await api.saveAppealConditions(draft.value)
-  saving.value = false
-  if (!result.ok) {
-    if (result.error.kind === 'CONFLICT') {
-      conflict.value = true
-      const typed = draft.value
-      await Promise.all([current.reload(), versions.reload()])
-      // Keep what the admin wrote; the fresh version is shown above for comparison.
-      await nextTick()
-      draft.value = typed
-      return
-    }
-    error.value = result.error.message
-    return
-  }
-  message.value = t('appealConditions.saved', { version: result.data.version })
-  await Promise.all([current.reload(), versions.reload()])
 }
 </script>
 
 <template>
   <PageShell :title="t('appealConditions.title')" :description="t('appealConditions.intro')">
+    <template #actions>
+      <MdButton v-if="session.administrator" data-testid="new-conditions-version" @click="router.push({ name: 'admin-appeal-terms-new' })">
+        {{ t('appealConditions.newVersion') }}
+      </MdButton>
+    </template>
+
     <ResourceState
       :loading="current.loading.value && current.data.value === null"
       :error="current.error.value"
@@ -91,25 +67,6 @@ async function save(): Promise<void> {
           <p class="mt-3 whitespace-pre-line text-body-large" data-testid="current-text">{{ current.data.value.text }}</p>
         </MdCard>
 
-        <form v-if="session.administrator" class="flex flex-col gap-4" data-testid="conditions-form" @submit.prevent="save">
-          <MdTextField
-            v-model="draft"
-            multiline
-            :rows="12"
-            :label="t('appealConditions.editorLabel')"
-            :disabled="saving"
-            :error="tooLong ? t('appealConditions.tooLong', { count: counter }) : ''"
-            :supporting-text="`${counter} · ${t('appealConditions.format')}`"
-          />
-          <p v-if="conflict" role="alert" class="rounded-md-md bg-error-container p-3 text-on-error-container" data-testid="conditions-conflict">
-            {{ t('appealConditions.conflict') }}
-          </p>
-          <p v-if="error" role="alert" class="rounded-md-md bg-error-container p-3 text-on-error-container" data-testid="conditions-error">{{ error }}</p>
-          <div>
-            <MdButton type="submit" :disabled="saving || !valid" data-testid="conditions-save">{{ t('appealConditions.save') }}</MdButton>
-          </div>
-        </form>
-
         <section v-if="versions.data.value" :aria-label="t('appealConditions.history')">
           <h2 class="mb-2 text-title-medium">{{ t('appealConditions.history') }}</h2>
           <ul class="flex flex-col gap-2">
@@ -120,11 +77,16 @@ async function save(): Promise<void> {
                 </summary>
                 <p class="mt-2 whitespace-pre-line text-body-medium">{{ item.text }}</p>
               </details>
+              <TextLink :to="{ name: 'admin-appeal-terms-version', params: { version: item.version } }">
+                {{ t('appealConditions.openVersion', { version: item.version }) }}
+              </TextLink>
             </li>
           </ul>
         </section>
       </div>
     </ResourceState>
+
+    <AppealTermsEditRoute v-if="creating" />
     <MdSnackbar :open="message !== ''" :message="message" @close="message = ''" />
   </PageShell>
 </template>

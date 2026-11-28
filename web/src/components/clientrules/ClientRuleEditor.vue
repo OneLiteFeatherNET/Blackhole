@@ -417,6 +417,7 @@ async function save(): Promise<void> {
       <MdCheckbox v-if="editing" v-model="form.enabled" :label="t('clientRules.editor.enabled')" :supporting-text="t('clientRules.editor.enabledHint')" />
     </form>
     <template #actions>
+      <slot name="extra-actions" />
       <MdButton variant="text" data-testid="cancel" @click="emit('close')">{{ t('actions.cancel') }}</MdButton>
       <MdButton data-testid="save" :disabled="saving" @click="save">{{ t('clientRules.editor.save') }}</MdButton>
     </template>
