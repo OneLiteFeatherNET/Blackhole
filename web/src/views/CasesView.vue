@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { type LocationQuery, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '../api/inject'
 import type { CaseListItem, CaseStatus } from '../api/types'
 import CaseListCell from '../components/case/CaseListCell.vue'
@@ -21,11 +21,14 @@ import { useResource } from '../composables/useResource'
 import { createListKeys, detailIsShown, listIsShown, rowDomId } from '../nav/listDetail'
 import { useBreakpoint } from '../nav/useBreakpoint'
 import { useSessionStore } from '../stores/session'
+import { LIST_QUERY, TAG } from '../router/listQuery'
+import { useListState } from '../router/useListState'
 import CaseView from './CaseView.vue'
-import { type CasesViewMode, readCasesView, writeCasesView } from './casesViewMemory'
 
 const STATUSES: CaseStatus[] = ['OPEN', 'IN_REVIEW', 'WAITING', 'CLOSED']
-const TAG = /^[a-z0-9-]{1,32}$/
+type CasesViewMode = 'cases' | 'player'
+// The list's state is its address: the filters, the view (`cases` or `player`) and the page. Nothing is kept in storage.
+const LIST = LIST_QUERY.cases!
 const FILTER_KEYS = ['status', 'mine', 'tag'] as const
 
 // The open case is the `reference` of the route; this page is the list and, beside or in place of it, the case.
@@ -41,27 +44,27 @@ const listShown = computed(() => listIsShown(size.value, props.reference !== und
 const detailShown = computed(() => detailIsShown(size.value, props.reference !== undefined))
 const detailPane = ref<HTMLElement | null>(null)
 
-// Every filter value is a string; '' means the filter is not applied. The route query holds the same values, so a
-// reload or Back returns to the same filtered list. Anything the query cannot hold is ignored.
-function fromQuery(query: LocationQuery): Record<string, string> {
-  const status = typeof query.status === 'string' && (STATUSES as string[]).includes(query.status) ? query.status : ''
-  const tag = typeof query.tag === 'string' && TAG.test(query.tag) ? query.tag : ''
-  return { status, mine: query.mine === '1' ? 'mine' : '', tag }
+// The list's state is its address: every value is a string, '' is the default (no filter, the flat list, the first
+// page). A change shows at once and the address follows; Back, a reload and a shared link read the same values.
+const state = useListState(LIST)
+const values = computed<Record<string, string>>({
+  get: () => Object.fromEntries(FILTER_KEYS.map((key) => [key, state.value[key] ?? ''])),
+  set: (next) => {
+    state.value = { ...state.value, ...next }
+  },
+})
+const page = computed(() => Number(state.value.page || 0))
+const view = computed<CasesViewMode>({
+  get: () => (state.value.view === 'player' ? 'player' : 'cases'),
+  set: (mode) => {
+    state.value = { ...state.value, view: mode === 'cases' ? '' : mode }
+  },
+})
+
+function goToPage(index: number): void {
+  state.value = { ...state.value, page: index > 0 ? String(index) : '' }
 }
 
-function toQuery(filters: Record<string, string>): LocationQuery {
-  const query: LocationQuery = { ...route.query }
-  for (const key of FILTER_KEYS) delete query[key]
-  if (filters.status) query.status = filters.status
-  if (filters.mine) query.mine = '1'
-  if (filters.tag) query.tag = filters.tag
-  return query
-}
-
-const values = ref<Record<string, string>>(fromQuery(route.query))
-const page = ref(0)
-// The chosen view is remembered in this browser only; the filters apply to both views.
-const view = ref<CasesViewMode>(readCasesView())
 // The selection belongs to the list on screen: a change of view ends it, like a change of filter or page.
 const selection = useCaseSelection()
 const bulkOpen = ref(false)
@@ -78,13 +81,6 @@ function onBulkDone(): void {
   selection.clear()
   reloadList()
 }
-
-watch(view, (mode) => {
-  writeCasesView(mode)
-  selection.clear()
-  // The flat list is requested only while it is shown, so switching back to it loads it once.
-  if (mode === 'cases') void cases.reload()
-})
 
 const filtersApplied = computed(() => Object.values(values.value).some((value) => value !== ''))
 
@@ -103,17 +99,15 @@ const cases = useResource(
   { immediate: view.value === 'cases' },
 )
 
-// Any filter starts again at the first page, and the query follows the filters. The flat list reloads only while shown.
-watch(values, (next) => {
-  page.value = 0
-  selection.clear()
-  if (view.value === 'cases') void cases.reload()
-  void router.replace({ query: toQuery(next) })
-})
-watch(page, () => {
-  selection.clear()
-  if (view.value === 'cases') void cases.reload()
-})
+// The flat list reads again when its filters, page or view change, from the address (Back and reload included).
+// The selection ends with each of them, and the flat list is requested only while it is shown.
+watch(
+  () => JSON.stringify([values.value, page.value, view.value]),
+  () => {
+    selection.clear()
+    if (view.value === 'cases') void cases.reload()
+  },
+)
 
 // The keys move a cursor over the rows of this page. The cursor follows the open case, and is kept on the list.
 const cursor = ref(0)
@@ -178,15 +172,6 @@ function rowProps(row: CaseListItem, index: number): Record<string, unknown> {
   }
 }
 
-// Back and forward change the query; the filters follow it.
-watch(
-  () => route.query,
-  (query) => {
-    const next = fromQuery(query)
-    if (FILTER_KEYS.some((key) => next[key] !== values.value[key])) values.value = next
-  },
-)
-
 function clearFilters(): void {
   values.value = { status: '', mine: '', tag: '' }
 }
@@ -202,7 +187,7 @@ const filters = computed<FilterDef[]>(() => [
     kind: 'toggle-group',
     id: 'mine',
     label: t('case.list.mine'),
-    options: [{ value: 'mine', label: t('case.list.mine'), testid: 'filter-mine' }],
+    options: [{ value: '1', label: t('case.list.mine'), testid: 'filter-mine' }],
   },
   { kind: 'tag', id: 'tag', label: t('case.list.tag'), pattern: TAG, invalid: t('case.header.tagInvalid') },
 ])
@@ -252,10 +237,12 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
       :status="(values.status || undefined) as CaseStatus | undefined"
       :assignee="values.mine ? session.me?.oid : undefined"
       :tag="values.tag || undefined"
+      :page="page"
       :filters-applied="filtersApplied"
       :columns="columns"
       :selection="selection"
       :revision="groupsRevision"
+      @update:page="goToPage"
       @clear-filters="clearFilters"
     />
 
@@ -317,9 +304,9 @@ const columns = computed<DataColumn<CaseListItem>[]>(() => [
         </EmptyState>
 
         <nav v-if="cases.data.value.totalPages > 1" class="flex items-center gap-2" :aria-label="t('case.list.paging')">
-          <MdButton variant="text" :disabled="page === 0" data-testid="prev" @click="page--">{{ t('evidence.paging.previous') }}</MdButton>
+          <MdButton variant="text" :disabled="page === 0" data-testid="prev" @click="goToPage(page - 1)">{{ t('evidence.paging.previous') }}</MdButton>
           <span class="text-body-medium" aria-live="polite">{{ t('evidence.paging.position', { page: page + 1, total: cases.data.value.totalPages }) }}</span>
-          <MdButton variant="text" :disabled="page + 1 >= cases.data.value.totalPages" data-testid="next" @click="page++">{{ t('evidence.paging.next') }}</MdButton>
+          <MdButton variant="text" :disabled="page + 1 >= cases.data.value.totalPages" data-testid="next" @click="goToPage(page + 1)">{{ t('evidence.paging.next') }}</MdButton>
         </nav>
       </template>
     </ResourceState>

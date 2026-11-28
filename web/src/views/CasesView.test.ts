@@ -166,6 +166,34 @@ describe('CasesView: filters in the URL', () => {
     wrapper.unmount()
   })
 
+  it('opens the page the route query names, and paging writes it back', async () => {
+    const cases = vi.fn(async () => ok({ items: [item()], page: 1, size: 25, totalSize: 3, totalPages: 3 }))
+    const { wrapper, router } = await mountWithApp(CasesView, { api: mockApi({ cases }), path: '/cases?page=1' })
+
+    expect(cases).toHaveBeenCalledWith(expect.objectContaining({ page: 1 }))
+
+    await wrapper.get('[data-testid="prev"]').trigger('click')
+    await flushPromises()
+
+    expect(cases).toHaveBeenLastCalledWith(expect.objectContaining({ page: 0 }))
+    expect(router.currentRoute.value.query).toEqual({})
+
+    wrapper.unmount()
+  })
+
+  it('starts again at the first page when a filter changes, and drops the page from the address', async () => {
+    const cases = vi.fn(async () => ok({ items: [item()], page: 0, size: 25, totalSize: 3, totalPages: 3 }))
+    const { wrapper, router } = await mountWithApp(CasesView, { api: mockApi({ cases }), path: '/cases?page=2' })
+
+    await wrapper.get('[data-testid="status-CLOSED"]').trigger('click')
+    await flushPromises()
+
+    expect(cases).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'CLOSED', page: 0 }))
+    expect(router.currentRoute.value.query).toEqual({ status: 'CLOSED' })
+
+    wrapper.unmount()
+  })
+
   it('writes each applied filter to the route query', async () => {
     const { mount } = setup([[item()], [item()]])
     const { wrapper, router } = await mount()

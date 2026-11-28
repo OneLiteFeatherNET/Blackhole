@@ -258,6 +258,33 @@ describe('PunishedPlayersView', () => {
     wrapper.unmount()
   })
 
+  it('never puts a typed player name in the route query', async () => {
+    const { mount } = setup()
+    const { wrapper, router } = await mount()
+    useLookupStore().remember(BOB, 'Notch')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="q"] input').setValue('Notch')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({})
+    expect(router.currentRoute.value.fullPath, 'the name in the address').not.toContain('Notch')
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1)
+
+    wrapper.unmount()
+  })
+
+  it('drops the name of an old link and opens with an empty search', async () => {
+    const { mount } = setup()
+    const { wrapper, router } = await mount(undefined, '/punished?q=Notch&kind=BAN')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/punished?kind=BAN')
+    expect((wrapper.get('[data-testid="q"] input').element as HTMLInputElement).value).toBe('')
+
+    wrapper.unmount()
+  })
+
   it('searches the listed players by a name resolved in this session without another request', async () => {
     const { activePunishments, mount } = setup()
     const { wrapper } = await mount()

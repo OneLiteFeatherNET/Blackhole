@@ -4,7 +4,7 @@
 // come from the server, paged over players, so a player's count covers all of their matching cases. Expanding a group
 // asks for that player's cases with the owner as a request parameter; the owner is held here only, never in the route
 // or in browser storage. Several groups may be open at once.
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApi } from '../../api/inject'
 import type { CaseGroupItem, CaseListItem, CaseStatus } from '../../api/types'
@@ -25,15 +25,17 @@ const props = withDefaults(
     status?: CaseStatus
     assignee?: string
     tag?: string
+    /** The group page, held by the page in the address (`page=`); 0 is the first page. */
+    page?: number
     filtersApplied?: boolean
     columns: DataColumn<CaseListItem>[]
     selection: CaseSelection
     /** Bumped by the page when cases changed elsewhere (a bulk edit): the groups and the open players reload. */
     revision?: number
   }>(),
-  { filtersApplied: false, revision: 0 },
+  { page: 0, filtersApplied: false, revision: 0 },
 )
-const emit = defineEmits<{ 'clear-filters': [] }>()
+const emit = defineEmits<{ 'clear-filters': []; 'update:page': [page: number] }>()
 
 const CASES_PER_GROUP = 20
 // The checkbox column: the player header and its case rows share it, so their boxes sit on one vertical line.
@@ -41,7 +43,7 @@ const LEADING_CELL = 'px-2 py-1 align-middle'
 
 const { t, locale } = useI18n()
 const api = useApi()
-const page = ref(0)
+const page = computed(() => props.page)
 
 interface Expansion {
   open: boolean
@@ -117,17 +119,9 @@ function playerSelection(group: CaseGroupItem) {
   return props.selection.summary(expansionOf(group.owner).items)
 }
 
-// A filter change goes back to the first group page. Each path loads the groups exactly once: from a page other than
-// the first, the page watcher does the load; on the first page the filter watcher does it. Either one ends the
-// selection, because the cases it was made from are no longer the ones on screen.
-watch(
-  () => [props.status, props.assignee, props.tag],
-  () => {
-    if (page.value !== 0) page.value = 0
-    else refreshGroups()
-  },
-)
-watch(page, refreshGroups)
+// A filter change comes with the first group page (the parent resets the page in the same address change), so one
+// watcher on the filters and the page reads the groups once per change. The selection is ended by the parent.
+watch(() => JSON.stringify([props.status, props.assignee, props.tag, props.page]), refreshGroups)
 
 // Cases changed elsewhere: the groups are read again and every open player's cases with them, so nothing shows the old state.
 watch(
@@ -266,9 +260,9 @@ function refreshGroups(): void {
         </EmptyState>
 
         <nav v-if="groups.data.value.totalPages > 1" class="mt-4 flex items-center gap-2" :aria-label="t('case.list.paging')">
-          <MdButton variant="text" :disabled="page === 0" data-testid="prev" @click="page--">{{ t('evidence.paging.previous') }}</MdButton>
+          <MdButton variant="text" :disabled="page === 0" data-testid="prev" @click="emit('update:page', page - 1)">{{ t('evidence.paging.previous') }}</MdButton>
           <span class="text-body-medium" aria-live="polite">{{ t('evidence.paging.position', { page: page + 1, total: groups.data.value.totalPages }) }}</span>
-          <MdButton variant="text" :disabled="page + 1 >= groups.data.value.totalPages" data-testid="next" @click="page++">{{ t('evidence.paging.next') }}</MdButton>
+          <MdButton variant="text" :disabled="page + 1 >= groups.data.value.totalPages" data-testid="next" @click="emit('update:page', page + 1)">{{ t('evidence.paging.next') }}</MdButton>
         </nav>
       </template>
     </ResourceState>

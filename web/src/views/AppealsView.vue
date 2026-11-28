@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { type LocationQuery, useRoute, useRouter } from 'vue-router'
+import { LIST_QUERY } from '../router/listQuery'
+import { useListState } from '../router/useListState'
 import { useApi } from '../api/inject'
 import type { Appeal, AppealStatus } from '../api/types'
 import AppealDecisionDialog from '../components/appeals/AppealDecisionDialog.vue'
@@ -25,29 +26,17 @@ const DECIDABLE: AppealStatus[] = ['ELIGIBLE_PENDING_REVIEW', 'IN_REVIEW']
 const { t, locale } = useI18n()
 const api = useApi()
 const session = useSessionStore()
-const route = useRoute()
-const router = useRouter()
 
-// The one filter is pending or all. Pending is the default, so the route query only carries `show=all`; a reload or
-// Back returns to the same view.
-function fromQuery(query: LocationQuery): Record<string, string> {
-  return { show: query.show === 'all' ? 'all' : '' }
-}
-
-function toQuery(filters: Record<string, string>): LocationQuery {
-  const query: LocationQuery = { ...route.query }
-  delete query.show
-  if (filters.show) query.show = filters.show
-  return query
-}
-
-const values = ref<Record<string, string>>(fromQuery(route.query))
-const showAll = computed(() => values.value.show === 'all')
+// The one filter is pending or all, in the address (`status`). Pending is the default, so the address normally has no
+// status; a reload or Back returns to the same view.
+const LIST = LIST_QUERY.appeals!
+const values = useListState(LIST)
+const showAll = computed(() => values.value.status === 'all')
 
 const filters = computed<FilterDef[]>(() => [
   {
     kind: 'toggle-group',
-    id: 'show',
+    id: 'status',
     label: t('appeals.filter'),
     options: [
       { value: '', label: t('appeals.filterPending'), testid: 'filter-pending' },
@@ -93,18 +82,8 @@ watch(
   { immediate: true },
 )
 
-// The filter writes the route query; the route query (Back, a reload) writes the filter.
-watch(values, (next) => void router.replace({ query: toQuery(next) }))
-watch(
-  () => route.query,
-  (query) => {
-    const next = fromQuery(query)
-    if (next.show !== values.value.show) values.value = next
-  },
-)
-
 function showEverything(): void {
-  values.value = { show: 'all' }
+  values.value = { status: 'all' }
 }
 
 async function done(text: string): Promise<void> {

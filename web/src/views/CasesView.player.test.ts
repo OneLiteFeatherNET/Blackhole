@@ -1,11 +1,10 @@
 import { flushPromises } from '@vue/test-utils'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { CaseListItem } from '../api/types'
 import { mockApi, mountWithApp, ok } from '../test/mount'
 import CasesView from './CasesView.vue'
 
 const OWNER = 'ab'.repeat(64)
-const STORAGE_KEY = 'blackhole.cases.view'
 
 function item(overrides: Partial<CaseListItem> = {}): CaseListItem {
   return {
@@ -30,12 +29,8 @@ function setup(items: CaseListItem[] = [item()]) {
   const caseGroups = vi.fn(async () =>
     ok({ items: [{ owner: OWNER, ownerShort: 'abababababab', playerName: null, openCount: 1, totalCount: 1, lastActivityAt: 1 }], page: 0, size: 20, totalSize: 1, totalPages: 1 }),
   )
-  return { cases, caseGroups, mount: () => mountWithApp(CasesView, { api: mockApi({ cases, caseGroups }), path: '/cases' }) }
+  return { cases, caseGroups, mount: (path = '/cases') => mountWithApp(CasesView, { api: mockApi({ cases, caseGroups }), path }) }
 }
-
-afterEach(() => {
-  window.localStorage.removeItem(STORAGE_KEY)
-})
 
 describe('CasesView player column and grouped view', () => {
   it('shows the player name, or the short owner hash when no name is known, and never the whole hash', async () => {
@@ -64,7 +59,7 @@ describe('CasesView player column and grouped view', () => {
 
   it('shows the grouped view when the viewer chooses it and asks for the groups', async () => {
     const { caseGroups, mount } = setup()
-    const { wrapper } = await mount()
+    const { wrapper, router } = await mount()
 
     await wrapper.get('[data-testid="view-player"]').trigger('click')
     await flushPromises()
@@ -73,15 +68,32 @@ describe('CasesView player column and grouped view', () => {
     expect(wrapper.get('[data-testid="view-player"]').attributes('aria-pressed')).toBe('true')
     expect(wrapper.find('[data-testid="case-group"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="case-group-rows"]').exists()).toBe(false)
-    expect(window.localStorage.getItem(STORAGE_KEY)).toBe('player')
+    // The view is in the address, so a reload or a shared link opens the same view.
+    expect(router.currentRoute.value.query.view).toBe('player')
 
     wrapper.unmount()
   })
 
-  it('opens in the grouped view when the viewer chose it before', async () => {
-    window.localStorage.setItem(STORAGE_KEY, 'player')
+  it('moves between the views without writing the choice to storage', async () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    const { mount } = setup()
+    const { wrapper, router } = await mount()
+
+    await wrapper.get('[data-testid="view-player"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="view-cases"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({})
+    expect(setItem, 'list state in storage').not.toHaveBeenCalled()
+
+    setItem.mockRestore()
+    wrapper.unmount()
+  })
+
+  it('opens in the grouped view when the address names it', async () => {
     const { caseGroups, mount } = setup()
-    const { wrapper } = await mount()
+    const { wrapper } = await mount('/cases?view=player')
     await flushPromises()
 
     expect(caseGroups).toHaveBeenCalled()
@@ -91,9 +103,8 @@ describe('CasesView player column and grouped view', () => {
   })
 
   it('does not request the flat case list while the grouped view is shown', async () => {
-    window.localStorage.setItem(STORAGE_KEY, 'player')
     const { cases, mount } = setup()
-    const { wrapper } = await mount()
+    const { wrapper } = await mount('/cases?view=player')
     await flushPromises()
 
     expect(cases).not.toHaveBeenCalled()
@@ -102,9 +113,8 @@ describe('CasesView player column and grouped view', () => {
   })
 
   it('requests the flat case list once when the viewer switches back to it', async () => {
-    window.localStorage.setItem(STORAGE_KEY, 'player')
     const { cases, mount } = setup()
-    const { wrapper } = await mount()
+    const { wrapper } = await mount('/cases?view=player')
     await flushPromises()
 
     await wrapper.get('[data-testid="view-cases"]').trigger('click')

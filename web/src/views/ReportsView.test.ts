@@ -66,7 +66,7 @@ describe('ReportsView: page template', () => {
     const { mount } = setup()
     const { wrapper } = await mount()
 
-    const group = wrapper.get('[data-testid="filter-toolbar"] [data-testid="show"]')
+    const group = wrapper.get('[data-testid="filter-toolbar"] [data-testid="status"]')
     expect(group.attributes('aria-label')).toBe('Which reports to show')
     expect(group.find('[data-testid="filter-open"]').attributes('aria-pressed')).toBe('true')
 
@@ -75,7 +75,7 @@ describe('ReportsView: page template', () => {
 
   it('starts with every report when the route query asks for all', async () => {
     const { api } = setup()
-    const { wrapper } = await mountWithApp(ReportsView, { api: mockApi(api), path: '/reports?show=all' })
+    const { wrapper } = await mountWithApp(ReportsView, { api: mockApi(api), path: '/reports?status=all' })
 
     expect(wrapper.findAll('tbody tr')).toHaveLength(2)
 
