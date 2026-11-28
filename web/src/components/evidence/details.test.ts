@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fail, mockApi, mountWithApp, ok } from '../../test/mount'
 import { evidenceItem } from '../../test/evidence'
+import { appSessionStorageKeys, routerScrollBookkeeping } from '../../test/storage'
 import { useLookupStore } from '../../stores/lookup'
 import AnticheatDetail from './AnticheatDetail.vue'
 import ChatLogDetail from './ChatLogDetail.vue'
@@ -106,7 +107,8 @@ describe('ChatLogDetail', () => {
     await wrapper.vm.$nextTick()
 
     expect(window.localStorage.length, 'local storage entries').toBe(0)
-    expect(window.sessionStorage.length, 'session storage entries').toBe(0)
+    expect(appSessionStorageKeys(), 'session storage entries').toEqual([])
+    expect(routerScrollBookkeeping(), 'router scroll bookkeeping holds no app data').toBe('{}')
 
     wrapper.unmount()
   })

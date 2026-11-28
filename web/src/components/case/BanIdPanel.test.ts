@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { caseResponse } from '../../test/cases'
 import { fail, mockApi, mountWithApp, ok } from '../../test/mount'
 import { chooseOption } from '../../test/select'
+import { appSessionStorageKeys, routerScrollBookkeeping } from '../../test/storage'
 import BanIdPanel from './BanIdPanel.vue'
 
 const SECRET = 'K7M2QX9D'
@@ -139,7 +140,9 @@ describe('BanIdPanel: the Ban ID is not kept anywhere', () => {
     for (const [place, content] of Object.entries(everywhere)) {
       expect(content, place).not.toContain(SECRET)
     }
-    expect(localStorage.length + sessionStorage.length, 'nothing is written to browser storage at all').toBe(0)
+    expect(localStorage.length, 'nothing is written to local storage').toBe(0)
+    expect(appSessionStorageKeys(), 'nothing is written to session storage at all').toEqual([])
+    expect(routerScrollBookkeeping(), 'router scroll bookkeeping holds no app data').toBe('{}')
 
     wrapper.unmount()
   })
