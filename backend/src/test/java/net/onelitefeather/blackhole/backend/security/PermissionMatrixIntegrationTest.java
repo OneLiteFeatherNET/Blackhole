@@ -100,6 +100,11 @@ class PermissionMatrixIntegrationTest extends ApiIntegrationTest {
     }
 
     @Test
+    void theProxyMayReadPunishmentTemplates() {
+        assertEquals(200, get("/template", this.jwt.proxy()).status(), "proxy on GET /template (fallback of the plugin's template cache)");
+    }
+
+    @Test
     void theProxyMayReportTheCloudNetCatalogue() {
         assertAuthorized(put("/cloudnet/catalogue", Map.of("proxyId", "Proxy-1"), this.jwt.proxy()), "proxy on PUT /cloudnet/catalogue");
     }
