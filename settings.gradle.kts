@@ -60,7 +60,7 @@ dependencyResolutionManagement {
             // Discord gateway client for the bot (discord module). Pinned on purpose: bump after checking Maven Central and the 2 week age rule.
             version("jda", "6.7.0")
             // NATS client for the domain event bus (backend and Discord bot). Pinned on purpose: bump after checking Maven Central and the 2 week age rule.
-            version("jnats", "2.26.4")
+            version("jnats", "2.27.0")
             // Error reporting of the velocity plugin. Pinned on purpose: 8.62.0 is younger than the 2 week age rule, bump after it is old enough.
             version("sentry", "8.63.0")
 
