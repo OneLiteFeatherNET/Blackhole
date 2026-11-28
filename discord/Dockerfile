@@ -15,7 +15,7 @@
 #     -e BLACKHOLE_DISCORD_CLIENT_SECRET=<secret> -e BLACKHOLE_DISCORD_AUTH_SCOPE=api://<api client id>/.default \
 #     blackhole-discord
 
-FROM eclipse-temurin:25.0.5.1_1-jdk AS build
+FROM eclipse-temurin:25.0.5.1_2-jdk AS build
 WORKDIR /src
 COPY gradlew settings.gradle.kts build.gradle.kts gradle.properties ./
 COPY gradle ./gradle
@@ -26,7 +26,7 @@ COPY discord ./discord
 RUN sed -i -E '/^include\("(backend|velocity|phoca|web|portal)"\)/d' settings.gradle.kts \
  && ./gradlew --no-daemon :discord:shadowJar -x test
 
-FROM eclipse-temurin:25.0.5.1_1-jre
+FROM eclipse-temurin:25.0.5.1_2-jre
 RUN groupadd --system --gid 10001 blackhole && useradd --system --uid 10001 --gid blackhole --no-create-home blackhole
 WORKDIR /app
 # Owned by root and only readable for the bot user, so the process cannot rewrite its own code.
