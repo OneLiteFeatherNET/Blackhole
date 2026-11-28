@@ -7,6 +7,7 @@ import com.networknt.schema.Schema;
 import jakarta.inject.Singleton;
 import net.onelitefeather.blackhole.backend.evidence.validation.PiiGuard;
 import net.onelitefeather.blackhole.backend.integration.dto.DetectionReason;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -46,6 +47,8 @@ public class DetectionValidator {
             "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
     private static final Pattern KIND = Pattern.compile("^[A-Z][A-Z0-9_]{0,31}$");
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    /** json-schema-validator 3.x validates Jackson 3 trees, so the payload is re-read with this mapper for the schema check. */
+    private static final JsonMapper SCHEMA_MAPPER = JsonMapper.shared();
 
     private final SchemaRegistry schemas;
 
@@ -165,7 +168,7 @@ public class DetectionValidator {
         if (control[0]) {
             return DetectionReason.SCHEMA_INVALID;
         }
-        if (!schema.validate(payload).isEmpty()) {
+        if (!schema.validate(SCHEMA_MAPPER.readTree(payload.toString())).isEmpty()) {
             return DetectionReason.SCHEMA_INVALID;
         }
         return pii[0] ? DetectionReason.PII_IN_PAYLOAD : null;

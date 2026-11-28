@@ -1,7 +1,7 @@
 package net.onelitefeather.blackhole.backend.integration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Map;
 
@@ -44,7 +44,7 @@ class SchemaRegistryTest {
         // prefixItems is a 2020-12 keyword: under draft 7 it is ignored and [1] would pass, so a pass here means 2020-12 is in force.
         SchemaRegistry registry = SchemaRegistry.of(Map.of("vulcan/TUPLE/v1.json", TUPLE_2020_12));
         var schema = registry.find("vulcan", "TUPLE", 1).orElseThrow();
-        ObjectMapper mapper = new ObjectMapper();
+        JsonMapper mapper = JsonMapper.shared();
 
         assertFalse(schema.validate(mapper.readTree("[1]")).isEmpty(), "a number in the first position is refused");
         assertTrue(schema.validate(mapper.readTree("[\"a\"]")).isEmpty(), "a string in the first position is accepted");

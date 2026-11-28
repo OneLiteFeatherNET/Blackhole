@@ -1,10 +1,10 @@
 package net.onelitefeather.blackhole.backend.integration;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.Schema;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -17,7 +17,7 @@ class VulcanDetectionSchemaTest {
              "experimental": false, "detail": "Attack angle delta above threshold"}
             """;
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final JsonMapper mapper = JsonMapper.shared();
     private Schema schema;
 
     @BeforeEach
