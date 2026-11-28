@@ -5,6 +5,7 @@
 // it with a note. Both use the resolve route. The reporter is shown by hash only, never by name or UUID.
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { useApi } from '../api/inject'
 import type { Evidence, Punishment, Report, ReportStatus } from '../api/types'
 import Breadcrumbs from '../components/Breadcrumbs.vue'
@@ -25,6 +26,7 @@ import ResourceState from '../components/ResourceState.vue'
 import StatusPill from '../components/StatusPill.vue'
 import { useResource } from '../composables/useResource'
 import { formatDateTime, shortHash } from '../format'
+import { useRoutedDialog } from '../router/routedDialog'
 import { useLookupStore } from '../stores/lookup'
 import { withWorkspace } from '../nav/workspaces'
 import { useSessionStore } from '../stores/session'
@@ -37,6 +39,7 @@ const { t, locale } = useI18n()
 const api = useApi()
 const session = useSessionStore()
 const lookup = useLookupStore()
+const route = useRoute()
 
 const report = useResource(() => api.report(props.id))
 const others = ref<Report[]>([])
@@ -46,20 +49,27 @@ const missingEvidence = ref(0)
 /** Which of the side sections could not be loaded; the report itself is still shown. */
 const failed = ref<Array<'others' | 'active' | 'evidence'>>([])
 
-const applying = ref(false)
-const dismissing = ref(false)
+// The resolve and dismiss dialogs are child routes of the report: the address opens one, Back closes it.
+const resolveRoute = useRoutedDialog({ parent: 'report', child: 'report-resolve' })
+const dismissRoute = useRoutedDialog({ parent: 'report', child: 'report-dismiss' })
 const deleting = ref<Evidence | null>(null)
 const message = ref('')
 
 const current = computed(() => report.data.value)
 const isOpen = computed(() => OPEN.includes(current.value?.status ?? 'OPEN'))
 const canResolve = computed(() => session.moderator && isOpen.value && Boolean(current.value?.identifier))
+// An action dialog opens only for a moderator, on a loaded report that is still open: otherwise its address shows nothing.
+const actionable = computed(() => session.moderator && current.value !== null && isOpen.value)
+const resolveOpen = computed(() => resolveRoute.open.value && actionable.value)
+const dismissOpen = computed(() => dismissRoute.open.value && actionable.value)
+const actionRoute = (name: 'report-resolve' | 'report-dismiss') => ({ name, params: { id: props.id }, query: route.query })
 const playerName = computed(() => (current.value ? lookup.nameOf(current.value.reportedHash) : null))
 
 // The trail back to the list is the breadcrumbs; the title of the page is the report itself.
 const crumbs = computed(() => [{ label: t('nav.reports'), to: '/reports' }, { label: `#${props.id.slice(0, 8)}` }])
 
 // The header: one primary action (applying a template resolves the report as actioned), dismiss in the overflow.
+// Both are routes (a link to the child route), so the header navigates and the dialog asks for the confirmation.
 // A resolved report keeps its primary action visible but disabled, with the reason as text.
 const states = computed<EntityStateView[]>(() => {
   const pill = reportStatePill(current.value?.status ?? null)
@@ -67,15 +77,12 @@ const states = computed<EntityStateView[]>(() => {
 })
 const primary = computed<EntityAction | null>(() => {
   if (!session.moderator || !current.value?.identifier) return null
-  const action = { key: 'apply', label: t('reports.detail.applyTemplate'), testid: 'apply-template' }
+  const action: EntityAction = { key: 'apply', label: t('reports.detail.applyTemplate'), testid: 'apply-template', to: actionRoute('report-resolve') }
   return isOpen.value ? action : { ...action, disabled: true, reason: t('entity.notice.reportResolved') }
 })
-const overflow = computed<EntityAction[]>(() => (canResolve.value ? [{ key: 'dismiss', label: t('reports.detail.dismiss') }] : []))
-
-function chosen(key: string): void {
-  if (key === 'apply') applying.value = true
-  if (key === 'dismiss') dismissing.value = true
-}
+const overflow = computed<EntityAction[]>(() =>
+  canResolve.value ? [{ key: 'dismiss', label: t('reports.detail.dismiss'), to: actionRoute('report-dismiss') }] : [],
+)
 // The workspace leads the trail for an administrator (the switcher is shown to them only).
 const trail = (items: { label: string; to?: string }[]) => withWorkspace(items, { show: session.administrator, workspace: 'moderation', translate: (key) => t(key) })
 
@@ -124,9 +131,20 @@ watch(
   { immediate: true },
 )
 
+// A resolution closes its own dialog (Back to the report) and then reloads the report with its message.
+async function resolved(text: string): Promise<void> {
+  message.value = text
+  await resolveRoute.close()
+  await report.reload()
+}
+
+async function dismissed(text: string): Promise<void> {
+  message.value = text
+  await dismissRoute.close()
+  await report.reload()
+}
+
 async function done(text: string): Promise<void> {
-  applying.value = false
-  dismissing.value = false
   deleting.value = null
   message.value = text
   await report.reload()
@@ -147,7 +165,6 @@ async function done(text: string): Promise<void> {
         :overflow="overflow"
         :notice="session.moderator ? undefined : t('entity.notice.viewerReport')"
         :crumbs="trail(crumbs)"
-        @action="chosen"
       />
       <header v-else class="flex flex-col gap-2">
         <Breadcrumbs :items="trail(crumbs)" />
@@ -206,8 +223,8 @@ async function done(text: string): Promise<void> {
     </ResourceState>
   </PageShell>
 
-  <ApplyTemplateDialog v-if="current" :open="applying" :owner="current.reportedHash" :report="current" @close="applying = false" @done="done" />
-  <ReportDismissDialog :open="dismissing" :report="current" @close="dismissing = false" @done="done" />
+  <ApplyTemplateDialog v-if="current" :open="resolveOpen" :owner="current.reportedHash" :report="current" @close="resolveRoute.close()" @done="resolved" />
+  <ReportDismissDialog :open="dismissOpen" :report="current" @close="dismissRoute.close()" @done="dismissed" />
   <DeleteEvidenceDialog :open="deleting !== null" :item="deleting" @close="deleting = null" @done="done" />
   <MdSnackbar :open="message !== ''" :message="message" @close="message = ''" />
 </template>
