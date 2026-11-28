@@ -16,7 +16,8 @@ export interface AuthGuardDeps {
  * Every route except the callback and the error page needs a signed-in user: without a token the
  * browser is sent to the authority and comes back through `/auth/callback` to the route it asked for.
  * A signed-in user whose roles open nothing is kept on the no-access page, so no data is requested.
- * Pages marked `meta.admin` need the ADMIN role.
+ * Pages marked `meta.admin` need the ADMIN role; routes marked `meta.moderator` (the actions on players and
+ * punishments) need MODERATOR or above.
  */
 export function installAuthGuard(router: Router, { auth, session, api }: AuthGuardDeps): void {
   router.beforeEach(async (to, from) => {
@@ -50,6 +51,7 @@ export function installAuthGuard(router: Router, { auth, session, api }: AuthGua
     if (!session.hasAccess) return to.name === 'no-access' ? true : { name: 'no-access' }
     // Admin-only pages are not offered to other roles; a direct visit lands on the no-access page, which says why.
     if (to.meta.admin && !session.administrator) return { name: 'no-access', query: { reason: 'admin' } }
+    // The actions on players and punishments are confirmations for moderators; a viewer gets no request for them.
     // A dialog that changes a list (`meta.moderator`) is refused to a viewer before its page requests any data.
     if (to.meta.moderator && !session.moderator) return { name: 'no-access', query: { reason: 'moderator' } }
     if (to.name === 'no-access') return to.query.reason === 'admin' || to.query.reason === 'moderator' ? true : '/'

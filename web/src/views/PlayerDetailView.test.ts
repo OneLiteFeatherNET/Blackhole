@@ -1,6 +1,8 @@
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { chooseOption } from '../test/select'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { defineComponent, h } from 'vue'
+import { RouterView } from 'vue-router'
 import type { EloEvent, EloProfile, Punishment, PunishmentProfile } from '../api/types'
 import { useLookupStore } from '../stores/lookup'
 import { evidenceItem, evidencePage } from '../test/evidence'
@@ -8,6 +10,9 @@ import { fail, mockApi, mountWithApp, ok } from '../test/mount'
 import PlayerDetailView from './PlayerDetailView.vue'
 
 const OWNER = 'ab'.repeat(64)
+
+/** The app shell: the route that renders the player and, behind it, the child route of an action. */
+const Shell = defineComponent({ setup: () => () => h(RouterView) })
 
 function punishment(overrides: Partial<Punishment> = {}): Punishment {
   return {
@@ -61,10 +66,15 @@ function api(overrides: Record<string, unknown> = {}) {
   })
 }
 
-async function open(owner = OWNER, overrides: Record<string, unknown> = {}) {
-  return mountWithApp(PlayerDetailView, { path: `/players/${owner}`, props: { owner }, api: api(overrides) })
+/** The page at `/players/:owner` with an optional query, e.g. `?tab=names`. */
+async function open(owner = OWNER, overrides: Record<string, unknown> = {}, query = '') {
+  return mountWithApp(PlayerDetailView, { path: `/players/${owner}${query}`, props: { owner }, api: api(overrides) })
 }
 
+/** The page behind its child route: the address decides which action dialog is open. */
+async function openRoute(path: string, overrides: Record<string, unknown> = {}) {
+  return mountWithApp(Shell, { path, api: api(overrides) })
+}
 
 /** The text the snackbar announces; the copy-link live region of the header is separate. */
 function snackbarText(wrapper: VueWrapper): string {
@@ -77,11 +87,11 @@ describe('PlayerDetailView', () => {
     sessionStorage.clear()
   })
 
-  it('shows the name history of the player as its own section', async () => {
+  it('shows the name history of the player on the names tab', async () => {
     const listPlayerNames = vi.fn(async () =>
       ok({ owner: OWNER, playerUuid: null, names: [{ name: 'Alex', firstSeen: 1, lastSeen: 2 }], page: 0, size: 50, hasMore: false }),
     )
-    const { wrapper } = await open(OWNER, { listPlayerNames })
+    const { wrapper } = await open(OWNER, { listPlayerNames }, '?tab=names')
 
     expect(listPlayerNames).toHaveBeenCalledWith(OWNER, 0, 50)
     expect(wrapper.get('[aria-labelledby="names-heading"]').text()).toContain('Alex')
@@ -129,8 +139,8 @@ describe('PlayerDetailView', () => {
     wrapper.unmount()
   })
 
-  it('lists the punishment history with lifted entries marked', async () => {
-    const { wrapper } = await open()
+  it('lists the punishment history with lifted entries marked, on the punishments tab', async () => {
+    const { wrapper } = await open(OWNER, {}, '?tab=punishments')
 
     const rows = wrapper.get('table[aria-label="Punishment history"]').findAll('tbody tr')
     expect(rows).toHaveLength(1)
@@ -143,7 +153,7 @@ describe('PlayerDetailView', () => {
 
   it('shows the elo history of the first section and reloads it when another is chosen', async () => {
     const eloHistory = vi.fn(async (_owner: string, section: string) => ok(section === 'chat' ? events : []))
-    const { wrapper } = await open(OWNER, { eloHistory })
+    const { wrapper } = await open(OWNER, { eloHistory }, '?tab=elo')
 
     expect(eloHistory).toHaveBeenCalledWith(OWNER, 'chat')
     const rows = wrapper.get('table[aria-label="ELO history"]').findAll('tbody tr')
@@ -160,10 +170,16 @@ describe('PlayerDetailView', () => {
     wrapper.unmount()
   })
 
-  it('shows a player without any punishment as clean', async () => {
+  it('shows a player without an active punishment as clean on the overview', async () => {
     const { wrapper } = await open(OWNER, { profile: vi.fn(async () => ok({ active: {}, history: [] })) })
 
     expect(wrapper.text()).toContain('No active punishments.')
+    wrapper.unmount()
+  })
+
+  it('shows an empty punishment history as such on the punishments tab', async () => {
+    const { wrapper } = await open(OWNER, { profile: vi.fn(async () => ok({ active: {}, history: [] })) }, '?tab=punishments')
+
     expect(wrapper.text()).toContain('No punishments so far.')
     expect(wrapper.find('table[aria-label="Punishment history"]').exists()).toBe(false)
 
@@ -234,114 +250,6 @@ describe('PlayerDetailView', () => {
     wrapper.unmount()
   })
 
-  describe('staff actions', () => {
-    const template = { identifier: 'id-1', key: 'hacking', reason: 'Hacking', section: 'network', steps: [] }
-    const preview = {
-      section: 'network', enforcement: 'BAN', step: 2, stepCount: 3, duration: 'P7D', eloCost: 150,
-      scoreBefore: 900, scoreAfter: 750, permanentThreshold: 300, escalatesToPermanent: false,
-    }
-
-    it('applies a template from the detail, then reloads the player and confirms with a message', async () => {
-      const profileCall = vi.fn(async () => ok(profile))
-      const applyTemplate = vi.fn(async () => ok({ step: 2, stepCount: 3, scoreAfter: 750, section: 'network' }))
-      const { wrapper } = await open(OWNER, {
-        profile: profileCall,
-        templates: vi.fn(async () => ok([template])),
-        previewApply: vi.fn(async () => ok(preview)),
-        applyTemplate,
-      })
-
-      await wrapper.get('[data-testid="open-apply"]').trigger('click')
-      await flushPromises()
-      await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'hacking')
-      await flushPromises()
-      await wrapper.get('[data-testid="confirm"]').trigger('click')
-      await flushPromises()
-
-      expect(applyTemplate).toHaveBeenCalledWith(OWNER, 'hacking', null)
-      expect(profileCall, 'profile loaded again after the action').toHaveBeenCalledTimes(2)
-      expect(wrapper.find('[role="dialog"]').exists(), 'dialog closed').toBe(false)
-      expect(snackbarText(wrapper)).toContain('Applied step 2 of 3; the score is now 750.')
-
-      wrapper.unmount()
-    })
-
-    it('applies a template with the player uuid that the newest session shows', async () => {
-      const uuid = '11111111-2222-3333-4444-555555555555'
-      const session = { sessionId: 's-1', owner: OWNER, playerUuid: uuid, playerName: 'Steve', ip: null, asOrg: null, outcome: 'ALLOWED', startedAt: 1, endedAt: null }
-      const applyTemplate = vi.fn(async () => ok({ step: 2, stepCount: 3, scoreAfter: 750, section: 'network' }))
-      const { wrapper } = await open(OWNER, {
-        templates: vi.fn(async () => ok([template])),
-        previewApply: vi.fn(async () => ok(preview)),
-        playerSessions: vi.fn(async () => ok({ sessions: [session], page: 0, size: 1, hasMore: false })),
-        applyTemplate,
-      })
-      await flushPromises()
-
-      await wrapper.get('[data-testid="open-apply"]').trigger('click')
-      await flushPromises()
-      await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'hacking')
-      await flushPromises()
-      await wrapper.get('[data-testid="confirm"]').trigger('click')
-      await flushPromises()
-
-      expect(applyTemplate).toHaveBeenCalledWith(OWNER, 'hacking', uuid)
-
-      wrapper.unmount()
-    })
-
-    it('revokes the active punishment of a section after confirmation', async () => {
-      const revoke = vi.fn(async () => ok({ section: 'network' }))
-      const { wrapper } = await open(OWNER, { revoke })
-
-      await wrapper.get('[data-testid="open-revoke-network"]').trigger('click')
-      await flushPromises()
-      expect(revoke, 'nothing happens before the confirmation').not.toHaveBeenCalled()
-      await wrapper.get('[data-testid="confirm"]').trigger('click')
-      await flushPromises()
-
-      expect(revoke).toHaveBeenCalledWith(OWNER, 'network')
-      expect(snackbarText(wrapper)).toContain('Revoked.')
-
-      wrapper.unmount()
-    })
-
-    it('adjusts a section score with a note', async () => {
-      const adjustElo = vi.fn(async () => ok({ section: 'chat', scoreBefore: 900, scoreAfter: 850 }))
-      const { wrapper } = await open(OWNER, { adjustElo })
-
-      await wrapper.get('[data-testid="open-adjust-chat"]').trigger('click')
-      await flushPromises()
-      const [delta, note] = wrapper.findAll('[role="dialog"] input')
-      await delta!.setValue('-50')
-      await note!.setValue('spam wave')
-      await wrapper.get('[data-testid="confirm"]').trigger('click')
-      await flushPromises()
-
-      expect(adjustElo).toHaveBeenCalledWith(OWNER, { section: 'chat', delta: -50, note: 'spam wave' })
-      expect(snackbarText(wrapper)).toContain('Score adjusted to 850.')
-
-      wrapper.unmount()
-    })
-
-    it('leaves the player unchanged when a dialog is cancelled', async () => {
-      const revoke = vi.fn()
-      const profileCall = vi.fn(async () => ok(profile))
-      const { wrapper } = await open(OWNER, { revoke, profile: profileCall })
-
-      await wrapper.get('[data-testid="open-revoke-network"]').trigger('click')
-      await flushPromises()
-      await wrapper.get('[data-testid="cancel"]').trigger('click')
-      await flushPromises()
-
-      expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
-      expect(revoke).not.toHaveBeenCalled()
-      expect(profileCall).toHaveBeenCalledTimes(1)
-
-      wrapper.unmount()
-    })
-  })
-
   it('keeps no player identifier in browser storage', async () => {
     const session = { sessionId: 's-1', owner: OWNER, playerUuid: '11111111-2222-3333-4444-555555555555', playerName: 'Steve', ip: '203.0.113.7', asOrg: 'Example Transit', outcome: 'ALLOWED', startedAt: 1, endedAt: null }
     const { wrapper } = await open(OWNER, { playerSessions: vi.fn(async () => ok({ sessions: [session], page: 0, size: 50, hasMore: false })) })
@@ -355,6 +263,230 @@ describe('PlayerDetailView', () => {
     expect(stored).not.toContain('Example Transit')
     expect(stored).not.toContain('11111111-2222-3333-4444-555555555555')
 
+    wrapper.unmount()
+  })
+})
+
+describe('PlayerDetailView: tabs', () => {
+  it('shows the overview by default and none of the content of the other tabs', async () => {
+    const { wrapper } = await open()
+
+    expect(wrapper.find('[aria-labelledby="scores-heading"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-labelledby="names-heading"]').exists()).toBe(false)
+    expect(wrapper.find('[aria-labelledby="elo-heading"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('loads the data of the tab that the address names and not the data of the others', async () => {
+    const evasionSightings = vi.fn(async () => ok({ detectionEnabled: true, windowDays: 7, linkedOwners: [], truncated: false }))
+    const { wrapper } = await open(OWNER, { evasionSightings }, '?tab=elo')
+    await flushPromises()
+
+    expect(wrapper.find('table[aria-label="ELO history"]').exists()).toBe(true)
+    expect(evasionSightings, 'the evasion tab is not open').not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('changes the tab in the address without reading the player again', async () => {
+    const profileCall = vi.fn(async () => ok(profile))
+    const { wrapper, router } = await open(OWNER, { profile: profileCall })
+
+    await wrapper.get('[data-testid="tab-names"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query.tab).toBe('names')
+    expect(wrapper.find('[aria-labelledby="names-heading"]').exists()).toBe(true)
+    expect(profileCall).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('replaces an unknown tab in the address with the overview', async () => {
+    const { wrapper, router } = await open(OWNER, {}, '?tab=unknown')
+
+    expect(router.currentRoute.value.query.tab).toBeUndefined()
+    expect(wrapper.find('[aria-labelledby="scores-heading"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('lists the warnings of the history on the warnings tab and never a Ban ID', async () => {
+    const warning = punishment({ identifier: 'warning-identifier-7f3c', section: 'chat', kind: 'WARN', shortId: 'ABC999' } as never)
+    const { wrapper } = await open(OWNER, { profile: vi.fn(async () => ok({ active: {}, history: [warning] })) }, '?tab=warnings')
+
+    expect(wrapper.get('[data-testid="warnings-list"]').text()).toContain('ABC999')
+    expect(wrapper.html()).not.toContain('warning-identifier-7f3c')
+    wrapper.unmount()
+  })
+
+  it('lists the reports against the player on the reports tab, each one a link to its own page', async () => {
+    const report = { identifier: '3f2b8c1e-0000-4000-8000-000000000001', category: 'CHEATING', status: 'OPEN', createdAt: Date.UTC(2030, 0, 1) }
+    const reportsAgainst = vi.fn(async () => ok([report]))
+    const { wrapper } = await open(OWNER, { reportsAgainst }, '?tab=reports')
+    await flushPromises()
+
+    expect(reportsAgainst).toHaveBeenCalledWith(OWNER)
+    expect(wrapper.get('[data-testid="player-reports"] a').attributes('href')).toBe(`/reports/${report.identifier}`)
+    wrapper.unmount()
+  })
+
+  it('lists the cases of the player on the cases tab, each one a link to its case', async () => {
+    const cases = vi.fn(async () => ok({ items: [{ punishmentIdentifier: 'p-1', shortId: '#A1B2C3D4', status: 'OPEN', lastActivityAt: Date.UTC(2030, 0, 1) }], page: 0, size: 50, totalPages: 1, totalItems: 1 }))
+    const { wrapper } = await open(OWNER, { cases }, '?tab=cases')
+    await flushPromises()
+
+    expect(cases).toHaveBeenCalledWith({ owner: OWNER })
+    expect(wrapper.get('[data-testid="player-cases"] a').attributes('href')).toBe('/cases/p-1')
+    wrapper.unmount()
+  })
+
+  it('lists the punishments of the player on the evidence tab, each linking to its evidence', async () => {
+    const { wrapper } = await open(OWNER, { profile: vi.fn(async () => ok({ ...profile, active: { network: punishment({ evidenceCount: 2 } as never) } })) }, '?tab=evidence')
+
+    expect(wrapper.get('[data-testid="evidence-list"] a').attributes('href')).toBe(`/punished/ABC123?owner=${OWNER}&tab=evidence`)
+    expect(wrapper.get('[data-testid="evidence-list"]').text()).toContain('2 evidence items')
+    wrapper.unmount()
+  })
+
+  it('shows the revoke of an active punishment as a link to its own address, not as a dialog', async () => {
+    const { wrapper } = await open(OWNER, { revoke: vi.fn() })
+
+    expect(wrapper.get('[data-testid="open-revoke-network"]').attributes('href')).toBe(`/punished/ABC123/revoke?owner=${OWNER}`)
+    wrapper.unmount()
+  })
+})
+
+describe('PlayerDetailView: staff actions', () => {
+  const template = { identifier: 'id-1', key: 'hacking', reason: 'Hacking', section: 'network', steps: [] }
+  const preview = {
+    section: 'network', enforcement: 'BAN', step: 2, stepCount: 3, duration: 'P7D', eloCost: 150,
+    scoreBefore: 900, scoreAfter: 750, permanentThreshold: 300, escalatesToPermanent: false,
+  }
+  const applyApi = (overrides: Record<string, unknown> = {}) => ({
+    templates: vi.fn(async () => ok([template])),
+    previewApply: vi.fn(async () => ok(preview)),
+    ...overrides,
+  })
+
+  it('opens the apply route from the header and sends nothing before a template is confirmed', async () => {
+    const applyTemplate = vi.fn()
+    const { wrapper, router } = await openRoute(`/players/${OWNER}`, applyApi({ applyTemplate }))
+
+    await wrapper.get('[data-testid="open-apply"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('player-punish')
+    expect(applyTemplate, 'nothing happens on navigation').not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('applies a template from its route after confirmation, reloads the player and returns to the page', async () => {
+    const profileCall = vi.fn(async () => ok(profile))
+    const applyTemplate = vi.fn(async () => ok({ step: 2, stepCount: 3, scoreAfter: 750, section: 'network' }))
+    const { wrapper, router } = await openRoute(`/players/${OWNER}/punish`, applyApi({ profile: profileCall, applyTemplate }))
+    await flushPromises()
+
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'hacking')
+    await flushPromises()
+    await wrapper.get('[data-testid="confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(applyTemplate).toHaveBeenCalledWith(OWNER, 'hacking', null)
+    expect(profileCall, 'profile loaded again after the action').toHaveBeenCalledTimes(2)
+    expect(router.currentRoute.value.name, 'back on the player').toBe('player')
+    expect(snackbarText(wrapper)).toContain('Applied step 2 of 3; the score is now 750.')
+
+    wrapper.unmount()
+  })
+
+  it('applies a template with the player uuid that the newest session shows', async () => {
+    const uuid = '11111111-2222-3333-4444-555555555555'
+    const session = { sessionId: 's-1', owner: OWNER, playerUuid: uuid, playerName: 'Steve', ip: null, asOrg: null, outcome: 'ALLOWED', startedAt: 1, endedAt: null }
+    const applyTemplate = vi.fn(async () => ok({ step: 2, stepCount: 3, scoreAfter: 750, section: 'network' }))
+    const { wrapper } = await openRoute(
+      `/players/${OWNER}/punish`,
+      applyApi({
+        playerSessions: vi.fn(async () => ok({ sessions: [session], page: 0, size: 1, hasMore: false })),
+        applyTemplate,
+      }),
+    )
+    await flushPromises()
+
+    await chooseOption(wrapper.get('[role="dialog"] [role="combobox"]'), 'hacking')
+    await flushPromises()
+    await wrapper.get('[data-testid="confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(applyTemplate).toHaveBeenCalledWith(OWNER, 'hacking', uuid)
+
+    wrapper.unmount()
+  })
+
+  it('closes the apply route on cancel without any request', async () => {
+    const applyTemplate = vi.fn()
+    const { wrapper, router } = await openRoute(`/players/${OWNER}/punish`, applyApi({ applyTemplate }))
+    await flushPromises()
+
+    await wrapper.get('[data-testid="cancel"]').trigger('click')
+    await flushPromises()
+
+    expect(applyTemplate).not.toHaveBeenCalled()
+    expect(router.currentRoute.value.name).toBe('player')
+    wrapper.unmount()
+  })
+
+  it('opens the warn route and sends no warning until a template is applied', async () => {
+    const applyTemplate = vi.fn()
+    const { wrapper, router } = await openRoute(`/players/${OWNER}/warn`, { templates: vi.fn(async () => ok([template])), applyTemplate })
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('player-warn')
+    expect(applyTemplate).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('opens the kick route without sending a kick', async () => {
+    const kickPlayer = vi.fn()
+    const { wrapper, router } = await openRoute(`/players/${OWNER}/kick`, {
+      sections: vi.fn(async () => ok([])),
+      cloudnetCatalogue: vi.fn(async () => fail('none', 0, 'NETWORK')),
+      kickPlayer,
+    })
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('player-kick')
+    expect(kickPlayer).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('adjusts a section score from its route, with a note, and returns to the page', async () => {
+    const adjustElo = vi.fn(async () => ok({ section: 'chat', scoreBefore: 900, scoreAfter: 850 }))
+    const { wrapper, router } = await openRoute(`/players/${OWNER}`, { adjustElo })
+
+    await wrapper.get('[data-testid="open-adjust-chat"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.fullPath).toBe(`/players/${OWNER}/elo/adjust?section=chat`)
+    expect(adjustElo, 'nothing happens before the confirmation').not.toHaveBeenCalled()
+
+    const [delta, note] = wrapper.findAll('[role="dialog"] input')
+    await delta!.setValue('-50')
+    await note!.setValue('spam wave')
+    await wrapper.get('[data-testid="confirm"]').trigger('click')
+    await flushPromises()
+
+    expect(adjustElo).toHaveBeenCalledWith(OWNER, { section: 'chat', delta: -50, note: 'spam wave' })
+    expect(router.currentRoute.value.name).toBe('player')
+    expect(snackbarText(wrapper)).toContain('Score adjusted to 850.')
+
+    wrapper.unmount()
+  })
+
+  it('shows not-found and no adjust form for a section the player does not have', async () => {
+    const adjustElo = vi.fn()
+    const { wrapper } = await openRoute(`/players/${OWNER}/elo/adjust?section=unknown`, { adjustElo })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('This item does not exist or was removed.')
+    expect(wrapper.find('[role="dialog"] input').exists()).toBe(false)
+    expect(adjustElo).not.toHaveBeenCalled()
     wrapper.unmount()
   })
 })
@@ -390,7 +522,7 @@ describe('PlayerDetailView: evidence', () => {
 
   it('shows the evidence of a punishment from the history', async () => {
     const { evidence, overrides } = evidenceApi()
-    const { wrapper } = await open(OWNER, overrides)
+    const { wrapper } = await open(OWNER, overrides, '?tab=punishments')
 
     await wrapper.get('[data-testid="open-evidence-p-0"]').trigger('click')
     await flushPromises()

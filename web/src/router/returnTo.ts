@@ -8,6 +8,7 @@ import { safeReturnTo } from '../auth/authService'
 export const RETURN_ROUTE_NAMES: ReadonlySet<string> = new Set([
   'inbox',
   'punished',
+  'punished-detail',
   'ip-bans',
   'players',
   'player',
