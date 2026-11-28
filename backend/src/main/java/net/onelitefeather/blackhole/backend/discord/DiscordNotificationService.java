@@ -36,13 +36,13 @@ public class DiscordNotificationService {
     public DiscordNotificationDTO report(UUID identifier) {
         return this.reports.findById(identifier)
                 .<DiscordNotificationDTO>map(DiscordNotificationService::toDto)
-                .orElseGet(() -> new DiscordNotificationDTO.Error("there is no report " + identifier, ErrorKind.NOT_FOUND));
+                .orElseGet(() -> new DiscordNotificationDTO.Error("there is no such report", ErrorKind.NOT_FOUND));
     }
 
     public DiscordNotificationDTO appeal(UUID identifier) {
         return this.appeals.findById(identifier)
                 .<DiscordNotificationDTO>map(DiscordNotificationService::toDto)
-                .orElseGet(() -> new DiscordNotificationDTO.Error("there is no appeal " + identifier, ErrorKind.NOT_FOUND));
+                .orElseGet(() -> new DiscordNotificationDTO.Error("there is no such appeal", ErrorKind.NOT_FOUND));
     }
 
     private static DiscordNotificationDTO.Report toDto(ReportEntity report) {

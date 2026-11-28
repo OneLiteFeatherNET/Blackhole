@@ -36,6 +36,29 @@ class ProblemMapperTest {
     }
 
     @Test
+    void extensionMembersTravelBesideTheCodeAndANullOneIsLeftOut() {
+        Map<String, Object> extensions = new java.util.HashMap<>();
+        extensions.put("availableFrom", 1_800_000_000_000L);
+        extensions.put("backendCount", null);
+        ProblemMapper.Mapped mapped = ProblemMapper.fromError(
+                new SampleError("An appeal is not possible yet."), HttpStatus.CONFLICT, "NOT_YET", INSTANCE, extensions);
+
+        assertEquals("NOT_YET", mapped.body().extensions().get("code"), "the code is still carried");
+        assertEquals(1_800_000_000_000L, mapped.body().extensions().get("availableFrom"), "the extension is carried");
+        assertFalse(mapped.body().extensions().containsKey("backendCount"), "a null extension is not a member");
+    }
+
+    @Test
+    void anInvalidCodeKindKeepsItsNameAsTheCode() {
+        ProblemMapper.Mapped mapped = ProblemMapper.fromKind(
+                new SampleError("The link code is invalid or expired."), net.onelitefeather.blackhole.backend.response.ErrorKind.INVALID_CODE, INSTANCE);
+
+        assertEquals(HttpStatus.BAD_REQUEST, mapped.status(), "the kind's status");
+        assertEquals("INVALID_CODE", mapped.body().extensions().get("code"), "the link clients branch on this code");
+        assertEquals(ProblemType.forCode("INVALID_CODE"), mapped.body().type(), "the type is the code's slug");
+    }
+
+    @Test
     void aPublicErrorTakesItsStatusFromTheKindAndCarriesItsAvailableFrom() {
         ProblemMapper.Mapped mapped = ProblemMapper.fromPublicError(
                 new SamplePublicError(PublicErrorKind.CONFLICT, "NOT_ELIGIBLE", "2026-11-01T10:00:00Z"), INSTANCE);
@@ -52,6 +75,16 @@ class ProblemMapperTest {
 
         assertFalse(mapped.body().extensions().containsKey("availableFrom"), "an absent availableFrom is not a member");
         assertTrue(mapped.body().type().endsWith("/invalid-ban-id"), "the type is the code's slug");
+    }
+
+    @Test
+    void aRequestThatMatchedNoRouteHasAboutBlankAsInstanceAndNoPathIdentifier() {
+        io.micronaut.http.HttpRequest<?> request = io.micronaut.http.HttpRequest.GET("/no-such-route/123456789");
+
+        String instance = ProblemMapper.instance(request);
+
+        assertEquals("about:blank", instance, "no route matched, so the instance is the fixed value");
+        assertFalse(instance.contains("123456789"), "the unmatched path is never the instance");
     }
 
     @Test

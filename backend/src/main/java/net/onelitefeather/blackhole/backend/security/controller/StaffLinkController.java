@@ -6,6 +6,7 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.security.annotation.Secured;
 import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
+import net.onelitefeather.blackhole.backend.problem.ProblemMapper;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import net.onelitefeather.blackhole.backend.security.Roles;
 import net.onelitefeather.blackhole.backend.security.StaffLinkService;
@@ -59,7 +60,7 @@ public class StaffLinkController implements StaffLinkApi {
 
     static HttpResponse<StaffLinkDTO> respond(StaffLinkDTO result) {
         if (result instanceof StaffLinkDTO.Error error) {
-            return HttpResponse.<StaffLinkDTO>status(error.kind().status()).body(error);
+            return ProblemMapper.fromKind(error, error.kind(), ProblemMapper.instance()).response();
         }
         return HttpResponse.ok(result);
     }

@@ -96,7 +96,7 @@ class DiscordLinkApiIntegrationTest extends ApiIntegrationTest {
         Reply reused = confirm(code, discordUserId());
 
         assertEquals(400, wrong.status(), wrong.body());
-        assertEquals("INVALID_CODE", wrong.json().get("kind"), "the uniform error");
+        assertEquals("INVALID_CODE", wrong.json().get("code"), "the uniform error");
         assertEquals(wrong.body(), reused.body(), "a used code looks like a wrong one");
     }
 
