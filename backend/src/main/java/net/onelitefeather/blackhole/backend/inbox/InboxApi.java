@@ -1,5 +1,7 @@
 package net.onelitefeather.blackhole.backend.inbox;
 
+import net.onelitefeather.blackhole.backend.security.Actor;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Get;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,7 +14,7 @@ public interface InboxApi {
     @Operation(
             summary = "Inbox",
             description = "What needs attention: appeal chats awaiting a team reply, open appeals, open reports and "
-                    + "open cases without an assignee. Each section has its count and its oldest 10 items.",
+                    + "open cases without an assignee. Each section has its count and its oldest 10 items. changedByOthers lists the cases and appeals whose latest change in the last 24 hours came from another verified staff member.",
             operationId = "getInbox",
             tags = {"Inbox"}
     )
@@ -33,5 +35,5 @@ public interface InboxApi {
             )
     )
     @Get
-    HttpResponse<InboxDTO> summary();
+    HttpResponse<InboxDTO> summary(@Parameter(hidden = true) Actor actor);
 }

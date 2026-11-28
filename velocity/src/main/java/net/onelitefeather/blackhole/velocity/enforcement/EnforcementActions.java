@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.velocity.enforcement;
 
+import net.onelitefeather.blackhole.velocity.utils.LogIds;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
@@ -132,7 +133,7 @@ public final class EnforcementActions {
             if (result.isSuccessful()) {
                 return true;
             }
-            LOGGER.warn("Could not move {} to the fallback server, disconnecting instead", player.getUsername());
+            LOGGER.warn("Could not move {} to the fallback server, disconnecting instead", LogIds.of(player.getUniqueId()));
             player.disconnect(screen.apply(false));
             return false;
         });

@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.appeal.controller;
 
+import io.micronaut.http.annotation.PathVariable;
 import net.onelitefeather.blackhole.backend.security.Actor;
 import io.swagger.v3.oas.annotations.Parameter;
 import net.onelitefeather.blackhole.backend.appeal.dto.AppealDTO;
@@ -38,6 +39,19 @@ public interface AppealApi {
     @Validated
     @Post("/")
     HttpResponse<?> submit(@Body @Valid AppealSubmissionDTO submission);
+
+    @Operation(
+            summary = "Get one appeal",
+            description = "One appeal by its identifier, with its evidence count. Holds no Ban ID and no raw player UUID.",
+            operationId = "getAppeal",
+            tags = {"Appeal"}
+    )
+    @ApiResponse(responseCode = "200", description = "The appeal",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AppealDTO.class)))
+    @ApiResponse(responseCode = "400", description = "The identifier is not a UUID")
+    @ApiResponse(responseCode = "404", description = "There is no such appeal")
+    @Get("/{identifier}")
+    HttpResponse<?> get(@PathVariable UUID identifier);
 
     @Operation(
             summary = "Get all appeals",

@@ -34,6 +34,8 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     // The NATS integration tests run against a real server (Testcontainers has no NATS module: a plain container).
     testImplementation(mn.testcontainers.core)
+    // A logging binding for the tests, so a test can capture what the plugin logs (the runtime proxy provides its own).
+    testImplementation(mn.logback.classic)
 }
 
 tasks {

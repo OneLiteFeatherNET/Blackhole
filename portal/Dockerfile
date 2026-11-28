@@ -14,6 +14,8 @@ WORKDIR /app
 COPY portal/package.json portal/package-lock.json ./portal/
 RUN cd portal && npm ci
 COPY portal ./portal
+# The token seed (design/tokens) is read by the prebuild step that generates the MD3 stylesheet.
+COPY design/tokens ./design/tokens
 # vite build writes dist/, nitro build bundles the server and its assets into .output/.
 RUN cd portal && npm run build
 

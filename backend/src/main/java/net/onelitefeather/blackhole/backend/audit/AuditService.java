@@ -49,6 +49,13 @@ public class AuditService {
         return new AuditDTO.Page(items, next);
     }
 
+    /** One entry by its audit id; an unknown id is the NOT_FOUND error. */
+    public AuditDTO find(UUID auditId) {
+        return this.store.findById(auditId)
+                .<AuditDTO>map(AuditService::item)
+                .orElseGet(() -> new AuditDTO.Error("there is no audit entry " + auditId, ErrorKind.NOT_FOUND));
+    }
+
     private static AuditDTO.Item item(StaffAuditEntry entry) {
         return new AuditDTO.Item(entry.auditId(), entry.occurredAt(), entry.actorOid(), entry.actorName(),
                 entry.surface().name(), entry.action(), entry.targetKind(), entry.targetRef(), entry.panelPath(), entry.recordedByOid());

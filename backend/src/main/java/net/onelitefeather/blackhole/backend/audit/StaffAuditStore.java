@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.backend.audit;
 
+import java.util.Optional;
 import io.micronaut.core.annotation.Nullable;
 
 import java.util.List;
@@ -19,6 +20,9 @@ public interface StaffAuditStore {
      * @return at most {@code limit} rows, newest first
      */
     List<Row> page(long beforeSeq, int limit, @Nullable String action, @Nullable UUID actorOid, @Nullable String targetRef);
+
+    /** One stored entry by its audit id, or empty when there is none. */
+    Optional<StaffAuditEntry> findById(UUID auditId);
 
     /**
      * Deletes up to {@code limit} entries that occurred before {@code cutoff} (epoch millis).

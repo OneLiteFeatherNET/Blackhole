@@ -66,7 +66,10 @@ public enum ErrorKind {
     /** Only an admin may ban a country; a moderator may ban one ASN for up to seven days (403). */
     FORBIDDEN_KIND(HttpStatus.FORBIDDEN),
     /** An IP ban names a range that may not be banned: too wide, or protected (422). */
-    IP_BAN_NOT_ALLOWED(HttpStatus.UNPROCESSABLE_ENTITY);
+    IP_BAN_NOT_ALLOWED(HttpStatus.UNPROCESSABLE_ENTITY),
+
+    /** A batch exceeds its size or item cap; nothing in it was parsed or stored (413). */
+    PAYLOAD_TOO_LARGE(HttpStatus.REQUEST_ENTITY_TOO_LARGE);
 
     private final HttpStatus status;
 

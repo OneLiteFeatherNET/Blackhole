@@ -152,3 +152,24 @@ describe('FilterToolbar: active filters as input chips', () => {
     two.wrapper.unmount()
   })
 })
+
+describe('FilterToolbar: the tag field follows its value', () => {
+  it('shows the tag the value holds', async () => {
+    const { wrapper } = await setup([TAG], { tag: 'spam' })
+
+    expect(wrapper.get('[data-testid="tag-filter"] input').element).toHaveProperty('value', 'spam')
+
+    wrapper.unmount()
+  })
+
+  it('empties the field when the value is taken away from outside, even after a draft was typed', async () => {
+    const { wrapper } = await setup([TAG], { tag: 'spam' })
+    await wrapper.get('[data-testid="tag-filter"] input').setValue('chat')
+
+    await wrapper.setProps({ modelValue: { tag: '' } })
+
+    expect(wrapper.get('[data-testid="tag-filter"] input').element).toHaveProperty('value', '')
+
+    wrapper.unmount()
+  })
+})

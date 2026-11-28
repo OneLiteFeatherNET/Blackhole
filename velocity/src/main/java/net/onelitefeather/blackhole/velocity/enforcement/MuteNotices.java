@@ -50,6 +50,16 @@ public final class MuteNotices {
     }
 
     /**
+     * What a player is told when their mute state cannot be checked right now. Neutral on purpose: the
+     * player may not be muted at all, so the mute screen is never shown for it.
+     *
+     * @return the translated "try again in a moment" line
+     */
+    public @NotNull Component unavailable() {
+        return Component.translatable("enforcement.error.unavailable");
+    }
+
+    /**
      * @param owner the owner hash of a player who left
      */
     public void forget(@NotNull String owner) {

@@ -40,7 +40,9 @@ public abstract class PostgresIntegrationTest {
                 "datasources.default.username", POSTGRES.getUsername(),
                 "datasources.default.password", POSTGRES.getPassword(),
                 "blackhole.events.nats.url", NatsTestServer.url(NATS),
-                "redis.uri", "redis://" + REDIS.getHost() + ":" + REDIS.getMappedPort(6379)
+                "redis.uri", "redis://" + REDIS.getHost() + ":" + REDIS.getMappedPort(6379),
+                // Off for every test that is not about the challenge; the challenge tests switch it on again.
+                "blackhole.public.challenge.enabled", false
         );
     }
 }

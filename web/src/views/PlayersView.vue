@@ -27,9 +27,10 @@ const searching = ref(false)
 // Set when the old name matches several accounts; the user picks which one to open.
 const choices = ref<NameHistoryOwner[]>([])
 
+// The name was typed, not addressed: the address is replaced with the owner's, so the name is in no history entry.
 async function openPlayer(owner: string, currentName: string): Promise<void> {
   lookup.remember(owner, currentName)
-  await router.push(`/players/${owner}`)
+  await router.replace(`/players/${owner}`)
 }
 
 async function submit(): Promise<void> {

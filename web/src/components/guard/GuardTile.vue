@@ -18,7 +18,7 @@ const activeBans = computed(() => (bans.data.value ?? []).filter((ban) => ban.ac
   <RouterLink
     to="/guard"
     data-testid="guard-tile"
-    class="flex flex-col gap-2 rounded-md-lg bg-surface-container-low p-4 text-on-surface outline-none focus-visible:outline-2 focus-visible:outline-primary"
+    class="flex flex-col gap-2 rounded-md-lg bg-surface-container-low p-4 text-on-surface focus-ring"
   >
     <span class="text-title-medium">{{ t('guard.tile.title') }}</span>
     <p v-if="guard.error.value || bans.error.value" class="text-body-medium text-on-surface-variant">{{ t('state.error.UNKNOWN') }}</p>

@@ -17,7 +17,7 @@ const url = computed(() => safeHttpUrl(props.href))
     :href="url.href"
     target="_blank"
     rel="noopener noreferrer"
-    class="inline-flex max-w-full items-center gap-1 text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+    class="inline-flex max-w-full items-center gap-1 text-primary underline underline-offset-2 focus-ring"
   >
     <span class="truncate">{{ url.host }}</span>
     <svg viewBox="0 0 24 24" class="h-4 w-4 shrink-0" aria-hidden="true">

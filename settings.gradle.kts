@@ -50,19 +50,19 @@ dependencyResolutionManagement {
             version("cloud.commands", "2.1.0")
             version("shadow", "9.6.1")
             version("jetbrains.annotations", "26.1.0")
-            version("jackson", "2.22.4")
+            version("jackson", "2.23.0")
             version("jakarta-annotation", "3.0.0")
-            version("openapi.generator", "7.26.0")
+            version("openapi.generator", "7.27.0")
             version("logstash-logback-encoder", "9.0")
             version("opentelemetry-instrumentation-alpha", "2.20.1-alpha")
             version("janino", "3.1.12")
-            version("awssdk", "2.57.8")
+            version("awssdk", "2.57.13")
             // Discord gateway client for the bot (discord module). Pinned on purpose: bump after checking Maven Central and the 2 week age rule.
             version("jda", "6.7.0")
             // NATS client for the domain event bus (backend and Discord bot). Pinned on purpose: bump after checking Maven Central and the 2 week age rule.
-            version("jnats", "2.26.4")
+            version("jnats", "2.27.0")
             // Error reporting of the velocity plugin. Pinned on purpose: 8.62.0 is younger than the 2 week age rule, bump after it is old enough.
-            version("sentry", "8.62.0")
+            version("sentry", "8.63.0")
 
             library("jetbrains.annotations", "org.jetbrains", "annotations").versionRef("jetbrains.annotations")
 

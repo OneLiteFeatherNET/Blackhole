@@ -18,17 +18,18 @@ public sealed interface PublicSessionDTO {
     /**
      * Logs in. The Ban ID travels in this body and nowhere else.
      *
-     * @param banId the eight characters, as typed
+     * @param banId  the eight characters, as typed
+     * @param altcha the solved proof-of-work challenge for sign-in, required while the challenge is enabled
      */
     @Schema(name = "PublicLoginRequest")
     @Serdeable
     @ReflectiveAccess
-    record LoginRequest(@Nullable String banId) implements PublicSessionDTO {
+    record LoginRequest(@Nullable String banId, @Nullable String altcha) implements PublicSessionDTO {
 
-        /** Never prints the Ban ID. */
+        /** Never prints the Ban ID or the solution. */
         @Override
         public String toString() {
-            return "LoginRequest[banId=***]";
+            return "LoginRequest[banId=***, altcha=***]";
         }
     }
 

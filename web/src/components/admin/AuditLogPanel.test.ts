@@ -46,12 +46,13 @@ const SECTION_UNLINK = entry({
   panelPath: null,
 })
 
-function setup(overrides: Record<string, unknown> = {}) {
+function setup(overrides: Record<string, unknown> = {}, path = '/admin/audit') {
   const api = {
     auditLog: vi.fn(async () => ok({ items: [REVOKE, PLAYER_KICK], nextCursor: null })),
+    auditEntry: vi.fn(async () => ok(REVOKE)),
     ...overrides,
   }
-  return { api, mount: () => mountWithApp(AuditLogPanel, { api: mockApi(api), roles: ['ADMIN'], path: '/admin/audit' }) }
+  return { api, mount: () => mountWithApp(AuditLogPanel, { api: mockApi(api), roles: ['ADMIN'], path }) }
 }
 
 type Page = Awaited<ReturnType<ReturnType<typeof setup>['mount']>>['wrapper']
@@ -140,21 +141,37 @@ describe('AuditLogPanel: list', () => {
   })
 })
 
-describe('AuditLogPanel: paging', () => {
-  it('appends the next page once, asking with the cursor of the last entry shown', async () => {
+describe('AuditLogPanel: paging in the address', () => {
+  it('moves to the next page by putting its cursor in the address and shows only that page', async () => {
     const auditLog = vi
       .fn()
       .mockResolvedValueOnce(ok({ items: [REVOKE], nextCursor: 'c-1' }))
       .mockResolvedValueOnce(ok({ items: [PLAYER_KICK], nextCursor: null }))
     const { mount } = setup({ auditLog })
-    const { wrapper } = await mount()
+    const { wrapper, router } = await mount()
 
     await wrapper.get('[data-testid="audit-next"]').trigger('click')
     await flushPromises()
 
+    expect(router.currentRoute.value.query.cursor).toBe('c-1')
     expect(auditLog).toHaveBeenLastCalledWith({ limit: 50, cursor: 'c-1' })
-    expect(rowsOf(wrapper)).toHaveLength(2)
-    expect(rowsOf(wrapper)[1]!.text()).toContain('Kick player')
+    expect(rowsOf(wrapper)).toHaveLength(1)
+    expect(rowsOf(wrapper)[0]!.text()).toContain('Kick player')
+
+    wrapper.unmount()
+  })
+
+  it('shows the first-page control on a later page and returns to the first page', async () => {
+    const auditLog = vi.fn(async () => ok({ items: [PLAYER_KICK], nextCursor: null }))
+    const { mount } = setup({ auditLog }, '/admin/audit?cursor=c-1')
+    const { wrapper, router } = await mount()
+
+    expect(auditLog).toHaveBeenCalledWith({ limit: 50, cursor: 'c-1' })
+    await wrapper.get('[data-testid="audit-first"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query.cursor).toBeUndefined()
+    expect(auditLog).toHaveBeenLastCalledWith({ limit: 50 })
 
     wrapper.unmount()
   })
@@ -169,18 +186,28 @@ describe('AuditLogPanel: paging', () => {
   })
 })
 
-describe('AuditLogPanel: filters', () => {
-  it('filters by action and starts again at the first page', async () => {
+describe('AuditLogPanel: filters in the address', () => {
+  it('reads the filters from the address and asks the backend with them', async () => {
+    const { api, mount } = setup({}, '/admin/audit?action=kick.mass&actor=' + ADMIN_OID)
+    const { wrapper } = await mount()
+
+    expect(api.auditLog).toHaveBeenCalledWith({ limit: 50, action: 'kick.mass', actorOid: ADMIN_OID })
+
+    wrapper.unmount()
+  })
+
+  it('writes a chosen action into the address and starts again at the first page', async () => {
     const auditLog = vi
       .fn()
       .mockResolvedValueOnce(ok({ items: [REVOKE], nextCursor: 'c-1' }))
       .mockResolvedValueOnce(ok({ items: [REVOKE], nextCursor: null }))
     const { mount } = setup({ auditLog })
-    const { wrapper } = await mount()
+    const { wrapper, router } = await mount()
 
     await chooseOption(wrapper.get('[data-testid="action"] [role="combobox"]'), 'punishment.revoke')
     await flushPromises()
 
+    expect(router.currentRoute.value.query.action).toBe('punishment.revoke')
     expect(auditLog).toHaveBeenLastCalledWith({ limit: 50, action: 'punishment.revoke' })
 
     wrapper.unmount()
@@ -205,7 +232,7 @@ describe('AuditLogPanel: filters', () => {
   it('shows the no-matches state when the filters hide every entry, and clears them', async () => {
     const auditLog = vi.fn(async (query?: { action?: string }) => (query?.action ? ok({ items: [], nextCursor: null }) : ok({ items: [REVOKE], nextCursor: null })))
     const { mount } = setup({ auditLog })
-    const { wrapper } = await mount()
+    const { wrapper, router } = await mount()
 
     await chooseOption(wrapper.get('[data-testid="action"] [role="combobox"]'), 'kick.mass')
     await flushPromises()
@@ -213,19 +240,30 @@ describe('AuditLogPanel: filters', () => {
 
     await wrapper.get('[data-testid="empty-clear-filters"]').trigger('click')
     await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({})
     expect(rowsOf(wrapper)).toHaveLength(1)
 
     wrapper.unmount()
   })
 })
 
-describe('AuditLogPanel: entry detail', () => {
-  it('opens the entry in a side sheet with its audit id, and offers no edit, delete or re-post control', async () => {
-    const { mount } = setup()
-    const { wrapper } = await mount()
+describe('AuditLogPanel: entry by id', () => {
+  it('opens an entry from the list at its own address and loads it by id', async () => {
+    const { api, mount } = setup()
+    const { wrapper, router } = await mount()
 
     await rowsOf(wrapper)[0]!.get('[data-testid="audit-open"]').trigger('click')
     await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('admin-audit-entry')
+    expect(api.auditEntry).toHaveBeenCalledWith(REVOKE.auditId)
+
+    wrapper.unmount()
+  })
+
+  it('shows the entry in a side sheet with its audit id, and offers no edit, delete or re-post control', async () => {
+    const { mount } = setup({}, `/admin/audit/${REVOKE.auditId}`)
+    const { wrapper } = await mount()
 
     const sheet = wrapper.get('[data-testid="audit-detail"]')
     expect(sheet.text()).toContain(REVOKE.auditId)
@@ -233,6 +271,41 @@ describe('AuditLogPanel: entry detail', () => {
     expect(sheet.find('a[href="/cases/ABC123"]').exists(), 'link to the case').toBe(true)
     const labels = wrapper.findAll('button').map((button) => button.text())
     expect(labels.some((label) => /edit|delete|re-?post|revoke/i.test(label)), `buttons: ${labels.join(', ')}`).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('loads a deep-linked entry by its id and marks its row as the open one', async () => {
+    const { api, mount } = setup({ auditEntry: vi.fn(async () => ok(PLAYER_KICK)) }, `/admin/audit/${PLAYER_KICK.auditId}`)
+    const { wrapper } = await mount()
+
+    expect(api.auditEntry).toHaveBeenCalledWith(PLAYER_KICK.auditId)
+    expect(wrapper.get('[data-testid="audit-detail"]').text()).toContain(PLAYER_KICK.auditId)
+    const marked = rowsOf(wrapper).map((row) => row.get('[data-testid="audit-open"]').attributes('aria-current'))
+    expect(marked).toEqual([undefined, 'true'])
+
+    wrapper.unmount()
+  })
+
+  it('shows the not-found text for an entry id that does not exist, and no sheet content', async () => {
+    const { mount } = setup({ auditLog: vi.fn(async () => ok({ items: [], nextCursor: null })), auditEntry: vi.fn(async () => fail('no such entry', 404, 'NOT_FOUND')) }, `/admin/audit/${REVOKE.auditId}`)
+    const { wrapper } = await mount()
+
+    expect(wrapper.get('[data-testid="audit-entry-missing"]').text()).toContain('No audit entry with this id')
+    expect(wrapper.find('[data-testid="audit-detail"]').exists()).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('closes the entry back to the list with the filters kept in the address', async () => {
+    const { mount } = setup({}, `/admin/audit/${REVOKE.auditId}?action=punishment.revoke`)
+    const { wrapper, router } = await mount()
+
+    await wrapper.get('[aria-label="Close"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe('admin-audit')
+    expect(router.currentRoute.value.query).toEqual({ action: 'punishment.revoke' })
 
     wrapper.unmount()
   })

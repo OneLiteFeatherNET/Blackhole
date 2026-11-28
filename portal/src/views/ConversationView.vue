@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { MAX_TEXT_LENGTH, PAGE_SIZE, type AppealConditions, type AppealStatus, type ConversationEntry, type ErrorCode } from '../api/contract'
 import { EVENTS_URL } from '../api/portal'
@@ -13,10 +13,15 @@ import { formatDate, formatDateTime } from '../format'
 import { SESSION_KEY } from '../session'
 
 defineEmits<{ back: [] }>()
+/** The notice of a filing that just opened this conversation; it stays until the next message is sent. */
+const props = defineProps<{ filedNotice?: string }>()
+const filedNotice = ref(props.filedNotice ?? '')
 
 /** Polling cadence: 15 s without a live stream, 30 s as a safety net beside one (design decision 10). */
 const POLL_MS = 15_000
 const STREAM_POLL_MS = 30_000
+/** Within this distance of the end the reader follows new messages (the staff panel uses the same rule). */
+const FOLLOW_PX = 48
 
 const { t, te, locale } = useI18n()
 const session = inject(SESSION_KEY)!
@@ -36,6 +41,8 @@ const sending = ref(false)
 const failure = ref<ErrorCode | null>(null)
 const streamState = ref<LiveState>('closed')
 const image = ref<{ src: string; name: string } | null>(null)
+/** The scroll area of the thread: the messages scroll here, the composer stays below it. */
+const thread = ref<HTMLElement | null>(null)
 let polling = false
 let timer: ReturnType<typeof setInterval> | undefined
 let live: LiveHandle | undefined
@@ -156,7 +163,21 @@ onMounted(async () => {
   openStream()
   await Promise.all([fetchPage(), refreshAppeal(), loadConditions()])
   loaded.value = true
+  // The first view lands at the newest message.
+  await nextTick()
+  scrollToEnd()
 })
+
+function nearEnd(): boolean {
+  const el = thread.value
+  if (!el) return true
+  return el.scrollHeight - el.scrollTop - el.clientHeight <= FOLLOW_PX
+}
+
+function scrollToEnd() {
+  const el = thread.value
+  if (el) el.scrollTop = el.scrollHeight
+}
 
 onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', onVisibility)
@@ -180,6 +201,7 @@ async function send() {
   if (attempt?.signature !== signature) attempt = { signature, key: crypto.randomUUID() }
   sending.value = true
   failure.value = null
+  filedNotice.value = ''
   try {
     // A text-only message is sent exactly as before; files add their ids, and the text may then be absent.
     const result =
@@ -193,6 +215,9 @@ async function send() {
       drafts.files = []
       attempt = null
       await fetchPage()
+      // The player's own message lands at the end, wherever the thread was scrolled to.
+      await nextTick()
+      scrollToEnd()
       return
     }
     failure.value = result.error.code
@@ -244,6 +269,17 @@ function markerLabel(entry: ConversationEntry) {
   return te(`conversation.marker.${entry.kind}`) ? t(`conversation.marker.${entry.kind}`) : t('conversation.marker.OTHER')
 }
 
+// Runs before the thread re-renders: a reader near the end is followed, a reader scrolled up keeps the position.
+watch(
+  rows,
+  async () => {
+    const follow = nearEnd()
+    await nextTick()
+    if (follow) scrollToEnd()
+  },
+  { flush: 'pre' },
+)
+
 const decisionLabel = computed(() => {
   const decision = appeal.value?.decision
   if (!decision) return ''
@@ -260,7 +296,7 @@ const failureText = computed(() => {
 <template>
   <section aria-labelledby="conversation-title" class="flex flex-col gap-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <h1 id="conversation-title" class="text-headline-small text-on-surface">{{ t('conversation.title') }}</h1>
+      <h1 id="conversation-title" tabindex="-1" class="text-headline-small text-on-surface">{{ t('conversation.title') }}</h1>
       <button
         type="button"
         class="md-state inline-flex h-10 items-center justify-center rounded-md-full px-6 text-label-large text-primary"
@@ -297,7 +333,16 @@ const failureText = computed(() => {
     </p>
     <p v-else-if="streamState === 'reconnecting'" role="status" class="text-body-small text-on-surface-variant">{{ t('chat.live.reconnecting') }}</p>
 
-    <div v-if="!forbidden" role="log" aria-live="polite" aria-relevant="additions" :aria-label="t('conversation.thread')">
+    <div
+      v-if="!forbidden"
+      ref="thread"
+      role="log"
+      tabindex="0"
+      aria-live="polite"
+      aria-relevant="additions"
+      :aria-label="t('conversation.thread')"
+      class="h-[60dvh] min-h-80 overflow-y-auto"
+    >
       <p v-if="loaded && !loadFailed && entries.length === 0" class="text-body-large text-on-surface-variant">{{ t('conversation.empty') }}</p>
       <ol v-else class="flex list-none flex-col gap-3 p-0">
         <template v-for="row in rows" :key="row.key">
@@ -325,7 +370,7 @@ const failureText = computed(() => {
       </ol>
     </div>
 
-    <ChatComposer v-if="canPost" :sending="sending" :failure="failureText" @send="send" />
+    <ChatComposer v-if="canPost" :sending="sending" :failure="failureText || filedNotice" @send="send" />
     <p v-else-if="loaded && !forbidden && appealState !== 'FROZEN'" class="text-body-medium text-on-surface-variant">{{ t('conversation.readOnly') }}</p>
 
     <p v-if="canDownload" class="text-body-medium">

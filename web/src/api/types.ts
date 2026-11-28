@@ -15,6 +15,8 @@ export type EvidenceStatus = Schemas['EvidenceStatus']
 export type DashboardSummary = Schemas['DashboardSummaryResponse']
 export type InboxSummary = Schemas['InboxResponse']
 export type InboxItem = Schemas['InboxItem']
+export type InboxChangedItem = Schemas['InboxChangedItem']
+export type InboxChangedSection = Schemas['InboxChangedSection']
 export type ResolvedPlayer = Schemas['PlayerResolveResponse']
 export type Punishment = Schemas['PunishEntryDTO']
 export type EloSectionScore = Schemas['EloSectionScore']
@@ -35,6 +37,10 @@ export type IntelPolicy = Schemas['IntelPolicy']
 export type IntelPolicyEntry = Schemas['PolicyResponse']
 /** An allow-list exemption; `expiresAt` is null for a permanent one. */
 export type AllowListEntry = Schemas['AllowListResponse']
+/** One page of exemptions; `hasMore` says whether a next page exists. */
+export type AllowListPage = Schemas['AllowListPage']
+/** One exemption as the list and the read-by-owner return it; `expired` is set once its end has passed. */
+export type AllowListItem = Schemas['AllowListEntry']
 /** One VPN or hosting login of a player; `allowListed` is whether the owner was exempt at that login. */
 export type IntelHit = Schemas['HitResponse']
 export type EloAdjustResult = Schemas['EloAdjustResponse']
@@ -149,6 +155,8 @@ export type ActivePunishmentPage = Schemas['ActivePunishmentPage']
 export type Case = Schemas['CaseResponse']
 export type CaseListItem = Schemas['CaseListItem']
 export type CaseListPage = Schemas['CaseListPage']
+export type CaseGroupItem = Schemas['CaseGroupItem']
+export type CaseGroupPage = Schemas['CaseGroupPage']
 export type CaseRelated = Schemas['CaseRelated']
 export type CaseStatus = Schemas['CaseStatus']
 export type CasePriority = Schemas['CasePriority']
@@ -157,6 +165,19 @@ export type CaseTimelinePage = Schemas['CaseTimelinePage']
 export type CaseUpdate = Omit<Schemas['CaseUpdateRequest'], 'clearAssignee' | 'assigneeOid'> & {
   /** The staff member to assign, or null to remove the assignee; absent leaves it alone. */
   assigneeOid?: string | null
+}
+export type CaseBulkOutcome = Schemas['CaseBulkOutcome']
+export type CaseBulkItem = Schemas['CaseBulkItem']
+export type CaseBulkResult = Schemas['CaseBulkResult']
+/** One shared change for many cases. Each case carries the version it was read at; the change is sent in chunks. */
+export interface CaseBulkChange {
+  cases: Array<{ punishmentIdentifier: string; expectedVersion: number }>
+  status?: CaseStatus
+  /** The staff member to assign, or null to remove the assignee; absent leaves it alone. */
+  assigneeOid?: string | null
+  priority?: CasePriority
+  addTags?: string[]
+  removeTags?: string[]
 }
 export type NoteRedactionReason = Schemas['NoteRedactionReason']
 export type ActorTrust = Schemas['ActorTrust']
@@ -324,6 +345,8 @@ export interface CaseListQuery {
   assignee?: string
   tag?: string
   priority?: CasePriority
+  /** The full owner hash of one player: the list of that player's cases (the expansion of a group). */
+  owner?: string
   page?: number
   size?: number
 }

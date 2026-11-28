@@ -1,4 +1,7 @@
 {
+  "lists": {
+    "missing": "This entry does not exist any more."
+  },
   "nav": {
     "label": "Main navigation",
     "skip": "Skip to content",
@@ -16,19 +19,30 @@
     "clientRules": "Client rules",
     "administration": "Administration",
     "groups": {
+      "today": "Today",
       "work": "Work",
       "players": "Players",
       "configuration": "Configuration",
       "administration": "Administration",
       "review": "Review",
       "system": "System",
-      "guard": "Protection"
+      "protection": "Protection"
+    },
+    "more": "More",
+    "shortcuts": {
+      "open": "Keyboard shortcuts",
+      "title": "Keyboard shortcuts",
+      "intro": "Outside text fields, press g and then a letter to open a page. Press ? to show this list.",
+      "help": "Show this list",
+      "then": "then",
+      "nextRow": "Next row in a list",
+      "previousRow": "Previous row in a list",
+      "openRow": "Open the selected row",
+      "closeRow": "Close the open item",
+      "close": "Close"
     },
     "brand": "Blackhole",
-    "open": "Open navigation",
     "close": "Close navigation",
-    "collapse": "Collapse navigation",
-    "expand": "Expand navigation",
     "breadcrumbs": "Breadcrumbs",
     "badge": {
       "inbox": "{n} item needs attention | {n} items need attention",
@@ -75,6 +89,8 @@
       "body": "You are signed in, but your account has no role for Blackhole. Ask an administrator to add you to the right group, then sign in again.",
       "adminHeading": "Administrators only",
       "adminBody": "This page is only available to administrators. Your role does not include it.",
+      "moderatorHeading": "Moderators only",
+      "moderatorBody": "Only moderators change players and punishments. Your role lets you read them.",
       "back": "Back to the dashboard"
     },
     "error": {
@@ -156,6 +172,34 @@
     "lastSeen": "Last seen {date}"
   },
   "player": {
+    "tabs": {
+      "label": "Player sections",
+      "overview": "Overview",
+      "punishments": "Punishments",
+      "reports": "Reports",
+      "cases": "Cases",
+      "evasion": "Evasion",
+      "elo": "ELO",
+      "names": "Names",
+      "intel": "Intel",
+      "warnings": "Warnings",
+      "evidence": "Evidence"
+    },
+    "reports": {
+      "empty": "No report has been filed against this player.",
+      "open": "Open report"
+    },
+    "cases": {
+      "empty": "No case exists for this player."
+    },
+    "warnings": {
+      "empty": "This player has not been warned."
+    },
+    "evidence": {
+      "hint": "Evidence belongs to a punishment. Open a punishment to see its evidence.",
+      "count": "{count} evidence items",
+      "empty": "This player has no punishment."
+    },
     "backToSearch": "Back to search",
     "invalidOwner": "This is not a valid player identifier.",
     "scores": "Scores per section",
@@ -465,6 +509,7 @@
     "empty": "No open reports.",
     "showAll": "Show all reports",
     "noneYet": "No reports yet.",
+    "selectHint": "Select a report to see it here.",
     "resolved": "Report resolved.",
     "columns": {
       "when": "Received",
@@ -536,6 +581,42 @@
       "dismissConfirm": "Dismiss report"
     }
   },
+  "appeal": {
+    "title": "Appeal",
+    "type": "Appeal",
+    "notFound": "There is no such appeal.",
+    "back": "Back to the appeals",
+    "alreadyDecided": "This appeal is already decided.",
+    "tabs": {
+      "label": "Appeal sections",
+      "conversation": "Conversation",
+      "decision": "Decision",
+      "case": "Case"
+    },
+    "summary": {
+      "submitted": "Submitted",
+      "statement": "Statement",
+      "evidence": "Evidence items",
+      "appellant": "Player"
+    },
+    "conversation": {
+      "none": "No message has been written yet.",
+      "playerLast": "The player wrote last. Answer in the case conversation.",
+      "staffLast": "Staff wrote last.",
+      "failed": "The conversation could not be loaded.",
+      "open": "Open the conversation in the case"
+    },
+    "decision": {
+      "waiting": "Waiting for a decision.",
+      "readOnly": "Read-only: moderators act on cases and appeals.",
+      "noNote": "No note was recorded with the decision.",
+      "updated": "Last changed {when}"
+    },
+    "case": {
+      "open": "Open case {id}",
+      "hint": "The punishment this appeal contests."
+    }
+  },
   "appeals": {
     "title": "Appeals",
     "filter": "Which appeals to show",
@@ -583,6 +664,7 @@
       "note": "Note",
       "noteHint": "Optional; recorded with the decision",
       "confirm": "Save decision",
+      "confirmReason": "Choose a decision to save it.",
       "playerMessage": "Message to the player",
       "playerMessageHint": "Optional; the player can read it in the appeal portal. 1 to 2000 characters, no UUIDs, IP addresses or Ban IDs. The note above stays internal."
     },
@@ -876,6 +958,8 @@
   },
   "vanillaImport": {
     "title": "Import vanilla bans",
+    "tabsLabel": "Import type",
+    "newLink": "New vanilla import",
     "intro": "Brings the bans of a vanilla server into Blackhole. Every imported ban is linked to a punishment template, so players see the template's reason in their language. Imported bans are enforced like any other punishment and cost no ELO. Use the preview first: it changes nothing.",
     "playersFile": "banned-players.json (file)",
     "paste": "or paste the contents of banned-players.json",
@@ -962,11 +1046,85 @@
     "none": "none",
     "running": "Running",
     "stopped": "Stopped",
+    "tabsLabel": "View",
+    "tabs": {
+      "catalogue": "Tasks, groups and services",
+      "proxies": "Reporting proxies"
+    },
+    "kinds": {
+      "tasks": "Task",
+      "groups": "Group",
+      "services": "Service",
+      "proxies": "Proxy",
+      "unknown": "CloudNet entry"
+    },
+    "entryMissing": "No CloudNet entry with this name. The proxies may have stopped reporting it.",
     "columns": {
       "task": "Task",
       "groups": "Groups",
       "service": "Service",
       "state": "State"
+    }
+  },
+  "entity": {
+    "type": {
+      "case": "Case",
+      "report": "Report",
+      "player": "Player",
+      "appeal": "Appeal"
+    },
+    "owner": "Player",
+    "assignee": "Assignee",
+    "unassigned": "Unassigned",
+    "state": {
+      "case": {
+        "OPEN": "Open",
+        "IN_REVIEW": "In review",
+        "WAITING": "Waiting",
+        "CLOSED": "Closed"
+      },
+      "appeal": {
+        "SUBMITTED": "Submitted",
+        "ELIGIBLE_PENDING_REVIEW": "Pending review",
+        "IN_REVIEW": "In review",
+        "GRANTED_FULL_LIFT": "Granted: lifted",
+        "GRANTED_DURATION_REDUCTION": "Granted: shorter",
+        "DENIED": "Denied",
+        "INELIGIBLE": "Not eligible"
+      },
+      "report": {
+        "OPEN": "Open",
+        "UNDER_REVIEW": "Under review",
+        "ACTIONED": "Actioned",
+        "DISMISSED": "Dismissed"
+      },
+      "player": {
+        "ACTIVE": "Punished",
+        "NONE": "Not punished"
+      }
+    },
+    "notice": {
+      "viewerCase": "A viewer cannot change a case.",
+      "viewerReport": "A viewer cannot resolve a report.",
+      "viewerPlayer": "A viewer cannot change a player.",
+      "reportResolved": "This report is already resolved."
+    },
+    "caseDialog": {
+      "closeTitle": "Close the case?",
+      "reopenTitle": "Reopen the case?",
+      "closeBody": "The case is closed. You can undo this for ten seconds.",
+      "reopenBody": "The case returns to {status}.",
+      "reopenLoading": "Looking up the status the case had before it was closed.",
+      "reopenFallback": "No earlier status was found. The case reopens as Open.",
+      "confirmClose": "Close case",
+      "confirmReopen": "Reopen case",
+      "viewer": "A viewer cannot change a case.",
+      "conflict": "The case changed since it was read. Reload to see it."
+    },
+    "undo": {
+      "action": "Undo",
+      "undone": "Close undone.",
+      "changed": "The case changed since. Reload to see it."
     }
   },
   "case": {
@@ -1058,6 +1216,7 @@
       "statusChanged": "Status changed",
       "assigneeChanged": "Assignee changed",
       "tagsChanged": "Tags changed",
+      "bulkEdited": "Changed in bulk",
       "priorityChanged": "Priority changed",
       "noteAdded": "Note added",
       "noteEdited": "Note edited",
@@ -1178,9 +1337,54 @@
         "assignee": "Assignee",
         "priority": "Priority",
         "tags": "Tags",
-        "activity": "Last activity"
+        "activity": "Last activity",
+        "player": "Player"
       },
-      "noneYet": "No cases yet."
+      "noneYet": "No cases yet.",
+      "selectHint": "Select a case to see it here.",
+      "view": "View",
+      "viewCases": "All cases",
+      "viewPlayer": "By player",
+      "groupSummary": "{open} open, {total} in total",
+      "expandGroup": "Show the cases of {player}",
+      "collapseGroup": "Hide the cases of {player}",
+      "groupCases": "Cases of {player}",
+      "loadFailed": "The cases could not be loaded.",
+      "unknownPlayer": "Player {hash}",
+      "select": {
+        "column": "Select",
+        "page": "Select all cases on this page",
+        "case": "Select case {id}",
+        "player": "Select all cases of {player}",
+        "loaded": "Loaded {loaded} of {total}"
+      }
+    },
+    "bulk": {
+      "title": "Edit {count} cases",
+      "change": "{field}: {change}",
+      "hint": "The change is applied to each case on its own. A case that changed meanwhile is reported as a conflict; the others still change.",
+      "keep": "Keep",
+      "addTags": "Add tags",
+      "removeTags": "Remove tags",
+      "close": "Close",
+      "apply": "Apply to {count} cases",
+      "running": "Applying the change",
+      "summary": "Updated {updated}, unchanged {unchanged}, conflicts {conflicts}, not found {notFound}, failed {failed}.",
+      "reload": "Reload the cases",
+      "outcome": {
+        "UPDATED": "Updated",
+        "UNCHANGED": "Unchanged",
+        "CONFLICT": "Conflict",
+        "NOT_FOUND": "Not found",
+        "FAILED": "Failed"
+      }
+    },
+    "selection": {
+      "region": "Selected cases",
+      "count": "{count} selected",
+      "limit": "Selection is limited to {cap} cases.",
+      "clear": "Clear selection",
+      "edit": "Edit selected"
     },
     "reason": {
       "label": "Reason",
@@ -1401,7 +1605,31 @@
       "warning": "The player will see these files once you send the message."
     }
   },
+  "punishedDetail": {
+    "notFound": "This item does not exist or was removed.",
+    "ambiguous": "More than one punishment has this short ID.",
+    "noOwner": "Open the player to revoke this punishment.",
+    "historyNeedsOwner": "Open the player to see its history."
+  },
   "punished": {
+    "detail": {
+      "title": "Punishment",
+      "heading": "Punishment {id}",
+      "open": "Details",
+      "tabs": {
+        "label": "Punishment sections",
+        "details": "Details",
+        "evidence": "Evidence",
+        "history": "History"
+      },
+      "section": "Section",
+      "reason": "Reason",
+      "term": "Duration",
+      "since": "Since",
+      "state": "State",
+      "inForce": "In force",
+      "lifted": "Lifted or ended"
+    },
     "title": "Active punishments",
     "kind": {
       "label": "Kind",
@@ -1478,9 +1706,17 @@
     "hint": "Enter a player name (3 to 16 characters), a case id such as #A1B2C3D4 or report: and a report id.",
     "caseNotFound": "Nothing matches the case id {id}.",
     "ambiguous": "The id {id} matches {n} cases. Pick one.",
-    "report": "Open report {id}"
+    "report": "Open report {id}",
+    "types": {
+      "player": "Player",
+      "case": "Case",
+      "report": "Report"
+    }
   },
   "appealConditions": {
+    "newVersion": "New version",
+    "openVersion": "Open version {version}",
+    "versionTitle": "Appeal terms, version {version}",
     "title": "Appeal terms",
     "intro": "Players read these conditions and confirm them before they file an appeal. Every save creates a new version; earlier versions are kept.",
     "current": "Current version {version}",
@@ -1499,6 +1735,11 @@
     "noneYet": "No audited actions yet.",
     "noMatches": "No entry matches these filters.",
     "loadMore": "Load more",
+    "nextPage": "Next page",
+    "firstPage": "First page",
+    "entryLoading": "Loading the entry…",
+    "entryMissing": "No audit entry with this id.",
+    "entryFailed": "The entry could not be loaded. Reload the page to try again.",
     "details": "Details",
     "filters": {
       "action": "Action",
@@ -1546,6 +1787,11 @@
     }
   },
   "clientRules": {
+    "tab": {
+      "details": "Details",
+      "hits": "Hits"
+    },
+    "tabs": "Views of the rule",
     "title": "Client rules",
     "intro": "Rules over the client brand, mods, plugin channels, protocol version and commands. The proxy applies them; each rule can notify the team, deny the connection or the command, or apply a punishment template.",
     "honesty": "Brand, mods and channels are chosen by the client and can be faked: a hit is a signal, not proof, and a miss proves nothing. Rules on them are a deterrent and a hint for the team. Start every rule with Notify, read the hit counts, and only then switch it to Deny or Punishment. Only the protocol version and commands are observed by the proxy itself.",
@@ -1688,12 +1934,63 @@
   },
   "inbox": {
     "title": "Inbox",
-    "needsAnswer": "Needs an answer",
-    "openAppeals": "Open appeals",
-    "newReports": "New reports",
-    "unassignedCases": "Unassigned cases",
     "showAll": "Show all",
-    "empty": "Nothing waiting"
+    "sections": {
+      "assigned": "Assigned to me",
+      "urgent": "Unassigned and urgent",
+      "appeals": "Appeals waiting for a decision",
+      "answers": "Answers waiting",
+      "reports": "Open reports",
+      "changed": "Changed by others"
+    },
+    "empty": {
+      "assigned": "No case is assigned to you. Cases you take appear here.",
+      "urgent": "No urgent case waits without an assignee.",
+      "appeals": "No appeal waits for a decision.",
+      "answers": "No player waits for an answer.",
+      "reports": "No report is open.",
+      "changed": "No case or appeal changed by another staff member in the last 24 hours. Changes by others appear here."
+    },
+    "noIdentity": "Your account has no staff identity yet.",
+    "readOnly": "Read-only: moderators act on cases and appeals.",
+    "assign": "Assign to me",
+    "close": "Close",
+    "undo": "Undo",
+    "assignedNotice": "Case {reference} is assigned to you.",
+    "undone": "The assignment is undone.",
+    "closeDialog": {
+      "headline": "Close case {reference}?",
+      "text": "The case is closed. You can reopen it on its page.",
+      "confirm": "Close case",
+      "cancel": "Cancel"
+    },
+    "conflict": "The case changed since. Reload to see it.",
+    "types": {
+      "case": "Case",
+      "appeal": "Appeal",
+      "report": "Report",
+      "player": "Player"
+    },
+    "states": {
+      "appeal": "Waiting for a decision",
+      "answer": "Answer waiting",
+      "report": "Open"
+    },
+    "changed": {
+      "by": "by {name}",
+      "former": "by a former staff member",
+      "changes": {
+        "status": "Status changed",
+        "assignee": "Assignee changed",
+        "priority": "Priority changed",
+        "tags": "Tags changed",
+        "note": "Note added or edited",
+        "message": "Message changed",
+        "appealFiled": "Appeal filed",
+        "appealDecided": "Appeal decided",
+        "other": "Changed"
+      }
+    }
   },
   "filters": {
     "clearAll": "Clear all",
@@ -1767,7 +2064,18 @@
       "confirmLabel": "Type the target name to confirm",
       "confirmHint": "Type \"{target}\" exactly.",
       "submit": "Kick everybody",
-      "result": "Status: {status}. Delivered by {count} proxies."
+      "result": "Status: {status}. Delivered by {count} proxies.",
+      "newLink": "New mass kick",
+      "openKick": "Open this kick"
+    },
+    "detail": {
+      "title": "Kick",
+      "loading": "Loading the kick…",
+      "notFound": "No kick with this id.",
+      "target": "Target",
+      "by": "Staff member",
+      "when": "Sent at",
+      "delivered": "Proxies that delivered it"
     }
   },
   "intel": {
@@ -1787,6 +2095,9 @@
       "DENY": "Deny"
     },
     "policy": {
+      "change": "Change the policy",
+      "backToList": "Back to the VPN and hosting policy",
+      "editTitle": "Change the policy of {classification}",
       "title": "VPN and hosting policy",
       "intro": "What happens to a login from a VPN, hosting or proxy address. Only an administrator can change it.",
       "policyLabel": "New policy",
@@ -1812,6 +2123,29 @@
       "lastOk": "Last successful refresh: {when}"
     },
     "allowList": {
+      "columns": {
+        "player": "Player",
+        "reason": "Reason",
+        "expires": "Expires",
+        "added": "Added",
+        "actor": "Added by"
+      },
+      "new": "New exemption",
+      "empty": "No exemptions on this page.",
+      "pages": "Pages",
+      "previous": "Previous page",
+      "next": "Next page",
+      "entry": {
+        "title": "Exemption",
+        "back": "Back to the exemptions",
+        "active": "Active"
+      },
+      "remove": {
+        "open": "Remove exemption",
+        "title": "Remove the exemption?",
+        "body": "The player is checked against the VPN and hosting policy again at the next login.",
+        "confirm": "Remove"
+      },
       "title": "Allow-list",
       "intro": "Exempt a player from the VPN and hosting policy for a while. The reason is kept with the exemption.",
       "readonly": "Only moderators can add exemptions.",
@@ -1888,6 +2222,7 @@
     },
     "options": {
       "marks": "Mark the {count} kicks as rolled back",
+      "marksAll": "Mark the kicks in the window as rolled back",
       "marksHint": "Only a note in the history. Kicks are never revoked and no ELO changes.",
       "suspend": "Remove the Minecraft link of this staff member",
       "suspendHint": "Done before the first punishment is revoked. The person can link again later."
@@ -1924,7 +2259,23 @@
       "selectorInvalid": "This cannot be rolled back. Choose a staff member or an unlinked in-game account.",
       "tooLarge": "Too many punishments match. Narrow the window and preview again."
     },
-    "noStaff": "No staff members are known yet."
+    "noStaff": "No staff members are known yet.",
+    "new": {
+      "title": "New rollback"
+    },
+    "jobs": {
+      "title": "Rollback job",
+      "newLink": "New rollback",
+      "open": "Open the rollback",
+      "previewReady": "The preview is ready. Nothing has changed yet.",
+      "pending": "{count} punishments are frozen for this rollback. Nothing is revoked until you start it.",
+      "execute": "Start the rollback…",
+      "executeTitle": "Start this rollback?",
+      "cancelTitle": "Cancel this rollback?",
+      "cancelBody": "A rollback that has not started changes nothing. A running rollback stops before its next item; items already revoked stay revoked.",
+      "alreadyEnded": "This rollback has already ended, so it cannot be cancelled.",
+      "notFound": "No rollback with this id."
+    }
   },
   "exemption": {
     "badge": {
@@ -1981,7 +2332,20 @@
       "tooLong": "At most 500 characters."
     },
     "applied": "Review applied.",
-    "dismissed": "Review dismissed."
+    "dismissed": "Review dismissed.",
+    "state": {
+      "OPEN": "Open",
+      "APPLIED": "Applied",
+      "DISMISSED": "Dismissed"
+    },
+    "detail": {
+      "title": "Exemption review",
+      "state": "Status",
+      "justification": "Justification",
+      "open": "Open",
+      "back": "Back to the reviews",
+      "notFound": "There is no such review."
+    }
   },
   "guard": {
     "title": "Join guard",
@@ -2008,6 +2372,9 @@
     "saved": "Manual level set to {level}.",
     "readOnly": "Only moderators and admins can change the level.",
     "settings": {
+      "open": "Open the join guard settings",
+      "edit": "Edit the settings",
+      "backToGuard": "Back to the join guard",
       "title": "Unattended settings",
       "intro": "Applied on every replica within about 30 seconds. Every save is recorded.",
       "level": "Unattended level",
@@ -2048,6 +2415,12 @@
     }
   },
   "areaBans": {
+    "detail": {
+      "title": "Area ban",
+      "backToList": "Back to the area bans",
+      "created": "Created",
+      "lifted": "Lifted at"
+    },
     "title": "Area bans",
     "intro": "Autonomous systems (ASN) and countries whose connections are refused when they join.",
     "kind": {
@@ -2104,6 +2477,12 @@
   }
 },
   "ipBans": {
+    "detail": {
+      "title": "IP ban",
+      "backToList": "Back to the IP bans",
+      "lifted": "Lifted at",
+      "liftReason": "Reason for lifting"
+    },
     "title": "IP bans",
     "intro": "Holds one address or range at the firewall and on every proxy. The list shows the clear address, so it is for staff only.",
     "new": "New IP ban",
@@ -2183,5 +2562,34 @@
       "submit": "Lift ban",
       "done": "The IP ban was lifted."
     }
+  },
+  "copyLink": {
+    "button": "Copy link",
+    "copied": "Link copied to the clipboard.",
+    "failed": "The link could not be copied. Copy it from the address bar."
+  },
+  "configDetail": {
+    "notFound": "This item does not exist or was removed.",
+    "backToList": "Back to the list"
+  },
+  "routedDialog": {
+    "notFoundTitle": "Not found",
+    "close": "Close",
+    "notFound": "This item does not exist or was removed.",
+    "backToPage": "Back to the page",
+    "actionFailed": "The change was not saved. Reload the page to see the current version."
+  },
+  "integration": {
+    "title": "Integration detection",
+    "reportedBy": "Reported by {source}",
+    "signalNotVerdict": "A signal, not a verdict: staff decide.",
+    "kind": "Kind",
+    "server": "Server",
+    "detectionTime": "Time",
+    "reportedSeverity": "Reported severity",
+    "payload": "Reported values",
+    "field": "Field",
+    "value": "Value",
+    "notReported": "not reported"
   }
 }

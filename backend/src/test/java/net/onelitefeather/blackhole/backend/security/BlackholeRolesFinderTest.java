@@ -25,13 +25,13 @@ class BlackholeRolesFinderTest {
 
     private static final RoleMappingProperties GROUPS = new RoleMappingProperties(
             "groups", "roles", List.of(ADMIN), List.of(MODERATOR), List.of(VIEWER), List.of(METRICS),
-            List.of("Blackhole.Proxy"), List.of("Blackhole.Metrics"), List.of("Blackhole.Discord"));
+            List.of("Blackhole.Proxy"), List.of("Blackhole.Metrics"), List.of("Blackhole.Discord"), List.of("Blackhole.Integration"));
 
     /** The upgrade path: the human claim switched to app roles by configuration only. */
     private static final RoleMappingProperties APP_ROLES = new RoleMappingProperties(
             "roles", "roles", List.of("Blackhole.Admin"), List.of("Blackhole.Moderator"),
             List.of("Blackhole.Viewer"), List.of("Blackhole.Ops"),
-            List.of("Blackhole.Proxy"), List.of("Blackhole.Metrics"), List.of("Blackhole.Discord"));
+            List.of("Blackhole.Proxy"), List.of("Blackhole.Metrics"), List.of("Blackhole.Discord"), List.of("Blackhole.Integration"));
 
     private static Arguments scenario(String name, RoleMappingProperties mapping, Map<String, Object> claims, String... expected) {
         return Arguments.of(Named.of(name, mapping), claims, Set.of(expected));
@@ -69,6 +69,12 @@ class BlackholeRolesFinderTest {
                         Map.of("azp", "client-metrics", "roles", List.of("Blackhole.Metrics")), "METRICS"),
                 scenario("app-only discord role grants discord and nothing implied", GROUPS,
                         Map.of("azp", "client-discord", "roles", List.of("Blackhole.Discord")), "DISCORD"),
+                scenario("app-only integration role grants integration and nothing implied", GROUPS,
+                        Map.of("azp", "any-registered-client", "roles", List.of("Blackhole.Integration")), "INTEGRATION"),
+                scenario("integration role next to an unlisted proxy value grants integration only", GROUPS,
+                        Map.of("azp", "any-registered-client", "roles", List.of("Blackhole.Proxy", "Blackhole.Integration")), "INTEGRATION"),
+                scenario("delegated token with the integration value in roles grants nothing", GROUPS,
+                        Map.of("scp", "access_as_user", "roles", List.of("Blackhole.Integration"))),
                 scenario("app-only proxy role from an unlisted client grants nothing", GROUPS,
                         Map.of("azp", "someone-else", "roles", List.of("Blackhole.Proxy"))),
                 scenario("app-only proxy role with only appid grants nothing", GROUPS,

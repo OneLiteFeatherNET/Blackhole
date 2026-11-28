@@ -10,6 +10,7 @@ import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
 import jakarta.inject.Inject;
 import net.onelitefeather.blackhole.backend.controller.ApiVersion;
+import net.onelitefeather.blackhole.backend.publicapi.challenge.ChallengeIssuer;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicAppealDTO;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicConversationDTO;
 import net.onelitefeather.blackhole.backend.publicapi.dto.PublicError;
@@ -40,23 +41,31 @@ public class PublicController implements PublicApi {
     private final PublicAppealService appeals;
     private final PublicConversationService conversation;
     private final PublicProtocolService protocol;
+    private final ChallengeIssuer challenges;
 
     @Inject
     public PublicController(
             PlayerSessionService sessions, PublicPunishmentService punishments, PublicAppealService appeals, PublicConversationService conversation,
-            PublicProtocolService protocol
+            PublicProtocolService protocol, ChallengeIssuer challenges
     ) {
         this.protocol = protocol;
         this.sessions = sessions;
         this.punishments = punishments;
         this.appeals = appeals;
         this.conversation = conversation;
+        this.challenges = challenges;
+    }
+
+    @Override
+    @Secured(SecurityRule.IS_ANONYMOUS)
+    public HttpResponse<?> challenge(@Nullable String purpose) {
+        return respond(this.challenges.issue(purpose));
     }
 
     @Override
     @Secured(SecurityRule.IS_ANONYMOUS)
     public HttpResponse<?> login(@Nullable PublicSessionDTO.LoginRequest request) {
-        return respond(this.sessions.login(request == null ? null : request.banId()));
+        return respond(this.sessions.login(request == null ? null : request.banId(), request == null ? null : request.altcha()));
     }
 
     @Override

@@ -42,7 +42,7 @@ public sealed interface AuditDTO {
             @Nullable String targetRef,
             @Nullable String panelPath,
             UUID recordedByOid
-    ) {
+    ) implements AuditDTO {
     }
 
     /** An invalid request, answered with its status. */

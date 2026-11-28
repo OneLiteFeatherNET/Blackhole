@@ -38,6 +38,19 @@ describe('CaseTimeline: event types', () => {
     ['case.assignee_changed', { from: null, to: OTHER }, 'Assignee changed', 'assigned to 00000000…'],
     ['case.tags_changed', { added: ['spam'], removed: ['chat'] }, 'Tags changed', 'added: spam · removed: chat'],
     ['case.priority_changed', { from: 'NORMAL', to: 'URGENT' }, 'Priority changed', 'Normal to Urgent'],
+    [
+      'case.bulk_edited',
+      {
+        batchId: 'b-1',
+        changes: [
+          { field: 'STATUS', from: 'OPEN', to: 'CLOSED' },
+          { field: 'ASSIGNEE', from: null, to: OTHER },
+          { field: 'TAGS', from: ['a'], to: ['a', 'spam'] },
+        ],
+      },
+      'Changed in bulk',
+      'Status: Open to Closed',
+    ],
     ['note.added', { noteId: NOTE, text: 'hello' }, 'Note added', ''],
     ['note.edited', { noteId: NOTE, text: 'hello again' }, 'Note edited', ''],
     ['note.redacted', { noteId: NOTE, reason: 'PERSONAL_DATA' }, 'Note removed', 'Personal data'],
@@ -67,6 +80,33 @@ describe('CaseTimeline: event types', () => {
     expect(titles(wrapper)).toEqual(['Other event'])
     expect(wrapper.get('[data-testid="event-type"]').text()).toBe('portal.something_new')
     expect(wrapper.get('[data-testid="event-icon"]').attributes('data-icon')).toBe('help')
+
+    wrapper.unmount()
+  })
+
+  it('shows every changed field of a bulk edit with its old and new value, and assignees only as short ids', async () => {
+    const { mount } = setup([
+      [
+        timelineItem({
+          type: 'case.bulk_edited',
+          payload: {
+            batchId: 'b-2',
+            changes: [
+              { field: 'ASSIGNEE', from: OTHER, to: null },
+              { field: 'PRIORITY', from: 'NORMAL', to: 'HIGH' },
+              { field: 'TAGS', from: ['a'], to: ['a', 'spam'] },
+            ],
+          },
+        }),
+      ],
+    ])
+    const { wrapper } = await mount()
+
+    const detail = wrapper.get('[data-testid="event-detail"]').text()
+    expect(detail).toContain('Assignee: 00000000… to Unassigned')
+    expect(detail).toContain('Priority: Normal to High')
+    expect(detail).toContain('Tags: a to a, spam')
+    expect(detail).not.toContain(OTHER)
 
     wrapper.unmount()
   })

@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.3.0](https://github.com/OneLiteFeatherNET/Blackhole/compare/v2.2.0...v2.3.0) (2026-11-01)
+
+
+### Features
+
+* **case:** group cases by player ([#534](https://github.com/OneLiteFeatherNET/Blackhole/issues/534)) ([9d8537a](https://github.com/OneLiteFeatherNET/Blackhole/commit/9d8537a0b4c79932776275f887b07fb1338a58df))
+
+
+### Documentation
+
+* **openspec:** propose add-case-bulk-actions ([#525](https://github.com/OneLiteFeatherNET/Blackhole/issues/525)) ([74ae00f](https://github.com/OneLiteFeatherNET/Blackhole/commit/74ae00f0b06607fca940a2975d3ee4cc9429e40d))
+
+## [2.2.0](https://github.com/OneLiteFeatherNET/Blackhole/compare/v2.1.1...v2.2.0) (2026-10-31)
+
+
+### Features
+
+* **portal:** show the appeal as a messenger with file upload ([#531](https://github.com/OneLiteFeatherNET/Blackhole/issues/531)) ([32a9e32](https://github.com/OneLiteFeatherNET/Blackhole/commit/32a9e327fc6478f8782965ba1e00e2e64d382e8e))
+* **web:** split the case page into tabs with a chat ([#529](https://github.com/OneLiteFeatherNET/Blackhole/issues/529)) ([1caf260](https://github.com/OneLiteFeatherNET/Blackhole/commit/1caf260d77418c6721438860ffa13f3e51f6212d))
+
+
+### Documentation
+
+* **openspec:** propose add-case-workspace-tabs ([#528](https://github.com/OneLiteFeatherNET/Blackhole/issues/528)) ([1427746](https://github.com/OneLiteFeatherNET/Blackhole/commit/14277462918746f50b3b471eb36e5c4695283a75))
+* **openspec:** propose add-portal-messenger ([#530](https://github.com/OneLiteFeatherNET/Blackhole/issues/530)) ([49e0158](https://github.com/OneLiteFeatherNET/Blackhole/commit/49e0158c3da6c62b92d5b95e8ba63e058347ee23))
+
 ## [2.1.1](https://github.com/OneLiteFeatherNET/Blackhole/compare/v2.1.0...v2.1.1) (2026-10-31)
 
 

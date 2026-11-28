@@ -76,10 +76,36 @@ export function createUserManager(config: OidcConfig): UserManager {
   return new UserManager(userManagerSettings(config, window.location.origin, window.sessionStorage))
 }
 
-/** Only in-app paths are followed after sign-in, so a crafted state cannot send the user elsewhere. */
+/** The origin that relative targets are resolved against; only its paths are ever kept. */
+const RETURN_BASE = 'https://panel.invalid'
+/** Control characters and backslashes: browsers strip or turn them into `//`, so they never reach a redirect. */
+const UNSAFE_RETURN_CHARS = /[\u0000-\u001f\u007f\\]/
+const MAX_RETURN_LENGTH = 2048
+
+/**
+ * Only in-app paths are followed after sign-in, so a crafted state cannot send the user elsewhere (CWE-601).
+ * Accepts a same-origin relative path only: no scheme, no `//` (also when encoded), no backslash, no control
+ * character, no unparseable escape. The route name is checked by `allowedReturnTo` in `router/returnTo.ts`.
+ */
 export function safeReturnTo(value: unknown): string {
-  if (typeof value !== 'string' || !value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\')) return '/'
-  return value.startsWith(CALLBACK_PATH) ? '/' : value
+  if (typeof value !== 'string' || value.length === 0 || value.length > MAX_RETURN_LENGTH) return '/'
+  if (!value.startsWith('/') || UNSAFE_RETURN_CHARS.test(value)) return '/'
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(value)
+  } catch {
+    return '/'
+  }
+  if (decoded.startsWith('//') || UNSAFE_RETURN_CHARS.test(decoded)) return '/'
+  let target: URL
+  try {
+    target = new URL(value, RETURN_BASE)
+  } catch {
+    return '/'
+  }
+  if (target.origin !== RETURN_BASE || target.pathname.startsWith('//')) return '/'
+  if (value.startsWith(CALLBACK_PATH)) return '/'
+  return `${target.pathname}${target.search}${target.hash}`
 }
 
 /**

@@ -9,12 +9,16 @@ import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 
 import static net.onelitefeather.blackhole.velocity.TestData.OWNER;
 import static net.onelitefeather.blackhole.velocity.TestData.active;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** The reactions to each event and the trust rule, driven by calling the listener: no NATS client, no server. */
@@ -181,5 +185,48 @@ class NatsSyncServiceTest {
 
         assertTrue(service.trusted());
         assertFalse(mirror.isLoaded(OWNER), "state read over HTTP during the outage is refilled, not carried over");
+    }
+
+    @Test
+    void anEventThatCannotBeQueuedDistrustsTheCacheInsteadOfBeingDropped() {
+        NatsSyncService full = new NatsSyncService(mirror, new NatsSyncService.Reactions(
+                punishments::add, evicted::add, () -> sectionChanges++, reports::add, feedback::add, kick -> { }, mass -> { },
+                warning -> { }), task -> {
+            throw new RejectedExecutionException("backlog full");
+        });
+        mirror.load(OWNER, List.of());
+        full.connected();
+
+        full.message(Subjects.PUNISHMENT_CREATED, ("{\"eventId\":\"e1\",\"eventType\":\"x\",\"occurredAt\":1,\"payloadVersion\":1,"
+                + "\"payload\":{}}").getBytes(StandardCharsets.UTF_8));
+
+        assertFalse(full.trusted(), "an event that was dropped means the cache can no longer be kept current");
+        assertFalse(mirror.isLoaded(OWNER), "the cache is emptied, so the next check reads the backend");
+    }
+
+    @Test
+    void theEventBacklogRefusesWorkOnceItIsFull() throws InterruptedException {
+        ExecutorService events = NatsSyncService.boundedExecutor();
+        CountDownLatch release = new CountDownLatch(1);
+        try {
+            events.execute(() -> awaitQuietly(release));
+            for (int i = 0; i < NatsSyncService.EVENT_BACKLOG; i++) {
+                events.execute(() -> { });
+            }
+
+            assertThrows(RejectedExecutionException.class, () -> events.execute(() -> { }),
+                    "an unbounded backlog would hide a stalled consumer until the proxy runs out of memory");
+        } finally {
+            release.countDown();
+            events.shutdownNow();
+        }
+    }
+
+    private static void awaitQuietly(CountDownLatch latch) {
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

@@ -99,6 +99,7 @@ describe('JoinGuardView setting the level', () => {
 
     await chooseOption(wrapper.get('[data-testid="guard-level"] [role="combobox"]'), 'LOCKDOWN')
     await wrapper.get('[data-testid="set-level"]').trigger('click')
+    await flushPromises()
     expect(api.setJoinGuardLevel, 'nothing is sent before the confirmation').not.toHaveBeenCalled()
     expect(wrapper.get('[data-testid="confirm-body"]').text()).toContain('Lockdown')
 
@@ -117,6 +118,7 @@ describe('JoinGuardView setting the level', () => {
 
     await chooseOption(wrapper.get('[data-testid="guard-level"] [role="combobox"]'), 'STRICT')
     await wrapper.get('[data-testid="set-level"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="confirm"]').trigger('click')
     await flushPromises()
 

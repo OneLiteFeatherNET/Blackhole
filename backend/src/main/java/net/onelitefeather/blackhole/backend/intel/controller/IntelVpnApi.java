@@ -92,6 +92,21 @@ public interface IntelVpnApi {
                                              @QueryValue(defaultValue = "50") int size);
 
     @Operation(
+            summary = "One VPN and hosting exemption",
+            description = "The exemption of one player by its owner hash, with the fields of the list entry. Never a name or an address.",
+            operationId = "getIntelAllowListEntry",
+            tags = {"Intel"}
+    )
+    @ApiResponse(responseCode = "200", description = "The exemption",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AllowListDTO.Entry.class)))
+    @ApiResponse(responseCode = "400", description = "The owner is not a SHA-512 hash",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AllowListDTO.Error.class)))
+    @ApiResponse(responseCode = "404", description = "NOT_FOUND: the player has no exemption",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = AllowListDTO.Error.class)))
+    @Get("/allow-list/{owner}")
+    HttpResponse<AllowListDTO> getAllowListEntry(@PathVariable String owner);
+
+    @Operation(
             summary = "Remove a player's VPN and hosting exemption",
             description = "Deletes the exemption so that the player is checked against the policy again at once. The removal is "
                     + "audited with the actor.",

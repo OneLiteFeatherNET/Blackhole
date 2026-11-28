@@ -7,6 +7,9 @@ import type {
   ActivePunishmentQuery,
   ApiResult,
   Case,
+  CaseBulkChange,
+  CaseBulkItem,
+  CaseGroupPage,
   CaseListPage,
   CaseListQuery,
   CaseTimelinePage,
@@ -35,6 +38,7 @@ import type {
   CaseProtocolText,
   TranscriptFile,
   ApplyPreview,
+  AuditEntry,
   AuditPage,
   AuditQuery,
   Appeal,
@@ -52,6 +56,7 @@ import type {
   ExemptionReview,
   ExemptionStatus,
   DashboardSummary,
+  InboxChangedSection,
   InboxSummary,
   KickAccepted,
   KickMassRequest,
@@ -60,6 +65,8 @@ import type {
   EloAdjustResult,
   EvasionSightings,
   AllowListEntry,
+  AllowListItem,
+  AllowListPage,
   IntelClass,
   IntelHit,
   IntelPolicy,
@@ -129,6 +136,8 @@ export interface BlackholeApi {
   dashboard(): Promise<ApiResult<DashboardSummary>>
   /** The four sections of the inbox: counts and the oldest items of each. */
   inbox(): Promise<ApiResult<InboxSummary>>
+  /** The cases and appeals the other staff changed in the last 24 hours, read on its own so it fails alone. */
+  changedByOthers(): Promise<ApiResult<InboxChangedSection>>
   /** Resolves a player name; the result carries the hashed `owner` all other calls use. */
   resolvePlayer(name: string): Promise<ApiResult<ResolvedPlayer & { owner: string }>>
   /** A player without any punishment has no profile; that is an empty profile, not an error. */
@@ -161,6 +170,8 @@ export interface BlackholeApi {
   setJoinGuardSettings(request: GuardSettingsRequest): Promise<ApiResult<GuardSettings>>
   /** The area bans in force; with `includeInactive` the lifted and expired ones too, newest first. */
   areaBans(includeInactive?: boolean): Promise<ApiResult<AreaBan[]>>
+  /** One area ban by its id, lifted and expired ones included; NOT_FOUND if there is none. */
+  areaBan(id: string): Promise<ApiResult<AreaBan>>
   /** A moderator may ban one ASN for up to seven days; ADMIN only for a country or a permanent ban. */
   createAreaBan(draft: AreaBanDraft): Promise<ApiResult<AreaBan>>
   /** A reason is required; the ban stays in the history. */
@@ -180,6 +191,8 @@ export interface BlackholeApi {
   clientRuleCatalogue(): Promise<ApiResult<ClientRuleCatalogue>>
   /** The newest IP bans, active or not; staff roles may read them. */
   ipBans(): Promise<ApiResult<IpBan[]>>
+  /** One IP ban by its id; NOT_FOUND if there is none. */
+  ipBan(id: string): Promise<ApiResult<IpBan>>
   /** Holds one address or CIDR range at the firewall and the proxies. A moderator's ban must expire within the server's cap; a refusal carries its rule code. */
   createIpBan(draft: IpBanDraft): Promise<ApiResult<IpBan>>
   /** Lifts one active ban; the reason is mandatory. */
@@ -193,6 +206,8 @@ export interface BlackholeApi {
   reportsAgainst(reportedHash: string): Promise<ApiResult<Report[]>>
   /** All appeals, newest first. */
   appeals(): Promise<ApiResult<Appeal[]>>
+  /** One appeal; NOT_FOUND if there is none. Holds no Ban ID and no raw player UUID. */
+  appeal(identifier: string): Promise<ApiResult<Appeal>>
   reviewAppeal(identifier: string, decision: AppealDecision): Promise<ApiResult<Appeal>>
   /** What applying the template would do right now; changes nothing. */
   previewApply(owner: string, templateKey: string): Promise<ApiResult<ApplyPreview>>
@@ -202,6 +217,8 @@ export interface BlackholeApi {
   exemption(owner: string): Promise<ApiResult<ExemptionStatus>>
   /** The automatic punishments held back for protected players, oldest first (ADMIN only). */
   exemptionReviews(): Promise<ApiResult<ExemptionReview[]>>
+  /** One review in any state, for its own page (ADMIN only). An unknown id is NOT_FOUND. */
+  exemptionReview(identifier: string): Promise<ApiResult<ExemptionReview>>
   /** Places the held-back punishment with the justification recorded on it (ADMIN only). */
   applyExemptionReview(identifier: string, justification: string): Promise<ApiResult<ExemptionReview>>
   /** Closes the review without a punishment; the score change stays (ADMIN only). */
@@ -221,6 +238,12 @@ export interface BlackholeApi {
   setIntelPolicy(classification: IntelClass, policy: IntelPolicy): Promise<ApiResult<IntelPolicyEntry>>
   /** Exempts a player for 1 to 90 days, or permanently when `durationDays` is null (ADMIN only). The reason is required. */
   addIntelAllowListEntry(request: { owner: string; reason: string; durationDays: number | null }): Promise<ApiResult<AllowListEntry>>
+  /** One page of the exemptions, newest first (staff roles may read them). */
+  intelAllowList(page: number, size: number): Promise<ApiResult<AllowListPage>>
+  /** One exemption by the owner hash; NOT_FOUND if there is none. */
+  intelAllowListEntry(owner: string): Promise<ApiResult<AllowListItem>>
+  /** Removes the exemption of one owner (MODERATOR or ADMIN). */
+  removeIntelAllowListEntry(owner: string): Promise<ApiResult<void>>
   /** The newest VPN and hosting logins of a player, at most 50 (staff only; the backend keeps the clear address). */
   intelHits(owner: string): Promise<ApiResult<IntelHit[]>>
   /** One page of a player's stored sessions, newest first (staff only; the page shows the raw address). */
@@ -252,6 +275,14 @@ export interface BlackholeApi {
   appealConditions(): Promise<ApiResult<AppealConditions>>
   /** Every version of the appeal conditions, newest first. */
   appealConditionVersions(): Promise<ApiResult<AppealConditions[]>>
+  /** One version of the appeal conditions by its number (any team role). */
+  appealConditionVersion(version: number): Promise<ApiResult<AppealConditions>>
+  /** One template by its identifier, for its own address. */
+  template(identifier: string): Promise<ApiResult<Template>>
+  /** One section by its key, for its own address. */
+  section(key: string): Promise<ApiResult<Section>>
+  /** One client rule by its key, for its own address. */
+  clientRule(key: string): Promise<ApiResult<ClientRule>>
   /** Saves the text as a new version (ADMIN); a version is never overwritten. */
   saveAppealConditions(text: string): Promise<ApiResult<AppealConditions>>
   /** Whether the caller has a linked Minecraft account. */
@@ -278,6 +309,8 @@ export interface BlackholeApi {
   anonymizeStaffActor(oid: string): Promise<ApiResult<void>>
   /** The staff audit log, newest first, one cursor page (ADMIN only). Read only. */
   auditLog(query?: AuditQuery): Promise<ApiResult<AuditPage>>
+  /** One audit entry by its audit id, the fields of the list item (ADMIN only). Read only; NOT_FOUND when there is none. */
+  auditEntry(auditId: string): Promise<ApiResult<AuditEntry>>
   /**
    * Imports a vanilla `banned-players.json` (and optionally `banned-ips.json`), or with `dryRun`
    * only reports what would happen (ADMIN only). Invalid entries are reported, not fatal.
@@ -308,6 +341,8 @@ export interface BlackholeApi {
 
   /** One page of cases, newest activity first. */
   cases(query?: CaseListQuery): Promise<ApiResult<CaseListPage>>
+  /** One page of players with a matching case; the filters are those of {@link cases}, without `owner`. */
+  caseGroups(query?: Omit<CaseListQuery, 'owner'>): Promise<ApiResult<CaseGroupPage>>
   /** The punishments whose short id (`#` and eight hex characters) matches; several if short ids collide, none if nothing matches. */
   punishmentsByShortId(shortId: string): Promise<ApiResult<Punishment[]>>
   /** A case by punishment identifier or short id; its `version` is what {@link updateCase} must send back. */
@@ -321,6 +356,12 @@ export interface BlackholeApi {
   caseConversation(reference: string): Promise<ApiResult<CaseTimelineItem[]>>
   /** Changes staff metadata; a stale `expectedVersion` answers 409 and changes nothing. */
   updateCase(reference: string, change: CaseUpdate): Promise<ApiResult<Case>>
+  /**
+   * Applies one shared change to many cases. The list is sent in chunks of CASE_BULK_CHUNK, one after the other, and
+   * `onProgress` is told the cases answered so far. A refused chunk marks its cases FAILED with the message; the
+   * other chunks are still sent. The result has one item per case, in request order.
+   */
+  bulkEditCases(change: CaseBulkChange, options?: { onProgress?: (done: number, total: number) => void }): Promise<ApiResult<CaseBulkItem[]>>
   /** Adds a staff note (1 to 4000 characters, no UUID or IP); resolves to the new note id. */
   addCaseNote(reference: string, text: string): Promise<ApiResult<{ noteId: string; seq: number }>>
   editCaseNote(reference: string, noteId: string, text: string): Promise<ApiResult<{ noteId: string; seq: number }>>
@@ -396,6 +437,8 @@ const PAGE_SIZE = 200
 const CONVERSATION_TYPES = ['message', 'ban_id.leak_marked', 'ticket', 'protocol.stored', 'appeal.decided', 'evidence.shared', 'evidence.share_revoked']
 const CONVERSATION_PAGE_SIZE = 200
 const CONVERSATION_MAX_PAGES = 10
+/** The most cases one `POST /case/bulk` carries (the server's limit). */
+export const CASE_BULK_CHUNK = 100
 const MAX_PAGES = 25
 
 /**
@@ -548,6 +591,13 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     inbox: () => toResult(http.GET('/inbox')),
 
+    async changedByOthers() {
+      const result = await toResult(http.GET('/inbox'))
+      if (!result.ok) return result
+      // A backend without the section answers none: an empty section, not an error.
+      return { ok: true, data: result.data.changedByOthers ?? { count: 0, items: [] } }
+    },
+
     async resolvePlayer(name) {
       const result = await toResult(http.GET('/player/resolve/{name}', { params: { path: { name } } }))
       if (!result.ok) return result
@@ -584,6 +634,10 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       return map(events, (all) => [...all].sort((a, b) => b.createdAt - a.createdAt))
     },
 
+    async template(identifier) {
+      return map(await toResult(http.GET('/template/{identifier}', { params: { path: { identifier } } })), (template) => ({ ...template, steps: template.steps ?? [] }))
+    },
+
     async templates() {
       const templates = await collectPages<Template>((page) =>
         toResult(http.GET('/template', { params: { query: { pageable: NO_PAGEABLE } }, querySerializer: pageQuery(page) })),
@@ -598,6 +652,10 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     deleteTemplate: (identifier) =>
       toResult(http.DELETE('/template/delete/{identifier}', { params: { path: { identifier } } })),
+
+    async section(key) {
+      return map(await toResult(http.GET('/section/{key}', { params: { path: { key } } })), (section) => ({ ...section, servers: section.servers ?? [] }))
+    },
 
     async sections() {
       const result = await toResult(http.GET('/section'))
@@ -655,8 +713,14 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
         }),
       ),
 
+    areaBan: (id) => toResult(http.GET('/area-bans/{id}', { params: { path: { id } } })),
+
     liftAreaBan: (identifier, reason) =>
       toResult(http.POST('/area-bans/{id}/lift', { params: { path: { id: identifier } }, body: { reason: reason.trim() } })),
+
+    async clientRule(key) {
+      return map(await toResult(http.GET('/client-rule/{key}', { params: { path: { key } } })), withLists)
+    },
 
     async clientRules() {
       const result = await toResult(http.GET('/client-rule'))
@@ -703,6 +767,8 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       const result = await toResult(http.GET('/ipban'))
       return map(result, (list) => list.bans ?? [])
     },
+
+    ipBan: (id) => toResult(http.GET('/ipban/{id}', { params: { path: { id } } })),
 
     // A permanent ban leaves `expiresAt` out of the body; the panel is always the source. The rule codes are kept for the form's messages.
     createIpBan: (draft) =>
@@ -761,6 +827,8 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
       return map(appeals, (all) => [...all].sort((a, b) => b.createdAt - a.createdAt))
     },
 
+    appeal: (identifier) => toResult(http.GET('/appeal/{identifier}', { params: { path: { identifier } } })),
+
     reviewAppeal: (identifier, decision) =>
       toResult(
         http.POST('/appeal/{identifier}/review', {
@@ -792,6 +860,11 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     async exemptionReviews() {
       return map(await toResult(http.GET('/exemption/reviews')), (body) => body.items ?? [])
+    },
+
+    async exemptionReview(identifier) {
+      const result = await toResult(http.GET('/exemption/reviews/{id}', { params: { path: { id: identifier } } }))
+      return map(result, (body) => body.review)
     },
 
     async applyExemptionReview(identifier, justification) {
@@ -851,6 +924,14 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
     setIntelPolicy: (classification, policy) => toResult(http.POST('/intel/policy', { body: { classification, policy } })),
 
     addIntelAllowListEntry: (request) => toResult(http.POST('/intel/allow-list', { body: request })),
+
+    intelAllowList: (page, size) => toResult(http.GET('/intel/allow-list', { params: { query: { page, size } } })),
+
+    intelAllowListEntry: (owner) => toResult(http.GET('/intel/allow-list/{owner}', { params: { path: { owner } } })),
+
+    async removeIntelAllowListEntry(owner) {
+      return map(await toResult(http.DELETE('/intel/allow-list/{owner}', { params: { path: { owner } } })), () => undefined)
+    },
 
     async intelHits(owner) {
       return map(await toResult(http.GET('/intel/players/{owner}/hits', { params: { path: { owner } } })), (page) => page.hits)
@@ -926,6 +1007,8 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     appealConditions: () => toResult(http.GET('/appeal-conditions')),
     appealConditionVersions: async () => map(await toResult(http.GET('/appeal-conditions/versions')), (all) => all ?? []),
+    appealConditionVersion: (version) =>
+      toResult(http.GET('/appeal-conditions/versions/{version}', { params: { path: { version } } })),
     saveAppealConditions: (text) => toResult(http.POST('/appeal-conditions', { body: { text } })),
 
     issueStaffLinkCode: () => toResult(http.POST('/staff-link/code')),
@@ -984,11 +1067,16 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
 
     auditLog: (query = {}) => toResult(http.GET('/admin/audit', { params: { query } })),
 
+    auditEntry: (auditId) => toResult(http.GET('/admin/audit/{auditId}', { params: { path: { auditId } } })),
+
     activePunishments: (query = {}) =>
       toResult(http.GET('/punishment/active', { querySerializer: caseListQuery(query) })),
 
     cases: (query = {}) =>
       toResult(http.GET('/case', { querySerializer: caseListQuery(query) })),
+
+    caseGroups: (query = {}) =>
+      toResult(http.GET('/case/groups', { querySerializer: caseListQuery(query) })),
 
     punishmentsByShortId: async (shortId) =>
       map(await toResult(http.GET('/punishment/short/{shortId}', { params: { path: { shortId } } })), (all) => all ?? []),
@@ -1012,6 +1100,38 @@ export function createBlackholeApi(options: ApiOptions): BlackholeApi {
         items.push(...result.data.items)
         if (!result.data.nextCursor) break
         cursor = result.data.nextCursor
+      }
+      return { ok: true, data: items }
+    },
+
+    bulkEditCases: async (change, options = {}) => {
+      const items: CaseBulkItem[] = []
+      const total = change.cases.length
+      for (let start = 0; start < total; start += CASE_BULK_CHUNK) {
+        const chunk = change.cases.slice(start, start + CASE_BULK_CHUNK)
+        const result = await toResult(
+          http.POST('/case/bulk', {
+            body: {
+              cases: chunk,
+              status: change.status,
+              // As in updateCase: an absent assigneeOid cannot say "remove", so null becomes the explicit flag.
+              assigneeOid: change.assigneeOid ?? undefined,
+              clearAssignee: change.assigneeOid === null,
+              priority: change.priority,
+              addTags: change.addTags,
+              removeTags: change.removeTags,
+            },
+          }),
+        )
+        if (result.ok) {
+          items.push(...result.data.items)
+        } else {
+          const message = result.error.message
+          for (const c of chunk) {
+            items.push({ punishmentIdentifier: c.punishmentIdentifier, outcome: 'FAILED', changed: false, version: c.expectedVersion, currentVersion: null, auditWritten: false, message })
+          }
+        }
+        options.onProgress?.(start + chunk.length, total)
       }
       return { ok: true, data: items }
     },

@@ -82,6 +82,16 @@ public class AppealController implements AppealApi {
 
     @Override
     @Secured(Roles.VIEWER)
+    public HttpResponse<?> get(UUID identifier) {
+        Optional<AppealEntity> found = this.eligibilityService.find(identifier);
+        if (found.isEmpty()) {
+            return HttpResponse.notFound();
+        }
+        return HttpResponse.ok(withEvidenceCount(found.get()));
+    }
+
+    @Override
+    @Secured(Roles.VIEWER)
     public HttpResponse<Page<AppealDTO>> getAll(Pageable pageable) {
         Page<AppealEntity> entities = this.eligibilityService.findAll(pageable);
         return HttpResponse.ok(entities.map(this::withEvidenceCount));

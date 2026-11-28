@@ -58,6 +58,23 @@ public interface ExemptionApi {
     HttpResponse<ExemptionDTO> reviews();
 
     @Operation(
+            summary = "One exemption review",
+            description = "One item of the admin queue in any state: open, applied or dismissed. Holds the owner hash and the "
+                    + "section, never a name or an address.",
+            operationId = "getExemptionReview",
+            tags = {"Exemption"}
+    )
+    @ApiResponse(responseCode = "200", description = "The review",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ExemptionDTO.ReviewResponse.class)))
+    @ApiResponse(responseCode = "400", description = "The id is not a UUID",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ExemptionDTO.Error.class)))
+    @ApiResponse(responseCode = "403", description = "The caller is not an admin")
+    @ApiResponse(responseCode = "404", description = "NOT_FOUND: there is no such review",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ExemptionDTO.Error.class)))
+    @Get("/reviews/{id}")
+    HttpResponse<ExemptionDTO> review(@PathVariable UUID id);
+
+    @Operation(
             summary = "Apply a held-back punishment",
             description = "Places the punishment the review stands for, with the justification recorded on it. The review is then applied.",
             operationId = "applyExemptionReview",

@@ -154,6 +154,11 @@ class CaseServiceTest {
             }
 
             @Override
+            public java.util.Map<String, CaseRow> findAll(java.util.Collection<String> identifiers) {
+                return java.util.Map.of();
+            }
+
+            @Override
             public List<Related> related(String owner, String excluded, long now, int limit) {
                 return List.of();
             }
@@ -171,6 +176,11 @@ class CaseServiceTest {
             @Override
             public ListPage list(ListQuery query, long now) {
                 return new ListPage(List.of(), 0);
+            }
+
+            @Override
+            public GroupPage groups(ListQuery query, long now) {
+                return new GroupPage(List.of(), 0);
             }
         };
         CaseService racing = new CaseService(this.punishments.repository(), this.staff.repository(), racingReader, this.store, this.log,

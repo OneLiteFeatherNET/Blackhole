@@ -69,6 +69,16 @@ public class IntelVpnController implements IntelVpnApi {
 
     @Override
     @Secured(Roles.VIEWER)
+    public HttpResponse<AllowListDTO> getAllowListEntry(String owner) {
+        AllowListDTO result = this.allowList.find(owner);
+        if (result instanceof AllowListDTO.Error error) {
+            return HttpResponse.<AllowListDTO>status(error.kind().status()).body(error);
+        }
+        return HttpResponse.ok(result);
+    }
+
+    @Override
+    @Secured(Roles.VIEWER)
     public HttpResponse<AllowListDTO> listAllowList(int page, int size) {
         AllowListDTO result = this.allowList.list(page, size);
         if (result instanceof AllowListDTO.Error error) {

@@ -31,6 +31,11 @@ class AppealConditionsServiceTest {
         }
 
         @Override
+        public Optional<Version> find(int version) {
+            return this.versions.stream().filter(candidate -> candidate.version() == version).findFirst();
+        }
+
+        @Override
         public List<Version> list() {
             return this.versions.stream().sorted(java.util.Comparator.comparingInt(Version::version).reversed()).toList();
         }

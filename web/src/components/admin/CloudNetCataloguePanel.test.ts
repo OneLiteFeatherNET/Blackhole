@@ -16,9 +16,9 @@ const catalogue: CloudNetCatalogue = {
   proxies: ['Proxy-1', 'Proxy-2'],
 }
 
-function setup(result: unknown = ok(catalogue)) {
+function setup(result: unknown = ok(catalogue), path = '/admin/cloudnet') {
   const cloudnetCatalogue = vi.fn(async () => result)
-  return { cloudnetCatalogue, mount: () => mountWithApp(CloudNetCataloguePanel, { api: mockApi({ cloudnetCatalogue }) }) }
+  return { cloudnetCatalogue, mount: () => mountWithApp(CloudNetCataloguePanel, { api: mockApi({ cloudnetCatalogue }), path, roles: ['ADMIN'] }) }
 }
 
 describe('CloudNetCataloguePanel', () => {
@@ -51,10 +51,33 @@ describe('CloudNetCataloguePanel', () => {
     wrapper.unmount()
   })
 
-  it('names the reporting proxies', async () => {
+  it('names the reporting proxies on the proxies tab, and not on the catalogue tab', async () => {
+    const { wrapper: onProxies } = await setup(ok(catalogue), '/admin/cloudnet?tab=proxies').mount()
+
+    expect(onProxies.findAll('[data-testid="proxies"] li').map((li) => li.text())).toEqual(['Proxy-1', 'Proxy-2'])
+    expect(onProxies.find('[data-testid="tasks"]').exists(), 'no tasks on the proxies tab').toBe(false)
+    onProxies.unmount()
+
+    const { wrapper: onCatalogue } = await setup().mount()
+    expect(onCatalogue.find('[data-testid="proxies"]').exists()).toBe(false)
+    onCatalogue.unmount()
+  })
+
+  it('shows the catalogue for an unknown tab and takes the value out of the address', async () => {
+    const { wrapper, router } = await setup(ok(catalogue), '/admin/cloudnet?tab=nope').mount()
+
+    expect(wrapper.find('[data-testid="tasks"]').exists()).toBe(true)
+    expect(router.currentRoute.value.query).toEqual({})
+
+    wrapper.unmount()
+  })
+
+  it('links every entry to its own address by kind and name', async () => {
     const { wrapper } = await setup().mount()
 
-    expect(wrapper.findAll('[data-testid="proxies"] li').map((li) => li.text())).toEqual(['Proxy-1', 'Proxy-2'])
+    expect(wrapper.get('[data-testid="tasks"] tbody tr a').attributes('href')).toBe('/admin/cloudnet/tasks/BedWars')
+    expect(wrapper.get('[data-testid="services"] tbody tr a').attributes('href')).toBe('/admin/cloudnet/services/BedWars-1')
+    expect(wrapper.get('[data-testid="groups"] li a').attributes('href')).toBe('/admin/cloudnet/groups/Games')
 
     wrapper.unmount()
   })
@@ -90,9 +113,12 @@ describe('CloudNetCataloguePanel', () => {
     expect(wrapper.text()).toContain('No tasks reported.')
     expect(wrapper.text()).toContain('No groups reported.')
     expect(wrapper.text()).toContain('No services reported.')
-    expect(wrapper.text()).toContain('No proxy is reporting.')
 
     wrapper.unmount()
+
+    const { wrapper: onProxies } = await setup(ok({ ...catalogue, tasks: [], groups: [], services: [], proxies: [] }), '/admin/cloudnet?tab=proxies').mount()
+    expect(onProxies.text()).toContain('No proxy is reporting.')
+    onProxies.unmount()
   })
 
   it('shows the error with a retry that loads again', async () => {

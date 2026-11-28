@@ -35,18 +35,22 @@ describe('GlobalSearch', () => {
 
     await input.setValue('Steve')
 
-    expect(wrapper.findAll('[role="option"]').map((o) => o.text())).toEqual(['Open player "Steve"'])
+    expect(wrapper.findAll('[role="option"]').map((o) => o.text())).toEqual(['Player Open player "Steve"'])
     expect(input.attributes('aria-expanded')).toBe('true')
     wrapper.unmount()
   })
 
-  it('resolves a player name and opens the player page', async () => {
+  it('resolves a player name and replaces the address with the player page, not the name', async () => {
     const resolvePlayer = vi.fn(async () => ok(PLAYER))
     const { wrapper, router, input } = await setup({ resolvePlayer })
+    const push = vi.spyOn(router, 'push')
+    const replace = vi.spyOn(router, 'replace')
 
     await submit(input, ' Steve ')
 
     expect(resolvePlayer).toHaveBeenCalledWith('Steve')
+    expect(replace).toHaveBeenCalledWith({ name: 'player', params: { owner: OWNER } })
+    expect(push, 'the name never gets its own history entry').not.toHaveBeenCalled()
     expect(router.currentRoute.value.fullPath).toBe(`/players/${OWNER}`)
     expect(input.element.value, 'field cleared').toBe('')
     wrapper.unmount()
@@ -193,6 +197,31 @@ describe('GlobalSearch', () => {
     wrapper.unmount()
   })
 
+  it('closes the list and empties the field when the route changes', async () => {
+    const { wrapper, router, input } = await setup()
+    await input.setValue('Steve')
+    expect(wrapper.find('[role="option"]').exists(), 'list before the route change').toBe(true)
+
+    await router.push('/cases')
+    await flushPromises()
+
+    expect(wrapper.find('[role="option"]').exists(), 'list after the route change').toBe(false)
+    expect(input.element.value, 'text after the route change').toBe('')
+    wrapper.unmount()
+  })
+
+  it('keeps the focus in the field when Escape closes the list', async () => {
+    const { wrapper, input } = await setup()
+    input.element.focus()
+    await input.setValue('Steve')
+
+    await input.trigger('keydown', { key: 'Escape' })
+
+    expect(wrapper.find('[role="option"]').exists(), 'list').toBe(false)
+    expect(document.activeElement, 'focus').toBe(input.element)
+    wrapper.unmount()
+  })
+
   it('focuses the field when / is pressed outside a text field', async () => {
     const { wrapper, input } = await setup()
 
@@ -226,6 +255,21 @@ describe('GlobalSearch', () => {
     press('/')
 
     expect(document.activeElement).not.toBe(element)
+  })
+
+  it('names the type of every hit: player for a name, case for a case id, report for a report id', async () => {
+    const { wrapper, input } = await setup()
+
+    await input.setValue('Steve')
+    expect(wrapper.get('[data-testid="search-type"]').text()).toBe('Player')
+
+    await input.setValue('#A1B2C3D4')
+    expect(wrapper.get('[data-testid="search-type"]').text()).toBe('Case')
+
+    await input.setValue('report:3F2B8C1E-0000-4000-8000-000000000001')
+    expect(wrapper.get('[data-testid="search-type"]').text()).toBe('Report')
+
+    wrapper.unmount()
   })
 
   it('exposes the field as a labelled combobox with the shortcut', async () => {

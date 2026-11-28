@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useApi } from '../../api/inject'
 import type { ApiError, NameHistoryName } from '../../api/types'
 import { formatDateTime } from '../../format'
+import { useLookupStore } from '../../stores/lookup'
 import MdButton from '../md/MdButton.vue'
 import MdDataTable from '../md/MdDataTable.vue'
 import ResourceState from '../ResourceState.vue'
@@ -14,6 +15,7 @@ const PAGE_SIZE = 50
 
 const { t, locale } = useI18n()
 const api = useApi()
+const lookup = useLookupStore()
 
 // Held in memory only: the names of an account are never written to browser storage.
 const names = ref<NameHistoryName[]>([])
@@ -32,6 +34,8 @@ async function load(page: number): Promise<void> {
     return
   }
   error.value = null
+  // The backend lists the newest name first: that is the last known name, which the page title shows.
+  if (page === 0 && result.data.names[0]) lookup.remember(props.owner, result.data.names[0].name)
   names.value = page === 0 ? result.data.names : [...names.value, ...result.data.names]
   hasMore.value = result.data.hasMore
   nextPage.value = page + 1

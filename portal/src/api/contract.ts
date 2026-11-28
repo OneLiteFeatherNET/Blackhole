@@ -19,7 +19,18 @@ export type PunishmentState = 'ACTIVE' | 'EXPIRED' | 'LIFTED' | 'REVOKED'
 /** `POST /api/session` request. The Ban ID travels in this body and nowhere else. */
 export interface LoginRequest {
   banId: string
+  /** The solved proof-of-work challenge for sign-in (`altcha`). Required by the backend while the check is on. */
+  altcha?: string
 }
+
+/** The purposes a challenge is issued for; each route takes only its own. */
+export type ChallengePurpose = 'sign-in' | 'appeal'
+
+/** `GET /api/challenge`: the signed challenge the widget solves, or `enabled: false` when the check is off (dev and test). */
+export type ChallengeAnswer = { enabled: false } | { parameters: { algorithm: string; nonce: string; expiresAt: number; data: { purpose: string } }; signature: string }
+
+/** The longest `altcha` payload the BFF forwards: the backend refuses more, and so does the BFF before it asks. */
+export const MAX_ALTCHA_LENGTH = 8192
 
 /** What the browser gets for login and for `GET /api/session`. The session token never reaches it. */
 export interface SessionInfo {
@@ -63,6 +74,8 @@ export interface AppealRequest {
   statement: string
   /** The version of the appeal conditions the player confirmed (from `GET /api/appeal/conditions`). */
   conditionsVersion: number
+  /** The solved proof-of-work challenge for appeal filing (`altcha`). */
+  altcha?: string
 }
 
 /** `GET /api/appeal/conditions`: the text the player confirms before filing. Plain text, see `conditions.ts`. */
@@ -195,6 +208,8 @@ export type ErrorCode =
   | 'CSRF'
   | 'ORIGIN'
   | 'BAD_REQUEST'
+  | 'CHALLENGE_FAILED'
+  | 'RATE_LIMITED'
 
 export interface ErrorBody {
   code: ErrorCode
@@ -253,11 +268,12 @@ export const CHAT_ID = /^[A-Za-z0-9_-]{1,64}$/
 export const UUID_SHAPE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
 
 export const ROUTES: readonly RouteSpec[] = [
-  { path: '/api/session', method: 'POST', backend: '/public/session', session: false, body: ['banId'] },
+  { path: '/api/challenge', method: 'GET', backend: '/public/challenge', session: false, query: { purpose: /^(sign-in|appeal)$/ } },
+  { path: '/api/session', method: 'POST', backend: '/public/session', session: false, body: ['banId'], optionalBody: ['altcha'] },
   { path: '/api/session', method: 'GET', backend: '/public/session', session: true },
   { path: '/api/session', method: 'DELETE', backend: '/public/session', session: true, logout: true },
   { path: '/api/punishment', method: 'GET', backend: '/public/punishment', session: true },
-  { path: '/api/appeal', method: 'POST', backend: '/public/appeal', session: true, body: ['statement'], integers: ['conditionsVersion'] },
+  { path: '/api/appeal', method: 'POST', backend: '/public/appeal', session: true, body: ['statement'], integers: ['conditionsVersion'], optionalBody: ['altcha'] },
   { path: '/api/appeal', method: 'GET', backend: '/public/appeal', session: true },
   { path: '/api/appeal/conditions', method: 'GET', backend: '/public/appeal/conditions', session: true },
   { path: '/api/appeal/protocol', method: 'GET', backend: '/public/appeal/protocol', session: true, query: { format: /^(text|json)$/ } },

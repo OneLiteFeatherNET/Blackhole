@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.velocity.command;
 
+import net.onelitefeather.blackhole.velocity.utils.LogIds;
 import com.google.inject.Inject;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.ProxyServer;
@@ -78,7 +79,7 @@ public final class NameHistoryCommand {
         try {
             subject = resolve(sender, input);
         } catch (ApiException e) {
-            LOGGER.error("Failed to look up the former name {}: {}", input, e.getMessage());
+            LOGGER.error("Failed to look up a former name: {}", e.getMessage());
             sender.sendMessage(Component.translatable("names.unavailable"));
             return;
         }
@@ -89,7 +90,7 @@ public final class NameHistoryCommand {
         try {
             page = this.backend.nameHistory(subject.ownerHash(), MAX_NAMES);
         } catch (ApiException e) {
-            LOGGER.error("Failed to read the name history of {}: {}", subject.name(), e.getMessage());
+            LOGGER.error("Failed to read the name history of {}: {}", LogIds.of(subject.ownerHash()), e.getMessage());
             sender.sendMessage(Component.translatable("names.unavailable"));
             return;
         }

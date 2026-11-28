@@ -4,9 +4,7 @@ import com.velocitypowered.api.proxy.Player;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.renderer.ComponentRenderer;
 import net.onelitefeather.blackhole.client.model.EnforcementKind;
 import net.onelitefeather.blackhole.client.model.LoginDenialReason;
@@ -58,8 +56,6 @@ public final class PunishmentScreens {
 
     /** What a kicked player is told, with or without a reason. */
     static final String KICK_TITLE = "You were removed from the network";
-
-    private static final MiniMessage MINI = MiniMessage.miniMessage();
 
     private final Clock clock;
     private final BlackholeConfig config;
@@ -310,10 +306,10 @@ public final class PunishmentScreens {
         if (punishment.reason() == null || punishment.reason().isBlank()) {
             return Component.translatable("punishment.reason.default");
         }
-        TagResolver duration = punishment.expiresAt() == null
-                ? TagResolver.empty()
-                : DurationTag.resolver(punishment.expiresAt(), this.clock.millis());
-        return MINI.deserialize(punishment.reason(), duration);
+        Component duration = punishment.expiresAt() == null
+                ? Component.translatable("duration.permanent")
+                : DurationTag.format(Duration.ofMillis(punishment.expiresAt() - this.clock.millis()));
+        return Reasons.text(punishment.reason(), duration);
     }
 
     private Component duration(PunishmentSyncMessage punishment, Locale locale) {

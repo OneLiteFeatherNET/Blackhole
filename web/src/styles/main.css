@@ -29,6 +29,14 @@
   --color-on-error: var(--md-sys-color-on-error);
   --color-error-container: var(--md-sys-color-error-container);
   --color-on-error-container: var(--md-sys-color-on-error-container);
+  --color-success: var(--md-sys-color-success);
+  --color-on-success: var(--md-sys-color-on-success);
+  --color-success-container: var(--md-sys-color-success-container);
+  --color-on-success-container: var(--md-sys-color-on-success-container);
+  --color-warning: var(--md-sys-color-warning);
+  --color-on-warning: var(--md-sys-color-on-warning);
+  --color-warning-container: var(--md-sys-color-warning-container);
+  --color-on-warning-container: var(--md-sys-color-on-warning-container);
   --color-surface-dim: var(--md-sys-color-surface-dim);
   --color-surface: var(--md-sys-color-surface);
   --color-surface-bright: var(--md-sys-color-surface-bright);
@@ -372,6 +380,39 @@
 
   &:focus-visible {
     outline: 2px solid var(--md-sys-color-primary);
+  }
+}
+
+/* A strip that scrolls sideways (tabs on a narrow screen) keeps its scrolling but shows no scrollbar. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* A tab strip fades out at the edge where tabs are hidden: that edge is the hint that it scrolls. */
+[role="tablist"][data-fade="start"] {
+  mask-image: linear-gradient(to right, transparent, black 2rem);
+}
+
+[role="tablist"][data-fade="end"] {
+  mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent);
+}
+
+[role="tablist"][data-fade="both"] {
+  mask-image: linear-gradient(to right, transparent, black 2rem, black calc(100% - 2rem), transparent);
+}
+
+/*
+ * The focus ring of every interactive element that is not an MD3 state layer: 2px primary, offset 2px, for keyboard
+ * focus only (:focus-visible), so a mouse click draws no ring.
+ */
+@utility focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--md-sys-color-primary);
+    outline-offset: 2px;
   }
 }
 

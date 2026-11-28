@@ -37,4 +37,14 @@ public class AuditController implements AuditApi {
         }
         return HttpResponse.ok(result);
     }
+
+    @Override
+    @Secured(Roles.ADMIN)
+    public HttpResponse<AuditDTO> get(UUID auditId) {
+        AuditDTO result = this.auditService.find(auditId);
+        if (result instanceof AuditDTO.Error error) {
+            return HttpResponse.<AuditDTO>status(error.kind().status()).body(error);
+        }
+        return HttpResponse.ok(result);
+    }
 }

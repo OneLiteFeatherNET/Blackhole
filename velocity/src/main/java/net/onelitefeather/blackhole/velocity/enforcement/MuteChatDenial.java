@@ -52,6 +52,15 @@ public final class MuteChatDenial {
     }
 
     /**
+     * @param version the player's protocol version
+     * @return whether the message can be denied without disconnecting the sender: unsigned chat, or signed chat
+     * with SignedVelocity present
+     */
+    public boolean canDenyQuietly(@NotNull ProtocolVersion version) {
+        return !signed(version) || this.relayPresent;
+    }
+
+    /**
      * Denies the message. For signed chat without SignedVelocity the sender has to be disconnected as well,
      * because that is the only way the proxy can keep the message from the other players.
      *

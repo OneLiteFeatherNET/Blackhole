@@ -6,7 +6,7 @@ import { RouterLink, type RouteLocationRaw } from 'vue-router'
 const props = defineProps<{ to?: RouteLocationRaw; href?: string }>()
 
 const classes =
-  'text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary'
+  'text-primary underline underline-offset-2 focus-ring'
 </script>
 
 <template>

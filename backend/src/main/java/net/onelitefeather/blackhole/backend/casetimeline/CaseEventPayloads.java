@@ -78,6 +78,7 @@ public final class CaseEventPayloads {
                 case CaseEventPayload.PRIORITY_CHANGED -> new CaseEventPayload.PriorityChanged(
                         required(text(body, "from")), required(text(body, "to")));
                 case CaseEventPayload.TAGS_CHANGED -> new CaseEventPayload.TagsChanged(texts(body, "added"), texts(body, "removed"));
+                case CaseEventPayload.CASE_BULK_EDITED -> new CaseEventPayload.BulkEdited(required(text(body, "batchId")), bulkChanges(body));
                 case CaseEventPayload.NOTE_ADDED -> new CaseEventPayload.NoteAdded(required(text(body, "noteId")), required(text(body, "text")));
                 case CaseEventPayload.NOTE_EDITED -> new CaseEventPayload.NoteEdited(required(text(body, "noteId")), required(text(body, "text")));
                 case CaseEventPayload.NOTE_REDACTED -> new CaseEventPayload.NoteRedacted(
@@ -192,5 +193,19 @@ public final class CaseEventPayloads {
 
     private static boolean flag(Map<String, Object> body, String key) {
         return body.get(key) instanceof Boolean value && value;
+    }
+
+    private static List<Map<String, Object>> bulkChanges(Map<String, Object> body) {
+        if (!(body.get("changes") instanceof List<?> list)) {
+            return List.of();
+        }
+        List<Map<String, Object>> changes = new java.util.ArrayList<>();
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> raw) {
+                @SuppressWarnings("unchecked") Map<String, Object> change = (Map<String, Object>) raw;
+                changes.add(change);
+            }
+        }
+        return changes;
     }
 }

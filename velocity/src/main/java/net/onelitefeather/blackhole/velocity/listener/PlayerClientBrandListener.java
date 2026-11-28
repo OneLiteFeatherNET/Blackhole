@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.velocity.listener;
 
+import net.onelitefeather.blackhole.velocity.utils.LogIds;
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.PlayerClientBrandEvent;
@@ -41,7 +42,7 @@ public final class PlayerClientBrandListener {
             this.punishProfileApi.updateSessionInfo(uuidHash,
                     new SessionInfoDTO().owner(uuidHash).clientBrand(event.getBrand()));
         } catch (ApiException e) {
-            LOGGER.debug("Client brand not recorded for {}: {}", player.getUsername(), e.getMessage());
+            LOGGER.debug("Client brand not recorded for {}: {}", LogIds.of(player.getUniqueId()), e.getMessage());
         }
     }
 }

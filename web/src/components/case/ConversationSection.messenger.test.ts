@@ -216,7 +216,7 @@ describe('ConversationSection: messenger layout', () => {
 
     const thread = wrapper.get('[data-testid="thread"]')
     expect(thread.classes()).toContain('overflow-y-auto')
-    expect(thread.classes()).toContain('h-[60dvh]')
+    expect(thread.classes(), 'the thread fits the window, between 20 rem and 60 % of the viewport').toContain('h-[clamp(20rem,calc(100dvh-28rem),60dvh)]')
     const composer = wrapper.get('[data-testid="message-composer"]').element
     expect(thread.element.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING, 'the composer follows the thread').not.toBe(0)
 

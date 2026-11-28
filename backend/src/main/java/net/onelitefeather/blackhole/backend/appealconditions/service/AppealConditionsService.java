@@ -62,6 +62,16 @@ public class AppealConditionsService {
         return toResponse(saved.get());
     }
 
+    /** One version by its number. A number below 1 is a validation error, an unknown number is NOT_FOUND. */
+    public AppealConditionsDTO version(int version) {
+        if (version < 1) {
+            return new AppealConditionsDTO.Error("the version must be 1 or more", ErrorKind.VALIDATION);
+        }
+        return this.store.find(version)
+                .<AppealConditionsDTO>map(AppealConditionsService::toResponse)
+                .orElseGet(() -> new AppealConditionsDTO.Error("there is no appeal conditions version " + version, ErrorKind.NOT_FOUND));
+    }
+
     private static String normalise(@Nullable String text) {
         return text == null ? null : text.replace("\r\n", "\n").replace('\r', '\n').strip();
     }

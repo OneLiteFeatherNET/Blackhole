@@ -16,6 +16,9 @@ function item(overrides: Partial<CaseListItem> = {}): CaseListItem {
     tags: ['spam', 'chat'],
     punishmentCreatedAt: Date.UTC(2026, 6, 1),
     lastActivityAt: Date.UTC(2026, 6, 2),
+    playerName: null,
+    ownerShort: 'abababababab',
+    version: 1,
     ...overrides,
   }
 }
@@ -34,7 +37,8 @@ describe('CasesView', () => {
     expect(rows).toHaveLength(2)
     expect(rows[0]!.get('a').text()).toBe('#AB12CD')
     expect(rows[0]!.get('a').attributes('href')).toBe('/cases/p-0001')
-    expect(rows[0]!.text()).toContain('spam, chat')
+    expect(rows[0]!.text()).toContain('spam')
+    expect(rows[0]!.text()).toContain('chat')
     expect(rows[0]!.text()).toContain('High')
     expect(rows[1]!.text()).toContain('Ada')
     expect(rows[1]!.text()).toContain('Closed')
@@ -183,6 +187,22 @@ describe('CasesView: filters in the URL', () => {
 
     expect(cases).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'OPEN', page: 0 }))
     expect(wrapper.get('[data-testid="status-OPEN"]').attributes('aria-pressed')).toBe('true')
+
+    wrapper.unmount()
+  })
+
+  it('empties the tag field when the query goes back to the unfiltered list', async () => {
+    const { mount } = setup([[item()], [item()], [item()]])
+    const { wrapper, router } = await mount()
+    await router.push('/cases?tag=spam')
+    await flushPromises()
+    expect(wrapper.get('[data-testid="tag-filter"] input').element).toHaveProperty('value', 'spam')
+
+    await router.push('/cases')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="tag-filter"] input').element).toHaveProperty('value', '')
+    expect(wrapper.find('[data-testid="applied-filters"]').exists()).toBe(false)
 
     wrapper.unmount()
   })

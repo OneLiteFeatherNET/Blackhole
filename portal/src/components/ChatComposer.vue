@@ -2,8 +2,10 @@
 import { computed, inject, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { MAX_FILES, MAX_TEXT_LENGTH } from '../api/contract'
-import { ACCEPT, isImage, precheck, releasePreview, formatSize, type DraftFile } from '../chat/files'
+import { useAttachments } from '../chat/attachments'
+import { ACCEPT } from '../chat/files'
 import { SESSION_KEY } from '../session'
+import FileChips from './FileChips.vue'
 
 /**
  * The message composer: text, attached files with chips, drag and drop, paste. The drafts live in
@@ -16,11 +18,10 @@ const emit = defineEmits<{ send: [] }>()
 const { t } = useI18n()
 const session = inject(SESSION_KEY)!
 const drafts = session.state.drafts
+const { notice, addFiles, removeFile } = useAttachments(session, { upload: true })
 
 const input = ref<HTMLInputElement | null>(null)
 const dragging = ref(false)
-const notice = ref('')
-let counter = 0
 
 const length = computed(() => drafts.message.trim().length)
 const tooLong = computed(() => length.value > MAX_TEXT_LENGTH)
@@ -29,60 +30,15 @@ const readyFiles = computed(() => drafts.files.filter((file) => file.state === '
 const blank = computed(() => length.value === 0 && readyFiles.value.length === 0)
 const canSend = computed(() => !blank.value && !tooLong.value && !uploading.value && !props.sending)
 
-function find(key: string): DraftFile | undefined {
-  return drafts.files.find((file) => file.key === key)
+/**
+ * Enter sends only where a keyboard is the pointer. A phone has no Shift+Enter habit and a sent message
+ * cannot be edited, so there Enter stays a new line. No matchMedia (an old browser) counts as no fine pointer.
+ */
+function hasFinePointer(): boolean {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches === false
 }
 
-function removeDraft(key: string) {
-  const file = find(key)
-  if (!file) return
-  releasePreview(file)
-  drafts.files.splice(drafts.files.indexOf(file), 1)
-}
-
-async function upload(key: string, source: File) {
-  const result = await session.api.uploadAttachment(source)
-  if (!session.alive(result)) return
-  const file = find(key)
-  if (!file) {
-    // Removed while it was uploading: the staged copy is removed too.
-    if (result.ok) void session.api.deleteAttachment(result.data.attachmentId)
-    return
-  }
-  if (result.ok) {
-    file.state = 'staged'
-    file.attachmentId = result.data.attachmentId
-  } else {
-    file.state = 'failed'
-    file.code = result.error.code
-  }
-}
-
-/** Adds the files that pass the prechecks and starts their upload. The server still decides. */
-function addFiles(list: FileList | File[] | null | undefined) {
-  if (!list) return
-  for (const source of Array.from(list)) {
-    const refusal = precheck(source, drafts.files.length)
-    if (refusal) {
-      notice.value = refusal === 'TOO_MANY' ? t('chat.errors.TOO_MANY', { max: MAX_FILES }) : t(`chat.errors.${refusal}`)
-      continue
-    }
-    notice.value = ''
-    counter += 1
-    const key = `file-${counter}`
-    const preview = isImage(source.type) && typeof URL.createObjectURL === 'function' ? URL.createObjectURL(source) : undefined
-    drafts.files.push({ key, name: source.name, size: source.size, type: source.type, state: 'uploading', preview })
-    void upload(key, source)
-  }
-}
-
-function remove(key: string) {
-  const file = find(key)
-  if (!file) return
-  if (file.state === 'staged' && file.attachmentId) void session.api.deleteAttachment(file.attachmentId)
-  removeDraft(key)
-  notice.value = ''
-}
+const hint = hasFinePointer() ? `${t('chat.formatHint')} ${t('chat.enterHint')}` : t('chat.formatHint')
 
 function onPick(event: Event) {
   const target = event.target as HTMLInputElement
@@ -116,42 +72,24 @@ function onPaste(event: ClipboardEvent) {
   addFiles(files)
 }
 
-/** The one way out: a submit (button or Ctrl+Enter) sends only when the gate is open. */
+/** The one way out: a submit (button or Enter) sends only when the gate is open. */
 function onSubmit() {
   if (canSend.value) emit('send')
 }
 
+/** Ctrl/Cmd+Enter always sends. A plain Enter sends on a fine pointer, not with Shift and not while an IME composes. */
 function onKeydown(event: KeyboardEvent) {
-  if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-    event.preventDefault()
-    onSubmit()
-  }
-}
-
-/** The codes a chip can show; anything else from the server reads as "could not be accepted". */
-const CHIP_ERRORS = new Set([
-  'UNSUPPORTED_TYPE',
-  'TOO_LARGE',
-  'FILE_FLAGGED',
-  'FILE_ACTIVE_CONTENT',
-  'INVALID_FILE',
-  'QUOTA',
-  'NO_APPEAL',
-  'FORBIDDEN',
-  'CONFLICT',
-  'UNAVAILABLE',
-])
-
-function stateLabel(file: DraftFile): string {
-  if (file.state === 'uploading') return t('chat.state.uploading')
-  if (file.state === 'staged') return t('chat.state.staged')
-  return file.code && CHIP_ERRORS.has(file.code) ? t(`chat.errors.${file.code}`) : t('chat.errors.INVALID_FILE')
+  if (event.key !== 'Enter') return
+  const plain = !event.shiftKey && !event.isComposing && hasFinePointer()
+  if (!(event.ctrlKey || event.metaKey || plain)) return
+  event.preventDefault()
+  onSubmit()
 }
 </script>
 
 <template>
   <form
-    class="relative flex flex-col gap-3 rounded-md-lg bg-surface-container p-6"
+    class="relative flex flex-col gap-2 rounded-md-lg bg-surface-container p-3"
     novalidate
     data-testid="composer"
     @submit.prevent="onSubmit"
@@ -168,66 +106,51 @@ function stateLabel(file: DraftFile): string {
     </div>
 
     <label for="message" class="text-label-large text-on-surface">{{ t('conversation.composer') }}</label>
-    <textarea
-      id="message"
-      v-model="drafts.message"
-      rows="4"
-      aria-describedby="message-hint message-count"
-      :aria-invalid="tooLong"
-      class="plain-text rounded-md-xs border border-outline bg-surface p-4 text-body-large text-on-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-      @keydown="onKeydown"
-      @paste="onPaste"
-    />
-    <p id="message-hint" class="text-body-small text-on-surface-variant">{{ t('chat.formatHint') }}</p>
-    <p id="message-count" :class="tooLong ? 'text-error' : 'text-on-surface-variant'" class="text-body-small">
-      {{ t('conversation.counter', { count: length, max: MAX_TEXT_LENGTH }) }}
-    </p>
-
-    <div class="flex flex-wrap items-center gap-3">
-      <input ref="input" type="file" multiple :accept="ACCEPT" class="hidden" data-testid="file-input" @change="onPick" />
-      <button
-        type="button"
-        class="md-state inline-flex h-10 items-center justify-center rounded-md-full border border-outline px-6 text-label-large text-primary disabled:opacity-60"
-        :disabled="drafts.files.length >= MAX_FILES"
-        aria-describedby="file-count"
-        @click="input?.click()"
-      >
-        {{ t('chat.attach') }}
-      </button>
+    <div class="flex flex-wrap items-end gap-2">
+      <textarea
+        id="message"
+        v-model="drafts.message"
+        rows="2"
+        aria-describedby="message-hint message-count"
+        :aria-invalid="tooLong"
+        class="plain-text min-w-0 flex-1 basis-56 rounded-md-xs border border-outline bg-surface p-3 text-body-large text-on-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        @keydown="onKeydown"
+        @paste="onPaste"
+      />
+      <div class="ml-auto flex items-center gap-2">
+        <input ref="input" type="file" multiple :accept="ACCEPT" class="hidden" data-testid="file-input" @change="onPick" />
+        <button
+          type="button"
+          class="md-state inline-flex h-10 items-center justify-center rounded-md-full border border-outline px-4 text-label-large text-primary disabled:opacity-60"
+          :disabled="drafts.files.length >= MAX_FILES"
+          aria-describedby="file-count"
+          @click="input?.click()"
+        >
+          {{ t('chat.attach') }}
+        </button>
+        <button
+          type="submit"
+          :disabled="!canSend"
+          class="md-state inline-flex h-10 items-center justify-center rounded-md-full bg-primary px-4 text-label-large text-on-primary disabled:opacity-60"
+        >
+          {{ sending ? t('conversation.sending') : t('conversation.send') }}
+        </button>
+      </div>
+    </div>
+    <p id="message-hint" class="text-body-small text-on-surface-variant">{{ hint }}</p>
+    <div class="flex flex-wrap gap-x-4 gap-y-1">
+      <p id="message-count" :class="tooLong ? 'text-error' : 'text-on-surface-variant'" class="text-body-small">
+        {{ t('conversation.counter', { count: length, max: MAX_TEXT_LENGTH }) }}
+      </p>
       <p id="file-count" class="text-body-small text-on-surface-variant">{{ t('chat.fileCount', { count: drafts.files.length, max: MAX_FILES }) }}</p>
     </div>
 
-    <ul v-if="drafts.files.length > 0" :aria-label="t('chat.attached')" class="flex list-none flex-wrap gap-2 p-0" data-testid="chips">
-      <li v-for="file in drafts.files" :key="file.key" class="flex max-w-full items-center gap-2 rounded-md-sm bg-surface-container-high py-1 pl-1 pr-2 text-body-small text-on-surface">
-        <img v-if="file.preview" :src="file.preview" :alt="file.name" class="h-10 w-10 rounded-md-xs object-cover" />
-        <span class="break-all">{{ file.name }}</span>
-        <span class="text-on-surface-variant">{{ formatSize(file.size) }}</span>
-        <span :class="file.state === 'failed' ? 'text-error' : 'text-on-surface-variant'">{{ stateLabel(file) }}</span>
-        <button
-          type="button"
-          class="md-state rounded-md-full px-2 text-label-large text-primary"
-          :aria-label="t('chat.remove', { name: file.name })"
-          @click="remove(file.key)"
-        >
-          {{ t('chat.removeShort') }}
-        </button>
-      </li>
-    </ul>
+    <FileChips :files="drafts.files" @remove="removeFile" />
 
     <p v-if="notice" role="alert" class="rounded-md-sm bg-error-container px-4 py-3 text-body-medium text-on-error-container">{{ notice }}</p>
     <div role="alert" aria-live="assertive">
       <p v-if="failure" class="rounded-md-sm bg-error-container px-4 py-3 text-body-medium text-on-error-container">{{ failure }}</p>
     </div>
     <p v-if="uploading" role="status" aria-live="polite" class="text-body-small text-on-surface-variant">{{ t('chat.uploading') }}</p>
-
-    <div>
-      <button
-        type="submit"
-        :disabled="!canSend"
-        class="md-state inline-flex h-10 items-center justify-center rounded-md-full bg-primary px-6 text-label-large text-on-primary disabled:opacity-60"
-      >
-        {{ sending ? t('conversation.sending') : t('conversation.send') }}
-      </button>
-    </div>
   </form>
 </template>

@@ -243,7 +243,7 @@ function remaining(expiresAt: number): string {
             <RouterLink
               v-if="column.key === 'owner'"
               :to="{ name: 'player', params: { owner: row.owner } }"
-              class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+              class="text-primary underline underline-offset-2 focus-ring"
             >
               {{ playerName(row) }}
             </RouterLink>
@@ -266,7 +266,7 @@ function remaining(expiresAt: number): string {
               <div class="flex flex-wrap items-center gap-2">
                 <RouterLink
                   :to="{ name: 'case', params: { reference: row.punishmentId } }"
-                  class="text-primary underline underline-offset-2 outline-none focus-visible:outline-2 focus-visible:outline-primary"
+                  class="text-primary underline underline-offset-2 focus-ring"
                 >
                   {{ row.shortId }}
                 </RouterLink>

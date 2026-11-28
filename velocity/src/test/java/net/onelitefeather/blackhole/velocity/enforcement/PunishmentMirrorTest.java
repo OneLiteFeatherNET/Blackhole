@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 
 import static net.onelitefeather.blackhole.velocity.TestData.OWNER;
 import static net.onelitefeather.blackhole.velocity.TestData.active;
@@ -118,5 +119,47 @@ class PunishmentMirrorTest {
 
         assertFalse(mirror.isLoaded(OWNER));
         assertTrue(mirror.active(OWNER).isEmpty());
+    }
+
+    @Test
+    void aLoadBeyondTheCapEvictsAnOfflineOwnerBeforeAnOnlineOne() {
+        PunishmentMirror bounded = new PunishmentMirror(clock, 2, () -> Set.of("online"));
+        bounded.load("online", List.of());
+        clock.advance(Duration.ofSeconds(1));
+        bounded.load("offline", List.of());
+        clock.advance(Duration.ofSeconds(1));
+
+        bounded.load("newest", List.of());
+
+        assertTrue(bounded.isLoaded("online"), "a connected player keeps their entry even though it is the oldest");
+        assertFalse(bounded.isLoaded("offline"), "the offline owner is evicted first");
+        assertTrue(bounded.isLoaded("newest"));
+    }
+
+    @Test
+    void aLoadBeyondTheCapEvictsTheOldestEntryWhenEveryOwnerIsOnline() {
+        PunishmentMirror bounded = new PunishmentMirror(clock, 2, () -> Set.of("a", "b", "c"));
+        bounded.load("a", List.of());
+        clock.advance(Duration.ofSeconds(1));
+        bounded.load("b", List.of());
+        clock.advance(Duration.ofSeconds(1));
+
+        bounded.load("c", List.of());
+
+        assertFalse(bounded.isLoaded("a"), "the hard bound holds even when nobody is offline");
+        assertTrue(bounded.isLoaded("b") && bounded.isLoaded("c"));
+    }
+
+    @Test
+    void theMirrorNeverHoldsMoreOwnersThanItsCap() {
+        PunishmentMirror bounded = new PunishmentMirror(clock, 3, Set::of);
+        for (int i = 0; i < 20; i++) {
+            bounded.load("owner-" + i, List.of());
+            clock.advance(Duration.ofSeconds(1));
+        }
+
+        long held = java.util.stream.IntStream.range(0, 20).filter(i -> bounded.isLoaded("owner-" + i)).count();
+        assertEquals(3, held, "only the cap's worth of owners stays loaded");
+        assertTrue(bounded.isLoaded("owner-19"), "the most recent owner stays");
     }
 }

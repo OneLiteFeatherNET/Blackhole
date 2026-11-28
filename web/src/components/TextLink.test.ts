@@ -27,6 +27,6 @@ describe('TextLink', () => {
   it('keeps a visible focus ring for keyboard users', () => {
     const wrapper = mount(TextLink, { props: { href: '/x' }, slots: { default: 'x' } })
 
-    expect(wrapper.classes()).toEqual(expect.arrayContaining(['focus-visible:outline-2', 'focus-visible:outline-primary']))
+    expect(wrapper.classes()).toContain('focus-ring')
   })
 })

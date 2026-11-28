@@ -1,5 +1,6 @@
 package net.onelitefeather.blackhole.velocity.command;
 
+import net.onelitefeather.blackhole.velocity.utils.LogIds;
 import com.google.inject.Inject;
 import com.velocitypowered.api.command.CommandSource;
 import net.kyori.adventure.text.Component;
@@ -72,7 +73,7 @@ public final class PunishInfoCommand {
         try {
             return this.backend.profile(user.ownerHash()).orElseGet(() -> new PunishProfileDTO().owner(user.ownerHash()));
         } catch (ApiException e) {
-            LOGGER.error("Failed to fetch the punishment profile of {}: {}", user.name(), e.getMessage());
+            LOGGER.error("Failed to fetch the punishment profile of {}: {}", LogIds.of(user.ownerHash()), e.getMessage());
             sender.sendMessage(Component.translatable("punishment.error.profile"));
             return null;
         }

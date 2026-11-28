@@ -5,6 +5,7 @@ public enum AuditAction {
     PUNISHMENT_APPLY("punishment.apply"),
     PUNISHMENT_REVOKE("punishment.revoke"),
     CASE_UPDATE("case.update"),
+    CASE_BULK_UPDATE("case.bulk_update"),
     CASE_NOTE_ADD("case.note.add"),
     CASE_NOTE_EDIT("case.note.edit"),
     CASE_NOTE_REDACT("case.note.redact"),
@@ -37,7 +38,10 @@ public enum AuditAction {
     GUARD_LEVEL_SET("guard.level.set"),
     AREA_BAN_CREATE("area-ban.create"),
     AREA_BAN_LIFT("area-ban.lift"),
-    GUARD_SETTINGS_SET("guard.settings.set");
+    GUARD_SETTINGS_SET("guard.settings.set"),
+    INTEGRATION_REGISTER("integration.registered"),
+    INTEGRATION_UPDATE("integration.updated"),
+    INTEGRATION_DISABLE("integration.disabled");
 
     private final String wireName;
 

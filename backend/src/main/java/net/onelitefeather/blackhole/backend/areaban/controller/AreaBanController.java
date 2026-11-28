@@ -36,6 +36,16 @@ public class AreaBanController implements AreaBanApi {
     }
 
     @Override
+    @Secured({Roles.VIEWER, Roles.PROXY})
+    public HttpResponse<AreaBanDTO> get(String id) {
+        AreaBanDTO result = this.areaBans.find(id);
+        if (result instanceof AreaBanDTO.Error error) {
+            return HttpResponse.<AreaBanDTO>status(error.kind().status()).body(error);
+        }
+        return HttpResponse.ok(result);
+    }
+
+    @Override
     @Secured({Roles.MODERATOR, Roles.PROXY, Roles.DISCORD})
     public HttpResponse<AreaBanDTO> create(AreaBanDTO.CreateRequest request, Actor actor) {
         AreaBanDTO result = this.areaBans.create(request, actor);

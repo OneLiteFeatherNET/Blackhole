@@ -40,6 +40,12 @@ public class AppealConditionsController implements AppealConditionsApi {
     }
 
     @Override
+    @Secured(Roles.VIEWER)
+    public HttpResponse<AppealConditionsDTO> version(int version) {
+        return toResponse(this.service.version(version));
+    }
+
+    @Override
     @Secured(Roles.ADMIN)
     public HttpResponse<AppealConditionsDTO> save(@Nullable AppealConditionsDTO.CreateRequest request, Actor actor) {
         return toResponse(this.service.save(request, actor.oid()));
