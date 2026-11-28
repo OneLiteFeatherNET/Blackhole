@@ -1,5 +1,74 @@
 # Changelog
 
+## [2.4.0](https://github.com/OneLiteFeatherNET/Blackhole/compare/v2.3.0...v2.4.0) (2026-11-28)
+
+
+### Features
+
+* **api:** add read-by-id endpoints for the staff panel ([#549](https://github.com/OneLiteFeatherNET/Blackhole/issues/549)) ([0ddcd18](https://github.com/OneLiteFeatherNET/Blackhole/commit/0ddcd189b464b67291e8888053955fe63f11b720))
+* **appeal:** require a proof-of-work challenge for sign-in and filing ([#548](https://github.com/OneLiteFeatherNET/Blackhole/issues/548)) ([ed0df49](https://github.com/OneLiteFeatherNET/Blackhole/commit/ed0df49b72203a88599a21d484126e6f30b1b67b))
+* **case:** edit cases in bulk through the api ([#541](https://github.com/OneLiteFeatherNET/Blackhole/issues/541)) ([1a72969](https://github.com/OneLiteFeatherNET/Blackhole/commit/1a729690628d26310db904735a50929f1bf9120a))
+* **case:** select players' cases and edit them in bulk ([#540](https://github.com/OneLiteFeatherNET/Blackhole/issues/540)) ([51dae31](https://github.com/OneLiteFeatherNET/Blackhole/commit/51dae31ef76cc389cf0d30dd0a6008fa2e00f92e))
+* **integration:** add integration registry and machine principal ([#571](https://github.com/OneLiteFeatherNET/Blackhole/issues/571)) ([03a0308](https://github.com/OneLiteFeatherNET/Blackhole/commit/03a03081aa441ba72364bf04a2830784b9f6240f))
+* **integration:** ingest detections with schema validation ([#579](https://github.com/OneLiteFeatherNET/Blackhole/issues/579)) ([46d9978](https://github.com/OneLiteFeatherNET/Blackhole/commit/46d9978fc9d3d2a5bbc4359438c1c5420d446af8))
+* **integration:** render detections in the staff panel ([#574](https://github.com/OneLiteFeatherNET/Blackhole/issues/574)) ([d7e6996](https://github.com/OneLiteFeatherNET/Blackhole/commit/d7e6996ece0e34775d4228677baf489acf24183f))
+* **web:** add the appeal detail page at /appeals/:id ([#583](https://github.com/OneLiteFeatherNET/Blackhole/issues/583)) ([720afa7](https://github.com/OneLiteFeatherNET/Blackhole/commit/720afa75bc6dfeaadbf49ef32415d2e6a6d52bda))
+* **web:** add the entity header with state, owner and breadcrumbs ([#584](https://github.com/OneLiteFeatherNET/Blackhole/issues/584)) ([21f8d70](https://github.com/OneLiteFeatherNET/Blackhole/commit/21f8d70577bfbdd46d0c0031f6c62fac9757cd4c))
+* **web:** address exemption reviews by url ([#588](https://github.com/OneLiteFeatherNET/Blackhole/issues/588)) ([8e3d491](https://github.com/OneLiteFeatherNET/Blackhole/commit/8e3d4917cf58a778556416f543d78963b810a92b))
+* **web:** address ip bans, area bans, guard, vpn policy and allow list by url ([#587](https://github.com/OneLiteFeatherNET/Blackhole/issues/587)) ([a11b30c](https://github.com/OneLiteFeatherNET/Blackhole/commit/a11b30c90400431b0226ce051d623becf140febd))
+* **web:** address players, punishments and warnings by url ([#591](https://github.com/OneLiteFeatherNET/Blackhole/issues/591)) ([00115db](https://github.com/OneLiteFeatherNET/Blackhole/commit/00115dbf94dc136acf8fec36b3dbd9829fd7a280))
+* **web:** address rollback, kick, audit and import entries by url ([#586](https://github.com/OneLiteFeatherNET/Blackhole/issues/586)) ([6b2bb6e](https://github.com/OneLiteFeatherNET/Blackhole/commit/6b2bb6eeb020ac031c992cdf751c205bf34b3859))
+* **web:** address templates, sections, client rules and appeal terms by url ([#585](https://github.com/OneLiteFeatherNET/Blackhole/issues/585)) ([75698c4](https://github.com/OneLiteFeatherNET/Blackhole/commit/75698c4d57b432519c3576763678ff930bced6d2))
+* **web:** group the navigation by job and add badges and shortcuts ([#553](https://github.com/OneLiteFeatherNET/Blackhole/issues/553)) ([4e606f3](https://github.com/OneLiteFeatherNET/Blackhole/commit/4e606f320141550668d17dcb7d517bede081f9b7))
+* **web:** open cases and reports in list and detail panes ([#590](https://github.com/OneLiteFeatherNET/Blackhole/issues/590)) ([1e9c371](https://github.com/OneLiteFeatherNET/Blackhole/commit/1e9c371d1a30a26d343d653c3cbcfa3112b10620))
+* **web:** open dialogs from the route and add copy link ([#582](https://github.com/OneLiteFeatherNET/Blackhole/issues/582)) ([d8e78c0](https://github.com/OneLiteFeatherNET/Blackhole/commit/d8e78c0b12d1e0d78ba63e2fc82371c35cf79b74))
+* **web:** show cases and appeals changed by others in the inbox ([#589](https://github.com/OneLiteFeatherNET/Blackhole/issues/589)) ([6542303](https://github.com/OneLiteFeatherNET/Blackhole/commit/654230389275f7000cbcf98e9e39452ee0a15138))
+* **web:** turn the inbox into a work queue ([#547](https://github.com/OneLiteFeatherNET/Blackhole/issues/547)) ([bc9c48b](https://github.com/OneLiteFeatherNET/Blackhole/commit/bc9c48b76fd6203f670cfba3579ae944562d0a6c))
+
+
+### Bug Fixes
+
+* **case:** fix conversation scrolling and the tab bar scrollbar ([#555](https://github.com/OneLiteFeatherNET/Blackhole/issues/555)) ([0f7b7a9](https://github.com/OneLiteFeatherNET/Blackhole/commit/0f7b7a912dcbe6b999fd0403e91fc6b9cc200691))
+* **deps:** update dependency com.fasterxml.jackson:jackson-bom to v2.23.0 ([#602](https://github.com/OneLiteFeatherNET/Blackhole/issues/602)) ([b82b3c0](https://github.com/OneLiteFeatherNET/Blackhole/commit/b82b3c05cf36357bbc30cff1ddf3e7d8fab90bf0))
+* **deps:** update dependency io.nats:jnats to v2.27.0 ([#610](https://github.com/OneLiteFeatherNET/Blackhole/issues/610)) ([6b7a6ce](https://github.com/OneLiteFeatherNET/Blackhole/commit/6b7a6ce8ab672312f7cccbaa519448673a3695e2))
+* **deps:** update dependency io.sentry:sentry to v8.63.0 ([#597](https://github.com/OneLiteFeatherNET/Blackhole/issues/597)) ([a0a435e](https://github.com/OneLiteFeatherNET/Blackhole/commit/a0a435ec8dfc2e6b1400ae4151b7d21e23ba5433))
+* **deps:** update dependency io.sentry:sentry to v8.64.0 ([#605](https://github.com/OneLiteFeatherNET/Blackhole/issues/605)) ([87d54ba](https://github.com/OneLiteFeatherNET/Blackhole/commit/87d54bae74e366382f586c4375ef27686d7eb4df))
+* **deps:** update dependency org.bouncycastle:bcprov-jdk18on to v1.87 ([#606](https://github.com/OneLiteFeatherNET/Blackhole/issues/606)) ([4223ef6](https://github.com/OneLiteFeatherNET/Blackhole/commit/4223ef623b139e2e6c8084321509842b7099ac6b))
+* **deps:** update dependency software.amazon.awssdk:s3 to v2.57.10 ([#596](https://github.com/OneLiteFeatherNET/Blackhole/issues/596)) ([30af865](https://github.com/OneLiteFeatherNET/Blackhole/commit/30af8657978f531f59310674b8358aeef7e610df))
+* **deps:** update dependency software.amazon.awssdk:s3 to v2.57.11 ([#601](https://github.com/OneLiteFeatherNET/Blackhole/issues/601)) ([a5d7263](https://github.com/OneLiteFeatherNET/Blackhole/commit/a5d726335a31ddea1c62ff9ba4210ea7d818fbfc))
+* **deps:** update dependency software.amazon.awssdk:s3 to v2.57.12 ([#603](https://github.com/OneLiteFeatherNET/Blackhole/issues/603)) ([22ca155](https://github.com/OneLiteFeatherNET/Blackhole/commit/22ca155256fdd2cc5b99a7805151364945830f6f))
+* **deps:** update dependency software.amazon.awssdk:s3 to v2.57.13 ([#604](https://github.com/OneLiteFeatherNET/Blackhole/issues/604)) ([1b1856c](https://github.com/OneLiteFeatherNET/Blackhole/commit/1b1856c7dcd0b8120e9de9429512d1ad5506b773))
+* **deps:** update dependency software.amazon.awssdk:s3 to v2.57.9 ([#595](https://github.com/OneLiteFeatherNET/Blackhole/issues/595)) ([c8f4c1c](https://github.com/OneLiteFeatherNET/Blackhole/commit/c8f4c1c3e545edb9ad5aeebddf8e757c842a9412))
+* **portal:** cap request bodies while they are read ([#558](https://github.com/OneLiteFeatherNET/Blackhole/issues/558)) ([2cc9313](https://github.com/OneLiteFeatherNET/Blackhole/commit/2cc93132611e3988dfae32256b95e972ae514460))
+* **portal:** keep sign-out honest when the request fails ([#565](https://github.com/OneLiteFeatherNET/Blackhole/issues/565)) ([2065a88](https://github.com/OneLiteFeatherNET/Blackhole/commit/2065a88ffd8950767af88eb174f02278747a42b0))
+* **portal:** move focus to new views and make the thread and lightbox keyboard-safe ([#566](https://github.com/OneLiteFeatherNET/Blackhole/issues/566)) ([ba1dcc7](https://github.com/OneLiteFeatherNET/Blackhole/commit/ba1dcc7284ce55aa40cdbc96dcf002b8e05f8767))
+* **portal:** name the outage and offer a retry when the challenge cannot load ([#559](https://github.com/OneLiteFeatherNET/Blackhole/issues/559)) ([586eac4](https://github.com/OneLiteFeatherNET/Blackhole/commit/586eac454d5f7635207852c9daabb4895399ebf1))
+* **portal:** report a message that fails after the appeal is filed ([#562](https://github.com/OneLiteFeatherNET/Blackhole/issues/562)) ([7a5243e](https://github.com/OneLiteFeatherNET/Blackhole/commit/7a5243e3f8b3ab33163a6cab50c9b8b0833d6e39))
+* **portal:** send permissions-policy, coop and corp headers ([#567](https://github.com/OneLiteFeatherNET/Blackhole/issues/567)) ([2d6c33a](https://github.com/OneLiteFeatherNET/Blackhole/commit/2d6c33a38a19018397772d9d3158827ea040659c))
+* **portal:** show a retry state when the punishment cannot be loaded ([#560](https://github.com/OneLiteFeatherNET/Blackhole/issues/560)) ([438bda7](https://github.com/OneLiteFeatherNET/Blackhole/commit/438bda7c72247270ee116992703c49d80fb5639a))
+* **portal:** tell a rate limit apart from a wrong Ban ID ([#563](https://github.com/OneLiteFeatherNET/Blackhole/issues/563)) ([57ceeae](https://github.com/OneLiteFeatherNET/Blackhole/commit/57ceeaeaa912e55d96f7ff1fef72fbc895869b8f))
+* **velocity:** bound the backend profile read on login and chat ([#568](https://github.com/OneLiteFeatherNET/Blackhole/issues/568)) ([e670472](https://github.com/OneLiteFeatherNET/Blackhole/commit/e6704724e8073e18cc5956d793dd7d9dcc1f9f5f))
+* **velocity:** bound the bus queue and distrust a slow consumer ([#573](https://github.com/OneLiteFeatherNET/Blackhole/issues/573)) ([7e7b5c3](https://github.com/OneLiteFeatherNET/Blackhole/commit/7e7b5c3bedcb05520aba69c5f348ebe03064dfc7))
+* **velocity:** close the login-window ban race ([#570](https://github.com/OneLiteFeatherNET/Blackhole/issues/570)) ([e5194be](https://github.com/OneLiteFeatherNET/Blackhole/commit/e5194be0a74d06dbf445d3263a99e00382882ccf))
+* **velocity:** escape staff reasons on player screens ([#576](https://github.com/OneLiteFeatherNET/Blackhole/issues/576)) ([755b749](https://github.com/OneLiteFeatherNET/Blackhole/commit/755b74992aae2767ce456567227f9deb6b219677))
+* **velocity:** fail loudly when initialisation fails ([#575](https://github.com/OneLiteFeatherNET/Blackhole/issues/575)) ([bbc9812](https://github.com/OneLiteFeatherNET/Blackhole/commit/bbc981275a0cae6e11a1f68b13fd85a0c00cbce8))
+* **velocity:** forget denied logins and bound the punishment mirror ([#572](https://github.com/OneLiteFeatherNET/Blackhole/issues/572)) ([1d25396](https://github.com/OneLiteFeatherNET/Blackhole/commit/1d253968bdd89d0ca708892df5c31df86d1a522a))
+* **velocity:** log owner hashes instead of player names ([#577](https://github.com/OneLiteFeatherNET/Blackhole/issues/577)) ([7b851ba](https://github.com/OneLiteFeatherNET/Blackhole/commit/7b851ba81d8f357d9eabebecdbcf2371e14ad5ca))
+* **velocity:** log owner ids instead of player names ([7b851ba](https://github.com/OneLiteFeatherNET/Blackhole/commit/7b851ba81d8f357d9eabebecdbcf2371e14ad5ca))
+* **velocity:** run the chat signal off the event thread ([#564](https://github.com/OneLiteFeatherNET/Blackhole/issues/564)) ([94662b3](https://github.com/OneLiteFeatherNET/Blackhole/commit/94662b35a9aedfa66a6533afb4ece839de4a4cb3))
+* **velocity:** single-flight the token refresh ([#569](https://github.com/OneLiteFeatherNET/Blackhole/issues/569)) ([06e442f](https://github.com/OneLiteFeatherNET/Blackhole/commit/06e442fb3002386f3ec1051364495e9b14436f0f))
+* **velocity:** stop delivering chat when mute state is unknown ([#561](https://github.com/OneLiteFeatherNET/Blackhole/issues/561)) ([65b1126](https://github.com/OneLiteFeatherNET/Blackhole/commit/65b112609c4dd226f45c04586acf7bc5458843ac))
+* **web:** fix focus, search, filter and player title issues ([#546](https://github.com/OneLiteFeatherNET/Blackhole/issues/546)) ([4837f0d](https://github.com/OneLiteFeatherNET/Blackhole/commit/4837f0d028b83a24369d3413f53cf1309f65a55a))
+
+
+### Documentation
+
+* **openspec:** propose add-integration-evidence ([#556](https://github.com/OneLiteFeatherNET/Blackhole/issues/556)) ([b3a8f16](https://github.com/OneLiteFeatherNET/Blackhole/commit/b3a8f166dbd0dbe5d47a2ecfab126eea9195c67b))
+* **openspec:** propose add-portal-bot-challenge ([#542](https://github.com/OneLiteFeatherNET/Blackhole/issues/542)) ([e8fe535](https://github.com/OneLiteFeatherNET/Blackhole/commit/e8fe5356340c3871c8d5ce8e77b813dfe60de755))
+* **openspec:** propose add-staff-panel-read-endpoints ([#545](https://github.com/OneLiteFeatherNET/Blackhole/issues/545)) ([8fa7878](https://github.com/OneLiteFeatherNET/Blackhole/commit/8fa7878c0ee2fc24b3938688c83ce6695107d8de))
+* **openspec:** propose add-vulcan-bridge ([#557](https://github.com/OneLiteFeatherNET/Blackhole/issues/557)) ([22be33d](https://github.com/OneLiteFeatherNET/Blackhole/commit/22be33d7bec05145d9947c4b49693f273fe9508d))
+* **openspec:** propose restructure-staff-panel ([#543](https://github.com/OneLiteFeatherNET/Blackhole/issues/543)) ([8c5f775](https://github.com/OneLiteFeatherNET/Blackhole/commit/8c5f7753086b022dd5916fb32043c99268a46458))
+
 ## [2.3.0](https://github.com/OneLiteFeatherNET/Blackhole/compare/v2.2.0...v2.3.0) (2026-11-01)
 
 
